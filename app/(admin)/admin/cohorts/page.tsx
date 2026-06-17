@@ -10,7 +10,7 @@ import { Card, Button, Input, Select, CohortDot, Modal, Label, EmptyState, Icon 
 import { cohortVar } from "@/lib/tokens";
 import { cn } from "@/lib/cn";
 
-const COLORS: CohortColor[] = [1, 2, 3, 4, 5, 6];
+const COLORS: CohortColor[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
 export default function CohortsPage() {
   const db = useDatabase();
@@ -26,7 +26,7 @@ export default function CohortsPage() {
   function openNew() {
     setEditing("new");
     setName("");
-    setColor((((db.cohorts.length) % 6) + 1) as CohortColor);
+    setColor(((db.cohorts.length % COLORS.length) + 1) as CohortColor);
   }
   function openEdit(c: Cohort) {
     setEditing(c);

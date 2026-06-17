@@ -7,8 +7,8 @@
 // 1. Cohorts
 // ----------------------------------------------------------------------------
 
-/** Index into the six cohort-dot tokens (--color-cohort-1..6). */
-export type CohortColor = 1 | 2 | 3 | 4 | 5 | 6;
+/** Index into the cohort-dot tokens (--color-cohort-1..12). */
+export type CohortColor = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 
 export interface Cohort {
   id: string;

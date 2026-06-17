@@ -39,13 +39,19 @@
   --color-info: #345c8f; /* informational / secondary accent */
   --color-info-soft: #e1e9f2;
 
-  /* ---- Six cohort dots: a clear, distinct set on warm paper ---- */
+  /* ---- Cohort dots: a clear, distinct set on warm paper (no purple/pink) ---- */
   --color-cohort-1: #1f7a6b; /* pine */
   --color-cohort-2: #3f5ba9; /* indigo */
   --color-cohort-3: #dd6e47; /* coral */
   --color-cohort-4: #c2941f; /* gold */
   --color-cohort-5: #6e8b3d; /* olive */
   --color-cohort-6: #5c7a99; /* slate */
+  --color-cohort-7: #b35545; /* clay */
+  --color-cohort-8: #2f76a0; /* ocean */
+  --color-cohort-9: #1f8a86; /* jade */
+  --color-cohort-10: #b9772a; /* caramel */
+  --color-cohort-11: #3f7d4f; /* forest */
+  --color-cohort-12: #8a6240; /* sepia */
 
   /* ---- Radii ---- */
   --radius-xs: 0.25rem;
