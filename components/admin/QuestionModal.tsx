@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { QuestionCommon, QuestionType, QuestionVariant } from "@/types";
-import { Modal, Button, Input, Textarea, Label, RadioCard, Checkbox } from "@/components/ui";
+import { Modal, Button, Input, Textarea, Label, Checkbox } from "@/components/ui";
+import { cn } from "@/lib/cn";
 
 /**
  * Question payload minus the test-only `order` / `id`; `subject` for bank items.
@@ -145,24 +146,37 @@ export function QuestionModal({
             <Label>Options — select the correct one</Label>
             <div className="space-y-2">
               {options.map((opt, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <RadioCard
-                    name="correct"
-                    checked={correctIndex === i}
-                    onChange={() => setCorrectIndex(i)}
-                    label={
-                      <input
-                        value={opt}
-                        onChange={(e) => setOptions((prev) => prev.map((o, j) => (j === i ? e.target.value : o)))}
-                        placeholder={`Option ${i + 1}`}
-                        className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-3"
-                        aria-label={`Option ${i + 1}`}
-                      />
-                    }
+                <div
+                  key={i}
+                  className={cn(
+                    "flex min-h-[52px] items-center gap-3 rounded-md border px-4 py-2 transition-colors",
+                    correctIndex === i ? "border-brand bg-brand-soft" : "border-border-strong bg-surface",
+                  )}
+                >
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={correctIndex === i}
+                    aria-label={`Mark option ${i + 1} as correct`}
+                    onClick={() => setCorrectIndex(i)}
+                    className={cn(
+                      "flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors",
+                      correctIndex === i ? "border-brand" : "border-border-strong hover:border-brand/50",
+                    )}
+                  >
+                    {correctIndex === i && <span className="h-2.5 w-2.5 rounded-full bg-brand" />}
+                  </button>
+                  <input
+                    value={opt}
+                    onChange={(e) => setOptions((prev) => prev.map((o, j) => (j === i ? e.target.value : o)))}
+                    placeholder={`Option ${i + 1}`}
+                    className="w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-3"
+                    aria-label={`Option ${i + 1}`}
                   />
                 </div>
               ))}
             </div>
+            <p className="mt-1.5 text-xs text-ink-3">Tap the circle to mark the correct answer.</p>
             {errors.options && <p className="mt-1.5 text-sm font-medium text-error">{errors.options}</p>}
           </div>
         )}

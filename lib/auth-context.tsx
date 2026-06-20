@@ -44,11 +44,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let active = true;
     const sb = supabase();
 
-    sb.auth.getSession().then(async ({ data }) => {
-      if (!active) return;
-      if (data.session?.user) await establish(data.session.user);
-      if (active) setInitializing(false);
-    });
+    sb.auth.getSession()
+      .then(async ({ data }) => {
+        if (active && data.session?.user) await establish(data.session.user);
+      })
+      .catch((e) => {
+        // Stale/invalid session (e.g. the user was deleted) — sign out cleanly.
+        console.error("auth init failed", e);
+        void sb.auth.signOut();
+        getStore().reset();
+      })
+      .finally(() => {
+        if (active) setInitializing(false);
+      });
 
     const { data: sub } = sb.auth.onAuthStateChange(async (event, sess) => {
       if (!active) return;
@@ -60,7 +68,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       // Avoid redundant reloads on token refresh for the same user.
       if (sess.user.id === currentUserId.current) return;
-      await establish(sess.user);
+      try {
+        await establish(sess.user);
+      } catch (e) {
+        console.error("auth state change failed", e);
+      }
     });
 
     return () => {
