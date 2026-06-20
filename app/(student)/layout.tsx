@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { useDatabase } from "@/lib/data/store";
+import { useDatabase, useDataReady } from "@/lib/data/store";
 import { studentById } from "@/lib/data/selectors";
 import { BrandMark } from "@/components/Brand";
 import { CohortTag } from "@/components/ui";
@@ -13,17 +13,18 @@ import { cohortById } from "@/lib/data/selectors";
 import { cn } from "@/lib/cn";
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
-  const { session, logout } = useAuth();
+  const { session, logout, initializing } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const db = useDatabase();
+  const ready = useDataReady();
 
   useEffect(() => {
-    if (!session || session.role !== "student") router.replace("/login");
-  }, [session, router]);
+    if (!initializing && (!session || session.role !== "student")) router.replace("/login");
+  }, [session, initializing, router]);
 
-  if (!session || session.role !== "student" || !session.studentId) {
-    return <div className="flex min-h-dvh items-center justify-center text-ink-3">Redirecting…</div>;
+  if (initializing || !ready || !session || session.role !== "student" || !session.studentId) {
+    return <div className="flex min-h-dvh items-center justify-center text-ink-3">Loading…</div>;
   }
 
   const student = studentById(db, session.studentId);

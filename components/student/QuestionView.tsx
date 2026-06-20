@@ -1,8 +1,10 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { Answer, Question } from "@/types";
 import { RadioCard, Textarea, Pill, Badge, Button, Icon } from "@/components/ui";
+import { uploadImage } from "@/lib/cloudinary";
+import { useToast } from "@/components/toast";
 
 /** Renders one question and its answer control (MCQ / Text / Photo). */
 export function QuestionView({
@@ -64,14 +66,23 @@ export function QuestionView({
 
 function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: Answer) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+  const [uploading, setUploading] = useState(false);
 
-  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    // TODO(cloudinary): upload the file and store the returned URL instead.
-    reader.onload = () => onChange({ ...answer, photoDataUrl: String(reader.result) });
-    reader.readAsDataURL(file);
+    setUploading(true);
+    try {
+      // Upload straight to Cloudinary; we persist the returned secure_url.
+      const url = await uploadImage(file);
+      onChange({ ...answer, photoDataUrl: url });
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Photo upload failed. Try again.", "error");
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
   }
 
   return (
@@ -93,18 +104,19 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
             alt="Your submitted answer"
             className="max-h-72 w-full rounded-lg border border-border object-contain bg-surface-2"
           />
-          <Button variant="secondary" type="button" onClick={() => inputRef.current?.click()}>
+          <Button variant="secondary" type="button" loading={uploading} onClick={() => inputRef.current?.click()}>
             <Icon.Camera className="h-4 w-4" /> Retake photo
           </Button>
         </div>
       ) : (
         <button
           type="button"
+          disabled={uploading}
           onClick={() => inputRef.current?.click()}
-          className="flex min-h-40 w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border-strong bg-surface text-ink-2 transition-colors hover:border-brand hover:bg-brand-soft/40"
+          className="flex min-h-40 w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border-strong bg-surface text-ink-2 transition-colors hover:border-brand hover:bg-brand-soft/40 disabled:opacity-60"
         >
           <Icon.Camera className="h-7 w-7" />
-          <span className="text-sm font-semibold">Take or upload a photo</span>
+          <span className="text-sm font-semibold">{uploading ? "Uploading…" : "Take or upload a photo"}</span>
           <span className="text-xs text-ink-3">Snap your handwritten working</span>
         </button>
       )}

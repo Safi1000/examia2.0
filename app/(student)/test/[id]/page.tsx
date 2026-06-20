@@ -67,14 +67,14 @@ export default function TestRunnerPage() {
   }, [test, boot.startedAt]);
 
   const doSubmit = useCallback(
-    (auto: boolean) => {
+    async (auto: boolean) => {
       if (submittedRef.current || !test || !student) return;
       submittedRef.current = true;
       const duration = Math.min(
         test.durationMinutes * 60,
         Math.round((Date.now() - new Date(boot.startedAt).getTime()) / 1000),
       );
-      store.submitTest({
+      await store.submitTest({
         testId: test.id,
         studentId: student.id,
         answers,

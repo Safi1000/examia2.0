@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { AuthProvider } from "@/lib/auth-context";
-import { ToastProvider } from "@/components/toast";
+import { ToastProvider, useToast } from "@/components/toast";
+import { getStore } from "@/lib/data/store";
 import { BUILD_CREDIT, COMPANY_NAME } from "@/lib/config";
 
 /**
@@ -25,15 +26,25 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthProvider>
-      <ToastProvider>
+    <ToastProvider>
+      <StoreErrorBridge />
+      <AuthProvider>
         <div className="relative z-10 flex min-h-dvh flex-col">
           <div className="flex-1">{children}</div>
           <GlobalFooter />
         </div>
-      </ToastProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </ToastProvider>
   );
+}
+
+/** Routes background persistence failures from the data seam to a toast. */
+function StoreErrorBridge() {
+  const { toast } = useToast();
+  useEffect(() => {
+    getStore().setErrorReporter((msg) => toast(msg, "error"));
+  }, [toast]);
+  return null;
 }
 
 /** Persistent, understated build credit — present on every screen. */

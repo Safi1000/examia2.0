@@ -71,26 +71,43 @@ hooks/               useCountdown, useDraftAutosave, useSessionTimeout,
 types/               the 8 domain entities
 ```
 
-### One data seam, backend-ready
+### One data seam, Supabase-backed
 
-Every read/write goes through **`lib/data/store.ts`**. Today it is a typed,
-localStorage-backed mock seeded from `lib/data/seed.ts`. To ship a real backend
-you reimplement the store's action methods against Supabase — components never
-touch storage. Integration points (auth/hashing, RLS-equivalent cohort scoping,
-Cloudinary photo upload, server-side answer keys) are marked with `TODO(…)` at
-the seam, and pure logic (`lib/grading.ts`, `lib/scoring.ts`, `lib/time.ts`) is
-side-effect-free and unit-testable.
+Every read/write goes through **`lib/data/store.ts`**. It keeps an in-memory
+cache hydrated from Supabase per session (scoped by Row-Level Security) so
+components stay synchronous — they call `useDatabase()` / store actions without
+awaiting, while actions update the cache optimistically (client-generated UUIDs)
+and persist in the background. Pure logic (`lib/grading.ts`, `lib/scoring.ts`,
+`lib/time.ts`) stays side-effect-free and unit-testable.
+
+Backend pieces:
+
+- **Auth** — Supabase Auth (`lib/auth-context.tsx`). Students log in by username
+  (mapped to a synthetic `username@students.examia.local` email); the admin signs
+  into `NEXT_PUBLIC_ADMIN_EMAIL` and carries an `admin` role claim.
+- **Schema / RLS / triggers** — `supabase/migrations/` (8 tables). MCQ grading
+  runs in a Postgres trigger; answer keys live in an admin-only `question_keys`
+  table and never reach a student client. RLS scopes tests/announcements by
+  cohort and submissions/answers by ownership (answers only become readable once
+  released).
+- **Privileged user provisioning** — the `admin-users` edge function
+  (`supabase/functions/`) creates/updates/deletes student auth users with the
+  service role, after verifying the caller is an admin.
+- **Photo upload** — Cloudinary unsigned upload (`lib/cloudinary.ts`); the
+  returned `secure_url` is stored on the answer.
 
 ## Develop
 
 ```bash
-npm install
-npm run dev      # http://localhost:3000
-npm run build    # production build
+npm install --legacy-peer-deps   # the vendored Next pin needs this flag
+cp .env.example .env.local       # then fill in Supabase + Cloudinary values
+npm run dev                      # http://localhost:3000
+npm run build                    # production build
 ```
 
-To reset the demo data, clear the `examia.*` keys in localStorage (or run
-`getStore().resetToSeed()` from the console).
+Required env (see `.env.example`): `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_CLOUDINARY_CLOUD`,
+`NEXT_PUBLIC_CLOUDINARY_PRESET`, `NEXT_PUBLIC_ADMIN_EMAIL`.
 
 ## Out of scope
 

@@ -27,10 +27,11 @@ export interface Student {
   email?: string;
   cohortId: string;
   /**
-   * Mock only stores a plaintext temp password so the demo can log in.
-   * TODO(auth): replace with server-side PBKDF2 hash; never store plaintext.
+   * Initial password, used only when the admin creates/edits a student (the
+   * Edge Function provisions the Supabase Auth user with it). Never loaded back
+   * from the server — auth owns the credential after that.
    */
-  tempPassword: string;
+  tempPassword?: string;
   createdAt: string;
 }
 

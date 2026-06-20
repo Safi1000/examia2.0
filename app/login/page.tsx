@@ -21,23 +21,20 @@ export default function StudentLoginPage() {
 
   const canSubmit = username.trim().length > 0 && password.length > 0 && !lock.isLocked;
 
-  function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
     setBusy(true);
     setError(null);
-    // Simulate the round-trip a real auth call would make.
-    window.setTimeout(() => {
-      const ok = loginStudent(username, password);
-      if (ok) {
-        lock.reset();
-        router.push("/dashboard");
-      } else {
-        lock.registerFailure();
-        setError("That username and password don't match. Please try again.");
-        setBusy(false);
-      }
-    }, 350);
+    const ok = await loginStudent(username, password);
+    if (ok) {
+      lock.reset();
+      router.push("/dashboard");
+    } else {
+      lock.registerFailure();
+      setError("That username and password don't match. Please try again.");
+      setBusy(false);
+    }
   }
 
   return (

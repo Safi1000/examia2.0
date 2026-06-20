@@ -20,22 +20,20 @@ export function AdminLogin() {
 
   const canSubmit = password.length > 0 && !lock.isLocked;
 
-  function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
     setBusy(true);
     setError(null);
-    window.setTimeout(() => {
-      if (loginAdmin(password)) {
-        lock.reset();
-        router.replace("/admin/tests");
-      } else {
-        lock.registerFailure();
-        setError("Incorrect administrator password.");
-        setBusy(false);
-        setPassword("");
-      }
-    }, 350);
+    if (await loginAdmin(password)) {
+      lock.reset();
+      router.replace("/admin/tests");
+    } else {
+      lock.registerFailure();
+      setError("Incorrect administrator password.");
+      setBusy(false);
+      setPassword("");
+    }
   }
 
   return (

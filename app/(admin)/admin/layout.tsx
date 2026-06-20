@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useDataReady } from "@/lib/data/store";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { useToast } from "@/components/toast";
 import { AdminFilterProvider } from "@/lib/admin-filter";
@@ -14,9 +15,10 @@ import { Wordmark } from "@/components/Brand";
 const IDLE_MS = 30 * 60 * 1000; // 30-minute idle session timeout
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { session, logout } = useAuth();
+  const { session, logout, initializing } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const ready = useDataReady();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isAdmin = session?.role === "admin";
@@ -31,7 +33,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     isAdmin,
   );
 
+  if (initializing) {
+    return <div className="flex min-h-dvh items-center justify-center text-ink-3">Loading…</div>;
+  }
   if (!isAdmin) return <AdminLogin />;
+  if (!ready) {
+    return <div className="flex min-h-dvh items-center justify-center text-ink-3">Loading…</div>;
+  }
 
   return (
     <AdminFilterProvider>

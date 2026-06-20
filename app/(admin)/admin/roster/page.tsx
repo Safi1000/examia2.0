@@ -44,7 +44,7 @@ export default function RosterPage() {
   }
   function openEdit(s: Student) {
     setEditing(s);
-    setForm({ username: s.username, email: s.email ?? "", cohortId: s.cohortId, tempPassword: s.tempPassword });
+    setForm({ username: s.username, email: s.email ?? "", cohortId: s.cohortId, tempPassword: s.tempPassword ?? "" });
     setError(null);
   }
   function save() {

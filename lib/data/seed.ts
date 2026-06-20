@@ -24,8 +24,8 @@ export interface Database {
   submissions: Submission[];
   announcements: Announcement[];
   bank: QuestionBankItem[];
-  /** TODO(auth): admin auth is server-side; mock stores a demo password. */
-  adminPassword: string;
+  /** Demo-only. Real admin auth is Supabase Auth; the live store omits this. */
+  adminPassword?: string;
 }
 
 const MIN = 60_000;
