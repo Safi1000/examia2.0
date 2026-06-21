@@ -432,10 +432,17 @@ class Store {
     });
     const sb = supabase();
     const v = q as QuestionInput;
-    this.run(sb.from("questions").insert(questionToRow(testId, id, q, order)), "addQuestion");
-    if (v.type === "mcq") {
-      this.run(sb.from("question_keys").insert({ question_id: id, correct_index: v.correctIndex }), "addQuestion/key");
-    }
+    // The key has a FK to questions(id), so it MUST be inserted after the
+    // question row commits — otherwise a concurrent insert can lose the key and
+    // the MCQ grades as wrong. Sequence the two writes.
+    void (async () => {
+      const { error: qErr } = await sb.from("questions").insert(questionToRow(testId, id, q, order));
+      if (qErr) return this.report(`addQuestion: ${qErr.message}`);
+      if (v.type === "mcq") {
+        const { error: kErr } = await sb.from("question_keys").insert({ question_id: id, correct_index: v.correctIndex });
+        if (kErr) this.report(`addQuestion/key: ${kErr.message}`);
+      }
+    })();
   }
   updateQuestion(testId: string, questionId: string, q: Omit<Question, "id" | "order">) {
     let order = 0;
@@ -451,15 +458,19 @@ class Store {
     const v = q as QuestionInput;
     const { id: _id, test_id: _t, sort_order: _o, ...fields } = questionToRow(testId, questionId, q, order);
     void _id; void _t; void _o;
-    this.run(sb.from("questions").update(fields).eq("id", questionId), "updateQuestion");
-    if (v.type === "mcq") {
-      this.run(
-        sb.from("question_keys").upsert({ question_id: questionId, correct_index: v.correctIndex }),
-        "updateQuestion/key",
-      );
-    } else {
-      this.run(sb.from("question_keys").delete().eq("question_id", questionId), "updateQuestion/key-clear");
-    }
+    void (async () => {
+      const { error: qErr } = await sb.from("questions").update(fields).eq("id", questionId);
+      if (qErr) return this.report(`updateQuestion: ${qErr.message}`);
+      if (v.type === "mcq") {
+        const { error: kErr } = await sb
+          .from("question_keys")
+          .upsert({ question_id: questionId, correct_index: v.correctIndex });
+        if (kErr) this.report(`updateQuestion/key: ${kErr.message}`);
+      } else {
+        const { error: kErr } = await sb.from("question_keys").delete().eq("question_id", questionId);
+        if (kErr) this.report(`updateQuestion/key-clear: ${kErr.message}`);
+      }
+    })();
   }
   deleteQuestion(testId: string, questionId: string) {
     this.commit((d) => {
@@ -493,6 +504,7 @@ class Store {
   }
   importBankItems(testId: string, bankIds: string[]) {
     const sb = supabase();
+    const pending: { id: string; rest: Omit<Question, "id" | "order">; order: number; correctIndex?: number }[] = [];
     this.commit((d) => {
       const t = d.tests.find((x) => x.id === testId);
       if (!t) return;
@@ -503,14 +515,26 @@ class Store {
         const order = t.questions.length;
         const { subject: _s, id: _i, ...rest } = item;
         void _s; void _i;
-        const q = { ...rest, id, order } as Question;
-        t.questions.push(q);
-        this.run(sb.from("questions").insert(questionToRow(testId, id, rest as Omit<Question, "id" | "order">, order)), "importBank");
-        if (item.type === "mcq") {
-          this.run(sb.from("question_keys").insert({ question_id: id, correct_index: item.correctIndex }), "importBank/key");
-        }
+        t.questions.push({ ...rest, id, order } as Question);
+        pending.push({
+          id,
+          rest: rest as Omit<Question, "id" | "order">,
+          order,
+          correctIndex: item.type === "mcq" ? item.correctIndex : undefined,
+        });
       });
     });
+    // Persist each question, then its key (FK ordering — see addQuestion).
+    void (async () => {
+      for (const p of pending) {
+        const { error: qErr } = await sb.from("questions").insert(questionToRow(testId, p.id, p.rest, p.order));
+        if (qErr) { this.report(`importBank: ${qErr.message}`); continue; }
+        if (p.correctIndex !== undefined) {
+          const { error: kErr } = await sb.from("question_keys").insert({ question_id: p.id, correct_index: p.correctIndex });
+          if (kErr) this.report(`importBank/key: ${kErr.message}`);
+        }
+      }
+    })();
   }
 
   // ---- Submissions -----------------------------------------------------
