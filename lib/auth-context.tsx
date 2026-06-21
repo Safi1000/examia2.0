@@ -9,7 +9,7 @@ import { ADMIN_EMAIL, studentEmail } from "@/lib/config";
 
 interface AuthContextValue {
   session: Session | null;
-  /** True until the initial Supabase session check resolves. */
+  /** True while a session is being brought up (initial load or login). */
   initializing: boolean;
   loginStudent: (username: string, password: string) => Promise<boolean>;
   loginAdmin: (password: string) => Promise<boolean>;
@@ -32,32 +32,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [initializing, setInitializing] = useState(true);
   const currentUserId = useRef<string | null>(null);
 
+  /**
+   * Bring up a session: resolve role, hydrate the data cache, publish. Idempotent
+   * per user — the synchronous guard+set runs atomically, so whichever of login
+   * or the auth listener reaches it first wins and the other no-ops. Safe to call
+   * from login (outside the auth lock) but NEVER directly inside onAuthStateChange.
+   */
+  const establish = useCallback(async (user: User) => {
+    if (currentUserId.current === user.id) return;
+    currentUserId.current = user.id;
+    setInitializing(true);
+    try {
+      const next = await resolveSession(user);
+      await getStore().load();
+      setSession(next);
+    } catch (e) {
+      console.error("auth establish failed", e);
+    } finally {
+      setInitializing(false);
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
     const sb = supabase();
 
-    // IMPORTANT: do NOT await Supabase calls *inside* the onAuthStateChange
-    // callback — supabase-js holds an auth lock during it and any awaited auth
-    // call (token read, queries, getStore().load()) deadlocks, hanging the app
-    // on "Loading…". We defer all real work to a microtask outside the callback.
-    // onAuthStateChange also fires once on subscribe with the current session,
-    // so it doubles as our initial bootstrap (no separate getSession needed).
-    const establish = (user: User) => {
-      currentUserId.current = user.id;
-      setTimeout(async () => {
-        if (!active) return;
-        try {
-          const next = await resolveSession(user);
-          await getStore().load();
-          if (active) setSession(next);
-        } catch (e) {
-          console.error("auth establish failed", e);
-        } finally {
-          if (active) setInitializing(false);
-        }
-      }, 0);
-    };
-
+    // onAuthStateChange fires once on subscribe with the current session, so it
+    // doubles as our initial bootstrap. We must NOT await Supabase calls inside
+    // this callback (it runs under an auth lock and would deadlock), so establish
+    // is deferred to a macrotask outside the callback.
     const { data: sub } = sb.auth.onAuthStateChange((_event, sess) => {
       if (!active) return;
       if (!sess?.user) {
@@ -67,39 +70,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setInitializing(false);
         return;
       }
-      // Ignore token-refresh churn for the already-active user.
-      if (sess.user.id === currentUserId.current) return;
-      // Hold layouts in "Loading…" (not "redirect to login") until establish finishes.
-      setInitializing(true);
-      establish(sess.user);
+      if (sess.user.id === currentUserId.current) return; // ignore token-refresh churn
+      setTimeout(() => {
+        if (active) void establish(sess.user);
+      }, 0);
     });
 
     return () => {
       active = false;
       sub.subscription.unsubscribe();
     };
-  }, []);
+  }, [establish]);
 
-  // Login just authenticates; onAuthStateChange (above) loads data + publishes
-  // the session. Returning quickly lets the caller navigate while the
-  // destination layout shows its own "Loading…" until the cache is ready.
-  const loginStudent = useCallback(async (username: string, password: string) => {
-    const { error } = await supabase().auth.signInWithPassword({ email: studentEmail(username), password });
-    if (error) return false;
-    setInitializing(true); // keep the destination layout in Loading until establish runs
-    return true;
-  }, []);
+  const loginStudent = useCallback(
+    async (username: string, password: string) => {
+      const { data, error } = await supabase().auth.signInWithPassword({
+        email: studentEmail(username),
+        password,
+      });
+      if (error || !data.user) return false;
+      await establish(data.user); // fully ready before the caller navigates
+      return true;
+    },
+    [establish],
+  );
 
-  const loginAdmin = useCallback(async (password: string) => {
-    const { data, error } = await supabase().auth.signInWithPassword({ email: ADMIN_EMAIL, password });
-    if (error || !data.user) return false;
-    if ((data.user.app_metadata as Record<string, unknown>)?.role !== "admin") {
-      await supabase().auth.signOut();
-      return false;
-    }
-    setInitializing(true);
-    return true;
-  }, []);
+  const loginAdmin = useCallback(
+    async (password: string) => {
+      const { data, error } = await supabase().auth.signInWithPassword({ email: ADMIN_EMAIL, password });
+      if (error || !data.user) return false;
+      if ((data.user.app_metadata as Record<string, unknown>)?.role !== "admin") {
+        await supabase().auth.signOut();
+        return false;
+      }
+      await establish(data.user);
+      return true;
+    },
+    [establish],
+  );
 
   const logout = useCallback(() => {
     void supabase().auth.signOut(); // onAuthStateChange clears session + cache
