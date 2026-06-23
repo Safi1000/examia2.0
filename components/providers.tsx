@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AuthProvider } from "@/lib/auth-context";
 import { ToastProvider, useToast } from "@/components/toast";
 import { getStore } from "@/lib/data/store";
+import { ThemeManager } from "@/components/ThemeManager";
 import { BUILD_CREDIT, COMPANY_NAME } from "@/lib/config";
 
 /**
@@ -29,6 +30,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ToastProvider>
       <StoreErrorBridge />
       <AuthProvider>
+        <ThemeManager />
         <div className="relative z-10 flex min-h-dvh flex-col">
           <div className="flex-1">{children}</div>
           <GlobalFooter />

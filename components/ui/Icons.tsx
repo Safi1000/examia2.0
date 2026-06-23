@@ -48,4 +48,10 @@ export const Icon = {
   Flag: (p: P) => <Base {...p}><path d="M5 21V4M5 4h11l-2 4 2 4H5" /></Base>,
   Warn: (p: P) => <Base {...p}><path d="M12 4 2.5 20h19L12 4ZM12 10v4M12 17.5v.5" /></Base>,
   Refresh: (p: P) => <Base {...p}><path d="M4 9a8 8 0 0 1 14-3l2 2M20 15a8 8 0 0 1-14 3l-2-2M18 4v4h-4M6 20v-4h4" /></Base>,
+  Palette: (p: P) => (
+    <Base {...p}>
+      <path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-.9-.5-1.3-.3-.4-.5-.8-.5-1.2 0-1 .8-1.7 1.8-1.7H17a4 4 0 0 0 4-4c0-4.4-4-7.8-9-7.8Z" />
+      <circle cx="7.5" cy="11.5" r="1" /><circle cx="12" cy="8.5" r="1" /><circle cx="16" cy="11" r="1" />
+    </Base>
+  ),
 };

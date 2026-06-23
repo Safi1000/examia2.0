@@ -17,6 +17,7 @@ const NAV = [
   { href: "/admin/announcements", label: "Announcements", icon: Icon.Megaphone },
   { href: "/admin/analytics", label: "Analytics", icon: Icon.Chart },
   { href: "/admin/export", label: "Export", icon: Icon.Download },
+  { href: "/admin/settings", label: "Settings", icon: Icon.Palette },
 ];
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {

@@ -6,6 +6,13 @@ import type { Role, Session } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { getStore } from "@/lib/data/store";
 import { ADMIN_EMAIL, studentEmail } from "@/lib/config";
+import {
+  DEFAULT_THEME_ID,
+  loadLastThemeId,
+  loadThemeId,
+  saveThemeId,
+  themeUserKey,
+} from "@/lib/theme";
 
 interface AuthContextValue {
   session: Session | null;
@@ -15,6 +22,9 @@ interface AuthContextValue {
   loginAdmin: (password: string) => Promise<boolean>;
   logout: () => void;
   isRole: (role: Role) => boolean;
+  /** Current accent theme id; persists per user (server + local cache). */
+  themeId: string;
+  setTheme: (id: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -30,6 +40,7 @@ async function resolveSession(user: User): Promise<Session> {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [initializing, setInitializing] = useState(true);
+  const [themeId, setThemeId] = useState<string>(() => loadLastThemeId());
   const currentUserId = useRef<string | null>(null);
 
   /**
@@ -46,6 +57,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const next = await resolveSession(user);
       await getStore().load();
       setSession(next);
+      // Server-stored preference is the source of truth; fall back to this
+      // device's last choice, then default. Sync the local cache either way.
+      const serverTheme = (user.user_metadata as Record<string, unknown>)?.theme as string | undefined;
+      const tid = serverTheme || loadThemeId(themeUserKey(next)) || DEFAULT_THEME_ID;
+      setThemeId(tid);
+      saveThemeId(themeUserKey(next), tid);
     } catch (e) {
       console.error("auth establish failed", e);
     } finally {
@@ -114,7 +131,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     currentUserId.current = null;
     getStore().reset();
     setSession(null);
+    setThemeId(DEFAULT_THEME_ID);
   }, []);
+
+  /** Persist the accent choice for this user: state + local cache + server. */
+  const setTheme = useCallback(
+    (id: string) => {
+      setThemeId(id);
+      saveThemeId(themeUserKey(session), id);
+      void supabase().auth.updateUser({ data: { theme: id } });
+    },
+    [session],
+  );
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -124,8 +152,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loginAdmin,
       logout,
       isRole: (role) => session?.role === role,
+      themeId,
+      setTheme,
     }),
-    [session, initializing, loginStudent, loginAdmin, logout],
+    [session, initializing, loginStudent, loginAdmin, logout, themeId, setTheme],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
