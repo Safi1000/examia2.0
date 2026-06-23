@@ -14,44 +14,45 @@
   --font-body: var(--font-hanken), system-ui, sans-serif;
   --font-mono: var(--font-spline-mono), ui-monospace, monospace;
 
-  /* ---- Neutral ramp (warm paper) ---- */
-  --color-paper: #f4f1e9; /* page background */
-  --color-surface: #fcfaf4; /* cards / raised surfaces */
-  --color-surface-2: #ece7da; /* inset / secondary surfaces */
-  --color-border: #ded7c7;
-  --color-border-strong: #c9c0ac;
-  --color-ink: #23211c; /* text-primary */
-  --color-ink-2: #57534a; /* text-secondary */
-  --color-ink-3: #8b8676; /* text-muted */
+  /* ---- Neutral ramp (dark UI) ---- */
+  --color-paper: #1a1d20;       /* page background */
+  --color-surface: #22262b;     /* cards / raised surfaces */
+  --color-surface-2: #2a2f35;   /* inset / secondary surfaces */
+  --color-border: #2f3540;
+  --color-border-strong: #3d4655;
+  --color-ink: #f0ede8;         /* text-primary */
+  --color-ink-2: #a8a49e;       /* text-secondary */
+  --color-ink-3: #6b6760;       /* text-muted */
 
-  /* ---- Semantic roles (re-derived values, original logic preserved) ---- */
-  --color-brand: #0e6e68; /* primary: CTA, focus, active nav */
-  --color-brand-strong: #0a5852; /* hover / pressed */
-  --color-brand-soft: #dfeceb; /* tinted brand background */
-  --color-on-brand: #fcfaf4;
+  /* ---- Brand / accent (gold — overridden by ThemeManager per user) ---- */
+  --color-brand: #FBC159;
+  --color-brand-strong: #e5a832;
+  --color-brand-soft: #2e2510;
+  --color-on-brand: #1a1d20;
 
-  --color-success: #267a4b; /* positive, mastery > 60%, submitted/released */
-  --color-success-soft: #e1efe6;
-  --color-warning: #a76a0c; /* weak topic 50-60%, pending, soft alert */
-  --color-warning-soft: #f4e9d2;
-  --color-error: #b23a2e; /* critical < 50%, destructive, failure */
-  --color-error-soft: #f5e0db;
-  --color-info: #345c8f; /* informational / secondary accent */
-  --color-info-soft: #e1e9f2;
+  /* ---- Semantic roles ---- */
+  --color-success: #6FBBA8;
+  --color-success-soft: #162926;
+  --color-warning: #f0a040;
+  --color-warning-soft: #2c2010;
+  --color-error: #E5685A;
+  --color-error-soft: #2c1512;
+  --color-info: #6a9fd8;
+  --color-info-soft: #182436;
 
-  /* ---- Cohort dots: a clear, distinct set on warm paper (no purple/pink) ---- */
-  --color-cohort-1: #1f7a6b; /* pine */
-  --color-cohort-2: #3f5ba9; /* indigo */
-  --color-cohort-3: #dd6e47; /* coral */
-  --color-cohort-4: #c2941f; /* gold */
-  --color-cohort-5: #6e8b3d; /* olive */
-  --color-cohort-6: #5c7a99; /* slate */
-  --color-cohort-7: #b35545; /* clay */
-  --color-cohort-8: #2f76a0; /* ocean */
-  --color-cohort-9: #1f8a86; /* jade */
-  --color-cohort-10: #b9772a; /* caramel */
-  --color-cohort-11: #3f7d4f; /* forest */
-  --color-cohort-12: #8a6240; /* sepia */
+  /* ---- Cohort dots (vibrant on dark) ---- */
+  --color-cohort-1: #4db8a7;
+  --color-cohort-2: #6b8fdb;
+  --color-cohort-3: #e8845e;
+  --color-cohort-4: #d4a534;
+  --color-cohort-5: #8ab54e;
+  --color-cohort-6: #7a9dba;
+  --color-cohort-7: #d46b5a;
+  --color-cohort-8: #4aa0c8;
+  --color-cohort-9: #3bbaa6;
+  --color-cohort-10: #d9903f;
+  --color-cohort-11: #5aaa6e;
+  --color-cohort-12: #b08060;
 
   /* ---- Radii ---- */
   --radius-xs: 0.25rem;
@@ -73,9 +74,9 @@
 
 /* Shadows + texture vars cascade here so they stay swappable */
 :root {
-  --shadow-sm: 0 1px 2px rgba(35, 33, 28, 0.06), 0 1px 1px rgba(35, 33, 28, 0.04);
-  --shadow-md: 0 4px 14px rgba(35, 33, 28, 0.08), 0 1px 3px rgba(35, 33, 28, 0.05);
-  --shadow-lg: 0 18px 40px rgba(35, 33, 28, 0.14), 0 4px 10px rgba(35, 33, 28, 0.07);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 1px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 18px 40px rgba(0, 0, 0, 0.55), 0 4px 10px rgba(0, 0, 0, 0.35);
   --ruled-margin: var(--color-brand);
 }
 
@@ -117,17 +118,6 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Subtle paper grain — the one aesthetic risk, kept restrained */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.5;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-}
-
 h1, h2, h3, h4, h5 {
   font-family: var(--font-display);
   font-weight: 700;
@@ -159,6 +149,18 @@ h1, h2, h3, h4, h5 {
 }
 
 ::selection { background: var(--color-brand); color: var(--color-on-brand); }
+
+/* Prevent browser autofill from flashing a white background on dark inputs */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0px 1000px var(--color-surface) inset !important;
+  -webkit-text-fill-color: var(--color-ink) !important;
+  caret-color: var(--color-ink);
+}
 
 * { scrollbar-width: thin; scrollbar-color: var(--color-border-strong) transparent; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }

@@ -19,7 +19,7 @@ interface AuthContextValue {
   /** True while a session is being brought up (initial load or login). */
   initializing: boolean;
   loginStudent: (username: string, password: string) => Promise<boolean>;
-  loginAdmin: (password: string) => Promise<boolean>;
+  loginAdmin: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isRole: (role: Role) => boolean;
   /** Current accent theme id; persists per user (server + local cache). */
@@ -113,8 +113,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const loginAdmin = useCallback(
-    async (password: string) => {
-      const { data, error } = await supabase().auth.signInWithPassword({ email: ADMIN_EMAIL, password });
+    async (email: string, password: string) => {
+      const { data, error } = await supabase().auth.signInWithPassword({ email, password });
       if (error || !data.user) return false;
       if ((data.user.app_metadata as Record<string, unknown>)?.role !== "admin") {
         await supabase().auth.signOut();

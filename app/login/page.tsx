@@ -93,9 +93,6 @@ export default function StudentLoginPage() {
             </p>
           </form>
 
-          <div className="mt-5 animate-fade-up rounded-lg border border-dashed border-border-strong bg-surface/60 px-4 py-3 text-center text-xs text-ink-2" style={{ animationDelay: "200ms" }}>
-            <span className="font-semibold text-ink">Demo student</span> — username <span className="font-mono text-ink">amelia</span>, password <span className="font-mono text-ink">study123</span>
-          </div>
         </div>
       </div>
 
