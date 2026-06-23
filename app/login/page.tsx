@@ -4,10 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useLockout } from "@/hooks/useLockout";
-import { Button, Input } from "@/components/ui";
-import { BrandMark } from "@/components/Brand";
 import { COMPANY_NAME } from "@/lib/config";
 import { formatCountdown } from "@/lib/time";
+import { cn } from "@/lib/cn";
+
+const fieldClass =
+  "w-full h-12 rounded-md border border-border-strong bg-surface-2 px-3.5 text-ink " +
+  "placeholder:text-ink-3 transition-colors " +
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand " +
+  "disabled:cursor-not-allowed disabled:opacity-60";
 
 export default function StudentLoginPage() {
   const router = useRouter();
@@ -38,70 +43,103 @@ export default function StudentLoginPage() {
   }
 
   return (
-    <main className="flex min-h-dvh flex-col">
-      <div className="flex flex-1 items-center justify-center px-4 py-10">
-        <div className="w-full max-w-sm">
-          <div className="animate-fade-up text-center" style={{ animationDelay: "40ms" }}>
-            <div className="mb-4 inline-flex"><BrandMark size={48} /></div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-ink">{COMPANY_NAME}</h1>
-            <p className="mt-1 text-sm text-ink-2">Sign in to your exam portal</p>
+    <main className="flex min-h-dvh flex-col items-center justify-center px-4 py-10">
+      <div className="w-full max-w-sm">
+        {/* Single card containing brand, tagline, and form */}
+        <form
+          onSubmit={onSubmit}
+          className="animate-fade-up rounded-xl border border-border bg-surface p-6 shadow-[var(--shadow-md)]"
+          style={{ animationDelay: "80ms" }}
+        >
+          {/* Brand + tagline inside the card */}
+          <div className="mb-8 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-2">
+              {COMPANY_NAME}
+            </p>
+            <h1
+              className="mt-4 text-4xl font-bold leading-tight"
+              style={{ fontFamily: "var(--font-caveat)", color: "var(--color-brand)" }}
+            >
+              Start from scratch.<br />Finish exam ready.
+            </h1>
           </div>
 
-          <form
-            onSubmit={onSubmit}
-            className="mt-7 animate-fade-up rounded-xl border border-border bg-surface p-6 shadow-[var(--shadow-md)]"
-            style={{ animationDelay: "120ms" }}
-          >
-            <div className="space-y-4">
-              <Input
-                label="Username"
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-2">
+                Username
+              </label>
+              <input
                 value={username}
                 onChange={(e) => { setUsername(e.target.value); setError(null); }}
-                placeholder="e.g. amelia"
+                placeholder="Your username"
                 autoComplete="username"
                 autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 required
+                disabled={busy || lock.isLocked}
+                className={fieldClass}
               />
-              <Input
-                label="Password"
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-2">
+                Password
+              </label>
+              <input
                 type="password"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(null); }}
                 placeholder="Your password"
                 autoComplete="current-password"
                 required
+                disabled={busy || lock.isLocked}
+                className={fieldClass}
               />
             </div>
+          </div>
 
-            {error && !lock.isLocked && (
-              <p className="mt-3 rounded-md border border-error/30 bg-error-soft px-3 py-2 text-sm font-medium text-error" role="alert">
-                {error}
-              </p>
-            )}
-            {lock.isLocked && (
-              <p className="mt-3 rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-sm font-medium text-warning" role="alert">
-                Too many attempts. Try again in <span className="font-mono">{formatCountdown(lock.remainingSeconds)}</span>.
-              </p>
-            )}
-
-            <Button type="submit" size="lg" fullWidth loading={busy} disabled={!canSubmit} className="mt-5">
-              Sign in
-            </Button>
-
-            <p className="mt-4 text-center text-xs text-ink-3">
-              No account? Accounts are created by your administrator.
+          {error && !lock.isLocked && (
+            <p className="mt-3 rounded-md border border-error/30 bg-error-soft px-3 py-2 text-sm font-medium text-error" role="alert">
+              {error}
             </p>
-          </form>
+          )}
+          {lock.isLocked && (
+            <p className="mt-3 rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-sm font-medium text-warning" role="alert">
+              Too many attempts. Try again in{" "}
+              <span className="font-mono">{formatCountdown(lock.remainingSeconds)}</span>.
+            </p>
+          )}
 
-        </div>
+          <button
+            type="submit"
+            disabled={!canSubmit || busy}
+            className={cn(
+              "mt-5 w-full rounded-lg bg-brand px-4 py-3 text-sm font-bold text-on-brand",
+              "transition-opacity hover:opacity-90 active:opacity-80",
+              "disabled:cursor-not-allowed disabled:opacity-50",
+              "flex items-center justify-center gap-2",
+            )}
+          >
+            {busy ? (
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-on-brand/30 border-t-on-brand" />
+            ) : (
+              "Sign in →"
+            )}
+          </button>
+
+          <p className="mt-4 text-center text-xs text-ink-3">
+            Can't log in? Message your teacher.
+          </p>
+        </form>
       </div>
 
-      {/* Hidden admin hotspot — an invisible tap target at the very bottom. */}
+      {/* Hidden admin hotspot */}
       <button
         onClick={() => router.push("/admin")}
         aria-label="Administrator access"
         title=""
-        className="mx-auto mb-2 h-8 w-24 rounded opacity-0"
+        className="mt-4 h-8 w-24 rounded opacity-0"
         tabIndex={-1}
       />
     </main>
