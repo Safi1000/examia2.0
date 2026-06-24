@@ -4,15 +4,16 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useDatabase } from "@/lib/data/store";
-import { cohortById, studentById, submissionsForStudent, testById } from "@/lib/data/selectors";
+import { cohortById, studentById, submissionsForStudent, testById, testsForStudent } from "@/lib/data/selectors";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Badge, CohortDot, EmptyState, Icon, Modal } from "@/components/ui";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import { LineChart, type LinePoint } from "@/components/charts/LineChart";
 import { MasteryBar } from "@/components/charts/MasteryBar";
-import { gradeSubmission } from "@/lib/grading";
+import { gradeLetter, gradeSubmission } from "@/lib/grading";
 import { topicMastery } from "@/lib/scoring";
 import { formatTimestamp } from "@/lib/time";
+import { ReportDocument } from "@/components/admin/ReportDocument";
 
 function monthOf(iso: string | null | undefined) {
   return iso ? iso.slice(0, 7) : "";
@@ -33,6 +34,7 @@ export default function StudentDetailPage() {
   const [reportOpen, setReportOpen] = useState(false);
   const [reportMonth, setReportMonth] = useState("");
   const [teacherNote, setTeacherNote] = useState("");
+  const [downloading, setDownloading] = useState(false);
 
   const data = useMemo(() => {
     if (!student) return null;
@@ -68,13 +70,104 @@ export default function StudentDetailPage() {
     setReportOpen(true);
   }
 
-  function generateReport() {
+  async function downloadReport() {
     if (!student) return;
-    const qs = new URLSearchParams();
-    if (reportMonth) qs.set("month", reportMonth);
-    if (teacherNote.trim()) qs.set("note", teacherNote.trim());
-    window.open(`/print/report/${student.id}?${qs.toString()}`, "_blank");
-    setReportOpen(false);
+    setDownloading(true);
+    try {
+      const { pdf } = await import("@react-pdf/renderer");
+
+      const month = reportMonth;
+      const allReleased = submissionsForStudent(db, student.id).filter((s) => s.status === "released");
+
+      const prevMonthDate = month
+        ? (() => { const [y, mo] = month.split("-").map(Number); return new Date(y, mo - 2, 1); })()
+        : null;
+      const prevMonth = prevMonthDate
+        ? `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`
+        : "";
+
+      const monthSubs = month ? allReleased.filter((s) => monthOf(s.submittedAt) === month) : allReleased;
+      const prevSubs = prevMonth ? allReleased.filter((s) => monthOf(s.submittedAt) === prevMonth) : [];
+
+      function calcAvg(subs: typeof allReleased) {
+        if (!subs.length) return null;
+        const sum = subs.reduce((a, s) => {
+          const t = testById(db, s.testId);
+          return t ? a + gradeSubmission(t, s).percent : a;
+        }, 0);
+        return Math.round((sum / subs.length) * 10) / 10;
+      }
+
+      const monthAvg = calcAvg(monthSubs);
+      const prevAvg = calcAvg(prevSubs);
+      const delta = monthAvg != null && prevAvg != null ? Math.round((monthAvg - prevAvg) * 10) / 10 : null;
+      const grade = monthAvg != null ? gradeLetter(monthAvg) : null;
+
+      // Trend: this month + up to 2 prior months
+      const relevantMonths = month
+        ? (() => {
+            const [y, mo] = month.split("-").map(Number);
+            return [-2, -1, 0].map((offset) => {
+              const d = new Date(y, mo - 1 + offset, 1);
+              return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+            });
+          })()
+        : Array.from(new Set(allReleased.map((s) => monthOf(s.submittedAt)))).sort().slice(-3);
+
+      const trendMonths = relevantMonths.flatMap((m) => {
+        const subs = allReleased.filter((s) => monthOf(s.submittedAt) === m);
+        if (!subs.length) return [];
+        const a = calcAvg(subs);
+        return a != null ? [{ label: m.slice(5), value: a }] : [];
+      });
+
+      const perTest = monthSubs.flatMap((s) => {
+        const t = testById(db, s.testId);
+        if (!t) return [];
+        return [{ test: { title: t.title, subject: t.subject }, result: gradeSubmission(t, s) }];
+      }).sort((a, b) => b.result.percent - a.result.percent);
+
+      const allTests = allReleased.flatMap((s) => { const t = testById(db, s.testId); return t ? [t] : []; });
+      const mastery = topicMastery(allTests, monthSubs);
+
+      const available = testsForStudent(db, student).filter((t) => t.status !== "draft");
+      const completionPct = available.length > 0 ? Math.round((allReleased.length / available.length) * 100) : 0;
+
+      const blob = await pdf(
+        <ReportDocument
+          studentName={student.username}
+          cohortName={cohort?.name}
+          month={month}
+          monthAvg={monthAvg}
+          prevAvg={prevAvg}
+          delta={delta}
+          grade={grade}
+          trendMonths={trendMonths}
+          perTest={perTest}
+          mastery={mastery}
+          completionPct={completionPct}
+          completed={allReleased.length}
+          available={available.length}
+          teacherNote={teacherNote}
+        />
+      ).toBlob();
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const safeName = student.username.replace(/[^a-z0-9]/gi, "-").toLowerCase();
+      const monthSlug = month || "all";
+      link.href = url;
+      link.download = `report-${safeName}-${monthSlug}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setReportOpen(false);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+    } finally {
+      setDownloading(false);
+    }
   }
 
   return (
@@ -154,28 +247,33 @@ export default function StudentDetailPage() {
       <Modal
         open={reportOpen}
         onClose={() => setReportOpen(false)}
-        title="Generate monthly report"
-        description="Pick the month and add an optional note. The report opens in a new tab. Print or save as PDF from there."
+        title="Monthly report"
+        description="Pick the month and add an optional teacher note. The PDF downloads automatically."
         footer={
           <>
-            <Button variant="secondary" onClick={() => setReportOpen(false)}>Cancel</Button>
-            <Button onClick={generateReport}>Generate</Button>
+            <Button variant="secondary" onClick={() => setReportOpen(false)} disabled={downloading}>Cancel</Button>
+            <Button onClick={downloadReport} loading={downloading} disabled={data.months.length === 0}>
+              {downloading ? "Generating..." : "Download PDF"}
+            </Button>
           </>
         }
       >
         <div className="space-y-4">
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-2">Month</label>
-            <select
-              value={reportMonth}
-              onChange={(e) => setReportMonth(e.target.value)}
-              className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
-            >
-              {data.months.map((m) => (
-                <option key={m} value={m}>{formatMonthLabel(m)}</option>
-              ))}
-              {data.months.length === 0 && <option value="">No results yet</option>}
-            </select>
+            {data.months.length === 0 ? (
+              <p className="text-sm text-ink-3">No released results yet.</p>
+            ) : (
+              <select
+                value={reportMonth}
+                onChange={(e) => setReportMonth(e.target.value)}
+                className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+              >
+                {data.months.map((m) => (
+                  <option key={m} value={m}>{formatMonthLabel(m)}</option>
+                ))}
+              </select>
+            )}
           </div>
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-2">
@@ -187,7 +285,7 @@ export default function StudentDetailPage() {
               placeholder="Add a personal note for the parent..."
               rows={4}
               maxLength={600}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-brand resize-none"
+              className="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-brand"
             />
             <p className="mt-1 text-right text-xs text-ink-3">{teacherNote.length}/600</p>
           </div>
