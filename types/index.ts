@@ -14,6 +14,10 @@ export interface Cohort {
   id: string;
   name: string;
   color: CohortColor;
+  /** IDs of classes offered within this cohort. */
+  classIds: string[];
+  /** IDs of subjects offered within this cohort. */
+  subjectIds: string[];
   createdAt: string; // ISO
 }
 
@@ -26,12 +30,57 @@ export interface Student {
   username: string;
   email?: string;
   cohortId: string;
+  /** IDs of classes the student is enrolled in. */
+  classIds: string[];
+  /** IDs of subjects the student is enrolled in. */
+  subjectIds: string[];
   /**
    * Initial password, used only when the admin creates/edits a student (the
    * Edge Function provisions the Supabase Auth user with it). Never loaded back
    * from the server — auth owns the credential after that.
    */
   tempPassword?: string;
+  createdAt: string;
+}
+
+// ----------------------------------------------------------------------------
+// 2b. Classes and Subjects (global catalogues)
+// ----------------------------------------------------------------------------
+
+export interface ClassItem {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface SubjectItem {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+// ----------------------------------------------------------------------------
+// 2c. Notes (uploaded resource files)
+// ----------------------------------------------------------------------------
+
+export interface Note {
+  id: string;
+  title: string;
+  fileUrl: string;
+  fileType: string;
+  fileName: string;
+  createdAt: string;
+}
+
+export interface NoteAssignment {
+  id: string;
+  noteId: string;
+  /** Cohort the note is assigned to (required). */
+  cohortId: string;
+  /** If set, only students enrolled in this class within the cohort see the note. */
+  classId: string | null;
+  /** If set, only students enrolled in this subject (and class if also set) see the note. */
+  subjectId: string | null;
   createdAt: string;
 }
 

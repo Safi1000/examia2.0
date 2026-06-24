@@ -30,3 +30,6 @@ export const studentEmail = (username: string) =>
 export const CLOUDINARY_CLOUD = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD || "";
 export const CLOUDINARY_PRESET =
   process.env.NEXT_PUBLIC_CLOUDINARY_PRESET || "examia_submissions";
+/** Separate preset for notes (resource_type: auto to support PDFs, docx, etc.). */
+export const CLOUDINARY_NOTES_PRESET =
+  process.env.NEXT_PUBLIC_CLOUDINARY_NOTES_PRESET || "examia_notes";

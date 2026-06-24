@@ -8,10 +8,14 @@
 import type {
   Announcement,
   Answer,
+  ClassItem,
   Cohort,
+  Note,
+  NoteAssignment,
   Question,
   QuestionBankItem,
   Student,
+  SubjectItem,
   Submission,
   Test,
 } from "@/types";
@@ -24,6 +28,10 @@ export interface Database {
   submissions: Submission[];
   announcements: Announcement[];
   bank: QuestionBankItem[];
+  classes: ClassItem[];
+  subjects: SubjectItem[];
+  notes: Note[];
+  noteAssignments: NoteAssignment[];
   /** Demo-only. Real admin auth is Supabase Auth; the live store omits this. */
   adminPassword?: string;
 }
@@ -72,23 +80,23 @@ export function createSeed(now: number = Date.now()): Database {
 
   // ---- Cohorts -----------------------------------------------------------
   const cohorts: Cohort[] = [
-    { id: "co_autumn", name: "Autumn 2026", color: 1, createdAt: iso(-90 * DAY) },
-    { id: "co_spring", name: "Spring 2026", color: 2, createdAt: iso(-60 * DAY) },
-    { id: "co_evening", name: "Evening Track", color: 3, createdAt: iso(-45 * DAY) },
-    { id: "co_found", name: "Foundation", color: 4, createdAt: iso(-30 * DAY) },
+    { id: "co_autumn", name: "Autumn 2026", color: 1, classIds: [], subjectIds: [], createdAt: iso(-90 * DAY) },
+    { id: "co_spring", name: "Spring 2026", color: 2, classIds: [], subjectIds: [], createdAt: iso(-60 * DAY) },
+    { id: "co_evening", name: "Evening Track", color: 3, classIds: [], subjectIds: [], createdAt: iso(-45 * DAY) },
+    { id: "co_found", name: "Foundation", color: 4, classIds: [], subjectIds: [], createdAt: iso(-30 * DAY) },
   ];
 
   // ---- Students ----------------------------------------------------------
   const students: Student[] = [
-    { id: "st_amelia", username: "amelia", email: "amelia@meridian.edu", cohortId: "co_autumn", tempPassword: "study123", createdAt: iso(-80 * DAY) },
-    { id: "st_noah", username: "noah", cohortId: "co_autumn", tempPassword: "noah2026", createdAt: iso(-80 * DAY) },
-    { id: "st_priya", username: "priya", email: "priya@meridian.edu", cohortId: "co_autumn", tempPassword: "priya2026", createdAt: iso(-79 * DAY) },
-    { id: "st_liam", username: "liam", cohortId: "co_autumn", tempPassword: "liam2026", createdAt: iso(-78 * DAY) },
-    { id: "st_sara", username: "sara", cohortId: "co_autumn", tempPassword: "sara2026", createdAt: iso(-77 * DAY) },
-    { id: "st_omar", username: "omar", email: "omar@meridian.edu", cohortId: "co_spring", tempPassword: "omar2026", createdAt: iso(-55 * DAY) },
-    { id: "st_mei", username: "mei", cohortId: "co_spring", tempPassword: "mei2026", createdAt: iso(-54 * DAY) },
-    { id: "st_hugo", username: "hugo", cohortId: "co_evening", tempPassword: "hugo2026", createdAt: iso(-40 * DAY) },
-    { id: "st_zoe", username: "zoe", cohortId: "co_found", tempPassword: "zoe2026", createdAt: iso(-25 * DAY) },
+    { id: "st_amelia", username: "amelia", email: "amelia@meridian.edu", cohortId: "co_autumn", classIds: [], subjectIds: [], tempPassword: "study123", createdAt: iso(-80 * DAY) },
+    { id: "st_noah", username: "noah", cohortId: "co_autumn", classIds: [], subjectIds: [], tempPassword: "noah2026", createdAt: iso(-80 * DAY) },
+    { id: "st_priya", username: "priya", email: "priya@meridian.edu", cohortId: "co_autumn", classIds: [], subjectIds: [], tempPassword: "priya2026", createdAt: iso(-79 * DAY) },
+    { id: "st_liam", username: "liam", cohortId: "co_autumn", classIds: [], subjectIds: [], tempPassword: "liam2026", createdAt: iso(-78 * DAY) },
+    { id: "st_sara", username: "sara", cohortId: "co_autumn", classIds: [], subjectIds: [], tempPassword: "sara2026", createdAt: iso(-77 * DAY) },
+    { id: "st_omar", username: "omar", email: "omar@meridian.edu", cohortId: "co_spring", classIds: [], subjectIds: [], tempPassword: "omar2026", createdAt: iso(-55 * DAY) },
+    { id: "st_mei", username: "mei", cohortId: "co_spring", classIds: [], subjectIds: [], tempPassword: "mei2026", createdAt: iso(-54 * DAY) },
+    { id: "st_hugo", username: "hugo", cohortId: "co_evening", classIds: [], subjectIds: [], tempPassword: "hugo2026", createdAt: iso(-40 * DAY) },
+    { id: "st_zoe", username: "zoe", cohortId: "co_found", classIds: [], subjectIds: [], tempPassword: "zoe2026", createdAt: iso(-25 * DAY) },
   ];
 
   // ---- Tests -------------------------------------------------------------
@@ -349,6 +357,10 @@ export function createSeed(now: number = Date.now()): Database {
     submissions,
     announcements,
     bank,
+    classes: [],
+    subjects: [],
+    notes: [],
+    noteAssignments: [],
     adminPassword: "admin2026",
   };
 }

@@ -23,13 +23,17 @@ import { useSyncExternalStore } from "react";
 import type {
   Announcement,
   Answer,
+  ClassItem,
   Cohort,
   CohortColor,
+  Note,
+  NoteAssignment,
   Question,
   QuestionBankItem,
   QuestionCommon,
   QuestionVariant,
   Student,
+  SubjectItem,
   Submission,
   Test,
   TestStatus,
@@ -62,6 +66,10 @@ const EMPTY: Database = {
   submissions: [],
   announcements: [],
   bank: [],
+  classes: [],
+  subjects: [],
+  notes: [],
+  noteAssignments: [],
 };
 
 // ---------------------------------------------------------------------------
@@ -69,18 +77,52 @@ const EMPTY: Database = {
 // ---------------------------------------------------------------------------
 type Row = Record<string, unknown>;
 
-const mapCohort = (r: Row): Cohort => ({
+const mapCohort = (r: Row, classIds: string[] = [], subjectIds: string[] = []): Cohort => ({
   id: r.id as string,
   name: r.name as string,
   color: r.color as CohortColor,
+  classIds,
+  subjectIds,
   createdAt: r.created_at as string,
 });
 
-const mapStudent = (r: Row): Student => ({
+const mapStudent = (r: Row, classIds: string[] = [], subjectIds: string[] = []): Student => ({
   id: r.id as string,
   username: r.username as string,
   email: (r.email as string) ?? undefined,
   cohortId: (r.cohort_id as string) ?? "",
+  classIds,
+  subjectIds,
+  createdAt: r.created_at as string,
+});
+
+const mapClass = (r: Row): ClassItem => ({
+  id: r.id as string,
+  name: r.name as string,
+  createdAt: r.created_at as string,
+});
+
+const mapSubject = (r: Row): SubjectItem => ({
+  id: r.id as string,
+  name: r.name as string,
+  createdAt: r.created_at as string,
+});
+
+const mapNote = (r: Row): Note => ({
+  id: r.id as string,
+  title: r.title as string,
+  fileUrl: r.file_url as string,
+  fileType: r.file_type as string,
+  fileName: r.file_name as string,
+  createdAt: r.created_at as string,
+});
+
+const mapNoteAssignment = (r: Row): NoteAssignment => ({
+  id: r.id as string,
+  noteId: r.note_id as string,
+  cohortId: r.cohort_id as string,
+  classId: (r.class_id as string) ?? null,
+  subjectId: (r.subject_id as string) ?? null,
   createdAt: r.created_at as string,
 });
 
@@ -231,7 +273,7 @@ class Store {
   /** Hydrate the cache from Supabase (scoped by RLS for the current session). */
   async load() {
     const sb = supabase();
-    const [coh, stu, tst, sub, ann, bnk, keys] = await Promise.all([
+    const [coh, stu, tst, sub, ann, bnk, keys, cls, subj, cCls, cSubj, sCls, sSubj, nts, nAssigns] = await Promise.all([
       sb.from("cohorts").select("*").order("created_at"),
       sb.from("students").select("*").order("created_at"),
       sb.from("tests").select("*, questions(*)").order("created_at"),
@@ -239,6 +281,14 @@ class Store {
       sb.from("announcements").select("*").order("created_at", { ascending: false }),
       sb.from("question_bank").select("*").order("created_at"),
       sb.from("question_keys").select("*"), // admin-only: empty for students
+      sb.from("classes").select("*").order("name"),
+      sb.from("subjects").select("*").order("name"),
+      sb.from("cohort_classes").select("*"),
+      sb.from("cohort_subjects").select("*"),
+      sb.from("student_classes").select("*"),
+      sb.from("student_subjects").select("*"),
+      sb.from("notes").select("*").order("created_at", { ascending: false }),
+      sb.from("note_assignments").select("*"),
     ]);
 
     const firstError = [coh, stu, tst, sub, ann, bnk].find((r) => r.error)?.error;
@@ -271,13 +321,48 @@ class Store {
         .sort((a, b) => a.order - b.order),
     }));
 
+    // Build class/subject id maps for cohorts and students.
+    const cohortClassMap = new Map<string, string[]>();
+    const cohortSubjectMap = new Map<string, string[]>();
+    for (const r of (cCls.data as Row[]) ?? []) {
+      const cid = r.cohort_id as string;
+      if (!cohortClassMap.has(cid)) cohortClassMap.set(cid, []);
+      cohortClassMap.get(cid)!.push(r.class_id as string);
+    }
+    for (const r of (cSubj.data as Row[]) ?? []) {
+      const cid = r.cohort_id as string;
+      if (!cohortSubjectMap.has(cid)) cohortSubjectMap.set(cid, []);
+      cohortSubjectMap.get(cid)!.push(r.subject_id as string);
+    }
+
+    const studentClassMap = new Map<string, string[]>();
+    const studentSubjectMap = new Map<string, string[]>();
+    for (const r of (sCls.data as Row[]) ?? []) {
+      const sid = r.student_id as string;
+      if (!studentClassMap.has(sid)) studentClassMap.set(sid, []);
+      studentClassMap.get(sid)!.push(r.class_id as string);
+    }
+    for (const r of (sSubj.data as Row[]) ?? []) {
+      const sid = r.student_id as string;
+      if (!studentSubjectMap.has(sid)) studentSubjectMap.set(sid, []);
+      studentSubjectMap.get(sid)!.push(r.subject_id as string);
+    }
+
     this.state = {
-      cohorts: ((coh.data as Row[]) ?? []).map(mapCohort),
-      students: ((stu.data as Row[]) ?? []).map(mapStudent),
+      cohorts: ((coh.data as Row[]) ?? []).map((r) =>
+        mapCohort(r, cohortClassMap.get(r.id as string) ?? [], cohortSubjectMap.get(r.id as string) ?? [])
+      ),
+      students: ((stu.data as Row[]) ?? []).map((r) =>
+        mapStudent(r, studentClassMap.get(r.id as string) ?? [], studentSubjectMap.get(r.id as string) ?? [])
+      ),
       tests,
       submissions: ((sub.data as Row[]) ?? []).map(mapSubmission),
       announcements: ((ann.data as Row[]) ?? []).map(mapAnnouncement),
       bank: ((bnk.data as Row[]) ?? []).map(mapBank),
+      classes: ((cls.data as Row[]) ?? []).map(mapClass),
+      subjects: ((subj.data as Row[]) ?? []).map(mapSubject),
+      notes: ((nts.data as Row[]) ?? []).map(mapNote),
+      noteAssignments: ((nAssigns.data as Row[]) ?? []).map(mapNoteAssignment),
     };
     this.ready = true;
     this.notify();
@@ -293,8 +378,9 @@ class Store {
   addCohort(name: string, color: CohortColor) {
     const id = genId();
     const createdAt = new Date().toISOString();
-    this.commit((d) => d.cohorts.push({ id, name, color, createdAt }));
+    this.commit((d) => d.cohorts.push({ id, name, color, classIds: [], subjectIds: [], createdAt }));
     this.run(supabase().from("cohorts").insert({ id, name, color, created_at: createdAt }), "addCohort");
+    return id;
   }
   updateCohort(id: string, patch: Partial<Pick<Cohort, "name" | "color">>) {
     this.commit((d) => {
@@ -320,6 +406,113 @@ class Store {
       .then(({ error }) => { if (error) this.report(`deleteCohort: ${error.message}`); });
   }
 
+  setCohortClasses(cohortId: string, classIds: string[]) {
+    this.commit((d) => {
+      const c = d.cohorts.find((x) => x.id === cohortId);
+      if (c) c.classIds = classIds;
+    });
+    const sb = supabase();
+    void (async () => {
+      await sb.from("cohort_classes").delete().eq("cohort_id", cohortId);
+      if (classIds.length) {
+        const { error } = await sb.from("cohort_classes").insert(classIds.map((cid) => ({ cohort_id: cohortId, class_id: cid })));
+        if (error) this.report(`setCohortClasses: ${error.message}`);
+      }
+    })();
+  }
+  setCohortSubjects(cohortId: string, subjectIds: string[]) {
+    this.commit((d) => {
+      const c = d.cohorts.find((x) => x.id === cohortId);
+      if (c) c.subjectIds = subjectIds;
+    });
+    const sb = supabase();
+    void (async () => {
+      await sb.from("cohort_subjects").delete().eq("cohort_id", cohortId);
+      if (subjectIds.length) {
+        const { error } = await sb.from("cohort_subjects").insert(subjectIds.map((sid) => ({ cohort_id: cohortId, subject_id: sid })));
+        if (error) this.report(`setCohortSubjects: ${error.message}`);
+      }
+    })();
+  }
+
+  // ---- Classes & Subjects (global catalogue) ---------------------------
+  addClass(name: string): string {
+    const id = genId();
+    const createdAt = new Date().toISOString();
+    this.commit((d) => d.classes.push({ id, name, createdAt }));
+    this.run(supabase().from("classes").insert({ id, name, created_at: createdAt }), "addClass");
+    return id;
+  }
+  updateClass(id: string, name: string) {
+    this.commit((d) => {
+      const c = d.classes.find((x) => x.id === id);
+      if (c) c.name = name;
+    });
+    this.run(supabase().from("classes").update({ name }).eq("id", id), "updateClass");
+  }
+  deleteClass(id: string) {
+    this.commit((d) => {
+      d.classes = d.classes.filter((c) => c.id !== id);
+      d.cohorts.forEach((c) => { c.classIds = c.classIds.filter((ci) => ci !== id); });
+      d.students.forEach((s) => { s.classIds = s.classIds.filter((ci) => ci !== id); });
+      d.noteAssignments = d.noteAssignments.filter((na) => na.classId !== id);
+    });
+    this.run(supabase().from("classes").delete().eq("id", id), "deleteClass");
+  }
+  addSubject(name: string): string {
+    const id = genId();
+    const createdAt = new Date().toISOString();
+    this.commit((d) => d.subjects.push({ id, name, createdAt }));
+    this.run(supabase().from("subjects").insert({ id, name, created_at: createdAt }), "addSubject");
+    return id;
+  }
+  updateSubject(id: string, name: string) {
+    this.commit((d) => {
+      const s = d.subjects.find((x) => x.id === id);
+      if (s) s.name = name;
+    });
+    this.run(supabase().from("subjects").update({ name }).eq("id", id), "updateSubject");
+  }
+  deleteSubject(id: string) {
+    this.commit((d) => {
+      d.subjects = d.subjects.filter((s) => s.id !== id);
+      d.cohorts.forEach((c) => { c.subjectIds = c.subjectIds.filter((si) => si !== id); });
+      d.students.forEach((s) => { s.subjectIds = s.subjectIds.filter((si) => si !== id); });
+      d.noteAssignments = d.noteAssignments.filter((na) => na.subjectId !== id);
+    });
+    this.run(supabase().from("subjects").delete().eq("id", id), "deleteSubject");
+  }
+
+  // ---- Student class/subject enrolment ---------------------------------
+  setStudentClasses(studentId: string, classIds: string[]) {
+    this.commit((d) => {
+      const s = d.students.find((x) => x.id === studentId);
+      if (s) s.classIds = classIds;
+    });
+    const sb = supabase();
+    void (async () => {
+      await sb.from("student_classes").delete().eq("student_id", studentId);
+      if (classIds.length) {
+        const { error } = await sb.from("student_classes").insert(classIds.map((cid) => ({ student_id: studentId, class_id: cid })));
+        if (error) this.report(`setStudentClasses: ${error.message}`);
+      }
+    })();
+  }
+  setStudentSubjects(studentId: string, subjectIds: string[]) {
+    this.commit((d) => {
+      const s = d.students.find((x) => x.id === studentId);
+      if (s) s.subjectIds = subjectIds;
+    });
+    const sb = supabase();
+    void (async () => {
+      await sb.from("student_subjects").delete().eq("student_id", studentId);
+      if (subjectIds.length) {
+        const { error } = await sb.from("student_subjects").insert(subjectIds.map((sid) => ({ student_id: studentId, subject_id: sid })));
+        if (error) this.report(`setStudentSubjects: ${error.message}`);
+      }
+    })();
+  }
+
   // ---- Students (privileged: via the admin-users edge function) --------
   usernameTaken(username: string, exceptId?: string): boolean {
     return this.state.students.some(
@@ -343,13 +536,22 @@ class Store {
           return;
         }
         const row = (data as Row).student as Row;
-        this.commit((d) => d.students.push(mapStudent(row)));
+        const student = mapStudent(row, input.classIds, input.subjectIds);
+        this.commit((d) => d.students.push(student));
+        if (input.classIds.length) this.setStudentClasses(student.id, input.classIds);
+        if (input.subjectIds.length) this.setStudentSubjects(student.id, input.subjectIds);
       });
   }
   updateStudent(id: string, patch: Partial<Omit<Student, "id" | "createdAt">>) {
     this.commit((d) => {
       const s = d.students.find((x) => x.id === id);
-      if (s) Object.assign(s, { username: patch.username ?? s.username, email: patch.email, cohortId: patch.cohortId ?? s.cohortId });
+      if (s) Object.assign(s, {
+        username: patch.username ?? s.username,
+        email: patch.email,
+        cohortId: patch.cohortId ?? s.cohortId,
+        classIds: patch.classIds ?? s.classIds,
+        subjectIds: patch.subjectIds ?? s.subjectIds,
+      });
     });
     const s = this.state.students.find((x) => x.id === id);
     supabase()
@@ -366,6 +568,8 @@ class Store {
       .then(({ data, error }) => {
         if (error || (data as Row)?.error) this.report(`updateStudent: ${error?.message ?? (data as Row)?.error}`);
       });
+    if (patch.classIds !== undefined) this.setStudentClasses(id, patch.classIds);
+    if (patch.subjectIds !== undefined) this.setStudentSubjects(id, patch.subjectIds);
   }
   deleteStudent(id: string) {
     this.commit((d) => {
@@ -711,6 +915,38 @@ class Store {
   deleteBankItem(id: string) {
     this.commit((d) => { d.bank = d.bank.filter((b) => b.id !== id); });
     this.run(supabase().from("question_bank").delete().eq("id", id), "deleteBankItem");
+  }
+
+  // ---- Notes -----------------------------------------------------------
+  async addNote(title: string, fileUrl: string, fileType: string, fileName: string): Promise<string> {
+    const id = genId();
+    const createdAt = new Date().toISOString();
+    this.commit((d) => d.notes.unshift({ id, title, fileUrl, fileType, fileName, createdAt }));
+    const { error } = await supabase().from("notes").insert({
+      id, title, file_url: fileUrl, file_type: fileType, file_name: fileName, created_at: createdAt,
+    });
+    if (error) this.report(`addNote: ${error.message}`);
+    return id;
+  }
+  deleteNote(id: string) {
+    this.commit((d) => {
+      d.notes = d.notes.filter((n) => n.id !== id);
+      d.noteAssignments = d.noteAssignments.filter((na) => na.noteId !== id);
+    });
+    this.run(supabase().from("notes").delete().eq("id", id), "deleteNote");
+  }
+  addNoteAssignment(noteId: string, cohortId: string, classId: string | null, subjectId: string | null) {
+    const id = genId();
+    const createdAt = new Date().toISOString();
+    this.commit((d) => d.noteAssignments.push({ id, noteId, cohortId, classId, subjectId, createdAt }));
+    this.run(
+      supabase().from("note_assignments").insert({ id, note_id: noteId, cohort_id: cohortId, class_id: classId, subject_id: subjectId, created_at: createdAt }),
+      "addNoteAssignment",
+    );
+  }
+  deleteNoteAssignment(id: string) {
+    this.commit((d) => { d.noteAssignments = d.noteAssignments.filter((na) => na.id !== id); });
+    this.run(supabase().from("note_assignments").delete().eq("id", id), "deleteNoteAssignment");
   }
 }
 
