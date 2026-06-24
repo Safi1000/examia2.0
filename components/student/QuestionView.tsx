@@ -47,7 +47,7 @@ export function QuestionView({
               value={answer.text ?? ""}
               maxLength={question.maxLength}
               onChange={(e) => onChange({ ...answer, text: e.target.value })}
-              placeholder="Type your answer…"
+              placeholder="Write here..."
               aria-label="Your answer"
             />
             {question.showCounter && question.maxLength && (
@@ -116,8 +116,8 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
           className="flex min-h-40 w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border-strong bg-surface text-ink-2 transition-colors hover:border-brand hover:bg-brand-soft/40 disabled:opacity-60"
         >
           <Icon.Camera className="h-7 w-7" />
-          <span className="text-sm font-semibold">{uploading ? "Uploading…" : "Take or upload a photo"}</span>
-          <span className="text-xs text-ink-3">Snap your handwritten working</span>
+          <span className="text-sm font-semibold">{uploading ? "Uploading..." : "Take a photo or upload one"}</span>
+          <span className="text-xs text-ink-3">Your handwritten working, please.</span>
         </button>
       )}
     </div>

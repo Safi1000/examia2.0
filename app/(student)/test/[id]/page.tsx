@@ -102,8 +102,8 @@ export default function TestRunnerPage() {
   // Final-five and final-minute warnings (announced once each).
   useEffect(() => {
     if (state !== prevState.current) {
-      if (state === "warning") toast("5 minutes remaining — wrap up your answers.", "info");
-      if (state === "critical") toast("Less than a minute left!", "error");
+      if (state === "warning") toast("5 minutes left. Wrap it up.", "info");
+      if (state === "critical") toast("Last 60 seconds.", "error");
       prevState.current = state;
     }
   }, [state, toast]);
@@ -114,11 +114,11 @@ export default function TestRunnerPage() {
   }, [existing, id, router]);
 
   if (!student || !test || !visible) {
-    return <RunnerNotice title="Test unavailable" message="This test could not be found for your account." />;
+    return <RunnerNotice title="Test unavailable" message="Something's wrong. Head back and try again." />;
   }
-  if (existing) return <RunnerNotice title="Already submitted" message="Returning to your dashboard…" />;
-  if (window === "future") return <RunnerNotice title="Not open yet" message="This test hasn't opened. Check back at its start time." />;
-  if (window === "closed") return <RunnerNotice title="Test closed" message="The window for this test has ended." />;
+  if (existing) return <RunnerNotice title="Already submitted" message="You've already done this one." />;
+  if (window === "future") return <RunnerNotice title="Not open yet" message="Not live yet. Check back at the start time." />;
+  if (window === "closed") return <RunnerNotice title="Test closed" message="You missed the window." />;
 
   const q = test.questions[index];
   const answer = answers[index];
@@ -135,7 +135,6 @@ export default function TestRunnerPage() {
       <header className="sticky top-0 z-30 border-b border-border bg-paper/90 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
-            <BrandMark size={24} />
             <div className="min-w-0">
               <p className="truncate text-sm font-bold text-ink">{test.title}</p>
               <Pill>{test.testCode}</Pill>
@@ -169,15 +168,15 @@ export default function TestRunnerPage() {
             disabled={index === 0}
             onClick={() => setIndex((i) => Math.max(0, i - 1))}
           >
-            <Icon.ChevronLeft className="h-4 w-4" /> Previous
+            <Icon.ChevronLeft className="h-4 w-4" /> Back
           </Button>
           {isLast ? (
             <Button onClick={() => setConfirmOpen(true)}>
-              Submit test <Icon.Check className="h-4 w-4" />
+              I'm done <Icon.Check className="h-4 w-4" />
             </Button>
           ) : (
             <Button onClick={() => setIndex((i) => Math.min(test.questions.length - 1, i + 1))}>
-              Submit &amp; Next <Icon.ChevronRight className="h-4 w-4" />
+              Save &amp; Next <Icon.ChevronRight className="h-4 w-4" />
             </Button>
           )}
         </div>
@@ -186,19 +185,18 @@ export default function TestRunnerPage() {
       <Modal
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        title="Submit your test?"
-        description="You won't be able to change your answers after submitting."
+        title="Sure you're done?"
+        description="You can't come back to this."
         footer={
           <>
-            <Button variant="secondary" onClick={() => setConfirmOpen(false)}>Keep working</Button>
-            <Button onClick={() => doSubmit(false)}>Submit now</Button>
+            <Button variant="secondary" onClick={() => setConfirmOpen(false)}>Not yet</Button>
+            <Button onClick={() => doSubmit(false)}>Yes, submit</Button>
           </>
         }
       >
         <p className="text-sm text-ink-2">
-          You've answered <span className="font-semibold text-ink">{answeredCount}</span> of{" "}
-          <span className="font-semibold text-ink">{test.questions.length}</span> questions.
-          {answeredCount < test.questions.length && " Unanswered questions will be marked as blank."}
+          <span className="font-semibold text-ink">{answeredCount}/{test.questions.length}</span> answered.
+          {answeredCount < test.questions.length && " Blanks stay blank."}
         </p>
       </Modal>
     </div>
@@ -212,7 +210,7 @@ function RunnerNotice({ title, message }: { title: string; message: string }) {
       <h1 className="mt-3 text-xl font-bold text-ink">{title}</h1>
       <p className="mt-1 text-sm text-ink-2">{message}</p>
       <Link href="/dashboard" className={buttonClasses({ variant: "secondary", className: "mt-5" })}>
-        Back to dashboard
+        Back to home
       </Link>
     </div>
   );

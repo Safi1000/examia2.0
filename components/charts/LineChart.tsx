@@ -31,8 +31,10 @@ export function LineChart({
 
   if (points.length === 0) return null;
 
+  const isSingle = points.length === 1;
+
   const x = (i: number) =>
-    points.length === 1 ? padX + innerW / 2 : padX + (i / (points.length - 1)) * innerW;
+    isSingle ? padX + innerW / 2 : padX + (i / (points.length - 1)) * innerW;
   const y = (v: number) => padY + innerH - (Math.max(0, Math.min(max, v)) / max) * innerH;
 
   const line = points.map((p, i) => `${x(i)},${y(p.value)}`).join(" ");
@@ -57,17 +59,20 @@ export function LineChart({
         </g>
       ))}
 
-      <polygon points={area} fill={`url(#${gradId})`} />
-      <polyline
-        points={line}
-        fill="none"
-        stroke={color.brand}
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        pathLength={1}
-        style={{ strokeDasharray: 1, strokeDashoffset: 1, animation: "draw 1.1s var(--ease-out) forwards" }}
-      />
+      {!isSingle && <polygon points={area} fill={`url(#${gradId})`} />}
+      {!isSingle && (
+        <polyline
+          points={line}
+          fill="none"
+          stroke={color.brand}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          pathLength={1}
+          style={{ strokeDasharray: 1, strokeDashoffset: 1, animation: "draw 1.1s var(--ease-out) forwards" }}
+        />
+      )}
+
       {points.map((p, i) => (
         <g key={i}>
           <circle cx={x(i)} cy={y(p.value)} r="3.5" fill={color.surface} stroke={color.brand} strokeWidth="2.5" />

@@ -13,9 +13,9 @@ import { testWindow } from "@/lib/time";
 
 function greeting(d = new Date()) {
   const h = d.getHours();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
+  if (h < 12) return "Morning";
+  if (h < 18) return "Afternoon";
+  return "Evening";
 }
 
 export default function DashboardPage() {
@@ -48,8 +48,9 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-7 px-4 py-6">
       <header className="animate-fade-up">
-        <p className="text-sm font-medium text-ink-2">{greeting()},</p>
-        <h1 className="text-2xl font-extrabold capitalize tracking-tight text-ink">{student.username}</h1>
+        <p className="text-2xl font-extrabold capitalize tracking-tight text-ink">
+          {greeting()}, {student.username}.
+        </p>
       </header>
 
       <div className="animate-fade-up" style={{ animationDelay: "60ms" }}>
@@ -60,12 +61,12 @@ export default function DashboardPage() {
         <EmptyState
           icon={<Icon.Doc />}
           title="No tests yet"
-          message="When your administrator assigns a test to your cohort, it will appear right here."
+          message="Nothing to do right now. Your teacher will drop something here soon."
         />
       )}
 
       {groups.open.length > 0 && (
-        <Section title="Open now" tone="brand">
+        <Section title="YOUR MOVE" tone="brand">
           {groups.open.map((t) => (
             <TestCard key={t.id} test={t} submission={submissionFor(db, student.id, t.id)} nowMs={nowMs} />
           ))}
@@ -73,7 +74,7 @@ export default function DashboardPage() {
       )}
 
       {groups.upcoming.length > 0 && (
-        <Section title="Upcoming">
+        <Section title="COMING UP">
           {groups.upcoming.map((t) => (
             <TestCard key={t.id} test={t} submission={submissionFor(db, student.id, t.id)} nowMs={nowMs} />
           ))}
@@ -81,7 +82,7 @@ export default function DashboardPage() {
       )}
 
       {groups.past.length > 0 && (
-        <Section title="Past & results">
+        <Section title="DONE &amp; DUSTED">
           {groups.past.map((t) => (
             <TestCard key={t.id} test={t} submission={submissionFor(db, student.id, t.id)} nowMs={nowMs} />
           ))}

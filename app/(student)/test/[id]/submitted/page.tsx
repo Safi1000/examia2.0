@@ -38,8 +38,8 @@ export default function SubmittedPage() {
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success-soft text-success">
           <Icon.Check className="h-8 w-8" />
         </div>
-        <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-ink">Test submitted</h1>
-        <p className="mt-1 text-sm text-ink-2">Your answers for {test.title} are in.</p>
+        <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-ink">Done.</h1>
+        <p className="mt-1 text-sm text-ink-2">Your answers are saved. Sit tight.</p>
       </div>
 
       <Card ruled className="mt-6 animate-fade-up divide-y divide-border">
@@ -54,19 +54,19 @@ export default function SubmittedPage() {
         </Row>
         <Row label="Submission">
           {submission.autoSubmitted ? (
-            <Badge tone="warning">Auto-submitted (time)</Badge>
+            <Badge tone="warning">Time's up — auto-submitted.</Badge>
           ) : (
-            <Badge tone="success">Submitted by you</Badge>
+            <Badge tone="success">Submitted</Badge>
           )}
         </Row>
       </Card>
 
       <p className="mt-5 animate-fade-up text-center text-sm text-ink-2">
-        Results will appear on your dashboard once your teacher releases them.
+        Your teacher will mark this and release results soon.
       </p>
 
       <Link href="/dashboard" className={buttonClasses({ fullWidth: true, className: "mt-4" })}>
-        Back to dashboard
+        Back to home
       </Link>
     </div>
   );

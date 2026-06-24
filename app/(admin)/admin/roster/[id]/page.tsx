@@ -1,18 +1,28 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useDatabase } from "@/lib/data/store";
 import { cohortById, studentById, submissionsForStudent, testById } from "@/lib/data/selectors";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Card, Badge, CohortDot, EmptyState, Icon } from "@/components/ui";
-import { buttonClasses } from "@/components/ui/Button";
+import { Card, Badge, CohortDot, EmptyState, Icon, Modal } from "@/components/ui";
+import { Button, buttonClasses } from "@/components/ui/Button";
 import { LineChart, type LinePoint } from "@/components/charts/LineChart";
 import { MasteryBar } from "@/components/charts/MasteryBar";
 import { gradeSubmission } from "@/lib/grading";
 import { topicMastery } from "@/lib/scoring";
 import { formatTimestamp } from "@/lib/time";
+
+function monthOf(iso: string | null | undefined) {
+  return iso ? iso.slice(0, 7) : "";
+}
+
+function formatMonthLabel(m: string) {
+  if (!m) return "All time";
+  const [y, mo] = m.split("-");
+  return new Date(Number(y), Number(mo) - 1, 1).toLocaleString("default", { month: "long", year: "numeric" });
+}
 
 export default function StudentDetailPage() {
   const params = useParams();
@@ -20,19 +30,25 @@ export default function StudentDetailPage() {
   const db = useDatabase();
   const student = studentById(db, id);
 
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportMonth, setReportMonth] = useState("");
+  const [teacherNote, setTeacherNote] = useState("");
+
   const data = useMemo(() => {
     if (!student) return null;
     const subs = submissionsForStudent(db, student.id).sort(
-      (a, b) => +new Date(a.submittedAt ?? 0) - +new Date(b.submittedAt ?? 0),
+      (a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""),
     );
     const released = subs.filter((s) => s.status === "released");
-    const tests = released.map((s) => testById(db, s.testId)).filter((t): t is NonNullable<typeof t> => !!t);
-    const points: LinePoint[] = released.map((s, i) => {
+    const tests = released.flatMap((s) => { const t = testById(db, s.testId); return t ? [t] : []; });
+    const points: LinePoint[] = released.flatMap((s) => {
       const t = testById(db, s.testId);
-      return { label: String(i + 1), value: t ? gradeSubmission(t, s).percent : 0 };
+      if (!t) return [];
+      return [{ label: (s.submittedAt ?? "").slice(5, 10), value: gradeSubmission(t, s).percent }];
     });
     const avg = points.length ? Math.round((points.reduce((a, p) => a + p.value, 0) / points.length) * 10) / 10 : 0;
-    return { subs, released, mastery: topicMastery(tests, released), points, avg };
+    const months = Array.from(new Set(released.map((s) => monthOf(s.submittedAt)).filter(Boolean))).sort();
+    return { subs, released, mastery: topicMastery(tests, released), points, avg, months };
   }, [db, student]);
 
   if (!student || !data) {
@@ -46,13 +62,39 @@ export default function StudentDetailPage() {
 
   const cohort = cohortById(db, student.cohortId);
 
+  function openReport() {
+    setReportMonth(data!.months[data!.months.length - 1] ?? "");
+    setTeacherNote("");
+    setReportOpen(true);
+  }
+
+  function generateReport() {
+    if (!student) return;
+    const qs = new URLSearchParams();
+    if (reportMonth) qs.set("month", reportMonth);
+    if (teacherNote.trim()) qs.set("note", teacherNote.trim());
+    window.open(`/print/report/${student.id}?${qs.toString()}`, "_blank");
+    setReportOpen(false);
+  }
+
   return (
     <div className="px-4 py-6 sm:px-6">
       <PageHeader
         title={student.username}
         subtitle={student.email}
         back={{ href: "/admin/roster", label: "Roster" }}
-        actions={cohort ? <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-2"><CohortDot color={cohort.color} />{cohort.name}</span> : undefined}
+        actions={
+          <div className="flex items-center gap-2">
+            {cohort && (
+              <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-2">
+                <CohortDot color={cohort.color} />{cohort.name}
+              </span>
+            )}
+            <Button variant="secondary" size="sm" onClick={openReport}>
+              <Icon.Download className="h-4 w-4" /> Monthly Report
+            </Button>
+          </div>
+        }
       />
 
       <div className="grid grid-cols-3 gap-3">
@@ -107,6 +149,50 @@ export default function StudentDetailPage() {
           })}
         </div>
       )}
+
+      {/* Monthly Report Modal */}
+      <Modal
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        title="Generate monthly report"
+        description="Pick the month and add an optional note. The report opens in a new tab — print or save as PDF from there."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setReportOpen(false)}>Cancel</Button>
+            <Button onClick={generateReport}>Generate</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-2">Month</label>
+            <select
+              value={reportMonth}
+              onChange={(e) => setReportMonth(e.target.value)}
+              className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+            >
+              {data.months.map((m) => (
+                <option key={m} value={m}>{formatMonthLabel(m)}</option>
+              ))}
+              {data.months.length === 0 && <option value="">No results yet</option>}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-2">
+              Teacher note <span className="font-normal normal-case text-ink-3">(optional)</span>
+            </label>
+            <textarea
+              value={teacherNote}
+              onChange={(e) => setTeacherNote(e.target.value)}
+              placeholder="Add a personal note for the parent..."
+              rows={4}
+              maxLength={600}
+              className="w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-brand resize-none"
+            />
+            <p className="mt-1 text-right text-xs text-ink-3">{teacherNote.length}/600</p>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

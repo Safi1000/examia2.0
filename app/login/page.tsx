@@ -37,7 +37,7 @@ export default function StudentLoginPage() {
       router.push("/dashboard");
     } else {
       lock.registerFailure();
-      setError("That username and password don't match. Please try again.");
+      setError("Wrong username or password.");
       setBusy(false);
     }
   }
@@ -106,7 +106,7 @@ export default function StudentLoginPage() {
           )}
           {lock.isLocked && (
             <p className="mt-3 rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-sm font-medium text-warning" role="alert">
-              Too many attempts. Try again in{" "}
+              Too many wrong guesses. Try again in{" "}
               <span className="font-mono">{formatCountdown(lock.remainingSeconds)}</span>.
             </p>
           )}
@@ -124,12 +124,12 @@ export default function StudentLoginPage() {
             {busy ? (
               <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-on-brand/30 border-t-on-brand" />
             ) : (
-              "Sign in →"
+              "Let me in"
             )}
           </button>
 
           <p className="mt-4 text-center text-xs text-ink-3">
-            Can't log in? Message your teacher.
+            Locked out? Your teacher has the key.
           </p>
         </form>
       </div>

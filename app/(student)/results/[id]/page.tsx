@@ -143,7 +143,7 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
                     <span className="h-4 w-4 shrink-0" />
                   )}
                   <span>{opt}</span>
-                  {chosen && <span className="ml-auto text-xs font-semibold">Your answer</span>}
+                  {chosen && <span className="ml-auto text-xs font-semibold">Your pick</span>}
                 </li>
               );
             })}
@@ -152,7 +152,7 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
 
         {question.type === "text" && (
           <div className="rounded-md border border-border bg-surface-2/60 p-3 text-sm text-ink">
-            {answer?.text ? answer.text : <span className="italic text-ink-3">No answer given</span>}
+            {answer?.text ? answer.text : <span className="italic text-ink-3">(blank)</span>}
           </div>
         )}
 
@@ -165,7 +165,7 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
               className="max-h-64 w-full rounded-md border border-border object-contain bg-surface-2"
             />
           ) : (
-            <p className="text-sm italic text-ink-3">No photo submitted</p>
+            <p className="text-sm italic text-ink-3">(no photo)</p>
           ))}
       </div>
 
@@ -182,7 +182,7 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
 function BackLink() {
   return (
     <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-2 hover:text-ink">
-      <Icon.ArrowLeft className="h-4 w-4" /> Dashboard
+      <Icon.ArrowLeft className="h-4 w-4" /> Home
     </Link>
   );
 }
@@ -193,7 +193,7 @@ function PendingShell({ title, message }: { title: string; message: string }) {
       <h1 className="text-xl font-bold text-ink">{title}</h1>
       <p className="mt-1 text-sm text-ink-2">{message}</p>
       <Link href="/dashboard" className={buttonClasses({ variant: "secondary", className: "mt-5" })}>
-        Back to dashboard
+        Back to home
       </Link>
     </div>
   );

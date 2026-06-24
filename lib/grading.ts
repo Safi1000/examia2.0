@@ -4,23 +4,25 @@
 import type { Answer, Submission, Test } from "@/types";
 import { awardedMarks, scoreMcq, totalMarks } from "@/lib/scoring";
 
-export type GradeLetter = "A" | "B" | "C" | "D" | "F";
+export type GradeLetter = "A*" | "A" | "B" | "C" | "D" | "E" | "U";
 
-/** Standard banding: A≥90, B≥80, C≥70, D≥60, else F. */
+/** Grade bands (Hamza Teaches standard). A 100% result must return A*. */
 export function gradeLetter(percent: number): GradeLetter {
-  if (percent >= 90) return "A";
-  if (percent >= 80) return "B";
-  if (percent >= 70) return "C";
+  if (percent >= 92) return "A*";
+  if (percent >= 85) return "A";
+  if (percent >= 75) return "B";
+  if (percent >= 65) return "C";
   if (percent >= 60) return "D";
-  return "F";
+  if (percent >= 50) return "E";
+  return "U";
 }
 
-export const GRADE_ORDER: GradeLetter[] = ["A", "B", "C", "D", "F"];
+export const GRADE_ORDER: GradeLetter[] = ["A*", "A", "B", "C", "D", "E", "U"];
 
 /** Semantic role for a grade, reused by badges and the distribution chart. */
 export function gradeRole(letter: GradeLetter): "success" | "warning" | "error" {
-  if (letter === "A" || letter === "B") return "success";
-  if (letter === "C" || letter === "D") return "warning";
+  if (letter === "A*" || letter === "A" || letter === "B") return "success";
+  if (letter === "C" || letter === "D" || letter === "E") return "warning";
   return "error";
 }
 
