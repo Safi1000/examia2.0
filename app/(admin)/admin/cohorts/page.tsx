@@ -21,7 +21,7 @@ function ChipToggle({
   selected: string[];
   onToggle: (id: string) => void;
 }) {
-  if (items.length === 0) return <p className="text-sm text-ink-3">No items yet — add them in Settings.</p>;
+  if (items.length === 0) return <p className="text-sm text-ink-3">No items yet. Add them in Settings.</p>;
   return (
     <div className="flex flex-wrap gap-2">
       {items.map((item) => {

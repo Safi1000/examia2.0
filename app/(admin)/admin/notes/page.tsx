@@ -320,7 +320,7 @@ export default function NotesPage() {
       <Modal
         open={!!assigningNote}
         onClose={() => setAssigningNote(null)}
-        title={`Assign — ${assigningNote?.title ?? ""}`}
+        title={`Assign: ${assigningNote?.title ?? ""}`}
         size="sm"
         footer={
           <>

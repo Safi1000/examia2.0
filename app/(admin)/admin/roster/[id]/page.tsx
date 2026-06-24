@@ -155,7 +155,7 @@ export default function StudentDetailPage() {
         open={reportOpen}
         onClose={() => setReportOpen(false)}
         title="Generate monthly report"
-        description="Pick the month and add an optional note. The report opens in a new tab — print or save as PDF from there."
+        description="Pick the month and add an optional note. The report opens in a new tab. Print or save as PDF from there."
         footer={
           <>
             <Button variant="secondary" onClick={() => setReportOpen(false)}>Cancel</Button>
