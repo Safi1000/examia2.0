@@ -10,234 +10,203 @@ import {
   Circle,
   Polyline,
   Rect,
+  Line,
 } from "@react-pdf/renderer";
 import type { GradeLetter, GradeResult } from "@/lib/grading";
-import type { TopicMastery } from "@/lib/scoring";
 import type { Test } from "@/types";
 
-// A4 = 595pt wide; paddingHorizontal = 44 each side → content = 507
-const CONTENT_W = 507;
+// A4: 595 × 842 pt. Padding 45 each side → content 505pt.
+const W = 595;
+const CONTENT_W = 505;
+const PAD = 45;
+const FRAME_INSET = 13;
 
-const GOLD = "#C59A3C";
-const DARK = "#1A1D20";
-const GRAY = "#6B7280";
-const MUTED = "#9CA3AF";
-const BORDER = "#E2DBD0";
-const CREAM = "#F8F6F1";
-const CHART_BG = "#EDEAE3";
-const WHITE = "#FFFFFF";
-const GREEN = "#16A34A";
-const AMBER = "#D97706";
-const RED = "#DC2626";
-const GRADE_BOX_BG = "#FEF3C7";
-const GRADE_BOX_BORDER = "#FCD34D";
+const BG     = "#17191b";
+const INK    = "#ECE7DD";
+const MUT    = "#8f897b";
+const GOLD   = "#C9A24B";
+const RED    = "#c0402e";
+const HAIR   = "rgba(255,255,255,0.09)";
 
 const styles = StyleSheet.create({
   page: {
-    backgroundColor: CREAM,
-    paddingHorizontal: 44,
-    paddingVertical: 36,
-    fontFamily: "Times-Roman",
-    color: DARK,
+    backgroundColor: BG,
+    paddingHorizontal: PAD,
+    paddingVertical: 42,
+    fontFamily: "Helvetica",
+    color: INK,
     fontSize: 11,
+    position: "relative",
   },
 
-  // ── Header ──────────────────────────────────────────────
-  header: {
+  // ── Masthead ─────────────────────────────────────────────
+  mast: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-end",
-    borderBottomWidth: 2,
-    borderBottomColor: GOLD,
-    paddingBottom: 12,
+    alignItems: "center",
     marginBottom: 18,
   },
-  brand: {
+  eyebrow: {
     fontSize: 8,
     fontFamily: "Helvetica-Bold",
-    letterSpacing: 2,
+    letterSpacing: 2.5,
     color: GOLD,
-    marginBottom: 5,
   },
-  reportTitle: {
-    fontSize: 22,
-    fontFamily: "Times-Bold",
-    color: DARK,
-  },
-  reportMonth: {
-    fontSize: 10,
-    color: GRAY,
-    marginTop: 3,
-  },
-  studentName: {
-    fontSize: 13,
-    fontFamily: "Times-Bold",
-    textAlign: "right",
-  },
-  cohortLabel: {
-    fontSize: 10,
-    color: GRAY,
-    textAlign: "right",
-    marginTop: 2,
+  confidential: {
+    fontSize: 7.5,
+    fontFamily: "Helvetica-Bold",
+    letterSpacing: 2.5,
+    color: RED,
+    borderWidth: 1,
+    borderColor: "rgba(192,64,46,0.55)",
+    backgroundColor: "rgba(192,64,46,0.10)",
+    paddingHorizontal: 9,
+    paddingVertical: 5,
   },
 
-  // ── Section title ────────────────────────────────────────
-  sectionTitle: {
-    fontSize: 8,
-    fontFamily: "Helvetica-Bold",
+  // ── Report label + name ──────────────────────────────────
+  reportLabel: {
+    fontSize: 9,
+    fontFamily: "Helvetica",
     letterSpacing: 1.5,
-    color: GOLD,
-    textTransform: "uppercase",
-    marginBottom: 10,
-    marginTop: 18,
+    color: MUT,
+    marginTop: 34,
+    marginBottom: 7,
+  },
+  studentName: {
+    fontSize: 34,
+    fontFamily: "Helvetica-Bold",
+    letterSpacing: -0.5,
+    color: INK,
+    lineHeight: 1.05,
+  },
+  cohortLine: {
+    fontSize: 11,
+    color: MUT,
+    marginTop: 10,
   },
 
   // ── Stats ────────────────────────────────────────────────
   statsRow: {
     flexDirection: "row",
-    gap: 8,
+    marginTop: 36,
   },
-  statBox: {
+  stat: {
     flex: 1,
-    backgroundColor: WHITE,
-    borderWidth: 1,
-    borderColor: BORDER,
-    borderRadius: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    alignItems: "center",
+    paddingRight: 20,
   },
-  statBoxGold: {
+  statBorder: {
     flex: 1,
-    backgroundColor: GRADE_BOX_BG,
-    borderWidth: 1,
-    borderColor: GRADE_BOX_BORDER,
-    borderRadius: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    alignItems: "center",
+    paddingLeft: 20,
+    paddingRight: 20,
+    borderLeftWidth: 1,
+    borderLeftColor: HAIR,
+  },
+  statLast: {
+    flex: 1,
+    paddingLeft: 20,
+    borderLeftWidth: 1,
+    borderLeftColor: HAIR,
   },
   statLabel: {
-    fontSize: 7,
+    fontSize: 8,
     fontFamily: "Helvetica-Bold",
-    letterSpacing: 0.8,
-    color: MUTED,
-    textTransform: "uppercase",
-    marginBottom: 5,
+    letterSpacing: 1.8,
+    color: MUT,
+    marginBottom: 10,
   },
-  statValue: {
-    fontSize: 26,
-    fontFamily: "Times-Bold",
-    color: DARK,
+  gradeValue: {
+    fontSize: 52,
+    fontFamily: "Helvetica-Bold",
+    color: GOLD,
     lineHeight: 1,
   },
-  statSub: {
-    fontSize: 8,
-    color: MUTED,
-    marginTop: 3,
-    textAlign: "center",
-  },
-
-  // ── Chart ────────────────────────────────────────────────
-  chartLabels: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 5,
-    paddingHorizontal: 10,
-  },
-  chartLabel: {
-    fontSize: 8,
-    color: MUTED,
-  },
-
-  // ── Table ────────────────────────────────────────────────
-  tableHeaderRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1.5,
-    borderBottomColor: GOLD,
-    paddingBottom: 5,
-    marginBottom: 1,
-  },
-  tableRow: {
-    flexDirection: "row",
-    paddingVertical: 7,
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
-  },
-  tableRowAlt: {
-    flexDirection: "row",
-    paddingVertical: 7,
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
-    backgroundColor: "#F2EFE8",
-  },
-  colHdr: {
-    fontSize: 7,
+  avgValue: {
+    fontSize: 38,
     fontFamily: "Helvetica-Bold",
-    color: MUTED,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    color: INK,
+    lineHeight: 1,
   },
-  colTest: { flex: 3 },
-  colSubject: { flex: 2 },
-  colScore: { flex: 1, alignItems: "flex-end" },
-  colGrade: { flex: 1, alignItems: "flex-end" },
-  cell: { fontSize: 11, color: DARK },
-  cellGray: { fontSize: 11, color: GRAY },
-  cellMono: { fontSize: 11, fontFamily: "Courier", color: DARK },
+  compValue: {
+    fontSize: 28,
+    fontFamily: "Helvetica-Bold",
+    color: INK,
+    lineHeight: 1,
+  },
+  compSub: {
+    fontSize: 10,
+    color: MUT,
+    marginTop: 7,
+  },
 
-  // ── Mastery ──────────────────────────────────────────────
-  masteryRow: { marginBottom: 9 },
-  masteryTop: {
+  // ── Section heading ──────────────────────────────────────
+  sectionLabel: {
+    fontSize: 8,
+    fontFamily: "Helvetica-Bold",
+    letterSpacing: 2,
+    color: MUT,
+    marginBottom: 6,
+  },
+  sectionCap: {
+    fontSize: 9.5,
+    color: MUT,
+    marginBottom: 14,
+  },
+
+  // ── Test table ───────────────────────────────────────────
+  trow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 4,
+    alignItems: "baseline",
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: HAIR,
   },
-  masteryTopic: { fontSize: 11, color: DARK },
-  masteryPct: { fontSize: 11, fontFamily: "Helvetica-Bold" },
-  masteryTrack: {
-    height: 5,
-    backgroundColor: BORDER,
-    borderRadius: 3,
+  trowFirst: {
+    borderTopWidth: 1,
+    borderTopColor: HAIR,
   },
+  tname: { flex: 1, fontSize: 13, fontFamily: "Helvetica-Bold", color: INK },
+  tsub: { flex: 1, fontSize: 11, color: MUT },
+  tscore: { width: 64, textAlign: "right", fontSize: 12, fontFamily: "Helvetica-Bold", color: INK },
+  tgrade: { width: 44, textAlign: "right", fontSize: 12, fontFamily: "Helvetica-Bold", color: GOLD },
 
-  // ── Note ─────────────────────────────────────────────────
-  noteBox: {
-    backgroundColor: WHITE,
-    borderWidth: 1,
-    borderColor: BORDER,
-    borderRadius: 5,
-    padding: 14,
-    minHeight: 54,
+  // ── Teacher note ─────────────────────────────────────────
+  noteWrap: {
+    flexDirection: "row",
+    marginTop: 4,
   },
-  noteText: { fontSize: 11, color: DARK, lineHeight: 1.5 },
-  notePlaceholder: { fontSize: 11, color: MUTED, fontFamily: "Times-Italic" },
+  noteBar: {
+    width: 2,
+    backgroundColor: GOLD,
+    marginRight: 14,
+    borderRadius: 1,
+  },
+  noteText: {
+    flex: 1,
+    fontSize: 12,
+    color: INK,
+    lineHeight: 1.6,
+  },
+  notePlaceholder: {
+    flex: 1,
+    fontSize: 12,
+    color: MUT,
+    fontFamily: "Helvetica-Oblique",
+  },
 
   // ── Footer ───────────────────────────────────────────────
   footer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    borderTopWidth: 1,
-    borderTopColor: BORDER,
-    paddingTop: 9,
-    marginTop: 22,
+    paddingTop: 13,
+    marginTop: "auto",
   },
-  footerText: { fontSize: 8, color: MUTED },
+  footerText: {
+    fontSize: 8,
+    color: MUT,
+    letterSpacing: 0.8,
+  },
 });
-
-const GRADE_COLORS: Partial<Record<GradeLetter, string>> = {
-  "A*": GREEN,
-  A: GREEN,
-  B: DARK,
-  C: AMBER,
-  D: AMBER,
-  E: RED,
-  U: RED,
-};
-
-function masteryFill(band: TopicMastery["band"]): string {
-  return band === "mastery" ? GREEN : band === "weak" ? AMBER : RED;
-}
 
 function formatMonthFull(m: string) {
   if (!m) return "All time";
@@ -248,61 +217,101 @@ function formatMonthFull(m: string) {
   });
 }
 
-function toMonthAbbr(label: string): string {
-  const mo = Number(label.split("-")[0]);
-  if (!mo || mo < 1 || mo > 12) return label;
-  return new Date(2000, mo - 1, 1).toLocaleString("default", { month: "short" });
-}
+// SVG line chart — one dot per test, gold labels above each dot
+function TrendChart({ tests }: { tests: Array<{ result: { percent: number } }> }) {
+  if (!tests.length) return null;
 
-// SVG line chart rendered inside the PDF
-function PdfLineChart({ points }: { points: { label: string; value: number }[] }) {
-  if (!points.length) return null;
+  const CW = CONTENT_W;
+  const CH = 110;
+  const px = 10;
+  const pyTop = 28; // room for % labels above dots
+  const pyBot = 10;
+  const innerW = CW - px * 2;
+  const innerH = CH - pyTop - pyBot;
 
-  const W = CONTENT_W;
-  const H = 95;
-  const px = 14;
-  const py = 12;
-  const innerW = W - px * 2;
-  const innerH = H - py * 2;
-
-  const vals = points.map((p) => p.value);
-  const lo = Math.max(0, Math.min(...vals) - 10);
-  const hi = Math.min(100, Math.max(...vals) + 10);
+  const vals = tests.map((t) => t.result.percent);
+  const single = vals.length === 1;
+  const lo = Math.max(0, Math.min(...vals) - 12);
+  const hi = Math.min(100, Math.max(...vals) + 12);
   const range = hi - lo || 20;
-  const single = points.length === 1;
 
   const cx = (i: number) =>
-    px + (single ? innerW / 2 : (i / (points.length - 1)) * innerW);
+    px + (single ? innerW / 2 : (i / (vals.length - 1)) * innerW);
   const cy = (v: number) =>
-    py + innerH - ((v - lo) / range) * innerH;
+    pyTop + innerH - ((v - lo) / range) * innerH;
 
-  const lineStr = points.map((p, i) => `${cx(i)},${cy(p.value)}`).join(" ");
+  const lineStr = vals.map((v, i) => `${cx(i)},${cy(v)}`).join(" ");
+
+  // Grid lines at 0, 50, 100
+  const gridVals = [0, 50, 100].filter((g) => g >= lo && g <= hi);
 
   return (
-    <View>
-      <Svg width={W} height={H}>
-        <Rect x={0} y={0} width={W} height={H} fill={CHART_BG} rx={5} ry={5} />
-        {!single && (
-          <Polyline
-            points={lineStr}
-            stroke={GOLD}
-            strokeWidth={1.5}
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        )}
-        {points.map((p, i) => (
-          <Circle key={i} cx={cx(i)} cy={cy(p.value)} r={4} fill={GOLD} />
-        ))}
-      </Svg>
-      <View style={styles.chartLabels}>
-        {points.map((p, i) => (
-          <Text key={i} style={styles.chartLabel}>
-            {toMonthAbbr(p.label)}
+    <Svg width={CW} height={CH}>
+      {/* Grid */}
+      {gridVals.map((g) => (
+        <Line
+          key={g}
+          x1={px - 6}
+          y1={cy(g)}
+          x2={CW - px + 6}
+          y2={cy(g)}
+          stroke="rgba(255,255,255,0.07)"
+          strokeWidth={1}
+        />
+      ))}
+      {/* Line */}
+      {!single && (
+        <Polyline
+          points={lineStr}
+          stroke={GOLD}
+          strokeWidth={2}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+      {/* Dots */}
+      {vals.map((v, i) => (
+        <Circle
+          key={i}
+          cx={cx(i)}
+          cy={cy(v)}
+          r={5}
+          fill={GOLD}
+          stroke={BG}
+          strokeWidth={2.5}
+        />
+      ))}
+      {/* Score labels above dots */}
+      {vals.map((v, i) => (
+        <Rect
+          key={`lbl-${i}`}
+          x={cx(i) - 16}
+          y={cy(v) - 22}
+          width={32}
+          height={16}
+          fill="transparent"
+        />
+      ))}
+    </Svg>
+  );
+}
+
+// Score labels rendered as Text below SVG (SVG Text support is limited in react-pdf)
+function TrendLabels({ tests }: { tests: Array<{ result: { percent: number } }> }) {
+  if (!tests.length) return null;
+  const single = tests.length === 1;
+  return (
+    <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: -6, paddingHorizontal: 6 }}>
+      {tests.map((t, i) => {
+        const leftPct = single ? 50 : (i / (tests.length - 1)) * 100;
+        void leftPct;
+        return (
+          <Text key={i} style={{ fontSize: 9, fontFamily: "Helvetica-Bold", color: GOLD, textAlign: "center", flex: 1 }}>
+            {t.result.percent}%
           </Text>
-        ))}
-      </View>
+        );
+      })}
     </View>
   );
 }
@@ -317,7 +326,7 @@ export interface ReportDocumentProps {
   grade: GradeLetter | null;
   trendMonths: Array<{ label: string; value: number }>;
   perTest: Array<{ test: Pick<Test, "title" | "subject">; result: GradeResult }>;
-  mastery: TopicMastery[];
+  mastery: Array<{ topic: string; percent: number; band: string }>;
   completionPct: number;
   completed: number;
   available: number;
@@ -329,12 +338,8 @@ export function ReportDocument({
   cohortName,
   month,
   monthAvg,
-  prevAvg,
-  delta,
   grade,
-  trendMonths,
   perTest,
-  mastery,
   completionPct,
   completed,
   available,
@@ -344,164 +349,111 @@ export function ReportDocument({
     day: "numeric",
     month: "long",
     year: "numeric",
-  });
-
-  const deltaSign = (delta ?? 0) > 0 ? "+" : "";
-  const deltaColor =
-    delta == null ? DARK : delta > 0 ? GREEN : delta < 0 ? RED : DARK;
-  const gradeColor = grade ? (GRADE_COLORS[grade] ?? DARK) : DARK;
+  }).toUpperCase();
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
 
-        {/* ── Header ── */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.brand}>HAMZA TEACHES</Text>
-            <Text style={styles.reportTitle}>Monthly Progress Report</Text>
-            <Text style={styles.reportMonth}>{formatMonthFull(month)}</Text>
-          </View>
-          <View>
-            <Text style={styles.studentName}>{studentName}</Text>
-            {cohortName && (
-              <Text style={styles.cohortLabel}>Cohort: {cohortName}</Text>
-            )}
-          </View>
+        {/* Frame border */}
+        <Svg
+          width={W}
+          height={842}
+          style={{ position: "absolute", top: 0, left: 0 }}
+        >
+          <Rect
+            x={FRAME_INSET}
+            y={FRAME_INSET}
+            width={W - FRAME_INSET * 2}
+            height={842 - FRAME_INSET * 2}
+            fill="none"
+            stroke="rgba(201,162,75,0.22)"
+            strokeWidth={1}
+          />
+        </Svg>
+
+        {/* Masthead */}
+        <View style={styles.mast}>
+          <Text style={styles.eyebrow}>HAMZA TEACHES</Text>
+          <Text style={styles.confidential}>CONFIDENTIAL</Text>
         </View>
 
-        {/* ── Summary ── */}
-        <Text style={styles.sectionTitle}>Summary</Text>
+        {/* Hair divider */}
+        <Svg width={CONTENT_W} height={1} style={{ marginBottom: 0 }}>
+          <Line x1={0} y1={0} x2={CONTENT_W} y2={0} stroke={HAIR} strokeWidth={1} />
+        </Svg>
+
+        {/* Report label + student name */}
+        <Text style={styles.reportLabel}>
+          MONTHLY PROGRESS REPORT{"  ·  "}{formatMonthFull(month).toUpperCase()}
+        </Text>
+        <Text style={styles.studentName}>{studentName}</Text>
+        {cohortName && (
+          <Text style={styles.cohortLine}>Cohort {cohortName}</Text>
+        )}
+
+        {/* Stats */}
         <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Average</Text>
-            <Text style={styles.statValue}>
-              {monthAvg != null ? `${monthAvg}%` : "—"}
-            </Text>
+          <View style={styles.stat}>
+            <Text style={styles.statLabel}>GRADE</Text>
+            <Text style={styles.gradeValue}>{grade ?? "—"}</Text>
           </View>
-
-          <View style={styles.statBoxGold}>
-            <Text style={styles.statLabel}>Grade</Text>
-            <Text style={[styles.statValue, { color: gradeColor }]}>
-              {grade ?? "—"}
-            </Text>
+          <View style={styles.statBorder}>
+            <Text style={styles.statLabel}>AVERAGE</Text>
+            <Text style={styles.avgValue}>{monthAvg != null ? `${monthAvg}%` : "—"}</Text>
           </View>
+          <View style={styles.statLast}>
+            <Text style={styles.statLabel}>COMPLETION</Text>
+            <Text style={styles.compValue}>{completionPct}%</Text>
+            <Text style={styles.compSub}>{completed} of {available} tests</Text>
+          </View>
+        </View>
 
-          <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Improvement</Text>
-            <Text style={[styles.statValue, { fontSize: 22, color: deltaColor }]}>
-              {delta != null ? `${deltaSign}${delta}%` : "—"}
-            </Text>
-            {prevAvg != null && (
-              <Text style={styles.statSub}>vs last month</Text>
+        {/* Score trend */}
+        {perTest.length > 0 && (
+          <View style={{ marginTop: 36 }}>
+            <Text style={styles.sectionLabel}>SCORE TREND</Text>
+            <Text style={styles.sectionCap}>Each point is one test, in the order taken.</Text>
+            <TrendChart tests={perTest} />
+            <TrendLabels tests={perTest} />
+          </View>
+        )}
+
+        {/* Tests this month */}
+        {perTest.length > 0 && (
+          <View style={{ marginTop: 36 }}>
+            <Text style={styles.sectionLabel}>TESTS THIS MONTH</Text>
+            {perTest.map(({ test, result }, i) => (
+              <View
+                key={i}
+                style={[styles.trow, i === 0 ? styles.trowFirst : {}]}
+              >
+                <Text style={styles.tname}>{test.title}</Text>
+                <Text style={styles.tsub}>{test.subject}</Text>
+                <Text style={styles.tscore}>{result.percent}%</Text>
+                <Text style={styles.tgrade}>{result.letter}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Teacher note */}
+        <View style={{ marginTop: 36 }}>
+          <Text style={styles.sectionLabel}>A NOTE FROM THE TEACHER</Text>
+          <View style={styles.noteWrap}>
+            <View style={styles.noteBar} />
+            {teacherNote ? (
+              <Text style={styles.noteText}>{teacherNote}</Text>
+            ) : (
+              <Text style={styles.notePlaceholder}>No note added.</Text>
             )}
           </View>
-
-          <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Completion</Text>
-            <Text style={[styles.statValue, { fontSize: 22 }]}>
-              {completionPct}%
-            </Text>
-            <Text style={styles.statSub}>
-              {completed} of {available} tests
-            </Text>
-          </View>
         </View>
 
-        {/* ── Score trend ── */}
-        {trendMonths.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Score Trend</Text>
-            <PdfLineChart points={trendMonths} />
-          </>
-        )}
-
-        {/* ── Test breakdown ── */}
-        {perTest.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Test Breakdown</Text>
-            <View style={styles.tableHeaderRow}>
-              <View style={styles.colTest}>
-                <Text style={styles.colHdr}>Test</Text>
-              </View>
-              <View style={styles.colSubject}>
-                <Text style={styles.colHdr}>Subject</Text>
-              </View>
-              <View style={styles.colScore}>
-                <Text style={styles.colHdr}>Score</Text>
-              </View>
-              <View style={styles.colGrade}>
-                <Text style={styles.colHdr}>Grade</Text>
-              </View>
-            </View>
-            {perTest.map(({ test, result }, i) => (
-              <View key={i} style={i % 2 === 0 ? styles.tableRow : styles.tableRowAlt}>
-                <View style={styles.colTest}>
-                  <Text style={styles.cell}>{test.title}</Text>
-                </View>
-                <View style={styles.colSubject}>
-                  <Text style={styles.cellGray}>{test.subject}</Text>
-                </View>
-                <View style={styles.colScore}>
-                  <Text style={styles.cellMono}>{result.percent}%</Text>
-                </View>
-                <View style={styles.colGrade}>
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      fontFamily: "Helvetica-Bold",
-                      color: GRADE_COLORS[result.letter] ?? DARK,
-                    }}
-                  >
-                    {result.letter}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </>
-        )}
-
-        {/* ── Topic mastery ── */}
-        {mastery.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Topic Mastery</Text>
-            {mastery.map((m) => (
-              <View key={m.topic} style={styles.masteryRow}>
-                <View style={styles.masteryTop}>
-                  <Text style={styles.masteryTopic}>{m.topic}</Text>
-                  <Text style={[styles.masteryPct, { color: masteryFill(m.band) }]}>
-                    {Math.round(m.percent)}%
-                  </Text>
-                </View>
-                <View style={styles.masteryTrack}>
-                  <View
-                    style={{
-                      height: 5,
-                      width: `${Math.round(m.percent)}%`,
-                      backgroundColor: masteryFill(m.band),
-                      borderRadius: 3,
-                    }}
-                  />
-                </View>
-              </View>
-            ))}
-          </>
-        )}
-
-        {/* ── Teacher's note ── */}
-        <Text style={styles.sectionTitle}>Teacher's Note</Text>
-        <View style={styles.noteBox}>
-          {teacherNote ? (
-            <Text style={styles.noteText}>{teacherNote}</Text>
-          ) : (
-            <Text style={styles.notePlaceholder}>No note added.</Text>
-          )}
-        </View>
-
-        {/* ── Footer ── */}
+        {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Hamza Teaches · Confidential</Text>
-          <Text style={styles.footerText}>Generated {today}</Text>
+          <Text style={styles.footerText}>HAMZA TEACHES</Text>
+          <Text style={styles.footerText}>GENERATED {today}</Text>
         </View>
 
       </Page>
