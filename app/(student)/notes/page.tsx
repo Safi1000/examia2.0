@@ -6,6 +6,13 @@ import { studentById } from "@/lib/data/selectors";
 import { EmptyState, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
+/** Injects fl_attachment into a Cloudinary URL so the browser downloads instead of navigating. */
+function toDownloadUrl(url: string): string {
+  const idx = url.indexOf("/upload/");
+  if (idx === -1) return url;
+  return url.slice(0, idx + 8) + "fl_attachment/" + url.slice(idx + 8);
+}
+
 function fileIcon(type: string) {
   if (type.startsWith("image/")) return "🖼️";
   if (type.includes("pdf")) return "📄";
@@ -117,8 +124,7 @@ export default function StudentNotesPage() {
                         </div>
                       </div>
                       <a
-                        href={note.fileUrl}
-                        download={note.fileName}
+                        href={toDownloadUrl(note.fileUrl)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className={cn(
