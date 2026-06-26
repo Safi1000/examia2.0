@@ -6,10 +6,17 @@ import { studentById } from "@/lib/data/selectors";
 import { EmptyState, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
-function toDownloadUrl(url: string): string {
-  const idx = url.indexOf("/upload/");
-  if (idx === -1) return url;
-  return url.slice(0, idx + 8) + "fl_attachment/" + url.slice(idx + 8);
+async function downloadFile(url: string, fileName: string) {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(objectUrl);
 }
 
 function fileIcon(type: string) {
@@ -122,8 +129,8 @@ export default function StudentNotesPage() {
                           </p>
                         </div>
                       </div>
-                      <a
-                        href={toDownloadUrl(note.fileUrl)}
+                      <button
+                        onClick={() => downloadFile(note.fileUrl, note.fileName)}
                         className={cn(
                           "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold",
                           "bg-brand-soft text-brand hover:opacity-80 transition-opacity",
@@ -132,7 +139,7 @@ export default function StudentNotesPage() {
                       >
                         <Icon.Download className="h-4 w-4" />
                         <span className="hidden sm:inline">Download</span>
-                      </a>
+                      </button>
                     </div>
                   );
                 })}
