@@ -4,7 +4,6 @@ const ALLOWED_HOST = "res.cloudinary.com";
 
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url");
-  const name = req.nextUrl.searchParams.get("name") ?? "download";
   const inline = req.nextUrl.searchParams.get("inline") === "1";
 
   if (!url) {
@@ -22,24 +21,14 @@ export async function GET(req: NextRequest) {
     return new NextResponse("URL not allowed", { status: 403 });
   }
 
-  const upstream = await fetch(url);
-  if (!upstream.ok) {
-    return new NextResponse("Upstream error", { status: 502 });
-  }
+  // Redirect to a Cloudinary URL with the appropriate flag.
+  // fl_attachment → Content-Disposition: attachment (browser downloads).
+  // No flag        → browser opens inline (e.g. PDF viewer).
+  const uploadIdx = url.indexOf("/upload/");
+  const redirectUrl =
+    uploadIdx !== -1 && !inline
+      ? url.slice(0, uploadIdx + 8) + "fl_attachment/" + url.slice(uploadIdx + 8)
+      : url;
 
-  const contentType =
-    upstream.headers.get("content-type") ?? "application/octet-stream";
-  const safeName = name.replace(/[^\w.\-]/g, "_");
-
-  const disposition = inline
-    ? `inline; filename="${safeName}"`
-    : `attachment; filename="${safeName}"`;
-
-  return new NextResponse(upstream.body, {
-    headers: {
-      "Content-Type": contentType,
-      "Content-Disposition": disposition,
-      "Cache-Control": "private, max-age=3600",
-    },
-  });
+  return NextResponse.redirect(redirectUrl);
 }
