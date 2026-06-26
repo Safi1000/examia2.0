@@ -192,7 +192,7 @@ export default function NotesPage() {
                   </div>
                   <div className="flex shrink-0 gap-1">
                     <a
-                      href={note.fileUrl}
+                      href={`/api/download?url=${encodeURIComponent(note.fileUrl)}&name=${encodeURIComponent(note.fileName)}&inline=1`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink"
