@@ -6,17 +6,8 @@ import { studentById } from "@/lib/data/selectors";
 import { EmptyState, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
-async function downloadFile(url: string, fileName: string) {
-  const res = await fetch(url);
-  const blob = await res.blob();
-  const objectUrl = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = objectUrl;
-  a.download = fileName;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(objectUrl);
+function downloadFile(url: string) {
+  window.location.href = `/api/download?url=${encodeURIComponent(url)}`;
 }
 
 function fileIcon(type: string) {
@@ -130,7 +121,7 @@ export default function StudentNotesPage() {
                         </div>
                       </div>
                       <button
-                        onClick={() => downloadFile(note.fileUrl, note.fileName)}
+                        onClick={() => downloadFile(note.fileUrl)}
                         className={cn(
                           "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold",
                           "bg-brand-soft text-brand hover:opacity-80 transition-opacity",
