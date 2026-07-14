@@ -240,6 +240,8 @@ export type ActivityType =
   | "test_created"
   | "test_updated"
   | "test_deleted"
+  | "result_released"
+  | "announcement_posted"
   | "system_alert";
 
 /** Who an activity is addressed to. Admins additionally see every entry. */
@@ -254,10 +256,23 @@ export interface Activity {
   testId?: string;
   noteId?: string;
   submissionId?: string;
+  /**
+   * Broadcast target, used only when studentId is absent. Each null means "not
+   * scoped by this dimension" — exactly as on Test, so a notification reaches
+   * the same students the thing it announces is visible to.
+   */
+  cohortId?: string | null;
+  classId?: string | null;
+  subjectId?: string | null;
   /** Route to open when the notification is clicked; undefined = not navigable. */
   link?: string;
   audience: ActivityAudience;
   /** auth.uid()s that have read this entry. */
   readBy: string[];
+  /**
+   * auth.uid()s that have cleared this entry from their own feed. A broadcast
+   * row is shared by a whole cohort, so clearing is per-user — never a delete.
+   */
+  clearedBy: string[];
   createdAt: string;
 }

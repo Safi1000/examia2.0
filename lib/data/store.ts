@@ -40,8 +40,23 @@ import type {
   Test,
   TestStatus,
 } from "@/types";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { Database } from "@/lib/data/seed";
 import { supabase } from "@/lib/supabase";
+
+/**
+ * How long a realtime channel is held open after its last subscriber leaves.
+ * Covers a StrictMode remount and route-to-route handoff without closing and
+ * immediately reopening the socket.
+ */
+const CHANNEL_TEARDOWN_MS = 5_000;
+
+/** A shared realtime channel and the number of live subscribers holding it. */
+type ChannelEntry = {
+  channel: RealtimeChannel;
+  refs: number;
+  teardown: ReturnType<typeof setTimeout> | null;
+};
 
 /**
  * Discriminated "create" shapes. `Omit<Question, …>` collapses the variant union
@@ -178,9 +193,13 @@ const mapActivity = (r: Row): Activity => ({
   testId: (r.test_id as string) ?? undefined,
   noteId: (r.note_id as string) ?? undefined,
   submissionId: (r.submission_id as string) ?? undefined,
+  cohortId: (r.cohort_id as string) ?? null,
+  classId: (r.class_id as string) ?? null,
+  subjectId: (r.subject_id as string) ?? null,
   link: (r.link as string) ?? undefined,
   audience: r.audience as Activity["audience"],
   readBy: (r.read_by as string[]) ?? [],
+  clearedBy: (r.cleared_by as string[]) ?? [],
   createdAt: r.created_at as string,
 });
 
@@ -495,7 +514,77 @@ class Store {
   reset() {
     this.state = EMPTY;
     this.ready = false;
+    // Signing out must not leave a live socket streaming the previous user's
+    // rows into the next session's cache.
+    this.closeChannels();
     this.notify();
+  }
+
+  // ---- Realtime channel sharing ----------------------------------------
+  /**
+   * Hand every caller the SAME realtime channel, reference-counted.
+   *
+   * supabase-js returns the existing channel when a topic is already open
+   * (RealtimeClient.channel()), and a channel throws "cannot add
+   * 'postgres_changes' callbacks ... after subscribe()" if you register a
+   * listener on it once it has joined. So a second subscriber — the bell is
+   * mounted in the layout, and /notifications mounts a second consumer —
+   * crashed the page. Callbacks are now registered exactly once, before
+   * subscribe(), and later subscribers just bump the refcount.
+   */
+  private channels = new Map<string, ChannelEntry>();
+
+  private shareChannel(name: string, register: (channel: RealtimeChannel) => void): () => void {
+    const sb = supabase();
+    let entry = this.channels.get(name);
+
+    if (entry) {
+      // Reuse: a pending teardown means the last subscriber left moments ago.
+      if (entry.teardown) {
+        clearTimeout(entry.teardown);
+        entry.teardown = null;
+      }
+    } else {
+      const channel = sb.channel(name);
+      register(channel);   // every .on() BEFORE the join
+      channel.subscribe();
+      entry = { channel, refs: 0, teardown: null };
+      this.channels.set(name, entry);
+    }
+
+    entry.refs++;
+    let released = false;
+
+    return () => {
+      // React runs an effect's cleanup once, but a double-invoked cleanup would
+      // otherwise drive the refcount negative and close a live channel.
+      if (released) return;
+      released = true;
+
+      const e = this.channels.get(name);
+      if (!e) return;
+      e.refs--;
+      if (e.refs > 0) return;
+
+      // Don't close on the spot. StrictMode remounts, and route changes swap one
+      // subscriber for another in the same tick; removeChannel() is async, so a
+      // synchronous re-subscribe would be handed back this same joined channel
+      // and blow up on register(). The grace window lets the next mount reuse it.
+      e.teardown = setTimeout(() => {
+        if (e.refs > 0) return;          // someone re-subscribed; keep it open
+        this.channels.delete(name);
+        void sb.removeChannel(e.channel);
+      }, CHANNEL_TEARDOWN_MS);
+    };
+  }
+
+  private closeChannels() {
+    const sb = supabase();
+    for (const entry of this.channels.values()) {
+      if (entry.teardown) clearTimeout(entry.teardown);
+      void sb.removeChannel(entry.channel);
+    }
+    this.channels.clear();
   }
 
   // ---- Cohorts ---------------------------------------------------------
@@ -613,11 +702,12 @@ class Store {
     const student = this.state.students.find((x) => x.id === studentId);
     const nameOf = (id: string) => this.state.classes.find((c) => c.id === id)?.name ?? "a class";
 
+    const who = student?.username ?? "A student";
     for (const id of classIds.filter((c) => !before.includes(c))) {
       this.logActivity({
         type: "student_joined_class",
-        title: "Student joined a class",
-        description: `${student?.username ?? "Student"} → ${nameOf(id)}`,
+        title: `${who} joined ${nameOf(id)}`,
+        description: this.cohortName(student?.cohortId),
         studentId,
         link: `/admin/roster/${studentId}`,
       });
@@ -625,8 +715,8 @@ class Store {
     for (const id of before.filter((c) => !classIds.includes(c))) {
       this.logActivity({
         type: "student_left_class",
-        title: "Student left a class",
-        description: `${student?.username ?? "Student"} → ${nameOf(id)}`,
+        title: `${who} left ${nameOf(id)}`,
+        description: this.cohortName(student?.cohortId),
         studentId,
         link: `/admin/roster/${studentId}`,
       });
@@ -737,8 +827,14 @@ class Store {
     this.commit((d) =>
       d.tests.push({ ...input, id, questions: input.questions ?? [], createdAt }),
     );
-    this.run(
-      supabase().from("tests").insert({
+    // activities.test_id has a FK to tests(id), so the feed entry MUST NOT be
+    // written until the test row has committed. Firing both in the same tick
+    // races them over two HTTP requests, and when the activity lands first the
+    // insert fails with activities_test_id_fkey — which is what surfaced as an
+    // error the moment "+ New Test" was clicked. Sequence the two writes, the
+    // same way addQuestion sequences its question_keys insert.
+    void (async () => {
+      const { error } = await supabase().from("tests").insert({
         id,
         title: input.title,
         subject: input.subject,
@@ -751,45 +847,177 @@ class Store {
         test_code: input.testCode,
         status: input.status,
         created_at: createdAt,
-      }),
-      "addTest",
-    );
-    this.logActivity({
-      type: "test_created",
-      title: "Test created",
-      description: input.title,
-      testId: id,
-      link: `/admin/tests/${id}`,
-    });
+      });
+      if (error) {
+        // Roll the optimistic row back: a test that never reached the database
+        // must not linger in the UI, and logging against it would be the very
+        // FK violation this ordering exists to prevent.
+        this.commit((d) => { d.tests = d.tests.filter((t) => t.id !== id); });
+        this.report(`addTest: ${error.message}`);
+        return;
+      }
+      // A draft announces NOTHING — not to staff, not to students. "+ New Test"
+      // creates the draft row the editor works on, so logging here would file a
+      // "Test created" notification for a test the teacher has not saved and may
+      // never save. The test is announced when it leaves draft (see updateTest),
+      // which is the point at which it exists for real.
+      if (input.status !== "draft") this.announceTestCreated(id);
+    })();
     return id;
   }
+
+  /**
+   * File the "test created" notifications, once. Called only when a test is
+   * genuinely live (created non-draft, or a draft published), and guarded so
+   * that saving repeatedly — or unpublishing and republishing — cannot file it
+   * twice for the same test.
+   */
+  private announceTestCreated(testId: string) {
+    const t = this.state.tests.find((x) => x.id === testId);
+    if (!t) return;
+    const alreadyAnnounced = this.state.activities.some(
+      (a) => a.type === "test_created" && a.testId === testId,
+    );
+    if (alreadyAnnounced) return;
+
+    this.logActivity({
+      type: "test_created",
+      title: `Test created — "${t.title}"`,
+      description: [t.subject, this.cohortName(t.cohortId)].filter(Boolean).join(" • "),
+      testId,
+      link: `/admin/tests/${testId}`,
+    });
+    this.announceTest(testId, "test_created");
+  }
+
+  /** Cohort name for notification copy; undefined when open to every cohort. */
+  private cohortName(cohortId: string | null | undefined): string | undefined {
+    if (!cohortId) return undefined;
+    return this.state.cohorts.find((c) => c.id === cohortId)?.name;
+  }
   updateTest(id: string, patch: Partial<Omit<Test, "id" | "createdAt" | "questions">>) {
+    const before = this.state.tests.find((x) => x.id === id);
+    const wasVisible = !!before && before.status !== "draft";
+    // Snapshot for rollback: an update that never reached the database must not
+    // leave the UI — or a notification — claiming it did.
+    const snapshot = before ? { ...before } : null;
     this.commit((d) => {
       const t = d.tests.find((x) => x.id === id);
       if (t) Object.assign(t, patch);
     });
-    this.run(supabase().from("tests").update(testPatchToRow(patch)).eq("id", id), "updateTest");
-    const title = this.state.tests.find((t) => t.id === id)?.title;
+
+    // Announce only AFTER the update commits. Firing the notification alongside
+    // the write would tell a cohort a test had changed even when the write
+    // failed, and would race the row it describes.
+    void (async () => {
+      const { error } = await supabase().from("tests").update(testPatchToRow(patch)).eq("id", id);
+      if (error) {
+        if (snapshot) {
+          this.commit((d) => {
+            const t = d.tests.find((x) => x.id === id);
+            if (t) Object.assign(t, snapshot);
+          });
+        }
+        this.report(`updateTest: ${error.message}`);
+        return;   // no notification on a failed save
+      }
+      this.announceTestSaved(id, patch, wasVisible);
+    })();
+  }
+
+  /**
+   * Notifications for a test that has just been saved successfully. Split out so
+   * the write path above reads as write-then-announce, and so nothing can call
+   * it without the update having committed first.
+   */
+  private announceTestSaved(
+    id: string,
+    patch: Partial<Omit<Test, "id" | "createdAt" | "questions">>,
+    wasVisible: boolean,
+  ) {
+    const updated = this.state.tests.find((t) => t.id === id);
+    const isVisible = !!updated && updated.status !== "draft";
+
+    // A draft is the teacher's private working copy — every edit to it, autosave
+    // or otherwise, announces nothing to anyone.
+    if (!isVisible) return;
+
+    if (!wasVisible) {
+      // Draft -> published. THIS is the moment the test becomes real, so it is
+      // where "Test created" is filed — for staff and for the cohort. Guarded
+      // against firing twice if the teacher saves again or republishes.
+      this.announceTestCreated(id);
+      return;
+    }
+
+    // An already-live test genuinely changed.
     this.logActivity({
       type: "test_updated",
-      title: patch.status ? `Test marked ${patch.status}` : "Test updated",
-      description: title,
+      title: patch.status
+        ? `"${updated.title}" marked ${patch.status}`
+        : `Test updated — "${updated.title}"`,
+      description: [updated.subject, this.cohortName(updated.cohortId)].filter(Boolean).join(" • "),
       testId: id,
       link: `/admin/tests/${id}`,
+    });
+    this.announceTest(id, "test_updated");
+  }
+  /**
+   * Broadcast a test to the cohort/class/subject it is scoped to. The row
+   * carries only testId — the card renders live schedule, status and countdown
+   * from the test itself, so nothing here can go stale.
+   */
+  private announceTest(testId: string, type: "test_created" | "test_updated") {
+    const t = this.state.tests.find((x) => x.id === testId);
+    if (!t) return;
+    this.logActivity({
+      type,
+      title: type === "test_created" ? `New test: "${t.title}"` : `Test updated: "${t.title}"`,
+      // The card below the title renders the full schedule from the test itself.
+      description: [t.subject, this.cohortName(t.cohortId)].filter(Boolean).join(" • "),
+      testId,
+      cohortId: t.cohortId,
+      classId: t.classId,
+      subjectId: t.subjectId,
+      // The test's own route, so the notification carries a real destination.
+      // Where "Open Test" actually lands is resolved at CLICK time against the
+      // test's state then (see resolveActivityLink) — a route baked in today is
+      // wrong tomorrow, once the test opens, is sat, or closes.
+      link: `/test/${testId}`,
+      audience: "student",
     });
   }
   setTestStatus(id: string, status: TestStatus) {
     this.updateTest(id, { status });
   }
   deleteTest(id: string) {
-    const title = this.state.tests.find((t) => t.id === id)?.title;
+    const test = this.state.tests.find((t) => t.id === id);
+    const title = test?.title;
+    const wasVisible = !!test && test.status !== "draft";
     this.commit((d) => {
       d.tests = d.tests.filter((t) => t.id !== id);
       d.submissions = d.submissions.filter((s) => s.testId !== id);
     });
     this.run(supabase().from("tests").delete().eq("id", id), "deleteTest");
-    // No testId: the FK would cascade this entry away with the test itself.
-    this.logActivity({ type: "test_deleted", title: "Test deleted", description: title });
+    // No testId on either row: the FK would cascade the entry away with the
+    // test itself, and the notification has to outlive what it reports.
+    this.logActivity({
+      type: "test_deleted",
+      title: `Test deleted — "${title ?? "Untitled"}"`,
+      description: [test?.subject, this.cohortName(test?.cohortId)].filter(Boolean).join(" • "),
+    });
+    // Only tell the cohort about a test they could actually see.
+    if (wasVisible) {
+      this.logActivity({
+        type: "test_deleted",
+        title: `Test cancelled: "${title ?? "Untitled"}"`,
+        description: [test.subject, this.cohortName(test.cohortId)].filter(Boolean).join(" • "),
+        cohortId: test.cohortId,
+        classId: test.classId,
+        subjectId: test.subjectId,
+        audience: "student",
+      });
+    }
   }
   addQuestion(testId: string, q: Omit<Question, "id" | "order">) {
     const id = genId();
@@ -973,10 +1201,14 @@ class Store {
 
     const test = this.state.tests.find((t) => t.id === input.testId);
     const student = this.state.students.find((s) => s.id === input.studentId);
+    const who = student?.username ?? "A student";
+    const what = test?.title ? `"${test.title}"` : "a test";
     this.logActivity({
       type: input.autoSubmitted ? "test_completed" : "test_submitted",
-      title: input.autoSubmitted ? "Test auto-submitted (time up)" : "Student submitted a test",
-      description: [student?.username, test?.title].filter(Boolean).join(" — "),
+      title: input.autoSubmitted
+        ? `${who} ran out of time on ${what}`
+        : `${who} submitted ${what}`,
+      description: [test?.subject, this.cohortName(test?.cohortId)].filter(Boolean).join(" • "),
       studentId: input.studentId,
       testId: input.testId,
       submissionId: id,
@@ -1011,22 +1243,15 @@ class Store {
       "releaseSubmission",
     );
     if (sub) {
-      const test = this.state.tests.find((t) => t.id === sub.testId);
       // Addressed to the student: their result is now visible.
-      this.logActivity({
-        type: "submission_reviewed",
-        title: "Your submission was reviewed",
-        description: test?.title,
-        studentId: sub.studentId,
-        testId: sub.testId,
-        submissionId,
-        link: `/results/${sub.testId}`,
-        audience: "student",
-      });
+      this.announceResult(sub.studentId, sub.testId, submissionId);
     }
   }
   bulkReleaseForTest(testId: string) {
     const releasedAt = new Date().toISOString();
+    // Captured before the commit flips them to "released" — afterwards there is
+    // no way to tell which submissions this call actually released.
+    const released = this.state.submissions.filter((s) => s.testId === testId && s.status === "submitted");
     this.commit((d) => {
       d.submissions
         .filter((s) => s.testId === testId && s.status === "submitted")
@@ -1040,6 +1265,23 @@ class Store {
         .eq("status", "submitted"),
       "bulkReleaseForTest",
     );
+    // A result is personal, so this is addressed per student rather than
+    // broadcast to the cohort — students who did not sit the test get nothing.
+    released.forEach((s) => this.announceResult(s.studentId, testId, s.id));
+  }
+  /** Tell one student their result for a test is now available. */
+  private announceResult(studentId: string, testId: string, submissionId: string) {
+    const test = this.state.tests.find((t) => t.id === testId);
+    this.logActivity({
+      type: "result_released",
+      title: `Result released for "${test?.title ?? "your test"}"`,
+      description: test?.subject,
+      studentId,
+      testId,
+      submissionId,
+      link: `/results/${testId}`,
+      audience: "student",
+    });
   }
   unreleaseSubmission(submissionId: string) {
     this.commit((d) => {
@@ -1072,6 +1314,16 @@ class Store {
       }),
       "addAnnouncement",
     );
+    // Same cohort scoping the announcement itself uses (null = every cohort),
+    // so the notification reaches exactly its readers.
+    this.logActivity({
+      type: "announcement_posted",
+      title: "New announcement",
+      description: input.body,
+      cohortId: input.cohortId,
+      link: "/dashboard",
+      audience: "student",
+    });
   }
   updateAnnouncement(id: string, patch: Partial<Pick<Announcement, "body" | "pinned" | "cohortId">>) {
     this.commit((d) => {
@@ -1137,8 +1389,8 @@ class Store {
     }
     this.logActivity({
       type: "notes_uploaded",
-      title: "Notes uploaded",
-      description: title,
+      title: `Notes uploaded — "${title}"`,
+      description: "Not visible to students until it is assigned.",
       noteId: id,
       link: "/admin/notes",
     });
@@ -1152,7 +1404,7 @@ class Store {
     });
     this.run(supabase().from("notes").delete().eq("id", id), "deleteNote");
     // No noteId: the FK would cascade this entry away with the note itself.
-    this.logActivity({ type: "notes_deleted", title: "Notes deleted", description: title });
+    this.logActivity({ type: "notes_deleted", title: `Notes deleted — "${title ?? "Untitled"}"` });
   }
   /** Rolls the optimistic row back if the insert fails, so an assignment can
    *  never appear attached to a note without existing in the database. */
@@ -1169,13 +1421,30 @@ class Store {
       throw new Error(`Could not assign the note: ${error.message}`);
     }
     const note = this.state.notes.find((n) => n.id === noteId);
-    const cohort = this.state.cohorts.find((c) => c.id === cohortId);
+    const subjectName = this.state.subjects.find((s) => s.id === subjectId)?.name;
+    const scope = [this.cohortName(cohortId), this.state.classes.find((c) => c.id === classId)?.name, subjectName]
+      .filter(Boolean)
+      .join(" › ");
     this.logActivity({
       type: "notes_assigned",
-      title: "Notes assigned",
-      description: [note?.title, cohort?.name].filter(Boolean).join(" → "),
+      title: `Notes assigned — "${note?.title ?? "Untitled"}"`,
+      description: scope,
       noteId,
       link: "/admin/notes",
+    });
+    // Reaches exactly the students the assignment itself grants access to: the
+    // broadcast columns carry the same cohort/class/subject triple the note RLS
+    // is checked against.
+    this.logActivity({
+      type: "notes_assigned",
+      title: `New notes: "${note?.title ?? "Untitled"}"`,
+      description: subjectName,
+      noteId,
+      cohortId,
+      classId,
+      subjectId,
+      link: "/notes",
+      audience: "student",
     });
   }
   deleteNoteAssignment(id: string) {
@@ -1201,6 +1470,13 @@ class Store {
     testId?: string;
     noteId?: string;
     submissionId?: string;
+    /**
+     * Broadcast target, honoured only when studentId is absent. Null (or
+     * omitted) means "every cohort/class/subject", matching Test's semantics.
+     */
+    cohortId?: string | null;
+    classId?: string | null;
+    subjectId?: string | null;
     link?: string;
     audience?: Activity["audience"];
   }) {
@@ -1213,6 +1489,9 @@ class Store {
         test_id: input.testId ?? null,
         note_id: input.noteId ?? null,
         submission_id: input.submissionId ?? null,
+        cohort_id: input.cohortId ?? null,
+        class_id: input.classId ?? null,
+        subject_id: input.subjectId ?? null,
         link: input.link ?? null,
         audience: input.audience ?? "admin",
       }),
@@ -1232,28 +1511,89 @@ class Store {
   }
 
   /**
+   * Clear entries from THIS user's feed. Not a delete: the row is shared with
+   * everyone else the notification was addressed to, so the caller's uid is
+   * appended to cleared_by and the selectors filter it out for them alone.
+   */
+  clearActivities(ids: string[], userId: string) {
+    if (!ids.length) return;
+    this.commit((d) => {
+      d.activities.forEach((a) => {
+        if (ids.includes(a.id) && !a.clearedBy.includes(userId)) a.clearedBy.push(userId);
+      });
+    });
+    this.run(supabase().rpc("clear_activities", { p_ids: ids }), "clearActivities");
+  }
+
+  /**
+   * Clear the caller's whole feed. p_ids null lets the RPC sweep every row RLS
+   * shows them server-side, so anything beyond the cached 100 goes too.
+   */
+  clearAllActivities(userId: string) {
+    this.commit((d) => {
+      d.activities.forEach((a) => {
+        if (!a.clearedBy.includes(userId)) a.clearedBy.push(userId);
+      });
+    });
+    this.run(supabase().rpc("clear_activities", { p_ids: null }), "clearAllActivities");
+  }
+
+  /**
    * Live-stream new activities into the cache. One channel for the whole app;
    * RLS decides what each session actually receives. Push, not poll.
    */
   subscribeToActivities(): () => void {
-    const sb = supabase();
-    const channel = sb
-      .channel("activities-feed")
-      .on(
+    return this.shareChannel("activities-feed", (channel) => {
+      channel.on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "activities" },
         (payload) => {
           const row = payload.new as Row;
+          let added = false;
           this.commit((d) => {
             if (d.activities.some((a) => a.id === row.id)) return; // idempotent
             d.activities.unshift(mapActivity(row));
             if (d.activities.length > 100) d.activities.length = 100;
+            added = true;
           });
+          // The notification arrives before the thing it is ABOUT. A hand-in
+          // pushes its activity to staff instantly, but the submission row is
+          // not in this session's cache, so the card would render blank until
+          // the next refresh. Pull the referenced row in; refresh() coalesces,
+          // so a burst of submissions costs one round trip.
+          if (added && this.referencesUncachedRow(row)) void this.refresh();
         },
-      )
-      .subscribe();
+      );
+    });
+  }
 
-    return () => { void sb.removeChannel(channel); };
+  /** True when an incoming activity points at something we have not cached. */
+  private referencesUncachedRow(row: Row): boolean {
+    const submissionId = row.submission_id as string | null;
+    const testId = row.test_id as string | null;
+    const noteId = row.note_id as string | null;
+    return (
+      (!!submissionId && !this.state.submissions.some((s) => s.id === submissionId)) ||
+      (!!testId && !this.state.tests.some((t) => t.id === testId)) ||
+      (!!noteId && !this.state.notes.some((n) => n.id === noteId))
+    );
+  }
+
+  /**
+   * Live-stream note publishing into the cache.
+   *
+   * A note only becomes visible to a student when an ASSIGNMENT lands, and that
+   * assignment can grant access to a note the client has never fetched — so
+   * there is nothing useful to merge from the payload. Re-hydrate instead and
+   * let RLS decide what comes back; refresh() coalesces, so a teacher adding
+   * three assignments in a row costs one round trip, not three.
+   */
+  subscribeToNotes(): () => void {
+    return this.shareChannel("notes-feed", (channel) => {
+      const reload = () => { void this.refresh(); };
+      channel.on("postgres_changes", { event: "*", schema: "public", table: "notes" }, reload);
+      channel.on("postgres_changes", { event: "*", schema: "public", table: "note_assignments" }, reload);
+    });
   }
 }
 

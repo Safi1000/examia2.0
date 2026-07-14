@@ -109,8 +109,8 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
     startLogged.current = true;
     store.logActivity({
       type: "test_started",
-      title: "Student started a test",
-      description: `${student.username} — ${test.title}`,
+      title: `${student.username} started "${test.title}"`,
+      description: test.subject,
       studentId: student.id,
       testId: test.id,
       link: `/admin/tests/${test.id}`,

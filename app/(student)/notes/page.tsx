@@ -45,17 +45,24 @@ export default function StudentNotesPage() {
 
   // Hooks must run before any early return — guard inside instead.
   const studentId = session?.studentId;
+  const username = (studentId ? studentById(db, studentId)?.username : null) ?? "A student";
+
+  // A note becomes visible to a student the moment it is ASSIGNED, which can
+  // happen while they are sitting on this page. Without this they would not see
+  // it until the tab lost and regained focus (DataSync) or was reloaded.
+  useEffect(() => store.subscribeToNotes(), [store]);
+
   const visitLogged = useRef(false);
   useEffect(() => {
     if (visitLogged.current || !studentId) return;
     visitLogged.current = true;
     store.logActivity({
       type: "notes_accessed",
-      title: "Student accessed notes",
+      title: `${username} opened Notes`,
       studentId,
       link: "/admin/notes",
     });
-  }, [studentId, store]);
+  }, [studentId, username, store]);
 
   if (!studentId) return null;
   const student = studentById(db, studentId);
@@ -64,8 +71,7 @@ export default function StudentNotesPage() {
   function onDownload(noteId: string, url: string, fileName: string) {
     store.logActivity({
       type: "notes_downloaded",
-      title: "Student downloaded notes",
-      description: fileName,
+      title: `${username} downloaded "${fileName}"`,
       studentId,
       noteId,
       link: "/admin/notes",

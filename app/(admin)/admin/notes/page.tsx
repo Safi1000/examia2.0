@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Card, Button, Input, Select, Label, Modal, EmptyState, Icon } from "@/components/ui";
+import { Card, Button, Input, Select, Label, Modal, EmptyState, Icon, Badge } from "@/components/ui";
 import type { Note, NoteAssignment } from "@/types";
 import { uploadNote, notesConfigured } from "@/lib/cloudinary";
 
@@ -94,11 +94,15 @@ export default function NotesPage() {
   const subjectsForEA = cohortForEA ? db.subjects.filter((s) => cohortForEA.subjectIds.includes(s.id)) : [];
 
   function addPendingAssignment() {
-    if (!aCohortId) return;
+    // Silently doing nothing here is how a teacher ends up uploading a note
+    // with no assignment at all: they fill in class/subject, forget the cohort,
+    // click Add, and see no reason to think anything is wrong.
+    if (!aCohortId) return setUploadError("Choose a cohort for the assignment.");
+    setUploadError(null);
     const already = pendingAssignments.some(
       (a) => a.cohortId === aCohortId && a.classId === (aClassId || null) && a.subjectId === (aSubjectId || null),
     );
-    if (already) return;
+    if (already) return setUploadError("That assignment is already in the list.");
     setPendingAssignments((prev) => [...prev, { cohortId: aCohortId, classId: aClassId || null, subjectId: aSubjectId || null }]);
     setAClassId("");
     setASubjectId("");
@@ -107,6 +111,12 @@ export default function NotesPage() {
   async function handleUpload() {
     if (!uploadTitle.trim()) return setUploadError("Title is required.");
     if (!uploadFile) return setUploadError("Select a file.");
+    // A note reaches students ONLY through an assignment. Uploading without one
+    // produces a note the teacher can see and no student ever can — which is
+    // indistinguishable, from the teacher's side, from notes being broken.
+    if (pendingAssignments.length === 0) {
+      return setUploadError("Add at least one assignment — a note with no assignment is not visible to any student.");
+    }
     if (!notesConfigured()) return setUploadError("Cloudinary is not configured. Set NEXT_PUBLIC_CLOUDINARY_CLOUD and NEXT_PUBLIC_CLOUDINARY_NOTES_PRESET.");
 
     setUploading(true);
@@ -174,7 +184,12 @@ export default function NotesPage() {
                       <p className="text-sm text-ink-3">{note.fileName}</p>
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {assignments.length === 0 && (
-                          <span className="text-xs text-ink-3">No assignments yet</span>
+                          // Unassigned means invisible to every student. Say so
+                          // plainly — "No assignments yet" read like a detail.
+                          <Badge tone="warning">
+                            <Icon.Warn className="h-3.5 w-3.5" />
+                            Not visible to students — assign it
+                          </Badge>
                         )}
                         {assignments.map((a) => (
                           <AssignmentBadge
