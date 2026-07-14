@@ -2,9 +2,10 @@
 
 import { useRef, useState } from "react";
 import type { Answer, Question } from "@/types";
-import { RadioCard, Textarea, Pill, Badge, Button, Icon } from "@/components/ui";
+import { RadioCard, Textarea, Pill, Badge, Icon } from "@/components/ui";
 import { uploadImage } from "@/lib/cloudinary";
 import { useToast } from "@/components/toast";
+import { cn } from "@/lib/cn";
 
 /** Renders one question and its answer control (MCQ / Text / Photo). */
 export function QuestionView({
@@ -64,19 +65,45 @@ export function QuestionView({
   );
 }
 
+const MAX_PHOTOS = 10;
+
+/**
+ * Photo answer: multiple images, drag & drop, multi-select, preview, remove.
+ *
+ * `photoUrls` is the full ordered set; `photoDataUrl` is kept in sync with the
+ * first image so existing grading / results / evaluation code that reads the
+ * single URL keeps working unchanged.
+ */
 function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: Answer) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
-  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const urls = answer.photoUrls ?? (answer.photoDataUrl ? [answer.photoDataUrl] : []);
+
+  const apply = (next: string[]) =>
+    onChange({ ...answer, photoUrls: next, photoDataUrl: next[0] });
+
+  async function addFiles(files: File[]) {
+    const images = files.filter((f) => f.type.startsWith("image/"));
+    if (!images.length) {
+      toast("Images only, please.", "error");
+      return;
+    }
+    const room = MAX_PHOTOS - urls.length;
+    if (room <= 0) {
+      toast(`That's the limit — ${MAX_PHOTOS} images.`, "error");
+      return;
+    }
+    const batch = images.slice(0, room);
+    if (images.length > room) toast(`Only the first ${room} were added (${MAX_PHOTOS} max).`, "info");
+
     setUploading(true);
     try {
-      // Upload straight to Cloudinary; we persist the returned secure_url.
-      const url = await uploadImage(file);
-      onChange({ ...answer, photoDataUrl: url });
+      // Upload in parallel, but keep the order the student picked them in.
+      const uploaded = await Promise.all(batch.map((f) => uploadImage(f)));
+      apply([...urls, ...uploaded]);
     } catch (err) {
       toast(err instanceof Error ? err.message : "Photo upload failed. Try again.", "error");
     } finally {
@@ -85,40 +112,83 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
     }
   }
 
+  function remove(i: number) {
+    apply(urls.filter((_, idx) => idx !== i));
+  }
+
   return (
     <div>
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
-        onChange={onFile}
+        multiple
+        onChange={(e) => void addFiles(Array.from(e.target.files ?? []))}
         className="sr-only"
-        aria-label="Upload a photo of your answer"
+        aria-label="Upload photos of your answer"
       />
-      {answer.photoDataUrl ? (
-        <div className="space-y-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={answer.photoDataUrl}
-            alt="Your submitted answer"
-            className="max-h-72 w-full rounded-lg border border-border object-contain bg-surface-2"
-          />
-          <Button variant="secondary" type="button" loading={uploading} onClick={() => inputRef.current?.click()}>
-            <Icon.Camera className="h-4 w-4" /> Retake photo
-          </Button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          disabled={uploading}
-          onClick={() => inputRef.current?.click()}
-          className="flex min-h-40 w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border-strong bg-surface text-ink-2 transition-colors hover:border-brand hover:bg-brand-soft/40 disabled:opacity-60"
+
+      {urls.length > 0 && (
+        <ul className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {urls.map((url, i) => (
+            <li key={url} className="group relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={url}
+                alt={`Answer image ${i + 1}`}
+                className="h-32 w-full rounded-lg border border-border bg-surface-2 object-cover"
+              />
+              <span className="absolute left-1.5 top-1.5 rounded bg-paper/80 px-1.5 text-[11px] font-bold text-ink backdrop-blur tabular">
+                {i + 1}
+              </span>
+              <button
+                type="button"
+                onClick={() => remove(i)}
+                aria-label={`Remove image ${i + 1}`}
+                className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md bg-paper/85 text-ink-2 backdrop-blur transition-colors hover:bg-error hover:text-paper"
+              >
+                <Icon.Close className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {urls.length < MAX_PHOTOS && (
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            void addFiles(Array.from(e.dataTransfer.files));
+          }}
         >
-          <Icon.Camera className="h-7 w-7" />
-          <span className="text-sm font-semibold">{uploading ? "Uploading..." : "Take a photo or upload one"}</span>
-          <span className="text-xs text-ink-3">Your handwritten working, please.</span>
-        </button>
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={() => inputRef.current?.click()}
+            className={cn(
+              "flex w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed bg-surface text-ink-2 transition-colors disabled:opacity-60",
+              urls.length ? "min-h-24 py-4" : "min-h-40",
+              dragging ? "border-brand bg-brand-soft/40" : "border-border-strong hover:border-brand hover:bg-brand-soft/40",
+            )}
+          >
+            <Icon.Camera className="h-7 w-7" />
+            <span className="text-sm font-semibold">
+              {uploading
+                ? "Uploading..."
+                : urls.length
+                  ? "Add more images"
+                  : "Take photos, upload, or drag them here"}
+            </span>
+            <span className="text-xs text-ink-3">
+              {urls.length
+                ? `${urls.length} of ${MAX_PHOTOS} added`
+                : "Your handwritten working, please. You can add several."}
+            </span>
+          </button>
+        </div>
       )}
     </div>
   );

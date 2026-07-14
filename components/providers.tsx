@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { AuthProvider } from "@/lib/auth-context";
 import { ToastProvider, useToast } from "@/components/toast";
 import { getStore } from "@/lib/data/store";
 import { ThemeManager } from "@/components/ThemeManager";
+import { DataSync } from "@/components/DataSync";
 import { BUILD_CREDIT, COMPANY_NAME } from "@/lib/config";
 
 /**
@@ -12,9 +13,14 @@ import { BUILD_CREDIT, COMPANY_NAME } from "@/lib/config";
  * so we gate the first paint behind mount to keep server and client markup
  * identical and avoid hydration mismatches. The splash is sub-frame in practice.
  */
+/** True only after hydration. No setState-in-effect; the server snapshot is false. */
+const subscribeNoop = () => () => {};
+function useHydrated(): boolean {
+  return useSyncExternalStore(subscribeNoop, () => true, () => false);
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useHydrated();
 
   if (!mounted) {
     return (
@@ -31,6 +37,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <StoreErrorBridge />
       <AuthProvider>
         <ThemeManager />
+        <DataSync />
         <div className="relative z-10 flex min-h-dvh flex-col">
           <div className="flex-1">{children}</div>
           <GlobalFooter />

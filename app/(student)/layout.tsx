@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useDatabase, useDataReady } from "@/lib/data/store";
 import { studentById } from "@/lib/data/selectors";
 import { BrandMark } from "@/components/Brand";
+import { NotificationBell } from "@/components/NotificationBell";
 import { CohortTag } from "@/components/ui";
 import { Icon } from "@/components/ui";
 import { cohortById } from "@/lib/data/selectors";
@@ -73,6 +74,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                   </Link>
                 );
               })}
+              <NotificationBell />
               <button
                 onClick={() => { logout(); router.replace("/login"); }}
                 className="flex h-11 w-11 items-center justify-center rounded-md text-ink-2 hover:bg-surface-2 hover:text-ink"

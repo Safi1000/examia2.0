@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useNow } from "@/hooks/useNow";
 import { useDatabase } from "@/lib/data/store";
 import { studentById, testsForStudent, submissionFor } from "@/lib/data/selectors";
 import { AnnouncementsPanel } from "@/components/student/AnnouncementsPanel";
@@ -21,7 +22,7 @@ function greeting(d = new Date()) {
 export default function DashboardPage() {
   const { session } = useAuth();
   const db = useDatabase();
-  const nowMs = Date.now();
+  const nowMs = useNow();
 
   const student = session?.studentId ? studentById(db, session.studentId) : null;
 

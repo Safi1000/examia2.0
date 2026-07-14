@@ -6,6 +6,7 @@
  * TODO(backend): this entire module is replaced by Supabase tables + RLS.
  */
 import type {
+  Activity,
   Announcement,
   Answer,
   ClassItem,
@@ -22,6 +23,7 @@ import type {
 import { autoGradeMcq } from "@/lib/grading";
 
 export interface Database {
+  activities: Activity[];
   cohorts: Cohort[];
   students: Student[];
   tests: Test[];
@@ -367,6 +369,7 @@ export function createSeed(now: number = Date.now()): Database {
   ];
 
   return {
+    activities: [],
     cohorts,
     students,
     tests,

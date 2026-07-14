@@ -10,6 +10,8 @@ export function Wordmark({ className }: { className?: string; markSize?: number 
 }
 
 // Kept as a no-op for callers that still import it; renders nothing.
-export function BrandMark(_props: { size?: number }) {
+// The prop stays in the signature so existing `<BrandMark size={26} />` calls type-check.
+export function BrandMark(props: { size?: number }) {
+  void props;
   return null;
 }

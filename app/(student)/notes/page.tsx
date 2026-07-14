@@ -1,6 +1,7 @@
 "use client";
 
-import { useDatabase } from "@/lib/data/store";
+import { useEffect, useRef } from "react";
+import { useDatabase, useStore } from "@/lib/data/store";
 import { useAuth } from "@/lib/auth-context";
 import { studentById } from "@/lib/data/selectors";
 import { EmptyState, Icon } from "@/components/ui";
@@ -39,11 +40,38 @@ function scopeLabel(
 
 export default function StudentNotesPage() {
   const db = useDatabase();
+  const store = useStore();
   const { session } = useAuth();
 
-  if (!session?.studentId) return null;
-  const student = studentById(db, session.studentId);
+  // Hooks must run before any early return — guard inside instead.
+  const studentId = session?.studentId;
+  const visitLogged = useRef(false);
+  useEffect(() => {
+    if (visitLogged.current || !studentId) return;
+    visitLogged.current = true;
+    store.logActivity({
+      type: "notes_accessed",
+      title: "Student accessed notes",
+      studentId,
+      link: "/admin/notes",
+    });
+  }, [studentId, store]);
+
+  if (!studentId) return null;
+  const student = studentById(db, studentId);
   if (!student) return null;
+
+  function onDownload(noteId: string, url: string, fileName: string) {
+    store.logActivity({
+      type: "notes_downloaded",
+      title: "Student downloaded notes",
+      description: fileName,
+      studentId,
+      noteId,
+      link: "/admin/notes",
+    });
+    downloadFile(url, fileName);
+  }
 
   // The store already applies RLS so db.notes only contains notes this student
   // can access. We still filter locally to build per-note scope labels.
@@ -121,7 +149,7 @@ export default function StudentNotesPage() {
                         </div>
                       </div>
                       <button
-                        onClick={() => downloadFile(note.fileUrl, note.fileName)}
+                        onClick={() => onDownload(note.id, note.fileUrl, note.fileName)}
                         className={cn(
                           "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold",
                           "bg-brand-soft text-brand hover:opacity-80 transition-opacity",

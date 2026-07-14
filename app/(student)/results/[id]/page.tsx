@@ -156,17 +156,23 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
           </div>
         )}
 
-        {question.type === "photo" &&
-          (answer?.photoDataUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={answer.photoDataUrl}
-              alt={`Your answer to question ${index + 1}`}
-              className="max-h-64 w-full rounded-md border border-border object-contain bg-surface-2"
-            />
-          ) : (
-            <p className="text-sm italic text-ink-3">(no photo)</p>
-          ))}
+        {question.type === "photo" && (() => {
+          const photos = answer?.photoUrls ?? (answer?.photoDataUrl ? [answer.photoDataUrl] : []);
+          if (!photos.length) return <p className="text-sm italic text-ink-3">(no photo)</p>;
+          return (
+            <div className="space-y-2">
+              {photos.map((url, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={url}
+                  src={url}
+                  alt={`Your answer to question ${index + 1}, image ${i + 1}`}
+                  className="max-h-64 w-full rounded-md border border-border object-contain bg-surface-2"
+                />
+              ))}
+            </div>
+          );
+        })()}
       </div>
 
       {answer?.feedback && (

@@ -13,8 +13,12 @@ export function useSessionTimeout(
   timeoutMs: number,
   active: boolean,
 ) {
+  // Keep the latest callback without re-arming the timer on every render.
+  // Assigned in an effect, not during render (refs must not be written mid-render).
   const onTimeoutRef = useRef(onTimeout);
-  onTimeoutRef.current = onTimeout;
+  useEffect(() => {
+    onTimeoutRef.current = onTimeout;
+  }, [onTimeout]);
 
   useEffect(() => {
     if (!active) return;

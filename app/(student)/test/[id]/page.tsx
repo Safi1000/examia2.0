@@ -7,13 +7,13 @@ import { useAuth } from "@/lib/auth-context";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { studentById, testById, submissionFor } from "@/lib/data/selectors";
 import { useCountdown } from "@/hooks/useCountdown";
+import { useNow } from "@/hooks/useNow";
 import { useDraftAutosave, loadDraft, clearDraft } from "@/hooks/useDraftAutosave";
 import { useToast } from "@/components/toast";
 import { CountdownTimer } from "@/components/student/CountdownTimer";
 import { QuestionView } from "@/components/student/QuestionView";
 import { Button, Modal, Pill, Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
-import { BrandMark } from "@/components/Brand";
 import { testWindow } from "@/lib/time";
 import Link from "next/link";
 
@@ -23,41 +23,99 @@ function isAnswered(a: Answer): boolean {
   return !!a.photoDataUrl;
 }
 
+/** Resume point for an attempt: a saved draft, or a fresh start. */
+type Boot = { startedAt: string; answers: Answer[] | null; index: number };
+
+/**
+ * Re-reads the paper from the database before the runner mounts.
+ *
+ * The cache is hydrated at login and a teacher can edit a question at any point
+ * afterwards, so a student who signed in earlier would otherwise sit a stale
+ * copy — answering against an old option list while the server grades their
+ * choice against the new key. Gating the runner on a fresh fetch is what makes
+ * "the latest MCQs are always used" true.
+ */
 export default function TestRunnerPage() {
   const params = useParams();
   const id = String(params.id);
+  const store = useStore();
+  const { session } = useAuth();
+  const studentId = session?.studentId;
+
+  // The draft read (localStorage) and the clock read are impure, so they happen
+  // here in an effect — alongside the refetch the runner already waits on —
+  // rather than during TestRunner's render. TestRunner then renders purely from
+  // the resolved `boot`.
+  const [boot, setBoot] = useState<Boot | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void store.refreshTest(id).finally(() => {
+      if (!active) return;
+      const d = studentId ? loadDraft(studentId, id) : null;
+      setBoot({
+        startedAt: d?.startedAt ?? new Date().toISOString(),
+        answers: d?.answers ?? null,
+        index: d?.currentIndex ?? 0,
+      });
+    });
+    return () => { active = false; };
+  }, [id, studentId, store]);
+
+  if (!boot) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center text-ink-3">Loading test…</div>
+    );
+  }
+  return <TestRunner id={id} boot={boot} />;
+}
+
+function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   const router = useRouter();
   const { session } = useAuth();
   const db = useDatabase();
   const store = useStore();
   const { toast } = useToast();
+  const nowMs = useNow();
 
   const student = session?.studentId ? studentById(db, session.studentId) : null;
   const test = testById(db, id);
   const visible =
     test && test.status !== "draft" && (test.cohortId === null || test.cohortId === student?.cohortId);
   const existing = student && test ? submissionFor(db, student.id, test.id) : null;
-  const window = test ? testWindow(test.opensAt, test.closesAt, Date.now()) : "closed";
+  const window = test ? testWindow(test.opensAt, test.closesAt, nowMs) : "closed";
 
-  // ---- One-time bootstrap from any saved draft -------------------------
-  const [boot] = useState(() => {
-    const d = student && test ? loadDraft(student.id, test.id) : null;
-    return {
-      startedAt: d?.startedAt ?? new Date().toISOString(),
-      answers: d?.answers ?? null,
-      index: d?.currentIndex ?? 0,
-    };
-  });
-
+  // Reconcile any saved draft against the CURRENT question set by id, not by
+  // array length: if a teacher edited the paper mid-attempt, a draft answer for
+  // a removed/retyped question must be dropped rather than silently applied to
+  // whatever question now sits at that position.
   const [answers, setAnswers] = useState<Answer[]>(() => {
     if (!test) return [];
-    if (boot.answers && boot.answers.length === test.questions.length) return boot.answers;
-    return test.questions.map((q) => ({ questionId: q.id, type: q.type }) as Answer);
+    const draft = new Map((boot.answers ?? []).map((a) => [a.questionId, a]));
+    return test.questions.map((q) => {
+      const saved = draft.get(q.id);
+      return saved && saved.type === q.type ? saved : ({ questionId: q.id, type: q.type } as Answer);
+    });
   });
   const [index, setIndex] = useState(boot.index);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const submittedRef = useRef(false);
   const prevState = useRef<string>("normal");
+
+  // Log the attempt once, when the runner actually opens for a live sitting.
+  const startLogged = useRef(false);
+  useEffect(() => {
+    if (startLogged.current || !test || !student || existing || window !== "open") return;
+    startLogged.current = true;
+    store.logActivity({
+      type: "test_started",
+      title: "Student started a test",
+      description: `${student.username} — ${test.title}`,
+      studentId: student.id,
+      testId: test.id,
+      link: `/admin/tests/${test.id}`,
+    });
+  }, [test, student, existing, window, store]);
 
   const endMs = useMemo(() => {
     if (!test) return null;
@@ -172,7 +230,7 @@ export default function TestRunnerPage() {
           </Button>
           {isLast ? (
             <Button onClick={() => setConfirmOpen(true)}>
-              I'm done <Icon.Check className="h-4 w-4" />
+              I&apos;m done <Icon.Check className="h-4 w-4" />
             </Button>
           ) : (
             <Button onClick={() => setIndex((i) => Math.min(test.questions.length - 1, i + 1))}>

@@ -143,10 +143,30 @@ function GradeCard({
             {answer?.text || <span className="italic text-ink-3">No answer given</span>}
           </div>
         )}
-        {question.type === "photo" && (answer?.photoDataUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={answer.photoDataUrl} alt={`Answer to question ${index + 1}`} className="max-h-64 w-full rounded-md border border-border object-contain bg-surface-2" />
-        ) : <p className="text-sm italic text-ink-3">No photo submitted</p>)}
+        {question.type === "photo" && (() => {
+          // photoUrls is the full set; fall back to the legacy single URL.
+          const photos = answer?.photoUrls ?? (answer?.photoDataUrl ? [answer.photoDataUrl] : []);
+          if (!photos.length) return <p className="text-sm italic text-ink-3">No photo submitted</p>;
+          return (
+            <div className="space-y-2">
+              {photos.map((url, i) => (
+                <figure key={url}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={url}
+                    alt={`Answer to question ${index + 1}, image ${i + 1}`}
+                    className="max-h-64 w-full rounded-md border border-border object-contain bg-surface-2"
+                  />
+                  {photos.length > 1 && (
+                    <figcaption className="mt-1 text-xs text-ink-3 tabular">
+                      Image {i + 1} of {photos.length}
+                    </figcaption>
+                  )}
+                </figure>
+              ))}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Scoring */}

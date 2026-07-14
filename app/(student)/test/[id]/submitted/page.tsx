@@ -54,7 +54,7 @@ export default function SubmittedPage() {
         </Row>
         <Row label="Submission">
           {submission.autoSubmitted ? (
-            <Badge tone="warning">Time's up. Auto-submitted.</Badge>
+            <Badge tone="warning">Time&apos;s up. Auto-submitted.</Badge>
           ) : (
             <Badge tone="success">Submitted</Badge>
           )}

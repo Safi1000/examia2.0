@@ -9,6 +9,7 @@ import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { QuestionModal, type QuestionDraft } from "@/components/admin/QuestionModal";
 import { ImportBankModal } from "@/components/admin/ImportBankModal";
+import { ImportDocModal } from "@/components/admin/ImportDocModal";
 import { Card, CardHeader, CardBody, Button, Input, Select, Badge, Pill, Modal, Icon, EmptyState } from "@/components/ui";
 
 function toLocalInput(iso: string): string {
@@ -55,6 +56,7 @@ export default function TestEditorPage() {
   const [qModalOpen, setQModalOpen] = useState(false);
   const [editingQ, setEditingQ] = useState<Question | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [docOpen, setDocOpen] = useState(false);
   const [deleteQId, setDeleteQId] = useState<string | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
@@ -206,6 +208,9 @@ export default function TestEditorPage() {
                 <Button variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
                   <Icon.Bank className="h-4 w-4" /> Import
                 </Button>
+                <Button variant="secondary" size="sm" onClick={() => setDocOpen(true)}>
+                  <Icon.Doc className="h-4 w-4" /> From file
+                </Button>
                 <Button size="sm" onClick={() => { setEditingQ(null); setQModalOpen(true); }}>
                   <Icon.Plus className="h-4 w-4" /> Add
                 </Button>
@@ -261,6 +266,8 @@ export default function TestEditorPage() {
       </div>
 
       <QuestionModal
+        // Remount per open/target so the form seeds from `initial` at mount.
+        key={`${qModalOpen}-${editingQ?.id ?? "new"}`}
         open={qModalOpen}
         onClose={() => setQModalOpen(false)}
         initial={editingQ ? ({ ...editingQ } as QuestionDraft) : null}
@@ -276,6 +283,17 @@ export default function TestEditorPage() {
         open={importOpen}
         onClose={() => setImportOpen(false)}
         onImport={(ids) => { store.importBankItems(id, ids); toast(`${ids.length} question${ids.length === 1 ? "" : "s"} imported.`, "success"); }}
+      />
+
+      {/* Bulk-create from PDF/DOC/DOCX/images. Saves through the same
+          store.addQuestion path as manual entry, which stays available. */}
+      <ImportDocModal
+        open={docOpen}
+        onClose={() => setDocOpen(false)}
+        onImport={(qs) => {
+          qs.forEach((q) => store.addQuestion(id, q));
+          toast(`${qs.length} question${qs.length === 1 ? "" : "s"} added.`, "success");
+        }}
       />
 
       <Modal

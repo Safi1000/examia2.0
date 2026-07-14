@@ -21,6 +21,8 @@
  */
 import { useSyncExternalStore } from "react";
 import type {
+  Activity,
+  ActivityType,
   Announcement,
   Answer,
   ClassItem,
@@ -60,6 +62,7 @@ function genId(): string {
 }
 
 const EMPTY: Database = {
+  activities: [],
   cohorts: [],
   students: [],
   tests: [],
@@ -149,14 +152,36 @@ function mapQuestion(r: Row, correctIndex: number | undefined): Question {
   return { ...base, type: "photo" };
 }
 
-const mapAnswer = (r: Row): Answer => ({
-  questionId: r.question_id as string,
-  type: r.type as Answer["type"],
-  selectedIndex: (r.selected_index as number) ?? undefined,
-  text: (r.text as string) ?? undefined,
-  photoDataUrl: (r.photo_url as string) ?? undefined,
-  marksAwarded: (r.marks_awarded as number) ?? undefined,
-  feedback: (r.feedback as string) ?? undefined,
+const mapAnswer = (r: Row): Answer => {
+  // photo_urls is the full set; photo_url stays the first image so any code
+  // still reading the single URL (grading, results, evaluation) is unaffected.
+  const urls = ((r.photo_urls as string[]) ?? []).filter(Boolean);
+  const first = (r.photo_url as string) ?? undefined;
+  return {
+    questionId: r.question_id as string,
+    type: r.type as Answer["type"],
+    selectedIndex: (r.selected_index as number) ?? undefined,
+    text: (r.text as string) ?? undefined,
+    photoDataUrl: first ?? urls[0],
+    photoUrls: urls.length ? urls : first ? [first] : undefined,
+    marksAwarded: (r.marks_awarded as number) ?? undefined,
+    feedback: (r.feedback as string) ?? undefined,
+  };
+};
+
+const mapActivity = (r: Row): Activity => ({
+  id: r.id as string,
+  type: r.type as ActivityType,
+  title: r.title as string,
+  description: (r.description as string) ?? undefined,
+  studentId: (r.student_id as string) ?? undefined,
+  testId: (r.test_id as string) ?? undefined,
+  noteId: (r.note_id as string) ?? undefined,
+  submissionId: (r.submission_id as string) ?? undefined,
+  link: (r.link as string) ?? undefined,
+  audience: r.audience as Activity["audience"],
+  readBy: (r.read_by as string[]) ?? [],
+  createdAt: r.created_at as string,
 });
 
 const mapSubmission = (r: Row): Submission => ({
@@ -272,10 +297,85 @@ class Store {
   }
 
   // ---- Lifecycle -------------------------------------------------------
-  /** Hydrate the cache from Supabase (scoped by RLS for the current session). */
+  /**
+   * Hydrate the cache from Supabase (scoped by RLS for the current session).
+   *
+   * `load()` is the first hydration (flips `ready`); `refresh()` re-runs the same
+   * fetch against a live cache. Both funnel through here so there is exactly one
+   * fetch definition. Every query is error-checked: a slice that fails KEEPS its
+   * previous value instead of silently collapsing to [] (which used to make live
+   * rows — notes especially — look as though they had vanished).
+   */
   async load() {
+    await this.hydrate(true);
+  }
+
+  /**
+   * Re-read the database into the cache. Used when the app regains focus and
+   * before a student opens a test, so writes made in another session (a teacher
+   * editing an MCQ) are picked up. Coalesces concurrent calls.
+   */
+  async refresh(): Promise<void> {
+    if (this.refreshing) return this.refreshing;
+    this.refreshing = this.hydrate(false).finally(() => {
+      this.refreshing = null;
+    });
+    return this.refreshing;
+  }
+  private refreshing: Promise<void> | null = null;
+
+  /**
+   * Pull one test and its questions straight from the database and merge them
+   * into the cache. This is the guarantee that a student always sits the LATEST
+   * version of a paper: option text, option order, marks and the question set
+   * itself are re-read immediately before the runner builds its answer sheet.
+   */
+  async refreshTest(testId: string): Promise<void> {
     const sb = supabase();
-    const [coh, stu, tst, sub, ann, bnk, keys, cls, subj, cCls, cSubj, sCls, sSubj, nts, nAssigns] = await Promise.all([
+    const [tst, keys] = await Promise.all([
+      sb.from("tests").select("*, questions(*)").eq("id", testId).maybeSingle(),
+      sb.from("question_keys").select("*"), // admin-only; empty for students
+    ]);
+    if (tst.error) {
+      this.report(`refreshTest: ${tst.error.message}`);
+      return;
+    }
+    const t = tst.data as Row | null;
+    if (!t) return;
+
+    const correctByQ = new Map<string, number>();
+    for (const k of (keys.data as Row[]) ?? []) {
+      correctByQ.set(k.question_id as string, k.correct_index as number);
+    }
+
+    const fresh: Test = {
+      id: t.id as string,
+      title: t.title as string,
+      subject: t.subject as string,
+      durationMinutes: t.duration_minutes as number,
+      cohortId: (t.cohort_id as string) ?? null,
+      classId: (t.class_id as string) ?? null,
+      subjectId: (t.subject_id as string) ?? null,
+      opensAt: t.opens_at as string,
+      closesAt: t.closes_at as string,
+      testCode: t.test_code as string,
+      status: t.status as TestStatus,
+      createdAt: t.created_at as string,
+      questions: ((t.questions as Row[]) ?? [])
+        .map((q) => mapQuestion(q, correctByQ.get(q.id as string)))
+        .sort((a, b) => a.order - b.order),
+    };
+
+    this.commit((d) => {
+      const idx = d.tests.findIndex((x) => x.id === testId);
+      if (idx >= 0) d.tests[idx] = fresh;
+      else d.tests.push(fresh);
+    });
+  }
+
+  private async hydrate(initial: boolean) {
+    const sb = supabase();
+    const [coh, stu, tst, sub, ann, bnk, keys, cls, subj, cCls, cSubj, sCls, sSubj, nts, nAssigns, acts] = await Promise.all([
       sb.from("cohorts").select("*").order("created_at"),
       sb.from("students").select("*").order("created_at"),
       sb.from("tests").select("*, questions(*)").order("created_at"),
@@ -291,10 +391,29 @@ class Store {
       sb.from("student_subjects").select("*"),
       sb.from("notes").select("*").order("created_at", { ascending: false }),
       sb.from("note_assignments").select("*"),
+      // Feed is capped: the bell only ever shows recent history.
+      sb.from("activities").select("*").order("created_at", { ascending: false }).limit(100),
     ]);
 
-    const firstError = [coh, stu, tst, sub, ann, bnk].find((r) => r.error)?.error;
-    if (firstError) this.report(`load: ${firstError.message}`);
+    // Every slice is checked — not just the first six. A query that fails is
+    // reported and keeps its previously cached value (see `keep` below), so a
+    // transient failure can never masquerade as "you have no notes/tests".
+    const labelled: Array<[string, { error: { message: string } | null }]> = [
+      ["cohorts", coh], ["students", stu], ["tests", tst], ["submissions", sub],
+      ["announcements", ann], ["question_bank", bnk], ["question_keys", keys],
+      ["classes", cls], ["subjects", subj], ["cohort_classes", cCls],
+      ["cohort_subjects", cSubj], ["student_classes", sCls], ["student_subjects", sSubj],
+      ["notes", nts], ["note_assignments", nAssigns], ["activities", acts],
+    ];
+    const failed = labelled.filter(([, r]) => r.error);
+    for (const [name, r] of failed) {
+      this.report(`${initial ? "load" : "refresh"} ${name}: ${r.error!.message}`);
+    }
+
+    const prev = this.state;
+    /** Use freshly fetched rows, or fall back to what we already had on error. */
+    const keep = <T>(r: { error: unknown }, next: () => T[], previous: T[]): T[] =>
+      r.error ? previous : next();
 
     // Correct-option lookup: admin gets it from question_keys; a student gets it
     // only from their own released answers (RLS withholds it otherwise).
@@ -353,20 +472,21 @@ class Store {
     }
 
     this.state = {
-      cohorts: ((coh.data as Row[]) ?? []).map((r) =>
+      activities: keep(acts, () => ((acts.data as Row[]) ?? []).map(mapActivity), prev.activities),
+      cohorts: keep(coh, () => ((coh.data as Row[]) ?? []).map((r) =>
         mapCohort(r, cohortClassMap.get(r.id as string) ?? [], cohortSubjectMap.get(r.id as string) ?? [])
-      ),
-      students: ((stu.data as Row[]) ?? []).map((r) =>
+      ), prev.cohorts),
+      students: keep(stu, () => ((stu.data as Row[]) ?? []).map((r) =>
         mapStudent(r, studentClassMap.get(r.id as string) ?? [], studentSubjectMap.get(r.id as string) ?? [])
-      ),
-      tests,
-      submissions: ((sub.data as Row[]) ?? []).map(mapSubmission),
-      announcements: ((ann.data as Row[]) ?? []).map(mapAnnouncement),
-      bank: ((bnk.data as Row[]) ?? []).map(mapBank),
-      classes: ((cls.data as Row[]) ?? []).map(mapClass),
-      subjects: ((subj.data as Row[]) ?? []).map(mapSubject),
-      notes: ((nts.data as Row[]) ?? []).map(mapNote),
-      noteAssignments: ((nAssigns.data as Row[]) ?? []).map(mapNoteAssignment),
+      ), prev.students),
+      tests: keep(tst, () => tests, prev.tests),
+      submissions: keep(sub, () => ((sub.data as Row[]) ?? []).map(mapSubmission), prev.submissions),
+      announcements: keep(ann, () => ((ann.data as Row[]) ?? []).map(mapAnnouncement), prev.announcements),
+      bank: keep(bnk, () => ((bnk.data as Row[]) ?? []).map(mapBank), prev.bank),
+      classes: keep(cls, () => ((cls.data as Row[]) ?? []).map(mapClass), prev.classes),
+      subjects: keep(subj, () => ((subj.data as Row[]) ?? []).map(mapSubject), prev.subjects),
+      notes: keep(nts, () => ((nts.data as Row[]) ?? []).map(mapNote), prev.notes),
+      noteAssignments: keep(nAssigns, () => ((nAssigns.data as Row[]) ?? []).map(mapNoteAssignment), prev.noteAssignments),
     };
     this.ready = true;
     this.notify();
@@ -489,6 +609,29 @@ class Store {
 
   // ---- Student class/subject enrolment ---------------------------------
   setStudentClasses(studentId: string, classIds: string[]) {
+    const before = this.state.students.find((x) => x.id === studentId)?.classIds ?? [];
+    const student = this.state.students.find((x) => x.id === studentId);
+    const nameOf = (id: string) => this.state.classes.find((c) => c.id === id)?.name ?? "a class";
+
+    for (const id of classIds.filter((c) => !before.includes(c))) {
+      this.logActivity({
+        type: "student_joined_class",
+        title: "Student joined a class",
+        description: `${student?.username ?? "Student"} → ${nameOf(id)}`,
+        studentId,
+        link: `/admin/roster/${studentId}`,
+      });
+    }
+    for (const id of before.filter((c) => !classIds.includes(c))) {
+      this.logActivity({
+        type: "student_left_class",
+        title: "Student left a class",
+        description: `${student?.username ?? "Student"} → ${nameOf(id)}`,
+        studentId,
+        link: `/admin/roster/${studentId}`,
+      });
+    }
+
     this.commit((d) => {
       const s = d.students.find((x) => x.id === studentId);
       if (s) s.classIds = classIds;
@@ -611,6 +754,13 @@ class Store {
       }),
       "addTest",
     );
+    this.logActivity({
+      type: "test_created",
+      title: "Test created",
+      description: input.title,
+      testId: id,
+      link: `/admin/tests/${id}`,
+    });
     return id;
   }
   updateTest(id: string, patch: Partial<Omit<Test, "id" | "createdAt" | "questions">>) {
@@ -619,16 +769,27 @@ class Store {
       if (t) Object.assign(t, patch);
     });
     this.run(supabase().from("tests").update(testPatchToRow(patch)).eq("id", id), "updateTest");
+    const title = this.state.tests.find((t) => t.id === id)?.title;
+    this.logActivity({
+      type: "test_updated",
+      title: patch.status ? `Test marked ${patch.status}` : "Test updated",
+      description: title,
+      testId: id,
+      link: `/admin/tests/${id}`,
+    });
   }
   setTestStatus(id: string, status: TestStatus) {
     this.updateTest(id, { status });
   }
   deleteTest(id: string) {
+    const title = this.state.tests.find((t) => t.id === id)?.title;
     this.commit((d) => {
       d.tests = d.tests.filter((t) => t.id !== id);
       d.submissions = d.submissions.filter((s) => s.testId !== id);
     });
     this.run(supabase().from("tests").delete().eq("id", id), "deleteTest");
+    // No testId: the FK would cascade this entry away with the test itself.
+    this.logActivity({ type: "test_deleted", title: "Test deleted", description: title });
   }
   addQuestion(testId: string, q: Omit<Question, "id" | "order">) {
     const id = genId();
@@ -791,18 +952,36 @@ class Store {
       this.report(`submitTest: ${subErr.message}`);
       return id;
     }
-    const rows = input.answers.map((a) => ({
-      submission_id: id,
-      question_id: a.questionId,
-      type: a.type,
-      selected_index: a.selectedIndex ?? null,
-      text: a.text ?? null,
-      photo_url: a.photoDataUrl ?? null,
-    }));
+    const rows = input.answers.map((a) => {
+      // Keep photo_url populated with the first image so existing grading /
+      // results / evaluation paths are untouched; photo_urls carries the rest.
+      const urls = a.photoUrls?.filter(Boolean) ?? (a.photoDataUrl ? [a.photoDataUrl] : []);
+      return {
+        submission_id: id,
+        question_id: a.questionId,
+        type: a.type,
+        selected_index: a.selectedIndex ?? null,
+        text: a.text ?? null,
+        photo_url: urls[0] ?? a.photoDataUrl ?? null,
+        photo_urls: urls,
+      };
+    });
     if (rows.length) {
       const { error: ansErr } = await sb.from("answers").insert(rows);
       if (ansErr) this.report(`submitTest/answers: ${ansErr.message}`);
     }
+
+    const test = this.state.tests.find((t) => t.id === input.testId);
+    const student = this.state.students.find((s) => s.id === input.studentId);
+    this.logActivity({
+      type: input.autoSubmitted ? "test_completed" : "test_submitted",
+      title: input.autoSubmitted ? "Test auto-submitted (time up)" : "Student submitted a test",
+      description: [student?.username, test?.title].filter(Boolean).join(" — "),
+      studentId: input.studentId,
+      testId: input.testId,
+      submissionId: id,
+      link: `/admin/grading/${id}`,
+    });
     return id;
   }
   gradeAnswer(submissionId: string, questionId: string, marksAwarded: number, feedback?: string) {
@@ -822,14 +1001,29 @@ class Store {
   }
   releaseSubmission(submissionId: string) {
     const releasedAt = new Date().toISOString();
+    const sub = this.state.submissions.find((s) => s.id === submissionId);
     this.commit((d) => {
-      const sub = d.submissions.find((s) => s.id === submissionId);
-      if (sub) { sub.status = "released"; sub.releasedAt = releasedAt; }
+      const s = d.submissions.find((x) => x.id === submissionId);
+      if (s) { s.status = "released"; s.releasedAt = releasedAt; }
     });
     this.run(
       supabase().from("submissions").update({ status: "released", released_at: releasedAt }).eq("id", submissionId),
       "releaseSubmission",
     );
+    if (sub) {
+      const test = this.state.tests.find((t) => t.id === sub.testId);
+      // Addressed to the student: their result is now visible.
+      this.logActivity({
+        type: "submission_reviewed",
+        title: "Your submission was reviewed",
+        description: test?.title,
+        studentId: sub.studentId,
+        testId: sub.testId,
+        submissionId,
+        link: `/results/${sub.testId}`,
+        audience: "student",
+      });
+    }
   }
   bulkReleaseForTest(testId: string) {
     const releasedAt = new Date().toISOString();
@@ -924,6 +1118,11 @@ class Store {
   }
 
   // ---- Notes -----------------------------------------------------------
+  /**
+   * Throws on failure. The optimistic row is rolled back first, so a note that
+   * never reached the database can't linger in the UI looking uploaded and then
+   * "disappear" on the next reload — the caller shows the real error instead.
+   */
   async addNote(title: string, fileUrl: string, fileType: string, fileName: string): Promise<string> {
     const id = genId();
     const createdAt = new Date().toISOString();
@@ -931,28 +1130,130 @@ class Store {
     const { error } = await supabase().from("notes").insert({
       id, title, file_url: fileUrl, file_type: fileType, file_name: fileName, created_at: createdAt,
     });
-    if (error) this.report(`addNote: ${error.message}`);
+    if (error) {
+      this.commit((d) => { d.notes = d.notes.filter((n) => n.id !== id); });
+      this.report(`addNote: ${error.message}`);
+      throw new Error(`Could not save the note: ${error.message}`);
+    }
+    this.logActivity({
+      type: "notes_uploaded",
+      title: "Notes uploaded",
+      description: title,
+      noteId: id,
+      link: "/admin/notes",
+    });
     return id;
   }
   deleteNote(id: string) {
+    const title = this.state.notes.find((n) => n.id === id)?.title;
     this.commit((d) => {
       d.notes = d.notes.filter((n) => n.id !== id);
       d.noteAssignments = d.noteAssignments.filter((na) => na.noteId !== id);
     });
     this.run(supabase().from("notes").delete().eq("id", id), "deleteNote");
+    // No noteId: the FK would cascade this entry away with the note itself.
+    this.logActivity({ type: "notes_deleted", title: "Notes deleted", description: title });
   }
-  addNoteAssignment(noteId: string, cohortId: string, classId: string | null, subjectId: string | null) {
+  /** Rolls the optimistic row back if the insert fails, so an assignment can
+   *  never appear attached to a note without existing in the database. */
+  async addNoteAssignment(noteId: string, cohortId: string, classId: string | null, subjectId: string | null): Promise<void> {
     const id = genId();
     const createdAt = new Date().toISOString();
     this.commit((d) => d.noteAssignments.push({ id, noteId, cohortId, classId, subjectId, createdAt }));
-    this.run(
-      supabase().from("note_assignments").insert({ id, note_id: noteId, cohort_id: cohortId, class_id: classId, subject_id: subjectId, created_at: createdAt }),
-      "addNoteAssignment",
-    );
+    const { error } = await supabase()
+      .from("note_assignments")
+      .insert({ id, note_id: noteId, cohort_id: cohortId, class_id: classId, subject_id: subjectId, created_at: createdAt });
+    if (error) {
+      this.commit((d) => { d.noteAssignments = d.noteAssignments.filter((na) => na.id !== id); });
+      this.report(`addNoteAssignment: ${error.message}`);
+      throw new Error(`Could not assign the note: ${error.message}`);
+    }
+    const note = this.state.notes.find((n) => n.id === noteId);
+    const cohort = this.state.cohorts.find((c) => c.id === cohortId);
+    this.logActivity({
+      type: "notes_assigned",
+      title: "Notes assigned",
+      description: [note?.title, cohort?.name].filter(Boolean).join(" → "),
+      noteId,
+      link: "/admin/notes",
+    });
   }
   deleteNoteAssignment(id: string) {
     this.commit((d) => { d.noteAssignments = d.noteAssignments.filter((na) => na.id !== id); });
     this.run(supabase().from("note_assignments").delete().eq("id", id), "deleteNoteAssignment");
+  }
+
+  // ---- Recent activity -------------------------------------------------
+  /**
+   * Append an entry to the activity feed.
+   *
+   * Deliberately best-effort: a feed write must never break the action that
+   * produced it (a failed log should not fail a test submission), so errors are
+   * reported and swallowed. RLS still guarantees a student can only log against
+   * themselves. The row arrives back through realtime, so we do not commit
+   * optimistically here — that would double up the entry for the actor.
+   */
+  logActivity(input: {
+    type: ActivityType;
+    title: string;
+    description?: string;
+    studentId?: string;
+    testId?: string;
+    noteId?: string;
+    submissionId?: string;
+    link?: string;
+    audience?: Activity["audience"];
+  }) {
+    this.run(
+      supabase().from("activities").insert({
+        type: input.type,
+        title: input.title,
+        description: input.description ?? null,
+        student_id: input.studentId ?? null,
+        test_id: input.testId ?? null,
+        note_id: input.noteId ?? null,
+        submission_id: input.submissionId ?? null,
+        link: input.link ?? null,
+        audience: input.audience ?? "admin",
+      }),
+      "logActivity",
+    );
+  }
+
+  /** Mark entries read for the current user (server-side; no UPDATE grant). */
+  markActivitiesRead(ids: string[], userId: string) {
+    if (!ids.length) return;
+    this.commit((d) => {
+      d.activities.forEach((a) => {
+        if (ids.includes(a.id) && !a.readBy.includes(userId)) a.readBy.push(userId);
+      });
+    });
+    this.run(supabase().rpc("mark_activities_read", { p_ids: ids }), "markActivitiesRead");
+  }
+
+  /**
+   * Live-stream new activities into the cache. One channel for the whole app;
+   * RLS decides what each session actually receives. Push, not poll.
+   */
+  subscribeToActivities(): () => void {
+    const sb = supabase();
+    const channel = sb
+      .channel("activities-feed")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "activities" },
+        (payload) => {
+          const row = payload.new as Row;
+          this.commit((d) => {
+            if (d.activities.some((a) => a.id === row.id)) return; // idempotent
+            d.activities.unshift(mapActivity(row));
+            if (d.activities.length > 100) d.activities.length = 100;
+          });
+        },
+      )
+      .subscribe();
+
+    return () => { void sb.removeChannel(channel); };
   }
 }
 

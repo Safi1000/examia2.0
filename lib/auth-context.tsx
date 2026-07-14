@@ -5,7 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import type { Role, Session } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { getStore } from "@/lib/data/store";
-import { ADMIN_EMAIL, studentEmail } from "@/lib/config";
+import { studentEmail } from "@/lib/config";
 import {
   DEFAULT_THEME_ID,
   loadLastThemeId,

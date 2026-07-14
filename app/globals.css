@@ -72,6 +72,113 @@
   --animate-low-pulse: low-pulse 1s ease-in-out infinite;
 }
 
+/*
+  ============================================================================
+  LANDING — marketing-surface tokens (public homepage only).
+
+  Purely ADDITIVE: every name below is new, so no Examia token or utility is
+  overwritten. The utilities they generate (bg-band-a, text-gold, text-faint,
+  bg-card, …) are used exclusively by components/landing/*, and the typography
+  is scoped to `.landing` so the portal keeps Bricolage/Hanken untouched.
+  ============================================================================
+*/
+@theme {
+  /* Editorial gunmetal bands */
+  --color-band-a: #212427;
+  --color-band-b: #1b1e21;
+  --color-band-c: #141618;
+
+  /* Surfaces */
+  --color-card: #282b2f;
+  --color-card-raised: #2e3236;
+
+  /* Sparse gold (same hue as --color-brand, held fixed so the marketing page
+     does not shift when a signed-in student picks a different accent) */
+  --color-gold: #fbc159;
+  --color-gold-tint: rgba(251, 193, 89, 0.12);
+  --color-gold-border: rgba(251, 193, 89, 0.3);
+
+  /* Text */
+  --color-foreground: #ffffff;
+  --color-muted-foreground: #b0b6bb;
+  --color-body: #eef0f2;
+  --color-faint: #868c92;
+
+  /* Rules */
+  --color-hairline: rgba(255, 255, 255, 0.08);
+  --color-hairline-strong: rgba(255, 255, 255, 0.15);
+  --color-error-x: #e08585;
+
+  /* Marketing display face + the hand-drawn accent */
+  --font-landing: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
+  --font-hand: var(--font-caveat), cursive;
+}
+
+/* Smooth anchor nav, but only while the landing page is mounted */
+html:has(.landing) { scroll-behavior: smooth; }
+
+/* Clear the 64px sticky landing header when jumping to a section */
+.landing section[id] { scroll-margin-top: 64px; }
+
+/*
+  Scoped so the portal's global h1–h3 rules (Bricolage, 700, -0.02em) stay put.
+  `.landing-portal` carries the same typography for content rendered OUTSIDE the
+  .landing tree (the lead-gate dialog), which would otherwise inherit the
+  portal's fonts. It deliberately omits the page background.
+*/
+.landing,
+.landing-portal {
+  font-family: var(--font-landing);
+  color: var(--color-foreground);
+}
+
+.landing {
+  background-color: var(--color-band-a);
+}
+
+.landing h1,
+.landing h2,
+.landing h3,
+.landing-portal h1,
+.landing-portal h2,
+.landing-portal h3 {
+  font-family: var(--font-landing);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+/* Hand-drawn marker underline draw-in */
+.landing .draw-underline {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: hamza-draw 0.9s ease-out 0.7s forwards;
+}
+
+@keyframes hamza-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Pulsing ring around the play button */
+@keyframes hamza-pulse-ring {
+  0% { transform: scale(1); opacity: 0.55; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+.landing .pulse-ring {
+  animation: hamza-pulse-ring 2.4s ease-out infinite;
+}
+
+/* Staggered fade-in for the floating activity cards + level cards */
+@keyframes hamza-float-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.landing .float-in {
+  opacity: 0;
+  animation: hamza-float-in 0.7s ease-out forwards;
+}
+
 /* Shadows + texture vars cascade here so they stay swappable */
 :root {
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 1px rgba(0, 0, 0, 0.25);

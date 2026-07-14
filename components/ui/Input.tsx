@@ -59,6 +59,7 @@ export const Textarea = forwardRef<
         ref={ref}
         id={fieldId}
         aria-invalid={!!error}
+        aria-describedby={error ? `${fieldId}-err` : hint ? `${fieldId}-hint` : undefined}
         className={cn(
           fieldShell,
           "min-h-28 resize-y py-3 leading-relaxed",
@@ -67,7 +68,12 @@ export const Textarea = forwardRef<
         )}
         {...rest}
       />
-      {error && <p className="mt-1.5 text-sm font-medium text-error">{error}</p>}
+      {/* `hint` was accepted but never rendered — mirrors Input's behaviour now. */}
+      {error ? (
+        <p id={`${fieldId}-err`} className="mt-1.5 text-sm font-medium text-error">{error}</p>
+      ) : hint ? (
+        <p id={`${fieldId}-hint`} className="mt-1.5 text-sm text-ink-3">{hint}</p>
+      ) : null}
     </div>
   );
 });

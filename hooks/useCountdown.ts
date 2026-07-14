@@ -11,8 +11,11 @@ export function useCountdown(endMs: number | null, onExpire?: () => void) {
   const compute = () => (endMs == null ? 0 : Math.max(0, Math.round((endMs - Date.now()) / 1000)));
   const [remaining, setRemaining] = useState<number>(compute);
   const firedRef = useRef(false);
+  // Latest-callback ref, assigned in an effect rather than during render.
   const onExpireRef = useRef(onExpire);
-  onExpireRef.current = onExpire;
+  useEffect(() => {
+    onExpireRef.current = onExpire;
+  }, [onExpire]);
 
   useEffect(() => {
     firedRef.current = false;

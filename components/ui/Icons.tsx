@@ -41,6 +41,7 @@ export const Icon = {
   Bank: (p: P) => <Base {...p}><path d="M4 9h16M4 9l8-5 8 5M6 9v9M10 9v9M14 9v9M18 9v9M4 18h16" /></Base>,
   Users: (p: P) => <Base {...p}><circle cx="9" cy="8" r="3" /><path d="M3 20a6 6 0 0 1 12 0M16 6a3 3 0 0 1 0 6M21 20a6 6 0 0 0-3.5-5.5" /></Base>,
   Megaphone: (p: P) => <Base {...p}><path d="M4 10v4a1 1 0 0 0 1 1h2l8 4V5L7 9H5a1 1 0 0 0-1 1ZM18 9a3 3 0 0 1 0 6" /></Base>,
+  Bell: (p: P) => <Base {...p}><path d="M18 8a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7M13.7 19a2 2 0 0 1-3.4 0" /></Base>,
   Chart: (p: P) => <Base {...p}><path d="M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-6" /></Base>,
   Download: (p: P) => <Base {...p}><path d="M12 4v10m0 0 4-4m-4 4-4-4M5 19h14" /></Base>,
   Layers: (p: P) => <Base {...p}><path d="m12 4 8 4-8 4-8-4 8-4ZM4 12l8 4 8-4M4 16l8 4 8-4" /></Base>,

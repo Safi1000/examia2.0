@@ -113,6 +113,8 @@ export default function QuestionBankPage() {
       )}
 
       <QuestionModal
+        // Remount per open/target so the form seeds from `initial` at mount.
+        key={`${modalOpen}-${editing?.id ?? "new"}`}
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         withSubject

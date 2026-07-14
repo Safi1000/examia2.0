@@ -150,8 +150,13 @@ export interface Answer {
   selectedIndex?: number;
   /** Text answer body. */
   text?: string;
-  /** Mock: a data URL. TODO(cloudinary): replace with uploaded asset URL. */
+  /**
+   * First image of a photo answer (Cloudinary secure_url). Retained so existing
+   * grading / results / evaluation code keeps working; `photoUrls` is the full set.
+   */
   photoDataUrl?: string;
+  /** Every image attached to a photo answer, in the order the student added them. */
+  photoUrls?: string[];
   /** Grading — undefined until scored. */
   marksAwarded?: number;
   feedback?: string;
@@ -213,4 +218,46 @@ export interface TestStats {
   submissionCount: number;
   averagePercent: number | null;
   completionPercent: number;
+}
+
+// ----------------------------------------------------------------------------
+// Recent activity (notification feed)
+// ----------------------------------------------------------------------------
+
+/** Every event the bell can surface. Mirrors activities.type in Postgres. */
+export type ActivityType =
+  | "test_started"
+  | "test_submitted"
+  | "test_completed"
+  | "submission_reviewed"
+  | "notes_uploaded"
+  | "notes_assigned"
+  | "notes_accessed"
+  | "notes_downloaded"
+  | "notes_deleted"
+  | "student_joined_class"
+  | "student_left_class"
+  | "test_created"
+  | "test_updated"
+  | "test_deleted"
+  | "system_alert";
+
+/** Who an activity is addressed to. Admins additionally see every entry. */
+export type ActivityAudience = "admin" | "student";
+
+export interface Activity {
+  id: string;
+  type: ActivityType;
+  title: string;
+  description?: string;
+  studentId?: string;
+  testId?: string;
+  noteId?: string;
+  submissionId?: string;
+  /** Route to open when the notification is clicked; undefined = not navigable. */
+  link?: string;
+  audience: ActivityAudience;
+  /** auth.uid()s that have read this entry. */
+  readBy: string[];
+  createdAt: string;
 }

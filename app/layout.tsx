@@ -1,5 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Caveat, Hanken_Grotesk, Spline_Sans_Mono } from "next/font/google";
+import {
+  Bricolage_Grotesque,
+  Caveat,
+  Hanken_Grotesk,
+  Inter_Tight,
+  Spline_Sans_Mono,
+} from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { COMPANY_NAME } from "@/lib/config";
@@ -15,6 +21,14 @@ const hanken = Hanken_Grotesk({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-hanken",
+  display: "swap",
+});
+
+// Marketing display face — used only by the public landing page (.landing).
+const interTight = Inter_Tight({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-inter-tight",
   display: "swap",
 });
 
@@ -49,7 +63,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${bricolage.variable} ${hanken.variable} ${splineMono.variable} ${caveat.variable} h-full`}
+      className={`${bricolage.variable} ${hanken.variable} ${splineMono.variable} ${caveat.variable} ${interTight.variable} h-full`}
     >
       <body className="min-h-dvh antialiased">
         <Providers>{children}</Providers>

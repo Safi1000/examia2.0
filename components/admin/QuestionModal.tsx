@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { QuestionCommon, QuestionType, QuestionVariant } from "@/types";
 import { Modal, Button, Input, Textarea, Label, Checkbox } from "@/components/ui";
 import { cn } from "@/lib/cn";
@@ -27,50 +27,27 @@ export function QuestionModal({
   initial?: QuestionDraft | null;
   withSubject?: boolean;
 }) {
-  const [type, setType] = useState<QuestionType>("mcq");
-  const [prompt, setPrompt] = useState("");
-  const [topic, setTopic] = useState("");
-  const [subject, setSubject] = useState("");
-  const [marks, setMarks] = useState(2);
-  const [options, setOptions] = useState<string[]>(["", "", "", ""]);
-  const [correctIndex, setCorrectIndex] = useState(0);
-  const [maxLength, setMaxLength] = useState(400);
-  const [showCounter, setShowCounter] = useState(true);
+  // State is seeded from `initial` at mount rather than synced in an effect.
+  // Callers pass a `key` that changes per open/target, so opening the modal (or
+  // switching which question is being edited) remounts it with fresh values.
+  const [type, setType] = useState<QuestionType>(initial?.type ?? "mcq");
+  const [prompt, setPrompt] = useState(initial?.prompt ?? "");
+  const [topic, setTopic] = useState(initial?.topic ?? "");
+  const [subject, setSubject] = useState(initial?.subject ?? "");
+  const [marks, setMarks] = useState(initial?.marks ?? 2);
+  const [options, setOptions] = useState<string[]>(
+    initial?.type === "mcq" ? [...initial.options, "", "", ""].slice(0, 4) : ["", "", "", ""],
+  );
+  const [correctIndex, setCorrectIndex] = useState(
+    initial?.type === "mcq" ? initial.correctIndex : 0,
+  );
+  const [maxLength, setMaxLength] = useState(
+    initial?.type === "text" ? initial.maxLength ?? 400 : 400,
+  );
+  const [showCounter, setShowCounter] = useState(
+    initial?.type === "text" ? initial.showCounter ?? true : true,
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // Hydrate when (re)opened.
-  useEffect(() => {
-    if (!open) return;
-    setErrors({});
-    if (initial) {
-      setType(initial.type);
-      setPrompt(initial.prompt);
-      setTopic(initial.topic);
-      setSubject(initial.subject ?? "");
-      setMarks(initial.marks);
-      if (initial.type === "mcq") {
-        setOptions([...initial.options, "", "", "", ""].slice(0, 4));
-        setCorrectIndex(initial.correctIndex);
-      } else {
-        setOptions(["", "", "", ""]);
-        setCorrectIndex(0);
-      }
-      if (initial.type === "text") {
-        setMaxLength(initial.maxLength ?? 400);
-        setShowCounter(initial.showCounter ?? true);
-      }
-    } else {
-      setType("mcq");
-      setPrompt("");
-      setTopic("");
-      setSubject("");
-      setMarks(2);
-      setOptions(["", "", "", ""]);
-      setCorrectIndex(0);
-      setMaxLength(400);
-      setShowCounter(true);
-    }
-  }, [open, initial]);
 
   function validate(): boolean {
     const e: Record<string, string> = {};

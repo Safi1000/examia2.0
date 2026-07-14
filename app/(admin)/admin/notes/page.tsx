@@ -115,7 +115,7 @@ export default function NotesPage() {
       const { url, fileType, fileName } = await uploadNote(uploadFile);
       const noteId = await store.addNote(uploadTitle.trim(), url, fileType, fileName);
       for (const a of pendingAssignments) {
-        store.addNoteAssignment(noteId, a.cohortId, a.classId, a.subjectId);
+        await store.addNoteAssignment(noteId, a.cohortId, a.classId, a.subjectId);
       }
       toast("Note uploaded.", "success");
       setShowUpload(false);
@@ -127,18 +127,22 @@ export default function NotesPage() {
     }
   }
 
-  function addExistingAssignment() {
+  async function addExistingAssignment() {
     if (!assigningNote || !eaCohortId) return;
     const existing = db.noteAssignments.filter((na) => na.noteId === assigningNote.id);
     const already = existing.some(
       (a) => a.cohortId === eaCohortId && a.classId === (eaClassId || null) && a.subjectId === (eaSubjectId || null),
     );
     if (already) { toast("That assignment already exists.", "error"); return; }
-    store.addNoteAssignment(assigningNote.id, eaCohortId, eaClassId || null, eaSubjectId || null);
-    setEACohortId("");
-    setEAClassId("");
-    setEASubjectId("");
-    toast("Assignment added.", "success");
+    try {
+      await store.addNoteAssignment(assigningNote.id, eaCohortId, eaClassId || null, eaSubjectId || null);
+      setEACohortId("");
+      setEAClassId("");
+      setEASubjectId("");
+      toast("Assignment added.", "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not assign the note.", "error");
+    }
   }
 
   return (
