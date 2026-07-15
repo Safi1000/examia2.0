@@ -24,25 +24,27 @@ export function Nav() {
           <Logo className="h-12 sm:h-14 lg:h-16" />
         </Link>
 
-        {/* Two actions only — same on every breakpoint, no hamburger, no rail. */}
+        {/* No hamburger, no rail. Desktop/tablet: WhatsApp + Login.
+            Mobile: Login only (WhatsApp hidden via its wrapper). */}
         <div className="flex items-center gap-2 sm:gap-3">
-          <PillButton
-            href={waLink()}
-            target="_blank"
-            rel="noopener noreferrer"
-            variant="ghost"
-            className="px-3.5 py-2 text-[13px] sm:px-5"
-            onClick={() => track("whatsapp_click", { from: "nav" })}
-          >
-            <span className="sm:hidden">WhatsApp</span>
-            <span className="hidden sm:inline">Message on WhatsApp</span>
-          </PillButton>
+          <div className="hidden sm:block">
+            <PillButton
+              href={waLink()}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="ghost"
+              className="px-5 py-2 text-[13px]"
+              onClick={() => track("whatsapp_click", { from: "nav" })}
+            >
+              Message on WhatsApp
+            </PillButton>
+          </div>
 
           <PillButton
             href={isStudent ? "/dashboard" : "/login"}
             className="px-3.5 py-2 text-[13px] sm:px-5"
           >
-            {isStudent ? "Dashboard" : "Sign up"}
+            {isStudent ? "Dashboard" : "Login"}
           </PillButton>
         </div>
       </div>

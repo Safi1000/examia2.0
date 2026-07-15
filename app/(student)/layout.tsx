@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useDatabase, useDataReady } from "@/lib/data/store";
 import { studentById } from "@/lib/data/selectors";
-import { BrandMark } from "@/components/Brand";
+import { Logo } from "@/components/Brand";
 import { NotificationBell } from "@/components/NotificationBell";
 import { CohortTag } from "@/components/ui";
 import { Icon } from "@/components/ui";
@@ -49,9 +49,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       {!inRunner && (
         <header className="sticky top-0 z-30 border-b border-border bg-paper/85 backdrop-blur">
           <div className="mx-auto flex h-16 max-w-3xl items-center justify-between gap-3 px-4">
-            <Link href="/dashboard" className="flex items-center gap-2" aria-label="Home">
-              <BrandMark size={26} />
-              <span className="hidden font-display text-base font-extrabold tracking-tight text-ink sm:inline">
+            <Link href="/dashboard" className="flex items-center gap-2.5" aria-label="Home">
+              <Logo className="h-8 shrink-0" />
+              <span className="hidden border-l border-border pl-2.5 font-display text-base font-extrabold tracking-tight text-ink sm:inline">
                 {student.username}
               </span>
             </Link>

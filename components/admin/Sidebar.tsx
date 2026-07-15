@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDatabase } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
-import { Wordmark } from "@/components/Brand";
+import { Logo } from "@/components/Brand";
 import { CohortDot, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
@@ -29,10 +29,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col bg-surface">
       <div className="border-b border-border px-5 py-4">
-        <Link href="/admin/tests" onClick={onNavigate}>
-          <Wordmark markSize={24} />
+        <Link href="/admin/tests" onClick={onNavigate} className="inline-flex">
+          <Logo className="h-8" />
         </Link>
-        <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-ink-3">Admin console</p>
+        <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-ink-3">Admin console</p>
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-3" aria-label="Admin">

@@ -10,7 +10,7 @@ import { AdminFilterProvider } from "@/lib/admin-filter";
 import { AdminLogin } from "@/components/admin/AdminLogin";
 import { Sidebar } from "@/components/admin/Sidebar";
 import { Icon } from "@/components/ui";
-import { Wordmark } from "@/components/Brand";
+import { Logo } from "@/components/Brand";
 import { NotificationBell } from "@/components/NotificationBell";
 
 const IDLE_MS = 30 * 60 * 1000; // 30-minute idle session timeout
@@ -73,7 +73,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               >
                 <Icon.Menu />
               </button>
-              <div className="md:hidden"><Wordmark markSize={22} /></div>
+              <div className="md:hidden"><Logo className="h-8" /></div>
             </div>
             <div className="flex items-center gap-1">
               <NotificationBell />
