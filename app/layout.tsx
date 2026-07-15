@@ -7,6 +7,7 @@ import {
   Spline_Sans_Mono,
 } from "next/font/google";
 import "./globals.css";
+import logo from "@/logo/logo.png";
 import { Providers } from "@/components/providers";
 import { COMPANY_NAME } from "@/lib/config";
 
@@ -49,6 +50,8 @@ const splineMono = Spline_Sans_Mono({
 export const metadata: Metadata = {
   title: `${COMPANY_NAME} — Exam & Cohort Portal`,
   description: "A calm, mobile-first exam and cohort-management portal.",
+  // Tab/app icon from the same logo/ source (bundler-resolved served URL).
+  icons: { icon: logo.src, apple: logo.src },
 };
 
 export const viewport: Viewport = {

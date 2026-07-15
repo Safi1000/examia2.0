@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo \"=== gold square / brand placeholders \\(bg-gold small, h-\\\\\\\\[9px\\\\\\\\]\\) ===\")",
+      "PowerShell(npx eslint app components lib hooks types 2>&1)",
+      "Bash(grep -iv \"//\")",
+      "Bash(mv logo/logo.PNG logo/logo_tmp.png)",
+      "Bash(mv logo/logo_tmp.png logo/logo.png)"
+    ]
+  }
+}

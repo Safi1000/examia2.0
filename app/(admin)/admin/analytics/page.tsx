@@ -10,6 +10,7 @@ import { Card, Badge, CohortDot, EmptyState, Icon, TableScroll, Table, Th, Td } 
 import { BarChart, type Bar } from "@/components/charts/BarChart";
 import { LineChart, type LinePoint } from "@/components/charts/LineChart";
 import { MasteryBar } from "@/components/charts/MasteryBar";
+import { StudentReport } from "@/components/report/StudentReport";
 import { gradeLetter, gradeRole, gradeSubmission, GRADE_ORDER, type GradeLetter } from "@/lib/grading";
 import { awardedMarks, percent, topicMastery, totalMarks, type TopicMastery } from "@/lib/scoring";
 import type { Cohort, Student, Submission, Test } from "@/types";
@@ -256,7 +257,7 @@ export default function AnalyticsPage() {
       ) : !studentData ? (
         <EmptyState icon={<Icon.Chart />} title="Pick a student" message="Choose a student from the dropdown above." />
       ) : (
-        <StudentView data={studentData} />
+        <StudentView data={studentData} db={db} monthLabel={formatMonth(activeMonth)} />
       )}
     </div>
   );
@@ -412,64 +413,35 @@ function ClassView({
 
 // ---- Student View ---------------------------------------------------------
 
-function StudentView({ data }: { data: StudentViewData }) {
-  const deltaSign = (data.delta ?? 0) > 0 ? "+" : "";
-  const deltaTone: "success" | "error" | undefined =
-    (data.delta ?? 0) > 0 ? "success" : (data.delta ?? 0) < 0 ? "error" : undefined;
+function StudentView({
+  data,
+  db,
+  monthLabel,
+}: {
+  data: StudentViewData;
+  db: ReturnType<typeof useDatabase>;
+  monthLabel: string;
+}) {
+  const cohortName = cohortById(db, data.student.cohortId)?.name ?? null;
+  const reportTests = data.perTest.map(({ test, result }) => ({
+    title: test.title,
+    subject: test.subject,
+    percent: result.percent,
+    letter: result.letter,
+  }));
 
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <MetricCard label="Average this month" value={data.avg != null ? `${data.avg}%` : "—"} />
-        <MetricCard label="Grade" value={data.grade ?? "—"} tone={data.grade ? gradeRole(data.grade) : undefined} />
-        {data.delta != null && (
-          <MetricCard label="vs last month" value={`${deltaSign}${data.delta}%`} tone={deltaTone} />
-        )}
-        <MetricCard label="Completion" value={`${data.completionPct}%`} note={`${data.completed}/${data.total} tests`} />
-      </div>
-
-      {data.trendPoints.length > 0 && (
-        <Card className="p-5">
-          <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ink-2">Score trend</h2>
-          <LineChart points={data.trendPoints} height={160} />
-        </Card>
-      )}
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Card className="p-5">
-          <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ink-2">Tests this month</h2>
-          {data.perTest.length === 0 ? (
-            <p className="text-sm text-ink-3">No results this month.</p>
-          ) : (
-            <ul className="space-y-2">
-              {data.perTest.map(({ test, result }) => (
-                <li key={test.id} className="flex items-center justify-between gap-3 rounded-lg bg-surface-2/60 px-3 py-2.5">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-ink">{test.title}</p>
-                    <p className="text-xs text-ink-3">{test.subject}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm text-ink">{result.percent}%</span>
-                    <Badge tone={gradeRole(result.letter)}>{result.letter}</Badge>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-
-        <Card className="p-5">
-          <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ink-2">Topic mastery</h2>
-          {data.mastery.length === 0 ? (
-            <p className="text-sm text-ink-3">No graded topics yet.</p>
-          ) : (
-            <div className="space-y-3.5">
-              {data.mastery.map((m) => <MasteryBar key={m.topic} topic={m.topic} percent={m.percent} band={m.band} />)}
-            </div>
-          )}
-        </Card>
-      </div>
-    </div>
+    <StudentReport
+      studentName={data.student.username}
+      cohortName={cohortName}
+      monthLabel={monthLabel}
+      grade={data.grade}
+      averagePct={data.avg}
+      deltaPct={data.delta}
+      completion={{ pct: data.completionPct, done: data.completed, total: data.total }}
+      trend={data.trendPoints}
+      tests={reportTests}
+    />
   );
 }
 

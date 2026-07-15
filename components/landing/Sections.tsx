@@ -304,40 +304,6 @@ export function Difference() {
   );
 }
 
-/* ---------- How I teach ---------- */
-const teachSteps = [
-  { n: "01", title: "The reason comes first", body: "You will know why a debit sits on the left before I ask you to memorize a single entry. The rules stick once the reason is underneath them." },
-  { n: "02", title: "Written for the mark scheme", body: "Examiners hand out marks for specific things. I show you what those things are and exactly how to get them on the page." },
-  { n: "03", title: "Small enough to interrupt", body: "If you are lost, stop me mid sentence. A class you cannot interrupt is just a video, and you can already watch those for free." },
-];
-
-export function HowITeach() {
-  return (
-    <section id="teach" className="bg-band-a py-[78px] md:py-[120px]">
-      <div className="mx-auto max-w-6xl px-5">
-        <div className="text-center">
-          <Eyebrow>How I teach</Eyebrow>
-          <h2 className="mx-auto mt-4 max-w-[22ch] text-3xl text-foreground md:text-5xl">
-            Three things I do differently.
-          </h2>
-        </div>
-        <div className="mt-14 grid gap-10 md:grid-cols-3">
-          {teachSteps.map((s) => (
-            <div key={s.n}>
-              <span aria-hidden className="block select-none text-[80px] font-bold leading-none text-white opacity-[0.06]">
-                {s.n}
-              </span>
-              <span aria-hidden className="mt-3 block h-px w-full bg-hairline-strong" />
-              <h3 className="mt-5 text-xl font-bold text-foreground">{s.title}</h3>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 /* ---------- Inside a lesson ---------- */
 type TileKind = "class" | "clip" | "notes" | "practice" | "technique";
 

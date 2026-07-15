@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useLockout } from "@/hooks/useLockout";
-import { COMPANY_NAME } from "@/lib/config";
+import { Logo } from "@/components/Brand";
 import { formatCountdown } from "@/lib/time";
 import { cn } from "@/lib/cn";
 
@@ -53,9 +53,7 @@ export default function StudentLoginPage() {
         >
           {/* Brand + tagline inside the card */}
           <div className="mb-8 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-2">
-              {COMPANY_NAME}
-            </p>
+            <Logo className="mx-auto h-12 sm:h-14" />
             <h1
               className="mt-4 text-4xl font-bold leading-tight"
               style={{ fontFamily: "var(--font-caveat)", color: "var(--color-brand)" }}

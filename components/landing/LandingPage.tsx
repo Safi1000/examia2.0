@@ -5,7 +5,6 @@ import {
   TrustBar,
   FreeLesson,
   Difference,
-  HowITeach,
   InsideClass,
   MeetHamza,
   Reviews,
@@ -17,7 +16,6 @@ import { Footer } from "./Footer";
 import { Grain } from "./Grain";
 import { MobileCta } from "./MobileCta";
 import { ScrollProgress } from "./ScrollProgress";
-import { SectionRail } from "./SectionRail";
 import { LeadGateProvider } from "./LeadGate";
 
 /**
@@ -40,12 +38,10 @@ export function LandingPage() {
         <Nav />
 
         <main id="main">
-          <SectionRail />
           <Hero />
           <TrustBar />
           <FreeLesson />
           <Difference />
-          <HowITeach />
           <InsideClass />
           <MeetHamza />
           <Reviews />
