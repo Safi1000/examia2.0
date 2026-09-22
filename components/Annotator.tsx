@@ -20,6 +20,13 @@ type Stroke = Extract<Annotation, { t: "draw" }>;
 
 const nid = () => Math.random().toString(36).slice(2, 10);
 
+/** Flat [x, y, x, y, ...] in image pixels → an SVG polyline path. */
+function pathFor(pts: number[]) {
+  let d = "";
+  for (let i = 0; i + 1 < pts.length; i += 2) d += `${i ? "L" : "M"}${pts[i]} ${pts[i + 1]} `;
+  return d;
+}
+
 /** Read-only markup layer; sits on top of an image of the same aspect ratio. */
 export function AnnotationLayer({ shapes, w, h }: { shapes: Annotation[]; w: number; h: number }) {
   if (!shapes.length || !w || !h) return null;
@@ -47,11 +54,9 @@ function Shape({ s, onErase }: { s: Annotation; onErase?: () => void }) {
       </text>
     );
   }
-  let d = "";
-  for (let i = 0; i + 1 < s.pts.length; i += 2) d += `${i ? "L" : "M"}${s.pts[i]} ${s.pts[i + 1]} `;
   return (
     <path
-      d={d}
+      d={pathFor(s.pts)}
       fill="none"
       stroke={s.color}
       strokeWidth={s.w}
@@ -122,18 +127,17 @@ export function AnnotatorModal({
   const [size, setSize] = useState(1);
   const [dim, setDim] = useState({ w: 0, h: 0 });
   const svgRef = useRef<SVGSVGElement>(null);
+  const liveRef = useRef<SVGPathElement>(null);
   const drawing = useRef<Stroke | null>(null);
-  // Pointer handlers save on pointerup, after setShapes has already queued —
-  // the ref carries the committed list past the stale render closure.
-  const latest = useRef(shapes);
-  useEffect(() => {
-    latest.current = shapes;
-  });
 
+  // Esc + scroll lock. onClose is read through a ref so a new inline handler
+  // from the parent can't re-run this effect mid-drag (which would restore an
+  // already-locked scroll position and re-bind the listener every frame).
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
-    if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
     };
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -142,7 +146,7 @@ export function AnnotatorModal({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-  }, [open, onClose]);
+  }, []);
 
   if (!open || typeof document === "undefined") return null;
 
@@ -175,24 +179,41 @@ export function AnnotatorModal({
     }
     e.currentTarget.setPointerCapture(e.pointerId);
     drawing.current = { id: nid(), t: "draw", color, w: strokeFor(tool), pts: [p.x, p.y] };
-    setShapes([...shapes, drawing.current]);
+    paintLive();
+  }
+
+  /**
+   * The in-progress stroke is painted by writing straight to one <path>, NOT
+   * through state: a drag fires pointermove ~120x/s, and re-rendering every
+   * committed shape that often is what makes the tab die on a big scan.
+   * React hears about the stroke once, on pointerup.
+   */
+  function paintLive() {
+    const d = drawing.current;
+    if (liveRef.current) liveRef.current.setAttribute("d", d ? pathFor(d.pts) : "");
   }
 
   function move(e: React.PointerEvent) {
-    if (!drawing.current) return;
+    const d = drawing.current;
+    if (!d) return;
     const p = at(e);
-    drawing.current = { ...drawing.current, pts: [...drawing.current.pts, p.x, p.y] };
-    setShapes((prev) => [...prev.slice(0, -1), drawing.current!]);
+    // Drop points the stroke can't show anyway — bounds how long pts can grow.
+    const n = d.pts.length;
+    if (Math.hypot(p.x - d.pts[n - 2], p.y - d.pts[n - 1]) < d.w / 4) return;
+    d.pts.push(p.x, p.y);
+    paintLive();
   }
 
   function up() {
-    if (!drawing.current) return;
+    const d = drawing.current;
+    if (!d) return;
     drawing.current = null;
-    onChange(latest.current);
+    paintLive();
+    apply([...shapes, d]);
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-ink/80 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Annotate answer">
+    <div className="fixed inset-0 z-50 flex flex-col bg-paper" role="dialog" aria-modal="true" aria-label="Annotate answer">
       <div className="flex flex-wrap items-center gap-2 border-b border-border bg-surface px-4 py-2.5">
         {(["pen", "highlight", "text", "erase"] as Tool[]).map((t) => (
           <button
@@ -264,6 +285,15 @@ export function AnnotatorModal({
                   onErase={tool === "erase" ? () => apply(shapes.filter((x) => x.id !== s.id)) : undefined}
                 />
               ))}
+              <path
+                ref={liveRef}
+                fill="none"
+                stroke={color}
+                strokeWidth={strokeFor(tool)}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeOpacity={tool === "highlight" ? 0.35 : 1}
+              />
             </svg>
           )}
         </div>
