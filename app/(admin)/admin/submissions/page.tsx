@@ -4,10 +4,11 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
-import { cohortById, studentById, submissionsForTest } from "@/lib/data/selectors";
+import { cohortById, studentById, testById } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Card, Button, Select, Badge, CohortDot, EmptyState, Icon, TableScroll, Table, Th, Td, Modal } from "@/components/ui";
+import { Card, Button, Badge, CohortDot, EmptyState, Icon, TableScroll, Table, Th, Td, Modal } from "@/components/ui";
+import { FilterChips } from "@/components/admin/FilterChips";
 import { buttonClasses } from "@/components/ui/Button";
 import { gradeSubmission, isAllMcq } from "@/lib/grading";
 import { formatTimestamp } from "@/lib/time";
@@ -18,31 +19,32 @@ export default function SubmissionsPage() {
   const { toast } = useToast();
   const { cohortId } = useAdminFilter();
 
-  const testsWithSubs = useMemo(
-    () => db.tests.filter((t) => submissionsForTest(db, t.id).length > 0),
-    [db],
-  );
-  const [testId, setTestId] = useState(() => testsWithSubs[0]?.id ?? db.tests[0]?.id ?? "");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [subjectFilter, setSubjects] = useState<string[]>([]);
+  const [statuses, setStatuses] = useState<string[]>([]);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const test = db.tests.find((t) => t.id === testId) ?? null;
+  // Subjects that actually have submissions — filtering by an empty one is a
+  // dead end the chips shouldn't offer.
+  const subjects = useMemo(() => {
+    const withSubs = new Set(db.submissions.map((s) => s.testId));
+    return Array.from(new Set(db.tests.filter((t) => withSubs.has(t.id)).map((t) => t.subject))).sort();
+  }, [db.tests, db.submissions]);
 
   const rows = useMemo(() => {
-    if (!test) return [];
-    return submissionsForTest(db, test.id)
-      .filter((s) => {
-        const student = studentById(db, s.studentId);
-        return cohortId ? student?.cohortId === cohortId : true;
-      })
-      .filter((s) => (statusFilter === "all" ? true : s.status === statusFilter))
-      .map((s) => ({ sub: s, student: studentById(db, s.studentId), grade: gradeSubmission(test, s) }))
+    return db.submissions
+      .map((sub) => ({ sub, test: testById(db, sub.testId), student: studentById(db, sub.studentId) }))
+      .filter((r): r is { sub: typeof r.sub; test: NonNullable<typeof r.test>; student: typeof r.student } => r.test !== null)
+      .filter((r) => (cohortId ? r.student?.cohortId === cohortId : true))
+      .filter((r) => (subjectFilter.length === 0 ? true : subjectFilter.includes(r.test.subject)))
+      .filter((r) => (statuses.length === 0 ? true : statuses.includes(r.sub.status)))
+      .map((r) => ({ ...r, grade: gradeSubmission(r.test, r.sub) }))
       .sort((a, b) => +new Date(b.sub.submittedAt ?? 0) - +new Date(a.sub.submittedAt ?? 0));
-  }, [db, test, cohortId, statusFilter]);
+  }, [db, cohortId, subjectFilter, statuses]);
 
-  const submittedCount = test ? submissionsForTest(db, test.id).filter((s) => s.status === "submitted").length : 0;
-  const canBulk = test && isAllMcq(test) && submittedCount > 0;
+  // Bulk release covers exactly what the filters are showing: every awaiting
+  // submission on an all-MCQ test, which needs no human marking.
+  const releasable = rows.filter((r) => r.sub.status === "submitted" && isAllMcq(r.test));
 
   if (db.tests.length === 0) {
     return (
@@ -57,19 +59,26 @@ export default function SubmissionsPage() {
     <div className="px-4 py-6 sm:px-6">
       <PageHeader
         title="Submissions"
-        subtitle={test ? `${rows.length} for "${test.title}"` : undefined}
-        actions={canBulk ? <Button onClick={() => setBulkOpen(true)}><Icon.Check className="h-4 w-4" /> Release all (MCQ)</Button> : undefined}
+        subtitle={`${rows.length} submission${rows.length === 1 ? "" : "s"}`}
+        actions={releasable.length > 0 ? <Button onClick={() => setBulkOpen(true)}><Icon.Check className="h-4 w-4" /> Release all (MCQ)</Button> : undefined}
       />
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        <Select value={testId} onChange={(e) => setTestId(e.target.value)} className="w-auto min-w-52" aria-label="Test">
-          {db.tests.map((t) => <option key={t.id} value={t.id}>{t.title} ({submissionsForTest(db, t.id).length})</option>)}
-        </Select>
-        <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-auto min-w-36" aria-label="Status">
-          <option value="all">All statuses</option>
-          <option value="submitted">Awaiting grading</option>
-          <option value="released">Released</option>
-        </Select>
+      <div className="mb-4 space-y-2">
+        <FilterChips
+          label="Subject"
+          options={subjects.map((sub) => ({ value: sub, label: sub }))}
+          selected={subjectFilter}
+          onChange={setSubjects}
+        />
+        <FilterChips
+          label="Status"
+          options={[
+            { value: "submitted", label: "Awaiting grading" },
+            { value: "released", label: "Released" },
+          ]}
+          selected={statuses}
+          onChange={setStatuses}
+        />
       </div>
 
       {rows.length === 0 ? (
@@ -81,6 +90,7 @@ export default function SubmissionsPage() {
               <thead>
                 <tr>
                   <Th>Student</Th>
+                  <Th>Test</Th>
                   <Th>Cohort</Th>
                   <Th>Status</Th>
                   <Th>Score</Th>
@@ -89,11 +99,12 @@ export default function SubmissionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ sub, student, grade }) => {
+                {rows.map(({ sub, test, student, grade }) => {
                   const cohort = student ? cohortById(db, student.cohortId) : null;
                   return (
                     <tr key={sub.id}>
                       <Td className="font-semibold capitalize">{student?.username ?? "—"}</Td>
+                      <Td className="text-ink-2">{test.title}<span className="block text-xs text-ink-3">{test.subject}</span></Td>
                       <Td>{cohort ? <span className="inline-flex items-center gap-1.5 text-ink-2"><CohortDot color={cohort.color} />{cohort.name}</span> : "—"}</Td>
                       <Td>
                         {sub.status === "released" ? <Badge tone="success">Released</Badge> : <Badge tone="warning">Awaiting</Badge>}
@@ -124,11 +135,11 @@ export default function SubmissionsPage() {
         open={bulkOpen}
         onClose={() => setBulkOpen(false)}
         title="Release all MCQ results?"
-        description={test ? `${submittedCount} ungraded submission${submittedCount === 1 ? "" : "s"} for "${test.title}".` : ""}
+        description={`${releasable.length} ungraded submission${releasable.length === 1 ? "" : "s"} in the current filter.`}
         footer={
           <>
             <Button variant="secondary" onClick={() => setBulkOpen(false)}>Cancel</Button>
-            <Button onClick={() => { if (test) store.bulkReleaseForTest(test.id); setBulkOpen(false); toast("Results released.", "success"); }}>Release all</Button>
+            <Button onClick={() => { releasable.forEach((r) => store.releaseSubmission(r.sub.id)); setBulkOpen(false); toast("Results released.", "success"); }}>Release all</Button>
           </>
         }
       >

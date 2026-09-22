@@ -9,7 +9,8 @@ import { useAdminFilter } from "@/lib/admin-filter";
 import { cohortById, testStats } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Button, Card, Badge, Pill, Select, CohortTag, EmptyState, Modal, Icon } from "@/components/ui";
+import { Button, Card, Badge, Pill, CohortTag, EmptyState, Modal, Icon } from "@/components/ui";
+import { FilterChips } from "@/components/admin/FilterChips";
 import { buttonClasses } from "@/components/ui/Button";
 
 const STATUS_TONE: Record<TestStatus, "neutral" | "success" | "warning"> = {
@@ -25,8 +26,8 @@ export default function AdminTestsPage() {
   const { toast } = useToast();
   const { cohortId } = useAdminFilter();
 
-  const [subject, setSubject] = useState("all");
-  const [status, setStatus] = useState("all");
+  const [subjectFilter, setSubjects] = useState<string[]>([]);
+  const [statuses, setStatuses] = useState<string[]>([]);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const subjects = useMemo(() => Array.from(new Set(db.tests.map((t) => t.subject))).sort(), [db.tests]);
@@ -34,14 +35,14 @@ export default function AdminTestsPage() {
   const tests = useMemo(() => {
     return db.tests
       .filter((t) => (cohortId ? t.cohortId === cohortId || t.cohortId === null : true))
-      .filter((t) => (subject === "all" ? true : t.subject === subject))
-      .filter((t) => (status === "all" ? true : t.status === status))
+      .filter((t) => (subjectFilter.length === 0 ? true : subjectFilter.includes(t.subject)))
+      .filter((t) => (statuses.length === 0 ? true : statuses.includes(t.status)))
       .sort(
         (a, b) =>
           (a.status === "closed" ? 1 : 0) - (b.status === "closed" ? 1 : 0) ||
           +new Date(b.createdAt) - +new Date(a.createdAt),
       );
-  }, [db.tests, cohortId, subject, status]);
+  }, [db.tests, cohortId, subjectFilter, statuses]);
 
   function createTest() {
     const now = Date.now();
@@ -71,17 +72,23 @@ export default function AdminTestsPage() {
         actions={<Button onClick={createTest}><Icon.Plus className="h-4 w-4" /> New test</Button>}
       />
 
-      <div className="mb-4 flex flex-wrap gap-3">
-        <Select value={subject} onChange={(e) => setSubject(e.target.value)} className="w-auto min-w-40" aria-label="Filter by subject">
-          <option value="all">All subjects</option>
-          {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
-        </Select>
-        <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-auto min-w-36" aria-label="Filter by status">
-          <option value="all">All statuses</option>
-          <option value="draft">Draft</option>
-          <option value="active">Active</option>
-          <option value="closed">Closed</option>
-        </Select>
+      <div className="mb-4 space-y-2">
+        <FilterChips
+          label="Subject"
+          options={subjects.map((s) => ({ value: s, label: s }))}
+          selected={subjectFilter}
+          onChange={setSubjects}
+        />
+        <FilterChips
+          label="Status"
+          options={[
+            { value: "active", label: "Active" },
+            { value: "closed", label: "Closed" },
+            { value: "draft", label: "Draft" },
+          ]}
+          selected={statuses}
+          onChange={setStatuses}
+        />
       </div>
 
       {tests.length === 0 ? (
