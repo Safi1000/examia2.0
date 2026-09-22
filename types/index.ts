@@ -143,6 +143,14 @@ export interface Test {
 // 5. + 6. Submissions and answers
 // ----------------------------------------------------------------------------
 
+/** One piece of grader markup drawn over a submitted image. */
+export type Annotation =
+  | { id: string; t: "draw"; color: string; w: number; pts: number[] }
+  | { id: string; t: "text"; color: string; x: number; y: number; size: number; s: string };
+
+/** Markup keyed by the image URL it belongs to. */
+export type Annotations = Record<string, Annotation[]>;
+
 export interface Answer {
   questionId: string;
   type: QuestionType;
@@ -157,6 +165,8 @@ export interface Answer {
   photoDataUrl?: string;
   /** Every image attached to a photo answer, in the order the student added them. */
   photoUrls?: string[];
+  /** Grader markup per image URL, in the image's own pixel coordinates. */
+  annotations?: Annotations;
   /** Grading — undefined until scored. */
   marksAwarded?: number;
   feedback?: string;

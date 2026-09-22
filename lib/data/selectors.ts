@@ -16,15 +16,19 @@ export const submissionById = (db: Database, id: string) =>
 export const studentsInCohort = (db: Database, cohortId: string) =>
   db.students.filter((s) => s.cohortId === cohortId);
 
+/** Whether a test is scoped to this student: cohort + class + subject match. */
+export const testCoversStudent = (test: Test, student: Student) =>
+  (test.cohortId === null || test.cohortId === student.cohortId) &&
+  (test.classId === null || student.classIds.includes(test.classId)) &&
+  (test.subjectId === null || student.subjectIds.includes(test.subjectId));
+
+/** Students the test is assigned to — the denominator for completion. */
+export const eligibleStudents = (db: Database, test: Test) =>
+  db.students.filter((s) => testCoversStudent(test, s));
+
 /** Tests a student can see: cohort + class + subject match, never drafts. */
 export function testsForStudent(db: Database, student: Student): Test[] {
-  return db.tests.filter(
-    (t) =>
-      t.status !== "draft" &&
-      (t.cohortId === null || t.cohortId === student.cohortId) &&
-      (t.classId === null || student.classIds.includes(t.classId)) &&
-      (t.subjectId === null || student.subjectIds.includes(t.subjectId)),
-  );
+  return db.tests.filter((t) => t.status !== "draft" && testCoversStudent(t, student));
 }
 
 /** Announcements visible to a student (cohort-scoped); pinned always shown. */
@@ -51,10 +55,7 @@ export function submissionsForStudent(db: Database, studentId: string): Submissi
 /** Per-test admin stats: submissions, average %, completion %. */
 export function testStats(db: Database, test: Test): TestStats {
   const subs = submissionsForTest(db, test.id);
-  const eligible =
-    test.cohortId === null
-      ? db.students.length
-      : studentsInCohort(db, test.cohortId).length;
+  const eligible = eligibleStudents(db, test).length;
   const total = totalMarks(test);
   const graded = subs.filter((s) => s.status === "released" || s.status === "submitted");
   const averagePercent =

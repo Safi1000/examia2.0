@@ -36,7 +36,11 @@ export default function AdminTestsPage() {
       .filter((t) => (cohortId ? t.cohortId === cohortId || t.cohortId === null : true))
       .filter((t) => (subject === "all" ? true : t.subject === subject))
       .filter((t) => (status === "all" ? true : t.status === status))
-      .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
+      .sort(
+        (a, b) =>
+          (a.status === "closed" ? 1 : 0) - (b.status === "closed" ? 1 : 0) ||
+          +new Date(b.createdAt) - +new Date(a.createdAt),
+      );
   }, [db.tests, cohortId, subject, status]);
 
   function createTest() {

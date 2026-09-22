@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import type { Answer, Question } from "@/types";
+import type { Annotation, Answer, Question } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { submissionById, studentById, testById } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
+import { AnnotatedImage, AnnotatorModal } from "@/components/Annotator";
 import { Card, Button, Badge, Pill, Textarea, EmptyState, Icon } from "@/components/ui";
 import { awardedMarks, isFullyGraded, totalMarks } from "@/lib/scoring";
 import { gradeSubmission } from "@/lib/grading";
@@ -100,6 +102,16 @@ function GradeCard({
   const store = useStore();
   const awarded = answer?.marksAwarded;
   const locked = question.type === "mcq";
+  const [annotating, setAnnotating] = useState<string | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Markup saves itself while the grader draws; coalesce the strokes so one
+  // scribble is a single write, and flush on unmount so nothing is lost.
+  function saveShapes(url: string, shapes: Annotation[]) {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => store.saveAnnotations(submissionId, question.id, url, shapes), 500);
+  }
+  useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
 
   function setMarks(v: number) {
     const clamped = Math.max(0, Math.min(question.marks, v));
@@ -151,19 +163,28 @@ function GradeCard({
             <div className="space-y-2">
               {photos.map((url, i) => (
                 <figure key={url}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={url}
+                  <AnnotatedImage
+                    url={url}
+                    shapes={answer?.annotations?.[url] ?? []}
                     alt={`Answer to question ${index + 1}, image ${i + 1}`}
-                    className="max-h-64 w-full rounded-md border border-border object-contain bg-surface-2"
+                    onClick={() => setAnnotating(url)}
+                    className="mx-auto block max-h-64 w-auto max-w-full rounded-md border border-border bg-surface-2"
                   />
-                  {photos.length > 1 && (
-                    <figcaption className="mt-1 text-xs text-ink-3 tabular">
-                      Image {i + 1} of {photos.length}
-                    </figcaption>
-                  )}
+                  <figcaption className="mt-1 text-xs text-ink-3 tabular">
+                    {photos.length > 1 ? `Image ${i + 1} of ${photos.length} — ` : ""}click to annotate
+                  </figcaption>
                 </figure>
               ))}
+              {annotating && (
+                <AnnotatorModal
+                  key={annotating}
+                  open
+                  url={annotating}
+                  initial={answer?.annotations?.[annotating] ?? []}
+                  onChange={(shapes) => saveShapes(annotating, shapes)}
+                  onClose={() => setAnnotating(null)}
+                />
+              )}
             </div>
           );
         })()}

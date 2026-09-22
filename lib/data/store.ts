@@ -31,6 +31,8 @@ import type {
   Note,
   NoteAssignment,
   Question,
+  Annotation,
+  Annotations,
   QuestionBankItem,
   QuestionCommon,
   QuestionVariant,
@@ -179,6 +181,7 @@ const mapAnswer = (r: Row): Answer => {
     text: (r.text as string) ?? undefined,
     photoDataUrl: first ?? urls[0],
     photoUrls: urls.length ? urls : first ? [first] : undefined,
+    annotations: (r.annotations as Annotations) ?? undefined,
     marksAwarded: (r.marks_awarded as number) ?? undefined,
     feedback: (r.feedback as string) ?? undefined,
   };
@@ -1042,6 +1045,19 @@ class Store {
         if (kErr) this.report(`addQuestion/key: ${kErr.message}`);
       }
     })();
+    this.mirrorToBank(testId, q);
+  }
+  /** Every question authored on a test is kept in the bank for reuse. */
+  private mirrorToBank(testId: string, q: Omit<Question, "id" | "order">) {
+    const test = this.state.tests.find((x) => x.id === testId);
+    if (!test) return;
+    const key = q.prompt.trim().toLowerCase();
+    if (!key) return;
+    const exists = this.state.bank.some(
+      (b) => b.subject === test.subject && b.prompt.trim().toLowerCase() === key,
+    );
+    if (exists) return;
+    this.addBankItem({ ...q, subject: test.subject } as Omit<QuestionBankItem, "id">);
   }
   updateQuestion(testId: string, questionId: string, q: Omit<Question, "id" | "order">) {
     let order = 0;
@@ -1229,6 +1245,21 @@ class Store {
     this.run(
       supabase().from("answers").update(patch).eq("submission_id", submissionId).eq("question_id", questionId),
       "gradeAnswer",
+    );
+  }
+  /** Grader markup for one image of a photo answer. Saved as you draw. */
+  saveAnnotations(submissionId: string, questionId: string, imageUrl: string, shapes: Annotation[]) {
+    let next: Annotations = {};
+    this.commit((d) => {
+      const ans = d.submissions.find((s) => s.id === submissionId)?.answers.find((a) => a.questionId === questionId);
+      if (!ans) return;
+      next = { ...ans.annotations, [imageUrl]: shapes };
+      if (!shapes.length) delete next[imageUrl];
+      ans.annotations = next;
+    });
+    this.run(
+      supabase().from("answers").update({ annotations: next }).eq("submission_id", submissionId).eq("question_id", questionId),
+      "saveAnnotations",
     );
   }
   releaseSubmission(submissionId: string) {

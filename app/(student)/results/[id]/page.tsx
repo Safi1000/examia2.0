@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useDatabase } from "@/lib/data/store";
 import { studentById, testById, submissionFor } from "@/lib/data/selectors";
 import { Card, Badge, Pill, Icon, EmptyState } from "@/components/ui";
+import { AnnotatedImage } from "@/components/Annotator";
 import { buttonClasses } from "@/components/ui/Button";
 import { gradeSubmission, gradeLetter, gradeRole } from "@/lib/grading";
 import { formatDuration, formatTimestamp } from "@/lib/time";
@@ -162,12 +163,12 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
           return (
             <div className="space-y-2">
               {photos.map((url, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <AnnotatedImage
                   key={url}
-                  src={url}
+                  url={url}
+                  shapes={answer?.annotations?.[url] ?? []}
                   alt={`Your answer to question ${index + 1}, image ${i + 1}`}
-                  className="max-h-64 w-full rounded-md border border-border object-contain bg-surface-2"
+                  className="mx-auto block max-h-64 w-auto max-w-full rounded-md border border-border bg-surface-2"
                 />
               ))}
             </div>
