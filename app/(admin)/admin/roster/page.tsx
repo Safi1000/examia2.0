@@ -111,7 +111,9 @@ export default function RosterPage() {
     if (!form.cohortId) return setError("Choose a cohort.");
     const exceptId = editing !== "new" && editing ? editing.id : undefined;
     if (store.usernameTaken(form.username, exceptId)) return setError("That username is already taken.");
-    if (!form.tempPassword.trim()) return setError("Set a temporary password.");
+    // Passwords live in Supabase auth and are never read back, so the field is
+    // always blank when editing — blank there means "keep the current one".
+    if (editing === "new" && !form.tempPassword.trim()) return setError("Set a temporary password.");
     if (editing === "new") {
       store.addStudent({ username: form.username.trim(), email: form.email.trim() || undefined, cohortId: form.cohortId, tempPassword: form.tempPassword.trim(), classIds: form.classIds, subjectIds: form.subjectIds });
       toast("Student added.", "success");
@@ -226,12 +228,18 @@ export default function RosterPage() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-ink-2">Temporary password</label>
+            <label className="mb-1.5 block text-sm font-semibold text-ink-2">
+              {editing === "new" ? "Temporary password" : "Reset password (optional)"}
+            </label>
             <div className="flex gap-2">
               <Input value={form.tempPassword} onChange={(e) => setForm({ ...form, tempPassword: e.target.value })} className="flex-1" aria-label="Temporary password" />
               <Button type="button" variant="secondary" onClick={() => setForm({ ...form, tempPassword: genPassword() })}>Generate</Button>
             </div>
-            <p className="mt-1.5 text-xs text-ink-3">Share this with the student for their first sign-in.</p>
+            <p className="mt-1.5 text-xs text-ink-3">
+              {editing === "new"
+                ? "Share this with the student for their first sign-in."
+                : "Leave blank to keep the student's current password."}
+            </p>
           </div>
           {error && <p className="rounded-md border border-error/30 bg-error-soft px-3 py-2 text-sm font-medium text-error">{error}</p>}
         </div>
