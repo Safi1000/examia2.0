@@ -45,6 +45,7 @@ import type {
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { Database } from "@/lib/data/seed";
 import { supabase } from "@/lib/supabase";
+import { isFullyGraded } from "@/lib/scoring";
 
 /**
  * How long a realtime channel is held open after its last subscriber leaves.
@@ -152,6 +153,7 @@ function mapQuestion(r: Row, correctIndex: number | undefined): Question {
     prompt: r.prompt as string,
     marks: r.marks as number,
     topic: r.topic as string,
+    attachments: ((r.attachment_urls as string[]) ?? []).filter(Boolean),
     order: (r.sort_order as number) ?? 0,
   };
   if (r.type === "mcq") {
@@ -235,6 +237,7 @@ function mapBank(r: Row): QuestionBankItem {
     prompt: r.prompt as string,
     marks: r.marks as number,
     topic: r.topic as string,
+    attachments: ((r.attachment_urls as string[]) ?? []).filter(Boolean),
   };
   if (r.type === "mcq") {
     return { ...base, type: "mcq", options: (r.options as string[]) ?? [], correctIndex: (r.correct_index as number) ?? 0 };
@@ -263,6 +266,7 @@ function questionToRow(testId: string, id: string, q: Omit<Question, "id" | "ord
     options: v.type === "mcq" ? v.options : null,
     max_length: v.type === "text" ? v.maxLength ?? null : null,
     show_counter: v.type === "text" ? v.showCounter ?? null : null,
+    attachment_urls: v.attachments ?? [],
     sort_order: order,
   };
 }
@@ -1232,20 +1236,29 @@ class Store {
     });
     return id;
   }
-  gradeAnswer(submissionId: string, questionId: string, marksAwarded: number, feedback?: string) {
+  /** `marksAwarded: undefined` edits feedback only — it does NOT score a zero. */
+  gradeAnswer(submissionId: string, questionId: string, marksAwarded: number | undefined, feedback?: string) {
     this.commit((d) => {
       const ans = d.submissions.find((s) => s.id === submissionId)?.answers.find((a) => a.questionId === questionId);
       if (ans) {
-        ans.marksAwarded = marksAwarded;
+        if (marksAwarded !== undefined) ans.marksAwarded = marksAwarded;
         if (feedback !== undefined) ans.feedback = feedback;
       }
     });
-    const patch: Row = { marks_awarded: marksAwarded };
+    const patch: Row = {};
+    if (marksAwarded !== undefined) patch.marks_awarded = marksAwarded;
     if (feedback !== undefined) patch.feedback = feedback;
     this.run(
       supabase().from("answers").update(patch).eq("submission_id", submissionId).eq("question_id", questionId),
       "gradeAnswer",
     );
+    // Marking the last answer is the release: once nothing is left to score,
+    // the result goes out without a second click.
+    const sub = this.state.submissions.find((s) => s.id === submissionId);
+    const test = sub ? this.state.tests.find((t) => t.id === sub.testId) : null;
+    if (sub && test && sub.status === "submitted" && isFullyGraded(test, sub)) {
+      this.releaseSubmission(submissionId);
+    }
   }
   /** Grader markup for one image of a photo answer. Saved as you draw. */
   saveAnnotations(submissionId: string, questionId: string, imageUrl: string, shapes: Annotation[]) {
@@ -1637,6 +1650,7 @@ function bankToRow(id: string, item: Omit<QuestionBankItem, "id">): Row {
     prompt: v.prompt,
     marks: v.marks,
     topic: v.topic,
+    attachment_urls: v.attachments ?? [],
     options: v.type === "mcq" ? v.options : null,
     max_length: v.type === "text" ? v.maxLength ?? null : null,
     show_counter: v.type === "text" ? v.showCounter ?? null : null,

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { QuestionCommon, QuestionType, QuestionVariant } from "@/types";
 import { Modal, Button, Input, Textarea, Label, Checkbox } from "@/components/ui";
 import { cn } from "@/lib/cn";
+import { uploadAsImages } from "@/lib/cloudinary";
+import { useToast } from "@/components/toast";
 
 /**
  * Question payload minus the test-only `order` / `id`; `subject` for bank items.
@@ -47,7 +49,28 @@ export function QuestionModal({
   const [showCounter, setShowCounter] = useState(
     initial?.type === "text" ? initial.showCounter ?? true : true,
   );
+  // A PDF attached here is stored as one image URL per page, so students and
+  // graders read it inline instead of downloading a file.
+  const [attachments, setAttachments] = useState<string[]>(initial?.attachments ?? []);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  async function addFiles(files: File[]) {
+    const accepted = files.filter((f) => f.type.startsWith("image/") || f.type === "application/pdf");
+    if (!accepted.length) return;
+    setUploading(true);
+    try {
+      const pages = (await Promise.all(accepted.map((f) => uploadAsImages(f)))).flat();
+      setAttachments((prev) => [...prev, ...pages]);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Upload failed. Try again.", "error");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
 
   function validate(): boolean {
     const e: Record<string, string> = {};
@@ -62,7 +85,7 @@ export function QuestionModal({
 
   function handleSave() {
     if (!validate()) return;
-    const common = { prompt: prompt.trim(), topic: topic.trim(), marks, ...(withSubject ? { subject: subject.trim() } : {}) };
+    const common = { prompt: prompt.trim(), topic: topic.trim(), marks, attachments, ...(withSubject ? { subject: subject.trim() } : {}) };
     let draft: QuestionDraft;
     if (type === "mcq") {
       draft = { ...common, type: "mcq", options: options.map((o) => o.trim()), correctIndex } as QuestionDraft;
@@ -112,6 +135,40 @@ export function QuestionModal({
         )}
 
         <Textarea label="Question prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} error={errors.prompt} placeholder="What are you asking?" required />
+
+        <div>
+          <Label>Question paper (optional)</Label>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*,application/pdf"
+            multiple
+            className="sr-only"
+            onChange={(e) => void addFiles(Array.from(e.target.files ?? []))}
+            aria-label="Attach a PDF or image to this question"
+          />
+          {attachments.length > 0 && (
+            <ul className="mb-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {attachments.map((url, i) => (
+                <li key={url} className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt={`Attached page ${i + 1}`} className="h-24 w-full rounded border border-border bg-surface-2 object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setAttachments(attachments.filter((_, idx) => idx !== i))}
+                    aria-label={`Remove page ${i + 1}`}
+                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded bg-paper/85 text-ink-2 hover:bg-error hover:text-paper"
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Button variant="secondary" size="sm" type="button" loading={uploading} onClick={() => fileRef.current?.click()}>
+            {attachments.length ? "Add more pages" : "Attach PDF or image"}
+          </Button>
+        </div>
 
         <div className="grid grid-cols-2 gap-3">
           <Input label="Topic tag" value={topic} onChange={(e) => setTopic(e.target.value)} error={errors.topic} placeholder="e.g. Algebra" required />

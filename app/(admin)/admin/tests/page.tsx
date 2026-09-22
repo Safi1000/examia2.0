@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import type { TestStatus } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
-import { cohortById, testStats } from "@/lib/data/selectors";
+import { cohortById, liveStatus, testStats } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Button, Card, Badge, Pill, CohortTag, EmptyState, Modal, Icon } from "@/components/ui";
@@ -36,10 +36,10 @@ export default function AdminTestsPage() {
     return db.tests
       .filter((t) => (cohortId ? t.cohortId === cohortId || t.cohortId === null : true))
       .filter((t) => (subjectFilter.length === 0 ? true : subjectFilter.includes(t.subject)))
-      .filter((t) => (statuses.length === 0 ? true : statuses.includes(t.status)))
+      .filter((t) => (statuses.length === 0 ? true : statuses.includes(liveStatus(t))))
       .sort(
         (a, b) =>
-          (a.status === "closed" ? 1 : 0) - (b.status === "closed" ? 1 : 0) ||
+          (liveStatus(a) === "closed" ? 1 : 0) - (liveStatus(b) === "closed" ? 1 : 0) ||
           +new Date(b.createdAt) - +new Date(a.createdAt),
       );
   }, [db.tests, cohortId, subjectFilter, statuses]);
@@ -57,7 +57,8 @@ export default function AdminTestsPage() {
       opensAt: new Date(now).toISOString(),
       closesAt: new Date(now + 7 * 86_400_000).toISOString(),
       testCode: code,
-      status: "draft",
+      // Tests go live as soon as they are created; the close time ends them.
+      status: "active",
     });
     router.push(`/admin/tests/${id}`);
   }
@@ -109,7 +110,7 @@ export default function AdminTestsPage() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <Pill>{t.testCode}</Pill>
-                      <Badge tone={STATUS_TONE[t.status]} className="capitalize">{t.status}</Badge>
+                      <Badge tone={STATUS_TONE[liveStatus(t)]} className="capitalize">{liveStatus(t)}</Badge>
                     </div>
                     <h3 className="mt-1.5 text-lg font-bold text-ink">{t.title}</h3>
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-sm text-ink-2">

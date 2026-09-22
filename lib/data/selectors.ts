@@ -2,7 +2,7 @@
  * Pure selectors over the database snapshot. These approximate the row-level
  * security a real backend would enforce; TODO(rls) move scoping server-side.
  */
-import type { Announcement, Student, Submission, Test, TestStats } from "@/types";
+import type { Announcement, Student, Submission, Test, TestStats, TestStatus } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { awardedMarks, percent, totalMarks } from "@/lib/scoring";
 
@@ -15,6 +15,17 @@ export const submissionById = (db: Database, id: string) =>
 
 export const studentsInCohort = (db: Database, cohortId: string) =>
   db.students.filter((s) => s.cohortId === cohortId);
+
+/**
+ * The status to show for a test. A test that is still marked active once its
+ * close time has passed reads as closed — the window, not a manual edit, is
+ * what actually stops students submitting (see `testWindow`), so the badge
+ * follows the clock. Draft and a manual close are left alone.
+ */
+export function liveStatus(test: Test, nowMs = Date.now()): TestStatus {
+  if (test.status === "active" && nowMs >= new Date(test.closesAt).getTime()) return "closed";
+  return test.status;
+}
 
 /** Whether a test is scoped to this student: cohort + class + subject match. */
 export const testCoversStudent = (test: Test, student: Student) =>

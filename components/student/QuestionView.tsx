@@ -3,8 +3,9 @@
 import { useRef, useState } from "react";
 import type { Answer, Question } from "@/types";
 import { RadioCard, Textarea, Pill, Badge, Icon } from "@/components/ui";
-import { uploadImage } from "@/lib/cloudinary";
+import { uploadAsImages } from "@/lib/cloudinary";
 import { useToast } from "@/components/toast";
+import { PageStack } from "@/components/PageStack";
 import { cn } from "@/lib/cn";
 
 /** Renders one question and its answer control (MCQ / Text / Photo). */
@@ -25,6 +26,11 @@ export function QuestionView({
         <span className="text-xs uppercase tracking-wide text-ink-3">{question.type}</span>
       </div>
       <p className="mt-3 text-lg font-semibold leading-snug text-ink">{question.prompt}</p>
+      {question.attachments && question.attachments.length > 0 && (
+        <div className="mt-3">
+          <PageStack urls={question.attachments} label="Question paper" />
+        </div>
+      )}
 
       <div className="mt-5">
         {question.type === "mcq" && (
@@ -65,7 +71,7 @@ export function QuestionView({
   );
 }
 
-const MAX_PHOTOS = 10;
+const MAX_PHOTOS = 30; // a PDF lands as one entry per page, so this is a page budget
 
 /**
  * Photo answer: multiple images, drag & drop, multi-select, preview, remove.
@@ -86,24 +92,27 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
     onChange({ ...answer, photoUrls: next, photoDataUrl: next[0] });
 
   async function addFiles(files: File[]) {
-    const images = files.filter((f) => f.type.startsWith("image/"));
-    if (!images.length) {
-      toast("Images only, please.", "error");
+    // A PDF is accepted whole and lands as one image per page, so the rest of
+    // the app — preview, grading, annotation — only ever deals with images.
+    const accepted = files.filter((f) => f.type.startsWith("image/") || f.type === "application/pdf");
+    if (!accepted.length) {
+      toast("Images or PDFs only, please.", "error");
       return;
     }
     const room = MAX_PHOTOS - urls.length;
     if (room <= 0) {
-      toast(`That's the limit — ${MAX_PHOTOS} images.`, "error");
+      toast(`That's the limit — ${MAX_PHOTOS} pages.`, "error");
       return;
     }
-    const batch = images.slice(0, room);
-    if (images.length > room) toast(`Only the first ${room} were added (${MAX_PHOTOS} max).`, "info");
+    const batch = accepted.slice(0, room);
 
     setUploading(true);
     try {
       // Upload in parallel, but keep the order the student picked them in.
-      const uploaded = await Promise.all(batch.map((f) => uploadImage(f)));
-      apply([...urls, ...uploaded]);
+      const uploaded = (await Promise.all(batch.map((f) => uploadAsImages(f)))).flat();
+      const next = [...urls, ...uploaded];
+      if (next.length > MAX_PHOTOS) toast(`Only the first ${MAX_PHOTOS} pages were kept.`, "info");
+      apply(next.slice(0, MAX_PHOTOS));
     } catch (err) {
       toast(err instanceof Error ? err.message : "Photo upload failed. Try again.", "error");
     } finally {
@@ -121,11 +130,11 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,application/pdf"
         multiple
         onChange={(e) => void addFiles(Array.from(e.target.files ?? []))}
         className="sr-only"
-        aria-label="Upload photos of your answer"
+        aria-label="Upload photos or a PDF of your answer"
       />
 
       {urls.length > 0 && (
@@ -179,13 +188,13 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
               {uploading
                 ? "Uploading..."
                 : urls.length
-                  ? "Add more images"
-                  : "Take photos, upload, or drag them here"}
+                  ? "Add more pages"
+                  : "Take photos, upload a PDF, or drag them here"}
             </span>
             <span className="text-xs text-ink-3">
               {urls.length
-                ? `${urls.length} of ${MAX_PHOTOS} added`
-                : "Your handwritten working, please. You can add several."}
+                ? `${urls.length} of ${MAX_PHOTOS} pages added`
+                : "Your handwritten working, please — photos or a PDF."}
             </span>
           </button>
         </div>

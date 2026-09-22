@@ -8,6 +8,7 @@ import { useDatabase } from "@/lib/data/store";
 import { studentById, testById, submissionFor } from "@/lib/data/selectors";
 import { Card, Badge, Pill, Icon, EmptyState } from "@/components/ui";
 import { AnnotatedImage } from "@/components/Annotator";
+import { PageStack } from "@/components/PageStack";
 import { buttonClasses } from "@/components/ui/Button";
 import { gradeSubmission, gradeLetter, gradeRole } from "@/lib/grading";
 import { formatDuration, formatTimestamp } from "@/lib/time";
@@ -117,6 +118,11 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
         </Badge>
       </div>
       <p className="mt-2 font-semibold text-ink">{question.prompt}</p>
+      {question.attachments && question.attachments.length > 0 && (
+        <div className="mt-3">
+          <PageStack urls={question.attachments} label="Question paper" />
+        </div>
+      )}
 
       <div className="mt-3">
         {question.type === "mcq" && (

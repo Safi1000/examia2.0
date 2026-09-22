@@ -8,6 +8,7 @@ import { submissionById, studentById, testById } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { AnnotatedImage, AnnotatorModal } from "@/components/Annotator";
+import { PageStack } from "@/components/PageStack";
 import { Card, Button, Badge, Pill, Textarea, EmptyState, Icon } from "@/components/ui";
 import { awardedMarks, isFullyGraded, totalMarks } from "@/lib/scoring";
 import { gradeSubmission } from "@/lib/grading";
@@ -102,16 +103,22 @@ function GradeCard({
   const store = useStore();
   const awarded = answer?.marksAwarded;
   const locked = question.type === "mcq";
-  const [annotating, setAnnotating] = useState<string | null>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [annotating, setAnnotating] = useState<number | null>(null);
+  // One debounce per page: a scribble is a single write, and moving to the next
+  // page never cancels the previous page's pending save.
+  const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
-  // Markup saves itself while the grader draws; coalesce the strokes so one
-  // scribble is a single write, and flush on unmount so nothing is lost.
   function saveShapes(url: string, shapes: Annotation[]) {
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => store.saveAnnotations(submissionId, question.id, url, shapes), 500);
+    clearTimeout(saveTimers.current.get(url));
+    saveTimers.current.set(
+      url,
+      setTimeout(() => store.saveAnnotations(submissionId, question.id, url, shapes), 500),
+    );
   }
-  useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
+  useEffect(() => {
+    const timers = saveTimers.current;
+    return () => timers.forEach(clearTimeout);
+  }, []);
 
   function setMarks(v: number) {
     const clamped = Math.max(0, Math.min(question.marks, v));
@@ -130,6 +137,11 @@ function GradeCard({
         </div>
       </div>
       <p className="mt-2 font-semibold text-ink">{question.prompt}</p>
+      {question.attachments && question.attachments.length > 0 && (
+        <div className="mt-3">
+          <PageStack urls={question.attachments} label="Question paper" />
+        </div>
+      )}
 
       <div className="mt-3">
         {question.type === "mcq" && (
@@ -166,22 +178,21 @@ function GradeCard({
                   <AnnotatedImage
                     url={url}
                     shapes={answer?.annotations?.[url] ?? []}
-                    alt={`Answer to question ${index + 1}, image ${i + 1}`}
-                    onClick={() => setAnnotating(url)}
+                    alt={`Answer to question ${index + 1}, page ${i + 1}`}
+                    onClick={() => setAnnotating(i)}
                     className="mx-auto block max-h-64 w-auto max-w-full rounded-md border border-border bg-surface-2"
                   />
                   <figcaption className="mt-1 text-xs text-ink-3 tabular">
-                    {photos.length > 1 ? `Image ${i + 1} of ${photos.length} — ` : ""}click to annotate
+                    {photos.length > 1 ? `Page ${i + 1} of ${photos.length} — ` : ""}click to annotate
                   </figcaption>
                 </figure>
               ))}
-              {annotating && (
+              {annotating !== null && (
                 <AnnotatorModal
-                  key={annotating}
-                  open
-                  url={annotating}
-                  initial={answer?.annotations?.[annotating] ?? []}
-                  onChange={(shapes) => saveShapes(annotating, shapes)}
+                  urls={photos}
+                  startAt={annotating}
+                  initial={answer?.annotations ?? {}}
+                  onChange={saveShapes}
                   onClose={() => setAnnotating(null)}
                 />
               )}
@@ -219,7 +230,7 @@ function GradeCard({
             <Textarea
               label="Feedback (optional)"
               value={answer?.feedback ?? ""}
-              onChange={(e) => store.gradeAnswer(submissionId, question.id, awarded ?? 0, e.target.value)}
+              onChange={(e) => store.gradeAnswer(submissionId, question.id, awarded, e.target.value)}
               placeholder="A short note for the student…"
               className="min-h-20"
             />

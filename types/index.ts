@@ -106,6 +106,11 @@ export interface QuestionCommon {
   prompt: string;
   marks: number;
   topic: string;
+  /**
+   * Prompt attachments as image URLs. A PDF is uploaded once and stored as one
+   * URL per page, so students, graders and the annotator all just render images.
+   */
+  attachments?: string[];
 }
 
 /** A question as embedded in a test (carries display order). */

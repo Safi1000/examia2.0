@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import type { Question, TestStatus } from "@/types";
+import type { Question } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { testById } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
@@ -48,7 +48,6 @@ export default function TestEditorPage() {
           opensAt: toLocalInput(test.opensAt),
           closesAt: toLocalInput(test.closesAt),
           testCode: test.testCode,
-          status: test.status,
         }
       : null,
   );
@@ -85,7 +84,6 @@ export default function TestEditorPage() {
       opensAt: fromLocalInput(form.opensAt),
       closesAt: fromLocalInput(form.closesAt),
       testCode: form.testCode.trim(),
-      status: form.status,
     });
     toast("Test saved.", "success");
   }
@@ -191,11 +189,9 @@ export default function TestEditorPage() {
                 <input type="datetime-local" value={form.closesAt} onChange={(e) => set("closesAt", e.target.value)} className="h-12 w-full rounded-md border border-border-strong bg-surface px-3 text-ink" />
               </div>
             </div>
-            <Select label="Status" value={form.status} onChange={(e) => set("status", e.target.value as TestStatus)}>
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="closed">Closed</option>
-            </Select>
+            <p className="text-xs text-ink-3">
+              Live from the moment it is created; closes on its own at the close time above.
+            </p>
           </CardBody>
         </Card>
 

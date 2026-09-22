@@ -39,7 +39,12 @@ export default function SubmissionsPage() {
       .filter((r) => (subjectFilter.length === 0 ? true : subjectFilter.includes(r.test.subject)))
       .filter((r) => (statuses.length === 0 ? true : statuses.includes(r.sub.status)))
       .map((r) => ({ ...r, grade: gradeSubmission(r.test, r.sub) }))
-      .sort((a, b) => +new Date(b.sub.submittedAt ?? 0) - +new Date(a.sub.submittedAt ?? 0));
+      // Anything still needing a grade floats to the top; released work sinks.
+      .sort(
+        (a, b) =>
+          (a.sub.status === "released" ? 1 : 0) - (b.sub.status === "released" ? 1 : 0) ||
+          +new Date(b.sub.submittedAt ?? 0) - +new Date(a.sub.submittedAt ?? 0),
+      );
   }, [db, cohortId, subjectFilter, statuses]);
 
   // Bulk release covers exactly what the filters are showing: every awaiting
