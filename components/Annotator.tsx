@@ -188,60 +188,62 @@ export function AnnotatorModal({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-paper" role="dialog" aria-modal="true" aria-label="Annotate answer">
-      <div className="flex flex-wrap items-center gap-2 border-b border-border bg-surface px-4 py-2.5">
-        {(["pen", "highlight", "text", "erase"] as Tool[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTool(t)}
-            aria-pressed={tool === t}
-            className={cn(
-              "h-9 rounded-md border px-3 text-sm font-semibold capitalize",
-              tool === t ? "border-brand bg-brand text-on-brand" : "border-border-strong bg-surface text-ink-2 hover:bg-surface-2",
-            )}
-          >
-            {t}
-          </button>
-        ))}
-        <span className="mx-1 h-6 w-px bg-border" />
-        {COLORS.map((c) => (
-          <button
-            key={c}
-            onClick={() => setColor(c)}
-            aria-label={`Colour ${c}`}
-            aria-pressed={color === c}
-            className={cn("h-7 w-7 rounded-full border-2", color === c ? "border-ink ring-2 ring-brand" : "border-border")}
-            style={{ background: c }}
-          />
-        ))}
-        <span className="mx-1 h-6 w-px bg-border" />
-        <label className="flex items-center gap-2 text-sm text-ink-2">
-          Size
-          <input type="range" min={0.5} max={3} step={0.5} value={size} onChange={(e) => setSize(+e.target.value)} className="w-24" />
-        </label>
+      {/* Two rows on a tablet, one on a laptop. Every control keeps its size and
+          the row scrolls sideways rather than dropping tools off the edge. */}
+      <div className="shrink-0 border-b border-border bg-surface px-3 py-2 lg:flex lg:items-center lg:gap-3 lg:px-4">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0">
+          {(["pen", "highlight", "text", "erase"] as Tool[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTool(t)}
+              aria-pressed={tool === t}
+              className={cn(
+                "h-9 shrink-0 rounded-md border px-3 text-sm font-semibold capitalize",
+                tool === t ? "border-brand bg-brand text-on-brand" : "border-border-strong bg-surface text-ink-2 hover:bg-surface-2",
+              )}
+            >
+              {t}
+            </button>
+          ))}
+          <span className="mx-0.5 h-6 w-px shrink-0 bg-border" />
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              onClick={() => setColor(c)}
+              aria-label={`Colour ${c}`}
+              aria-pressed={color === c}
+              className={cn("h-8 w-8 shrink-0 rounded-full border-2", color === c ? "border-ink ring-2 ring-brand" : "border-border")}
+              style={{ background: c }}
+            />
+          ))}
+          <label className="ml-1 flex shrink-0 items-center gap-2 text-sm text-ink-2">
+            Size
+            <input type="range" min={0.5} max={3} step={0.5} value={size} onChange={(e) => setSize(+e.target.value)} className="w-20" />
+          </label>
+        </div>
 
-        {urls.length > 1 && (
-          <div className="flex items-center gap-1.5 text-sm text-ink-2">
-            <button onClick={() => goto(page - 1)} disabled={page === 0} className="h-9 rounded-md border border-border-strong px-2.5 disabled:opacity-40" aria-label="Previous page">‹</button>
-            <span className="tabular">Page {page + 1} / {urls.length}</span>
-            <button onClick={() => goto(page + 1)} disabled={page === urls.length - 1} className="h-9 rounded-md border border-border-strong px-2.5 disabled:opacity-40" aria-label="Next page">›</button>
-          </div>
-        )}
-
-        <div className="ml-auto flex items-center gap-2">
+        <div className="mt-1.5 flex items-center gap-2 lg:ml-auto lg:mt-0">
+          {urls.length > 1 && (
+            <div className="flex shrink-0 items-center gap-1.5 text-sm text-ink-2">
+              <button onClick={() => goto(page - 1)} disabled={page === 0} className="h-9 rounded-md border border-border-strong px-2.5 disabled:opacity-40" aria-label="Previous page">‹</button>
+              <span className="tabular">{page + 1} / {urls.length}</span>
+              <button onClick={() => goto(page + 1)} disabled={page === urls.length - 1} className="h-9 rounded-md border border-border-strong px-2.5 disabled:opacity-40" aria-label="Next page">›</button>
+            </div>
+          )}
           <Button variant="secondary" size="sm" onClick={() => commit(current, currentShapes.slice(0, -1))} disabled={!currentShapes.length}>
             Undo
           </Button>
           <Button variant="secondary" size="sm" onClick={() => commit(current, [])} disabled={!currentShapes.length}>
-            Clear page
+            Clear
           </Button>
-          <span className="hidden text-xs text-ink-3 sm:inline">Saved automatically</span>
-          <button onClick={onClose} aria-label="Close annotator" className="flex h-9 w-9 items-center justify-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink">
+          <span className="hidden text-xs text-ink-3 xl:inline">Saved automatically</span>
+          <button onClick={onClose} aria-label="Close annotator" className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink lg:ml-0">
             <Icon.Close className="h-5 w-5" />
           </button>
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto bg-surface-2/40 px-4 py-6">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto bg-surface-2/40 px-2 py-3 sm:px-4 sm:py-6">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
           {urls.map((u, i) => (
             <div key={u} data-page={i} onPointerDown={() => setPage(i)}>
@@ -392,6 +394,9 @@ function EditablePage({
         }}
         className="block w-full select-none"
       />
+      {dim.w === 0 && (
+        <p className="px-3 py-10 text-center text-sm text-ink-3">Loading page…</p>
+      )}
       {dim.w > 0 && (
         <svg
           ref={svgRef}
