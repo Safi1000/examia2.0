@@ -49,15 +49,15 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     <div className="min-h-dvh">
       {!inRunner && (
         <header className="sticky top-0 z-30 border-b border-border bg-paper/85 backdrop-blur">
-          <div className="mx-auto flex h-16 max-w-3xl items-center justify-between gap-3 px-4">
-            <Link href="/dashboard" className="flex items-center gap-2.5" aria-label="Home">
+          <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-3 px-4">
+            <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5" aria-label="Home">
               <Logo className="h-8 shrink-0" />
-              <span className="hidden border-l border-border pl-2.5 font-display text-base font-extrabold tracking-tight text-ink sm:inline">
+              <span className="hidden truncate border-l border-border pl-2.5 font-display text-base font-extrabold tracking-tight text-ink lg:inline">
                 {student.username}
               </span>
             </Link>
 
-            <nav className="flex items-center gap-1" aria-label="Primary">
+            <nav className="flex shrink-0 items-center gap-1" aria-label="Primary">
               {links.map((l) => {
                 const active = pathname === l.href;
                 return (
@@ -71,7 +71,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                     aria-current={active ? "page" : undefined}
                   >
                     {l.icon}
-                    <span className="hidden sm:inline">{l.label}</span>
+                    <span className="hidden md:inline">{l.label}</span>
                   </Link>
                 );
               })}
@@ -87,7 +87,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             </nav>
           </div>
           {cohort && (
-            <div className="mx-auto max-w-3xl px-4 pb-2">
+            <div className="mx-auto max-w-5xl px-4 pb-2">
               <CohortTag color={cohort.color} name={cohort.name} className="text-xs" />
             </div>
           )}
