@@ -235,55 +235,33 @@ function GradeCard({
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-sm font-semibold text-ink-2">Marks</span>
-              {/* One button per mark only while that stays a sane number of
-                  buttons — a 90-mark paper gets a plain field instead of a row
-                  wide enough to scroll the whole page sideways. */}
-              {question.marks <= 20 ? (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {Array.from({ length: question.marks + 1 }, (_, n) => (
-                    <button
-                      key={n}
-                      onClick={() => setMarks(n)}
-                      className={cn(
-                        "h-9 min-w-9 rounded-md border px-2 font-mono text-sm font-semibold transition-colors",
-                        awarded === n ? "border-brand bg-brand text-on-brand" : "border-border-strong bg-surface text-ink-2 hover:bg-surface-2",
-                      )}
-                      aria-label={`${n} marks`}
-                      aria-pressed={awarded === n}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                  <span className="ml-1 text-sm text-ink-3">/ {question.marks}</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setMarks((awarded ?? 0) - 1)}
-                    className="h-10 w-10 rounded-md border border-border-strong bg-surface text-lg font-semibold text-ink-2 hover:bg-surface-2"
-                    aria-label="One mark less"
-                  >
-                    −
-                  </button>
-                  <input
-                    type="number"
-                    min={0}
-                    max={question.marks}
-                    value={awarded ?? ""}
-                    onChange={(e) => setMarks(Number(e.target.value))}
-                    aria-label={`Marks out of ${question.marks}`}
-                    className="h-10 w-20 rounded-md border border-border-strong bg-surface px-3 text-center font-mono text-sm font-semibold text-ink"
-                  />
-                  <button
-                    onClick={() => setMarks((awarded ?? 0) + 1)}
-                    className="h-10 w-10 rounded-md border border-border-strong bg-surface text-lg font-semibold text-ink-2 hover:bg-surface-2"
-                    aria-label="One mark more"
-                  >
-                    +
-                  </button>
-                  <span className="text-sm text-ink-3">/ {question.marks}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setMarks((awarded ?? 0) - 1)}
+                  className="h-10 w-10 rounded-md border border-border-strong bg-surface text-lg font-semibold text-ink-2 hover:bg-surface-2"
+                  aria-label="One mark less"
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  min={0}
+                  max={question.marks}
+                  value={awarded ?? ""}
+                  onChange={(e) => setMarks(e.target.value === "" ? 0 : Number(e.target.value))}
+                  placeholder="0"
+                  aria-label={`Marks out of ${question.marks}`}
+                  className="h-10 w-20 rounded-md border border-border-strong bg-surface px-3 text-center font-mono text-base font-semibold text-ink"
+                />
+                <button
+                  onClick={() => setMarks((awarded ?? 0) + 1)}
+                  className="h-10 w-10 rounded-md border border-border-strong bg-surface text-lg font-semibold text-ink-2 hover:bg-surface-2"
+                  aria-label="One mark more"
+                >
+                  +
+                </button>
+                <span className="text-sm text-ink-3">/ {question.marks}</span>
+              </div>
             </div>
             <Textarea
               label="Feedback (optional)"
