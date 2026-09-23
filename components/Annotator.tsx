@@ -40,13 +40,10 @@ export function AnnotationLayer({ shapes, w, h }: { shapes: Annotation[]; w: num
   );
 }
 
-function Shape({ s, onErase }: { s: Annotation; onErase?: () => void }) {
-  const hit = onErase
-    ? { onPointerDown: onErase, className: "cursor-pointer", style: { pointerEvents: "all" as const } }
-    : {};
+function Shape({ s }: { s: Annotation }) {
   if (s.t === "text") {
     return (
-      <text x={s.x} y={s.y} fill={s.color} fontSize={s.size} fontWeight={700} {...hit}>
+      <text x={s.x} y={s.y} fill={s.color} fontSize={s.size} fontWeight={700}>
         {s.s}
       </text>
     );
@@ -60,9 +57,33 @@ function Shape({ s, onErase }: { s: Annotation; onErase?: () => void }) {
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeOpacity={s.w > 20 ? 0.35 : 1}
-      {...hit}
     />
   );
+}
+
+/**
+ * Topmost shape under the pointer, or undefined.
+ *
+ * Erasing used to rely on the SVG hit-testing the stroke itself, which meant
+ * having to land exactly on a hairline path — mostly a miss. Distance testing
+ * against the stored points with a visible-radius tolerance is what makes the
+ * eraser feel like an eraser.
+ */
+function shapeAt(shapes: Annotation[], x: number, y: number, tolerance: number) {
+  for (let i = shapes.length - 1; i >= 0; i--) {
+    const s = shapes[i];
+    if (s.t === "draw") {
+      const r = Math.max(s.w, tolerance);
+      for (let j = 0; j + 1 < s.pts.length; j += 2) {
+        if (Math.hypot(x - s.pts[j], y - s.pts[j + 1]) <= r) return s;
+      }
+    } else {
+      // Text is anchored on its baseline, so the box sits above y.
+      const w = s.s.length * s.size * 0.6;
+      if (x >= s.x - tolerance && x <= s.x + w + tolerance && y >= s.y - s.size && y <= s.y + s.size * 0.3) return s;
+    }
+  }
+  return undefined;
 }
 
 /** An image with its saved markup burnt on top; click to open the editor. */
@@ -271,6 +292,13 @@ function EditablePage({
   const liveRef = useRef<SVGPathElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const drawing = useRef<Stroke | null>(null);
+  const erasing = useRef(false);
+  // Shapes the caller has not re-rendered yet, so a fast drag erasing several
+  // marks does not keep testing against the stale list.
+  const liveShapes = useRef(shapes);
+  useEffect(() => {
+    liveShapes.current = shapes;
+  }, [shapes]);
 
   /** Client point → image pixel coordinates. */
   function at(e: React.PointerEvent) {
@@ -279,6 +307,15 @@ function EditablePage({
       x: ((e.clientX - r.left) / r.width) * dim.w,
       y: ((e.clientY - r.top) / r.height) * dim.h,
     };
+  }
+
+  function eraseAt(x: number, y: number) {
+    const list = liveShapes.current;
+    const hit = shapeAt(list, x, y, (Math.max(dim.w, dim.h) / 260) * size * 2);
+    if (!hit) return;
+    const next = list.filter((s) => s.id !== hit.id);
+    liveShapes.current = next;
+    onCommit(next);
   }
 
   // Stroke width scales with the image so a pen stroke looks the same on a
@@ -297,8 +334,15 @@ function EditablePage({
   }
 
   function down(e: React.PointerEvent) {
-    if (!dim.w || tool === "erase") return;
+    if (!dim.w) return;
     const p = at(e);
+    if (tool === "erase") {
+      // Capture so a drag keeps rubbing out whatever it passes over.
+      e.currentTarget.setPointerCapture(e.pointerId);
+      erasing.current = true;
+      eraseAt(p.x, p.y);
+      return;
+    }
     if (tool === "text") {
       const s = window.prompt("Comment text");
       if (!s?.trim()) return;
@@ -311,6 +355,11 @@ function EditablePage({
   }
 
   function move(e: React.PointerEvent) {
+    if (erasing.current) {
+      const p = at(e);
+      eraseAt(p.x, p.y);
+      return;
+    }
     const d = drawing.current;
     if (!d) return;
     const p = at(e);
@@ -322,6 +371,7 @@ function EditablePage({
   }
 
   function up() {
+    erasing.current = false;
     const d = drawing.current;
     if (!d) return;
     drawing.current = null;
@@ -353,11 +403,7 @@ function EditablePage({
           onPointerCancel={up}
         >
           {shapes.map((s) => (
-            <Shape
-              key={s.id}
-              s={s}
-              onErase={tool === "erase" ? () => onCommit(shapes.filter((x) => x.id !== s.id)) : undefined}
-            />
+            <Shape key={s.id} s={s} />
           ))}
           <path
             ref={liveRef}

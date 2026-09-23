@@ -96,10 +96,10 @@ export default function SubmissionsPage() {
                 <tr>
                   <Th>Student</Th>
                   <Th>Test</Th>
-                  <Th>Cohort</Th>
+                  <Th className="hidden lg:table-cell">Cohort</Th>
                   <Th>Status</Th>
                   <Th>Score</Th>
-                  <Th>Submitted</Th>
+                  <Th className="hidden md:table-cell">Submitted</Th>
                   <Th>Actions</Th>
                 </tr>
               </thead>
@@ -109,14 +109,14 @@ export default function SubmissionsPage() {
                   return (
                     <tr key={sub.id}>
                       <Td className="font-semibold capitalize">{student?.username ?? "—"}</Td>
-                      <Td className="text-ink-2">{test.title}<span className="block text-xs text-ink-3">{test.subject}</span></Td>
-                      <Td>{cohort ? <span className="inline-flex items-center gap-1.5 text-ink-2"><CohortDot color={cohort.color} />{cohort.name}</span> : "—"}</Td>
+                      <Td className="min-w-[10rem] text-ink-2">{test.title}<span className="block text-xs text-ink-3">{test.subject}</span></Td>
+                      <Td className="hidden lg:table-cell">{cohort ? <span className="inline-flex items-center gap-1.5 text-ink-2"><CohortDot color={cohort.color} />{cohort.name}</span> : "—"}</Td>
                       <Td>
                         {sub.status === "released" ? <Badge tone="success">Released</Badge> : <Badge tone="warning">Awaiting</Badge>}
                         {sub.autoSubmitted && <span className="ml-1 text-xs text-ink-3">auto</span>}
                       </Td>
                       <Td className="font-mono">{sub.status === "released" ? `${grade.percent}% · ${grade.letter}` : <span className="text-ink-3">—</span>}</Td>
-                      <Td className="whitespace-nowrap text-ink-2">{sub.submittedAt ? formatTimestamp(sub.submittedAt) : "—"}</Td>
+                      <Td className="hidden whitespace-nowrap text-ink-2 md:table-cell">{sub.submittedAt ? formatTimestamp(sub.submittedAt) : "—"}</Td>
                       <Td>
                         <div className="flex items-center gap-1.5">
                           <Link href={`/admin/grading/${sub.id}`} className={buttonClasses({ variant: "secondary", size: "sm" })}>
