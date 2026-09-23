@@ -104,6 +104,7 @@ function GradeCard({
   const awarded = answer?.marksAwarded;
   const locked = question.type === "mcq";
   const [annotating, setAnnotating] = useState<number | null>(null);
+  const [page, setPage] = useState(0);
   // One debounce per page: a scribble is a single write, and moving to the next
   // page never cancels the previous page's pending save.
   const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -171,22 +172,47 @@ function GradeCard({
           // photoUrls is the full set; fall back to the legacy single URL.
           const photos = answer?.photoUrls ?? (answer?.photoDataUrl ? [answer.photoDataUrl] : []);
           if (!photos.length) return <p className="text-sm italic text-ink-3">No photo submitted</p>;
+          // One page at a time in a fixed-height box: a 50-page PDF must not turn
+          // the grading screen into a mile of scrolling to reach the marks.
+          const shown = Math.min(page, photos.length - 1);
+          const url = photos[shown];
           return (
             <div className="space-y-2">
-              {photos.map((url, i) => (
-                <figure key={url}>
-                  <AnnotatedImage
-                    url={url}
-                    shapes={answer?.annotations?.[url] ?? []}
-                    alt={`Answer to question ${index + 1}, page ${i + 1}`}
-                    onClick={() => setAnnotating(i)}
-                    className="mx-auto block max-h-64 w-auto max-w-full rounded-md border border-border bg-surface-2"
-                  />
-                  <figcaption className="mt-1 text-xs text-ink-3 tabular">
-                    {photos.length > 1 ? `Page ${i + 1} of ${photos.length} — ` : ""}click to annotate
-                  </figcaption>
-                </figure>
-              ))}
+              <div className="max-h-[26rem] overflow-auto rounded-md border border-border bg-surface-2">
+                <AnnotatedImage
+                  url={url}
+                  shapes={answer?.annotations?.[url] ?? []}
+                  alt={`Answer to question ${index + 1}, page ${shown + 1}`}
+                  onClick={() => setAnnotating(shown)}
+                  className="block w-full"
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-ink-3">
+                {photos.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => setPage(Math.max(0, shown - 1))}
+                      disabled={shown === 0}
+                      className="h-8 rounded-md border border-border-strong px-2.5 text-ink-2 disabled:opacity-40"
+                      aria-label="Previous page"
+                    >
+                      ‹
+                    </button>
+                    <span className="tabular">Page {shown + 1} of {photos.length}</span>
+                    <button
+                      onClick={() => setPage(Math.min(photos.length - 1, shown + 1))}
+                      disabled={shown === photos.length - 1}
+                      className="h-8 rounded-md border border-border-strong px-2.5 text-ink-2 disabled:opacity-40"
+                      aria-label="Next page"
+                    >
+                      ›
+                    </button>
+                  </>
+                )}
+                <button onClick={() => setAnnotating(shown)} className="font-semibold text-brand hover:underline">
+                  Open to annotate
+                </button>
+              </div>
               {annotating !== null && (
                 <AnnotatorModal
                   urls={photos}
