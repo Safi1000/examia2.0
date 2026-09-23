@@ -27,22 +27,20 @@ export default function StudentAssignmentsPage() {
   if (!studentId) return null;
 
   return (
-    <div className="px-4 py-6 sm:px-6">
-      <h1 className="text-2xl font-bold text-ink">Assignments</h1>
-      <p className="mt-0.5 text-sm text-ink-2">Hand in your work as photos or a PDF.</p>
+    <main className="mx-auto max-w-3xl px-4 py-8">
+      <h1 className="mb-1 font-display text-2xl font-bold text-ink">Assignments</h1>
+      <p className="mb-6 text-sm text-ink-3">Hand in your work as photos or a PDF.</p>
 
       {assignments.length === 0 ? (
-        <div className="mt-6">
-          <EmptyState icon={<Icon.Doc />} title="Nothing set right now" message="New assignments will appear here." />
-        </div>
+        <EmptyState icon={<Icon.Doc />} title="Nothing set right now" message="New assignments will appear here." />
       ) : (
-        <div className="mt-5 space-y-4">
+        <div className="space-y-4">
           {assignments.map((a) => (
             <AssignmentCard key={a.id} assignment={a} studentId={studentId} />
           ))}
         </div>
       )}
-    </div>
+    </main>
   );
 }
 
