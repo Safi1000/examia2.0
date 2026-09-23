@@ -24,6 +24,8 @@ import type {
   Activity,
   ActivityType,
   Announcement,
+  Assignment,
+  AssignmentSubmission,
   Answer,
   ClassItem,
   Cohort,
@@ -88,6 +90,8 @@ const EMPTY: Database = {
   announcements: [],
   bank: [],
   classes: [],
+  assignments: [],
+  assignmentSubmissions: [],
   subjects: [],
   notes: [],
   noteAssignments: [],
@@ -188,6 +192,28 @@ const mapAnswer = (r: Row): Answer => {
     feedback: (r.feedback as string) ?? undefined,
   };
 };
+
+const mapAssignment = (r: Row): Assignment => ({
+  id: r.id as string,
+  title: r.title as string,
+  instructions: (r.instructions as string) ?? undefined,
+  attachments: ((r.attachment_urls as string[]) ?? []).filter(Boolean),
+  dueAt: r.due_at as string,
+  cohortId: (r.cohort_id as string) ?? null,
+  classId: (r.class_id as string) ?? null,
+  subjectId: (r.subject_id as string) ?? null,
+  createdAt: r.created_at as string,
+});
+
+const mapAssignmentSubmission = (r: Row): AssignmentSubmission => ({
+  id: r.id as string,
+  assignmentId: r.assignment_id as string,
+  studentId: r.student_id as string,
+  fileUrls: ((r.file_urls as string[]) ?? []).filter(Boolean),
+  submittedAt: r.submitted_at as string,
+  feedback: (r.feedback as string) ?? undefined,
+  feedbackAt: (r.feedback_at as string) ?? undefined,
+});
 
 const mapActivity = (r: Row): Activity => ({
   id: r.id as string,
@@ -401,7 +427,7 @@ class Store {
 
   private async hydrate(initial: boolean) {
     const sb = supabase();
-    const [coh, stu, tst, sub, ann, bnk, keys, cls, subj, cCls, cSubj, sCls, sSubj, nts, nAssigns, acts] = await Promise.all([
+    const [coh, stu, tst, sub, ann, bnk, keys, cls, subj, cCls, cSubj, sCls, sSubj, nts, nAssigns, asg, asgSubs, acts] = await Promise.all([
       sb.from("cohorts").select("*").order("created_at"),
       sb.from("students").select("*").order("created_at"),
       sb.from("tests").select("*, questions(*)").order("created_at"),
@@ -417,6 +443,8 @@ class Store {
       sb.from("student_subjects").select("*"),
       sb.from("notes").select("*").order("created_at", { ascending: false }),
       sb.from("note_assignments").select("*"),
+      sb.from("assignments").select("*").order("due_at", { ascending: false }),
+      sb.from("assignment_submissions").select("*"),
       // Feed is capped: the bell only ever shows recent history.
       sb.from("activities").select("*").order("created_at", { ascending: false }).limit(100),
     ]);
@@ -429,7 +457,8 @@ class Store {
       ["announcements", ann], ["question_bank", bnk], ["question_keys", keys],
       ["classes", cls], ["subjects", subj], ["cohort_classes", cCls],
       ["cohort_subjects", cSubj], ["student_classes", sCls], ["student_subjects", sSubj],
-      ["notes", nts], ["note_assignments", nAssigns], ["activities", acts],
+      ["notes", nts], ["note_assignments", nAssigns], ["assignments", asg],
+      ["assignment_submissions", asgSubs], ["activities", acts],
     ];
     const failed = labelled.filter(([, r]) => r.error);
     for (const [name, r] of failed) {
@@ -511,6 +540,8 @@ class Store {
       bank: keep(bnk, () => ((bnk.data as Row[]) ?? []).map(mapBank), prev.bank),
       classes: keep(cls, () => ((cls.data as Row[]) ?? []).map(mapClass), prev.classes),
       subjects: keep(subj, () => ((subj.data as Row[]) ?? []).map(mapSubject), prev.subjects),
+      assignments: keep(asg, () => ((asg.data as Row[]) ?? []).map(mapAssignment), prev.assignments),
+      assignmentSubmissions: keep(asgSubs, () => ((asgSubs.data as Row[]) ?? []).map(mapAssignmentSubmission), prev.assignmentSubmissions),
       notes: keep(nts, () => ((nts.data as Row[]) ?? []).map(mapNote), prev.notes),
       noteAssignments: keep(nAssigns, () => ((nAssigns.data as Row[]) ?? []).map(mapNoteAssignment), prev.noteAssignments),
     };
@@ -1391,6 +1422,87 @@ class Store {
     });
     // Students can't UPDATE announcements directly — go through the RPC.
     this.run(supabase().rpc("dismiss_announcement", { p_id: id }), "dismissAnnouncement");
+  }
+
+  // ---- Weekly assignments ----------------------------------------------
+  addAssignment(input: Omit<Assignment, "id" | "createdAt">) {
+    const id = genId();
+    const createdAt = new Date().toISOString();
+    this.commit((d) => d.assignments.unshift({ ...input, id, createdAt }));
+    this.run(
+      supabase().from("assignments").insert({
+        id,
+        title: input.title,
+        instructions: input.instructions ?? null,
+        attachment_urls: input.attachments,
+        due_at: input.dueAt,
+        cohort_id: input.cohortId,
+        class_id: input.classId,
+        subject_id: input.subjectId,
+      }),
+      "addAssignment",
+    );
+    return id;
+  }
+  updateAssignment(id: string, patch: Omit<Assignment, "id" | "createdAt">) {
+    this.commit((d) => {
+      const idx = d.assignments.findIndex((a) => a.id === id);
+      if (idx >= 0) d.assignments[idx] = { ...d.assignments[idx], ...patch };
+    });
+    this.run(
+      supabase().from("assignments").update({
+        title: patch.title,
+        instructions: patch.instructions ?? null,
+        attachment_urls: patch.attachments,
+        due_at: patch.dueAt,
+        cohort_id: patch.cohortId,
+        class_id: patch.classId,
+        subject_id: patch.subjectId,
+      }).eq("id", id),
+      "updateAssignment",
+    );
+  }
+  deleteAssignment(id: string) {
+    this.commit((d) => {
+      d.assignments = d.assignments.filter((a) => a.id !== id);
+      d.assignmentSubmissions = d.assignmentSubmissions.filter((s) => s.assignmentId !== id);
+    });
+    this.run(supabase().from("assignments").delete().eq("id", id), "deleteAssignment");
+  }
+  /** Hand in (or replace) a student's files for one assignment. */
+  submitAssignment(assignmentId: string, studentId: string, fileUrls: string[]) {
+    const existing = this.state.assignmentSubmissions.find(
+      (s) => s.assignmentId === assignmentId && s.studentId === studentId,
+    );
+    const id = existing?.id ?? genId();
+    const submittedAt = new Date().toISOString();
+    this.commit((d) => {
+      const idx = d.assignmentSubmissions.findIndex((s) => s.id === id);
+      const row = { ...(existing ?? { id, assignmentId, studentId }), fileUrls, submittedAt } as AssignmentSubmission;
+      if (idx >= 0) d.assignmentSubmissions[idx] = row;
+      else d.assignmentSubmissions.push(row);
+    });
+    // One row per student per assignment (unique constraint), so re-handing in
+    // replaces the files instead of stacking duplicates.
+    this.run(
+      supabase().from("assignment_submissions").upsert(
+        { id, assignment_id: assignmentId, student_id: studentId, file_urls: fileUrls, submitted_at: submittedAt },
+        { onConflict: "assignment_id,student_id" },
+      ),
+      "submitAssignment",
+    );
+  }
+  /** Teacher's reply. Assignments carry no marks — feedback is the whole grade. */
+  setAssignmentFeedback(submissionId: string, feedback: string) {
+    const feedbackAt = new Date().toISOString();
+    this.commit((d) => {
+      const s = d.assignmentSubmissions.find((x) => x.id === submissionId);
+      if (s) { s.feedback = feedback; s.feedbackAt = feedbackAt; }
+    });
+    this.run(
+      supabase().from("assignment_submissions").update({ feedback, feedback_at: feedbackAt }).eq("id", submissionId),
+      "setAssignmentFeedback",
+    );
   }
 
   // ---- Question bank ---------------------------------------------------

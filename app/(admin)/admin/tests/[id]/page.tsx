@@ -11,15 +11,8 @@ import { QuestionModal, type QuestionDraft } from "@/components/admin/QuestionMo
 import { ImportBankModal } from "@/components/admin/ImportBankModal";
 import { ImportDocModal } from "@/components/admin/ImportDocModal";
 import { Card, CardHeader, CardBody, Button, Input, Select, Badge, Pill, Modal, Icon, EmptyState } from "@/components/ui";
+import { fromLocalInput, toLocalInput } from "@/lib/time";
 
-function toLocalInput(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-function fromLocalInput(v: string): string {
-  return new Date(v).toISOString();
-}
 function stripDraft(d: QuestionDraft): Omit<Question, "id" | "order"> {
   const { subject: _s, ...rest } = d;
   void _s;

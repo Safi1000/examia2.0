@@ -20,6 +20,7 @@ export default function SubmissionsPage() {
   const { cohortId } = useAdminFilter();
 
   const [subjectFilter, setSubjects] = useState<string[]>([]);
+  const [classFilter, setClasses] = useState<string[]>([]);
   const [statuses, setStatuses] = useState<string[]>([]);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -37,6 +38,7 @@ export default function SubmissionsPage() {
       .filter((r): r is { sub: typeof r.sub; test: NonNullable<typeof r.test>; student: typeof r.student } => r.test !== null)
       .filter((r) => (cohortId ? r.student?.cohortId === cohortId : true))
       .filter((r) => (subjectFilter.length === 0 ? true : subjectFilter.includes(r.test.subject)))
+      .filter((r) => (classFilter.length === 0 ? true : r.student?.classIds.some((c) => classFilter.includes(c)) ?? false))
       .filter((r) => (statuses.length === 0 ? true : statuses.includes(r.sub.status)))
       .map((r) => ({ ...r, grade: gradeSubmission(r.test, r.sub) }))
       // Anything still needing a grade floats to the top; released work sinks.
@@ -45,7 +47,7 @@ export default function SubmissionsPage() {
           (a.sub.status === "released" ? 1 : 0) - (b.sub.status === "released" ? 1 : 0) ||
           +new Date(b.sub.submittedAt ?? 0) - +new Date(a.sub.submittedAt ?? 0),
       );
-  }, [db, cohortId, subjectFilter, statuses]);
+  }, [db, cohortId, subjectFilter, classFilter, statuses]);
 
   // Bulk release covers exactly what the filters are showing: every awaiting
   // submission on an all-MCQ test, which needs no human marking.
@@ -74,6 +76,12 @@ export default function SubmissionsPage() {
           options={subjects.map((sub) => ({ value: sub, label: sub }))}
           selected={subjectFilter}
           onChange={setSubjects}
+        />
+        <FilterChips
+          label="Class"
+          options={db.classes.map((c) => ({ value: c.id, label: c.name }))}
+          selected={classFilter}
+          onChange={setClasses}
         />
         <FilterChips
           label="Status"

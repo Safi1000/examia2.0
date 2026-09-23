@@ -72,3 +72,15 @@ export function testWindow(opensAt: string, closesAt: string, nowMs: number): Te
   if (nowMs >= close) return "closed";
   return "open";
 }
+
+/** ISO -> value for <input type="datetime-local"> (local clock, no seconds). */
+export function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Value from <input type="datetime-local"> -> ISO. */
+export function fromLocalInput(v: string): string {
+  return new Date(v).toISOString();
+}

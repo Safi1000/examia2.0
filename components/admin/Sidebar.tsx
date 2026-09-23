@@ -12,6 +12,7 @@ const NAV = [
   { href: "/admin/tests", label: "Tests", icon: Icon.Doc },
   { href: "/admin/bank", label: "Question bank", icon: Icon.Bank },
   { href: "/admin/submissions", label: "Submissions", icon: Icon.Inbox },
+  { href: "/admin/assignments", label: "Assignments", icon: Icon.Megaphone },
   { href: "/admin/cohorts", label: "Cohorts", icon: Icon.Layers },
   { href: "/admin/roster", label: "Roster", icon: Icon.Users },
   { href: "/admin/notes", label: "Notes", icon: Icon.Download },

@@ -9,6 +9,8 @@ import type {
   Activity,
   Announcement,
   Answer,
+  Assignment,
+  AssignmentSubmission,
   ClassItem,
   Cohort,
   Note,
@@ -31,6 +33,8 @@ export interface Database {
   announcements: Announcement[];
   bank: QuestionBankItem[];
   classes: ClassItem[];
+  assignments: Assignment[];
+  assignmentSubmissions: AssignmentSubmission[];
   subjects: SubjectItem[];
   notes: Note[];
   noteAssignments: NoteAssignment[];
@@ -377,6 +381,8 @@ export function createSeed(now: number = Date.now()): Database {
     announcements,
     bank,
     classes: [],
+    assignments: [],
+    assignmentSubmissions: [],
     subjects: [],
     notes: [],
     noteAssignments: [],

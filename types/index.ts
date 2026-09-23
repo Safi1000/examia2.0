@@ -291,3 +291,32 @@ export interface Activity {
   clearedBy: string[];
   createdAt: string;
 }
+
+// ----------------------------------------------------------------------------
+// 10. Weekly assignments (posted work, handed in, answered with feedback only)
+// ----------------------------------------------------------------------------
+
+/** Work set for a cohort (optionally narrowed to a class and/or subject). */
+export interface Assignment {
+  id: string;
+  title: string;
+  instructions?: string;
+  /** Brief/worksheet pages as image URLs — a PDF is stored one URL per page. */
+  attachments: string[];
+  dueAt: string;
+  cohortId: string | null;
+  classId: string | null;
+  subjectId: string | null;
+  createdAt: string;
+}
+
+/** A student's hand-in. Never marked — the teacher replies with feedback. */
+export interface AssignmentSubmission {
+  id: string;
+  assignmentId: string;
+  studentId: string;
+  fileUrls: string[];
+  submittedAt: string;
+  feedback?: string;
+  feedbackAt?: string;
+}
