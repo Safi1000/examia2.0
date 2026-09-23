@@ -794,30 +794,59 @@ class Store {
       (s) => s.username.toLowerCase() === username.trim().toLowerCase() && s.id !== exceptId,
     );
   }
-  addStudent(input: Omit<Student, "id" | "createdAt">) {
-    supabase()
-      .functions.invoke("admin-users", {
-        body: {
-          action: "create",
-          username: input.username,
-          email: input.email,
-          cohortId: input.cohortId,
-          password: input.tempPassword,
-        },
-      })
-      .then(({ data, error }) => {
-        if (error || (data as Row)?.error) {
-          this.report(`addStudent: ${error?.message ?? (data as Row)?.error}`);
-          return;
+  /**
+   * Call the privileged provisioning function, with the real reason on failure.
+   *
+   * `functions.invoke` reports every non-2xx as the same opaque "non-2xx status
+   * code" and keeps the body on `error.context`, so an ordinary problem — a
+   * duplicate username, a short password — used to surface as gibberish. The
+   * gateway also rejects the call outright (401, before any of our code runs)
+   * once the admin's token has lapsed, which is why creating a student could
+   * fail for no visible reason.
+   */
+  private async callAdminUsers(label: string, body: Record<string, unknown>): Promise<Row> {
+    const sb = supabase();
+    // Refreshes the access token if it is stale; without a session the edge
+    // gateway answers 401 and the function never runs.
+    const { data: sess } = await sb.auth.getSession();
+    if (!sess.session) throw new Error("Your admin session has expired. Sign in again.");
+
+    const { data, error } = await sb.functions.invoke("admin-users", { body });
+    let detail: string | null = null;
+    if (error) {
+      detail = error.message;
+      const res = (error as { context?: Response }).context;
+      if (res && typeof res.json === "function") {
+        const parsed = (await res.json().catch(() => null)) as { error?: string } | null;
+        if (parsed?.error) detail = parsed.error;
+        if (res.status === 401 || res.status === 403) {
+          detail = "Your admin session has expired. Sign in again.";
         }
-        const row = (data as Row).student as Row;
-        const student = mapStudent(row, input.classIds, input.subjectIds);
-        this.commit((d) => d.students.push(student));
-        if (input.classIds.length) this.setStudentClasses(student.id, input.classIds);
-        if (input.subjectIds.length) this.setStudentSubjects(student.id, input.subjectIds);
-      });
+      }
+    } else if ((data as Row)?.error) {
+      detail = String((data as Row).error);
+    }
+    if (detail) {
+      this.report(`${label}: ${detail}`);
+      throw new Error(detail);
+    }
+    return data as Row;
   }
-  updateStudent(id: string, patch: Partial<Omit<Student, "id" | "createdAt">>) {
+
+  async addStudent(input: Omit<Student, "id" | "createdAt">) {
+    const data = await this.callAdminUsers("addStudent", {
+      action: "create",
+      username: input.username,
+      email: input.email,
+      cohortId: input.cohortId,
+      password: input.tempPassword,
+    });
+    const student = mapStudent(data.student as Row, input.classIds, input.subjectIds);
+    this.commit((d) => d.students.push(student));
+    if (input.classIds.length) this.setStudentClasses(student.id, input.classIds);
+    if (input.subjectIds.length) this.setStudentSubjects(student.id, input.subjectIds);
+  }
+  updateStudent(id: string, patch: Partial<Omit<Student, "id" | "createdAt">>): Promise<Row> {
     this.commit((d) => {
       const s = d.students.find((x) => x.id === id);
       if (s) Object.assign(s, {
@@ -829,22 +858,17 @@ class Store {
       });
     });
     const s = this.state.students.find((x) => x.id === id);
-    supabase()
-      .functions.invoke("admin-users", {
-        body: {
-          action: "update",
-          studentId: id,
-          username: patch.username ?? s?.username,
-          email: patch.email,
-          cohortId: patch.cohortId ?? s?.cohortId,
-          password: patch.tempPassword || undefined,
-        },
-      })
-      .then(({ data, error }) => {
-        if (error || (data as Row)?.error) this.report(`updateStudent: ${error?.message ?? (data as Row)?.error}`);
-      });
+    const done = this.callAdminUsers("updateStudent", {
+      action: "update",
+      studentId: id,
+      username: patch.username ?? s?.username,
+      email: patch.email,
+      cohortId: patch.cohortId ?? s?.cohortId,
+      password: patch.tempPassword || undefined,
+    });
     if (patch.classIds !== undefined) this.setStudentClasses(id, patch.classIds);
     if (patch.subjectIds !== undefined) this.setStudentSubjects(id, patch.subjectIds);
+    return done;
   }
   deleteStudent(id: string) {
     this.commit((d) => {

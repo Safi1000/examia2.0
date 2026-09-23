@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { TestStatus } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
-import { useAdminFilter } from "@/lib/admin-filter";
+import { useAdminFilter, useStickyFilter } from "@/lib/admin-filter";
 import { cohortById, liveStatus, testStats } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -26,8 +26,8 @@ export default function AdminTestsPage() {
   const { toast } = useToast();
   const { cohortId } = useAdminFilter();
 
-  const [subjectFilter, setSubjects] = useState<string[]>([]);
-  const [statuses, setStatuses] = useState<string[]>([]);
+  const [subjectFilter, setSubjects] = useStickyFilter("tests.subject");
+  const [statuses, setStatuses] = useStickyFilter("tests.status");
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const subjects = useMemo(() => Array.from(new Set(db.tests.map((t) => t.subject))).sort(), [db.tests]);

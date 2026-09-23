@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useDatabase, useStore } from "@/lib/data/store";
-import { useAdminFilter } from "@/lib/admin-filter";
+import { useAdminFilter, useStickyFilter } from "@/lib/admin-filter";
 import { cohortById, studentById, testById } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -19,9 +19,9 @@ export default function SubmissionsPage() {
   const { toast } = useToast();
   const { cohortId } = useAdminFilter();
 
-  const [subjectFilter, setSubjects] = useState<string[]>([]);
-  const [classFilter, setClasses] = useState<string[]>([]);
-  const [statuses, setStatuses] = useState<string[]>([]);
+  const [subjectFilter, setSubjects] = useStickyFilter("submissions.subject");
+  const [classFilter, setClasses] = useStickyFilter("submissions.class");
+  const [statuses, setStatuses] = useStickyFilter("submissions.status");
   const [bulkOpen, setBulkOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 

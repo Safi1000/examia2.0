@@ -63,6 +63,7 @@ export default function RosterPage() {
   const [editing, setEditing] = useState<Student | "new" | null>(null);
   const [form, setForm] = useState({ username: "", email: "", cohortId: "", tempPassword: "", classIds: [] as string[], subjectIds: [] as string[] });
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<Student | null>(null);
 
   const students = useMemo(
@@ -106,7 +107,7 @@ export default function RosterPage() {
     setForm({ username: s.username, email: s.email ?? "", cohortId: s.cohortId, tempPassword: s.tempPassword ?? "", classIds: [...s.classIds], subjectIds: [...s.subjectIds] });
     setError(null);
   }
-  function save() {
+  async function save() {
     if (!form.username.trim()) return setError("Username is required.");
     if (!form.cohortId) return setError("Choose a cohort.");
     const exceptId = editing !== "new" && editing ? editing.id : undefined;
@@ -114,14 +115,33 @@ export default function RosterPage() {
     // Passwords live in Supabase auth and are never read back, so the field is
     // always blank when editing — blank there means "keep the current one".
     if (editing === "new" && !form.tempPassword.trim()) return setError("Set a temporary password.");
-    if (editing === "new") {
-      store.addStudent({ username: form.username.trim(), email: form.email.trim() || undefined, cohortId: form.cohortId, tempPassword: form.tempPassword.trim(), classIds: form.classIds, subjectIds: form.subjectIds });
-      toast("Student added.", "success");
-    } else if (editing) {
-      store.updateStudent(editing.id, { username: form.username.trim(), email: form.email.trim() || undefined, cohortId: form.cohortId, tempPassword: form.tempPassword.trim(), classIds: form.classIds, subjectIds: form.subjectIds });
-      toast("Student updated.", "success");
+
+    const fields = {
+      username: form.username.trim(),
+      email: form.email.trim() || undefined,
+      cohortId: form.cohortId,
+      tempPassword: form.tempPassword.trim(),
+      classIds: form.classIds,
+      subjectIds: form.subjectIds,
+    };
+    // Provisioning happens in an edge function, so it can genuinely fail. Wait
+    // for it: reporting success and closing the dialog before the round trip
+    // finished is what made a failed create look like a mystery.
+    setSaving(true);
+    try {
+      if (editing === "new") {
+        await store.addStudent(fields);
+        toast("Student added.", "success");
+      } else if (editing) {
+        await store.updateStudent(editing.id, fields);
+        toast("Student updated.", "success");
+      }
+      setEditing(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save this student.");
+    } finally {
+      setSaving(false);
     }
-    setEditing(null);
   }
 
   return (
@@ -192,7 +212,7 @@ export default function RosterPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setEditing(null)}>Cancel</Button>
-            <Button onClick={save}>{editing === "new" ? "Add" : "Save"}</Button>
+            <Button loading={saving} onClick={() => void save()}>{editing === "new" ? "Add" : "Save"}</Button>
           </>
         }
       >
