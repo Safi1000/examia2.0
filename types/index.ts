@@ -40,6 +40,8 @@ export interface Student {
    * from the server — auth owns the credential after that.
    */
   tempPassword?: string;
+  /** Parent's WhatsApp number in E.164 (`+923001234567`), or undefined. */
+  whatsapp?: string;
   createdAt: string;
 }
 

@@ -2,11 +2,15 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { Suspense } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { useDatabase } from "@/lib/data/store";
 import { cohortById, studentById, submissionsForStudent, testById, testsForStudent } from "@/lib/data/selectors";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Badge, CohortDot, EmptyState, Icon, Modal } from "@/components/ui";
+import { useToast } from "@/components/toast";
+import { COMPANY_NAME } from "@/lib/config";
+import { waDigits } from "@/lib/phone";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import { LineChart, type LinePoint } from "@/components/charts/LineChart";
 import { MasteryBar } from "@/components/charts/MasteryBar";
@@ -25,15 +29,27 @@ function formatMonthLabel(m: string) {
   return new Date(Number(y), Number(mo) - 1, 1).toLocaleString("default", { month: "long", year: "numeric" });
 }
 
+/** Suspense wrapper: `useSearchParams` needs a boundary during prerender. */
 export default function StudentDetailPage() {
+  return (
+    <Suspense fallback={null}>
+      <StudentDetail />
+    </Suspense>
+  );
+}
+
+function StudentDetail() {
   const params = useParams();
   const id = String(params.id);
   const db = useDatabase();
   const student = studentById(db, id);
 
-  const [reportOpen, setReportOpen] = useState(false);
+  // `?report=1` — the roster's WhatsApp button lands straight on this dialog.
+  const [reportOpen, setReportOpen] = useState(useSearchParams().get("report") === "1");
   const [reportMonth, setReportMonth] = useState("");
   const [teacherNote, setTeacherNote] = useState("");
+  const [sending, setSending] = useState(false);
+  const { toast } = useToast();
   const [downloading, setDownloading] = useState(false);
 
   const data = useMemo(() => {
@@ -70,13 +86,13 @@ export default function StudentDetailPage() {
     setReportOpen(true);
   }
 
-  async function downloadReport() {
-    if (!student) return;
-    setDownloading(true);
-    try {
+  /** Build the PDF. Delivery (download / WhatsApp) is the caller's business. */
+  async function buildReport(): Promise<{ blob: Blob; fileName: string } | null> {
+    if (!student) return null;
+    {
       const { pdf } = await import("@react-pdf/renderer");
 
-      const month = reportMonth;
+      const month = reportMonth || data?.months[data.months.length - 1] || "";
       const allReleased = submissionsForStudent(db, student.id).filter((s) => s.status === "released");
 
       const prevMonthDate = month
@@ -152,21 +168,72 @@ export default function StudentDetailPage() {
         />
       ).toBlob();
 
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
       const safeName = student.username.replace(/[^a-z0-9]/gi, "-").toLowerCase();
-      const monthSlug = month || "all";
-      link.href = url;
-      link.download = `report-${safeName}-${monthSlug}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      return { blob, fileName: `report-${safeName}-${month || "all"}.pdf` };
+    }
+  }
+
+  function saveBlob(blob: Blob, fileName: string) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  async function downloadReport() {
+    setDownloading(true);
+    try {
+      const built = await buildReport();
+      if (built) saveBlob(built.blob, built.fileName);
       setReportOpen(false);
     } catch (err) {
       console.error("PDF generation failed:", err);
+      toast("Could not build the report.", "error");
     } finally {
       setDownloading(false);
+    }
+  }
+
+  /**
+   * Send the report to the parent's WhatsApp.
+   *
+   * On a tablet or phone the OS share sheet carries the PDF itself, so picking
+   * WhatsApp attaches it. On desktop nothing can attach a file to a wa.me link
+   * — the web has no API for it — so the PDF is downloaded and the chat opens
+   * with the message ready, leaving one drag to attach.
+   */
+  async function sendReportOnWhatsapp() {
+    if (!student?.whatsapp) return;
+    setSending(true);
+    try {
+      const built = await buildReport();
+      if (!built) return;
+      const file = new File([built.blob], built.fileName, { type: "application/pdf" });
+      const month = reportMonth || data?.months[data.months.length - 1] || "";
+      const text = `${student.username}'s report — ${month ? formatMonthLabel(month) : "all results"} (${COMPANY_NAME})`;
+
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: built.fileName, text });
+        setReportOpen(false);
+        return;
+      }
+
+      saveBlob(built.blob, built.fileName);
+      window.open(`https://wa.me/${waDigits(student.whatsapp)}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
+      toast("Report downloaded — attach it in the WhatsApp tab that just opened.", "info");
+      setReportOpen(false);
+    } catch (err) {
+      // Dismissing the share sheet rejects; that is not a failure worth shouting about.
+      if ((err as Error)?.name !== "AbortError") {
+        console.error("WhatsApp send failed:", err);
+        toast("Could not send the report.", "error");
+      }
+    } finally {
+      setSending(false);
     }
   }
 
@@ -248,12 +315,20 @@ export default function StudentDetailPage() {
         open={reportOpen}
         onClose={() => setReportOpen(false)}
         title="Monthly report"
-        description="Pick the month and add an optional teacher note. The PDF downloads automatically."
+        description="Pick the month and add an optional teacher note."
         footer={
           <>
-            <Button variant="secondary" onClick={() => setReportOpen(false)} disabled={downloading}>Cancel</Button>
-            <Button onClick={downloadReport} loading={downloading} disabled={data.months.length === 0}>
+            <Button variant="secondary" onClick={() => setReportOpen(false)} disabled={downloading || sending}>Cancel</Button>
+            <Button variant="secondary" onClick={downloadReport} loading={downloading} disabled={data.months.length === 0 || sending}>
               {downloading ? "Generating..." : "Download PDF"}
+            </Button>
+            <Button
+              onClick={sendReportOnWhatsapp}
+              loading={sending}
+              disabled={data.months.length === 0 || downloading || !student.whatsapp}
+              title={student.whatsapp ? `Send to ${student.whatsapp}` : "Add the parent's WhatsApp number first"}
+            >
+              {sending ? "Preparing..." : "Send on WhatsApp"}
             </Button>
           </>
         }
@@ -265,7 +340,7 @@ export default function StudentDetailPage() {
               <p className="text-sm text-ink-3">No released results yet.</p>
             ) : (
               <select
-                value={reportMonth}
+                value={reportMonth || data.months[data.months.length - 1]}
                 onChange={(e) => setReportMonth(e.target.value)}
                 className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
               >

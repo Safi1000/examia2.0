@@ -115,6 +115,7 @@ const mapStudent = (r: Row, classIds: string[] = [], subjectIds: string[] = []):
   id: r.id as string,
   username: r.username as string,
   email: (r.email as string) ?? undefined,
+  whatsapp: (r.whatsapp as string) ?? undefined,
   cohortId: (r.cohort_id as string) ?? "",
   classIds,
   subjectIds,
@@ -794,6 +795,16 @@ class Store {
       (s) => s.username.toLowerCase() === username.trim().toLowerCase() && s.id !== exceptId,
     );
   }
+  /** Parent's WhatsApp number; stored in E.164 (a CHECK constraint enforces it). */
+  setStudentWhatsapp(id: string, whatsapp: string | undefined) {
+    const value = whatsapp?.trim() || null;
+    this.commit((d) => {
+      const s = d.students.find((x) => x.id === id);
+      if (s) s.whatsapp = value ?? undefined;
+    });
+    this.run(supabase().from("students").update({ whatsapp: value }).eq("id", id), "setStudentWhatsapp");
+  }
+
   /**
    * Call the privileged provisioning function, with the real reason on failure.
    *
@@ -842,7 +853,11 @@ class Store {
       password: input.tempPassword,
     });
     const student = mapStudent(data.student as Row, input.classIds, input.subjectIds);
+    student.whatsapp = input.whatsapp;
     this.commit((d) => d.students.push(student));
+    // The provisioning function owns auth + the core row; plain profile columns
+    // are written straight to the table (admin-only by RLS).
+    if (input.whatsapp !== undefined) this.setStudentWhatsapp(student.id, input.whatsapp);
     if (input.classIds.length) this.setStudentClasses(student.id, input.classIds);
     if (input.subjectIds.length) this.setStudentSubjects(student.id, input.subjectIds);
   }
@@ -852,11 +867,13 @@ class Store {
       if (s) Object.assign(s, {
         username: patch.username ?? s.username,
         email: patch.email,
+        whatsapp: patch.whatsapp,
         cohortId: patch.cohortId ?? s.cohortId,
         classIds: patch.classIds ?? s.classIds,
         subjectIds: patch.subjectIds ?? s.subjectIds,
       });
     });
+    if (patch.whatsapp !== undefined) this.setStudentWhatsapp(id, patch.whatsapp);
     const s = this.state.students.find((x) => x.id === id);
     const done = this.callAdminUsers("updateStudent", {
       action: "update",

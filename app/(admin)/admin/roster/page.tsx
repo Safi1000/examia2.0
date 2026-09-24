@@ -7,6 +7,7 @@ import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { cohortById } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
+import { isValidPhone, normalizePhone } from "@/lib/phone";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Button, Input, Select, Label, CohortDot, Modal, EmptyState, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
@@ -61,7 +62,7 @@ export default function RosterPage() {
 
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Student | "new" | null>(null);
-  const [form, setForm] = useState({ username: "", email: "", cohortId: "", tempPassword: "", classIds: [] as string[], subjectIds: [] as string[] });
+  const [form, setForm] = useState({ username: "", email: "", whatsapp: "", cohortId: "", tempPassword: "", classIds: [] as string[], subjectIds: [] as string[] });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<Student | null>(null);
@@ -99,12 +100,12 @@ export default function RosterPage() {
 
   function openNew() {
     setEditing("new");
-    setForm({ username: "", email: "", cohortId: cohortId ?? db.cohorts[0]?.id ?? "", tempPassword: genPassword(), classIds: [], subjectIds: [] });
+    setForm({ username: "", email: "", whatsapp: "", cohortId: cohortId ?? db.cohorts[0]?.id ?? "", tempPassword: genPassword(), classIds: [], subjectIds: [] });
     setError(null);
   }
   function openEdit(s: Student) {
     setEditing(s);
-    setForm({ username: s.username, email: s.email ?? "", cohortId: s.cohortId, tempPassword: s.tempPassword ?? "", classIds: [...s.classIds], subjectIds: [...s.subjectIds] });
+    setForm({ username: s.username, email: s.email ?? "", whatsapp: s.whatsapp ?? "", cohortId: s.cohortId, tempPassword: s.tempPassword ?? "", classIds: [...s.classIds], subjectIds: [...s.subjectIds] });
     setError(null);
   }
   async function save() {
@@ -116,9 +117,15 @@ export default function RosterPage() {
     // always blank when editing — blank there means "keep the current one".
     if (editing === "new" && !form.tempPassword.trim()) return setError("Set a temporary password.");
 
+    const whatsapp = form.whatsapp.trim() ? normalizePhone(form.whatsapp) : "";
+    if (whatsapp && !isValidPhone(whatsapp)) {
+      return setError("WhatsApp number must include the country code, e.g. +923001234567.");
+    }
+
     const fields = {
       username: form.username.trim(),
       email: form.email.trim() || undefined,
+      whatsapp: whatsapp || undefined,
       cohortId: form.cohortId,
       tempPassword: form.tempPassword.trim(),
       classIds: form.classIds,
@@ -191,6 +198,18 @@ export default function RosterPage() {
                   </div>
                 </Link>
                 <div className="flex shrink-0 gap-1">
+                  {/* Straight to the report dialog, which is where the send lives. */}
+                  <Link
+                    href={`/admin/roster/${s.id}?report=1`}
+                    className={cn(
+                      "flex h-9 w-9 items-center justify-center rounded",
+                      s.whatsapp ? "text-success hover:bg-success-soft" : "pointer-events-none text-ink-3/40",
+                    )}
+                    aria-label={s.whatsapp ? `Send ${s.username}'s report on WhatsApp` : `${s.username} has no WhatsApp number`}
+                    title={s.whatsapp ? `Send report to ${s.whatsapp}` : "Add the parent's WhatsApp number first"}
+                  >
+                    <Icon.Megaphone className="h-4 w-4" />
+                  </Link>
                   <button onClick={() => openEdit(s)} className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label={`Edit ${s.username}`}>
                     <Icon.Edit className="h-4 w-4" />
                   </button>
@@ -219,6 +238,16 @@ export default function RosterPage() {
         <div className="space-y-4">
           <Input label="Username" value={form.username} onChange={(e) => { setForm({ ...form, username: e.target.value }); setError(null); }} required autoCapitalize="none" />
           <Input label="Email (optional)" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <Input
+            label="Parent's WhatsApp (optional)"
+            type="tel"
+            inputMode="tel"
+            value={form.whatsapp}
+            onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+            onBlur={(e) => setForm({ ...form, whatsapp: e.target.value.trim() ? normalizePhone(e.target.value) : "" })}
+            placeholder="+923001234567"
+            hint="Country code required — reports are sent to this number."
+          />
           <Select label="Cohort" value={form.cohortId} onChange={(e) => setForm({ ...form, cohortId: e.target.value, classIds: [], subjectIds: [] })}>
             <option value="">Choose…</option>
             {db.cohorts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
