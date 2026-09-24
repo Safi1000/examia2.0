@@ -22,6 +22,14 @@ type Stroke = Extract<Annotation, { t: "draw" }>;
 const nid = () => Math.random().toString(36).slice(2, 10);
 
 /** Flat [x, y, x, y, ...] in image pixels → an SVG polyline path. */
+/** True for contacts that should not draw: a resting hand, or any finger once a
+ *  stylus is in use. `width`/`height` are the contact patch in CSS pixels. */
+function isPalm(e: React.PointerEvent, penSeen: boolean) {
+  if (e.pointerType !== "touch") return false;
+  if (penSeen) return true;
+  return e.width > 40 || e.height > 40;
+}
+
 function pathFor(pts: number[]) {
   let d = "";
   for (let i = 0; i + 1 < pts.length; i += 2) d += `${i ? "L" : "M"}${pts[i]} ${pts[i + 1]} `;
@@ -187,7 +195,15 @@ export function AnnotatorModal({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-paper" role="dialog" aria-modal="true" aria-label="Annotate answer">
+    /* onContextMenu: a long press on a tablet otherwise pops the browser's
+       copy / paste / back callout in the middle of marking. */
+    <div
+      className="fixed inset-0 z-50 flex select-none flex-col bg-paper [-webkit-touch-callout:none]"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Annotate answer"
+      onContextMenu={(e) => e.preventDefault()}
+    >
       {/* Two rows on a tablet, one on a laptop. Every control keeps its size and
           the row scrolls sideways rather than dropping tools off the edge. */}
       <div className="shrink-0 border-b border-border bg-surface px-3 py-2 lg:flex lg:items-center lg:gap-3 lg:px-4">
@@ -295,6 +311,10 @@ function EditablePage({
   const wrapRef = useRef<HTMLDivElement>(null);
   const drawing = useRef<Stroke | null>(null);
   const erasing = useRef(false);
+  // Palm rejection: once this page has seen a stylus, finger and palm contacts
+  // stop drawing — on a tablet the hand resting on the page would otherwise
+  // scribble over the answer. Touch still draws on devices with no pen.
+  const sawPen = useRef(false);
   // Shapes the caller has not re-rendered yet, so a fast drag erasing several
   // marks does not keep testing against the stale list.
   const liveShapes = useRef(shapes);
@@ -337,6 +357,8 @@ function EditablePage({
 
   function down(e: React.PointerEvent) {
     if (!dim.w) return;
+    if (e.pointerType === "pen") sawPen.current = true;
+    if (isPalm(e, sawPen.current)) return;
     const p = at(e);
     if (tool === "erase") {
       // Capture so a drag keeps rubbing out whatever it passes over.
@@ -382,7 +404,11 @@ function EditablePage({
   }
 
   return (
-    <div ref={wrapRef} className="relative overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-sm)]">
+    <div
+      ref={wrapRef}
+      className="relative select-none overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-sm)] [-webkit-touch-callout:none]"
+      onContextMenu={(e) => e.preventDefault()}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={url}
