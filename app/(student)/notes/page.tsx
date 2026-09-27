@@ -1,15 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAuth } from "@/lib/auth-context";
 import { studentById } from "@/lib/data/selectors";
 import { EmptyState, Icon } from "@/components/ui";
+import { NoteViewer } from "@/components/NoteViewer";
 import { cn } from "@/lib/cn";
-
-function downloadFile(url: string, fileName: string) {
-  window.location.href = `/api/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(fileName)}`;
-}
 
 function fileIcon(type: string) {
   if (type.startsWith("image/")) return "🖼️";
@@ -53,6 +50,8 @@ export default function StudentNotesPage() {
   useEffect(() => store.subscribeToNotes(), [store]);
 
   const visitLogged = useRef(false);
+  const [viewing, setViewing] = useState<{ id: string; title: string } | null>(null);
+
   useEffect(() => {
     if (visitLogged.current || !studentId) return;
     visitLogged.current = true;
@@ -68,15 +67,17 @@ export default function StudentNotesPage() {
   const student = studentById(db, studentId);
   if (!student) return null;
 
-  function onDownload(noteId: string, url: string, fileName: string) {
+  // Notes are read inside the portal — there is no download, so the record is
+  // of the note being opened.
+  function onOpen(noteId: string, title: string, fileName: string) {
     store.logActivity({
       type: "notes_downloaded",
-      title: `${username} downloaded "${fileName}"`,
+      title: `${username} opened "${fileName}"`,
       studentId,
       noteId,
       link: "/admin/notes",
     });
-    downloadFile(url, fileName);
+    setViewing({ id: noteId, title });
   }
 
   // The store already applies RLS so db.notes only contains notes this student
@@ -155,15 +156,15 @@ export default function StudentNotesPage() {
                         </div>
                       </div>
                       <button
-                        onClick={() => onDownload(note.id, note.fileUrl, note.fileName)}
+                        onClick={() => onOpen(note.id, note.title, note.fileName)}
                         className={cn(
                           "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold",
                           "bg-brand-soft text-brand hover:opacity-80 transition-opacity",
                         )}
-                        aria-label={`Download ${note.title}`}
+                        aria-label={`Read ${note.title}`}
                       >
-                        <Icon.Download className="h-4 w-4" />
-                        <span className="hidden sm:inline">Download</span>
+                        <Icon.Doc className="h-4 w-4" />
+                        <span className="hidden sm:inline">Read</span>
                       </button>
                     </div>
                   );
@@ -172,6 +173,9 @@ export default function StudentNotesPage() {
             </section>
           ))}
         </div>
+      )}
+      {viewing && (
+        <NoteViewer noteId={viewing.id} title={viewing.title} onClose={() => setViewing(null)} />
       )}
     </main>
   );

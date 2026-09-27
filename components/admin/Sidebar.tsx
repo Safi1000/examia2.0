@@ -15,6 +15,7 @@ const NAV = [
   { href: "/admin/assignments", label: "Assignments", icon: Icon.Megaphone },
   { href: "/admin/cohorts", label: "Cohorts", icon: Icon.Layers },
   { href: "/admin/roster", label: "Roster", icon: Icon.Users },
+  { href: "/admin/attendance", label: "Attendance", icon: Icon.Check },
   { href: "/admin/notes", label: "Notes", icon: Icon.Download },
   { href: "/admin/announcements", label: "Announcements", icon: Icon.Megaphone },
   { href: "/admin/analytics", label: "Analytics", icon: Icon.Chart },
@@ -70,7 +71,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <span className="h-2.5 w-2.5 rounded-full border border-border-strong" />
           All cohorts
         </button>
-        {db.cohorts.map((c) => (
+        {/* Switched-off cohorts drop out of the filter, but stay on the
+            Cohorts page where they can be switched back on. */}
+        {db.cohorts.filter((c) => c.active).map((c) => (
           <button
             key={c.id}
             onClick={() => setCohortId(cohortId === c.id ? null : c.id)}

@@ -34,6 +34,26 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   }
   const cohort = cohortById(db, student.cohortId);
 
+  // A switched-off cohort is already locked out at the database (it resolves
+  // these students to nobody); this is the courtesy message rather than an
+  // empty-looking portal.
+  if (cohort && !cohort.active) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
+        <p className="font-display text-xl font-bold text-ink">This class has finished</p>
+        <p className="max-w-sm text-sm text-ink-2">
+          Your cohort is no longer active. Please contact your teacher if you think this is a mistake.
+        </p>
+        <button
+          onClick={() => { logout(); router.replace("/login"); }}
+          className="text-sm font-semibold text-brand hover:underline"
+        >
+          Sign out
+        </button>
+      </div>
+    );
+  }
+
   // The test runner is distraction-free — it hides the global nav itself.
   const inRunner = /^\/test\/[^/]+$/.test(pathname);
 

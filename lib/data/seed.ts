@@ -11,6 +11,10 @@ import type {
   Answer,
   Assignment,
   AssignmentSubmission,
+  AttendanceDay,
+  AttendanceMonth,
+  ReportRecord,
+  ReminderSent,
   ClassItem,
   Cohort,
   Note,
@@ -34,6 +38,10 @@ export interface Database {
   bank: QuestionBankItem[];
   classes: ClassItem[];
   assignments: Assignment[];
+  reports: ReportRecord[];
+  remindersSent: ReminderSent[];
+  attendanceDays: AttendanceDay[];
+  attendanceMonths: AttendanceMonth[];
   assignmentSubmissions: AssignmentSubmission[];
   subjects: SubjectItem[];
   notes: Note[];
@@ -86,10 +94,10 @@ export function createSeed(now: number = Date.now()): Database {
 
   // ---- Cohorts -----------------------------------------------------------
   const cohorts: Cohort[] = [
-    { id: "co_autumn", name: "Autumn 2026", color: 1, classIds: [], subjectIds: [], createdAt: iso(-90 * DAY) },
-    { id: "co_spring", name: "Spring 2026", color: 2, classIds: [], subjectIds: [], createdAt: iso(-60 * DAY) },
-    { id: "co_evening", name: "Evening Track", color: 3, classIds: [], subjectIds: [], createdAt: iso(-45 * DAY) },
-    { id: "co_found", name: "Foundation", color: 4, classIds: [], subjectIds: [], createdAt: iso(-30 * DAY) },
+    { id: "co_autumn", name: "Autumn 2026", color: 1, classIds: [], subjectIds: [], createdAt: iso(-90 * DAY), active: true },
+    { id: "co_spring", name: "Spring 2026", color: 2, classIds: [], subjectIds: [], createdAt: iso(-60 * DAY), active: true },
+    { id: "co_evening", name: "Evening Track", color: 3, classIds: [], subjectIds: [], createdAt: iso(-45 * DAY), active: true },
+    { id: "co_found", name: "Foundation", color: 4, classIds: [], subjectIds: [], createdAt: iso(-30 * DAY), active: true },
   ];
 
   // ---- Students ----------------------------------------------------------
@@ -382,6 +390,10 @@ export function createSeed(now: number = Date.now()): Database {
     bank,
     classes: [],
     assignments: [],
+    reports: [],
+    remindersSent: [],
+    attendanceDays: [],
+    attendanceMonths: [],
     assignmentSubmissions: [],
     subjects: [],
     notes: [],

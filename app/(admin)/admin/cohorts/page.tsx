@@ -6,7 +6,7 @@ import { useDatabase, useStore } from "@/lib/data/store";
 import { studentsInCohort } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Card, Button, Input, Select, CohortDot, Modal, Label, EmptyState, Icon } from "@/components/ui";
+import { Card, Button, Input, Select, CohortDot, Modal, Label, EmptyState, Icon, Badge } from "@/components/ui";
 import { cohortVar } from "@/lib/tokens";
 import { cn } from "@/lib/cn";
 
@@ -127,7 +127,10 @@ export default function CohortsPage() {
                     <CohortDot color={c.color} size={16} />
                   </span>
                   <div className="min-w-0">
-                    <p className="truncate font-bold text-ink">{c.name}</p>
+                    <p className="flex items-center gap-2 truncate font-bold text-ink">
+                      {c.name}
+                      {!c.active && <Badge tone="neutral">Off</Badge>}
+                    </p>
                     <p className="text-sm text-ink-2">{studentCount} students · {testCount} tests</p>
                     {(classNames.length > 0 || subjectNames.length > 0) && (
                       <div className="mt-1.5 flex flex-wrap gap-1">
@@ -142,6 +145,21 @@ export default function CohortsPage() {
                   </div>
                 </div>
                 <div className="flex shrink-0 gap-1">
+                  <button
+                    onClick={() => {
+                      store.setCohortActive(c.id, !c.active);
+                      toast(c.active ? `${c.name} switched off.` : `${c.name} switched back on.`, "success");
+                    }}
+                    className="flex h-9 items-center rounded px-2 text-xs font-semibold text-ink-3 hover:bg-surface-2 hover:text-ink"
+                    aria-label={c.active ? `Switch off ${c.name}` : `Switch on ${c.name}`}
+                    title={
+                      c.active
+                        ? "Switch off: its students cannot sign in and it leaves filters and analytics. Nothing is deleted."
+                        : "Switch back on"
+                    }
+                  >
+                    {c.active ? "Switch off" : "Switch on"}
+                  </button>
                   <button onClick={() => openEdit(c)} className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label={`Edit ${c.name}`}>
                     <Icon.Edit className="h-4 w-4" />
                   </button>

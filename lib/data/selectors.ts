@@ -68,7 +68,9 @@ export function testStats(db: Database, test: Test): TestStats {
   const subs = submissionsForTest(db, test.id);
   const eligible = eligibleStudents(db, test).length;
   const total = totalMarks(test);
-  const graded = subs.filter((s) => s.status === "released" || s.status === "submitted");
+  // Average only what has actually been marked. Counting a script that is still
+  // waiting on the teacher as 0 dragged every average down to nonsense.
+  const graded = subs.filter((s) => s.status === "released");
   const averagePercent =
     graded.length > 0 && total > 0
       ? Math.round(
@@ -77,7 +79,42 @@ export function testStats(db: Database, test: Test): TestStats {
       : null;
   return {
     submissionCount: subs.length,
+    pendingCount: subs.filter((s) => s.status === "submitted").length,
     averagePercent,
     completionPercent: eligible > 0 ? Math.round((subs.length / eligible) * 100) : 0,
   };
+}
+
+// ---- Attendance ------------------------------------------------------------
+
+/**
+ * A student's attendance for a month, as a percentage.
+ *
+ * A typed monthly figure always wins — it is the teacher's own number, entered
+ * or corrected by hand. Otherwise it is derived from the daily register, where
+ * a late counts as half a day present.
+ */
+export function attendancePercent(db: Database, studentId: string, month: string): number | null {
+  const typed = db.attendanceMonths.find((a) => a.studentId === studentId && a.month === month);
+  if (typed) return typed.percent;
+
+  const days = db.attendanceDays.filter(
+    (a) => a.studentId === studentId && a.date.slice(0, 7) === month.slice(0, 7),
+  );
+  if (!days.length) return null;
+  const score = days.reduce((n, d) => n + (d.status === "present" ? 1 : d.status === "late" ? 0.5 : 0), 0);
+  return Math.round((score / days.length) * 1000) / 10;
+}
+
+/** Consecutive absences ending at the most recent recorded day. */
+export function absenceStreak(db: Database, studentId: string): number {
+  const days = db.attendanceDays
+    .filter((a) => a.studentId === studentId)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  let n = 0;
+  for (const d of days) {
+    if (d.status !== "absent") break;
+    n++;
+  }
+  return n;
 }

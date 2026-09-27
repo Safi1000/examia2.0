@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useDatabase } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
-import { cohortById } from "@/lib/data/selectors";
+import { attendancePercent, cohortById, testCoversStudent } from "@/lib/data/selectors";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Badge, CohortDot, EmptyState, Icon, TableScroll, Table, Th, Td } from "@/components/ui";
 import { BarChart, type Bar } from "@/components/charts/BarChart";
@@ -39,7 +39,7 @@ function calcAvg(subs: Submission[], testById: Map<string, Test>): number {
 
 // ---- Typed data shapes -----
 
-interface PerTestRow { test: Test; count: number; avg: number | null; top: GradeLetter | null }
+interface PerTestRow { test: Test; count: number; avg: number | null; top: GradeLetter | null; pending: number }
 interface StudentMovement { student: Student; curAvg: number | null; delta: number | null }
 interface CohortCompletion { cohort: Cohort; pct: number; submitted: number; expected: number }
 
@@ -54,6 +54,10 @@ interface ClassViewData {
   slipping: StudentMovement[];
   mastery: TopicMastery[];
   cohortCompletion: CohortCompletion[];
+  topStudents: number;
+  strugglingStudents: number;
+  toMark: number;
+  attendanceAvg: number | null;
 }
 
 interface StudentPerTest { test: Test; result: ReturnType<typeof gradeSubmission> }
@@ -83,17 +87,27 @@ export default function AnalyticsPage() {
   const testById = useMemo(() => new Map(db.tests.map((t) => [t.id, t])), [db.tests]);
 
   const base = useMemo(() => {
-    const students = db.students.filter((s) => (cohortId ? s.cohortId === cohortId : true));
+    const activeCohorts = new Set(db.cohorts.filter((c) => c.active).map((c) => c.id));
+    const students = db.students
+      .filter((s) => activeCohorts.has(s.cohortId))
+      .filter((s) => (cohortId ? s.cohortId === cohortId : true));
     const studentIds = new Set(students.map((s) => s.id));
-    const relevantTests = db.tests.filter(
-      (t) => (cohortId ? t.cohortId === cohortId || t.cohortId === null : true) && t.status !== "draft",
-    );
+    const inScope = (t: Test) => (cohortId ? t.cohortId === cohortId || t.cohortId === null : true);
+    // Every test that has been sat, draft or not: a released result is real
+    // work, and dropping it because its test was left in draft is how whole
+    // months went missing from these charts.
+    const relevantTests = db.tests.filter(inScope);
     const relevantTestIds = new Set(relevantTests.map((t) => t.id));
+    // Only published tests count as "what was set" (completion).
+    const setTests = relevantTests.filter((t) => t.status !== "draft");
     const released = db.submissions.filter(
       (s) => s.status === "released" && studentIds.has(s.studentId) && relevantTestIds.has(s.testId),
     );
+    const awaiting = db.submissions.filter(
+      (s) => s.status === "submitted" && studentIds.has(s.studentId) && relevantTestIds.has(s.testId),
+    );
     const allMonths = Array.from(new Set(released.map((s) => monthOf(s.submittedAt)).filter(Boolean))).sort();
-    return { students, studentIds, relevantTests, relevantTestIds, released, allMonths };
+    return { students, studentIds, relevantTests, setTests, relevantTestIds, released, awaiting, allMonths };
   }, [db, cohortId]);
 
   const activeMonth = selectedMonth || base.allMonths[base.allMonths.length - 1] || "";
@@ -119,12 +133,24 @@ export default function AnalyticsPage() {
       value: calcAvg(base.released.filter((s) => monthOf(s.submittedAt) === m), testById),
     }));
 
+    // Distribution covers every released result in scope; the month filter
+    // steers the cards and the per-test table, not this chart.
     const dist: Record<string, number> = Object.fromEntries(GRADE_ORDER.map((g) => [g, 0]));
-    monthSubs.forEach((s) => {
+    base.released.forEach((s) => {
       const t = testById.get(s.testId);
       if (t) dist[gradeLetter(gradeSubmission(t, s).percent)]++;
     });
     const bars: Bar[] = GRADE_ORDER.map((g) => ({ label: g, value: dist[g] ?? 0, role: gradeRole(g) }));
+
+    // Headline counts are per STUDENT (their average for the month), not per
+    // script - counting scripts is how a roster of 17 reported 25.
+    const perStudentGrade = base.students.flatMap((st) => {
+      const subs = monthSubs.filter((x) => x.studentId === st.id);
+      return subs.length ? [gradeLetter(calcAvg(subs, testById))] : [];
+    });
+    const topStudents = perStudentGrade.filter((g) => g === "A*" || g === "A").length;
+    const strugglingStudents = perStudentGrade.filter((g) => g === "E" || g === "U").length;
+    const toMark = base.awaiting.length;
 
     const perTest: PerTestRow[] = base.relevantTests.map((t) => {
       const ts = monthSubs.filter((s) => s.testId === t.id);
@@ -132,7 +158,9 @@ export default function AnalyticsPage() {
       const top = ts.length
         ? (gradeLetter(Math.max(...ts.map((s) => gradeSubmission(t, s).percent))) as GradeLetter)
         : null;
-      return { test: t, count: ts.length, avg, top };
+      // Sat but not yet marked: such a test reads "2 to mark", never "0%".
+      const pending = base.awaiting.filter((x) => x.testId === t.id).length;
+      return { test: t, count: ts.length, avg, top, pending };
     }).sort((a, b) => (b.avg ?? -1) - (a.avg ?? -1));
 
     const movement = base.students.map((st) => {
@@ -149,19 +177,31 @@ export default function AnalyticsPage() {
 
     const mastery = topicMastery(base.relevantTests, monthSubs);
 
-    const cohortCompletion: CohortCompletion[] = db.cohorts.map((c) => {
+    // Attendance for the month in view, averaged over the students who have it
+    // recorded — nothing recorded means the card stays hidden rather than 0%.
+    const attendanceValues = base.students
+      .map((st) => attendancePercent(db, st.id, `${(activeMonth || new Date().toISOString().slice(0, 7))}-01`))
+      .filter((v): v is number => v != null);
+    const attendanceAvg = attendanceValues.length
+      ? Math.round((attendanceValues.reduce((a, b) => a + b, 0) / attendanceValues.length) * 10) / 10
+      : null;
+
+    // Switched-off cohorts are finished business: out of analytics entirely.
+    const cohortCompletion: CohortCompletion[] = db.cohorts.filter((c) => c.active).map((c) => {
       const cs = base.students.filter((s) => s.cohortId === c.id);
-      const ct = base.relevantTests.filter((t) => t.cohortId === c.id || t.cohortId === null);
-      const expected = cs.length * ct.length;
-      const submitted = monthSubs.filter(
+      const ct = base.setTests.filter((t) => t.cohortId === c.id || t.cohortId === null);
+      // A test set for one class is not expected of the whole cohort, so the
+      // denominator counts only the students each test actually covers.
+      const expected = ct.reduce((n, t) => n + cs.filter((st) => testCoversStudent(t, st)).length, 0);
+      const submitted = db.submissions.filter(
         (s) => cs.some((st) => st.id === s.studentId) && ct.some((t) => t.id === s.testId),
       ).length;
       const pct = expected > 0 ? Math.round((submitted / expected) * 100) : 0;
       return { cohort: c, pct, submitted, expected };
     }).filter((x) => x.expected > 0);
 
-    return { overall, monthly, delta, trendPoints, bars, perTest, improved, slipping, mastery, cohortCompletion };
-  }, [base, monthSubs, prevMonthSubs, testById, db.cohorts]);
+    return { overall, monthly, delta, trendPoints, bars, perTest, improved, slipping, mastery, cohortCompletion, topStudents, strugglingStudents, toMark, attendanceAvg };
+  }, [base, monthSubs, prevMonthSubs, testById, db, activeMonth]);
 
   const studentData = useMemo((): StudentViewData | null => {
     const student = db.students.find((s) => s.id === selectedStudentId);
@@ -280,11 +320,15 @@ function ClassView({
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <MetricCard label="All-time average" value={`${data.overall}%`} />
         <MetricCard label={`Average (${monthLabel})`} value={`${data.monthly}%`} delta={data.delta} />
-        <MetricCard label="A/A* this month" value={String(data.bars.filter((b) => b.label === "A*" || b.label === "A").reduce((s, b) => s + b.value, 0))} note="students" />
-        <MetricCard label="Needs support" value={String(data.bars.filter((b) => b.label === "E" || b.label === "U").reduce((s, b) => s + b.value, 0))} note="E or U" />
+        <MetricCard label="A/A* this month" value={String(data.topStudents)} note="students" />
+        <MetricCard label="Needs support" value={String(data.strugglingStudents)} note="students at E or U" />
+        <MetricCard label="Waiting to be marked" value={String(data.toMark)} note="scripts" />
+        {data.attendanceAvg != null && (
+          <MetricCard label="Attendance" value={`${data.attendanceAvg}%`} note={`${monthLabel} average`} />
+        )}
       </div>
 
       {data.trendPoints.length >= 2 && (
@@ -376,12 +420,20 @@ function ClassView({
               <tr><Th>Test</Th><Th>Subject</Th><Th>Results</Th><Th>Average</Th><Th>Top grade</Th></tr>
             </thead>
             <tbody>
-              {data.perTest.map(({ test, count, avg, top }) => (
+              {data.perTest.map(({ test, count, avg, top, pending }) => (
                 <tr key={test.id}>
                   <Td className="font-semibold">{test.title}</Td>
                   <Td className="text-ink-2">{test.subject}</Td>
                   <Td className="font-mono">{count}</Td>
-                  <Td className="font-mono">{avg != null ? `${avg}%` : <span className="text-ink-3">—</span>}</Td>
+                  <Td className="font-mono">
+                    {avg != null ? (
+                      `${avg}%`
+                    ) : pending > 0 ? (
+                      <span className="text-warning">{pending} to mark</span>
+                    ) : (
+                      <span className="text-ink-3">—</span>
+                    )}
+                  </Td>
                   <Td>{top ? <Badge tone={gradeRole(top)}>{top}</Badge> : <span className="text-ink-3">—</span>}</Td>
                 </tr>
               ))}

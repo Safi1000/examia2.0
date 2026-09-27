@@ -151,6 +151,18 @@ const styles = StyleSheet.create({
   tGrade: { width: 40, textAlign: "right", fontSize: 15, fontFamily: "Helvetica-Bold", color: GOLD },
 
   // ── Teacher note ─────────────────────────────────────────
+  // Simple label / value line used by the subject and not-sat lists.
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 5,
+    borderBottomWidth: 0.5,
+    borderBottomColor: GOLD_DIM,
+  },
+  rowName: { flex: 1, fontSize: 10, color: HEAD },
+  rowValue: { fontSize: 10, fontFamily: "Helvetica-Bold", color: GOLD },
+
   note: {
     flexDirection: "row",
     backgroundColor: GOLD_SOFT,
@@ -303,6 +315,12 @@ export interface ReportDocumentProps {
   completionPct: number;
   completed: number;
   available: number;
+  /** Attendance for the month, when it has been recorded. */
+  attendancePct?: number | null;
+  /** Tests set this month that were never sat. */
+  missedTests?: string[];
+  /** Average and grade per subject for the month. */
+  perSubject?: Array<{ subject: string; percent: number; letter: GradeLetter }>;
   teacherNote: string;
 }
 
@@ -316,6 +334,9 @@ export function ReportDocument({
   completionPct,
   completed,
   available,
+  attendancePct,
+  missedTests,
+  perSubject,
   teacherNote,
 }: ReportDocumentProps) {
   const today = new Date()
@@ -375,7 +396,45 @@ export function ReportDocument({
             <Text style={styles.statValue}>{completionPct}%</Text>
             <Text style={styles.statSub}>{completed} of {available} tests</Text>
           </View>
+          <View style={styles.stat}>
+            <Text style={styles.statLabel}>ATTENDANCE</Text>
+            <Text style={styles.statValue}>{attendancePct != null ? `${attendancePct}%` : "—"}</Text>
+            <Text style={styles.statSub}>{attendancePct != null ? "This month" : "Not recorded"}</Text>
+          </View>
         </View>
+
+        {perSubject && perSubject.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHead}>
+              <View>
+                <Text style={styles.sectionLabel}>BY SUBJECT</Text>
+                <Text style={styles.sectionSub}>Average and grade for the month.</Text>
+              </View>
+            </View>
+            {perSubject.map((r) => (
+              <View key={r.subject} style={styles.row}>
+                <Text style={styles.rowName}>{r.subject}</Text>
+                <Text style={styles.rowValue}>{r.percent}% · {r.letter}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {missedTests && missedTests.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHead}>
+              <View>
+                <Text style={styles.sectionLabel}>NOT SAT</Text>
+                <Text style={styles.sectionSub}>Set this month, never handed in.</Text>
+              </View>
+            </View>
+            {missedTests.map((t) => (
+              <View key={t} style={styles.row}>
+                <Text style={styles.rowName}>{t}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Score trend */}
         {perTest.length > 0 && (

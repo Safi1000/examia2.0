@@ -125,11 +125,17 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
       )}
 
       <div className="mt-3">
-        {question.type === "mcq" && (
+        {question.type === "mcq" && (() => {
+          // The question's own key is withheld from the student client; the
+          // answer row carries it once the result is released, so a wrong pick
+          // can still be shown next to the right one.
+          const correctIndex =
+            question.correctIndex >= 0 ? question.correctIndex : answer?.correctIndex ?? -1;
+          return (
           <ul className="space-y-1.5">
             {question.options.map((opt, oi) => {
               const chosen = answer?.selectedIndex === oi;
-              const correct = question.correctIndex === oi;
+              const correct = correctIndex === oi;
               return (
                 <li
                   key={oi}
@@ -151,11 +157,15 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
                   )}
                   <span>{opt}</span>
                   {chosen && <span className="ml-auto text-xs font-semibold">Your pick</span>}
+                  {correct && !chosen && (
+                    <span className="ml-auto text-xs font-semibold">Correct answer</span>
+                  )}
                 </li>
               );
             })}
           </ul>
-        )}
+          );
+        })()}
 
         {question.type === "text" && (
           <div className="rounded-md border border-border bg-surface-2/60 p-3 text-sm text-ink">

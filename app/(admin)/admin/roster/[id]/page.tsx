@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { useDatabase } from "@/lib/data/store";
-import { cohortById, studentById, submissionsForStudent, testById, testsForStudent } from "@/lib/data/selectors";
+import { useDatabase, useStore } from "@/lib/data/store";
+import { attendancePercent, cohortById, studentById, submissionsForStudent, testById } from "@/lib/data/selectors";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Badge, CohortDot, EmptyState, Icon, Modal } from "@/components/ui";
 import { useToast } from "@/components/toast";
@@ -15,10 +15,10 @@ import { notesConfigured, uploadNote } from "@/lib/cloudinary";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import { LineChart, type LinePoint } from "@/components/charts/LineChart";
 import { MasteryBar } from "@/components/charts/MasteryBar";
-import { gradeLetter, gradeSubmission } from "@/lib/grading";
+import { gradeSubmission } from "@/lib/grading";
 import { topicMastery } from "@/lib/scoring";
+import { buildStudentReport } from "@/lib/report-build";
 import { formatTimestamp } from "@/lib/time";
-import { ReportDocument } from "@/components/admin/ReportDocument";
 
 function monthOf(iso: string | null | undefined) {
   return iso ? iso.slice(0, 7) : "";
@@ -43,6 +43,7 @@ function StudentDetail() {
   const params = useParams();
   const id = String(params.id);
   const db = useDatabase();
+  const store = useStore();
   const student = studentById(db, id);
 
   // `?report=1` — the roster's WhatsApp button lands straight on this dialog.
@@ -52,6 +53,13 @@ function StudentDetail() {
   const [sending, setSending] = useState(false);
   const { toast } = useToast();
   const [downloading, setDownloading] = useState(false);
+
+  // Landing here from the roster's WhatsApp button opens the report dialog
+  // straight away, so start fetching the PDF renderer now rather than on click.
+  useEffect(() => {
+    void import("@react-pdf/renderer");
+    void import("@/components/admin/ReportDocument");
+  }, []);
 
   const data = useMemo(() => {
     if (!student) return null;
@@ -67,7 +75,10 @@ function StudentDetail() {
     });
     const avg = points.length ? Math.round((points.reduce((a, p) => a + p.value, 0) / points.length) * 10) / 10 : 0;
     const months = Array.from(new Set(released.map((s) => monthOf(s.submittedAt)).filter(Boolean))).sort();
-    return { subs, released, mastery: topicMastery(tests, released), points, avg, months };
+    // This month's attendance, typed or from the daily register.
+    const thisMonth = `${new Date().toISOString().slice(0, 7)}-01`;
+    const attendance = attendancePercent(db, student.id, thisMonth);
+    return { subs, released, mastery: topicMastery(tests, released), points, avg, months, attendance };
   }, [db, student]);
 
   if (!student || !data) {
@@ -90,88 +101,8 @@ function StudentDetail() {
   /** Build the PDF. Delivery (download / WhatsApp) is the caller's business. */
   async function buildReport(): Promise<{ blob: Blob; fileName: string } | null> {
     if (!student) return null;
-    {
-      const { pdf } = await import("@react-pdf/renderer");
-
-      const month = reportMonth || data?.months[data.months.length - 1] || "";
-      const allReleased = submissionsForStudent(db, student.id).filter((s) => s.status === "released");
-
-      const prevMonthDate = month
-        ? (() => { const [y, mo] = month.split("-").map(Number); return new Date(y, mo - 2, 1); })()
-        : null;
-      const prevMonth = prevMonthDate
-        ? `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`
-        : "";
-
-      const monthSubs = month ? allReleased.filter((s) => monthOf(s.submittedAt) === month) : allReleased;
-      const prevSubs = prevMonth ? allReleased.filter((s) => monthOf(s.submittedAt) === prevMonth) : [];
-
-      function calcAvg(subs: typeof allReleased) {
-        if (!subs.length) return null;
-        const sum = subs.reduce((a, s) => {
-          const t = testById(db, s.testId);
-          return t ? a + gradeSubmission(t, s).percent : a;
-        }, 0);
-        return Math.round((sum / subs.length) * 10) / 10;
-      }
-
-      const monthAvg = calcAvg(monthSubs);
-      const prevAvg = calcAvg(prevSubs);
-      const delta = monthAvg != null && prevAvg != null ? Math.round((monthAvg - prevAvg) * 10) / 10 : null;
-      const grade = monthAvg != null ? gradeLetter(monthAvg) : null;
-
-      // Trend: this month + up to 2 prior months
-      const relevantMonths = month
-        ? (() => {
-            const [y, mo] = month.split("-").map(Number);
-            return [-2, -1, 0].map((offset) => {
-              const d = new Date(y, mo - 1 + offset, 1);
-              return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-            });
-          })()
-        : Array.from(new Set(allReleased.map((s) => monthOf(s.submittedAt)))).sort().slice(-3);
-
-      const trendMonths = relevantMonths.flatMap((m) => {
-        const subs = allReleased.filter((s) => monthOf(s.submittedAt) === m);
-        if (!subs.length) return [];
-        const a = calcAvg(subs);
-        return a != null ? [{ label: m.slice(5), value: a }] : [];
-      });
-
-      const perTest = monthSubs.flatMap((s) => {
-        const t = testById(db, s.testId);
-        if (!t) return [];
-        return [{ test: { title: t.title, subject: t.subject }, result: gradeSubmission(t, s) }];
-      }).sort((a, b) => b.result.percent - a.result.percent);
-
-      const allTests = allReleased.flatMap((s) => { const t = testById(db, s.testId); return t ? [t] : []; });
-      const mastery = topicMastery(allTests, monthSubs);
-
-      const available = testsForStudent(db, student).filter((t) => t.status !== "draft");
-      const completionPct = available.length > 0 ? Math.round((allReleased.length / available.length) * 100) : 0;
-
-      const blob = await pdf(
-        <ReportDocument
-          studentName={student.username}
-          cohortName={cohort?.name}
-          month={month}
-          monthAvg={monthAvg}
-          prevAvg={prevAvg}
-          delta={delta}
-          grade={grade}
-          trendMonths={trendMonths}
-          perTest={perTest}
-          mastery={mastery}
-          completionPct={completionPct}
-          completed={allReleased.length}
-          available={available.length}
-          teacherNote={teacherNote}
-        />
-      ).toBlob();
-
-      const safeName = student.username.replace(/[^a-z0-9]/gi, "-").toLowerCase();
-      return { blob, fileName: `report-${safeName}-${month || "all"}.pdf` };
-    }
+    const month = reportMonth || data?.months[data.months.length - 1] || "";
+    return buildStudentReport(db, student.id, month, teacherNote);
   }
 
   function saveBlob(blob: Blob, fileName: string) {
@@ -200,50 +131,57 @@ function StudentDetail() {
   }
 
   /**
-   * One click: the report travels with the message, into that parent's chat.
+   * One click: report link into that parent's chat.
    *
-   * No browser API can put a file into a chosen WhatsApp conversation — a
-   * `wa.me` link is the only way to target a number and it carries text only.
-   * So the PDF is uploaded and the message carries its link: the parent taps
-   * once and the report opens. A literal file attachment to a specific number
-   * needs the WhatsApp Business Cloud API (Meta business account + approved
-   * template), which is a server-side send, not a link.
+   * The PDF is uploaded, recorded with a short private link
+   * (hamzateaches.com/reports/xxxx, live for 90 days, branded preview card in
+   * WhatsApp), and the chat opens with the message already typed — the admin
+   * just presses Send. No browser API can attach a file to a chosen
+   * conversation, so the link is what travels; it opens the report with a
+   * Download PDF button and needs no login.
    */
   async function sendReportOnWhatsapp() {
     if (!student?.whatsapp) return;
     setSending(true);
     try {
-      const built = await buildReport();
-      if (!built) return;
-
-      let link: string | null = null;
-      if (notesConfigured()) {
-        try {
-          const { url } = await uploadNote(new File([built.blob], built.fileName, { type: "application/pdf" }));
-          // Through the app's download proxy so the file arrives named, and so
-          // it keeps working with Cloudinary's raw-delivery settings.
-          link = `${window.location.origin}/api/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(built.fileName)}`;
-        } catch (err) {
-          console.error("Report upload failed:", err);
-        }
-      }
-
-      const text = link ? `${reportMessage()}
-
-${link}` : reportMessage();
-      if (!link) {
-        // Nowhere to host it: save the file so it can be attached by hand.
-        saveBlob(built.blob, built.fileName);
-        toast("Couldn't upload the report — it was saved, attach it in the chat.", "info");
-      }
-      window.open(`https://wa.me/${waDigits(student.whatsapp)}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
+      const link = await publishReport();
+      if (!link) return;
+      window.open(
+        `https://wa.me/${waDigits(student.whatsapp)}?text=${encodeURIComponent(`${reportMessage()}\n\n${link}`)}`,
+        "_blank",
+        "noopener",
+      );
       setReportOpen(false);
     } catch (err) {
       console.error("WhatsApp send failed:", err);
-      toast("Could not build the report.", "error");
+      toast(err instanceof Error ? err.message : "Could not build the report.", "error");
     } finally {
       setSending(false);
     }
+  }
+
+  /** Build, upload and record the report; returns its public link. */
+  async function publishReport(): Promise<string | null> {
+    if (!student) return null;
+    const built = await buildReport();
+    if (!built) return null;
+    if (!notesConfigured()) {
+      // Nowhere to host it: fall back to the file itself.
+      saveBlob(built.blob, built.fileName);
+      toast("Uploads are not configured — the report was saved instead.", "info");
+      return null;
+    }
+
+    const { url } = await uploadNote(new File([built.blob], built.fileName, { type: "application/pdf" }));
+    const month = reportMonth || data?.months[data.months.length - 1] || "";
+    const record = await store.saveReport({
+      studentId: student.id,
+      month: month ? `${month}-01` : `${new Date().toISOString().slice(0, 7)}-01`,
+      pdfUrl: url,
+      teacherNote: teacherNote.trim() || undefined,
+    });
+    store.markReportSent(record.id);
+    return `${window.location.origin}/reports/${record.token}`;
   }
 
   function reportMessage() {
@@ -258,11 +196,33 @@ ${link}` : reportMessage();
         subtitle={student.email}
         back={{ href: "/admin/roster", label: "Roster" }}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {cohort && (
               <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-2">
                 <CohortDot color={cohort.color} />{cohort.name}
               </span>
+            )}
+            {student.phone && (
+              <a
+                href={`https://wa.me/${waDigits(student.phone)}`}
+                target="_blank"
+                rel="noreferrer"
+                className={buttonClasses({ variant: "secondary", size: "sm" })}
+                title={`Chat with ${student.username} — ${student.phone}`}
+              >
+                <Icon.Users className="h-4 w-4" /> Student
+              </a>
+            )}
+            {student.whatsapp && (
+              <a
+                href={`https://wa.me/${waDigits(student.whatsapp)}`}
+                target="_blank"
+                rel="noreferrer"
+                className={buttonClasses({ variant: "secondary", size: "sm" })}
+                title={`Chat with the parent — ${student.whatsapp}`}
+              >
+                <Icon.Users className="h-4 w-4" /> Parent
+              </a>
             )}
             <Button variant="secondary" size="sm" onClick={openReport}>
               <Icon.Download className="h-4 w-4" /> Monthly Report
@@ -271,10 +231,23 @@ ${link}` : reportMessage();
         }
       />
 
-      <div className="grid grid-cols-3 gap-3">
+      {student.photoUrl && (
+        <div className="mb-4 flex items-center gap-3">
+          <span className="h-16 w-16 overflow-hidden rounded-full bg-surface-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={student.photoUrl} alt="" className="h-full w-full object-cover" />
+          </span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Submissions" value={String(data.subs.length)} />
         <Stat label="Released" value={String(data.released.length)} />
         <Stat label="Average" value={`${data.avg}%`} />
+        <Stat
+          label="Attendance"
+          value={data.attendance != null ? `${data.attendance}%` : "—"}
+        />
       </div>
 
       {data.released.length > 0 ? (

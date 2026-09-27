@@ -11,6 +11,9 @@ import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Button, Card, Badge, Pill, CohortTag, EmptyState, Modal, Icon } from "@/components/ui";
 import { FilterChips } from "@/components/admin/FilterChips";
+import { RemindersPanel } from "@/components/admin/RemindersPanel";
+import { BulkBar, RowCheck } from "@/components/admin/BulkBar";
+import { fromLocalInput } from "@/lib/time";
 import { buttonClasses } from "@/components/ui/Button";
 
 const STATUS_TONE: Record<TestStatus, "neutral" | "success" | "warning"> = {
@@ -29,6 +32,9 @@ export default function AdminTestsPage() {
   const [subjectFilter, setSubjects] = useStickyFilter("tests.subject");
   const [statuses, setStatuses] = useStickyFilter("tests.status");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  // Bulk edit: tick rows, then change them all in one go.
+  const [picked, setPicked] = useState<string[]>([]);
+  const [bulkClose, setBulkClose] = useState("");
 
   const subjects = useMemo(() => Array.from(new Set(db.tests.map((t) => t.subject))).sort(), [db.tests]);
 
@@ -73,6 +79,45 @@ export default function AdminTestsPage() {
         actions={<Button onClick={createTest}><Icon.Plus className="h-4 w-4" /> New test</Button>}
       />
 
+      {/* Admins land here, so this is where what-needs-chasing lives. */}
+      <RemindersPanel />
+
+      <BulkBar count={picked.length} noun="test" onClear={() => setPicked([])}>
+        <label className="flex items-center gap-1.5 text-sm text-ink-2">
+          Close date
+          <input
+            type="datetime-local"
+            value={bulkClose}
+            onChange={(e) => setBulkClose(e.target.value)}
+            className="h-9 rounded-md border border-border-strong bg-surface px-2 text-sm text-ink"
+            aria-label="New close date for the selected tests"
+          />
+        </label>
+        <Button
+          size="sm"
+          disabled={!bulkClose}
+          onClick={() => {
+            const closesAt = fromLocalInput(bulkClose);
+            picked.forEach((id) => store.updateTest(id, { closesAt }));
+            toast(`Close date changed on ${picked.length} tests.`, "success");
+            setPicked([]);
+          }}
+        >
+          Apply
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => {
+            picked.forEach((id) => store.updateTest(id, { status: "closed" }));
+            toast(`${picked.length} tests closed.`, "success");
+            setPicked([]);
+          }}
+        >
+          Close now
+        </Button>
+      </BulkBar>
+
       <div className="mb-4 space-y-2">
         <FilterChips
           label="Subject"
@@ -107,7 +152,15 @@ export default function AdminTestsPage() {
             return (
               <Card key={t.id} ruled className="p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="pt-1">
+                      <RowCheck
+                        checked={picked.includes(t.id)}
+                        onChange={(on) => setPicked((prev) => (on ? [...prev, t.id] : prev.filter((x) => x !== t.id)))}
+                        label={`Select ${t.title}`}
+                      />
+                    </span>
+                    <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <Pill>{t.testCode}</Pill>
                       <Badge tone={STATUS_TONE[liveStatus(t)]} className="capitalize">{liveStatus(t)}</Badge>
@@ -121,6 +174,7 @@ export default function AdminTestsPage() {
                       <span>{t.durationMinutes} min</span>
                       {cohort ? <CohortTag color={cohort.color} name={cohort.name} className="text-xs" /> : <span className="text-xs text-ink-3">All cohorts</span>}
                     </p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Link href={`/admin/tests/${t.id}`} className={buttonClasses({ variant: "secondary", size: "sm" })}>
@@ -138,7 +192,14 @@ export default function AdminTestsPage() {
 
                 <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-3 text-center">
                   <Stat label="Submissions" value={String(stats.submissionCount)} />
-                  <Stat label="Average" value={stats.averagePercent != null ? `${stats.averagePercent}%` : "—"} />
+                  {stats.averagePercent != null ? (
+                    <Stat label="Average" value={`${stats.averagePercent}%`} />
+                  ) : (
+                    <Stat
+                      label={stats.pendingCount > 0 ? "Awaiting" : "Average"}
+                      value={stats.pendingCount > 0 ? `${stats.pendingCount} to mark` : "—"}
+                    />
+                  )}
                   <Stat label="Completion" value={`${stats.completionPercent}%`} />
                 </div>
               </Card>

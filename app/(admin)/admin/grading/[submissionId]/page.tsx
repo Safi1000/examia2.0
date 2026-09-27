@@ -219,6 +219,9 @@ function GradeCard({
                   startAt={annotating}
                   initial={answer?.annotations ?? {}}
                   onChange={saveShapes}
+                  // Marks written in the margin add themselves up into the
+                  // score; the field below stays editable.
+                  onMarksTotal={locked ? undefined : setMarks}
                   onClose={() => setAnnotating(null)}
                 />
               )}

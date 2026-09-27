@@ -26,6 +26,11 @@ import type {
   Announcement,
   Assignment,
   AssignmentSubmission,
+  AttendanceDay,
+  AttendanceMonth,
+  AttendanceStatus,
+  ReportRecord,
+  ReminderSent,
   Answer,
   ClassItem,
   Cohort,
@@ -92,6 +97,10 @@ const EMPTY: Database = {
   classes: [],
   assignments: [],
   assignmentSubmissions: [],
+  reports: [],
+  remindersSent: [],
+  attendanceDays: [],
+  attendanceMonths: [],
   subjects: [],
   notes: [],
   noteAssignments: [],
@@ -109,6 +118,7 @@ const mapCohort = (r: Row, classIds: string[] = [], subjectIds: string[] = []): 
   classIds,
   subjectIds,
   createdAt: r.created_at as string,
+  active: (r.active as boolean) ?? true,
 });
 
 const mapStudent = (r: Row, classIds: string[] = [], subjectIds: string[] = []): Student => ({
@@ -116,6 +126,8 @@ const mapStudent = (r: Row, classIds: string[] = [], subjectIds: string[] = []):
   username: r.username as string,
   email: (r.email as string) ?? undefined,
   whatsapp: (r.whatsapp as string) ?? undefined,
+  phone: (r.phone as string) ?? undefined,
+  photoUrl: (r.photo_url as string) ?? undefined,
   cohortId: (r.cohort_id as string) ?? "",
   classIds,
   subjectIds,
@@ -185,6 +197,7 @@ const mapAnswer = (r: Row): Answer => {
     questionId: r.question_id as string,
     type: r.type as Answer["type"],
     selectedIndex: (r.selected_index as number) ?? undefined,
+    correctIndex: (r.correct_index as number) ?? undefined,
     text: (r.text as string) ?? undefined,
     photoDataUrl: first ?? urls[0],
     photoUrls: urls.length ? urls : first ? [first] : undefined,
@@ -214,6 +227,41 @@ const mapAssignmentSubmission = (r: Row): AssignmentSubmission => ({
   submittedAt: r.submitted_at as string,
   feedback: (r.feedback as string) ?? undefined,
   feedbackAt: (r.feedback_at as string) ?? undefined,
+});
+
+const mapReminderSent = (r: Row): ReminderSent => ({
+  id: r.id as string,
+  studentId: r.student_id as string,
+  kind: r.kind as string,
+  ref: r.ref as string,
+  sentAt: r.sent_at as string,
+});
+
+const mapReport = (r: Row): ReportRecord => ({
+  id: r.id as string,
+  studentId: r.student_id as string,
+  month: r.month as string,
+  token: r.token as string,
+  pdfUrl: r.pdf_url as string,
+  teacherNote: (r.teacher_note as string) ?? undefined,
+  createdAt: r.created_at as string,
+  expiresAt: r.expires_at as string,
+  sentAt: (r.sent_at as string) ?? undefined,
+});
+
+const mapAttendanceDay = (r: Row): AttendanceDay => ({
+  id: r.id as string,
+  studentId: r.student_id as string,
+  classId: (r.class_id as string) ?? null,
+  date: r.on_date as string,
+  status: r.status as AttendanceStatus,
+});
+
+const mapAttendanceMonth = (r: Row): AttendanceMonth => ({
+  id: r.id as string,
+  studentId: r.student_id as string,
+  month: r.month as string,
+  percent: Number(r.percent),
 });
 
 const mapActivity = (r: Row): Activity => ({
@@ -428,7 +476,7 @@ class Store {
 
   private async hydrate(initial: boolean) {
     const sb = supabase();
-    const [coh, stu, tst, sub, ann, bnk, keys, cls, subj, cCls, cSubj, sCls, sSubj, nts, nAssigns, asg, asgSubs, acts] = await Promise.all([
+    const [coh, stu, tst, sub, ann, bnk, keys, cls, subj, cCls, cSubj, sCls, sSubj, nts, nAssigns, asg, asgSubs, attD, attM, rep, rem, acts] = await Promise.all([
       sb.from("cohorts").select("*").order("created_at"),
       sb.from("students").select("*").order("created_at"),
       sb.from("tests").select("*, questions(*)").order("created_at"),
@@ -446,6 +494,10 @@ class Store {
       sb.from("note_assignments").select("*"),
       sb.from("assignments").select("*").order("due_at", { ascending: false }),
       sb.from("assignment_submissions").select("*"),
+      sb.from("attendance_days").select("*"),
+      sb.from("attendance_months").select("*"),
+      sb.from("reports").select("*").order("created_at", { ascending: false }),
+      sb.from("reminders_sent").select("*"),
       // Feed is capped: the bell only ever shows recent history.
       sb.from("activities").select("*").order("created_at", { ascending: false }).limit(100),
     ]);
@@ -459,7 +511,9 @@ class Store {
       ["classes", cls], ["subjects", subj], ["cohort_classes", cCls],
       ["cohort_subjects", cSubj], ["student_classes", sCls], ["student_subjects", sSubj],
       ["notes", nts], ["note_assignments", nAssigns], ["assignments", asg],
-      ["assignment_submissions", asgSubs], ["activities", acts],
+      ["assignment_submissions", asgSubs], ["attendance_days", attD],
+      ["attendance_months", attM], ["reports", rep], ["reminders_sent", rem],
+      ["activities", acts],
     ];
     const failed = labelled.filter(([, r]) => r.error);
     for (const [name, r] of failed) {
@@ -543,6 +597,10 @@ class Store {
       subjects: keep(subj, () => ((subj.data as Row[]) ?? []).map(mapSubject), prev.subjects),
       assignments: keep(asg, () => ((asg.data as Row[]) ?? []).map(mapAssignment), prev.assignments),
       assignmentSubmissions: keep(asgSubs, () => ((asgSubs.data as Row[]) ?? []).map(mapAssignmentSubmission), prev.assignmentSubmissions),
+      reports: keep(rep, () => ((rep.data as Row[]) ?? []).map(mapReport), prev.reports),
+      remindersSent: keep(rem, () => ((rem.data as Row[]) ?? []).map(mapReminderSent), prev.remindersSent),
+      attendanceDays: keep(attD, () => ((attD.data as Row[]) ?? []).map(mapAttendanceDay), prev.attendanceDays),
+      attendanceMonths: keep(attM, () => ((attM.data as Row[]) ?? []).map(mapAttendanceMonth), prev.attendanceMonths),
       notes: keep(nts, () => ((nts.data as Row[]) ?? []).map(mapNote), prev.notes),
       noteAssignments: keep(nAssigns, () => ((nAssigns.data as Row[]) ?? []).map(mapNoteAssignment), prev.noteAssignments),
     };
@@ -630,7 +688,7 @@ class Store {
   addCohort(name: string, color: CohortColor) {
     const id = genId();
     const createdAt = new Date().toISOString();
-    this.commit((d) => d.cohorts.push({ id, name, color, classIds: [], subjectIds: [], createdAt }));
+    this.commit((d) => d.cohorts.push({ id, name, color, classIds: [], subjectIds: [], createdAt, active: true }));
     this.run(supabase().from("cohorts").insert({ id, name, color, created_at: createdAt }), "addCohort");
     return id;
   }
@@ -795,14 +853,26 @@ class Store {
       (s) => s.username.toLowerCase() === username.trim().toLowerCase() && s.id !== exceptId,
     );
   }
-  /** Parent's WhatsApp number; stored in E.164 (a CHECK constraint enforces it). */
-  setStudentWhatsapp(id: string, whatsapp: string | undefined) {
-    const value = whatsapp?.trim() || null;
+  /**
+   * Plain profile columns — numbers and photo. Phone numbers are stored in
+   * E.164 (a CHECK constraint enforces it); the provisioning edge function owns
+   * auth and the core row, these are admin-only writes straight to the table.
+   */
+  setStudentProfile(id: string, patch: { whatsapp?: string; phone?: string; photoUrl?: string }) {
+    const row: Row = {};
+    if (patch.whatsapp !== undefined) row.whatsapp = patch.whatsapp.trim() || null;
+    if (patch.phone !== undefined) row.phone = patch.phone.trim() || null;
+    if (patch.photoUrl !== undefined) row.photo_url = patch.photoUrl.trim() || null;
+    if (!Object.keys(row).length) return;
+
     this.commit((d) => {
       const s = d.students.find((x) => x.id === id);
-      if (s) s.whatsapp = value ?? undefined;
+      if (!s) return;
+      if (patch.whatsapp !== undefined) s.whatsapp = patch.whatsapp.trim() || undefined;
+      if (patch.phone !== undefined) s.phone = patch.phone.trim() || undefined;
+      if (patch.photoUrl !== undefined) s.photoUrl = patch.photoUrl.trim() || undefined;
     });
-    this.run(supabase().from("students").update({ whatsapp: value }).eq("id", id), "setStudentWhatsapp");
+    this.run(supabase().from("students").update(row).eq("id", id), "setStudentProfile");
   }
 
   /**
@@ -854,10 +924,14 @@ class Store {
     });
     const student = mapStudent(data.student as Row, input.classIds, input.subjectIds);
     student.whatsapp = input.whatsapp;
+    student.phone = input.phone;
+    student.photoUrl = input.photoUrl;
     this.commit((d) => d.students.push(student));
-    // The provisioning function owns auth + the core row; plain profile columns
-    // are written straight to the table (admin-only by RLS).
-    if (input.whatsapp !== undefined) this.setStudentWhatsapp(student.id, input.whatsapp);
+    this.setStudentProfile(student.id, {
+      whatsapp: input.whatsapp ?? "",
+      phone: input.phone ?? "",
+      photoUrl: input.photoUrl ?? "",
+    });
     if (input.classIds.length) this.setStudentClasses(student.id, input.classIds);
     if (input.subjectIds.length) this.setStudentSubjects(student.id, input.subjectIds);
   }
@@ -868,12 +942,18 @@ class Store {
         username: patch.username ?? s.username,
         email: patch.email,
         whatsapp: patch.whatsapp,
+        phone: patch.phone,
+        photoUrl: patch.photoUrl,
         cohortId: patch.cohortId ?? s.cohortId,
         classIds: patch.classIds ?? s.classIds,
         subjectIds: patch.subjectIds ?? s.subjectIds,
       });
     });
-    if (patch.whatsapp !== undefined) this.setStudentWhatsapp(id, patch.whatsapp);
+    this.setStudentProfile(id, {
+      ...(patch.whatsapp !== undefined ? { whatsapp: patch.whatsapp } : {}),
+      ...(patch.phone !== undefined ? { phone: patch.phone } : {}),
+      ...(patch.photoUrl !== undefined ? { photoUrl: patch.photoUrl } : {}),
+    });
     const s = this.state.students.find((x) => x.id === id);
     const done = this.callAdminUsers("updateStudent", {
       action: "update",
@@ -935,12 +1015,10 @@ class Store {
         this.report(`addTest: ${error.message}`);
         return;
       }
-      // A draft announces NOTHING — not to staff, not to students. "+ New Test"
-      // creates the draft row the editor works on, so logging here would file a
-      // "Test created" notification for a test the teacher has not saved and may
-      // never save. The test is announced when it leaves draft (see updateTest),
-      // which is the point at which it exists for real.
-      if (input.status !== "draft") this.announceTestCreated(id);
+      // Creating the row announces NOTHING. "+ New test" makes an empty shell
+      // called "Untitled test" with no questions; announcing here is what sent
+      // students "New test: 'Untitled test'". The announcement waits until the
+      // test is actually ready — named, with questions (see announceTestCreated).
     })();
     return id;
   }
@@ -953,7 +1031,7 @@ class Store {
    */
   private announceTestCreated(testId: string) {
     const t = this.state.tests.find((x) => x.id === testId);
-    if (!t) return;
+    if (!t || !this.testIsReady(t)) return;
     const alreadyAnnounced = this.state.activities.some(
       (a) => a.type === "test_created" && a.testId === testId,
     );
@@ -967,6 +1045,30 @@ class Store {
       link: `/admin/tests/${testId}`,
     });
     this.announceTest(testId, "test_created");
+  }
+
+  /**
+   * A test worth telling anyone about: published, named, and with questions.
+   * Announcing before this point is how "New test: 'Untitled test'" went out.
+   */
+  private testIsReady(t: Test): boolean {
+    const title = t.title.trim();
+    return t.status !== "draft" && title.length > 0 && title.toLowerCase() !== "untitled test" && t.questions.length > 0;
+  }
+
+  /**
+   * Fields a student would actually care about. Editing questions, the code or
+   * the subject label repeatedly is normal authoring, and must not each send a
+   * notification.
+   */
+  private static readonly ANNOUNCED_FIELDS = ["title", "opensAt", "closesAt", "status", "durationMinutes"] as const;
+
+  /** True when an identical notice for this test went out in the last 10 min. */
+  private announcedRecently(testId: string, type: ActivityType): boolean {
+    const cutoff = Date.now() - 10 * 60_000;
+    return this.state.activities.some(
+      (a) => a.type === type && a.testId === testId && +new Date(a.createdAt) >= cutoff,
+    );
   }
 
   /** Cohort name for notification copy; undefined when open to every cohort. */
@@ -1019,17 +1121,24 @@ class Store {
 
     // A draft is the teacher's private working copy — every edit to it, autosave
     // or otherwise, announces nothing to anyone.
-    if (!isVisible) return;
+    if (!isVisible || !updated) return;
 
-    if (!wasVisible) {
-      // Draft -> published. THIS is the moment the test becomes real, so it is
-      // where "Test created" is filed — for staff and for the cohort. Guarded
-      // against firing twice if the teacher saves again or republishes.
+    const announcedBefore = this.state.activities.some(
+      (a) => a.type === "test_created" && a.testId === id,
+    );
+    if (!announcedBefore) {
+      // First save that leaves the test ready (named, with questions) is the
+      // moment it becomes real — that is where "Test created" is filed, once.
       this.announceTestCreated(id);
       return;
     }
 
-    // An already-live test genuinely changed.
+    // An already-announced test changed. Only fields a student would care
+    // about count, and not twice in ten minutes: saving four times while
+    // tidying wording used to send four alerts.
+    const material = Store.ANNOUNCED_FIELDS.some((f) => patch[f] !== undefined);
+    if (!material || !wasVisible || this.announcedRecently(id, "test_updated")) return;
+
     this.logActivity({
       type: "test_updated",
       title: patch.status
@@ -1465,6 +1574,147 @@ class Store {
     this.run(supabase().rpc("dismiss_announcement", { p_id: id }), "dismissAnnouncement");
   }
 
+  /**
+   * Switch a cohort on or off. Off means its students cannot use the portal
+   * (the database resolves them to nobody) and it disappears from filters and
+   * analytics. Nothing is deleted and it can be switched back on.
+   */
+  setCohortActive(id: string, active: boolean) {
+    this.commit((d) => {
+      const c = d.cohorts.find((x) => x.id === id);
+      if (c) c.active = active;
+    });
+    this.run(supabase().from("cohorts").update({ active }).eq("id", id), "setCohortActive");
+  }
+
+  // ---- Reminders --------------------------------------------------------
+  /**
+   * Record that a reminder has been dealt with. The panel derives what is due
+   * and subtracts these, so the same parent is never chased twice for the same
+   * test, absence or report.
+   */
+  markReminderSent(studentId: string, kind: string, ref: string) {
+    const id = genId();
+    const sentAt = new Date().toISOString();
+    this.commit((d) => {
+      if (d.remindersSent.some((r) => r.studentId === studentId && r.kind === kind && r.ref === ref)) return;
+      d.remindersSent.push({ id, studentId, kind, ref, sentAt });
+    });
+    this.run(
+      supabase().from("reminders_sent").upsert(
+        { id, student_id: studentId, kind, ref, sent_at: sentAt },
+        { onConflict: "student_id,kind,ref" },
+      ),
+      "markReminderSent",
+    );
+  }
+
+  // ---- Monthly reports --------------------------------------------------
+  /**
+   * Record a generated report and hand back its private link.
+   *
+   * One row per student per month: regenerating replaces the PDF and keeps the
+   * same token, so a link already sent to a parent keeps working and shows the
+   * corrected report rather than 404ing.
+   */
+  async saveReport(input: {
+    studentId: string;
+    month: string;
+    pdfUrl: string;
+    teacherNote?: string;
+  }): Promise<ReportRecord> {
+    const existing = this.state.reports.find(
+      (r) => r.studentId === input.studentId && r.month === input.month,
+    );
+    const id = existing?.id ?? genId();
+    const token = existing?.token ?? reportToken();
+
+    const { data, error } = await supabase()
+      .from("reports")
+      .upsert(
+        {
+          id,
+          student_id: input.studentId,
+          month: input.month,
+          token,
+          pdf_url: input.pdfUrl,
+          teacher_note: input.teacherNote ?? null,
+        },
+        { onConflict: "student_id,month" },
+      )
+      .select()
+      .single();
+    if (error) {
+      this.report(`saveReport: ${error.message}`);
+      throw new Error(error.message);
+    }
+
+    const row = mapReport(data as Row);
+    this.commit((d) => {
+      const idx = d.reports.findIndex((r) => r.id === row.id);
+      if (idx >= 0) d.reports[idx] = row;
+      else d.reports.unshift(row);
+    });
+    return row;
+  }
+
+  /** Stamp a report as sent, so the reminders panel stops asking for it. */
+  markReportSent(reportId: string) {
+    const sentAt = new Date().toISOString();
+    this.commit((d) => {
+      const r = d.reports.find((x) => x.id === reportId);
+      if (r) r.sentAt = sentAt;
+    });
+    this.run(supabase().from("reports").update({ sent_at: sentAt }).eq("id", reportId), "markReportSent");
+  }
+
+  // ---- Attendance -------------------------------------------------------
+  /**
+   * Mark one student for one day. Everyone starts present, so this is only
+   * called for the names the teacher actually taps.
+   */
+  setAttendance(studentId: string, classId: string | null, date: string, status: AttendanceStatus) {
+    const existing = this.state.attendanceDays.find(
+      (a) => a.studentId === studentId && a.classId === classId && a.date === date,
+    );
+    const id = existing?.id ?? genId();
+    this.commit((d) => {
+      const idx = d.attendanceDays.findIndex((a) => a.id === id);
+      const row: AttendanceDay = { id, studentId, classId, date, status };
+      if (idx >= 0) d.attendanceDays[idx] = row;
+      else d.attendanceDays.push(row);
+    });
+    this.run(
+      supabase().from("attendance_days").upsert(
+        { id, student_id: studentId, class_id: classId, on_date: date, status },
+        { onConflict: "student_id,class_id,on_date" },
+      ),
+      "setAttendance",
+    );
+  }
+
+  /** The month's percentage, typed by hand or accepted from the daily register. */
+  setMonthlyAttendance(studentId: string, month: string, percent: number) {
+    const clamped = Math.max(0, Math.min(100, Math.round(percent * 10) / 10));
+    const existing = this.state.attendanceMonths.find(
+      (a) => a.studentId === studentId && a.month === month,
+    );
+    const id = existing?.id ?? genId();
+    this.commit((d) => {
+      const idx = d.attendanceMonths.findIndex((a) => a.id === id);
+      const row: AttendanceMonth = { id, studentId, month, percent: clamped };
+      if (idx >= 0) d.attendanceMonths[idx] = row;
+      else d.attendanceMonths.push(row);
+    });
+    this.run(
+      supabase().from("attendance_months").upsert(
+        { id, student_id: studentId, month, percent: clamped },
+        { onConflict: "student_id,month" },
+      ),
+      "setMonthlyAttendance",
+    );
+  }
+
   // ---- Weekly assignments ----------------------------------------------
   addAssignment(input: Omit<Assignment, "id" | "createdAt">) {
     const id = genId();
@@ -1809,6 +2059,13 @@ function bankToRow(id: string, item: Omit<QuestionBankItem, "id">): Row {
     show_counter: v.type === "text" ? v.showCounter ?? null : null,
     correct_index: v.type === "mcq" ? v.correctIndex : null,
   };
+}
+
+/** Short, unguessable string for a report's public link. */
+function reportToken(): string {
+  const bytes = new Uint8Array(9);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"[b % 56]).join("");
 }
 
 // Module-level singleton (client only).

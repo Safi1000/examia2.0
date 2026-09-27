@@ -19,6 +19,8 @@ export interface Cohort {
   /** IDs of subjects offered within this cohort. */
   subjectIds: string[];
   createdAt: string; // ISO
+  /** A finished cohort is switched off, not deleted. */
+  active: boolean;
 }
 
 // ----------------------------------------------------------------------------
@@ -42,6 +44,10 @@ export interface Student {
   tempPassword?: string;
   /** Parent's WhatsApp number in E.164 (`+923001234567`), or undefined. */
   whatsapp?: string;
+  /** The student's own number, same E.164 shape. */
+  phone?: string;
+  /** Square profile photo (512px), already cropped before upload. */
+  photoUrl?: string;
   createdAt: string;
 }
 
@@ -153,7 +159,12 @@ export interface Test {
 /** One piece of grader markup drawn over a submitted image. */
 export type Annotation =
   | { id: string; t: "draw"; color: string; w: number; pts: number[] }
-  | { id: string; t: "text"; color: string; x: number; y: number; size: number; s: string };
+  | { id: string; t: "text"; color: string; x: number; y: number; size: number; s: string }
+  /**
+   * Marks written in the margin. Stored as a number rather than ink so the
+   * total can add itself up instead of being typed in (and mistyped).
+   */
+  | { id: string; t: "mark"; color: string; x: number; y: number; size: number; value: number };
 
 /** Markup keyed by the image URL it belongs to. */
 export type Annotations = Record<string, Annotation[]>;
@@ -163,6 +174,13 @@ export interface Answer {
   type: QuestionType;
   /** MCQ selection. */
   selectedIndex?: number;
+  /**
+   * The correct option, copied onto the answer by the grading trigger and
+   * readable only once the result is released. Kept here so a student can
+   * always be shown what the right answer was, even when the question's own
+   * key is withheld from their client.
+   */
+  correctIndex?: number;
   /** Text answer body. */
   text?: string;
   /**
@@ -235,6 +253,8 @@ export interface TestStats {
   submissionCount: number;
   averagePercent: number | null;
   completionPercent: number;
+  /** Sat, but still waiting to be marked. */
+  pendingCount: number;
 }
 
 // ----------------------------------------------------------------------------
@@ -321,4 +341,56 @@ export interface AssignmentSubmission {
   submittedAt: string;
   feedback?: string;
   feedbackAt?: string;
+}
+
+// ----------------------------------------------------------------------------
+// 11. Attendance (daily register, or a monthly percentage)
+// ----------------------------------------------------------------------------
+
+export type AttendanceStatus = "present" | "late" | "absent";
+
+/** One student's mark for one day of one class. */
+export interface AttendanceDay {
+  id: string;
+  studentId: string;
+  classId: string | null;
+  /** YYYY-MM-DD. */
+  date: string;
+  status: AttendanceStatus;
+}
+
+/** A month's attendance percentage: typed in, or derived from the daily rows. */
+export interface AttendanceMonth {
+  id: string;
+  studentId: string;
+  /** YYYY-MM-01. */
+  month: string;
+  percent: number;
+}
+
+// ----------------------------------------------------------------------------
+// 12. Monthly reports and their private links
+// ----------------------------------------------------------------------------
+
+export interface ReportRecord {
+  id: string;
+  studentId: string;
+  /** YYYY-MM-01. */
+  month: string;
+  /** Short random string in the public link. */
+  token: string;
+  pdfUrl: string;
+  teacherNote?: string;
+  createdAt: string;
+  expiresAt: string;
+  sentAt?: string;
+}
+
+/** A reminder already acted on, so it stops appearing in the panel. */
+export interface ReminderSent {
+  id: string;
+  studentId: string;
+  kind: string;
+  ref: string;
+  sentAt: string;
 }

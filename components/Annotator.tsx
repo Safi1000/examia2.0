@@ -16,10 +16,13 @@ import { cn } from "@/lib/cn";
  */
 
 const COLORS = ["#ef4444", "#22c55e", "#3b82f6", "#eab308", "#111827"];
-type Tool = "pen" | "highlight" | "text" | "erase";
+type Tool = "pen" | "highlight" | "mark" | "tick" | "cross" | "text" | "erase";
 type Stroke = Extract<Annotation, { t: "draw" }>;
 
 const nid = () => Math.random().toString(36).slice(2, 10);
+
+/** Share of the card taken by the script; the rest is the marking margin. */
+const PAGE_FRACTION = 0.84;
 
 /** Flat [x, y, x, y, ...] in image pixels → an SVG polyline path. */
 /** True for contacts that should not draw: a resting hand, or any finger once a
@@ -36,11 +39,16 @@ function pathFor(pts: number[]) {
   return d;
 }
 
-/** Read-only markup layer; sits on top of an image of the same aspect ratio. */
+/**
+ * Read-only markup layer.
+ *
+ * The viewBox spans the page PLUS the marking margin, matching the editor, so a
+ * number written beside the work shows up here instead of being cut off.
+ */
 export function AnnotationLayer({ shapes, w, h }: { shapes: Annotation[]; w: number; h: number }) {
   if (!shapes.length || !w || !h) return null;
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
+    <svg viewBox={`0 0 ${w / PAGE_FRACTION} ${h}`} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
       {shapes.map((s) => (
         <Shape key={s.id} s={s} />
       ))}
@@ -49,6 +57,13 @@ export function AnnotationLayer({ shapes, w, h }: { shapes: Annotation[]; w: num
 }
 
 function Shape({ s }: { s: Annotation }) {
+  if (s.t === "mark") {
+    return (
+      <text x={s.x} y={s.y} fill={s.color} fontSize={s.size} fontWeight={700} textAnchor="middle">
+        {s.value}
+      </text>
+    );
+  }
   if (s.t === "text") {
     return (
       <text x={s.x} y={s.y} fill={s.color} fontSize={s.size} fontWeight={700}>
@@ -86,9 +101,12 @@ function shapeAt(shapes: Annotation[], x: number, y: number, tolerance: number) 
         if (Math.hypot(x - s.pts[j], y - s.pts[j + 1]) <= r) return s;
       }
     } else {
-      // Text is anchored on its baseline, so the box sits above y.
-      const w = s.s.length * s.size * 0.6;
-      if (x >= s.x - tolerance && x <= s.x + w + tolerance && y >= s.y - s.size && y <= s.y + s.size * 0.3) return s;
+      // Text sits on its baseline, so the box is above y. A mark is centred on
+      // x, everything else starts there.
+      const label = s.t === "mark" ? String(s.value) : s.s;
+      const w = label.length * s.size * 0.6;
+      const left = s.t === "mark" ? s.x - w / 2 : s.x;
+      if (x >= left - tolerance && x <= left + w + tolerance && y >= s.y - s.size && y <= s.y + s.size * 0.3) return s;
     }
   }
   return undefined;
@@ -109,15 +127,28 @@ export function AnnotatedImage({
   onClick?: () => void;
 }) {
   const [dim, setDim] = useState({ w: 0, h: 0 });
+  const marked = shapes.length > 0;
   const inner = (
     <span className="relative block">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={url}
-        alt={alt}
-        onLoad={(e) => setDim({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
-        className={className}
-      />
+      <span className="flex">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt={alt}
+          onLoad={(e) => setDim({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+          className={className}
+          style={marked ? { width: `${PAGE_FRACTION * 100}%` } : undefined}
+        />
+        {/* Only reserve the marking margin once there is markup to show in it,
+            so an unmarked page still fills the width it always did. */}
+        {marked && (
+          <span
+            className="shrink-0 border-l border-dashed border-border bg-[#fdfdfb]"
+            style={{ width: `${(1 - PAGE_FRACTION) * 100}%` }}
+            aria-hidden
+          />
+        )}
+      </span>
       <AnnotationLayer shapes={shapes} w={dim.w} h={dim.h} />
     </span>
   );
@@ -142,6 +173,7 @@ export function AnnotatorModal({
   startAt = 0,
   initial,
   onChange,
+  onMarksTotal,
   onClose,
 }: {
   urls: string[];
@@ -149,6 +181,8 @@ export function AnnotatorModal({
   startAt?: number;
   initial: Annotations;
   onChange: (url: string, shapes: Annotation[]) => void;
+  /** Sum of the marks stamped in the margins, whenever it changes. */
+  onMarksTotal?: (total: number) => void;
   onClose: () => void;
 }) {
   // Seeded once per mount — callers key the modal by answer.
@@ -156,6 +190,7 @@ export function AnnotatorModal({
   const [tool, setTool] = useState<Tool>("pen");
   const [color, setColor] = useState(COLORS[0]);
   const [size, setSize] = useState(1);
+  const [markValue, setMarkValue] = useState(1);
   const [page, setPage] = useState(startAt);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -181,8 +216,17 @@ export function AnnotatorModal({
   if (typeof document === "undefined") return null;
 
   function commit(url: string, shapes: Annotation[]) {
-    setByUrl((prev) => ({ ...prev, [url]: shapes }));
+    const next = { ...byUrl, [url]: shapes };
+    setByUrl(next);
     onChange(url, shapes);
+    // The marks written in the margin ARE the score: hand the caller the total
+    // so nobody adds them up by hand and mistypes it.
+    if (onMarksTotal) {
+      const marks = Object.values(next)
+        .flat()
+        .filter((a): a is Extract<Annotation, { t: "mark" }> => a.t === "mark");
+      if (marks.length) onMarksTotal(marks.reduce((n, m) => n + m.value, 0));
+    }
   }
 
   const current = urls[page] ?? urls[0];
@@ -208,7 +252,7 @@ export function AnnotatorModal({
           the row scrolls sideways rather than dropping tools off the edge. */}
       <div className="shrink-0 border-b border-border bg-surface px-3 py-2 lg:flex lg:items-center lg:gap-3 lg:px-4">
         <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0">
-          {(["pen", "highlight", "text", "erase"] as Tool[]).map((t) => (
+          {(["pen", "highlight", "mark", "tick", "cross", "text", "erase"] as Tool[]).map((t) => (
             <button
               key={t}
               onClick={() => setTool(t)}
@@ -218,9 +262,23 @@ export function AnnotatorModal({
                 tool === t ? "border-brand bg-brand text-on-brand" : "border-border-strong bg-surface text-ink-2 hover:bg-surface-2",
               )}
             >
-              {t}
+              {t === "tick" ? "✓" : t === "cross" ? "✗" : t}
             </button>
           ))}
+          {tool === "mark" && (
+            <label className="flex shrink-0 items-center gap-1.5 text-sm text-ink-2">
+              Marks
+              <input
+                type="number"
+                min={0}
+                step={0.5}
+                value={markValue}
+                onChange={(e) => setMarkValue(Number(e.target.value))}
+                className="h-9 w-16 rounded-md border border-border-strong bg-surface px-2 text-center font-mono text-sm font-semibold text-ink"
+                aria-label="Marks to stamp"
+              />
+            </label>
+          )}
           <span className="mx-0.5 h-6 w-px shrink-0 bg-border" />
           {COLORS.map((c) => (
             <button
@@ -273,6 +331,7 @@ export function AnnotatorModal({
                 tool={tool}
                 color={color}
                 size={size}
+                markValue={markValue}
                 scrollIntoViewOnLoad={i === startAt}
                 onCommit={(shapes) => commit(u, shapes)}
               />
@@ -293,6 +352,7 @@ function EditablePage({
   tool,
   color,
   size,
+  markValue,
   scrollIntoViewOnLoad,
   onCommit,
 }: {
@@ -302,6 +362,7 @@ function EditablePage({
   tool: Tool;
   color: string;
   size: number;
+  markValue: number;
   scrollIntoViewOnLoad?: boolean;
   onCommit: (shapes: Annotation[]) => void;
 }) {
@@ -311,6 +372,12 @@ function EditablePage({
   const wrapRef = useRef<HTMLDivElement>(null);
   const drawing = useRef<Stroke | null>(null);
   const erasing = useRef(false);
+  // The pointer that started the stroke. A palm landing mid-stroke fires its
+  // own up / cancel, and answering that is what chopped lines in half.
+  const activePointer = useRef<number | null>(null);
+  // Set once a stylus has been seen: fingers then scroll and zoom the page
+  // instead of drawing on it.
+  const [penMode, setPenMode] = useState(false);
   // Palm rejection: once this page has seen a stylus, finger and palm contacts
   // stop drawing — on a tablet the hand resting on the page would otherwise
   // scribble over the answer. Touch still draws on devices with no pen.
@@ -322,11 +389,15 @@ function EditablePage({
     liveShapes.current = shapes;
   }, [shapes]);
 
-  /** Client point → image pixel coordinates. */
+  // The drawing surface is wider than the page: a blank strip on the right
+  // catches marks written past the edge of the script instead of clipping them.
+  const canvasW = dim.w ? dim.w / PAGE_FRACTION : 0;
+
+  /** Client point → image pixel coordinates (may land in the margin strip). */
   function at(e: React.PointerEvent) {
     const r = svgRef.current!.getBoundingClientRect();
     return {
-      x: ((e.clientX - r.left) / r.width) * dim.w,
+      x: ((e.clientX - r.left) / r.width) * canvasW,
       y: ((e.clientY - r.top) / r.height) * dim.h,
     };
   }
@@ -357,28 +428,68 @@ function EditablePage({
 
   function down(e: React.PointerEvent) {
     if (!dim.w) return;
-    if (e.pointerType === "pen") sawPen.current = true;
+    if (e.pointerType === "pen" && !sawPen.current) {
+      sawPen.current = true;
+      setPenMode(true);
+    }
     if (isPalm(e, sawPen.current)) return;
+    // Another pointer is already drawing — ignore this one rather than
+    // restarting the stroke half way through.
+    if (activePointer.current !== null) return;
+
     const p = at(e);
-    if (tool === "erase") {
+    // The S Pen's side button (barrel = bit 2) and its flipped eraser tip
+    // (bit 32) both mean "rub out", whichever tool is selected.
+    const penErase = e.pointerType === "pen" && ((e.buttons & 2) !== 0 || (e.buttons & 32) !== 0);
+    const active: Tool = penErase ? "erase" : tool;
+
+    if (active === "erase") {
       // Capture so a drag keeps rubbing out whatever it passes over.
       e.currentTarget.setPointerCapture(e.pointerId);
+      activePointer.current = e.pointerId;
       erasing.current = true;
       eraseAt(p.x, p.y);
       return;
     }
-    if (tool === "text") {
+    if (active === "text") {
       const s = window.prompt("Comment text");
       if (!s?.trim()) return;
       onCommit([...shapes, { id: nid(), t: "text", color, x: p.x, y: p.y, size: (dim.w / 28) * size, s: s.trim() }]);
       return;
     }
+    if (active === "mark") {
+      onCommit([
+        ...shapes,
+        { id: nid(), t: "mark", color, x: p.x, y: p.y, size: (dim.w / 22) * size, value: markValue },
+      ]);
+      return;
+    }
+    if (active === "tick" || active === "cross") {
+      // One tap, one stamp — the two marks a script needs most.
+      onCommit([
+        ...shapes,
+        {
+          id: nid(),
+          t: "text",
+          color: active === "tick" ? "#22c55e" : "#ef4444",
+          x: p.x,
+          y: p.y,
+          size: (dim.w / 20) * size,
+          s: active === "tick" ? "✓" : "✗",
+        },
+      ]);
+      return;
+    }
+    // Only the freehand tools start a stroke.
+    if (active !== "pen" && active !== "highlight") return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    drawing.current = { id: nid(), t: "draw", color, w: strokeFor(tool), pts: [p.x, p.y] };
+    activePointer.current = e.pointerId;
+    drawing.current = { id: nid(), t: "draw", color, w: strokeFor(active), pts: [p.x, p.y] };
     paintLive();
   }
 
   function move(e: React.PointerEvent) {
+    if (activePointer.current !== e.pointerId) return;
     if (erasing.current) {
       const p = at(e);
       eraseAt(p.x, p.y);
@@ -394,7 +505,14 @@ function EditablePage({
     paintLive();
   }
 
-  function up() {
+  /**
+   * Ends the stroke — including on pointercancel, which the browser fires if it
+   * decides mid-stroke that the gesture was a scroll. Keeping what was drawn so
+   * far beats dropping the line on the floor.
+   */
+  function up(e: React.PointerEvent) {
+    if (activePointer.current !== e.pointerId) return;
+    activePointer.current = null;
     erasing.current = false;
     const d = drawing.current;
     if (!d) return;
@@ -409,25 +527,40 @@ function EditablePage({
       className="relative select-none overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-sm)] [-webkit-touch-callout:none]"
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={url}
-        alt={alt}
-        draggable={false}
-        onLoad={(e) => {
-          setDim({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight });
-          if (scrollIntoViewOnLoad) wrapRef.current?.scrollIntoView({ block: "start" });
-        }}
-        className="block w-full select-none"
-      />
+      <div className="flex">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt={alt}
+          draggable={false}
+          onLoad={(e) => {
+            setDim({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight });
+            if (scrollIntoViewOnLoad) wrapRef.current?.scrollIntoView({ block: "start" });
+          }}
+          className="block select-none"
+          style={{ width: `${PAGE_FRACTION * 100}%` }}
+        />
+        {/* Marking margin: room to write a number or a comment beside the work. */}
+        <div
+          className="shrink-0 border-l border-dashed border-border bg-[#fdfdfb]"
+          style={{ width: `${(1 - PAGE_FRACTION) * 100}%` }}
+          aria-hidden
+        />
+      </div>
       {dim.w === 0 && (
         <p className="px-3 py-10 text-center text-sm text-ink-3">Loading page…</p>
       )}
       {dim.w > 0 && (
         <svg
           ref={svgRef}
-          viewBox={`0 0 ${dim.w} ${dim.h}`}
-          className={cn("absolute inset-0 h-full w-full touch-none", tool === "erase" ? "cursor-pointer" : "cursor-crosshair")}
+          viewBox={`0 0 ${canvasW} ${dim.h}`}
+          className={cn(
+            "absolute inset-0 h-full w-full",
+            // Until a stylus shows up, fingers draw. Once one has, fingers are
+            // for scrolling and pinch-zoom and only the pen marks the script.
+            penMode ? "touch-pan-y" : "touch-none",
+            tool === "erase" ? "cursor-pointer" : "cursor-crosshair",
+          )}
           onPointerDown={down}
           onPointerMove={move}
           onPointerUp={up}

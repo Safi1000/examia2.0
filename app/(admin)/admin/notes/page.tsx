@@ -6,6 +6,8 @@ import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Button, Input, Select, Label, Modal, EmptyState, Icon, Badge } from "@/components/ui";
 import type { Note, NoteAssignment } from "@/types";
+import { NoteViewer } from "@/components/NoteViewer";
+import { BulkBar, RowCheck } from "@/components/admin/BulkBar";
 import { uploadNote, notesConfigured } from "@/lib/cloudinary";
 
 const ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp";
@@ -45,6 +47,13 @@ export default function NotesPage() {
   const store = useStore();
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const [viewing, setViewing] = useState<{ id: string; title: string } | null>(null);
+  // Bulk assign: tick notes, pick a scope, assign them all in one go.
+  const [picked, setPicked] = useState<string[]>([]);
+  const [bulkCohort, setBulkCohort] = useState("");
+  const [bulkClass, setBulkClass] = useState("");
+  const [bulkSubject, setBulkSubject] = useState("");
 
   // Upload modal state
   const [uploading, setUploading] = useState(false);
@@ -163,6 +172,36 @@ export default function NotesPage() {
         actions={<Button onClick={openUpload}><Icon.Plus className="h-4 w-4" /> Upload note</Button>}
       />
 
+      <BulkBar count={picked.length} noun="note" onClear={() => setPicked([])}>
+        <Select value={bulkCohort} onChange={(e) => setBulkCohort(e.target.value)} className="h-9 w-auto min-w-36" aria-label="Cohort">
+          <option value="">Cohort…</option>
+          {db.cohorts.filter((c) => c.active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </Select>
+        <Select value={bulkClass} onChange={(e) => setBulkClass(e.target.value)} className="h-9 w-auto min-w-32" aria-label="Class">
+          <option value="">All classes</option>
+          {db.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </Select>
+        <Select value={bulkSubject} onChange={(e) => setBulkSubject(e.target.value)} className="h-9 w-auto min-w-32" aria-label="Subject">
+          <option value="">All subjects</option>
+          {db.subjects.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+        </Select>
+        <Button
+          size="sm"
+          disabled={!bulkCohort}
+          onClick={() => {
+            void (async () => {
+              for (const id of picked) {
+                await store.addNoteAssignment(id, bulkCohort, bulkClass || null, bulkSubject || null);
+              }
+              toast(`${picked.length} notes assigned.`, "success");
+              setPicked([]);
+            })();
+          }}
+        >
+          Assign
+        </Button>
+      </BulkBar>
+
       {db.notes.length === 0 ? (
         <EmptyState
           icon={<Icon.Doc />}
@@ -178,6 +217,13 @@ export default function NotesPage() {
               <Card key={note.id} className="p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-start gap-3">
+                    <span className="pt-1">
+                      <RowCheck
+                        checked={picked.includes(note.id)}
+                        onChange={(on) => setPicked((prev) => (on ? [...prev, note.id] : prev.filter((x) => x !== note.id)))}
+                        label={`Select ${note.title}`}
+                      />
+                    </span>
                     <span className="text-2xl leading-none">{fileIcon(note.fileType)}</span>
                     <div className="min-w-0">
                       <p className="font-bold text-ink">{note.title}</p>
@@ -209,13 +255,13 @@ export default function NotesPage() {
                     </div>
                   </div>
                   <div className="flex shrink-0 gap-1">
-                    <a
-                      href={`/api/download?url=${encodeURIComponent(note.fileUrl)}&name=${encodeURIComponent(note.fileName)}`}
+                    <button
+                      onClick={() => setViewing({ id: note.id, title: note.title })}
                       className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink"
-                      aria-label="Download file"
+                      aria-label="Read file"
                     >
                       <Icon.ChevronRight className="h-4 w-4" />
-                    </a>
+                    </button>
                     <button
                       onClick={() => setDeletingNote(note)}
                       className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-error-soft hover:text-error"
@@ -380,6 +426,9 @@ export default function NotesPage() {
       >
         <p className="text-sm text-ink-2">This cannot be undone. The file will remain on Cloudinary but will no longer be accessible through the app.</p>
       </Modal>
+      {viewing && (
+        <NoteViewer noteId={viewing.id} title={viewing.title} onClose={() => setViewing(null)} />
+      )}
     </div>
   );
 }

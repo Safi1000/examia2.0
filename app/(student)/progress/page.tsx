@@ -75,13 +75,17 @@ export default function ProgressPage() {
     // Topic mastery (ranked worst to best)
     const mastery = topicMastery(tests, allReleased);
 
-    // Completion
+    // Completion: everything handed in (marked or not) over the tests actually
+    // set for this student. Counting only released results made a student who
+    // had sat every paper look like they were behind.
     const available = testsForStudent(db, student).filter((t) => t.status !== "draft");
+    const availableIds = new Set(available.map((t) => t.id));
+    const handedIn = submissionsForStudent(db, student.id).filter((s) => availableIds.has(s.testId)).length;
     const completionPct = available.length > 0
-      ? Math.round((allReleased.length / available.length) * 100)
+      ? Math.round((handedIn / available.length) * 100)
       : 0;
 
-    return { allReleased, trendPoints, perTest, mastery, monthAvg, prevMonthAvg, delta, overallAvg, grade, completionPct, available: available.length };
+    return { allReleased, handedIn, trendPoints, perTest, mastery, monthAvg, prevMonthAvg, delta, overallAvg, grade, completionPct, available: available.length };
   }, [db, student]);
 
   if (!student || !data) return null;
@@ -123,7 +127,7 @@ export default function ProgressPage() {
           grade={data.grade}
           averagePct={displayAvg}
           deltaPct={data.delta}
-          completion={{ pct: data.completionPct, done: data.allReleased.length, total: data.available }}
+          completion={{ pct: data.completionPct, done: data.handedIn, total: data.available }}
           trend={data.trendPoints}
           tests={reportTests}
         />

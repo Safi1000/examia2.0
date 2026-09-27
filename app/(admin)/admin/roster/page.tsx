@@ -1,13 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { Student } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { cohortById } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
-import { isValidPhone, normalizePhone } from "@/lib/phone";
+import { isValidPhone, normalizePhone, waDigits } from "@/lib/phone";
+import { squareThumbnail } from "@/lib/image";
+import { BulkBar, RowCheck } from "@/components/admin/BulkBar";
+import { uploadImage } from "@/lib/cloudinary";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Button, Input, Select, Label, CohortDot, Modal, EmptyState, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
@@ -62,10 +65,31 @@ export default function RosterPage() {
 
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Student | "new" | null>(null);
-  const [form, setForm] = useState({ username: "", email: "", whatsapp: "", cohortId: "", tempPassword: "", classIds: [] as string[], subjectIds: [] as string[] });
+  const [form, setForm] = useState({ username: "", email: "", whatsapp: "", phone: "", photoUrl: "", cohortId: "", tempPassword: "", classIds: [] as string[], subjectIds: [] as string[] });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const photoRef = useRef<HTMLInputElement>(null);
+
+  async function pickPhoto(file: File | undefined) {
+    if (!file) return;
+    setPhotoBusy(true);
+    try {
+      const square = await squareThumbnail(file);
+      const url = await uploadImage(square);
+      setForm((f) => ({ ...f, photoUrl: url }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not upload that photo.");
+    } finally {
+      setPhotoBusy(false);
+      if (photoRef.current) photoRef.current.value = "";
+    }
+  }
   const [deleting, setDeleting] = useState<Student | null>(null);
+  // Bulk move: tick students, then put them all in another class or cohort.
+  const [picked, setPicked] = useState<string[]>([]);
+  const [bulkClass, setBulkClass] = useState("");
+  const [bulkCohort, setBulkCohort] = useState("");
 
   const students = useMemo(
     () =>
@@ -100,12 +124,12 @@ export default function RosterPage() {
 
   function openNew() {
     setEditing("new");
-    setForm({ username: "", email: "", whatsapp: "", cohortId: cohortId ?? db.cohorts[0]?.id ?? "", tempPassword: genPassword(), classIds: [], subjectIds: [] });
+    setForm({ username: "", email: "", whatsapp: "", phone: "", photoUrl: "", cohortId: cohortId ?? db.cohorts[0]?.id ?? "", tempPassword: genPassword(), classIds: [], subjectIds: [] });
     setError(null);
   }
   function openEdit(s: Student) {
     setEditing(s);
-    setForm({ username: s.username, email: s.email ?? "", whatsapp: s.whatsapp ?? "", cohortId: s.cohortId, tempPassword: s.tempPassword ?? "", classIds: [...s.classIds], subjectIds: [...s.subjectIds] });
+    setForm({ username: s.username, email: s.email ?? "", whatsapp: s.whatsapp ?? "", phone: s.phone ?? "", photoUrl: s.photoUrl ?? "", cohortId: s.cohortId, tempPassword: s.tempPassword ?? "", classIds: [...s.classIds], subjectIds: [...s.subjectIds] });
     setError(null);
   }
   async function save() {
@@ -119,13 +143,19 @@ export default function RosterPage() {
 
     const whatsapp = form.whatsapp.trim() ? normalizePhone(form.whatsapp) : "";
     if (whatsapp && !isValidPhone(whatsapp)) {
-      return setError("WhatsApp number must include the country code, e.g. +923001234567.");
+      return setError("Parent's WhatsApp must include the country code, e.g. +923001234567.");
+    }
+    const phone = form.phone.trim() ? normalizePhone(form.phone) : "";
+    if (phone && !isValidPhone(phone)) {
+      return setError("Student's number must include the country code, e.g. +923001234567.");
     }
 
     const fields = {
       username: form.username.trim(),
       email: form.email.trim() || undefined,
       whatsapp: whatsapp || undefined,
+      phone: phone || undefined,
+      photoUrl: form.photoUrl || undefined,
       cohortId: form.cohortId,
       tempPassword: form.tempPassword.trim(),
       classIds: form.classIds,
@@ -159,6 +189,34 @@ export default function RosterPage() {
         actions={<Button onClick={openNew} disabled={db.cohorts.length === 0}><Icon.Plus className="h-4 w-4" /> Add student</Button>}
       />
 
+      <BulkBar count={picked.length} noun="student" onClear={() => setPicked([])}>
+        <Select value={bulkClass} onChange={(e) => setBulkClass(e.target.value)} className="h-9 w-auto min-w-36" aria-label="Move to class">
+          <option value="">Move to class…</option>
+          {db.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </Select>
+        <Select value={bulkCohort} onChange={(e) => setBulkCohort(e.target.value)} className="h-9 w-auto min-w-36" aria-label="Move to cohort">
+          <option value="">Move to cohort…</option>
+          {db.cohorts.filter((c) => c.active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </Select>
+        <Button
+          size="sm"
+          disabled={!bulkClass && !bulkCohort}
+          onClick={() => {
+            picked.forEach((id) => {
+              const st = db.students.find((x) => x.id === id);
+              if (!st) return;
+              // Moving class replaces the class list; the cohort is a straight swap.
+              if (bulkClass) store.setStudentClasses(id, [bulkClass]);
+              if (bulkCohort) void store.updateStudent(id, { cohortId: bulkCohort, username: st.username });
+            });
+            toast(`${picked.length} students moved.`, "success");
+            setPicked([]);
+          }}
+        >
+          Move
+        </Button>
+      </BulkBar>
+
       <div className="mb-4">
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search students…" className="max-w-xs" aria-label="Search students" />
       </div>
@@ -174,9 +232,21 @@ export default function RosterPage() {
             const subjectNames = s.subjectIds.map((sid) => db.subjects.find((x) => x.id === sid)?.name).filter(Boolean);
             return (
               <Card key={s.id} className="flex items-start justify-between gap-3 p-4">
-                <Link href={`/admin/roster/${s.id}`} className="flex min-w-0 items-start gap-3 hover:opacity-80">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-2 font-display text-sm font-bold uppercase text-ink-2">
-                    {s.username.slice(0, 2)}
+                <span className="pt-1">
+                  <RowCheck
+                    checked={picked.includes(s.id)}
+                    onChange={(on) => setPicked((prev) => (on ? [...prev, s.id] : prev.filter((x) => x !== s.id)))}
+                    label={`Select ${s.username}`}
+                  />
+                </span>
+                <Link href={`/admin/roster/${s.id}`} className="flex min-w-0 flex-1 items-start gap-3 hover:opacity-80">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-2 font-display text-sm font-bold uppercase text-ink-2">
+                    {s.photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={s.photoUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      s.username.slice(0, 2)
+                    )}
                   </span>
                   <div className="min-w-0">
                     <p className="truncate font-bold capitalize text-ink">{s.username}</p>
@@ -198,6 +268,18 @@ export default function RosterPage() {
                   </div>
                 </Link>
                 <div className="flex shrink-0 gap-1">
+                  {s.phone && (
+                    <a
+                      href={`https://wa.me/${waDigits(s.phone)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink"
+                      aria-label={`WhatsApp ${s.username}`}
+                      title={`Chat with ${s.username} — ${s.phone}`}
+                    >
+                      <Icon.Users className="h-4 w-4" />
+                    </a>
+                  )}
                   {/* Straight to the report dialog, which is where the send lives. */}
                   <Link
                     href={`/admin/roster/${s.id}?report=1`}
@@ -238,16 +320,63 @@ export default function RosterPage() {
         <div className="space-y-4">
           <Input label="Username" value={form.username} onChange={(e) => { setForm({ ...form, username: e.target.value }); setError(null); }} required autoCapitalize="none" />
           <Input label="Email (optional)" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          <Input
-            label="Parent's WhatsApp (optional)"
-            type="tel"
-            inputMode="tel"
-            value={form.whatsapp}
-            onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
-            onBlur={(e) => setForm({ ...form, whatsapp: e.target.value.trim() ? normalizePhone(e.target.value) : "" })}
-            placeholder="+923001234567"
-            hint="Country code required — reports are sent to this number."
-          />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Input
+              label="Parent's WhatsApp"
+              type="tel"
+              inputMode="tel"
+              value={form.whatsapp}
+              onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+              onBlur={(e) => setForm({ ...form, whatsapp: e.target.value.trim() ? normalizePhone(e.target.value) : "" })}
+              placeholder="+923001234567"
+              hint="Country code required — reports go here."
+            />
+            <Input
+              label="Student's number"
+              type="tel"
+              inputMode="tel"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              onBlur={(e) => setForm({ ...form, phone: e.target.value.trim() ? normalizePhone(e.target.value) : "" })}
+              placeholder="+923001234567"
+              hint="Country code required."
+            />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-ink-2">Profile photo</label>
+            <div className="flex items-center gap-3">
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-2 font-display text-lg font-bold uppercase text-ink-2">
+                {form.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={form.photoUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  form.username.slice(0, 2) || "—"
+                )}
+              </span>
+              <input
+                ref={photoRef}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(e) => void pickPhoto(e.target.files?.[0])}
+                aria-label="Upload a profile photo"
+              />
+              <Button type="button" variant="secondary" size="sm" loading={photoBusy} onClick={() => photoRef.current?.click()}>
+                {form.photoUrl ? "Change photo" : "Upload photo"}
+              </Button>
+              {form.photoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, photoUrl: "" })}
+                  className="text-sm font-semibold text-ink-3 hover:text-error"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            <p className="mt-1.5 text-xs text-ink-3">Cropped to a square and shrunk to 512px before upload.</p>
+          </div>
           <Select label="Cohort" value={form.cohortId} onChange={(e) => setForm({ ...form, cohortId: e.target.value, classIds: [], subjectIds: [] })}>
             <option value="">Choose…</option>
             {db.cohorts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}

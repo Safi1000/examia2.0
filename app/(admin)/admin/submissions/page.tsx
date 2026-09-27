@@ -9,6 +9,7 @@ import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Button, Badge, CohortDot, EmptyState, Icon, TableScroll, Table, Th, Td, Modal } from "@/components/ui";
 import { FilterChips } from "@/components/admin/FilterChips";
+import { BulkBar, RowCheck } from "@/components/admin/BulkBar";
 import { buttonClasses } from "@/components/ui/Button";
 import { gradeSubmission, isAllMcq } from "@/lib/grading";
 import { formatTimestamp } from "@/lib/time";
@@ -24,6 +25,7 @@ export default function SubmissionsPage() {
   const [statuses, setStatuses] = useStickyFilter("submissions.status");
   const [bulkOpen, setBulkOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string[]>([]);
 
   // Subjects that actually have submissions — filtering by an empty one is a
   // dead end the chips shouldn't offer.
@@ -94,6 +96,19 @@ export default function SubmissionsPage() {
         />
       </div>
 
+      <BulkBar count={picked.length} noun="submission" onClear={() => setPicked([])}>
+        <Button
+          size="sm"
+          onClick={() => {
+            picked.forEach((id) => store.releaseSubmission(id));
+            toast(`${picked.length} results released.`, "success");
+            setPicked([]);
+          }}
+        >
+          Release results
+        </Button>
+      </BulkBar>
+
       {rows.length === 0 ? (
         <EmptyState icon={<Icon.Inbox />} title="No submissions" message="Nothing matches the current filters." />
       ) : (
@@ -102,6 +117,13 @@ export default function SubmissionsPage() {
             <Table stickyFirst>
               <thead>
                 <tr>
+                  <Th className="w-10">
+                    <RowCheck
+                      checked={picked.length > 0 && picked.length === rows.length}
+                      onChange={(on) => setPicked(on ? rows.map((r) => r.sub.id) : [])}
+                      label="Select every row"
+                    />
+                  </Th>
                   <Th>Student</Th>
                   <Th>Test</Th>
                   <Th className="hidden lg:table-cell">Cohort</Th>
@@ -116,6 +138,13 @@ export default function SubmissionsPage() {
                   const cohort = student ? cohortById(db, student.cohortId) : null;
                   return (
                     <tr key={sub.id}>
+                      <Td>
+                        <RowCheck
+                          checked={picked.includes(sub.id)}
+                          onChange={(on) => setPicked((prev) => (on ? [...prev, sub.id] : prev.filter((x) => x !== sub.id)))}
+                          label={`Select ${student?.username ?? "submission"}`}
+                        />
+                      </Td>
                       <Td className="font-semibold capitalize">{student?.username ?? "—"}</Td>
                       <Td className="min-w-[10rem] text-ink-2">{test.title}<span className="block text-xs text-ink-3">{test.subject}</span></Td>
                       <Td className="hidden lg:table-cell">{cohort ? <span className="inline-flex items-center gap-1.5 text-ink-2"><CohortDot color={cohort.color} />{cohort.name}</span> : "—"}</Td>

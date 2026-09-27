@@ -47,7 +47,11 @@ export function isFullyGraded(test: Test, submission: Submission): boolean {
 
 /** Per-topic mastery aggregated across a set of graded submissions. */
 export interface TopicMastery {
+  /** Display label, qualified by subject: "Economics · Unit 5". */
   topic: string;
+  /** Topic name as typed on the questions (first spelling seen). */
+  name: string;
+  subject: string;
   awarded: number;
   available: number;
   percent: number;
@@ -59,7 +63,9 @@ export function topicMastery(
   submissions: Submission[],
 ): TopicMastery[] {
   const testById = new Map(tests.map((t) => [t.id, t]));
-  const acc = new Map<string, { awarded: number; available: number }>();
+  // Keyed by subject + case-folded topic: "Full syllabus" and "Full Syllabus"
+  // are one topic, while Business "Unit 5" and Economics "Unit 5" stay apart.
+  const acc = new Map<string, { name: string; subject: string; awarded: number; available: number }>();
 
   for (const sub of submissions) {
     const test = testById.get(sub.testId);
@@ -67,17 +73,30 @@ export function topicMastery(
     for (const q of test.questions) {
       const ans = sub.answers.find((a) => a.questionId === q.id);
       if (!ans || typeof ans.marksAwarded !== "number") continue;
-      const bucket = acc.get(q.topic) ?? { awarded: 0, available: 0 };
+      const name = q.topic.trim();
+      const key = `${test.subject.trim().toLowerCase()}|${name.toLowerCase()}`;
+      const bucket = acc.get(key) ?? { name, subject: test.subject.trim(), awarded: 0, available: 0 };
       bucket.awarded += ans.marksAwarded;
       bucket.available += q.marks;
-      acc.set(q.topic, bucket);
+      acc.set(key, bucket);
     }
   }
 
-  return Array.from(acc.entries())
-    .map(([topic, { awarded, available }]) => {
+  const subjects = new Set(Array.from(acc.values()).map((b) => b.subject));
+  const qualify = subjects.size > 1;
+
+  return Array.from(acc.values())
+    .map(({ name, subject, awarded, available }) => {
       const p = percent(awarded, available);
-      return { topic, awarded, available, percent: p, band: masteryBand(p) };
+      return {
+        topic: qualify ? `${subject} · ${name}` : name,
+        name,
+        subject,
+        awarded,
+        available,
+        percent: p,
+        band: masteryBand(p),
+      };
     })
     .sort((a, b) => a.percent - b.percent);
 }
