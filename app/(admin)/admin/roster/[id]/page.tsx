@@ -11,6 +11,7 @@ import { Card, Badge, CohortDot, EmptyState, Icon, Modal } from "@/components/ui
 import { useToast } from "@/components/toast";
 import { COMPANY_NAME } from "@/lib/config";
 import { waDigits } from "@/lib/phone";
+import { notesConfigured, uploadNote } from "@/lib/cloudinary";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import { LineChart, type LinePoint } from "@/components/charts/LineChart";
 import { MasteryBar } from "@/components/charts/MasteryBar";
@@ -199,12 +200,14 @@ function StudentDetail() {
   }
 
   /**
-   * Send the report to the parent's WhatsApp.
+   * One click: the report travels with the message, into that parent's chat.
    *
-   * On a tablet or phone the OS share sheet carries the PDF itself, so picking
-   * WhatsApp attaches it. On desktop nothing can attach a file to a wa.me link
-   * — the web has no API for it — so the PDF is downloaded and the chat opens
-   * with the message ready, leaving one drag to attach.
+   * No browser API can put a file into a chosen WhatsApp conversation — a
+   * `wa.me` link is the only way to target a number and it carries text only.
+   * So the PDF is uploaded and the message carries its link: the parent taps
+   * once and the report opens. A literal file attachment to a specific number
+   * needs the WhatsApp Business Cloud API (Meta business account + approved
+   * template), which is a server-side send, not a link.
    */
   async function sendReportOnWhatsapp() {
     if (!student?.whatsapp) return;
@@ -212,29 +215,40 @@ function StudentDetail() {
     try {
       const built = await buildReport();
       if (!built) return;
-      const file = new File([built.blob], built.fileName, { type: "application/pdf" });
-      const month = reportMonth || data?.months[data.months.length - 1] || "";
-      const text = `${student.username}'s report — ${month ? formatMonthLabel(month) : "all results"} (${COMPANY_NAME})`;
 
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: built.fileName, text });
-        setReportOpen(false);
-        return;
+      let link: string | null = null;
+      if (notesConfigured()) {
+        try {
+          const { url } = await uploadNote(new File([built.blob], built.fileName, { type: "application/pdf" }));
+          // Through the app's download proxy so the file arrives named, and so
+          // it keeps working with Cloudinary's raw-delivery settings.
+          link = `${window.location.origin}/api/download?url=${encodeURIComponent(url)}&name=${encodeURIComponent(built.fileName)}`;
+        } catch (err) {
+          console.error("Report upload failed:", err);
+        }
       }
 
-      saveBlob(built.blob, built.fileName);
+      const text = link ? `${reportMessage()}
+
+${link}` : reportMessage();
+      if (!link) {
+        // Nowhere to host it: save the file so it can be attached by hand.
+        saveBlob(built.blob, built.fileName);
+        toast("Couldn't upload the report — it was saved, attach it in the chat.", "info");
+      }
       window.open(`https://wa.me/${waDigits(student.whatsapp)}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
-      toast("Report downloaded — attach it in the WhatsApp tab that just opened.", "info");
       setReportOpen(false);
     } catch (err) {
-      // Dismissing the share sheet rejects; that is not a failure worth shouting about.
-      if ((err as Error)?.name !== "AbortError") {
-        console.error("WhatsApp send failed:", err);
-        toast("Could not send the report.", "error");
-      }
+      console.error("WhatsApp send failed:", err);
+      toast("Could not build the report.", "error");
     } finally {
       setSending(false);
     }
+  }
+
+  function reportMessage() {
+    const month = reportMonth || data?.months[data.months.length - 1] || "";
+    return `${student!.username}'s report — ${month ? formatMonthLabel(month) : "all results"} (${COMPANY_NAME})`;
   }
 
   return (
