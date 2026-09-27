@@ -27,7 +27,7 @@ export function RemindersPanel() {
 
   const [busy, setBusy] = useState<string | null>(null);
   const [runIndex, setRunIndex] = useState<number | null>(null);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   const reminders = useMemo(() => dueReminders(db, nowMs, cohortId), [db, nowMs, cohortId]);
   const reportRun = useMemo(() => reminders.filter((r) => r.kind === "report_due"), [reminders]);
