@@ -21,11 +21,13 @@ export function QuestionView({
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
-        <Badge tone="neutral">{question.topic}</Badge>
+        {question.topic.trim() && <Badge tone="neutral">{question.topic}</Badge>}
         <Pill>{question.marks} {question.marks === 1 ? "mark" : "marks"}</Pill>
         <span className="text-xs uppercase tracking-wide text-ink-3">{question.type}</span>
       </div>
-      <p className="mt-3 text-lg font-semibold leading-snug text-ink">{question.prompt}</p>
+      {question.prompt.trim() && (
+        <p className="mt-3 text-lg font-semibold leading-snug text-ink">{question.prompt}</p>
+      )}
       {question.attachments && question.attachments.length > 0 && (
         <div className="mt-3">
           <PageStack urls={question.attachments} label="Question paper" />

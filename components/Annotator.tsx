@@ -317,7 +317,7 @@ export function AnnotatorModal({
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto bg-surface-2/40 px-2 py-3 sm:px-4 sm:py-6">
+      <div ref={scrollRef} data-annot-scroll className="flex-1 overflow-y-auto bg-surface-2/40 px-2 py-3 sm:px-4 sm:py-6">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
           {urls.map((u, i) => (
             <div key={u} data-page={i} onPointerDown={() => setPage(i)}>
@@ -375,9 +375,9 @@ function EditablePage({
   // The pointer that started the stroke. A palm landing mid-stroke fires its
   // own up / cancel, and answering that is what chopped lines in half.
   const activePointer = useRef<number | null>(null);
-  // Set once a stylus has been seen: fingers then scroll and zoom the page
-  // instead of drawing on it.
-  const [penMode, setPenMode] = useState(false);
+  // A finger drag, once a stylus has been seen: we scroll the page ourselves
+  // because the surface has to keep touch-action: none for the pen's sake.
+  const touchScroll = useRef<{ id: number; y: number; el: HTMLElement } | null>(null);
   // Palm rejection: once this page has seen a stylus, finger and palm contacts
   // stop drawing — on a tablet the hand resting on the page would otherwise
   // scribble over the answer. Touch still draws on devices with no pen.
@@ -400,6 +400,13 @@ function EditablePage({
       x: ((e.clientX - r.left) / r.width) * canvasW,
       y: ((e.clientY - r.top) / r.height) * dim.h,
     };
+  }
+
+  /** Append a shape to the newest list we know of, not the last one rendered. */
+  function add(s: Annotation) {
+    const next = [...liveShapes.current, s];
+    liveShapes.current = next;
+    onCommit(next);
   }
 
   function eraseAt(x: number, y: number) {
@@ -428,9 +435,21 @@ function EditablePage({
 
   function down(e: React.PointerEvent) {
     if (!dim.w) return;
-    if (e.pointerType === "pen" && !sawPen.current) {
-      sawPen.current = true;
-      setPenMode(true);
+    if (e.pointerType === "pen" && !sawPen.current) sawPen.current = true;
+    // Fingers scroll instead of drawing once the pen is in play. The browser
+    // can't do it for us: touch-action has to stay `none` or Chrome steals a
+    // slow downward pen stroke and scrolls with it instead.
+    if (e.pointerType === "touch" && sawPen.current) {
+      // Not while the pen is down, and not for a resting hand — otherwise the
+      // palm holding the tablet steady would drag the script out from under it.
+      if (activePointer.current === null && !isPalm(e, false)) {
+        const el = e.currentTarget.closest<HTMLElement>("[data-annot-scroll]");
+        if (el) {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          touchScroll.current = { id: e.pointerId, y: e.clientY, el };
+        }
+      }
+      return;
     }
     if (isPalm(e, sawPen.current)) return;
     // Another pointer is already drawing — ignore this one rather than
@@ -454,30 +473,24 @@ function EditablePage({
     if (active === "text") {
       const s = window.prompt("Comment text");
       if (!s?.trim()) return;
-      onCommit([...shapes, { id: nid(), t: "text", color, x: p.x, y: p.y, size: (dim.w / 28) * size, s: s.trim() }]);
+      add({ id: nid(), t: "text", color, x: p.x, y: p.y, size: (dim.w / 28) * size, s: s.trim() });
       return;
     }
     if (active === "mark") {
-      onCommit([
-        ...shapes,
-        { id: nid(), t: "mark", color, x: p.x, y: p.y, size: (dim.w / 22) * size, value: markValue },
-      ]);
+      add({ id: nid(), t: "mark", color, x: p.x, y: p.y, size: (dim.w / 22) * size, value: markValue });
       return;
     }
     if (active === "tick" || active === "cross") {
       // One tap, one stamp — the two marks a script needs most.
-      onCommit([
-        ...shapes,
-        {
-          id: nid(),
-          t: "text",
-          color: active === "tick" ? "#22c55e" : "#ef4444",
-          x: p.x,
-          y: p.y,
-          size: (dim.w / 20) * size,
-          s: active === "tick" ? "✓" : "✗",
-        },
-      ]);
+      add({
+        id: nid(),
+        t: "text",
+        color: active === "tick" ? "#22c55e" : "#ef4444",
+        x: p.x,
+        y: p.y,
+        size: (dim.w / 20) * size,
+        s: active === "tick" ? "✓" : "✗",
+      });
       return;
     }
     // Only the freehand tools start a stroke.
@@ -489,6 +502,12 @@ function EditablePage({
   }
 
   function move(e: React.PointerEvent) {
+    const ts = touchScroll.current;
+    if (ts && ts.id === e.pointerId) {
+      ts.el.scrollTop -= e.clientY - ts.y;
+      ts.y = e.clientY;
+      return;
+    }
     if (activePointer.current !== e.pointerId) return;
     if (erasing.current) {
       const p = at(e);
@@ -511,6 +530,7 @@ function EditablePage({
    * far beats dropping the line on the floor.
    */
   function up(e: React.PointerEvent) {
+    if (touchScroll.current?.id === e.pointerId) touchScroll.current = null;
     if (activePointer.current !== e.pointerId) return;
     activePointer.current = null;
     erasing.current = false;
@@ -518,7 +538,9 @@ function EditablePage({
     if (!d) return;
     drawing.current = null;
     paintLive();
-    onCommit([...shapes, d]);
+    // liveShapes, not the prop: two quick strokes land before the parent has
+    // re-rendered, and the second would otherwise wipe out the first.
+    add(d);
   }
 
   return (
@@ -555,10 +577,7 @@ function EditablePage({
           ref={svgRef}
           viewBox={`0 0 ${canvasW} ${dim.h}`}
           className={cn(
-            "absolute inset-0 h-full w-full",
-            // Until a stylus shows up, fingers draw. Once one has, fingers are
-            // for scrolling and pinch-zoom and only the pen marks the script.
-            penMode ? "touch-pan-y" : "touch-none",
+            "absolute inset-0 h-full w-full touch-none",
             tool === "erase" ? "cursor-pointer" : "cursor-crosshair",
           )}
           onPointerDown={down}

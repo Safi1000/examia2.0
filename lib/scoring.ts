@@ -73,7 +73,8 @@ export function topicMastery(
     for (const q of test.questions) {
       const ans = sub.answers.find((a) => a.questionId === q.id);
       if (!ans || typeof ans.marksAwarded !== "number") continue;
-      const name = q.topic.trim();
+      // Photo questions may carry no topic tag; they still need a bucket.
+      const name = q.topic.trim() || "General";
       const key = `${test.subject.trim().toLowerCase()}|${name.toLowerCase()}`;
       const bucket = acc.get(key) ?? { name, subject: test.subject.trim(), awarded: 0, available: 0 };
       bucket.awarded += ans.marksAwarded;

@@ -225,10 +225,14 @@ export default function TestEditorPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono text-xs text-ink-3">Q{i + 1}</span>
                         <Badge tone="neutral" className="uppercase">{q.type}</Badge>
-                        <Badge tone="brand">{q.topic}</Badge>
+                        {q.topic.trim() && <Badge tone="brand">{q.topic}</Badge>}
                         <Pill>{q.marks}m</Pill>
                       </div>
-                      <p className="mt-1.5 text-sm text-ink">{q.prompt}</p>
+                      {q.prompt.trim() ? (
+                        <p className="mt-1.5 text-sm text-ink">{q.prompt}</p>
+                      ) : (
+                        <p className="mt-1.5 text-sm italic text-ink-3">Answer the attached paper</p>
+                      )}
                     </div>
                     <div className="flex shrink-0 flex-col items-center gap-0.5">
                       <button onClick={() => move(i, -1)} disabled={i === 0} className="flex h-7 w-7 items-center justify-center rounded text-ink-3 hover:bg-surface-2 disabled:opacity-30" aria-label="Move up">

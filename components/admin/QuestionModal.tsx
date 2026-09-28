@@ -74,8 +74,10 @@ export function QuestionModal({
 
   function validate(): boolean {
     const e: Record<string, string> = {};
-    if (!prompt.trim()) e.prompt = "A question prompt is required.";
-    if (!topic.trim()) e.topic = "Add a topic tag.";
+    // A photo question is usually just "answer the attached paper", so neither
+    // the prompt nor the topic tag is worth typing out.
+    if (type !== "photo" && !prompt.trim()) e.prompt = "A question prompt is required.";
+    if (type !== "photo" && !topic.trim()) e.topic = "Add a topic tag.";
     if (withSubject && !subject.trim()) e.subject = "Choose a subject.";
     if (marks < 1) e.marks = "Marks must be at least 1.";
     if (type === "mcq" && options.some((o) => !o.trim())) e.options = "Fill in all four options.";
@@ -134,7 +136,14 @@ export function QuestionModal({
           <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} error={errors.subject} placeholder="e.g. Mathematics" required />
         )}
 
-        <Textarea label="Question prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} error={errors.prompt} placeholder="What are you asking?" required />
+        <Textarea
+          label={type === "photo" ? "Question prompt (optional)" : "Question prompt"}
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          error={errors.prompt}
+          placeholder={type === "photo" ? "Leave blank if the attached paper says it all" : "What are you asking?"}
+          required={type !== "photo"}
+        />
 
         <div>
           <Label>Question paper (optional)</Label>
@@ -171,7 +180,14 @@ export function QuestionModal({
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Input label="Topic tag" value={topic} onChange={(e) => setTopic(e.target.value)} error={errors.topic} placeholder="e.g. Algebra" required />
+          <Input
+            label={type === "photo" ? "Topic tag (optional)" : "Topic tag"}
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            error={errors.topic}
+            placeholder="e.g. Algebra"
+            required={type !== "photo"}
+          />
           <Input label="Marks" type="number" min={1} value={marks} onChange={(e) => setMarks(Number(e.target.value))} error={errors.marks} required />
         </div>
 
