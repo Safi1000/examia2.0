@@ -15,6 +15,7 @@ import { QuestionView } from "@/components/student/QuestionView";
 import { Button, Modal, Pill, Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 import { testWindow } from "@/lib/time";
+import { cn } from "@/lib/cn";
 import Link from "next/link";
 
 function isAnswered(a: Answer): boolean {
@@ -117,12 +118,28 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
     });
   }, [test, student, existing, window, store]);
 
-  const endMs = useMemo(() => {
+  // Two deadlines: the writing time, then an optional upload window after it.
+  // The paper comes off the screen at `writeEndMs` and only the upload box is
+  // left until `uploadEndMs`, when the attempt submits itself.
+  const writeEndMs = useMemo(() => {
     if (!test) return null;
     const byDuration = new Date(boot.startedAt).getTime() + test.durationMinutes * 60_000;
     const byClose = new Date(test.closesAt).getTime();
     return Math.min(byDuration, byClose);
   }, [test, boot.startedAt]);
+
+  // Photo answers are the only thing there is to upload, so the window is
+  // pointless on a paper without one.
+  const hasPhotoQuestion = !!test?.questions.some((q) => q.type === "photo");
+  const uploadEndMs = useMemo(() => {
+    if (!test || writeEndMs == null) return null;
+    if (!test.uploadMinutes || !hasPhotoQuestion) return null;
+    const end = Math.min(writeEndMs + test.uploadMinutes * 60_000, new Date(test.closesAt).getTime());
+    return end > writeEndMs ? end : null;
+  }, [test, writeEndMs, hasPhotoQuestion]);
+
+  const [uploading, setUploading] = useState(false);
+  const endMs = uploading ? uploadEndMs : writeEndMs;
 
   const doSubmit = useCallback(
     async (auto: boolean) => {
@@ -146,7 +163,17 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
     [test, student, answers, store, router, boot.startedAt],
   );
 
-  const { remaining, state } = useCountdown(endMs, () => doSubmit(true));
+  // Writing time up: slide into the upload window if there is one, otherwise
+  // hand the paper in.
+  const onExpire = useCallback(() => {
+    if (!uploading && uploadEndMs != null) {
+      setUploading(true);
+      return;
+    }
+    void doSubmit(true);
+  }, [uploading, uploadEndMs, doSubmit]);
+
+  const { remaining, state } = useCountdown(endMs, onExpire);
 
   useDraftAutosave({
     studentId: student?.id ?? "",
@@ -160,11 +187,11 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   // Final-five and final-minute warnings (announced once each).
   useEffect(() => {
     if (state !== prevState.current) {
-      if (state === "warning") toast("5 minutes left. Wrap it up.", "info");
+      if (state === "warning") toast(uploading ? "5 minutes left to upload." : "5 minutes left. Wrap it up.", "info");
       if (state === "critical") toast("Last 60 seconds.", "error");
       prevState.current = state;
     }
-  }, [state, toast]);
+  }, [state, toast, uploading]);
 
   // Already submitted, or not open → bounce out.
   useEffect(() => {
@@ -187,6 +214,10 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
     setAnswers((prev) => prev.map((a, i) => (i === index ? next : a)));
   }
 
+  function updateAt(at: number, next: Answer) {
+    setAnswers((prev) => prev.map((a, i) => (i === at ? next : a)));
+  }
+
   return (
     <div className="flex min-h-dvh flex-col">
       {/* Focus-mode header with the live countdown */}
@@ -200,7 +231,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
           </div>
           <CountdownTimer remaining={remaining} state={state} />
         </div>
-        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 pb-3">
+        <div className={cn("mx-auto flex max-w-2xl items-center gap-3 px-4 pb-3", uploading && "hidden")}>
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
             <div
               className="h-full rounded-full bg-brand transition-[width] duration-300"
@@ -214,13 +245,42 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
-        <div key={q.id} className="animate-fade-up">
-          <QuestionView question={q} answer={answer} onChange={update} />
-        </div>
+        {uploading ? (
+          <div className="animate-fade-up space-y-6">
+            <div className="rounded-lg border border-warning/40 bg-warning-soft px-4 py-3">
+              <p className="font-bold text-ink">Writing time is over.</p>
+              <p className="mt-0.5 text-sm text-ink-2">
+                The paper is put away. Photograph your answer sheets and upload them before this
+                timer runs out — whatever is uploaded by then is what gets marked.
+              </p>
+            </div>
+            {test.questions.map((qq, i) =>
+              qq.type === "photo" ? (
+                <QuestionView
+                  key={qq.id}
+                  question={qq}
+                  answer={answers[i]}
+                  onChange={(next) => updateAt(i, next)}
+                  paperHidden
+                />
+              ) : null,
+            )}
+          </div>
+        ) : (
+          <div key={q.id} className="animate-fade-up">
+            <QuestionView question={q} answer={answer} onChange={update} />
+          </div>
+        )}
       </main>
 
       <footer className="sticky bottom-0 border-t border-border bg-paper/90 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
+          {uploading ? (
+            <Button className="w-full" onClick={() => setConfirmOpen(true)}>
+              Hand in <Icon.Check className="h-4 w-4" />
+            </Button>
+          ) : (
+          <>
           <Button
             variant="secondary"
             disabled={index === 0}
@@ -236,6 +296,8 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
             <Button onClick={() => setIndex((i) => Math.min(test.questions.length - 1, i + 1))}>
               Save &amp; Next <Icon.ChevronRight className="h-4 w-4" />
             </Button>
+          )}
+          </>
           )}
         </div>
       </footer>

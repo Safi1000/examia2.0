@@ -351,6 +351,7 @@ function testPatchToRow(patch: Partial<Omit<Test, "id" | "createdAt" | "question
   if (patch.title !== undefined) row.title = patch.title;
   if (patch.subject !== undefined) row.subject = patch.subject;
   if (patch.durationMinutes !== undefined) row.duration_minutes = patch.durationMinutes;
+  if (patch.uploadMinutes !== undefined) row.upload_minutes = patch.uploadMinutes;
   if (patch.cohortId !== undefined) row.cohort_id = patch.cohortId;
   if (patch.classId !== undefined) row.class_id = patch.classId;
   if (patch.subjectId !== undefined) row.subject_id = patch.subjectId;
@@ -454,6 +455,7 @@ class Store {
       title: t.title as string,
       subject: t.subject as string,
       durationMinutes: t.duration_minutes as number,
+      uploadMinutes: (t.upload_minutes as number) ?? 0,
       cohortId: (t.cohort_id as string) ?? null,
       classId: (t.class_id as string) ?? null,
       subjectId: (t.subject_id as string) ?? null,
@@ -541,6 +543,7 @@ class Store {
       title: t.title as string,
       subject: t.subject as string,
       durationMinutes: t.duration_minutes as number,
+      uploadMinutes: (t.upload_minutes as number) ?? 0,
       cohortId: (t.cohort_id as string) ?? null,
       classId: (t.class_id as string) ?? null,
       subjectId: (t.subject_id as string) ?? null,
@@ -998,6 +1001,7 @@ class Store {
         title: input.title,
         subject: input.subject,
         duration_minutes: input.durationMinutes,
+        upload_minutes: input.uploadMinutes,
         cohort_id: input.cohortId,
         class_id: input.classId,
         subject_id: input.subjectId,

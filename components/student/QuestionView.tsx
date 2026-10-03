@@ -13,10 +13,14 @@ export function QuestionView({
   question,
   answer,
   onChange,
+  paperHidden = false,
 }: {
   question: Question;
   answer: Answer;
   onChange: (next: Answer) => void;
+  /** Writing time is over: the wording and the question paper come off the
+   *  screen and only the upload control is left. */
+  paperHidden?: boolean;
 }) {
   return (
     <div>
@@ -25,10 +29,10 @@ export function QuestionView({
         <Pill>{question.marks} {question.marks === 1 ? "mark" : "marks"}</Pill>
         <span className="text-xs uppercase tracking-wide text-ink-3">{question.type}</span>
       </div>
-      {question.prompt.trim() && (
+      {!paperHidden && question.prompt.trim() && (
         <p className="mt-3 text-lg font-semibold leading-snug text-ink">{question.prompt}</p>
       )}
-      {question.attachments && question.attachments.length > 0 && (
+      {!paperHidden && question.attachments && question.attachments.length > 0 && (
         <div className="mt-3">
           <PageStack urls={question.attachments} label="Question paper" />
         </div>

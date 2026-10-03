@@ -138,6 +138,9 @@ export interface Test {
   title: string;
   subject: string;
   durationMinutes: number;
+  /** Extra minutes after the writing time for photographing the answer sheets.
+   *  0 = none: the attempt submits the moment the writing time is up. */
+  uploadMinutes: number;
   /** null = open to all cohorts. */
   cohortId: string | null;
   /** null = open to all classes within the cohort. */

@@ -37,6 +37,7 @@ export default function TestEditorPage() {
           subjectId: test.subjectId ?? "",
           classId: test.classId ?? "",
           durationMinutes: test.durationMinutes,
+          uploadMinutes: test.uploadMinutes,
           cohortId: test.cohortId ?? "",
           opensAt: toLocalInput(test.opensAt),
           closesAt: toLocalInput(test.closesAt),
@@ -73,6 +74,7 @@ export default function TestEditorPage() {
       subjectId: form.subjectId || null,
       classId: form.classId || null,
       durationMinutes: Math.max(1, form.durationMinutes),
+      uploadMinutes: Math.max(0, form.uploadMinutes),
       cohortId: form.cohortId || null,
       opensAt: fromLocalInput(form.opensAt),
       closesAt: fromLocalInput(form.closesAt),
@@ -126,7 +128,19 @@ export default function TestEditorPage() {
           <CardHeader><h2 className="font-bold text-ink">Details</h2></CardHeader>
           <CardBody className="space-y-4">
             <Input label="Title" value={form.title} onChange={(e) => set("title", e.target.value)} required />
-            <Input label="Duration (min)" type="number" min={1} value={form.durationMinutes} onChange={(e) => set("durationMinutes", Number(e.target.value))} />
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="Writing time (min)" type="number" min={1} value={form.durationMinutes} onChange={(e) => set("durationMinutes", Number(e.target.value))} />
+              {/* When the writing time ends the paper is hidden and only the
+                  upload box is left, for this many more minutes. 0 = off. */}
+              <Input
+                label="Upload time (min)"
+                type="number"
+                min={0}
+                value={form.uploadMinutes}
+                onChange={(e) => set("uploadMinutes", Number(e.target.value))}
+                hint="Extra minutes to photograph and upload. 0 = submit when the writing time ends."
+              />
+            </div>
             <Input label="Test code" value={form.testCode} onChange={(e) => set("testCode", e.target.value)} />
             <Select
               label="Cohort"

@@ -59,6 +59,7 @@ export default function AdminTestsPage() {
       subjectId: null,
       classId: null,
       durationMinutes: 30,
+      uploadMinutes: 0,
       cohortId: cohortId ?? null,
       opensAt: new Date(now).toISOString(),
       closesAt: new Date(now + 7 * 86_400_000).toISOString(),
