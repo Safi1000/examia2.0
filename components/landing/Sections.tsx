@@ -3,6 +3,8 @@
 import { useMemo, useRef, useState } from "react";
 import { PillButton } from "./PillButton";
 import { VideoPlayer } from "./VideoPlayer";
+import { Announcement } from "./Announcement";
+import { ReviewSlider, type Shot } from "./ReviewSlider";
 import { posterFor, waLink, track, type LevelName, type SubjectName } from "@/lib/landing";
 
 function Eyebrow({ children }: { children: string }) {
@@ -131,6 +133,7 @@ export function FreeLesson() {
   return (
     <section id="picker" className="bg-band-a py-[78px] md:py-[120px]">
       <div className="mx-auto max-w-6xl px-5">
+        <Announcement />
         <div className="text-center">
           <Eyebrow>Your free lesson</Eyebrow>
           <h2 className="mx-auto mt-4 max-w-[22ch] text-3xl text-foreground md:text-5xl">
@@ -498,51 +501,27 @@ export function MeetHamza() {
 /* ---------- Reviews ---------- */
 /** `src`: paste a YouTube/Vimeo/.mp4 URL to make the card playable. */
 type VideoReview = { name: string; meta: string; quote: string; src?: string; poster?: string };
-type TextReview = {
-  name: string;
-  meta: string;
-  quote: string;
-  from: "WhatsApp" | "Instagram";
-};
 
 const videoReviews: VideoReview[] = [
   {
-    // TODO: real name, level and a line they say on camera.
+    // TODO: swap in the student's name, level and a line they say on camera.
     name: "Student review 1",
     meta: "On camera",
     quote: "",
-    src: "https://drive.google.com/file/d/18vC5QitpEWyB6Ujga4hKWOzYH5GvDzP5/view",
+    src: "https://youtube.com/shorts/FceZFLYhPSM",
   },
   {
     name: "Student review 2",
     meta: "On camera",
     quote: "",
-    src: "https://drive.google.com/file/d/1V5tFZrcqeGXHmxR_UGnMKAVhsz4ivzF9/view",
+    src: "https://youtube.com/shorts/zjlHTRHlDn8",
   },
 ];
 
-const textReviews: TextReview[] = [
-  {
-    name: "Armaan",
-    meta: "AS · Business",
-    from: "WhatsApp",
-    quote:
-      "Before starting this class, I felt a lot of anxiety and doubt about whether I could manage the syllabus. My initial nervousness transformed into real confidence, and I now feel fully prepared for my exams.",
-  },
-  {
-    name: "Talal",
-    meta: "Business",
-    from: "WhatsApp",
-    quote:
-      "At the start I found some of the topics pretty confusing, but the way you explained everything made them a lot easier. The real life examples made the concepts actually make sense instead of things I had to memorize.",
-  },
-  {
-    name: "Meerab",
-    meta: "AS Level",
-    from: "WhatsApp",
-    quote:
-      "Shuru mein i was quite confused and had a lot of questions kafi basic, but Sir has always been very patient. He never makes a student feel embarrassed for asking something.",
-  },
+const shots: Shot[] = [
+  { src: "/reviews/armaan.jpg", name: "Armaan", meta: "AS · Business", alt: "WhatsApp message from Armaan about his Business classes" },
+  { src: "/reviews/talal.jpg", name: "Talal", meta: "Business", alt: "WhatsApp message from Talal about his Business classes" },
+  { src: "/reviews/meerab.jpg", name: "Meerab", meta: "AS Level", alt: "WhatsApp message from Meerab about her classes" },
 ];
 
 function VideoReviewCard({ r }: { r: VideoReview }) {
@@ -570,43 +549,6 @@ function VideoReviewCard({ r }: { r: VideoReview }) {
   );
 }
 
-/** Rotations are fixed per index so the wall reads as pinned screenshots. */
-const ROTATIONS = ["md:-rotate-[1.2deg]", "md:rotate-[0.8deg]", "md:-rotate-[0.6deg]", "md:rotate-[1.4deg]"];
-
-function TextReviewCard({ r, i }: { r: TextReview; i: number }) {
-  return (
-    <figure
-      className={`relative flex flex-col overflow-hidden rounded-[20px] border border-hairline bg-card-raised p-5 shadow-[0_18px_40px_rgba(0,0,0,0.35)] transition-transform hover:-translate-y-1 ${ROTATIONS[i % 4]}`}
-    >
-      <div className="flex items-center justify-between">
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] ${
-            r.from === "WhatsApp"
-              ? "border border-gold-border bg-gold-tint text-gold"
-              : "border border-hairline-strong text-faint"
-          }`}
-        >
-          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current" />
-          {r.from}
-        </span>
-        <span className="text-[10px] uppercase tracking-[0.2em] text-faint">Screenshot</span>
-      </div>
-      <blockquote className="mt-4 text-[15px] leading-relaxed text-body">
-        &ldquo;{r.quote}&rdquo;
-      </blockquote>
-      <figcaption className="mt-5 flex items-center gap-3 border-t border-hairline pt-4">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gold-tint text-xs font-bold text-gold">
-          {r.name.charAt(0)}
-        </span>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-foreground">{r.name}</p>
-          <p className="truncate text-[11px] uppercase tracking-[0.2em] text-faint">{r.meta}</p>
-        </div>
-      </figcaption>
-    </figure>
-  );
-}
-
 export function Reviews() {
   return (
     <section id="reviews" className="bg-band-a py-[78px] md:py-[120px]">
@@ -618,7 +560,7 @@ export function Reviews() {
           </h2>
           <p className="mx-auto mt-4 max-w-[46ch] text-muted-foreground">
             Two of them said it on camera. The rest are the messages that landed in my inbox when
-            the session ended.
+            the session ended — swipe through them.
           </p>
         </div>
 
@@ -628,14 +570,12 @@ export function Reviews() {
           ))}
         </div>
 
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {textReviews.map((r, i) => (
-            <TextReviewCard key={r.name} r={r} i={i} />
-          ))}
+        <div className="mt-8">
+          <ReviewSlider shots={shots} />
         </div>
 
         <p className="mt-10 text-center text-xs text-faint">
-          Names shortened, screenshots redacted for privacy. Originals available on request.
+          First names only, chat headers cropped. Originals available on request.
         </p>
       </div>
     </section>
