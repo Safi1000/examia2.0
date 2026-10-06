@@ -18,9 +18,7 @@ export const LANDING = {
   instagram: process.env.NEXT_PUBLIC_INSTAGRAM || "https://instagram.com/hamzateaches",
   brand: COMPANY_NAME,
   /** The hero VSL. YouTube / Vimeo / direct .mp4 all work. */
-  heroVideo:
-    process.env.NEXT_PUBLIC_HERO_VIDEO ||
-    "https://drive.google.com/file/d/1DZRhbRsz_Hnt28mURNc3uAjsrMBCnxop/view",
+  heroVideo: process.env.NEXT_PUBLIC_HERO_VIDEO || "https://youtu.be/5I1vo1npe9k",
   /** Optional poster frame behind the hero play button. */
   heroPoster: process.env.NEXT_PUBLIC_HERO_POSTER || "",
 } as const;
@@ -57,10 +55,18 @@ export function driveId(url: string): string | null {
   return m ? m[1] : null;
 }
 
-/** Drive's own still for a video, used as the poster behind the play button. */
-export function drivePoster(url: string): string | undefined {
-  const id = driveId(url);
-  return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w1280` : undefined;
+/**
+ * The host's own still for a video, used behind the play button so a card is
+ * never an empty black box. Undefined for anything we can't derive one from.
+ */
+export function posterFor(url: string): string | undefined {
+  const drive = driveId(url);
+  if (drive) return `https://drive.google.com/thumbnail?id=${drive}&sz=w1280`;
+  const yt =
+    url.match(/youtu\.be\/([\w-]{6,})/) ||
+    url.match(/[?&]v=([\w-]{6,})/) ||
+    url.match(/youtube\.com\/(?:embed|shorts)\/([\w-]{6,})/);
+  return yt ? `https://i.ytimg.com/vi/${yt[1]}/maxresdefault.jpg` : undefined;
 }
 
 /** True for URLs a native <video> can play directly. */

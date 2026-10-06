@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { PillButton } from "./PillButton";
 import { VideoPlayer } from "./VideoPlayer";
-import { drivePoster, waLink, track, type LevelName, type SubjectName } from "@/lib/landing";
+import { posterFor, waLink, track, type LevelName, type SubjectName } from "@/lib/landing";
 
 function Eyebrow({ children }: { children: string }) {
   return (
@@ -551,7 +551,7 @@ function VideoReviewCard({ r }: { r: VideoReview }) {
       <div className="relative aspect-[9/12] w-full overflow-hidden bg-band-c">
         <VideoPlayer
           src={r.src}
-          poster={r.poster ?? (r.src ? drivePoster(r.src) : undefined)}
+          poster={r.poster ?? (r.src ? posterFor(r.src) : undefined)}
           title={`Review from ${r.name}`}
           label="Clip coming soon"
         />
