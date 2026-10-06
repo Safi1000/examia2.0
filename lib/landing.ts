@@ -12,8 +12,9 @@ export type SubjectName = "Accounting" | "Business" | "Economics";
 export type LevelName = "O Level / IGCSE" | "AS Level" | "A2 Level";
 
 export const LANDING = {
-  /** Digits only, full international form (e.g. 923001234567). */
-  waNumber: process.env.NEXT_PUBLIC_WA_NUMBER || "",
+  /** Digits only, full international form. Every WhatsApp button on the site
+   *  dials this one number; override per-deploy with NEXT_PUBLIC_WA_NUMBER. */
+  waNumber: process.env.NEXT_PUBLIC_WA_NUMBER || "923475105144",
   instagram: process.env.NEXT_PUBLIC_INSTAGRAM || "https://instagram.com/hamzateaches",
   brand: COMPANY_NAME,
   /** The hero VSL. YouTube / Vimeo / direct .mp4 all work. */
@@ -75,11 +76,18 @@ export function toEmbedUrl(url: string, autoplay = true): string {
   return url;
 }
 
-/** Prefills the chat with the subject/level the visitor picked. */
-export function waLink(ctx?: { subject?: SubjectName; level?: LevelName }): string {
-  const text = ctx?.subject
-    ? `Hi, I'd like to start ${ctx.subject}${ctx.level ? ` (${ctx.level})` : ""}.`
-    : "Hi, I'd like to know more about your classes.";
+/**
+ * Opens the chat with the message already typed. `trial` asks for the free
+ * class outright — that is what the level cards send, so the first thing in the
+ * inbox says which subject and level to book.
+ */
+export function waLink(ctx?: { subject?: SubjectName; level?: LevelName; trial?: boolean }): string {
+  const what = ctx?.subject ? `${ctx.subject}${ctx.level ? ` (${ctx.level})` : ""}` : "";
+  const text = ctx?.trial
+    ? `Hi, I'd like to book the free trial class${what ? ` for ${what}` : ""}.`
+    : what
+      ? `Hi, I'd like to start ${what}.`
+      : "Hi, I'd like to know more about your classes.";
   return `https://wa.me/${LANDING.waNumber}?text=${encodeURIComponent(text)}`;
 }
 

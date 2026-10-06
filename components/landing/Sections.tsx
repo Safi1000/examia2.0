@@ -2,7 +2,6 @@
 
 import { useMemo, useRef, useState } from "react";
 import { PillButton } from "./PillButton";
-import { useLeadGate } from "./LeadGate";
 import { VideoPlayer } from "./VideoPlayer";
 import { waLink, track, type LevelName, type SubjectName } from "@/lib/landing";
 
@@ -111,7 +110,6 @@ const LEVEL_CARDS: Record<SubjectName, LevelCard[]> = {
 export function FreeLesson() {
   const [subject, setSubject] = useState<SubjectName>("Accounting");
   const [pickedOnce, setPickedOnce] = useState(false);
-  const gate = useLeadGate();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const cards = useMemo(() => LEVEL_CARDS[subject], [subject]);
@@ -190,16 +188,18 @@ export function FreeLesson() {
           <p className="mt-2 text-lg text-foreground">
             You picked <span className="text-gold">{subject}</span>. Now pick your level.
           </p>
-          <p className="mt-1 text-sm text-muted-foreground">The lesson opens as soon as you choose.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Your chat opens with the booking message ready to send.</p>
         </div>
 
         {/* Keyed on subject so the level cards remount and replay `float-in` */}
         <div key={subject} className="mt-10 grid gap-5 md:grid-cols-3">
           {cards.map((c, i) => (
-            <button
+            <a
               key={c.level}
-              type="button"
-              onClick={() => gate.open({ subject, level: c.level })}
+              href={waLink({ subject, level: c.level, trial: true })}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => track("whatsapp_click", { from: "trial", subject, level: c.level })}
               className="group float-in relative flex flex-col overflow-hidden rounded-[20px] border border-hairline bg-card p-7 text-left transition-all hover:-translate-y-1 hover:border-gold-border hover:shadow-[0_20px_50px_rgba(0,0,0,0.35)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
               style={{ animationDelay: `${0.05 + i * 0.09}s` }}
             >
@@ -210,10 +210,10 @@ export function FreeLesson() {
               <h3 className="mt-3 text-xl font-bold text-foreground">{c.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{c.body}</p>
               <span className="mt-6 flex items-center justify-between border-t border-hairline pt-4 text-sm font-semibold text-gold">
-                Open free lesson
+                Book it on WhatsApp
                 <span aria-hidden className="transition-transform group-hover:translate-x-1">→</span>
               </span>
-            </button>
+            </a>
           ))}
         </div>
       </div>
