@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PillButton } from "./PillButton";
 import { VideoPlayer } from "./VideoPlayer";
-import { LANDING, track } from "@/lib/landing";
+import { LANDING, drivePoster, track } from "@/lib/landing";
 import { COMPANY_NAME } from "@/lib/config";
 
 const activityCards = [
@@ -129,7 +129,7 @@ export function Hero() {
           <VideoPlayer
             big
             src={LANDING.heroVideo}
-            poster={LANDING.heroPoster || undefined}
+            poster={LANDING.heroPoster || drivePoster(LANDING.heroVideo)}
             title={`${COMPANY_NAME} — watch a free lesson`}
           />
           <span className="pointer-events-none absolute right-4 top-4 rounded-full border border-gold-border px-3 py-1 text-xs font-semibold text-gold">

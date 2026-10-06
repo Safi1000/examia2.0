@@ -18,7 +18,9 @@ export const LANDING = {
   instagram: process.env.NEXT_PUBLIC_INSTAGRAM || "https://instagram.com/hamzateaches",
   brand: COMPANY_NAME,
   /** The hero VSL. YouTube / Vimeo / direct .mp4 all work. */
-  heroVideo: process.env.NEXT_PUBLIC_HERO_VIDEO || "",
+  heroVideo:
+    process.env.NEXT_PUBLIC_HERO_VIDEO ||
+    "https://drive.google.com/file/d/1DZRhbRsz_Hnt28mURNc3uAjsrMBCnxop/view",
   /** Optional poster frame behind the hero play button. */
   heroPoster: process.env.NEXT_PUBLIC_HERO_POSTER || "",
 } as const;
@@ -47,8 +49,23 @@ export function trialVideoFor(subject: SubjectName, level: LevelName): string | 
   return TRIAL_VIDEOS[`${subject}|${level}`] || null;
 }
 
+/** The file id out of any Google Drive link shape, or null. */
+export function driveId(url: string): string | null {
+  const m =
+    url.match(/drive\.google\.com\/file\/d\/([\w-]{20,})/) ||
+    url.match(/drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([\w-]{20,})/);
+  return m ? m[1] : null;
+}
+
+/** Drive's own still for a video, used as the poster behind the play button. */
+export function drivePoster(url: string): string | undefined {
+  const id = driveId(url);
+  return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w1280` : undefined;
+}
+
 /** True for URLs a native <video> can play directly. */
 export function isFileVideo(url: string): boolean {
+  if (driveId(url)) return false; // Drive plays in its own iframe, not <video>.
   return /\.(mp4|webm|ogv|mov|m4v)(\?|$)/i.test(url);
 }
 
@@ -67,6 +84,12 @@ export function toEmbedUrl(url: string, autoplay = true): string {
   if (yt) {
     return `https://www.youtube-nocookie.com/embed/${yt[1]}?autoplay=${auto}&rel=0&modestbranding=1&playsinline=1`;
   }
+
+  // Google Drive: /file/d/ID/view, /open?id=ID, or /uc?id=ID. Drive streams the
+  // file itself, so a 200MB master needs no re-upload — but the file has to be
+  // shared as "anyone with the link" or visitors get a sign-in box.
+  const drive = driveId(url);
+  if (drive) return `https://drive.google.com/file/d/${drive}/preview`;
 
   const vimeo = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
   if (vimeo) {

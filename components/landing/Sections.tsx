@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { PillButton } from "./PillButton";
 import { VideoPlayer } from "./VideoPlayer";
-import { waLink, track, type LevelName, type SubjectName } from "@/lib/landing";
+import { drivePoster, waLink, track, type LevelName, type SubjectName } from "@/lib/landing";
 
 function Eyebrow({ children }: { children: string }) {
   return (
@@ -507,16 +507,17 @@ type TextReview = {
 
 const videoReviews: VideoReview[] = [
   {
-    name: "Ayesha",
-    meta: "AS · Accounting",
-    quote: "I actually enjoy Accounting now. I never thought I would type that sentence.",
-    // src: "https://www.youtube.com/watch?v=XXXXXXXXXXX",
+    // TODO: real name, level and a line they say on camera.
+    name: "Student review 1",
+    meta: "On camera",
+    quote: "",
+    src: "https://drive.google.com/file/d/18vC5QitpEWyB6Ujga4hKWOzYH5GvDzP5/view",
   },
   {
-    name: "Zain",
-    meta: "A2 · Business",
-    quote: "The mock jumped from a C to an A in six weeks. My mum still doesn't believe it.",
-    // src: "https://www.youtube.com/watch?v=XXXXXXXXXXX",
+    name: "Student review 2",
+    meta: "On camera",
+    quote: "",
+    src: "https://drive.google.com/file/d/1V5tFZrcqeGXHmxR_UGnMKAVhsz4ivzF9/view",
   },
 ];
 
@@ -550,7 +551,7 @@ function VideoReviewCard({ r }: { r: VideoReview }) {
       <div className="relative aspect-[9/12] w-full overflow-hidden bg-band-c">
         <VideoPlayer
           src={r.src}
-          poster={r.poster}
+          poster={r.poster ?? (r.src ? drivePoster(r.src) : undefined)}
           title={`Review from ${r.name}`}
           label="Clip coming soon"
         />
@@ -559,7 +560,7 @@ function VideoReviewCard({ r }: { r: VideoReview }) {
         </span>
       </div>
       <figcaption className="flex flex-col gap-3 p-5">
-        <p className="text-[15px] leading-relaxed text-body">&ldquo;{r.quote}&rdquo;</p>
+        {r.quote && <p className="text-[15px] leading-relaxed text-body">&ldquo;{r.quote}&rdquo;</p>}
         <div className="flex items-center justify-between border-t border-hairline pt-3">
           <span className="text-sm font-semibold text-foreground">{r.name}</span>
           <span className="text-[11px] uppercase tracking-[0.2em] text-faint">{r.meta}</span>
