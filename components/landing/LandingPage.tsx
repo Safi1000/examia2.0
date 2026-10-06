@@ -12,6 +12,7 @@ import {
   Closing,
 } from "./Sections";
 import { Nav } from "./Nav";
+import { Announcement } from "./Announcement";
 import { Footer } from "./Footer";
 import { Grain } from "./Grain";
 import { MobileCta } from "./MobileCta";
@@ -36,6 +37,9 @@ export function LandingPage() {
 
         <ScrollProgress />
         <Nav />
+        <div className="px-5 pt-4">
+          <Announcement />
+        </div>
 
         <main id="main">
           <Hero />

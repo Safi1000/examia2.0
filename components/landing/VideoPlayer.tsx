@@ -18,6 +18,7 @@ export function VideoPlayer({
   label = "Video coming soon",
   className = "",
   big = false,
+  auto = false,
 }: {
   src?: string | null;
   title: string;
@@ -26,10 +27,14 @@ export function VideoPlayer({
   className?: string;
   /** Larger play button for the hero. */
   big?: boolean;
+  /** Start on its own, muted, with no click. The visitor unmutes if they want
+   *  sound — autoplay with audio is blocked everywhere and rightly so. */
+  auto?: boolean;
 }) {
   const [playing, setPlaying] = useState(false);
+  const live = playing || (auto && !!src);
 
-  if (playing && src) {
+  if (live && src) {
     return isFileVideo(src) ? (
       <video
         src={src}
@@ -37,6 +42,8 @@ export function VideoPlayer({
         poster={poster}
         controls
         autoPlay
+        muted={auto}
+        loop={auto}
         playsInline
         className={`h-full w-full bg-black object-cover ${className}`}
       />
@@ -44,6 +51,7 @@ export function VideoPlayer({
       <iframe
         title={title}
         src={toEmbedUrl(src)}
+        loading="lazy"
         className={`h-full w-full bg-black ${className}`}
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowFullScreen

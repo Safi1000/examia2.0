@@ -34,7 +34,7 @@ export function ReviewSlider({ shots }: { shots: Shot[] }) {
         {shots.map((s) => (
           <li
             key={s.src}
-            className="w-[82vw] max-w-[360px] shrink-0 snap-center sm:w-[340px]"
+            className="w-[88vw] max-w-[460px] shrink-0 snap-center sm:w-[440px]"
           >
             <figure className="overflow-hidden rounded-[20px] border border-hairline bg-card">
               <a
@@ -44,12 +44,12 @@ export function ReviewSlider({ shots }: { shots: Shot[] }) {
                 className="group block focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
                 aria-label={`Open ${s.name}'s message full size`}
               >
-                <div className="relative aspect-[9/14] w-full overflow-hidden bg-band-c">
+                <div className="relative aspect-[9/13] w-full overflow-hidden bg-band-c">
                   <Image
                     src={s.src}
                     alt={s.alt}
                     fill
-                    sizes="(max-width: 640px) 82vw, 340px"
+                    sizes="(max-width: 640px) 88vw, 440px"
                     className="object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
                   />
                   {/* Fade at the foot so a cut-off message reads as "there's more". */}

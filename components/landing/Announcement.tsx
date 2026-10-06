@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import { waLink, track } from "@/lib/landing";
+import { track } from "@/lib/landing";
 
 /** Bump when the wording changes so a new notice shows to everyone again. */
 const KEY = "ht-announce-2027-mj";
@@ -44,7 +44,7 @@ export function Announcement() {
   }
 
   return (
-    <div className="relative mx-auto mb-10 flex max-w-3xl flex-col items-center gap-4 overflow-hidden rounded-[20px] border border-gold-border bg-gold-tint px-6 py-5 text-center sm:flex-row sm:text-left">
+    <div className="relative mx-auto flex max-w-3xl flex-col items-center gap-4 overflow-hidden rounded-[20px] border border-gold-border bg-gold-tint px-6 py-5 text-center sm:flex-row sm:text-left">
       <span
         aria-hidden
         className="pointer-events-none absolute -left-10 -top-10 h-32 w-32 rounded-full bg-gold opacity-[0.12] blur-2xl"
@@ -63,11 +63,11 @@ export function Announcement() {
         <span className="text-gold">May / June 2027</span> session.
       </p>
 
+      {/* Straight to the picker, not to WhatsApp: a visitor who has not chosen a
+          subject yet would otherwise open a chat with nothing to say. */}
       <a
-        href={waLink({ trial: true })}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => track("whatsapp_click", { from: "announcement" })}
+        href="#picker"
+        onClick={() => track("announcement_click", {})}
         className="shrink-0 rounded-full bg-gold px-5 py-2.5 text-sm font-bold text-[#1b1e21] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
       >
         Book now

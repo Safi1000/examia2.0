@@ -88,7 +88,8 @@ export function toEmbedUrl(url: string, autoplay = true): string {
     url.match(/[?&]v=([\w-]{6,})/) ||
     url.match(/youtube\.com\/(?:embed|shorts)\/([\w-]{6,})/);
   if (yt) {
-    return `https://www.youtube-nocookie.com/embed/${yt[1]}?autoplay=${auto}&rel=0&modestbranding=1&playsinline=1`;
+    // Autoplay only ever happens muted — every browser blocks it otherwise.
+    return `https://www.youtube-nocookie.com/embed/${yt[1]}?autoplay=${auto}&mute=${auto}&rel=0&modestbranding=1&playsinline=1&loop=1&playlist=${yt[1]}`;
   }
 
   // Google Drive: /file/d/ID/view, /open?id=ID, or /uc?id=ID. Drive streams the
@@ -99,7 +100,7 @@ export function toEmbedUrl(url: string, autoplay = true): string {
 
   const vimeo = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
   if (vimeo) {
-    return `https://player.vimeo.com/video/${vimeo[1]}?autoplay=${auto}&byline=0&portrait=0`;
+    return `https://player.vimeo.com/video/${vimeo[1]}?autoplay=${auto}&muted=${auto}&byline=0&portrait=0`;
   }
 
   return url;

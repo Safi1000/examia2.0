@@ -1,11 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, useRef, useState } from "react";
 import { PillButton } from "./PillButton";
 import { VideoPlayer } from "./VideoPlayer";
-import { Announcement } from "./Announcement";
 import { ReviewSlider, type Shot } from "./ReviewSlider";
 import { posterFor, waLink, track, type LevelName, type SubjectName } from "@/lib/landing";
+import { COMPANY_NAME } from "@/lib/config";
 
 function Eyebrow({ children }: { children: string }) {
   return (
@@ -133,7 +134,6 @@ export function FreeLesson() {
   return (
     <section id="picker" className="bg-band-a py-[78px] md:py-[120px]">
       <div className="mx-auto max-w-6xl px-5">
-        <Announcement />
         <div className="text-center">
           <Eyebrow>Your free lesson</Eyebrow>
           <h2 className="mx-auto mt-4 max-w-[22ch] text-3xl text-foreground md:text-5xl">
@@ -192,6 +192,19 @@ export function FreeLesson() {
             You picked <span className="text-gold">{subject}</span>. Now pick your level.
           </p>
           <p className="mt-1 text-sm text-muted-foreground">Your chat opens with the booking message ready to send.</p>
+        </div>
+
+        <div className="mt-8 flex flex-col items-center gap-2">
+          <a
+            href={waLink({ subject, trial: true })}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => track("whatsapp_click", { from: "picker_cta", subject })}
+            className="rounded-full bg-gold px-7 py-3 text-sm font-bold text-[#1b1e21] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
+          >
+            Book now on WhatsApp
+          </a>
+          <span className="text-[11px] text-faint">Or pick your level below and it books itself.</span>
         </div>
 
         {/* Keyed on subject so the level cards remount and replay `float-in` */}
@@ -427,22 +440,19 @@ export function MeetHamza() {
       <div className="mx-auto grid max-w-6xl gap-12 px-5 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:items-center md:gap-16">
         <div className="relative mx-auto w-full max-w-sm md:mx-0">
           <div className="absolute -inset-4 -z-10 rounded-[28px] bg-gold-tint blur-2xl" aria-hidden />
-          <div className="relative aspect-[3/4] w-full overflow-hidden rounded-[24px] border border-dashed border-hairline-strong bg-card">
+          <div className="relative aspect-[3/4] w-full overflow-hidden rounded-[24px] border border-hairline-strong bg-card">
             <div
               aria-hidden
               className="absolute inset-0 bg-linear-to-br from-[#2a2d31] via-[#1b1e21] to-[#141618]"
             />
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center">
-              <span className="flex h-14 w-14 items-center justify-center rounded-full border border-gold-border bg-gold-tint text-gold">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="5" width="18" height="14" rx="2" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              </span>
-              <span className="text-[11px] font-semibold uppercase tracking-[0.25em] text-faint">
-                Photo goes here
-              </span>
-            </div>
+            <Image
+              src="/hamza.jpg"
+              alt={`${COMPANY_NAME} — ACCA Affiliate`}
+              fill
+              priority
+              sizes="(max-width: 768px) 90vw, 384px"
+              className="object-cover object-top"
+            />
             <span className="absolute bottom-4 left-4 rounded-full border border-gold-border bg-[rgba(20,22,24,0.75)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold backdrop-blur">
               ACCA Affiliate
             </span>
@@ -529,6 +539,7 @@ function VideoReviewCard({ r }: { r: VideoReview }) {
     <figure className="group relative flex flex-col overflow-hidden rounded-[24px] border border-hairline bg-card">
       <div className="relative aspect-[9/12] w-full overflow-hidden bg-band-c">
         <VideoPlayer
+          auto
           src={r.src}
           poster={r.poster ?? (r.src ? posterFor(r.src) : undefined)}
           title={`Review from ${r.name}`}

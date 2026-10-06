@@ -128,6 +128,7 @@ export function Hero() {
         >
           <VideoPlayer
             big
+            auto
             src={LANDING.heroVideo}
             poster={LANDING.heroPoster || posterFor(LANDING.heroVideo)}
             title={`${COMPANY_NAME} — watch a free lesson`}
