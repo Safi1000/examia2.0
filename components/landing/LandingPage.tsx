@@ -37,7 +37,8 @@ export function LandingPage() {
 
         <ScrollProgress />
         <Nav />
-        <div className="px-5 pt-4">
+        {/* Sits under the sticky nav and rides with it down the page. */}
+        <div className="sticky top-20 z-40 px-5 pt-4">
           <Announcement />
         </div>
 
