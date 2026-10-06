@@ -522,28 +522,25 @@ const videoReviews: VideoReview[] = [
 
 const textReviews: TextReview[] = [
   {
-    name: "Fatima",
-    meta: "O Level · Economics",
+    name: "Armaan",
+    meta: "AS · Business",
     from: "WhatsApp",
-    quote: "sir the diagram thing finally clicked!! did the whole past paper and got 38/40 😭 thank youuu",
+    quote:
+      "Before starting this class, I felt a lot of anxiety and doubt about whether I could manage the syllabus. My initial nervousness transformed into real confidence, and I now feel fully prepared for my exams.",
   },
   {
-    name: "Bilal's dad",
-    meta: "Parent",
+    name: "Talal",
+    meta: "Business",
     from: "WhatsApp",
-    quote: "Whatever you are doing, keep doing it. He used to hide his report card. Now he leaves it on the table.",
+    quote:
+      "At the start I found some of the topics pretty confusing, but the way you explained everything made them a lot easier. The real life examples made the concepts actually make sense instead of things I had to memorize.",
   },
   {
-    name: "Hira",
-    meta: "IGCSE · Accounting",
-    from: "Instagram",
-    quote: "the way you explain WHY debits go on the left is unreal, no teacher ever told me that in 2 years lol",
-  },
-  {
-    name: "Umar",
-    meta: "A2 · Business",
+    name: "Meerab",
+    meta: "AS Level",
     from: "WhatsApp",
-    quote: "you were right about the evaluation phrases, examiner literally ticked every one. A* alhamdulillah 🙏",
+    quote:
+      "Shuru mein i was quite confused and had a lot of questions kafi basic, but Sir has always been very patient. He never makes a student feel embarrassed for asking something.",
   },
 ];
 
@@ -619,8 +616,8 @@ export function Reviews() {
             The students who used to hate this subject.
           </h2>
           <p className="mx-auto mt-4 max-w-[46ch] text-muted-foreground">
-            Two of them said it on camera. The rest are the messages that pinged my phone on results
-            day.
+            Two of them said it on camera. The rest are the messages that landed in my inbox when
+            the session ended.
           </p>
         </div>
 
@@ -630,7 +627,7 @@ export function Reviews() {
           ))}
         </div>
 
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {textReviews.map((r, i) => (
             <TextReviewCard key={r.name} r={r} i={i} />
           ))}

@@ -1,0 +1,6 @@
+{
+  "//": "Edge functions run on Deno, not Node. Without this the Next.js TS server reads them as browser code and reports 'Cannot find name Deno'.",
+  "deno.enablePaths": ["supabase/functions"],
+  "deno.lint": true,
+  "deno.unstable": false
+}
