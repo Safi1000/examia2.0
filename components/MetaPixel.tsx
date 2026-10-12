@@ -8,9 +8,10 @@ import { META_PIXEL_ID } from "@/lib/config";
 /**
  * Meta (Facebook) pixel.
  *
- * `afterInteractive` keeps it off the critical path — the page paints and
- * hydrates first, then the pixel loads. The base snippet queues calls until
- * fbevents.js arrives, so the first PageView is never lost to the race.
+ * `beforeInteractive` puts the snippet in the server-rendered <head>, which is
+ * where Meta's instructions say it goes and where their verifier looks for it.
+ * Only the tiny inline stub is blocking; fbevents.js is fetched async, and the
+ * stub queues calls until it lands so the first PageView is never lost.
  *
  * App Router navigations do not reload the document, so the snippet's own
  * PageView fires once per full load; the effect below covers every route change
@@ -32,7 +33,7 @@ export function MetaPixel() {
 
   return (
     <>
-      <Script id="meta-pixel" strategy="afterInteractive">
+      <Script id="meta-pixel" strategy="beforeInteractive">
         {`!function(f,b,e,v,n,t,s)
 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 n.callMethod.apply(n,arguments):n.queue.push(arguments)};

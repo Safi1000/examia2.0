@@ -9,6 +9,7 @@ import {
 import "./globals.css";
 import logo from "@/logo/logo.png";
 import { Providers } from "@/components/providers";
+import { MetaPixel } from "@/components/MetaPixel";
 import { COMPANY_NAME } from "@/lib/config";
 
 const bricolage = Bricolage_Grotesque({
@@ -69,6 +70,9 @@ export default function RootLayout({
       className={`${bricolage.variable} ${hanken.variable} ${splineMono.variable} ${caveat.variable} ${interTight.variable} h-full`}
     >
       <body className="min-h-dvh antialiased">
+        {/* Outside Providers on purpose: that gate renders a splash until
+            hydration, which kept the pixel out of the server HTML entirely. */}
+        <MetaPixel />
         <Providers>{children}</Providers>
       </body>
     </html>

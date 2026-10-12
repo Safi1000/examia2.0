@@ -13,7 +13,6 @@ import {
 } from "./Sections";
 import { Nav } from "./Nav";
 import { Announcement } from "./Announcement";
-import { MetaPixel } from "@/components/MetaPixel";
 import { Footer } from "./Footer";
 import { Grain } from "./Grain";
 import { MobileCta } from "./MobileCta";
@@ -36,7 +35,6 @@ export function LandingPage() {
           Skip to content
         </a>
 
-        <MetaPixel />
         <ScrollProgress />
         <Nav />
         {/* Sits under the sticky nav and rides with it down the page. */}
