@@ -145,11 +145,25 @@ export async function submitLead(lead: Lead): Promise<void> {
   track("lead_captured", { subject: lead.subject, level: lead.level });
 }
 
-/** Analytics seam — no vendor wired up, so this is a no-op in production. */
+/**
+ * Events Meta knows by name. Everything else goes through `trackCustom`, which
+ * still shows up in Events Manager but cannot be optimised against.
+ */
+const STANDARD: Record<string, string> = {
+  // Someone opening WhatsApp to ask about classes is the conversion that
+  // matters here, so it is reported as a Lead rather than a custom event.
+  whatsapp_click: "Lead",
+  lead_captured: "Lead",
+};
+
+/** Analytics seam. Forwards to the Meta pixel when one is configured. */
 export function track(event: string, props: Record<string, unknown> = {}): void {
   if (process.env.NODE_ENV === "development") {
     console.debug("[landing]", event, props);
   }
+  const standard = STANDARD[event];
+  if (standard) window.fbq?.("track", standard, { content_name: event, ...props });
+  else window.fbq?.("trackCustom", event, props);
 }
 
 /** Right-hand scroll rail. Ids must match the section ids rendered on `/`. */

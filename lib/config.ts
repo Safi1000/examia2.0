@@ -33,3 +33,8 @@ export const CLOUDINARY_PRESET =
 /** Separate preset for notes (resource_type: auto to support PDFs, docx, etc.). */
 export const CLOUDINARY_NOTES_PRESET =
   process.env.NEXT_PUBLIC_CLOUDINARY_NOTES_PRESET || "examia_notes";
+
+/** Meta (Facebook) pixel. Empty disables it, which is what tests and local
+ *  development get unless the variable is set. */
+export const META_PIXEL_ID =
+  process.env.NEXT_PUBLIC_META_PIXEL_ID || "981948184238325";
