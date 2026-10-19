@@ -1,4 +1,4 @@
-import logo from "@/logo/logo.png";
+import logo from "@/logo/logo-web.png";
 import { cn } from "@/lib/cn";
 
 /**
@@ -9,14 +9,15 @@ import { cn } from "@/lib/cn";
  *
  * Plain <img> (the project does not use next/image); height is set by callers
  * and width stays `auto` with `object-contain`, so the aspect ratio is never
- * stretched or cropped.
+ * stretched or cropped. logo-web.png is the original resized to 480px wide
+ * (36 KB instead of 4 MB); logo.png stays as the master file.
  */
-const ALT = "HamzaTeaches Logo";
+const ALT = "Hamza Teaches";
 
 export function Logo({ className }: { className?: string }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={logo.src} alt={ALT} className={cn("w-auto object-contain", className)} />
+    <img src={logo.src} alt={ALT} width={logo.width} height={logo.height} decoding="async" className={cn("w-auto object-contain", className)} />
   );
 }
 
@@ -29,6 +30,6 @@ export function Wordmark({ className }: { className?: string; markSize?: number 
 export function BrandMark({ size = 28 }: { size?: number }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={logo.src} alt={ALT} style={{ height: size }} className="w-auto object-contain" />
+    <img src={logo.src} alt={ALT} width={logo.width} height={logo.height} decoding="async" style={{ height: size }} className="w-auto object-contain" />
   );
 }

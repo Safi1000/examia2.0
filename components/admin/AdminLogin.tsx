@@ -29,7 +29,7 @@ export function AdminLogin() {
     const ok = await loginAdmin(email.trim(), password);
     if (ok) {
       lock.reset();
-      router.replace("/admin/tests");
+      router.replace("/admin/today");
     } else {
       lock.registerFailure();
       setError("That email and password don't match an administrator account.");

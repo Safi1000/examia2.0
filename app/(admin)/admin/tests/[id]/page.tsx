@@ -104,7 +104,7 @@ export default function TestEditorPage() {
     setForm((f) => (f ? { ...f, [k]: v } : f));
 
   return (
-    <div className="px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader
         title="Edit test"
         subtitle={test.title}
@@ -112,10 +112,27 @@ export default function TestEditorPage() {
         actions={
           <>
             <Pill>{test.testCode}</Pill>
-            <Button onClick={saveSettings} disabled={!canSave}>Save</Button>
+            <Button variant={test.status === "draft" ? "secondary" : "primary"} onClick={saveSettings} disabled={!canSave}>Save</Button>
+            {test.status === "draft" && (
+              <Button
+                disabled={!canSave}
+                onClick={() => {
+                  saveSettings();
+                  store.setTestStatus(id, "active");
+                  toast("Published. Students can see it now.", "success");
+                }}
+              >
+                Publish
+              </Button>
+            )}
           </>
         }
       />
+      {test.status === "draft" && (
+        <p className="mb-4 rounded-md border border-border bg-surface px-4 py-3 text-sm text-ink-2">
+          <span className="font-semibold text-ink">Draft.</span> Students can&apos;t see this test yet. Check the questions, then press Publish.
+        </p>
+      )}
       {!canSave && (
         <p className="mb-4 rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-warning">
           Add a title and at least one question to save this test.
@@ -197,7 +214,9 @@ export default function TestEditorPage() {
               </div>
             </div>
             <p className="text-xs text-ink-3">
-              Live from the moment it is created; closes on its own at the close time above.
+              {test.status === "draft"
+                ? "Goes live when you press Publish; closes on its own at the close time above."
+                : "Live from the moment it is created; closes on its own at the close time above."}
             </p>
           </CardBody>
         </Card>
@@ -212,7 +231,7 @@ export default function TestEditorPage() {
                   <Icon.Bank className="h-4 w-4" /> Import
                 </Button>
                 <Button variant="secondary" size="sm" onClick={() => setDocOpen(true)}>
-                  <Icon.Doc className="h-4 w-4" /> From file
+                  <Icon.Doc className="h-4 w-4" /> Paste or upload
                 </Button>
                 <Button size="sm" onClick={() => { setEditingQ(null); setQModalOpen(true); }}>
                   <Icon.Plus className="h-4 w-4" /> Add

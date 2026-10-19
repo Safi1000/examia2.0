@@ -11,6 +11,7 @@
  * supabase() is only ever called from client effects/handlers.
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { DEMO, demoClient } from "@/lib/demo";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -18,6 +19,7 @@ const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 let client: SupabaseClient | null = null;
 
 export function supabase(): SupabaseClient {
+  if (!client && DEMO) client = demoClient() as SupabaseClient;
   if (!client) {
     if (!url || !anonKey) {
       throw new Error(

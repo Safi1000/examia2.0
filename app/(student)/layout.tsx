@@ -58,11 +58,13 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const inRunner = /^\/test\/[^/]+$/.test(pathname);
 
   const links = [
-    { href: "/dashboard", label: "Dashboard", icon: <Icon.Dashboard className="h-[18px] w-[18px]" /> },
-    { href: "/progress", label: "Progress", icon: <Icon.Chart className="h-[18px] w-[18px]" /> },
-    { href: "/assignments", label: "Assignments", icon: <Icon.Inbox className="h-[18px] w-[18px]" /> },
-    { href: "/notes", label: "Notes", icon: <Icon.Doc className="h-[18px] w-[18px]" /> },
-    { href: "/settings", label: "Settings", icon: <Icon.Palette className="h-[18px] w-[18px]" /> },
+    // `short` is the phone tab-bar label, where six items share 375px.
+    { href: "/dashboard", label: "Dashboard", short: "Home", icon: <Icon.Dashboard className="h-[18px] w-[18px]" /> },
+    { href: "/plan", label: "Plan", short: "Plan", icon: <Icon.Flag className="h-[18px] w-[18px]" /> },
+    { href: "/progress", label: "Progress", short: "Progress", icon: <Icon.Chart className="h-[18px] w-[18px]" /> },
+    { href: "/assignments", label: "Assignments", short: "Tasks", icon: <Icon.Inbox className="h-[18px] w-[18px]" /> },
+    { href: "/notes", label: "Notes", short: "Notes", icon: <Icon.Doc className="h-[18px] w-[18px]" /> },
+    { href: "/settings", label: "Settings", short: "Settings", icon: <Icon.Palette className="h-[18px] w-[18px]" /> },
   ];
 
   return (
@@ -77,7 +79,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
               </span>
             </Link>
 
-            <nav className="flex shrink-0 items-center gap-1" aria-label="Primary">
+            <nav className="flex shrink-0 items-center gap-1" aria-label="Account">
               {links.map((l) => {
                 const active = pathname === l.href;
                 return (
@@ -85,13 +87,13 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                     key={l.href}
                     href={l.href}
                     className={cn(
-                      "flex h-11 items-center gap-1.5 rounded-md px-3 text-sm font-semibold transition-colors",
+                      "hidden h-11 items-center gap-1.5 rounded-md px-3 text-sm font-semibold transition-colors md:flex",
                       active ? "bg-brand-soft text-brand" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
                     )}
                     aria-current={active ? "page" : undefined}
                   >
                     {l.icon}
-                    <span className="hidden md:inline">{l.label}</span>
+                    <span>{l.label}</span>
                   </Link>
                 );
               })}
@@ -114,6 +116,37 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         </header>
       )}
       {children}
+
+      {/* Phones: labelled tab bar at the thumb, instead of a row of bare icons. */}
+      {!inRunner && (
+        <nav
+          aria-label="Primary"
+          data-tabbar
+          className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-paper/95 backdrop-blur md:hidden"
+          style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        >
+          <ul className="mx-auto grid max-w-md grid-cols-6">
+            {links.map((l) => {
+              const active = pathname === l.href;
+              return (
+                <li key={l.href}>
+                  <Link
+                    href={l.href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-semibold",
+                      active ? "text-brand" : "text-ink-2",
+                    )}
+                  >
+                    {l.icon}
+                    {l.short}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      )}
     </div>
   );
 }

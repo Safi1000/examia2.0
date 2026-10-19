@@ -57,7 +57,7 @@ export default function SubmissionsPage() {
 
   if (db.tests.length === 0) {
     return (
-      <div className="px-4 py-6 sm:px-6">
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
         <PageHeader title="Submissions" />
         <EmptyState icon={<Icon.Inbox />} title="No tests yet" />
       </div>
@@ -65,7 +65,7 @@ export default function SubmissionsPage() {
   }
 
   return (
-    <div className="px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader
         title="Submissions"
         subtitle={`${rows.length} submission${rows.length === 1 ? "" : "s"}`}

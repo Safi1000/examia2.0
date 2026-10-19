@@ -79,7 +79,7 @@ export function StudentReport({
         {/* Headline stats */}
         <section className="sr-stats">
           <div className="sr-stat">
-            <div className="sr-stat-label">GRADE</div>
+            <div className="sr-stat-label">GRADE THIS MONTH</div>
             <div className="sr-stat-value gold huge">{grade ?? "—"}</div>
           </div>
           <div className="sr-stat">
@@ -170,7 +170,7 @@ const css = `
 .stureport{
   --sr-bg:#1a1f20; --sr-fg:#e9ecef; --sr-muted:#8a949a;
   --sr-gold:#FBC159; --sr-gold-dim:rgba(251,193,89,.22); --sr-gold-soft:rgba(251,193,89,.12);
-  --sr-display:var(--font-bricolage),system-ui,sans-serif;
+  --sr-display:var(--font-inter-tight),system-ui,sans-serif;
   color:var(--sr-fg);
 }
 .stureport .sr-page{

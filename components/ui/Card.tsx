@@ -5,8 +5,10 @@ export function Card({
   children,
   className,
   ruled,
+  id,
   as: Tag = "div",
 }: {
+  id?: string;
   children: React.ReactNode;
   className?: string;
   ruled?: boolean;
@@ -14,6 +16,7 @@ export function Card({
 }) {
   return (
     <Tag
+      id={id}
       className={cn(
         "rounded-lg border border-border bg-surface shadow-[var(--shadow-sm)]",
         ruled && "ruled-margin",

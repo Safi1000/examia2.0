@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
+import { isPublicPath } from "@/lib/public-paths";
 import { AuthProvider } from "@/lib/auth-context";
 import { ToastProvider, useToast } from "@/components/toast";
 import { getStore } from "@/lib/data/store";
 import { ThemeManager } from "@/components/ThemeManager";
 import { DataSync } from "@/components/DataSync";
-import { BUILD_CREDIT, COMPANY_NAME } from "@/lib/config";
+import { COMPANY_NAME } from "@/lib/config";
 
 /**
  * Client root. Everything below depends on localStorage (mock store + session),
@@ -21,6 +23,15 @@ function useHydrated(): boolean {
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const mounted = useHydrated();
+  const pathname = usePathname();
+
+  if (isPublicPath(pathname)) {
+    return (
+      <div className="relative z-10 flex min-h-dvh flex-col">
+        <div className="flex-1">{children}</div>
+      </div>
+    );
+  }
 
   if (!mounted) {
     return (
@@ -40,7 +51,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <DataSync />
         <div className="relative z-10 flex min-h-dvh flex-col">
           <div className="flex-1">{children}</div>
-          <GlobalFooter />
         </div>
       </AuthProvider>
     </ToastProvider>
@@ -54,13 +64,4 @@ function StoreErrorBridge() {
     getStore().setErrorReporter((msg) => toast(msg, "error"));
   }, [toast]);
   return null;
-}
-
-/** Persistent, understated build credit — present on every screen. */
-function GlobalFooter() {
-  return (
-    <footer className="border-t border-border bg-paper/80 px-4 py-3 text-center">
-      <p className="text-xs tracking-wide text-ink-3">{BUILD_CREDIT}</p>
-    </footer>
-  );
 }

@@ -105,7 +105,7 @@ export function RemindersPanel() {
   return (
     <Card className="mb-4 p-0">
       <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-        <h2 className="text-sm font-bold uppercase tracking-wide text-ink-2">
+        <h2 className="text-base font-semibold text-ink">
           Needs attention <span className="text-ink-3">({reminders.length})</span>
         </h2>
         {reportRun.length > 0 && !running && (

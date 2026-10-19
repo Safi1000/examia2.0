@@ -15,22 +15,24 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 const variantClass: Record<Variant, string> = {
+  // Pill buttons, as on the public site: solid gold for the one main action,
+  // hairline outline for everything else.
   primary:
-    "bg-brand text-on-brand hover:bg-brand-strong active:bg-brand-strong shadow-[var(--shadow-sm)]",
+    "bg-brand text-on-brand hover:brightness-110 active:brightness-95",
   secondary:
-    "bg-surface text-ink border border-border-strong hover:bg-surface-2 active:bg-surface-2",
+    "bg-transparent text-ink border border-border-strong hover:border-ink-3 hover:bg-surface-2 active:bg-surface-2",
   ghost: "bg-transparent text-ink-2 hover:bg-surface-2 hover:text-ink",
   danger: "bg-error text-on-brand hover:opacity-90 active:opacity-90",
 };
 
 const sizeClass: Record<Size, string> = {
-  sm: "h-10 px-3 text-sm rounded-md",
-  md: "h-12 px-5 text-sm rounded-md",
-  lg: "h-12 px-6 text-base rounded-lg",
+  sm: "h-10 px-4 text-sm rounded-full",
+  md: "h-11 px-5 text-sm rounded-full",
+  lg: "h-12 px-7 text-base rounded-full",
 };
 
 const baseClass =
-  "inline-flex select-none items-center justify-center gap-2 font-semibold transition-[background,opacity,transform] duration-150 ease-[var(--ease-out)] focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex select-none items-center justify-center gap-2 font-semibold transition-[background,border-color,filter,opacity,transform] duration-150 ease-[var(--ease-out)] focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50";
 
 /** Class string for rendering a Link styled as a button (avoids <a> in <button>). */
 export function buttonClasses(opts?: { variant?: Variant; size?: Size; fullWidth?: boolean; className?: string }) {
@@ -47,7 +49,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ref={ref}
       disabled={disabled || loading}
       className={cn(
-        "inline-flex select-none items-center justify-center gap-2 font-semibold transition-[background,opacity,transform] duration-150 ease-[var(--ease-out)]",
+        "inline-flex select-none items-center justify-center gap-2 font-semibold transition-[background,border-color,filter,opacity,transform] duration-150 ease-[var(--ease-out)]",
         "focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.98]",
         "disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100",
         variantClass[variant],

@@ -83,7 +83,7 @@ function StudentDetail() {
 
   if (!student || !data) {
     return (
-      <div className="px-4 py-6 sm:px-6">
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
         <PageHeader title="Student not found" back={{ href: "/admin/roster", label: "Roster" }} />
         <EmptyState icon={<Icon.Users />} title="No such student" />
       </div>
@@ -190,7 +190,7 @@ function StudentDetail() {
   }
 
   return (
-    <div className="px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader
         title={student.username}
         subtitle={student.email}
@@ -253,11 +253,11 @@ function StudentDetail() {
       {data.released.length > 0 ? (
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
           <Card className="p-5">
-            <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-ink-2">Score trend</h2>
+            <h2 className="mb-2 text-base font-semibold text-ink">Score trend</h2>
             <LineChart points={data.points} />
           </Card>
           <Card className="p-5">
-            <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ink-2">Topic mastery</h2>
+            <h2 className="mb-3 text-base font-semibold text-ink">Topic mastery</h2>
             <div className="space-y-3.5">
               {data.mastery.map((m) => <MasteryBar key={m.topic} topic={m.topic} percent={m.percent} band={m.band} />)}
             </div>
@@ -267,7 +267,7 @@ function StudentDetail() {
         <EmptyState className="mt-5" icon={<Icon.Chart />} title="No released results yet" message="Release a result to build this student's analytics." />
       )}
 
-      <h2 className="mb-2.5 mt-7 text-sm font-bold uppercase tracking-wide text-ink-2">Submissions</h2>
+      <h2 className="mb-2.5 mt-7 text-base font-semibold text-ink">Submissions</h2>
       {data.subs.length === 0 ? (
         <EmptyState icon={<Icon.Inbox />} title="No submissions" />
       ) : (

@@ -4,7 +4,8 @@ import Link from "next/link";
 import type { Submission, Test } from "@/types";
 import { Badge, Card, Pill, Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
-import { testWindow, formatDate } from "@/lib/time";
+import { testWindow, formatDate, formatRelative } from "@/lib/time";
+import { gradeSubmission } from "@/lib/grading";
 
 export function TestCard({
   test,
@@ -18,6 +19,9 @@ export function TestCard({
   const window = testWindow(test.opensAt, test.closesAt, nowMs);
   const released = submission?.status === "released";
   const submitted = submission?.status === "submitted";
+  const result = released && submission ? gradeSubmission(test, submission) : null;
+  // Under a day left reads as urgent.
+  const closingSoon = window === "open" && +new Date(test.closesAt) - nowMs < 24 * 3600 * 1000;
 
   return (
     <Card ruled className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -33,12 +37,18 @@ export function TestCard({
         </p>
       </div>
 
-      <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end sm:gap-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 sm:flex-col sm:flex-nowrap sm:items-end sm:gap-2">
         {window === "future" && (
           <>
             <Badge tone="neutral"><Icon.Lock className="h-3 w-3" /> Locked</Badge>
             <span className="text-xs text-ink-3">Opens {formatDate(test.opensAt)}</span>
           </>
+        )}
+
+        {window === "open" && !submission && (
+          <span className={closingSoon ? "text-sm font-semibold text-warning" : "text-sm text-ink-2"}>
+            Closes {formatRelative(test.closesAt, nowMs)}
+          </span>
         )}
 
         {window === "open" && !submission && (
@@ -52,6 +62,12 @@ export function TestCard({
             <Badge tone="info">Submitted</Badge>
             <p className="mt-1 text-xs text-ink-3">Awaiting results</p>
           </div>
+        )}
+
+        {result && (
+          <span className="text-sm tabular-nums text-ink-2">
+            <span className="font-bold text-ink">{result.awarded}/{result.total}</span> · {result.letter}
+          </span>
         )}
 
         {released && (

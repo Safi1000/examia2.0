@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { createClient } from "@supabase/supabase-js";
 import { COMPANY_NAME } from "@/lib/config";
+import { signDownloadUrl } from "@/lib/signed-view";
 
 /**
  * The parent's view of a monthly report.
@@ -70,9 +71,8 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
     );
   }
 
-  const downloadHref = `/api/download?url=${encodeURIComponent(report.pdf_url)}&name=${encodeURIComponent(
-    `report-${report.student_name}-${report.month.slice(0, 7)}.pdf`,
-  )}`;
+  // Signed here, after the token lookup proved access; valid for an hour.
+  const downloadHref = signDownloadUrl(report.pdf_url, `report-${report.student_name}-${report.month.slice(0, 7)}.pdf`);
 
   return (
     <main className="mx-auto min-h-dvh max-w-2xl px-4 py-10">
@@ -103,7 +103,7 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
       </section>
 
       <iframe
-        src={`${downloadHref}#toolbar=0`}
+        src={`${downloadHref}&inline=1#toolbar=0`}
         title="Monthly report"
         className="mt-6 h-[70vh] w-full rounded-lg border border-border bg-surface"
       />

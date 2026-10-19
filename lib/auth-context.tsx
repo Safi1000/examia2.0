@@ -6,6 +6,7 @@ import type { Role, Session } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { getStore } from "@/lib/data/store";
 import { studentEmail } from "@/lib/config";
+import { DEMO, DEMO_STUDENT_ID, demoRole, setDemoRole, type DemoRole } from "@/lib/demo";
 import {
   DEFAULT_THEME_ID,
   loadLastThemeId,
@@ -70,7 +71,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  /** Preview-only sign-in as a sample student or the admin (lib/demo.ts). */
+  const establishDemo = useCallback(async (role: DemoRole) => {
+    setDemoRole(role);
+    await getStore().load();
+    setSession(role === "admin" ? { role: "admin" } : { role: "student", studentId: DEMO_STUDENT_ID });
+    setInitializing(false);
+  }, []);
+
   useEffect(() => {
+    if (DEMO) {
+      // Deferred like the real bootstrap below, so no setState runs in the effect body.
+      const t = setTimeout(() => {
+        const role = demoRole();
+        if (role) void establishDemo(role);
+        else setInitializing(false);
+      }, 0);
+      return () => clearTimeout(t);
+    }
     let active = true;
     const sb = supabase();
 
@@ -97,10 +115,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       active = false;
       sub.subscription.unsubscribe();
     };
-  }, [establish]);
+  }, [establish, establishDemo]);
 
   const loginStudent = useCallback(
     async (username: string, password: string) => {
+      if (DEMO) {
+        await establishDemo("student");
+        return true;
+      }
       const { data, error } = await supabase().auth.signInWithPassword({
         email: studentEmail(username),
         password,
@@ -109,11 +131,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await establish(data.user); // fully ready before the caller navigates
       return true;
     },
-    [establish],
+    [establish, establishDemo],
   );
 
   const loginAdmin = useCallback(
     async (email: string, password: string) => {
+      if (DEMO) {
+        await establishDemo("admin");
+        return true;
+      }
       const { data, error } = await supabase().auth.signInWithPassword({ email, password });
       if (error || !data.user) return false;
       if ((data.user.app_metadata as Record<string, unknown>)?.role !== "admin") {
@@ -123,10 +149,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await establish(data.user);
       return true;
     },
-    [establish],
+    [establish, establishDemo],
   );
 
   const logout = useCallback(() => {
+    if (DEMO) setDemoRole(null);
     void supabase().auth.signOut(); // onAuthStateChange clears session + cache
     currentUserId.current = null;
     getStore().reset();
@@ -159,6 +186,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+/** For surfaces that may render outside AuthProvider (the public pages). */
+export function useOptionalAuth(): AuthContextValue | null {
+  return useContext(AuthContext);
 }
 
 export function useAuth(): AuthContextValue {

@@ -10,19 +10,22 @@
 
 @theme {
   /* ---- Type scale: characterful display, clean body, utility mono ---- */
-  --font-display: var(--font-bricolage), "Georgia", serif;
-  --font-body: var(--font-hanken), system-ui, sans-serif;
+  /* Inter Tight everywhere, matching the public site (brand.md, confirmed). */
+  --font-display: var(--font-inter-tight), system-ui, sans-serif;
+  --font-body: var(--font-inter-tight), system-ui, sans-serif;
   --font-mono: var(--font-spline-mono), ui-monospace, monospace;
 
   /* ---- Neutral ramp (dark UI) ---- */
+  /* Warm charcoal steps from brand.md; depth comes from a lighter surface plus
+     a hairline, not shadows. Text greys clear WCAG AA on every surface. */
   --color-paper: #1a1d20;       /* page background */
-  --color-surface: #22262b;     /* cards / raised surfaces */
-  --color-surface-2: #2a2f35;   /* inset / secondary surfaces */
-  --color-border: #2f3540;
-  --color-border-strong: #3d4655;
-  --color-ink: #f0ede8;         /* text-primary */
-  --color-ink-2: #a8a49e;       /* text-secondary */
-  --color-ink-3: #6b6760;       /* text-muted */
+  --color-surface: #222528;     /* cards / raised surfaces */
+  --color-surface-2: #2a2e32;   /* inset / secondary surfaces */
+  --color-border: #2e3236;      /* hairline */
+  --color-border-strong: #3c4146;
+  --color-ink: #f0ede8;         /* text-primary (warm off-white) */
+  --color-ink-2: #b0b6bb;       /* text-secondary (brand body grey) */
+  --color-ink-3: #8b9196;       /* text-muted, 5:1 on paper */
 
   /* ---- Brand / accent (gold — overridden by ThemeManager per user) ---- */
   --color-brand: #FBC159;
@@ -55,10 +58,10 @@
   --color-cohort-12: #b08060;
 
   /* ---- Radii ---- */
-  --radius-xs: 0.25rem;
-  --radius-sm: 0.375rem;
-  --radius-md: 0.625rem;
-  --radius-lg: 0.875rem;
+  --radius-xs: 0.375rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
   --radius-xl: 1.25rem;
 
   /* ---- Motion ---- */
@@ -102,7 +105,7 @@
   --color-foreground: #ffffff;
   --color-muted-foreground: #b0b6bb;
   --color-body: #eef0f2;
-  --color-faint: #868c92;
+  --color-faint: #969ca2; /* lifted from #868c92 so small text passes 4.5:1 on cards too */
 
   /* Rules */
   --color-hairline: rgba(255, 255, 255, 0.08);
@@ -118,7 +121,7 @@
 html:has(.landing) { scroll-behavior: smooth; }
 
 /* Clear the 64px sticky landing header when jumping to a section */
-.landing section[id] { scroll-margin-top: 64px; }
+.landing section[id] { scroll-margin-top: 96px; }
 
 /*
   Scoped so the portal's global h1–h3 rules (Bricolage, 700, -0.02em) stay put.
@@ -181,10 +184,12 @@ html:has(.landing) { scroll-behavior: smooth; }
 
 /* Shadows + texture vars cascade here so they stay swappable */
 :root {
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 1px rgba(0, 0, 0, 0.25);
+  /* Flat on dark: cards separate by surface step + hairline. */
+  --shadow-sm: 0 0 0 transparent;
   --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 18px 40px rgba(0, 0, 0, 0.55), 0 4px 10px rgba(0, 0, 0, 0.35);
-  --ruled-margin: var(--color-brand);
+  /* Quiet hairline: gold is kept for actions, not decoration. */
+  --ruled-margin: var(--color-border-strong);
 }
 
 @keyframes fade-up {
@@ -220,6 +225,7 @@ body {
   color: var(--color-ink);
   font-family: var(--font-body);
   font-weight: 400;
+  font-size: 1rem;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -228,9 +234,10 @@ body {
 h1, h2, h3, h4, h5 {
   font-family: var(--font-display);
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   line-height: 1.15;
   color: var(--color-ink);
+  text-wrap: balance;
 }
 
 .font-mono, code, kbd, .tabular {
@@ -284,4 +291,188 @@ textarea:-webkit-autofill:focus {
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Student tab bar (phones): keep the page and the build credit clear of it. */
+@media (max-width: 767px) {
+  body:has([data-tabbar]) {
+    padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
+  }
+}
+
+/*
+  One continuous backdrop for the public pages (components/landing/Backdrop.tsx).
+  Sections are transparent and sit on top of it, so the page reads as one surface.
+*/
+.landing-backdrop {
+  --ax: 50%;
+  --ay: 30%;
+  --mx: 50vw;
+  --my: 30vh;
+  background:
+    radial-gradient(120% 80% at 50% -10%, #2a2d31 0%, transparent 60%),
+    linear-gradient(180deg, #212427 0%, #1c1f22 45%, #16181a 100%);
+}
+.landing-backdrop > div {
+  position: absolute;
+  inset: 0;
+}
+.landing-backdrop__ambient {
+  background:
+    radial-gradient(42vmax 34vmax at var(--ax) var(--ay), rgba(251, 193, 89, 0.11), transparent 70%),
+    radial-gradient(28vmax 22vmax at calc(100% - var(--ax)) calc(100% - var(--ay)), rgba(251, 193, 89, 0.045), transparent 70%);
+  transition: background-position 0.6s ease-out;
+}
+.landing-backdrop__grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(rgba(251, 193, 89, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(251, 193, 89, 0.05) 1px, transparent 1px);
+  background-size: 72px 72px, 72px 72px, 288px 288px, 288px 288px;
+  /* Drifts a few pixels against the cursor (Backdrop.tsx) for a sense of depth. */
+  transform: translate3d(var(--gx, 0px), var(--gy, 0px), 0);
+  transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+  inset: -24px !important;
+  mask-image: radial-gradient(75% 65% at var(--ax) var(--ay), #000 0%, transparent 85%);
+}
+.landing-backdrop__cursor {
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  background:
+    radial-gradient(520px circle at var(--mx) var(--my), rgba(251, 193, 89, 0.09), transparent 65%),
+    radial-gradient(140px circle at var(--mx) var(--my), rgba(251, 193, 89, 0.05), transparent 70%);
+}
+.landing-backdrop[data-cursor="on"] .landing-backdrop__cursor {
+  opacity: 1;
+}
+.landing-backdrop__vignette {
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.45) 100%);
+}
+
+/* Gold buttons: a light sweep across on hover (components/landing/PillButton.tsx and friends). */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.btn-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 25%, rgba(255, 255, 255, 0.55) 50%, transparent 75%);
+  mix-blend-mode: soft-light;
+  transform: translateX(-130%);
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-shine:hover::after,
+.btn-shine:focus-visible::after {
+  transform: translateX(130%);
+}
+
+/* Cards with data-spot get a soft gold light under the cursor (position set in Backdrop.tsx). */
+[data-spot] {
+  position: relative;
+}
+[data-spot]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  background: radial-gradient(280px circle at var(--cx, 50%) var(--cy, 50%), rgba(251, 193, 89, 0.09), transparent 65%);
+}
+[data-spot]:hover::before {
+  opacity: 1;
+}
+
+/* Public header: a floating see-through glass bar (components/landing/Nav.tsx). */
+.glass-bar {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  /* Unprefixed only: the CSS build adds the Safari prefix itself, and writing
+     both made it keep just the prefixed one, so Chrome lost the blur. */
+  backdrop-filter: blur(18px) saturate(160%);
+  transition: box-shadow 0.4s ease, background 0.4s ease;
+}
+.glass-bar--scrolled {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.035));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+    0 18px 40px -18px rgba(0, 0, 0, 0.6);
+}
+
+/* Homepage logo intro (components/landing/IntroLogo.tsx): about 1 second, then gone. */
+.intro-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(60% 50% at 50% 45%, #26292d 0%, #1c1f22 60%, #16181a 100%);
+  pointer-events: none;
+  animation: intro-out 0.45s cubic-bezier(0.7, 0, 0.3, 1) 0.6s forwards;
+}
+.intro-splash__mark {
+  clip-path: inset(0 100% 0 0);
+  filter: drop-shadow(0 0 22px rgba(251, 193, 89, 0.35));
+  animation:
+    intro-write 0.55s cubic-bezier(0.65, 0, 0.35, 1) 0.05s forwards,
+    intro-lift 0.45s cubic-bezier(0.7, 0, 0.3, 1) 0.6s forwards;
+}
+@keyframes intro-write {
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes intro-lift {
+  to {
+    transform: scale(1.06) translateY(-6px);
+    filter: drop-shadow(0 0 40px rgba(251, 193, 89, 0));
+  }
+}
+@keyframes intro-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+/* Hero content rises in as the cover lifts. */
+.intro-rise {
+  animation: intro-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.75s both;
+}
+@keyframes intro-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+/* Reduced motion keeps the write-in (a reveal, no movement) and drops the lift and rise. */
+@media (prefers-reduced-motion: reduce) {
+  .intro-splash__mark {
+    animation: intro-write 0.55s cubic-bezier(0.65, 0, 0.35, 1) 0.05s forwards;
+  }
+  .intro-rise {
+    animation: none;
+  }
+}
+
+/* No stranded last words: headings balance their lines, body text avoids a
+   single word on its own final line (where the browser supports it). */
+.landing :is(h1, h2, h3),
+.landing-portal :is(h1, h2, h3) {
+  text-wrap: balance;
+}
+.landing :is(p, li, dd, dt, figcaption, label, summary),
+.landing-portal :is(p, li, label) {
+  text-wrap: pretty;
 }

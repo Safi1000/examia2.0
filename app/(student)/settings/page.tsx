@@ -10,7 +10,7 @@ export default function StudentSettingsPage() {
       <p className="mt-1 text-sm text-ink-2">Personalise how your portal looks.</p>
 
       <Card className="mt-5 p-5">
-        <h2 className="text-sm font-bold uppercase tracking-wide text-ink-2">Accent colour</h2>
+        <h2 className="text-base font-semibold text-ink">Accent colour</h2>
         <p className="mb-4 mt-1 text-sm text-ink-3">
           Choose the highlight colour used across your app. Saved on this device.
         </p>

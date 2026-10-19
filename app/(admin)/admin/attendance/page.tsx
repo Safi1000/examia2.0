@@ -44,7 +44,7 @@ export default function AttendancePage() {
 
   if (db.students.length === 0) {
     return (
-      <div className="px-4 py-6 sm:px-6">
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
         <PageHeader title="Attendance" />
         <EmptyState icon={<Icon.Users />} title="No students yet" />
       </div>
@@ -52,7 +52,7 @@ export default function AttendancePage() {
   }
 
   return (
-    <div className="px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader
         title="Attendance"
         subtitle={mode === "daily" ? "Everyone starts present — tap a name to change it" : "One percentage per student"}

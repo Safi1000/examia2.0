@@ -39,7 +39,7 @@ export function Th({ children, className }: { children?: React.ReactNode; classN
   return (
     <th
       className={cn(
-        "whitespace-nowrap border-b border-border-strong px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-ink-3",
+        "whitespace-nowrap border-b border-border px-3 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-ink-3",
         className,
       )}
       scope="col"
@@ -50,5 +50,5 @@ export function Th({ children, className }: { children?: React.ReactNode; classN
 }
 
 export function Td({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return <td className={cn("border-b border-border px-3 py-3 align-middle text-ink", className)}>{children}</td>;
+  return <td className={cn("border-b border-border px-3 py-3.5 align-middle text-ink", className)}>{children}</td>;
 }

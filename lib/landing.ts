@@ -16,6 +16,8 @@ export const LANDING = {
    *  dials this one number; override per-deploy with NEXT_PUBLIC_WA_NUMBER. */
   waNumber: process.env.NEXT_PUBLIC_WA_NUMBER || "923475105144",
   instagram: process.env.NEXT_PUBLIC_INSTAGRAM || "https://instagram.com/hamzateaches",
+  /** Public contact email (privacy policy, structured data). */
+  email: process.env.NEXT_PUBLIC_CONTACT_EMAIL || "hamzasadakat7@gmail.com",
   brand: COMPANY_NAME,
   /** The hero VSL. YouTube / Vimeo / direct .mp4 all work. */
   heroVideo: process.env.NEXT_PUBLIC_HERO_VIDEO || "https://youtu.be/5I1vo1npe9k",
@@ -66,7 +68,11 @@ export function posterFor(url: string): string | undefined {
     url.match(/youtu\.be\/([\w-]{6,})/) ||
     url.match(/[?&]v=([\w-]{6,})/) ||
     url.match(/youtube\.com\/(?:embed|shorts)\/([\w-]{6,})/);
-  return yt ? `https://i.ytimg.com/vi/${yt[1]}/maxresdefault.jpg` : undefined;
+  if (!yt) return undefined;
+  // Shorts are vertical: oar2 is YouTube's still in the video's own shape.
+  return /\/shorts\//.test(url)
+    ? `https://i.ytimg.com/vi/${yt[1]}/oar2.jpg`
+    : `https://i.ytimg.com/vi/${yt[1]}/maxresdefault.jpg`;
 }
 
 /** True for URLs a native <video> can play directly. */
@@ -79,8 +85,9 @@ export function isFileVideo(url: string): boolean {
  * Normalises a share link into something an <iframe> can load. Returns the URL
  * untouched if it is already an embed URL or an unrecognised host.
  */
-export function toEmbedUrl(url: string, autoplay = true): string {
+export function toEmbedUrl(url: string, autoplay = true, muted = autoplay): string {
   const auto = autoplay ? 1 : 0;
+  const mute = muted ? 1 : 0;
 
   // youtu.be/ID  |  youtube.com/watch?v=ID  |  youtube.com/shorts/ID
   const yt =
@@ -89,7 +96,7 @@ export function toEmbedUrl(url: string, autoplay = true): string {
     url.match(/youtube\.com\/(?:embed|shorts)\/([\w-]{6,})/);
   if (yt) {
     // Autoplay only ever happens muted — every browser blocks it otherwise.
-    return `https://www.youtube-nocookie.com/embed/${yt[1]}?autoplay=${auto}&mute=${auto}&rel=0&modestbranding=1&playsinline=1&loop=1&playlist=${yt[1]}`;
+    return `https://www.youtube-nocookie.com/embed/${yt[1]}?autoplay=${auto}&mute=${mute}&rel=0&modestbranding=1&playsinline=1&loop=1&playlist=${yt[1]}`;
   }
 
   // Google Drive: /file/d/ID/view, /open?id=ID, or /uc?id=ID. Drive streams the
@@ -100,7 +107,7 @@ export function toEmbedUrl(url: string, autoplay = true): string {
 
   const vimeo = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
   if (vimeo) {
-    return `https://player.vimeo.com/video/${vimeo[1]}?autoplay=${auto}&muted=${auto}&byline=0&portrait=0`;
+    return `https://player.vimeo.com/video/${vimeo[1]}?autoplay=${auto}&muted=${mute}&byline=0&portrait=0`;
   }
 
   return url;
@@ -118,6 +125,11 @@ export function waLink(ctx?: { subject?: SubjectName; level?: LevelName; trial?:
     : what
       ? `Hi, I'd like to start ${what}.`
       : "Hi, I'd like to know more about your classes.";
+  return `https://wa.me/${LANDING.waNumber}?text=${encodeURIComponent(text)}`;
+}
+
+/** A chat link with any pre-typed message (tools build their own text). */
+export function waTextLink(text: string): string {
   return `https://wa.me/${LANDING.waNumber}?text=${encodeURIComponent(text)}`;
 }
 
@@ -176,4 +188,33 @@ export const RAIL_SECTIONS: Array<{ id: string; label: string }> = [
   { id: "meet", label: "Meet Hamza" },
   { id: "reviews", label: "Reviews" },
   { id: "faq", label: "FAQ" },
+];
+
+/** Homepage FAQ. Lives here (not in the client Sections file) so server pages
+ *  can print it as FAQPage structured data too. */
+export const FAQS: Array<{ q: string; a: string }> = [
+  {
+    q: "Is the first lesson really free?",
+    a: "Yes. You pick a subject, a level and a time, and take a full lesson. If you like it, message me. If not, that's fine. I won't chase you.",
+  },
+  {
+    q: "Which exam boards and levels do you teach?",
+    a: "Cambridge O Level, IGCSE, AS and A Level, and Pearson Edexcel International GCSE and International A Level, in Accounting, Business and Economics. Not sure which board you're on? Tell me your school and I'll check.",
+  },
+  {
+    q: "I'm starting from zero. Is that okay?",
+    a: "Yes. Starting from zero is easier than fixing shaky basics. We start with why a topic exists, then the steps. You won't feel behind.",
+  },
+  {
+    q: "I live outside Pakistan. Can I join?",
+    a: "Yes. Classes are live online, so you can join from anywhere. The booking calendar shows times in your own time zone, and every class is recorded the same night.",
+  },
+  {
+    q: "How much does it cost after the free lesson?",
+    a: "It depends on your level and how many subjects you take. Message me on WhatsApp and I'll send you the fees.",
+  },
+  {
+    q: "Can my parents talk to you first?",
+    a: "Of course. Most families start that way. I'm happy to have a short call before you decide anything.",
+  },
 ];

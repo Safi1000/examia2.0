@@ -1,32 +1,16 @@
 import type { Metadata, Viewport } from "next";
 import {
-  Bricolage_Grotesque,
   Caveat,
-  Hanken_Grotesk,
   Inter_Tight,
   Spline_Sans_Mono,
 } from "next/font/google";
 import "./globals.css";
-import logo from "@/logo/logo.png";
 import { Providers } from "@/components/providers";
 import { MetaPixel } from "@/components/MetaPixel";
 import { COMPANY_NAME } from "@/lib/config";
+import { SITE_URL } from "@/lib/seo";
 
-const bricolage = Bricolage_Grotesque({
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-  variable: "--font-bricolage",
-  display: "swap",
-});
-
-const hanken = Hanken_Grotesk({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-hanken",
-  display: "swap",
-});
-
-// Marketing display face — used only by the public landing page (.landing).
+// The one brand typeface: public site and portal.
 const interTight = Inter_Tight({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
@@ -49,10 +33,11 @@ const splineMono = Spline_Sans_Mono({
 });
 
 export const metadata: Metadata = {
+  // Resolves relative share-image and canonical URLs to the live domain.
+  metadataBase: new URL(SITE_URL),
   title: `${COMPANY_NAME} — Exam & Cohort Portal`,
   description: "A calm, mobile-first exam and cohort-management portal.",
-  // Tab/app icon from the same logo/ source (bundler-resolved served URL).
-  icons: { icon: logo.src, apple: logo.src },
+  // Tab and home-screen icons come from app/icon.svg and app/apple-icon.tsx.
 };
 
 export const viewport: Viewport = {
@@ -67,7 +52,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${bricolage.variable} ${hanken.variable} ${splineMono.variable} ${caveat.variable} ${interTight.variable} h-full`}
+      className={`${splineMono.variable} ${caveat.variable} ${interTight.variable} h-full`}
     >
       <body className="min-h-dvh antialiased">
         {/* Outside Providers on purpose: that gate renders a splash until

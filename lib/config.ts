@@ -9,9 +9,6 @@ export const COMPANY_SLUG = COMPANY_NAME.toLowerCase()
   .replace(/[^a-z0-9]+/g, "-")
   .replace(/(^-|-$)/g, "");
 
-/** Persistent build credit shown on every screen. */
-export const BUILD_CREDIT = "Developed by Techxserve";
-
 /**
  * Auth wiring. Students log in by username only, so we mint a synthetic auth
  * email `${username}@${STUDENT_EMAIL_DOMAIN}`. The admin UI asks only for a

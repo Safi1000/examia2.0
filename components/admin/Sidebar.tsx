@@ -9,6 +9,7 @@ import { CohortDot, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
 const NAV = [
+  { href: "/admin/today", label: "Today", icon: Icon.Dashboard },
   { href: "/admin/tests", label: "Tests", icon: Icon.Doc },
   { href: "/admin/bank", label: "Question bank", icon: Icon.Bank },
   { href: "/admin/submissions", label: "Submissions", icon: Icon.Inbox },
@@ -29,12 +30,12 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { cohortId, setCohortId } = useAdminFilter();
 
   return (
-    <div className="flex h-full flex-col bg-surface">
+    <div className="flex h-full flex-col bg-paper">
       <div className="border-b border-border px-5 py-4">
-        <Link href="/admin/tests" onClick={onNavigate} className="inline-flex">
+        <Link href="/admin/today" onClick={onNavigate} className="inline-flex">
           <Logo className="h-8" />
         </Link>
-        <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-ink-3">Admin console</p>
+        <p className="mt-2 text-xs font-medium text-ink-3">Admin console</p>
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-3" aria-label="Admin">
@@ -60,7 +61,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <div className="border-t border-border px-3 py-3">
-        <p className="px-2 pb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-3">Filter by cohort</p>
+        <p className="px-3 pb-2 text-xs font-medium text-ink-3">Filter by cohort</p>
         <button
           onClick={() => setCohortId(null)}
           className={cn(

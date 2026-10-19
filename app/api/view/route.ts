@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { verifyViewUrl } from "@/lib/signed-view";
+import { isOwnCloudinary, safeFileName, verifyViewUrl } from "@/lib/signed-view";
 
 /**
  * Streams a note INLINE for reading in the portal.
@@ -10,8 +10,6 @@ import { verifyViewUrl } from "@/lib/signed-view";
  * Content-Disposition: attachment — there is no download path for notes.
  */
 export const runtime = "nodejs";
-
-const ALLOWED_HOST = "res.cloudinary.com";
 
 function parseCloudinaryUrl(url: string) {
   const match = url.match(/res\.cloudinary\.com\/([^/]+)\/([^/]+)\/upload\/(?:v\d+\/)?(.+)/);
@@ -37,13 +35,7 @@ export async function GET(req: NextRequest) {
   const payload = verifyViewUrl(data, sig);
   if (!payload) return new NextResponse("Link expired", { status: 403 });
 
-  let parsed: URL;
-  try {
-    parsed = new URL(payload.u);
-  } catch {
-    return new NextResponse("Invalid url", { status: 400 });
-  }
-  if (parsed.hostname !== ALLOWED_HOST) return new NextResponse("URL not allowed", { status: 403 });
+  if (!isOwnCloudinary(payload.u)) return new NextResponse("URL not allowed", { status: 403 });
 
   const parts = parseCloudinaryUrl(payload.u);
   if (!parts) return new NextResponse("Invalid Cloudinary URL", { status: 400 });
@@ -59,12 +51,12 @@ export async function GET(req: NextRequest) {
     `https://api.cloudinary.com/v1_1/${parts.cloud}/${parts.resourceType}/download?${params}`,
     { headers: { Authorization: `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString("base64")}` } },
   );
-  if (!upstream.ok) return new NextResponse(`Upstream error ${upstream.status}`, { status: 502 });
+  if (!upstream.ok) return new NextResponse("Could not fetch the file", { status: 502 });
 
   return new NextResponse(upstream.body, {
     headers: {
       "Content-Type": upstream.headers.get("content-type") ?? "application/octet-stream",
-      "Content-Disposition": `inline; filename="${payload.n.replace(/"/g, "")}"`,
+      "Content-Disposition": `inline; filename="${safeFileName(payload.n)}"`,
       // Never cached by a shared proxy, and gone from the browser quickly.
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",

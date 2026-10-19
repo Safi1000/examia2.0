@@ -64,10 +64,11 @@ export default function StudentLoginPage() {
 
           <div className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-2">
+              <label htmlFor="login-username" className="mb-2 block text-sm font-semibold text-ink-2">
                 Username
               </label>
               <input
+                id="login-username"
                 value={username}
                 onChange={(e) => { setUsername(e.target.value); setError(null); }}
                 placeholder="Your username"
@@ -81,10 +82,11 @@ export default function StudentLoginPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-2">
+              <label htmlFor="login-password" className="mb-2 block text-sm font-semibold text-ink-2">
                 Password
               </label>
               <input
+                id="login-password"
                 type="password"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(null); }}
@@ -113,8 +115,8 @@ export default function StudentLoginPage() {
             type="submit"
             disabled={!canSubmit || busy}
             className={cn(
-              "mt-5 w-full rounded-lg bg-brand px-4 py-3 text-sm font-bold text-on-brand",
-              "transition-opacity hover:opacity-90 active:opacity-80",
+              "mt-6 h-12 w-full rounded-full bg-brand px-4 text-[15px] font-semibold text-on-brand",
+              "transition-[filter] hover:brightness-110 active:brightness-95",
               "disabled:cursor-not-allowed disabled:opacity-50",
               "flex items-center justify-center gap-2",
             )}
@@ -126,7 +128,7 @@ export default function StudentLoginPage() {
             )}
           </button>
 
-          <p className="mt-4 text-center text-xs text-ink-3">
+          <p className="mt-4 text-center text-sm text-ink-3">
             Locked out? Your teacher has the key.
           </p>
         </form>

@@ -1,0 +1,5269 @@
+{
+  "0452": {
+    "name": "Accounting",
+    "qualification": "IGCSE",
+    "sessions": {
+      "June 2026": {
+        "source": "https://www.cambridgeinternational.org/Images/762815-accounting-0452-june-2026-grade-threshold-table.pdf",
+        "components": [
+          {
+            "code": "11",
+            "name": "Component 11",
+            "max": 35,
+            "thresholds": {
+              "A": 23,
+              "B": 18,
+              "C": 13,
+              "D": 12,
+              "E": 11,
+              "F": 10,
+              "G": 9
+            }
+          },
+          {
+            "code": "12",
+            "name": "Component 12",
+            "max": 35,
+            "thresholds": {
+              "A": 24,
+              "B": 19,
+              "C": 14,
+              "D": 12,
+              "E": 11,
+              "F": 10,
+              "G": 9
+            }
+          },
+          {
+            "code": "13",
+            "name": "Component 13",
+            "max": 35,
+            "thresholds": {
+              "A": 23,
+              "B": 18,
+              "C": 13,
+              "D": 12,
+              "E": 11,
+              "F": 10,
+              "G": 9
+            }
+          },
+          {
+            "code": "17",
+            "name": "Component 17",
+            "max": 35,
+            "thresholds": {
+              "A": 23,
+              "B": 18,
+              "C": 13,
+              "D": 12,
+              "E": 11,
+              "F": 10,
+              "G": 9
+            }
+          },
+          {
+            "code": "21",
+            "name": "Component 21",
+            "max": 100,
+            "thresholds": {
+              "A": 52,
+              "B": 38,
+              "C": 24,
+              "D": 19,
+              "E": 15,
+              "F": 11,
+              "G": 6
+            }
+          },
+          {
+            "code": "22",
+            "name": "Component 22",
+            "max": 100,
+            "thresholds": {
+              "A": 58,
+              "B": 42,
+              "C": 25,
+              "D": 20,
+              "E": 15,
+              "F": 11,
+              "G": 6
+            }
+          },
+          {
+            "code": "23",
+            "name": "Component 23",
+            "max": 100,
+            "thresholds": {
+              "A": 52,
+              "B": 38,
+              "C": 24,
+              "D": 19,
+              "E": 15,
+              "F": 11,
+              "G": 6
+            }
+          },
+          {
+            "code": "50",
+            "name": "Component 50",
+            "max": 90,
+            "thresholds": {
+              "A": 60,
+              "B": 48,
+              "C": 36,
+              "D": 32,
+              "E": 29,
+              "F": 25,
+              "G": 21
+            }
+          }
+        ],
+        "options": [
+          {
+            "code": "11,21",
+            "level": "IGCSE",
+            "components": [
+              "11",
+              "21"
+            ],
+            "max": 143,
+            "weighting": "Weighted: PDF gives max weighted mark 143 but the listed component raw maxima sum to 135 (35+100), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 100,
+              "A": 80,
+              "B": 60,
+              "C": 40,
+              "D": 34,
+              "E": 29,
+              "F": 23,
+              "G": 17
+            },
+            "sumOfComponentRawMaxima": 135,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "12,22",
+            "level": "IGCSE",
+            "components": [
+              "12",
+              "22"
+            ],
+            "max": 143,
+            "weighting": "Weighted: PDF gives max weighted mark 143 but the listed component raw maxima sum to 135 (35+100), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 111,
+              "A": 88,
+              "B": 65,
+              "C": 42,
+              "D": 35,
+              "E": 29,
+              "F": 23,
+              "G": 17
+            },
+            "sumOfComponentRawMaxima": 135,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "13,23",
+            "level": "IGCSE",
+            "components": [
+              "13",
+              "23"
+            ],
+            "max": 143,
+            "weighting": "Weighted: PDF gives max weighted mark 143 but the listed component raw maxima sum to 135 (35+100), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 100,
+              "A": 80,
+              "B": 60,
+              "C": 40,
+              "D": 34,
+              "E": 29,
+              "F": 23,
+              "G": 17
+            },
+            "sumOfComponentRawMaxima": 135,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "17,21",
+            "level": "IGCSE",
+            "components": [
+              "17",
+              "21"
+            ],
+            "max": 143,
+            "weighting": "Weighted: PDF gives max weighted mark 143 but the listed component raw maxima sum to 135 (35+100), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 100,
+              "A": 80,
+              "B": 60,
+              "C": 40,
+              "D": 34,
+              "E": 29,
+              "F": 23,
+              "G": 17
+            },
+            "sumOfComponentRawMaxima": 135,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "50",
+            "level": "IGCSE",
+            "components": [
+              "50"
+            ],
+            "max": 90,
+            "weighting": "No scaling evident: PDF gives max weighted mark 90, equal to the sum of the listed component raw maxima (90). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 69,
+              "A": 60,
+              "B": 48,
+              "C": 36,
+              "D": 32,
+              "E": 29,
+              "F": 25,
+              "G": 21
+            },
+            "sumOfComponentRawMaxima": 90,
+            "optionLetterCodePrintedInPdf": null
+          }
+        ],
+        "notes": "Printed notes: 'Syllabus grade thresholds are the minimum marks required for each grade. They are determined from the weighted component thresholds for the listed components.' 'Some Cambridge International entry options offer more than one possible route to a grade. Where this is the case, candidates are awarded the best grade available to them based on the combination of components they have taken.' June 2026 PDFs no longer print option letter codes (e.g. AX/BY); each option is identified only by its combination of components, so 'code' here is the component list joined by commas. Component names are not given in the PDF (only 'Component NN'); 'max' is the printed 'Maximum raw mark'. Grade A* is not defined for individual components (PDF note). Percentage uniform marks (PUMs) are a different scale and cannot be used with these thresholds (PDF note). Weighted: options 11+21, 12+22, 13+23, 17+21 have max weighted mark 143 although the raw maxima sum to 135 (the PDF does not print the multipliers). Component 50 (max 90) is a stand-alone option (max 90 = raw max). Components 17 and 50 are in the June 2026 table but not in June 2025."
+      },
+      "June 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/741347-accounting-0452-june-2025-grade-threshold-table.pdf",
+        "components": [
+          {
+            "code": "11",
+            "name": "Component 11",
+            "max": 35,
+            "thresholds": {
+              "A": 23,
+              "B": 18,
+              "C": 13,
+              "D": 12,
+              "E": 11,
+              "F": 10,
+              "G": 9
+            }
+          },
+          {
+            "code": "12",
+            "name": "Component 12",
+            "max": 35,
+            "thresholds": {
+              "A": 23,
+              "B": 18,
+              "C": 13,
+              "D": 12,
+              "E": 11,
+              "F": 10,
+              "G": 9
+            }
+          },
+          {
+            "code": "13",
+            "name": "Component 13",
+            "max": 35,
+            "thresholds": {
+              "A": 23,
+              "B": 18,
+              "C": 13,
+              "D": 12,
+              "E": 11,
+              "F": 10,
+              "G": 9
+            }
+          },
+          {
+            "code": "21",
+            "name": "Component 21",
+            "max": 100,
+            "thresholds": {
+              "A": 51,
+              "B": 37,
+              "C": 24,
+              "D": 19,
+              "E": 15,
+              "F": 11,
+              "G": 6
+            }
+          },
+          {
+            "code": "22",
+            "name": "Component 22",
+            "max": 100,
+            "thresholds": {
+              "A": 55,
+              "B": 39,
+              "C": 24,
+              "D": 19,
+              "E": 15,
+              "F": 11,
+              "G": 6
+            }
+          },
+          {
+            "code": "23",
+            "name": "Component 23",
+            "max": 100,
+            "thresholds": {
+              "A": 51,
+              "B": 37,
+              "C": 24,
+              "D": 19,
+              "E": 15,
+              "F": 11,
+              "G": 6
+            }
+          }
+        ],
+        "options": [
+          {
+            "code": "AX",
+            "level": "IGCSE",
+            "components": [
+              "11",
+              "21"
+            ],
+            "max": 143,
+            "weighting": "Weighted: PDF gives max weighted mark 143 but the listed component raw maxima sum to 135 (35+100), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 99,
+              "A": 79,
+              "B": 59,
+              "C": 40,
+              "D": 34,
+              "E": 29,
+              "F": 23,
+              "G": 17
+            },
+            "sumOfComponentRawMaxima": 135,
+            "optionLetterCodePrintedInPdf": "AX"
+          },
+          {
+            "code": "AY",
+            "level": "IGCSE",
+            "components": [
+              "12",
+              "22"
+            ],
+            "max": 143,
+            "weighting": "Weighted: PDF gives max weighted mark 143 but the listed component raw maxima sum to 135 (35+100), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 105,
+              "A": 83,
+              "B": 61,
+              "C": 40,
+              "D": 34,
+              "E": 29,
+              "F": 23,
+              "G": 17
+            },
+            "sumOfComponentRawMaxima": 135,
+            "optionLetterCodePrintedInPdf": "AY"
+          },
+          {
+            "code": "AZ",
+            "level": "IGCSE",
+            "components": [
+              "13",
+              "23"
+            ],
+            "max": 143,
+            "weighting": "Weighted: PDF gives max weighted mark 143 but the listed component raw maxima sum to 135 (35+100), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 99,
+              "A": 79,
+              "B": 59,
+              "C": 40,
+              "D": 34,
+              "E": 29,
+              "F": 23,
+              "G": 17
+            },
+            "sumOfComponentRawMaxima": 135,
+            "optionLetterCodePrintedInPdf": "AZ"
+          }
+        ],
+        "notes": "Printed notes: 'Grade thresholds taken for Syllabus 0452 (Accounting) in the June 2025 examination.' 'The overall thresholds for the different grades were set as follows.' Column headed 'Maximum mark after weighting'. Option codes (e.g. AX, SY, P1) are as printed in the June 2025 PDF. Component names are not given in the PDF (only 'Component NN'); 'max' is the printed 'Maximum raw mark'. Grade A* is not defined for individual components (PDF note). Percentage uniform marks (PUMs) are a different scale and cannot be used with these thresholds (PDF note). Weighted: max mark after weighting 143 vs raw sum 135; multipliers not printed. June 2025 has no components 17 or 50 and no stand-alone component option."
+      }
+    }
+  },
+  "0450": {
+    "name": "Business Studies",
+    "qualification": "IGCSE",
+    "sessions": {
+      "June 2026": {
+        "source": "https://www.cambridgeinternational.org/Images/762814-business-studies-0450-june-2026-grade-threshold-table.pdf",
+        "components": [
+          {
+            "code": "11",
+            "name": "Component 11",
+            "max": 80,
+            "thresholds": {
+              "A": 45,
+              "B": 37,
+              "C": 28,
+              "D": 24,
+              "E": 19,
+              "F": 14,
+              "G": 9
+            }
+          },
+          {
+            "code": "12",
+            "name": "Component 12",
+            "max": 80,
+            "thresholds": {
+              "A": 47,
+              "B": 39,
+              "C": 30,
+              "D": 25,
+              "E": 20,
+              "F": 14,
+              "G": 8
+            }
+          },
+          {
+            "code": "13",
+            "name": "Component 13",
+            "max": 80,
+            "thresholds": {
+              "A": 42,
+              "B": 34,
+              "C": 25,
+              "D": 21,
+              "E": 17,
+              "F": 14,
+              "G": 11
+            }
+          },
+          {
+            "code": "21",
+            "name": "Component 21",
+            "max": 80,
+            "thresholds": {
+              "A": 35,
+              "B": 28,
+              "C": 22,
+              "D": 18,
+              "E": 15,
+              "F": 12,
+              "G": 9
+            }
+          },
+          {
+            "code": "22",
+            "name": "Component 22",
+            "max": 80,
+            "thresholds": {
+              "A": 42,
+              "B": 34,
+              "C": 27,
+              "D": 23,
+              "E": 19,
+              "F": 15,
+              "G": 11
+            }
+          },
+          {
+            "code": "23",
+            "name": "Component 23",
+            "max": 80,
+            "thresholds": {
+              "A": 38,
+              "B": 29,
+              "C": 21,
+              "D": 18,
+              "E": 15,
+              "F": 12,
+              "G": 9
+            }
+          },
+          {
+            "code": "50",
+            "name": "Component 50",
+            "max": 90,
+            "thresholds": {
+              "A": 62,
+              "B": 52,
+              "C": 43,
+              "D": 36,
+              "E": 29,
+              "F": 22,
+              "G": 15
+            }
+          }
+        ],
+        "options": [
+          {
+            "code": "11,21",
+            "level": "IGCSE",
+            "components": [
+              "11",
+              "21"
+            ],
+            "max": 160,
+            "weighting": "No scaling evident: PDF gives max weighted mark 160, equal to the sum of the listed component raw maxima (80+80). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 95,
+              "A": 80,
+              "B": 65,
+              "C": 50,
+              "D": 42,
+              "E": 34,
+              "F": 26,
+              "G": 18
+            },
+            "sumOfComponentRawMaxima": 160,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "12,22",
+            "level": "IGCSE",
+            "components": [
+              "12",
+              "22"
+            ],
+            "max": 160,
+            "weighting": "No scaling evident: PDF gives max weighted mark 160, equal to the sum of the listed component raw maxima (80+80). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 105,
+              "A": 89,
+              "B": 73,
+              "C": 57,
+              "D": 48,
+              "E": 39,
+              "F": 29,
+              "G": 19
+            },
+            "sumOfComponentRawMaxima": 160,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "13,23",
+            "level": "IGCSE",
+            "components": [
+              "13",
+              "23"
+            ],
+            "max": 160,
+            "weighting": "No scaling evident: PDF gives max weighted mark 160, equal to the sum of the listed component raw maxima (80+80). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 97,
+              "A": 80,
+              "B": 63,
+              "C": 46,
+              "D": 39,
+              "E": 32,
+              "F": 26,
+              "G": 20
+            },
+            "sumOfComponentRawMaxima": 160,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "50",
+            "level": "IGCSE",
+            "components": [
+              "50"
+            ],
+            "max": 90,
+            "weighting": "No scaling evident: PDF gives max weighted mark 90, equal to the sum of the listed component raw maxima (90). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 72,
+              "A": 62,
+              "B": 52,
+              "C": 43,
+              "D": 36,
+              "E": 29,
+              "F": 22,
+              "G": 15
+            },
+            "sumOfComponentRawMaxima": 90,
+            "optionLetterCodePrintedInPdf": null
+          }
+        ],
+        "notes": "Printed notes: 'Syllabus grade thresholds are the minimum marks required for each grade. They are determined from the weighted component thresholds for the listed components.' 'Some Cambridge International entry options offer more than one possible route to a grade. Where this is the case, candidates are awarded the best grade available to them based on the combination of components they have taken.' June 2026 PDFs no longer print option letter codes (e.g. AX/BY); each option is identified only by its combination of components, so 'code' here is the component list joined by commas. Component names are not given in the PDF (only 'Component NN'); 'max' is the printed 'Maximum raw mark'. Grade A* is not defined for individual components (PDF note). Percentage uniform marks (PUMs) are a different scale and cannot be used with these thresholds (PDF note). No scaling evident: 160 = 80+80. Component 50 (max 90) is a stand-alone option."
+      },
+      "June 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/741357-business-studies-0450-june-2025-grade-threshold-table.pdf",
+        "components": [
+          {
+            "code": "11",
+            "name": "Component 11",
+            "max": 80,
+            "thresholds": {
+              "A": 44,
+              "B": 35,
+              "C": 27,
+              "D": 22,
+              "E": 17,
+              "F": 13,
+              "G": 9
+            }
+          },
+          {
+            "code": "12",
+            "name": "Component 12",
+            "max": 80,
+            "thresholds": {
+              "A": 47,
+              "B": 38,
+              "C": 30,
+              "D": 25,
+              "E": 20,
+              "F": 14,
+              "G": 8
+            }
+          },
+          {
+            "code": "13",
+            "name": "Component 13",
+            "max": 80,
+            "thresholds": {
+              "A": 45,
+              "B": 36,
+              "C": 28,
+              "D": 23,
+              "E": 19,
+              "F": 14,
+              "G": 9
+            }
+          },
+          {
+            "code": "21",
+            "name": "Component 21",
+            "max": 80,
+            "thresholds": {
+              "A": 37,
+              "B": 30,
+              "C": 22,
+              "D": 18,
+              "E": 15,
+              "F": 12,
+              "G": 9
+            }
+          },
+          {
+            "code": "22",
+            "name": "Component 22",
+            "max": 80,
+            "thresholds": {
+              "A": 42,
+              "B": 34,
+              "C": 26,
+              "D": 22,
+              "E": 18,
+              "F": 14,
+              "G": 10
+            }
+          },
+          {
+            "code": "23",
+            "name": "Component 23",
+            "max": 80,
+            "thresholds": {
+              "A": 42,
+              "B": 34,
+              "C": 26,
+              "D": 22,
+              "E": 18,
+              "F": 14,
+              "G": 10
+            }
+          },
+          {
+            "code": "50",
+            "name": "Component 50",
+            "max": 90,
+            "thresholds": {
+              "A": 67,
+              "B": 57,
+              "C": 48,
+              "D": 40,
+              "E": 33,
+              "F": 24,
+              "G": 15
+            }
+          }
+        ],
+        "options": [
+          {
+            "code": "P1",
+            "level": "IGCSE",
+            "components": [
+              "50"
+            ],
+            "max": 90,
+            "weighting": "No scaling evident: PDF gives max weighted mark 90, equal to the sum of the listed component raw maxima (90). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 77,
+              "A": 67,
+              "B": 57,
+              "C": 48,
+              "D": 40,
+              "E": 33,
+              "F": 24,
+              "G": 15
+            },
+            "sumOfComponentRawMaxima": 90,
+            "optionLetterCodePrintedInPdf": "P1"
+          },
+          {
+            "code": "WA",
+            "level": "IGCSE",
+            "components": [
+              "11",
+              "22"
+            ],
+            "max": 160,
+            "weighting": "No scaling evident: PDF gives max weighted mark 160, equal to the sum of the listed component raw maxima (80+80). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 103,
+              "A": 86,
+              "B": 69,
+              "C": 53,
+              "D": 44,
+              "E": 35,
+              "F": 27,
+              "G": 19
+            },
+            "sumOfComponentRawMaxima": 160,
+            "optionLetterCodePrintedInPdf": "WA"
+          },
+          {
+            "code": "X",
+            "level": "IGCSE",
+            "components": [
+              "11",
+              "21"
+            ],
+            "max": 160,
+            "weighting": "No scaling evident: PDF gives max weighted mark 160, equal to the sum of the listed component raw maxima (80+80). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 97,
+              "A": 81,
+              "B": 65,
+              "C": 49,
+              "D": 40,
+              "E": 32,
+              "F": 25,
+              "G": 18
+            },
+            "sumOfComponentRawMaxima": 160,
+            "optionLetterCodePrintedInPdf": "X"
+          },
+          {
+            "code": "Y",
+            "level": "IGCSE",
+            "components": [
+              "12",
+              "22"
+            ],
+            "max": 160,
+            "weighting": "No scaling evident: PDF gives max weighted mark 160, equal to the sum of the listed component raw maxima (80+80). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 106,
+              "A": 89,
+              "B": 72,
+              "C": 56,
+              "D": 47,
+              "E": 38,
+              "F": 28,
+              "G": 18
+            },
+            "sumOfComponentRawMaxima": 160,
+            "optionLetterCodePrintedInPdf": "Y"
+          },
+          {
+            "code": "Z",
+            "level": "IGCSE",
+            "components": [
+              "13",
+              "23"
+            ],
+            "max": 160,
+            "weighting": "No scaling evident: PDF gives max weighted mark 160, equal to the sum of the listed component raw maxima (80+80). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 104,
+              "A": 87,
+              "B": 70,
+              "C": 54,
+              "D": 45,
+              "E": 37,
+              "F": 28,
+              "G": 19
+            },
+            "sumOfComponentRawMaxima": 160,
+            "optionLetterCodePrintedInPdf": "Z"
+          }
+        ],
+        "notes": "Printed notes: 'Grade thresholds taken for Syllabus 0450 (Business Studies) in the June 2025 examination.' 'The overall thresholds for the different grades were set as follows.' Column headed 'Maximum mark after weighting'. Option codes (e.g. AX, SY, P1) are as printed in the June 2025 PDF. Component names are not given in the PDF (only 'Component NN'); 'max' is the printed 'Maximum raw mark'. Grade A* is not defined for individual components (PDF note). Percentage uniform marks (PUMs) are a different scale and cannot be used with these thresholds (PDF note). No scaling evident: 160 = 80+80. Option P1 is component 50 alone (max 90). Option WA is the mixed pairing 11 + 22. Options are X (11,21), Y (12,22), Z (13,23)."
+      }
+    }
+  },
+  "0455": {
+    "name": "Economics",
+    "qualification": "IGCSE",
+    "sessions": {
+      "June 2026": {
+        "source": "https://www.cambridgeinternational.org/Images/762817-economics-0455-june-2026-grade-threshold-table.pdf",
+        "components": [
+          {
+            "code": "11",
+            "name": "Component 11",
+            "max": 30,
+            "thresholds": {
+              "A": 23,
+              "B": 20,
+              "C": 17,
+              "D": 15,
+              "E": 14,
+              "F": 12,
+              "G": 10
+            }
+          },
+          {
+            "code": "12",
+            "name": "Component 12",
+            "max": 30,
+            "thresholds": {
+              "A": 22,
+              "B": 19,
+              "C": 17,
+              "D": 15,
+              "E": 12,
+              "F": 10,
+              "G": 8
+            }
+          },
+          {
+            "code": "13",
+            "name": "Component 13",
+            "max": 30,
+            "thresholds": {
+              "A": 23,
+              "B": 20,
+              "C": 17,
+              "D": 15,
+              "E": 13,
+              "F": 11,
+              "G": 9
+            }
+          },
+          {
+            "code": "17",
+            "name": "Component 17",
+            "max": 30,
+            "thresholds": {
+              "A": 23,
+              "B": 20,
+              "C": 17,
+              "D": 15,
+              "E": 14,
+              "F": 12,
+              "G": 10
+            }
+          },
+          {
+            "code": "21",
+            "name": "Component 21",
+            "max": 90,
+            "thresholds": {
+              "A": 58,
+              "B": 48,
+              "C": 39,
+              "D": 34,
+              "E": 28,
+              "F": 22,
+              "G": 16
+            }
+          },
+          {
+            "code": "22",
+            "name": "Component 22",
+            "max": 90,
+            "thresholds": {
+              "A": 55,
+              "B": 43,
+              "C": 31,
+              "D": 26,
+              "E": 21,
+              "F": 17,
+              "G": 13
+            }
+          },
+          {
+            "code": "23",
+            "name": "Component 23",
+            "max": 90,
+            "thresholds": {
+              "A": 59,
+              "B": 47,
+              "C": 35,
+              "D": 30,
+              "E": 25,
+              "F": 20,
+              "G": 15
+            }
+          },
+          {
+            "code": "50",
+            "name": "Component 50",
+            "max": 90,
+            "thresholds": {
+              "A": 64,
+              "B": 55,
+              "C": 46,
+              "D": 41,
+              "E": 36,
+              "F": 30,
+              "G": 24
+            }
+          }
+        ],
+        "options": [
+          {
+            "code": "11,21",
+            "level": "IGCSE",
+            "components": [
+              "11",
+              "21"
+            ],
+            "max": 150,
+            "weighting": "Weighted: PDF gives max weighted mark 150 but the listed component raw maxima sum to 120 (30+90), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 118,
+              "A": 102,
+              "B": 86,
+              "C": 71,
+              "D": 62,
+              "E": 54,
+              "F": 44,
+              "G": 34
+            },
+            "sumOfComponentRawMaxima": 120,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "12,22",
+            "level": "IGCSE",
+            "components": [
+              "12",
+              "22"
+            ],
+            "max": 150,
+            "weighting": "Weighted: PDF gives max weighted mark 150 but the listed component raw maxima sum to 120 (30+90), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 115,
+              "A": 97,
+              "B": 79,
+              "C": 62,
+              "D": 52,
+              "E": 43,
+              "F": 35,
+              "G": 27
+            },
+            "sumOfComponentRawMaxima": 120,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "13,23",
+            "level": "IGCSE",
+            "components": [
+              "13",
+              "23"
+            ],
+            "max": 150,
+            "weighting": "Weighted: PDF gives max weighted mark 150 but the listed component raw maxima sum to 120 (30+90), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 122,
+              "A": 103,
+              "B": 84,
+              "C": 66,
+              "D": 57,
+              "E": 49,
+              "F": 40,
+              "G": 31
+            },
+            "sumOfComponentRawMaxima": 120,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "17,21",
+            "level": "IGCSE",
+            "components": [
+              "17",
+              "21"
+            ],
+            "max": 150,
+            "weighting": "Weighted: PDF gives max weighted mark 150 but the listed component raw maxima sum to 120 (30+90), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 118,
+              "A": 102,
+              "B": 86,
+              "C": 71,
+              "D": 62,
+              "E": 54,
+              "F": 44,
+              "G": 34
+            },
+            "sumOfComponentRawMaxima": 120,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "50",
+            "level": "IGCSE",
+            "components": [
+              "50"
+            ],
+            "max": 90,
+            "weighting": "No scaling evident: PDF gives max weighted mark 90, equal to the sum of the listed component raw maxima (90). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 73,
+              "A": 64,
+              "B": 55,
+              "C": 46,
+              "D": 41,
+              "E": 36,
+              "F": 30,
+              "G": 24
+            },
+            "sumOfComponentRawMaxima": 90,
+            "optionLetterCodePrintedInPdf": null
+          }
+        ],
+        "notes": "Printed notes: 'Syllabus grade thresholds are the minimum marks required for each grade. They are determined from the weighted component thresholds for the listed components.' 'Some Cambridge International entry options offer more than one possible route to a grade. Where this is the case, candidates are awarded the best grade available to them based on the combination of components they have taken.' June 2026 PDFs no longer print option letter codes (e.g. AX/BY); each option is identified only by its combination of components, so 'code' here is the component list joined by commas. Component names are not given in the PDF (only 'Component NN'); 'max' is the printed 'Maximum raw mark'. Grade A* is not defined for individual components (PDF note). Percentage uniform marks (PUMs) are a different scale and cannot be used with these thresholds (PDF note). Weighted: max weighted mark 150 vs raw sum 120 (30+90); multipliers not printed. Component 50 (max 90) is a stand-alone option. Component 17 appears in the June 2026 table only."
+      },
+      "June 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/741372-economics-0455-june-2025-grade-threshold-table.pdf",
+        "components": [
+          {
+            "code": "11",
+            "name": "Component 11",
+            "max": 30,
+            "thresholds": {
+              "A": 21,
+              "B": 18,
+              "C": 15,
+              "D": 13,
+              "E": 12,
+              "F": 10,
+              "G": 8
+            }
+          },
+          {
+            "code": "12",
+            "name": "Component 12",
+            "max": 30,
+            "thresholds": {
+              "A": 24,
+              "B": 20,
+              "C": 17,
+              "D": 14,
+              "E": 12,
+              "F": 10,
+              "G": 8
+            }
+          },
+          {
+            "code": "13",
+            "name": "Component 13",
+            "max": 30,
+            "thresholds": {
+              "A": 22,
+              "B": 19,
+              "C": 16,
+              "D": 14,
+              "E": 12,
+              "F": 10,
+              "G": 8
+            }
+          },
+          {
+            "code": "21",
+            "name": "Component 21",
+            "max": 90,
+            "thresholds": {
+              "A": 56,
+              "B": 45,
+              "C": 35,
+              "D": 30,
+              "E": 25,
+              "F": 19,
+              "G": 13
+            }
+          },
+          {
+            "code": "22",
+            "name": "Component 22",
+            "max": 90,
+            "thresholds": {
+              "A": 60,
+              "B": 49,
+              "C": 36,
+              "D": 32,
+              "E": 26,
+              "F": 20,
+              "G": 14
+            }
+          },
+          {
+            "code": "23",
+            "name": "Component 23",
+            "max": 90,
+            "thresholds": {
+              "A": 56,
+              "B": 45,
+              "C": 35,
+              "D": 30,
+              "E": 25,
+              "F": 19,
+              "G": 13
+            }
+          },
+          {
+            "code": "50",
+            "name": "Component 50",
+            "max": 90,
+            "thresholds": {
+              "A": 69,
+              "B": 60,
+              "C": 51,
+              "D": 42,
+              "E": 33,
+              "F": 24,
+              "G": 15
+            }
+          }
+        ],
+        "options": [
+          {
+            "code": "P1",
+            "level": "IGCSE",
+            "components": [
+              "50"
+            ],
+            "max": 90,
+            "weighting": "No scaling evident: PDF gives max weighted mark 90, equal to the sum of the listed component raw maxima (90). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 78,
+              "A": 69,
+              "B": 60,
+              "C": 51,
+              "D": 42,
+              "E": 33,
+              "F": 24,
+              "G": 15
+            },
+            "sumOfComponentRawMaxima": 90,
+            "optionLetterCodePrintedInPdf": "P1"
+          },
+          {
+            "code": "X",
+            "level": "IGCSE",
+            "components": [
+              "11",
+              "21"
+            ],
+            "max": 150,
+            "weighting": "Weighted: PDF gives max weighted mark 150 but the listed component raw maxima sum to 120 (30+90), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 114,
+              "A": 97,
+              "B": 80,
+              "C": 63,
+              "D": 55,
+              "E": 47,
+              "F": 37,
+              "G": 27
+            },
+            "sumOfComponentRawMaxima": 120,
+            "optionLetterCodePrintedInPdf": "X"
+          },
+          {
+            "code": "Y",
+            "level": "IGCSE",
+            "components": [
+              "12",
+              "22"
+            ],
+            "max": 150,
+            "weighting": "Weighted: PDF gives max weighted mark 150 but the listed component raw maxima sum to 120 (30+90), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 125,
+              "A": 106,
+              "B": 87,
+              "C": 68,
+              "D": 58,
+              "E": 48,
+              "F": 38,
+              "G": 28
+            },
+            "sumOfComponentRawMaxima": 120,
+            "optionLetterCodePrintedInPdf": "Y"
+          },
+          {
+            "code": "Z",
+            "level": "IGCSE",
+            "components": [
+              "13",
+              "23"
+            ],
+            "max": 150,
+            "weighting": "Weighted: PDF gives max weighted mark 150 but the listed component raw maxima sum to 120 (30+90), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 115,
+              "A": 98,
+              "B": 81,
+              "C": 65,
+              "D": 56,
+              "E": 47,
+              "F": 37,
+              "G": 27
+            },
+            "sumOfComponentRawMaxima": 120,
+            "optionLetterCodePrintedInPdf": "Z"
+          }
+        ],
+        "notes": "Printed notes: 'Grade thresholds taken for Syllabus 0455 (Economics) in the June 2025 examination.' 'The overall thresholds for the different grades were set as follows.' Column headed 'Maximum mark after weighting'. Option codes (e.g. AX, SY, P1) are as printed in the June 2025 PDF. Component names are not given in the PDF (only 'Component NN'); 'max' is the printed 'Maximum raw mark'. Grade A* is not defined for individual components (PDF note). Percentage uniform marks (PUMs) are a different scale and cannot be used with these thresholds (PDF note). Weighted: max mark after weighting 150 vs raw sum 120 (30+90); multipliers not printed. Option P1 is component 50 alone (max 90)."
+      }
+    }
+  },
+  "7707": {
+    "name": "Accounting",
+    "qualification": "O Level",
+    "sessions": {
+      "June 2026": {
+        "source": "https://www.cambridgeinternational.org/Images/762889-accounting-7707-june-2026-grade-threshold-table.pdf",
+        "components": [
+          {
+            "code": "11",
+            "name": "Component 11",
+            "max": 35,
+            "thresholds": {
+              "A": 23,
+              "B": 18,
+              "C": 13,
+              "D": 12,
+              "E": 11
+            }
+          },
+          {
+            "code": "12",
+            "name": "Component 12",
+            "max": 35,
+            "thresholds": {
+              "A": 24,
+              "B": 19,
+              "C": 14,
+              "D": 12,
+              "E": 11
+            }
+          },
+          {
+            "code": "21",
+            "name": "Component 21",
+            "max": 100,
+            "thresholds": {
+              "A": 52,
+              "B": 38,
+              "C": 24,
+              "D": 19,
+              "E": 15
+            }
+          },
+          {
+            "code": "22",
+            "name": "Component 22",
+            "max": 100,
+            "thresholds": {
+              "A": 58,
+              "B": 42,
+              "C": 25,
+              "D": 20,
+              "E": 15
+            }
+          },
+          {
+            "code": "50",
+            "name": "Component 50",
+            "max": 90,
+            "thresholds": {
+              "A": 60,
+              "B": 48,
+              "C": 36,
+              "D": 32,
+              "E": 29
+            }
+          }
+        ],
+        "options": [
+          {
+            "code": "11,21",
+            "level": "O Level",
+            "components": [
+              "11",
+              "21"
+            ],
+            "max": 143,
+            "weighting": "Weighted: PDF gives max weighted mark 143 but the listed component raw maxima sum to 135 (35+100), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 100,
+              "A": 80,
+              "B": 60,
+              "C": 40,
+              "D": 34,
+              "E": 29
+            },
+            "sumOfComponentRawMaxima": 135,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "12,22",
+            "level": "O Level",
+            "components": [
+              "12",
+              "22"
+            ],
+            "max": 143,
+            "weighting": "Weighted: PDF gives max weighted mark 143 but the listed component raw maxima sum to 135 (35+100), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 111,
+              "A": 88,
+              "B": 65,
+              "C": 42,
+              "D": 35,
+              "E": 29
+            },
+            "sumOfComponentRawMaxima": 135,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "50",
+            "level": "O Level",
+            "components": [
+              "50"
+            ],
+            "max": 90,
+            "weighting": "No scaling evident: PDF gives max weighted mark 90, equal to the sum of the listed component raw maxima (90). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 69,
+              "A": 60,
+              "B": 48,
+              "C": 36,
+              "D": 32,
+              "E": 29
+            },
+            "sumOfComponentRawMaxima": 90,
+            "optionLetterCodePrintedInPdf": null
+          }
+        ],
+        "notes": "Printed notes: 'Syllabus grade thresholds are the minimum marks required for each grade. They are determined from the weighted component thresholds for the listed components.' 'Some Cambridge International entry options offer more than one possible route to a grade. Where this is the case, candidates are awarded the best grade available to them based on the combination of components they have taken.' June 2026 PDFs no longer print option letter codes (e.g. AX/BY); each option is identified only by its combination of components, so 'code' here is the component list joined by commas. Component names are not given in the PDF (only 'Component NN'); 'max' is the printed 'Maximum raw mark'. Grade A* is not defined for individual components (PDF note). Percentage uniform marks (PUMs) are a different scale and cannot be used with these thresholds (PDF note). Weighted: max weighted mark 143 vs raw sum 135; multipliers not printed. Component 50 (max 90) is a stand-alone option; it is not in the June 2025 table."
+      },
+      "June 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/741485-accounting-7707-june-2025-grade-threshold-table.pdf",
+        "components": [
+          {
+            "code": "11",
+            "name": "Component 11",
+            "max": 35,
+            "thresholds": {
+              "A": 23,
+              "B": 18,
+              "C": 13,
+              "D": 12,
+              "E": 11
+            }
+          },
+          {
+            "code": "12",
+            "name": "Component 12",
+            "max": 35,
+            "thresholds": {
+              "A": 23,
+              "B": 18,
+              "C": 13,
+              "D": 12,
+              "E": 11
+            }
+          },
+          {
+            "code": "21",
+            "name": "Component 21",
+            "max": 100,
+            "thresholds": {
+              "A": 51,
+              "B": 37,
+              "C": 24,
+              "D": 19,
+              "E": 15
+            }
+          },
+          {
+            "code": "22",
+            "name": "Component 22",
+            "max": 100,
+            "thresholds": {
+              "A": 55,
+              "B": 39,
+              "C": 24,
+              "D": 19,
+              "E": 15
+            }
+          }
+        ],
+        "options": [
+          {
+            "code": "X",
+            "level": "O Level",
+            "components": [
+              "11",
+              "21"
+            ],
+            "max": 143,
+            "weighting": "Weighted: PDF gives max weighted mark 143 but the listed component raw maxima sum to 135 (35+100), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 99,
+              "A": 79,
+              "B": 59,
+              "C": 40,
+              "D": 34,
+              "E": 29
+            },
+            "sumOfComponentRawMaxima": 135,
+            "optionLetterCodePrintedInPdf": "X"
+          },
+          {
+            "code": "Y",
+            "level": "O Level",
+            "components": [
+              "12",
+              "22"
+            ],
+            "max": 143,
+            "weighting": "Weighted: PDF gives max weighted mark 143 but the listed component raw maxima sum to 135 (35+100), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 105,
+              "A": 83,
+              "B": 61,
+              "C": 40,
+              "D": 34,
+              "E": 29
+            },
+            "sumOfComponentRawMaxima": 135,
+            "optionLetterCodePrintedInPdf": "Y"
+          }
+        ],
+        "notes": "Printed notes: 'Grade thresholds taken for Syllabus 7707 (Accounting) in the June 2025 examination.' 'The overall thresholds for the different grades were set as follows.' Column headed 'Maximum mark after weighting'. Option codes (e.g. AX, SY, P1) are as printed in the June 2025 PDF. Component names are not given in the PDF (only 'Component NN'); 'max' is the printed 'Maximum raw mark'. Grade A* is not defined for individual components (PDF note). Percentage uniform marks (PUMs) are a different scale and cannot be used with these thresholds (PDF note). Weighted: max mark after weighting 143 vs raw sum 135; multipliers not printed."
+      }
+    }
+  },
+  "7115": {
+    "name": "Business Studies",
+    "qualification": "O Level",
+    "sessions": {
+      "June 2026": {
+        "source": "https://www.cambridgeinternational.org/Images/762897-business-studies-7115-june-2026-grade-threshold-table.pdf",
+        "components": [
+          {
+            "code": "11",
+            "name": "Component 11",
+            "max": 80,
+            "thresholds": {
+              "A": 45,
+              "B": 37,
+              "C": 28,
+              "D": 24,
+              "E": 19
+            }
+          },
+          {
+            "code": "12",
+            "name": "Component 12",
+            "max": 80,
+            "thresholds": {
+              "A": 47,
+              "B": 39,
+              "C": 30,
+              "D": 25,
+              "E": 20
+            }
+          },
+          {
+            "code": "21",
+            "name": "Component 21",
+            "max": 80,
+            "thresholds": {
+              "A": 35,
+              "B": 28,
+              "C": 22,
+              "D": 18,
+              "E": 15
+            }
+          },
+          {
+            "code": "22",
+            "name": "Component 22",
+            "max": 80,
+            "thresholds": {
+              "A": 42,
+              "B": 34,
+              "C": 27,
+              "D": 23,
+              "E": 19
+            }
+          },
+          {
+            "code": "50",
+            "name": "Component 50",
+            "max": 90,
+            "thresholds": {
+              "A": 62,
+              "B": 52,
+              "C": 43,
+              "D": 36,
+              "E": 29
+            }
+          }
+        ],
+        "options": [
+          {
+            "code": "11,21",
+            "level": "O Level",
+            "components": [
+              "11",
+              "21"
+            ],
+            "max": 160,
+            "weighting": "No scaling evident: PDF gives max weighted mark 160, equal to the sum of the listed component raw maxima (80+80). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 95,
+              "A": 80,
+              "B": 65,
+              "C": 50,
+              "D": 42,
+              "E": 34
+            },
+            "sumOfComponentRawMaxima": 160,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "12,22",
+            "level": "O Level",
+            "components": [
+              "12",
+              "22"
+            ],
+            "max": 160,
+            "weighting": "No scaling evident: PDF gives max weighted mark 160, equal to the sum of the listed component raw maxima (80+80). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 105,
+              "A": 89,
+              "B": 73,
+              "C": 57,
+              "D": 48,
+              "E": 39
+            },
+            "sumOfComponentRawMaxima": 160,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "50",
+            "level": "O Level",
+            "components": [
+              "50"
+            ],
+            "max": 90,
+            "weighting": "No scaling evident: PDF gives max weighted mark 90, equal to the sum of the listed component raw maxima (90). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 72,
+              "A": 62,
+              "B": 52,
+              "C": 43,
+              "D": 36,
+              "E": 29
+            },
+            "sumOfComponentRawMaxima": 90,
+            "optionLetterCodePrintedInPdf": null
+          }
+        ],
+        "notes": "Printed notes: 'Syllabus grade thresholds are the minimum marks required for each grade. They are determined from the weighted component thresholds for the listed components.' 'Some Cambridge International entry options offer more than one possible route to a grade. Where this is the case, candidates are awarded the best grade available to them based on the combination of components they have taken.' June 2026 PDFs no longer print option letter codes (e.g. AX/BY); each option is identified only by its combination of components, so 'code' here is the component list joined by commas. Component names are not given in the PDF (only 'Component NN'); 'max' is the printed 'Maximum raw mark'. Grade A* is not defined for individual components (PDF note). Percentage uniform marks (PUMs) are a different scale and cannot be used with these thresholds (PDF note). No scaling evident: 160 = 80+80. Component 50 (max 90) is a stand-alone option; not in June 2025."
+      },
+      "June 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/741493-business-studies-7115-june-2025-grade-threshold-table.pdf",
+        "components": [
+          {
+            "code": "11",
+            "name": "Component 11",
+            "max": 80,
+            "thresholds": {
+              "A": 44,
+              "B": 35,
+              "C": 27,
+              "D": 22,
+              "E": 17
+            }
+          },
+          {
+            "code": "12",
+            "name": "Component 12",
+            "max": 80,
+            "thresholds": {
+              "A": 47,
+              "B": 38,
+              "C": 30,
+              "D": 25,
+              "E": 20
+            }
+          },
+          {
+            "code": "21",
+            "name": "Component 21",
+            "max": 80,
+            "thresholds": {
+              "A": 37,
+              "B": 30,
+              "C": 22,
+              "D": 18,
+              "E": 15
+            }
+          },
+          {
+            "code": "22",
+            "name": "Component 22",
+            "max": 80,
+            "thresholds": {
+              "A": 42,
+              "B": 34,
+              "C": 26,
+              "D": 22,
+              "E": 18
+            }
+          }
+        ],
+        "options": [
+          {
+            "code": "AW",
+            "level": "O Level",
+            "components": [
+              "11",
+              "22"
+            ],
+            "max": 160,
+            "weighting": "No scaling evident: PDF gives max weighted mark 160, equal to the sum of the listed component raw maxima (80+80). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 103,
+              "A": 86,
+              "B": 69,
+              "C": 53,
+              "D": 44,
+              "E": 35
+            },
+            "sumOfComponentRawMaxima": 160,
+            "optionLetterCodePrintedInPdf": "AW"
+          },
+          {
+            "code": "X",
+            "level": "O Level",
+            "components": [
+              "11",
+              "21"
+            ],
+            "max": 160,
+            "weighting": "No scaling evident: PDF gives max weighted mark 160, equal to the sum of the listed component raw maxima (80+80). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 97,
+              "A": 81,
+              "B": 65,
+              "C": 49,
+              "D": 40,
+              "E": 32
+            },
+            "sumOfComponentRawMaxima": 160,
+            "optionLetterCodePrintedInPdf": "X"
+          },
+          {
+            "code": "Y",
+            "level": "O Level",
+            "components": [
+              "12",
+              "22"
+            ],
+            "max": 160,
+            "weighting": "No scaling evident: PDF gives max weighted mark 160, equal to the sum of the listed component raw maxima (80+80). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 106,
+              "A": 89,
+              "B": 72,
+              "C": 56,
+              "D": 47,
+              "E": 38
+            },
+            "sumOfComponentRawMaxima": 160,
+            "optionLetterCodePrintedInPdf": "Y"
+          }
+        ],
+        "notes": "Printed notes: 'Grade thresholds taken for Syllabus 7115 (Business Studies) in the June 2025 examination.' 'The overall thresholds for the different grades were set as follows.' Column headed 'Maximum mark after weighting'. Option codes (e.g. AX, SY, P1) are as printed in the June 2025 PDF. Component names are not given in the PDF (only 'Component NN'); 'max' is the printed 'Maximum raw mark'. Grade A* is not defined for individual components (PDF note). Percentage uniform marks (PUMs) are a different scale and cannot be used with these thresholds (PDF note). No scaling evident: 160 = 80+80. Option AW is the mixed pairing 11 + 22."
+      }
+    }
+  },
+  "2281": {
+    "name": "Economics",
+    "qualification": "O Level",
+    "sessions": {
+      "June 2026": {
+        "source": "https://www.cambridgeinternational.org/Images/762902-economics-2281-june-2026-grade-threshold-table.pdf",
+        "components": [
+          {
+            "code": "11",
+            "name": "Component 11",
+            "max": 30,
+            "thresholds": {
+              "A": 23,
+              "B": 20,
+              "C": 17,
+              "D": 15,
+              "E": 14
+            }
+          },
+          {
+            "code": "12",
+            "name": "Component 12",
+            "max": 30,
+            "thresholds": {
+              "A": 22,
+              "B": 19,
+              "C": 17,
+              "D": 15,
+              "E": 12
+            }
+          },
+          {
+            "code": "21",
+            "name": "Component 21",
+            "max": 90,
+            "thresholds": {
+              "A": 58,
+              "B": 48,
+              "C": 39,
+              "D": 34,
+              "E": 28
+            }
+          },
+          {
+            "code": "22",
+            "name": "Component 22",
+            "max": 90,
+            "thresholds": {
+              "A": 55,
+              "B": 43,
+              "C": 31,
+              "D": 26,
+              "E": 21
+            }
+          },
+          {
+            "code": "50",
+            "name": "Component 50",
+            "max": 90,
+            "thresholds": {
+              "A": 64,
+              "B": 55,
+              "C": 46,
+              "D": 41,
+              "E": 36
+            }
+          }
+        ],
+        "options": [
+          {
+            "code": "11,21",
+            "level": "O Level",
+            "components": [
+              "11",
+              "21"
+            ],
+            "max": 150,
+            "weighting": "Weighted: PDF gives max weighted mark 150 but the listed component raw maxima sum to 120 (30+90), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 118,
+              "A": 102,
+              "B": 86,
+              "C": 71,
+              "D": 62,
+              "E": 54
+            },
+            "sumOfComponentRawMaxima": 120,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "12,22",
+            "level": "O Level",
+            "components": [
+              "12",
+              "22"
+            ],
+            "max": 150,
+            "weighting": "Weighted: PDF gives max weighted mark 150 but the listed component raw maxima sum to 120 (30+90), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 115,
+              "A": 97,
+              "B": 79,
+              "C": 62,
+              "D": 52,
+              "E": 43
+            },
+            "sumOfComponentRawMaxima": 120,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "50",
+            "level": "O Level",
+            "components": [
+              "50"
+            ],
+            "max": 90,
+            "weighting": "No scaling evident: PDF gives max weighted mark 90, equal to the sum of the listed component raw maxima (90). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 73,
+              "A": 64,
+              "B": 55,
+              "C": 46,
+              "D": 41,
+              "E": 36
+            },
+            "sumOfComponentRawMaxima": 90,
+            "optionLetterCodePrintedInPdf": null
+          }
+        ],
+        "notes": "Printed notes: 'Syllabus grade thresholds are the minimum marks required for each grade. They are determined from the weighted component thresholds for the listed components.' 'Some Cambridge International entry options offer more than one possible route to a grade. Where this is the case, candidates are awarded the best grade available to them based on the combination of components they have taken.' June 2026 PDFs no longer print option letter codes (e.g. AX/BY); each option is identified only by its combination of components, so 'code' here is the component list joined by commas. Component names are not given in the PDF (only 'Component NN'); 'max' is the printed 'Maximum raw mark'. Grade A* is not defined for individual components (PDF note). Percentage uniform marks (PUMs) are a different scale and cannot be used with these thresholds (PDF note). Weighted: max weighted mark 150 vs raw sum 120 (30+90); multipliers not printed. Component 50 (max 90) is a stand-alone option; not in June 2025."
+      },
+      "June 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/741498-economics-2281-june-2025-grade-threshold-table.pdf",
+        "components": [
+          {
+            "code": "11",
+            "name": "Component 11",
+            "max": 30,
+            "thresholds": {
+              "A": 21,
+              "B": 18,
+              "C": 15,
+              "D": 13,
+              "E": 12
+            }
+          },
+          {
+            "code": "12",
+            "name": "Component 12",
+            "max": 30,
+            "thresholds": {
+              "A": 24,
+              "B": 20,
+              "C": 17,
+              "D": 14,
+              "E": 12
+            }
+          },
+          {
+            "code": "21",
+            "name": "Component 21",
+            "max": 90,
+            "thresholds": {
+              "A": 56,
+              "B": 45,
+              "C": 35,
+              "D": 30,
+              "E": 25
+            }
+          },
+          {
+            "code": "22",
+            "name": "Component 22",
+            "max": 90,
+            "thresholds": {
+              "A": 60,
+              "B": 49,
+              "C": 36,
+              "D": 32,
+              "E": 26
+            }
+          }
+        ],
+        "options": [
+          {
+            "code": "WA",
+            "level": "O Level",
+            "components": [
+              "12",
+              "21"
+            ],
+            "max": 150,
+            "weighting": "Weighted: PDF gives max weighted mark 150 but the listed component raw maxima sum to 120 (30+90), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 119,
+              "A": 101,
+              "B": 83,
+              "C": 66,
+              "D": 56,
+              "E": 47
+            },
+            "sumOfComponentRawMaxima": 120,
+            "optionLetterCodePrintedInPdf": "WA"
+          },
+          {
+            "code": "X",
+            "level": "O Level",
+            "components": [
+              "11",
+              "21"
+            ],
+            "max": 150,
+            "weighting": "Weighted: PDF gives max weighted mark 150 but the listed component raw maxima sum to 120 (30+90), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 114,
+              "A": 97,
+              "B": 80,
+              "C": 63,
+              "D": 55,
+              "E": 47
+            },
+            "sumOfComponentRawMaxima": 120,
+            "optionLetterCodePrintedInPdf": "X"
+          },
+          {
+            "code": "Y",
+            "level": "O Level",
+            "components": [
+              "12",
+              "22"
+            ],
+            "max": 150,
+            "weighting": "Weighted: PDF gives max weighted mark 150 but the listed component raw maxima sum to 120 (30+90), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 125,
+              "A": 106,
+              "B": 87,
+              "C": 68,
+              "D": 58,
+              "E": 48
+            },
+            "sumOfComponentRawMaxima": 120,
+            "optionLetterCodePrintedInPdf": "Y"
+          }
+        ],
+        "notes": "Printed notes: 'Grade thresholds taken for Syllabus 2281 (Economics) in the June 2025 examination.' 'The overall thresholds for the different grades were set as follows.' Column headed 'Maximum mark after weighting'. Option codes (e.g. AX, SY, P1) are as printed in the June 2025 PDF. Component names are not given in the PDF (only 'Component NN'); 'max' is the printed 'Maximum raw mark'. Grade A* is not defined for individual components (PDF note). Percentage uniform marks (PUMs) are a different scale and cannot be used with these thresholds (PDF note). Weighted: max mark after weighting 150 vs raw sum 120; multipliers not printed. Option WA is the mixed pairing 12 + 21."
+      }
+    }
+  },
+  "9706": {
+    "name": "Accounting",
+    "qualification": "AS & A Level",
+    "sessions": {
+      "June 2026": {
+        "source": "https://www.cambridgeinternational.org/Images/761528-accounting-9706-june-2026-grade-threshold-table.pdf",
+        "components": [
+          {
+            "code": "11",
+            "name": "Component 11",
+            "max": 30,
+            "thresholds": {
+              "A": 20,
+              "B": 16,
+              "C": 14,
+              "D": 12,
+              "E": 11
+            }
+          },
+          {
+            "code": "12",
+            "name": "Component 12",
+            "max": 30,
+            "thresholds": {
+              "A": 20,
+              "B": 16,
+              "C": 14,
+              "D": 12,
+              "E": 10
+            }
+          },
+          {
+            "code": "13",
+            "name": "Component 13",
+            "max": 30,
+            "thresholds": {
+              "A": 20,
+              "B": 16,
+              "C": 14,
+              "D": 12,
+              "E": 11
+            }
+          },
+          {
+            "code": "21",
+            "name": "Component 21",
+            "max": 90,
+            "thresholds": {
+              "A": 62,
+              "B": 51,
+              "C": 41,
+              "D": 30,
+              "E": 19
+            }
+          },
+          {
+            "code": "22",
+            "name": "Component 22",
+            "max": 90,
+            "thresholds": {
+              "A": 62,
+              "B": 52,
+              "C": 42,
+              "D": 32,
+              "E": 22
+            }
+          },
+          {
+            "code": "23",
+            "name": "Component 23",
+            "max": 90,
+            "thresholds": {
+              "A": 62,
+              "B": 51,
+              "C": 41,
+              "D": 30,
+              "E": 19
+            }
+          },
+          {
+            "code": "31",
+            "name": "Component 31",
+            "max": 75,
+            "thresholds": {
+              "A": 44,
+              "B": 36,
+              "C": 32,
+              "D": 27,
+              "E": 22
+            }
+          },
+          {
+            "code": "32",
+            "name": "Component 32",
+            "max": 75,
+            "thresholds": {
+              "A": 44,
+              "B": 36,
+              "C": 31,
+              "D": 27,
+              "E": 22
+            }
+          },
+          {
+            "code": "33",
+            "name": "Component 33",
+            "max": 75,
+            "thresholds": {
+              "A": 44,
+              "B": 36,
+              "C": 32,
+              "D": 27,
+              "E": 22
+            }
+          },
+          {
+            "code": "41",
+            "name": "Component 41",
+            "max": 50,
+            "thresholds": {
+              "A": 35,
+              "B": 30,
+              "C": 25,
+              "D": 21,
+              "E": 16
+            }
+          },
+          {
+            "code": "42",
+            "name": "Component 42",
+            "max": 50,
+            "thresholds": {
+              "A": 33,
+              "B": 28,
+              "C": 24,
+              "D": 18,
+              "E": 13
+            }
+          },
+          {
+            "code": "43",
+            "name": "Component 43",
+            "max": 50,
+            "thresholds": {
+              "A": 35,
+              "B": 30,
+              "C": 25,
+              "D": 21,
+              "E": 16
+            }
+          },
+          {
+            "code": "50",
+            "name": "Component 50",
+            "max": 75,
+            "thresholds": {
+              "A": 57,
+              "B": 49,
+              "C": 41,
+              "D": 34,
+              "E": 27
+            }
+          },
+          {
+            "code": "60",
+            "name": "Component 60",
+            "max": 75,
+            "thresholds": {
+              "A": 60,
+              "B": 50,
+              "C": 40,
+              "D": 30,
+              "E": 20
+            }
+          }
+        ],
+        "options": [
+          {
+            "code": "11,21,31,41",
+            "level": "A Level",
+            "components": [
+              "11",
+              "21",
+              "31",
+              "41"
+            ],
+            "max": 250,
+            "weighting": "Weighted: PDF gives max weighted mark 250 but the listed component raw maxima sum to 245 (30+90+75+50), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 192,
+              "A": 164,
+              "B": 136,
+              "C": 114,
+              "D": 92,
+              "E": 70
+            },
+            "route": "linear",
+            "sumOfComponentRawMaxima": 245,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "12,22,32,42",
+            "level": "A Level",
+            "components": [
+              "12",
+              "22",
+              "32",
+              "42"
+            ],
+            "max": 250,
+            "weighting": "Weighted: PDF gives max weighted mark 250 but the listed component raw maxima sum to 245 (30+90+75+50), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 189,
+              "A": 162,
+              "B": 135,
+              "C": 113,
+              "D": 91,
+              "E": 69
+            },
+            "route": "linear",
+            "sumOfComponentRawMaxima": 245,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "13,23,33,43",
+            "level": "A Level",
+            "components": [
+              "13",
+              "23",
+              "33",
+              "43"
+            ],
+            "max": 250,
+            "weighting": "Weighted: PDF gives max weighted mark 250 but the listed component raw maxima sum to 245 (30+90+75+50), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 192,
+              "A": 164,
+              "B": 136,
+              "C": 114,
+              "D": 92,
+              "E": 70
+            },
+            "route": "linear",
+            "sumOfComponentRawMaxima": 245,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "50,60",
+            "level": "A Level",
+            "components": [
+              "50",
+              "60"
+            ],
+            "max": 150,
+            "weighting": "No scaling evident: PDF gives max weighted mark 150, equal to the sum of the listed component raw maxima (75+75). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 133,
+              "A": 117,
+              "B": 99,
+              "C": 81,
+              "D": 64,
+              "E": 47
+            },
+            "route": "linear",
+            "sumOfComponentRawMaxima": 150,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "31,41,87",
+            "level": "A Level",
+            "components": [
+              "31",
+              "41",
+              "87"
+            ],
+            "max": 250,
+            "weighting": "Max weighted mark 250 as printed. Component(s) 87 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 194,
+              "A": 165,
+              "B": 136,
+              "C": 114,
+              "D": 92,
+              "E": 71
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "31,41,97",
+            "level": "A Level",
+            "components": [
+              "31",
+              "41",
+              "97"
+            ],
+            "max": 250,
+            "weighting": "Max weighted mark 250 as printed. Component(s) 97 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 189,
+              "A": 163,
+              "B": 137,
+              "C": 115,
+              "D": 94,
+              "E": 73
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "31,41,99",
+            "level": "A Level",
+            "components": [
+              "31",
+              "41",
+              "99"
+            ],
+            "max": 250,
+            "weighting": "Max weighted mark 250 as printed. Component(s) 99 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 193,
+              "A": 165,
+              "B": 137,
+              "C": 115,
+              "D": 94,
+              "E": 73
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "32,42,88",
+            "level": "A Level",
+            "components": [
+              "32",
+              "42",
+              "88"
+            ],
+            "max": 250,
+            "weighting": "Max weighted mark 250 as printed. Component(s) 88 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 194,
+              "A": 166,
+              "B": 138,
+              "C": 114,
+              "D": 91,
+              "E": 68
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "32,42,97",
+            "level": "A Level",
+            "components": [
+              "32",
+              "42",
+              "97"
+            ],
+            "max": 250,
+            "weighting": "Max weighted mark 250 as printed. Component(s) 97 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 187,
+              "A": 161,
+              "B": 135,
+              "C": 113,
+              "D": 91,
+              "E": 70
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "32,42,98",
+            "level": "A Level",
+            "components": [
+              "32",
+              "42",
+              "98"
+            ],
+            "max": 250,
+            "weighting": "Max weighted mark 250 as printed. Component(s) 98 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 188,
+              "A": 159,
+              "B": 130,
+              "C": 109,
+              "D": 88,
+              "E": 68
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "33,43,89",
+            "level": "A Level",
+            "components": [
+              "33",
+              "43",
+              "89"
+            ],
+            "max": 250,
+            "weighting": "Max weighted mark 250 as printed. Component(s) 89 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 194,
+              "A": 165,
+              "B": 136,
+              "C": 114,
+              "D": 92,
+              "E": 71
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "33,43,98",
+            "level": "A Level",
+            "components": [
+              "33",
+              "43",
+              "98"
+            ],
+            "max": 250,
+            "weighting": "Max weighted mark 250 as printed. Component(s) 98 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 190,
+              "A": 161,
+              "B": 132,
+              "C": 111,
+              "D": 91,
+              "E": 71
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "33,43,99",
+            "level": "A Level",
+            "components": [
+              "33",
+              "43",
+              "99"
+            ],
+            "max": 250,
+            "weighting": "Max weighted mark 250 as printed. Component(s) 99 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 193,
+              "A": 165,
+              "B": 137,
+              "C": 115,
+              "D": 94,
+              "E": 73
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "60,80",
+            "level": "A Level",
+            "components": [
+              "60",
+              "80"
+            ],
+            "max": 150,
+            "weighting": "Max weighted mark 150 as printed. Component(s) 80 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 135,
+              "A": 120,
+              "B": 103,
+              "C": 85,
+              "D": 67,
+              "E": 50
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "11,21",
+            "level": "AS",
+            "components": [
+              "11",
+              "21"
+            ],
+            "max": 125,
+            "weighting": "Weighted: PDF gives max weighted mark 125 but the listed component raw maxima sum to 120 (30+90), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A": 85,
+              "B": 70,
+              "C": 57,
+              "D": 44,
+              "E": 32
+            },
+            "sumOfComponentRawMaxima": 120,
+            "optionLetterCodePrintedInPdf": null,
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS"
+          },
+          {
+            "code": "12,22",
+            "level": "AS",
+            "components": [
+              "12",
+              "22"
+            ],
+            "max": 125,
+            "weighting": "Weighted: PDF gives max weighted mark 125 but the listed component raw maxima sum to 120 (30+90), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A": 85,
+              "B": 71,
+              "C": 58,
+              "D": 46,
+              "E": 34
+            },
+            "sumOfComponentRawMaxima": 120,
+            "optionLetterCodePrintedInPdf": null,
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS"
+          },
+          {
+            "code": "13,23",
+            "level": "AS",
+            "components": [
+              "13",
+              "23"
+            ],
+            "max": 125,
+            "weighting": "Weighted: PDF gives max weighted mark 125 but the listed component raw maxima sum to 120 (30+90), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A": 85,
+              "B": 70,
+              "C": 57,
+              "D": 44,
+              "E": 32
+            },
+            "sumOfComponentRawMaxima": 120,
+            "optionLetterCodePrintedInPdf": null,
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS"
+          },
+          {
+            "code": "50",
+            "level": "AS",
+            "components": [
+              "50"
+            ],
+            "max": 75,
+            "weighting": "No scaling evident: PDF gives max weighted mark 75, equal to the sum of the listed component raw maxima (75). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A": 57,
+              "B": 49,
+              "C": 41,
+              "D": 34,
+              "E": 27
+            },
+            "sumOfComponentRawMaxima": 75,
+            "optionLetterCodePrintedInPdf": null,
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS"
+          }
+        ],
+        "notes": "Printed notes: 'Syllabus grade thresholds are the minimum marks required for each grade. They are determined from the weighted component thresholds for the listed components.' 'Some Cambridge International entry options offer more than one possible route to a grade. Where this is the case, candidates are awarded the best grade available to them based on the combination of components they have taken.' June 2026 PDFs no longer print option letter codes (e.g. AX/BY); each option is identified only by its combination of components, so 'code' here is the component list joined by commas. Component names are not given in the PDF (only 'Component NN'); 'max' is the printed 'Maximum raw mark'. Grade A* is not defined for individual components (PDF note). Percentage uniform marks (PUMs) are a different scale and cannot be used with these thresholds (PDF note). Weighted: A Level linear options max 250 vs raw sum 245 (30+90+75+50); AS options max 125 vs raw sum 120 (30+90). Multipliers not printed. Staged-assessment options include component codes 87, 88, 89, 97, 98, 99, 80 that are NOT in the component table and not defined in the PDF, so those rows cannot be rebuilt from raw marks. Components 50 and 60 are new in June 2026 (not in June 2025 table). The 2026 PDF labels sections 'Cambridge International A Level (linear assessment)', '(staged assessment)' and 'Cambridge International AS Level'; AS grades are printed lowercase a-e."
+      },
+      "June 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/740281-accounting-9706-june-2025-grade-threshold-table.pdf",
+        "components": [
+          {
+            "code": "11",
+            "name": "Component 11",
+            "max": 30,
+            "thresholds": {
+              "A": 21,
+              "B": 16,
+              "C": 14,
+              "D": 12,
+              "E": 11
+            }
+          },
+          {
+            "code": "12",
+            "name": "Component 12",
+            "max": 30,
+            "thresholds": {
+              "A": 22,
+              "B": 18,
+              "C": 15,
+              "D": 13,
+              "E": 11
+            }
+          },
+          {
+            "code": "13",
+            "name": "Component 13",
+            "max": 30,
+            "thresholds": {
+              "A": 21,
+              "B": 16,
+              "C": 14,
+              "D": 12,
+              "E": 11
+            }
+          },
+          {
+            "code": "21",
+            "name": "Component 21",
+            "max": 90,
+            "thresholds": {
+              "A": 61,
+              "B": 51,
+              "C": 41,
+              "D": 31,
+              "E": 20
+            }
+          },
+          {
+            "code": "22",
+            "name": "Component 22",
+            "max": 90,
+            "thresholds": {
+              "A": 63,
+              "B": 53,
+              "C": 42,
+              "D": 31,
+              "E": 20
+            }
+          },
+          {
+            "code": "23",
+            "name": "Component 23",
+            "max": 90,
+            "thresholds": {
+              "A": 61,
+              "B": 51,
+              "C": 41,
+              "D": 31,
+              "E": 20
+            }
+          },
+          {
+            "code": "31",
+            "name": "Component 31",
+            "max": 75,
+            "thresholds": {
+              "A": 44,
+              "B": 35,
+              "C": 32,
+              "D": 28,
+              "E": 24
+            }
+          },
+          {
+            "code": "32",
+            "name": "Component 32",
+            "max": 75,
+            "thresholds": {
+              "A": 44,
+              "B": 35,
+              "C": 32,
+              "D": 28,
+              "E": 24
+            }
+          },
+          {
+            "code": "33",
+            "name": "Component 33",
+            "max": 75,
+            "thresholds": {
+              "A": 44,
+              "B": 35,
+              "C": 32,
+              "D": 28,
+              "E": 24
+            }
+          },
+          {
+            "code": "41",
+            "name": "Component 41",
+            "max": 50,
+            "thresholds": {
+              "A": 36,
+              "B": 32,
+              "C": 27,
+              "D": 23,
+              "E": 18
+            }
+          },
+          {
+            "code": "42",
+            "name": "Component 42",
+            "max": 50,
+            "thresholds": {
+              "A": 36,
+              "B": 32,
+              "C": 27,
+              "D": 23,
+              "E": 18
+            }
+          },
+          {
+            "code": "43",
+            "name": "Component 43",
+            "max": 50,
+            "thresholds": {
+              "A": 36,
+              "B": 32,
+              "C": 27,
+              "D": 23,
+              "E": 18
+            }
+          }
+        ],
+        "options": [
+          {
+            "code": "AY",
+            "level": "A Level",
+            "components": [
+              "12",
+              "22",
+              "32",
+              "42"
+            ],
+            "max": 250,
+            "weighting": "Weighted: PDF gives max weighted mark 250 but the listed component raw maxima sum to 245 (30+90+75+50), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 197,
+              "A": 169,
+              "B": 141,
+              "C": 119,
+              "D": 97,
+              "E": 75
+            },
+            "sumOfComponentRawMaxima": 245,
+            "optionLetterCodePrintedInPdf": "AY"
+          },
+          {
+            "code": "AZ",
+            "level": "A Level",
+            "components": [
+              "13",
+              "23",
+              "33",
+              "43"
+            ],
+            "max": 250,
+            "weighting": "Weighted: PDF gives max weighted mark 250 but the listed component raw maxima sum to 245 (30+90+75+50), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A*": 195,
+              "A": 166,
+              "B": 137,
+              "C": 116,
+              "D": 95,
+              "E": 75
+            },
+            "sumOfComponentRawMaxima": 245,
+            "optionLetterCodePrintedInPdf": "AZ"
+          },
+          {
+            "code": "BX",
+            "level": "A Level",
+            "components": [
+              "31",
+              "41",
+              "87"
+            ],
+            "max": 250,
+            "weighting": "Max weighted mark 250 as printed. Component(s) 87 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 196,
+              "A": 167,
+              "B": 138,
+              "C": 116,
+              "D": 94,
+              "E": 73
+            },
+            "optionLetterCodePrintedInPdf": "BX"
+          },
+          {
+            "code": "BY",
+            "level": "A Level",
+            "components": [
+              "32",
+              "42",
+              "88"
+            ],
+            "max": 250,
+            "weighting": "Max weighted mark 250 as printed. Component(s) 88 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 196,
+              "A": 167,
+              "B": 138,
+              "C": 116,
+              "D": 94,
+              "E": 73
+            },
+            "optionLetterCodePrintedInPdf": "BY"
+          },
+          {
+            "code": "BZ",
+            "level": "A Level",
+            "components": [
+              "33",
+              "43",
+              "89"
+            ],
+            "max": 250,
+            "weighting": "Max weighted mark 250 as printed. Component(s) 89 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 196,
+              "A": 167,
+              "B": 138,
+              "C": 116,
+              "D": 94,
+              "E": 73
+            },
+            "optionLetterCodePrintedInPdf": "BZ"
+          },
+          {
+            "code": "CS",
+            "level": "A Level",
+            "components": [
+              "31",
+              "41",
+              "99"
+            ],
+            "max": 250,
+            "weighting": "Max weighted mark 250 as printed. Component(s) 99 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 191,
+              "A": 162,
+              "B": 133,
+              "C": 113,
+              "D": 94,
+              "E": 75
+            },
+            "optionLetterCodePrintedInPdf": "CS"
+          },
+          {
+            "code": "CT",
+            "level": "A Level",
+            "components": [
+              "32",
+              "42",
+              "97"
+            ],
+            "max": 250,
+            "weighting": "Max weighted mark 250 as printed. Component(s) 97 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 188,
+              "A": 160,
+              "B": 132,
+              "C": 113,
+              "D": 94,
+              "E": 75
+            },
+            "optionLetterCodePrintedInPdf": "CT"
+          },
+          {
+            "code": "CU",
+            "level": "A Level",
+            "components": [
+              "33",
+              "43",
+              "98"
+            ],
+            "max": 250,
+            "weighting": "Max weighted mark 250 as printed. Component(s) 98 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 192,
+              "A": 163,
+              "B": 134,
+              "C": 114,
+              "D": 94,
+              "E": 74
+            },
+            "optionLetterCodePrintedInPdf": "CU"
+          },
+          {
+            "code": "CY",
+            "level": "A Level",
+            "components": [
+              "32",
+              "42",
+              "98"
+            ],
+            "max": 250,
+            "weighting": "Max weighted mark 250 as printed. Component(s) 98 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 192,
+              "A": 163,
+              "B": 134,
+              "C": 114,
+              "D": 94,
+              "E": 74
+            },
+            "optionLetterCodePrintedInPdf": "CY"
+          },
+          {
+            "code": "SX",
+            "level": "AS",
+            "components": [
+              "11",
+              "21"
+            ],
+            "max": 125,
+            "weighting": "Weighted: PDF gives max weighted mark 125 but the listed component raw maxima sum to 120 (30+90), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A": 86,
+              "B": 70,
+              "C": 57,
+              "D": 45,
+              "E": 33
+            },
+            "sumOfComponentRawMaxima": 120,
+            "optionLetterCodePrintedInPdf": "SX",
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS (2025 PDFs print an en dash for A*)"
+          },
+          {
+            "code": "SY",
+            "level": "AS",
+            "components": [
+              "12",
+              "22"
+            ],
+            "max": 125,
+            "weighting": "Weighted: PDF gives max weighted mark 125 but the listed component raw maxima sum to 120 (30+90), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A": 89,
+              "B": 74,
+              "C": 60,
+              "D": 46,
+              "E": 33
+            },
+            "sumOfComponentRawMaxima": 120,
+            "optionLetterCodePrintedInPdf": "SY",
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS (2025 PDFs print an en dash for A*)"
+          },
+          {
+            "code": "SZ",
+            "level": "AS",
+            "components": [
+              "13",
+              "23"
+            ],
+            "max": 125,
+            "weighting": "Weighted: PDF gives max weighted mark 125 but the listed component raw maxima sum to 120 (30+90), so component marks are scaled. The PDF does not print the multipliers.",
+            "thresholds": {
+              "A": 86,
+              "B": 70,
+              "C": 57,
+              "D": 45,
+              "E": 33
+            },
+            "sumOfComponentRawMaxima": 120,
+            "optionLetterCodePrintedInPdf": "SZ",
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS (2025 PDFs print an en dash for A*)"
+          }
+        ],
+        "notes": "Printed notes: 'Grade thresholds taken for Syllabus 9706 (Accounting) in the June 2025 examination.' 'The overall thresholds for the different grades were set as follows.' Column headed 'Maximum mark after weighting'. Option codes (e.g. AX, SY, P1) are as printed in the June 2025 PDF. Component names are not given in the PDF (only 'Component NN'); 'max' is the printed 'Maximum raw mark'. Grade A* is not defined for individual components (PDF note). Percentage uniform marks (PUMs) are a different scale and cannot be used with these thresholds (PDF note). Weighted: A Level options max 250 vs raw sum 245; AS options max 125 vs raw sum 120; multipliers not printed. Section headings for linear/staged/AS are not printed; AS options (S*) show an en dash for A*. Codes 87, 88, 89, 97, 98, 99 are not in the component table and not defined in the PDF. Options CU (33,43,98) and CY (32,42,98) have identical printed numbers; there is no option letter for 11,21,31,41 (AX) in this PDF."
+      }
+    }
+  },
+  "9609": {
+    "name": "Business",
+    "qualification": "AS & A Level",
+    "sessions": {
+      "June 2026": {
+        "source": "https://www.cambridgeinternational.org/Images/761507-business-9609-june-2026-grade-threshold-table.pdf",
+        "components": [
+          {
+            "code": "11",
+            "name": "Component 11",
+            "max": 40,
+            "thresholds": {
+              "A": 34,
+              "B": 32,
+              "C": 29,
+              "D": 26,
+              "E": 23
+            }
+          },
+          {
+            "code": "12",
+            "name": "Component 12",
+            "max": 40,
+            "thresholds": {
+              "A": 36,
+              "B": 33,
+              "C": 30,
+              "D": 27,
+              "E": 25
+            }
+          },
+          {
+            "code": "13",
+            "name": "Component 13",
+            "max": 40,
+            "thresholds": {
+              "A": 35,
+              "B": 33,
+              "C": 30,
+              "D": 27,
+              "E": 25
+            }
+          },
+          {
+            "code": "21",
+            "name": "Component 21",
+            "max": 60,
+            "thresholds": {
+              "A": 44,
+              "B": 40,
+              "C": 35,
+              "D": 30,
+              "E": 25
+            }
+          },
+          {
+            "code": "22",
+            "name": "Component 22",
+            "max": 60,
+            "thresholds": {
+              "A": 41,
+              "B": 38,
+              "C": 34,
+              "D": 30,
+              "E": 25
+            }
+          },
+          {
+            "code": "23",
+            "name": "Component 23",
+            "max": 60,
+            "thresholds": {
+              "A": 40,
+              "B": 36,
+              "C": 31,
+              "D": 27,
+              "E": 22
+            }
+          },
+          {
+            "code": "31",
+            "name": "Component 31",
+            "max": 60,
+            "thresholds": {
+              "A": 41,
+              "B": 38,
+              "C": 34,
+              "D": 30,
+              "E": 25
+            }
+          },
+          {
+            "code": "32",
+            "name": "Component 32",
+            "max": 60,
+            "thresholds": {
+              "A": 39,
+              "B": 37,
+              "C": 33,
+              "D": 29,
+              "E": 25
+            }
+          },
+          {
+            "code": "33",
+            "name": "Component 33",
+            "max": 60,
+            "thresholds": {
+              "A": 39,
+              "B": 37,
+              "C": 34,
+              "D": 30,
+              "E": 26
+            }
+          },
+          {
+            "code": "41",
+            "name": "Component 41",
+            "max": 40,
+            "thresholds": {
+              "A": 27,
+              "B": 25,
+              "C": 22,
+              "D": 19,
+              "E": 16
+            }
+          },
+          {
+            "code": "42",
+            "name": "Component 42",
+            "max": 40,
+            "thresholds": {
+              "A": 27,
+              "B": 25,
+              "C": 23,
+              "D": 21,
+              "E": 19
+            }
+          },
+          {
+            "code": "43",
+            "name": "Component 43",
+            "max": 40,
+            "thresholds": {
+              "A": 29,
+              "B": 25,
+              "C": 21,
+              "D": 18,
+              "E": 15
+            }
+          },
+          {
+            "code": "50",
+            "name": "Component 50",
+            "max": 75,
+            "thresholds": {
+              "A": 60,
+              "B": 53,
+              "C": 44,
+              "D": 35,
+              "E": 27
+            }
+          },
+          {
+            "code": "60",
+            "name": "Component 60",
+            "max": 75,
+            "thresholds": {
+              "A": 56,
+              "B": 51,
+              "C": 43,
+              "D": 35,
+              "E": 27
+            }
+          }
+        ],
+        "options": [
+          {
+            "code": "11,21,31,41",
+            "level": "A Level",
+            "components": [
+              "11",
+              "21",
+              "31",
+              "41"
+            ],
+            "max": 200,
+            "weighting": "No scaling evident: PDF gives max weighted mark 200, equal to the sum of the listed component raw maxima (40+60+60+40). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 157,
+              "A": 146,
+              "B": 135,
+              "C": 119,
+              "D": 104,
+              "E": 89
+            },
+            "route": "linear",
+            "sumOfComponentRawMaxima": 200,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "12,22,32,42",
+            "level": "A Level",
+            "components": [
+              "12",
+              "22",
+              "32",
+              "42"
+            ],
+            "max": 200,
+            "weighting": "No scaling evident: PDF gives max weighted mark 200, equal to the sum of the listed component raw maxima (40+60+60+40). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 153,
+              "A": 143,
+              "B": 133,
+              "C": 120,
+              "D": 107,
+              "E": 94
+            },
+            "route": "linear",
+            "sumOfComponentRawMaxima": 200,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "13,23,33,43",
+            "level": "A Level",
+            "components": [
+              "13",
+              "23",
+              "33",
+              "43"
+            ],
+            "max": 200,
+            "weighting": "No scaling evident: PDF gives max weighted mark 200, equal to the sum of the listed component raw maxima (40+60+60+40). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 155,
+              "A": 143,
+              "B": 131,
+              "C": 116,
+              "D": 102,
+              "E": 88
+            },
+            "route": "linear",
+            "sumOfComponentRawMaxima": 200,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "50,60",
+            "level": "A Level",
+            "components": [
+              "50",
+              "60"
+            ],
+            "max": 150,
+            "weighting": "No scaling evident: PDF gives max weighted mark 150, equal to the sum of the listed component raw maxima (75+75). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 128,
+              "A": 116,
+              "B": 104,
+              "C": 87,
+              "D": 70,
+              "E": 54
+            },
+            "route": "linear",
+            "sumOfComponentRawMaxima": 150,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "31,41,87",
+            "level": "A Level",
+            "components": [
+              "31",
+              "41",
+              "87"
+            ],
+            "max": 200,
+            "weighting": "Max weighted mark 200 as printed. Component(s) 87 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 155,
+              "A": 143,
+              "B": 131,
+              "C": 116,
+              "D": 102,
+              "E": 88
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "31,41,97",
+            "level": "A Level",
+            "components": [
+              "31",
+              "41",
+              "97"
+            ],
+            "max": 200,
+            "weighting": "Max weighted mark 200 as printed. Component(s) 97 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 163,
+              "A": 152,
+              "B": 141,
+              "C": 126,
+              "D": 112,
+              "E": 98
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "31,41,99",
+            "level": "A Level",
+            "components": [
+              "31",
+              "41",
+              "99"
+            ],
+            "max": 200,
+            "weighting": "Max weighted mark 200 as printed. Component(s) 99 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 159,
+              "A": 148,
+              "B": 137,
+              "C": 123,
+              "D": 109,
+              "E": 95
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "32,42,88",
+            "level": "A Level",
+            "components": [
+              "32",
+              "42",
+              "88"
+            ],
+            "max": 200,
+            "weighting": "Max weighted mark 200 as printed. Component(s) 88 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 158,
+              "A": 147,
+              "B": 136,
+              "C": 123,
+              "D": 110,
+              "E": 97
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "32,42,97",
+            "level": "A Level",
+            "components": [
+              "32",
+              "42",
+              "97"
+            ],
+            "max": 200,
+            "weighting": "Max weighted mark 200 as printed. Component(s) 97 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 160,
+              "A": 150,
+              "B": 140,
+              "C": 127,
+              "D": 114,
+              "E": 101
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "32,42,98",
+            "level": "A Level",
+            "components": [
+              "32",
+              "42",
+              "98"
+            ],
+            "max": 200,
+            "weighting": "Max weighted mark 200 as printed. Component(s) 98 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 153,
+              "A": 144,
+              "B": 135,
+              "C": 122,
+              "D": 109,
+              "E": 96
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "33,43,89",
+            "level": "A Level",
+            "components": [
+              "33",
+              "43",
+              "89"
+            ],
+            "max": 200,
+            "weighting": "Max weighted mark 200 as printed. Component(s) 89 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 162,
+              "A": 149,
+              "B": 136,
+              "C": 122,
+              "D": 108,
+              "E": 94
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "33,43,98",
+            "level": "A Level",
+            "components": [
+              "33",
+              "43",
+              "98"
+            ],
+            "max": 200,
+            "weighting": "Max weighted mark 200 as printed. Component(s) 98 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 157,
+              "A": 146,
+              "B": 135,
+              "C": 121,
+              "D": 107,
+              "E": 93
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "33,43,99",
+            "level": "A Level",
+            "components": [
+              "33",
+              "43",
+              "99"
+            ],
+            "max": 200,
+            "weighting": "Max weighted mark 200 as printed. Component(s) 99 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 160,
+              "A": 148,
+              "B": 136,
+              "C": 122,
+              "D": 108,
+              "E": 95
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "60,80",
+            "level": "A Level",
+            "components": [
+              "60",
+              "80"
+            ],
+            "max": 150,
+            "weighting": "Max weighted mark 150 as printed. Component(s) 80 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 128,
+              "A": 116,
+              "B": 104,
+              "C": 88,
+              "D": 72,
+              "E": 57
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "11,21",
+            "level": "AS",
+            "components": [
+              "11",
+              "21"
+            ],
+            "max": 100,
+            "weighting": "No scaling evident: PDF gives max weighted mark 100, equal to the sum of the listed component raw maxima (40+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A": 78,
+              "B": 72,
+              "C": 64,
+              "D": 56,
+              "E": 48
+            },
+            "sumOfComponentRawMaxima": 100,
+            "optionLetterCodePrintedInPdf": null,
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS"
+          },
+          {
+            "code": "12,22",
+            "level": "AS",
+            "components": [
+              "12",
+              "22"
+            ],
+            "max": 100,
+            "weighting": "No scaling evident: PDF gives max weighted mark 100, equal to the sum of the listed component raw maxima (40+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A": 77,
+              "B": 71,
+              "C": 64,
+              "D": 57,
+              "E": 50
+            },
+            "sumOfComponentRawMaxima": 100,
+            "optionLetterCodePrintedInPdf": null,
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS"
+          },
+          {
+            "code": "13,23",
+            "level": "AS",
+            "components": [
+              "13",
+              "23"
+            ],
+            "max": 100,
+            "weighting": "No scaling evident: PDF gives max weighted mark 100, equal to the sum of the listed component raw maxima (40+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A": 75,
+              "B": 69,
+              "C": 61,
+              "D": 54,
+              "E": 47
+            },
+            "sumOfComponentRawMaxima": 100,
+            "optionLetterCodePrintedInPdf": null,
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS"
+          },
+          {
+            "code": "50",
+            "level": "AS",
+            "components": [
+              "50"
+            ],
+            "max": 75,
+            "weighting": "No scaling evident: PDF gives max weighted mark 75, equal to the sum of the listed component raw maxima (75). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A": 60,
+              "B": 53,
+              "C": 44,
+              "D": 35,
+              "E": 27
+            },
+            "sumOfComponentRawMaxima": 75,
+            "optionLetterCodePrintedInPdf": null,
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS"
+          }
+        ],
+        "notes": "Printed notes: 'Syllabus grade thresholds are the minimum marks required for each grade. They are determined from the weighted component thresholds for the listed components.' 'Some Cambridge International entry options offer more than one possible route to a grade. Where this is the case, candidates are awarded the best grade available to them based on the combination of components they have taken.' June 2026 PDFs no longer print option letter codes (e.g. AX/BY); each option is identified only by its combination of components, so 'code' here is the component list joined by commas. Component names are not given in the PDF (only 'Component NN'); 'max' is the printed 'Maximum raw mark'. Grade A* is not defined for individual components (PDF note). Percentage uniform marks (PUMs) are a different scale and cannot be used with these thresholds (PDF note). No scaling evident for rows whose components are all in the component table (e.g. 40+60+60+40 = 200; AS 40+60 = 100). Staged options use codes 87, 88, 89, 97, 98, 99, 80 that are not in the component table and not defined in the PDF. Components 50 and 60 appear in the June 2026 table; 'AS 50' is a stand-alone AS option (max 75)."
+      },
+      "June 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/740287-business-9609-june-2025-grade-threshold-table.pdf",
+        "components": [
+          {
+            "code": "11",
+            "name": "Component 11",
+            "max": 40,
+            "thresholds": {
+              "A": 35,
+              "B": 32,
+              "C": 28,
+              "D": 25,
+              "E": 22
+            }
+          },
+          {
+            "code": "12",
+            "name": "Component 12",
+            "max": 40,
+            "thresholds": {
+              "A": 35,
+              "B": 33,
+              "C": 30,
+              "D": 27,
+              "E": 25
+            }
+          },
+          {
+            "code": "13",
+            "name": "Component 13",
+            "max": 40,
+            "thresholds": {
+              "A": 34,
+              "B": 32,
+              "C": 29,
+              "D": 26,
+              "E": 24
+            }
+          },
+          {
+            "code": "21",
+            "name": "Component 21",
+            "max": 60,
+            "thresholds": {
+              "A": 40,
+              "B": 36,
+              "C": 33,
+              "D": 29,
+              "E": 25
+            }
+          },
+          {
+            "code": "22",
+            "name": "Component 22",
+            "max": 60,
+            "thresholds": {
+              "A": 46,
+              "B": 41,
+              "C": 37,
+              "D": 33,
+              "E": 28
+            }
+          },
+          {
+            "code": "23",
+            "name": "Component 23",
+            "max": 60,
+            "thresholds": {
+              "A": 47,
+              "B": 42,
+              "C": 38,
+              "D": 34,
+              "E": 29
+            }
+          },
+          {
+            "code": "31",
+            "name": "Component 31",
+            "max": 60,
+            "thresholds": {
+              "A": 38,
+              "B": 36,
+              "C": 32,
+              "D": 27,
+              "E": 22
+            }
+          },
+          {
+            "code": "32",
+            "name": "Component 32",
+            "max": 60,
+            "thresholds": {
+              "A": 39,
+              "B": 37,
+              "C": 34,
+              "D": 30,
+              "E": 25
+            }
+          },
+          {
+            "code": "33",
+            "name": "Component 33",
+            "max": 60,
+            "thresholds": {
+              "A": 39,
+              "B": 37,
+              "C": 34,
+              "D": 30,
+              "E": 25
+            }
+          },
+          {
+            "code": "41",
+            "name": "Component 41",
+            "max": 40,
+            "thresholds": {
+              "A": 30,
+              "B": 28,
+              "C": 24,
+              "D": 20,
+              "E": 17
+            }
+          },
+          {
+            "code": "42",
+            "name": "Component 42",
+            "max": 40,
+            "thresholds": {
+              "A": 23,
+              "B": 21,
+              "C": 19,
+              "D": 17,
+              "E": 16
+            }
+          },
+          {
+            "code": "43",
+            "name": "Component 43",
+            "max": 40,
+            "thresholds": {
+              "A": 30,
+              "B": 28,
+              "C": 24,
+              "D": 20,
+              "E": 17
+            }
+          },
+          {
+            "code": "50",
+            "name": "Component 50",
+            "max": 75,
+            "thresholds": {
+              "A": 54,
+              "B": 45,
+              "C": 36,
+              "D": 27,
+              "E": 18
+            }
+          },
+          {
+            "code": "60",
+            "name": "Component 60",
+            "max": 75,
+            "thresholds": {
+              "A": 54,
+              "B": 45,
+              "C": 36,
+              "D": 27,
+              "E": 18
+            }
+          }
+        ],
+        "options": [
+          {
+            "code": "AX",
+            "level": "A Level",
+            "components": [
+              "11",
+              "21",
+              "31",
+              "41"
+            ],
+            "max": 200,
+            "weighting": "No scaling evident: PDF gives max weighted mark 200, equal to the sum of the listed component raw maxima (40+60+60+40). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 154,
+              "A": 143,
+              "B": 132,
+              "C": 116,
+              "D": 101,
+              "E": 86
+            },
+            "sumOfComponentRawMaxima": 200,
+            "optionLetterCodePrintedInPdf": "AX"
+          },
+          {
+            "code": "AY",
+            "level": "A Level",
+            "components": [
+              "12",
+              "22",
+              "32",
+              "42"
+            ],
+            "max": 200,
+            "weighting": "No scaling evident: PDF gives max weighted mark 200, equal to the sum of the listed component raw maxima (40+60+60+40). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 154,
+              "A": 143,
+              "B": 132,
+              "C": 119,
+              "D": 106,
+              "E": 94
+            },
+            "sumOfComponentRawMaxima": 200,
+            "optionLetterCodePrintedInPdf": "AY"
+          },
+          {
+            "code": "AZ",
+            "level": "A Level",
+            "components": [
+              "13",
+              "23",
+              "33",
+              "43"
+            ],
+            "max": 200,
+            "weighting": "No scaling evident: PDF gives max weighted mark 200, equal to the sum of the listed component raw maxima (40+60+60+40). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 161,
+              "A": 150,
+              "B": 139,
+              "C": 124,
+              "D": 109,
+              "E": 95
+            },
+            "sumOfComponentRawMaxima": 200,
+            "optionLetterCodePrintedInPdf": "AZ"
+          },
+          {
+            "code": "BX",
+            "level": "A Level",
+            "components": [
+              "31",
+              "41",
+              "87"
+            ],
+            "max": 200,
+            "weighting": "Max weighted mark 200 as printed. Component(s) 87 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 156,
+              "A": 146,
+              "B": 136,
+              "C": 121,
+              "D": 107,
+              "E": 93
+            },
+            "optionLetterCodePrintedInPdf": "BX"
+          },
+          {
+            "code": "BY",
+            "level": "A Level",
+            "components": [
+              "32",
+              "42",
+              "88"
+            ],
+            "max": 200,
+            "weighting": "Max weighted mark 200 as printed. Component(s) 88 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 152,
+              "A": 140,
+              "B": 128,
+              "C": 114,
+              "D": 100,
+              "E": 87
+            },
+            "optionLetterCodePrintedInPdf": "BY"
+          },
+          {
+            "code": "BZ",
+            "level": "A Level",
+            "components": [
+              "33",
+              "43",
+              "89"
+            ],
+            "max": 200,
+            "weighting": "Max weighted mark 200 as printed. Component(s) 89 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 154,
+              "A": 144,
+              "B": 134,
+              "C": 119,
+              "D": 104,
+              "E": 89
+            },
+            "optionLetterCodePrintedInPdf": "BZ"
+          },
+          {
+            "code": "CS",
+            "level": "A Level",
+            "components": [
+              "31",
+              "41",
+              "99"
+            ],
+            "max": 200,
+            "weighting": "Max weighted mark 200 as printed. Component(s) 99 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 157,
+              "A": 148,
+              "B": 139,
+              "C": 124,
+              "D": 109,
+              "E": 95
+            },
+            "optionLetterCodePrintedInPdf": "CS"
+          },
+          {
+            "code": "CT",
+            "level": "A Level",
+            "components": [
+              "32",
+              "42",
+              "97"
+            ],
+            "max": 200,
+            "weighting": "Max weighted mark 200 as printed. Component(s) 97 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 152,
+              "A": 142,
+              "B": 132,
+              "C": 119,
+              "D": 106,
+              "E": 93
+            },
+            "optionLetterCodePrintedInPdf": "CT"
+          },
+          {
+            "code": "CU",
+            "level": "A Level",
+            "components": [
+              "33",
+              "43",
+              "98"
+            ],
+            "max": 200,
+            "weighting": "Max weighted mark 200 as printed. Component(s) 98 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 160,
+              "A": 149,
+              "B": 138,
+              "C": 122,
+              "D": 107,
+              "E": 92
+            },
+            "optionLetterCodePrintedInPdf": "CU"
+          },
+          {
+            "code": "CX",
+            "level": "A Level",
+            "components": [
+              "31",
+              "41",
+              "97"
+            ],
+            "max": 200,
+            "weighting": "Max weighted mark 200 as printed. Component(s) 97 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 158,
+              "A": 148,
+              "B": 138,
+              "C": 122,
+              "D": 106,
+              "E": 91
+            },
+            "optionLetterCodePrintedInPdf": "CX"
+          },
+          {
+            "code": "CY",
+            "level": "A Level",
+            "components": [
+              "32",
+              "42",
+              "98"
+            ],
+            "max": 200,
+            "weighting": "Max weighted mark 200 as printed. Component(s) 98 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 153,
+              "A": 142,
+              "B": 131,
+              "C": 117,
+              "D": 104,
+              "E": 91
+            },
+            "optionLetterCodePrintedInPdf": "CY"
+          },
+          {
+            "code": "P2",
+            "level": "A Level",
+            "components": [
+              "50",
+              "60"
+            ],
+            "max": 150,
+            "weighting": "No scaling evident: PDF gives max weighted mark 150, equal to the sum of the listed component raw maxima (75+75). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 126,
+              "A": 108,
+              "B": 90,
+              "C": 72,
+              "D": 54,
+              "E": 36
+            },
+            "sumOfComponentRawMaxima": 150,
+            "optionLetterCodePrintedInPdf": "P2"
+          },
+          {
+            "code": "SX",
+            "level": "AS",
+            "components": [
+              "11",
+              "21"
+            ],
+            "max": 100,
+            "weighting": "No scaling evident: PDF gives max weighted mark 100, equal to the sum of the listed component raw maxima (40+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A": 75,
+              "B": 68,
+              "C": 61,
+              "D": 54,
+              "E": 47
+            },
+            "sumOfComponentRawMaxima": 100,
+            "optionLetterCodePrintedInPdf": "SX",
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS (2025 PDFs print an en dash for A*)"
+          },
+          {
+            "code": "SY",
+            "level": "AS",
+            "components": [
+              "12",
+              "22"
+            ],
+            "max": 100,
+            "weighting": "No scaling evident: PDF gives max weighted mark 100, equal to the sum of the listed component raw maxima (40+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A": 81,
+              "B": 74,
+              "C": 67,
+              "D": 60,
+              "E": 53
+            },
+            "sumOfComponentRawMaxima": 100,
+            "optionLetterCodePrintedInPdf": "SY",
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS (2025 PDFs print an en dash for A*)"
+          },
+          {
+            "code": "SZ",
+            "level": "AS",
+            "components": [
+              "13",
+              "23"
+            ],
+            "max": 100,
+            "weighting": "No scaling evident: PDF gives max weighted mark 100, equal to the sum of the listed component raw maxima (40+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A": 81,
+              "B": 74,
+              "C": 67,
+              "D": 60,
+              "E": 53
+            },
+            "sumOfComponentRawMaxima": 100,
+            "optionLetterCodePrintedInPdf": "SZ",
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS (2025 PDFs print an en dash for A*)"
+          }
+        ],
+        "notes": "Printed notes: 'Grade thresholds taken for Syllabus 9609 (Business) in the June 2025 examination.' 'The overall thresholds for the different grades were set as follows.' Column headed 'Maximum mark after weighting'. Option codes (e.g. AX, SY, P1) are as printed in the June 2025 PDF. Component names are not given in the PDF (only 'Component NN'); 'max' is the printed 'Maximum raw mark'. Grade A* is not defined for individual components (PDF note). Percentage uniform marks (PUMs) are a different scale and cannot be used with these thresholds (PDF note). No scaling evident for rows with all components in the table (200 = 40+60+60+40; AS 100 = 40+60; P2 150 = 75+75). Staged options use codes 87, 88, 89, 97, 98, 99 that are not in the component table and not defined in the PDF. Section headings are not printed; AS options (S*) show an en dash for A*. Options SY and SZ have identical printed numbers."
+      }
+    }
+  },
+  "9708": {
+    "name": "Economics",
+    "qualification": "AS & A Level",
+    "sessions": {
+      "June 2026": {
+        "source": "https://www.cambridgeinternational.org/Images/761529-economics-9708-june-2026-grade-threshold-table.pdf",
+        "components": [
+          {
+            "code": "11",
+            "name": "Component 11",
+            "max": 30,
+            "thresholds": {
+              "A": 25,
+              "B": 22,
+              "C": 18,
+              "D": 15,
+              "E": 12
+            }
+          },
+          {
+            "code": "12",
+            "name": "Component 12",
+            "max": 30,
+            "thresholds": {
+              "A": 23,
+              "B": 20,
+              "C": 17,
+              "D": 14,
+              "E": 12
+            }
+          },
+          {
+            "code": "13",
+            "name": "Component 13",
+            "max": 30,
+            "thresholds": {
+              "A": 25,
+              "B": 21,
+              "C": 18,
+              "D": 15,
+              "E": 12
+            }
+          },
+          {
+            "code": "14",
+            "name": "Component 14",
+            "max": 30,
+            "thresholds": {
+              "A": 25,
+              "B": 22,
+              "C": 19,
+              "D": 16,
+              "E": 13
+            }
+          },
+          {
+            "code": "21",
+            "name": "Component 21",
+            "max": 60,
+            "thresholds": {
+              "A": 24,
+              "B": 21,
+              "C": 18,
+              "D": 15,
+              "E": 12
+            }
+          },
+          {
+            "code": "22",
+            "name": "Component 22",
+            "max": 60,
+            "thresholds": {
+              "A": 25,
+              "B": 22,
+              "C": 19,
+              "D": 16,
+              "E": 13
+            }
+          },
+          {
+            "code": "23",
+            "name": "Component 23",
+            "max": 60,
+            "thresholds": {
+              "A": 26,
+              "B": 22,
+              "C": 18,
+              "D": 15,
+              "E": 12
+            }
+          },
+          {
+            "code": "24",
+            "name": "Component 24",
+            "max": 60,
+            "thresholds": {
+              "A": 24,
+              "B": 21,
+              "C": 18,
+              "D": 15,
+              "E": 12
+            }
+          },
+          {
+            "code": "31",
+            "name": "Component 31",
+            "max": 30,
+            "thresholds": {
+              "A": 24,
+              "B": 20,
+              "C": 18,
+              "D": 15,
+              "E": 13
+            }
+          },
+          {
+            "code": "32",
+            "name": "Component 32",
+            "max": 30,
+            "thresholds": {
+              "A": 22,
+              "B": 20,
+              "C": 18,
+              "D": 16,
+              "E": 14
+            }
+          },
+          {
+            "code": "33",
+            "name": "Component 33",
+            "max": 30,
+            "thresholds": {
+              "A": 24,
+              "B": 20,
+              "C": 18,
+              "D": 15,
+              "E": 13
+            }
+          },
+          {
+            "code": "34",
+            "name": "Component 34",
+            "max": 30,
+            "thresholds": {
+              "A": 22,
+              "B": 20,
+              "C": 18,
+              "D": 16,
+              "E": 14
+            }
+          },
+          {
+            "code": "41",
+            "name": "Component 41",
+            "max": 60,
+            "thresholds": {
+              "A": 36,
+              "B": 31,
+              "C": 29,
+              "D": 26,
+              "E": 22
+            }
+          },
+          {
+            "code": "42",
+            "name": "Component 42",
+            "max": 60,
+            "thresholds": {
+              "A": 36,
+              "B": 31,
+              "C": 28,
+              "D": 25,
+              "E": 21
+            }
+          },
+          {
+            "code": "43",
+            "name": "Component 43",
+            "max": 60,
+            "thresholds": {
+              "A": 36,
+              "B": 31,
+              "C": 29,
+              "D": 26,
+              "E": 22
+            }
+          },
+          {
+            "code": "44",
+            "name": "Component 44",
+            "max": 60,
+            "thresholds": {
+              "A": 36,
+              "B": 32,
+              "C": 29,
+              "D": 25,
+              "E": 22
+            }
+          },
+          {
+            "code": "50",
+            "name": "Component 50",
+            "max": 75,
+            "thresholds": {
+              "A": 47,
+              "B": 42,
+              "C": 35,
+              "D": 28,
+              "E": 21
+            }
+          },
+          {
+            "code": "60",
+            "name": "Component 60",
+            "max": 75,
+            "thresholds": {
+              "A": 56,
+              "B": 51,
+              "C": 43,
+              "D": 35,
+              "E": 27
+            }
+          }
+        ],
+        "options": [
+          {
+            "code": "11,21,31,41",
+            "level": "A Level",
+            "components": [
+              "11",
+              "21",
+              "31",
+              "41"
+            ],
+            "max": 180,
+            "weighting": "No scaling evident: PDF gives max weighted mark 180, equal to the sum of the listed component raw maxima (30+60+30+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 124,
+              "A": 109,
+              "B": 94,
+              "C": 82,
+              "D": 70,
+              "E": 59
+            },
+            "route": "linear",
+            "sumOfComponentRawMaxima": 180,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "12,22,31,42",
+            "level": "A Level",
+            "components": [
+              "12",
+              "22",
+              "31",
+              "42"
+            ],
+            "max": 180,
+            "weighting": "No scaling evident: PDF gives max weighted mark 180, equal to the sum of the listed component raw maxima (30+60+30+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 123,
+              "A": 108,
+              "B": 93,
+              "C": 81,
+              "D": 70,
+              "E": 59
+            },
+            "route": "linear",
+            "sumOfComponentRawMaxima": 180,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "12,22,32,42",
+            "level": "A Level",
+            "components": [
+              "12",
+              "22",
+              "32",
+              "42"
+            ],
+            "max": 180,
+            "weighting": "No scaling evident: PDF gives max weighted mark 180, equal to the sum of the listed component raw maxima (30+60+30+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 119,
+              "A": 106,
+              "B": 93,
+              "C": 82,
+              "D": 71,
+              "E": 60
+            },
+            "route": "linear",
+            "sumOfComponentRawMaxima": 180,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "13,23,33,43",
+            "level": "A Level",
+            "components": [
+              "13",
+              "23",
+              "33",
+              "43"
+            ],
+            "max": 180,
+            "weighting": "No scaling evident: PDF gives max weighted mark 180, equal to the sum of the listed component raw maxima (30+60+30+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 128,
+              "A": 111,
+              "B": 94,
+              "C": 82,
+              "D": 70,
+              "E": 59
+            },
+            "route": "linear",
+            "sumOfComponentRawMaxima": 180,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "14,24,34,44",
+            "level": "A Level",
+            "components": [
+              "14",
+              "24",
+              "34",
+              "44"
+            ],
+            "max": 180,
+            "weighting": "No scaling evident: PDF gives max weighted mark 180, equal to the sum of the listed component raw maxima (30+60+30+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 119,
+              "A": 107,
+              "B": 95,
+              "C": 83,
+              "D": 72,
+              "E": 61
+            },
+            "route": "linear",
+            "sumOfComponentRawMaxima": 180,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "50,60",
+            "level": "A Level",
+            "components": [
+              "50",
+              "60"
+            ],
+            "max": 150,
+            "weighting": "No scaling evident: PDF gives max weighted mark 150, equal to the sum of the listed component raw maxima (75+75). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 113,
+              "A": 103,
+              "B": 93,
+              "C": 78,
+              "D": 63,
+              "E": 48
+            },
+            "route": "linear",
+            "sumOfComponentRawMaxima": 150,
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "31,41,87",
+            "level": "A Level",
+            "components": [
+              "31",
+              "41",
+              "87"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 87 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 124,
+              "A": 108,
+              "B": 92,
+              "C": 80,
+              "D": 68,
+              "E": 56
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "31,41,97",
+            "level": "A Level",
+            "components": [
+              "31",
+              "41",
+              "97"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 97 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 123,
+              "A": 110,
+              "B": 97,
+              "C": 85,
+              "D": 73,
+              "E": 62
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "31,42,88",
+            "level": "A Level",
+            "components": [
+              "31",
+              "42",
+              "88"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 88 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 124,
+              "A": 109,
+              "B": 94,
+              "C": 82,
+              "D": 70,
+              "E": 58
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "31,42,98",
+            "level": "A Level",
+            "components": [
+              "31",
+              "42",
+              "98"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 98 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 121,
+              "A": 107,
+              "B": 93,
+              "C": 82,
+              "D": 71,
+              "E": 60
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "32,42,88",
+            "level": "A Level",
+            "components": [
+              "32",
+              "42",
+              "88"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 88 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 120,
+              "A": 107,
+              "B": 94,
+              "C": 82,
+              "D": 70,
+              "E": 59
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "32,42,98",
+            "level": "A Level",
+            "components": [
+              "32",
+              "42",
+              "98"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 98 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 117,
+              "A": 105,
+              "B": 93,
+              "C": 82,
+              "D": 71,
+              "E": 61
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "33,43,89",
+            "level": "A Level",
+            "components": [
+              "33",
+              "43",
+              "89"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 89 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 125,
+              "A": 108,
+              "B": 91,
+              "C": 79,
+              "D": 67,
+              "E": 55
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "33,43,99",
+            "level": "A Level",
+            "components": [
+              "33",
+              "43",
+              "99"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 99 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 124,
+              "A": 109,
+              "B": 94,
+              "C": 82,
+              "D": 70,
+              "E": 58
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "34,44,84",
+            "level": "A Level",
+            "components": [
+              "34",
+              "44",
+              "84"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 84 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 119,
+              "A": 106,
+              "B": 93,
+              "C": 81,
+              "D": 70,
+              "E": 59
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "34,44,94",
+            "level": "A Level",
+            "components": [
+              "34",
+              "44",
+              "94"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 94 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 118,
+              "A": 107,
+              "B": 96,
+              "C": 84,
+              "D": 72,
+              "E": 61
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "60,80",
+            "level": "A Level",
+            "components": [
+              "60",
+              "80"
+            ],
+            "max": 150,
+            "weighting": "Max weighted mark 150 as printed. Component(s) 80 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 128,
+              "A": 116,
+              "B": 104,
+              "C": 88,
+              "D": 72,
+              "E": 57
+            },
+            "route": "staged",
+            "optionLetterCodePrintedInPdf": null
+          },
+          {
+            "code": "11,21",
+            "level": "AS",
+            "components": [
+              "11",
+              "21"
+            ],
+            "max": 90,
+            "weighting": "No scaling evident: PDF gives max weighted mark 90, equal to the sum of the listed component raw maxima (30+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A": 49,
+              "B": 43,
+              "C": 36,
+              "D": 30,
+              "E": 24
+            },
+            "sumOfComponentRawMaxima": 90,
+            "optionLetterCodePrintedInPdf": null,
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS"
+          },
+          {
+            "code": "12,22",
+            "level": "AS",
+            "components": [
+              "12",
+              "22"
+            ],
+            "max": 90,
+            "weighting": "No scaling evident: PDF gives max weighted mark 90, equal to the sum of the listed component raw maxima (30+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A": 48,
+              "B": 42,
+              "C": 36,
+              "D": 30,
+              "E": 25
+            },
+            "sumOfComponentRawMaxima": 90,
+            "optionLetterCodePrintedInPdf": null,
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS"
+          },
+          {
+            "code": "13,23",
+            "level": "AS",
+            "components": [
+              "13",
+              "23"
+            ],
+            "max": 90,
+            "weighting": "No scaling evident: PDF gives max weighted mark 90, equal to the sum of the listed component raw maxima (30+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A": 51,
+              "B": 43,
+              "C": 36,
+              "D": 30,
+              "E": 24
+            },
+            "sumOfComponentRawMaxima": 90,
+            "optionLetterCodePrintedInPdf": null,
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS"
+          },
+          {
+            "code": "14,24",
+            "level": "AS",
+            "components": [
+              "14",
+              "24"
+            ],
+            "max": 90,
+            "weighting": "No scaling evident: PDF gives max weighted mark 90, equal to the sum of the listed component raw maxima (30+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A": 49,
+              "B": 43,
+              "C": 37,
+              "D": 31,
+              "E": 25
+            },
+            "sumOfComponentRawMaxima": 90,
+            "optionLetterCodePrintedInPdf": null,
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS"
+          },
+          {
+            "code": "50",
+            "level": "AS",
+            "components": [
+              "50"
+            ],
+            "max": 75,
+            "weighting": "No scaling evident: PDF gives max weighted mark 75, equal to the sum of the listed component raw maxima (75). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A": 47,
+              "B": 42,
+              "C": 35,
+              "D": 28,
+              "E": 21
+            },
+            "sumOfComponentRawMaxima": 75,
+            "optionLetterCodePrintedInPdf": null,
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS"
+          }
+        ],
+        "notes": "Printed notes: 'Syllabus grade thresholds are the minimum marks required for each grade. They are determined from the weighted component thresholds for the listed components.' 'Some Cambridge International entry options offer more than one possible route to a grade. Where this is the case, candidates are awarded the best grade available to them based on the combination of components they have taken.' June 2026 PDFs no longer print option letter codes (e.g. AX/BY); each option is identified only by its combination of components, so 'code' here is the component list joined by commas. Component names are not given in the PDF (only 'Component NN'); 'max' is the printed 'Maximum raw mark'. Grade A* is not defined for individual components (PDF note). Percentage uniform marks (PUMs) are a different scale and cannot be used with these thresholds (PDF note). No scaling evident for rows with all components in the table (180 = 30+60+30+60; AS 90 = 30+60). Row '12, 22, 31, 42' is printed as such (a mixed combination), alongside '12, 22, 32, 42'. Staged options use codes 84, 87, 88, 89, 94, 97, 98, 99, 80 that are not in the component table and not defined in the PDF. 'AS 50' is a stand-alone AS option (max 75)."
+      },
+      "June 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/740318-economics-9708-june-2025-grade-threshold-table.pdf",
+        "components": [
+          {
+            "code": "11",
+            "name": "Component 11",
+            "max": 30,
+            "thresholds": {
+              "A": 25,
+              "B": 21,
+              "C": 17,
+              "D": 14,
+              "E": 11
+            }
+          },
+          {
+            "code": "12",
+            "name": "Component 12",
+            "max": 30,
+            "thresholds": {
+              "A": 23,
+              "B": 20,
+              "C": 17,
+              "D": 14,
+              "E": 11
+            }
+          },
+          {
+            "code": "13",
+            "name": "Component 13",
+            "max": 30,
+            "thresholds": {
+              "A": 24,
+              "B": 20,
+              "C": 17,
+              "D": 14,
+              "E": 11
+            }
+          },
+          {
+            "code": "14",
+            "name": "Component 14",
+            "max": 30,
+            "thresholds": {
+              "A": 23,
+              "B": 20,
+              "C": 17,
+              "D": 14,
+              "E": 11
+            }
+          },
+          {
+            "code": "21",
+            "name": "Component 21",
+            "max": 60,
+            "thresholds": {
+              "A": 23,
+              "B": 20,
+              "C": 17,
+              "D": 13,
+              "E": 10
+            }
+          },
+          {
+            "code": "22",
+            "name": "Component 22",
+            "max": 60,
+            "thresholds": {
+              "A": 26,
+              "B": 23,
+              "C": 19,
+              "D": 16,
+              "E": 13
+            }
+          },
+          {
+            "code": "23",
+            "name": "Component 23",
+            "max": 60,
+            "thresholds": {
+              "A": 24,
+              "B": 20,
+              "C": 16,
+              "D": 12,
+              "E": 9
+            }
+          },
+          {
+            "code": "24",
+            "name": "Component 24",
+            "max": 60,
+            "thresholds": {
+              "A": 25,
+              "B": 21,
+              "C": 18,
+              "D": 15,
+              "E": 12
+            }
+          },
+          {
+            "code": "31",
+            "name": "Component 31",
+            "max": 30,
+            "thresholds": {
+              "A": 22,
+              "B": 18,
+              "C": 16,
+              "D": 13,
+              "E": 11
+            }
+          },
+          {
+            "code": "32",
+            "name": "Component 32",
+            "max": 30,
+            "thresholds": {
+              "A": 23,
+              "B": 20,
+              "C": 18,
+              "D": 16,
+              "E": 14
+            }
+          },
+          {
+            "code": "33",
+            "name": "Component 33",
+            "max": 30,
+            "thresholds": {
+              "A": 22,
+              "B": 18,
+              "C": 16,
+              "D": 13,
+              "E": 11
+            }
+          },
+          {
+            "code": "34",
+            "name": "Component 34",
+            "max": 30,
+            "thresholds": {
+              "A": 22,
+              "B": 20,
+              "C": 18,
+              "D": 16,
+              "E": 14
+            }
+          },
+          {
+            "code": "41",
+            "name": "Component 41",
+            "max": 60,
+            "thresholds": {
+              "A": 35,
+              "B": 31,
+              "C": 29,
+              "D": 27,
+              "E": 24
+            }
+          },
+          {
+            "code": "42",
+            "name": "Component 42",
+            "max": 60,
+            "thresholds": {
+              "A": 35,
+              "B": 31,
+              "C": 28,
+              "D": 25,
+              "E": 22
+            }
+          },
+          {
+            "code": "43",
+            "name": "Component 43",
+            "max": 60,
+            "thresholds": {
+              "A": 35,
+              "B": 31,
+              "C": 29,
+              "D": 27,
+              "E": 24
+            }
+          },
+          {
+            "code": "44",
+            "name": "Component 44",
+            "max": 60,
+            "thresholds": {
+              "A": 33,
+              "B": 30,
+              "C": 27,
+              "D": 24,
+              "E": 21
+            }
+          },
+          {
+            "code": "50",
+            "name": "Component 50",
+            "max": 75,
+            "thresholds": {
+              "A": 47,
+              "B": 40,
+              "C": 34,
+              "D": 28,
+              "E": 22
+            }
+          },
+          {
+            "code": "60",
+            "name": "Component 60",
+            "max": 75,
+            "thresholds": {
+              "A": 55,
+              "B": 47,
+              "C": 38,
+              "D": 29,
+              "E": 20
+            }
+          }
+        ],
+        "options": [
+          {
+            "code": "AC",
+            "level": "A Level",
+            "components": [
+              "14",
+              "24",
+              "34",
+              "44"
+            ],
+            "max": 180,
+            "weighting": "No scaling evident: PDF gives max weighted mark 180, equal to the sum of the listed component raw maxima (30+60+30+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 115,
+              "A": 103,
+              "B": 91,
+              "C": 80,
+              "D": 69,
+              "E": 58
+            },
+            "sumOfComponentRawMaxima": 180,
+            "optionLetterCodePrintedInPdf": "AC"
+          },
+          {
+            "code": "AX",
+            "level": "A Level",
+            "components": [
+              "11",
+              "21",
+              "31",
+              "41"
+            ],
+            "max": 180,
+            "weighting": "No scaling evident: PDF gives max weighted mark 180, equal to the sum of the listed component raw maxima (30+60+30+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 120,
+              "A": 105,
+              "B": 90,
+              "C": 78,
+              "D": 67,
+              "E": 56
+            },
+            "sumOfComponentRawMaxima": 180,
+            "optionLetterCodePrintedInPdf": "AX"
+          },
+          {
+            "code": "AY",
+            "level": "A Level",
+            "components": [
+              "12",
+              "22",
+              "32",
+              "42"
+            ],
+            "max": 180,
+            "weighting": "No scaling evident: PDF gives max weighted mark 180, equal to the sum of the listed component raw maxima (30+60+30+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 120,
+              "A": 107,
+              "B": 94,
+              "C": 82,
+              "D": 71,
+              "E": 60
+            },
+            "sumOfComponentRawMaxima": 180,
+            "optionLetterCodePrintedInPdf": "AY"
+          },
+          {
+            "code": "AZ",
+            "level": "A Level",
+            "components": [
+              "13",
+              "23",
+              "33",
+              "43"
+            ],
+            "max": 180,
+            "weighting": "No scaling evident: PDF gives max weighted mark 180, equal to the sum of the listed component raw maxima (30+60+30+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 121,
+              "A": 105,
+              "B": 89,
+              "C": 77,
+              "D": 66,
+              "E": 55
+            },
+            "sumOfComponentRawMaxima": 180,
+            "optionLetterCodePrintedInPdf": "AZ"
+          },
+          {
+            "code": "BN",
+            "level": "A Level",
+            "components": [
+              "34",
+              "44",
+              "88"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 88 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 112,
+              "A": 101,
+              "B": 90,
+              "C": 79,
+              "D": 68,
+              "E": 58
+            },
+            "optionLetterCodePrintedInPdf": "BN"
+          },
+          {
+            "code": "BT",
+            "level": "A Level",
+            "components": [
+              "32",
+              "42",
+              "87"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 87 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 123,
+              "A": 108,
+              "B": 93,
+              "C": 80,
+              "D": 67,
+              "E": 55
+            },
+            "optionLetterCodePrintedInPdf": "BT"
+          },
+          {
+            "code": "BX",
+            "level": "A Level",
+            "components": [
+              "31",
+              "41",
+              "87"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 87 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 123,
+              "A": 107,
+              "B": 91,
+              "C": 78,
+              "D": 66,
+              "E": 54
+            },
+            "optionLetterCodePrintedInPdf": "BX"
+          },
+          {
+            "code": "BY",
+            "level": "A Level",
+            "components": [
+              "32",
+              "42",
+              "88"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 88 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 117,
+              "A": 104,
+              "B": 91,
+              "C": 80,
+              "D": 69,
+              "E": 59
+            },
+            "optionLetterCodePrintedInPdf": "BY"
+          },
+          {
+            "code": "BZ",
+            "level": "A Level",
+            "components": [
+              "33",
+              "43",
+              "89"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 89 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 121,
+              "A": 105,
+              "B": 89,
+              "C": 77,
+              "D": 66,
+              "E": 55
+            },
+            "optionLetterCodePrintedInPdf": "BZ"
+          },
+          {
+            "code": "CN",
+            "level": "A Level",
+            "components": [
+              "34",
+              "44",
+              "98"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 98 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 112,
+              "A": 102,
+              "B": 92,
+              "C": 80,
+              "D": 69,
+              "E": 58
+            },
+            "optionLetterCodePrintedInPdf": "CN"
+          },
+          {
+            "code": "CX",
+            "level": "A Level",
+            "components": [
+              "31",
+              "41",
+              "97"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 97 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 119,
+              "A": 105,
+              "B": 91,
+              "C": 80,
+              "D": 69,
+              "E": 59
+            },
+            "optionLetterCodePrintedInPdf": "CX"
+          },
+          {
+            "code": "CY",
+            "level": "A Level",
+            "components": [
+              "32",
+              "42",
+              "98"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 98 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 117,
+              "A": 105,
+              "B": 93,
+              "C": 81,
+              "D": 70,
+              "E": 59
+            },
+            "optionLetterCodePrintedInPdf": "CY"
+          },
+          {
+            "code": "CZ",
+            "level": "A Level",
+            "components": [
+              "33",
+              "43",
+              "99"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 99 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 120,
+              "A": 106,
+              "B": 92,
+              "C": 81,
+              "D": 70,
+              "E": 59
+            },
+            "optionLetterCodePrintedInPdf": "CZ"
+          },
+          {
+            "code": "DN",
+            "level": "A Level",
+            "components": [
+              "34",
+              "44",
+              "88"
+            ],
+            "max": 180,
+            "weighting": "Max weighted mark 180 as printed. Component(s) 88 are not listed in this PDF's component table, so the raw-mark sum cannot be checked; the PDF does not define them or print multipliers.",
+            "thresholds": {
+              "A*": 112,
+              "A": 101,
+              "B": 90,
+              "C": 79,
+              "D": 68,
+              "E": 58
+            },
+            "optionLetterCodePrintedInPdf": "DN"
+          },
+          {
+            "code": "P2",
+            "level": "A Level",
+            "components": [
+              "50",
+              "60"
+            ],
+            "max": 150,
+            "weighting": "No scaling evident: PDF gives max weighted mark 150, equal to the sum of the listed component raw maxima (75+75). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A*": 117,
+              "A": 102,
+              "B": 87,
+              "C": 72,
+              "D": 57,
+              "E": 42
+            },
+            "sumOfComponentRawMaxima": 150,
+            "optionLetterCodePrintedInPdf": "P2"
+          },
+          {
+            "code": "SC",
+            "level": "AS",
+            "components": [
+              "14",
+              "24"
+            ],
+            "max": 90,
+            "weighting": "No scaling evident: PDF gives max weighted mark 90, equal to the sum of the listed component raw maxima (30+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A": 48,
+              "B": 41,
+              "C": 35,
+              "D": 29,
+              "E": 23
+            },
+            "sumOfComponentRawMaxima": 90,
+            "optionLetterCodePrintedInPdf": "SC",
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS (2025 PDFs print an en dash for A*)"
+          },
+          {
+            "code": "SX",
+            "level": "AS",
+            "components": [
+              "11",
+              "21"
+            ],
+            "max": 90,
+            "weighting": "No scaling evident: PDF gives max weighted mark 90, equal to the sum of the listed component raw maxima (30+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A": 48,
+              "B": 41,
+              "C": 34,
+              "D": 27,
+              "E": 21
+            },
+            "sumOfComponentRawMaxima": 90,
+            "optionLetterCodePrintedInPdf": "SX",
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS (2025 PDFs print an en dash for A*)"
+          },
+          {
+            "code": "SY",
+            "level": "AS",
+            "components": [
+              "12",
+              "22"
+            ],
+            "max": 90,
+            "weighting": "No scaling evident: PDF gives max weighted mark 90, equal to the sum of the listed component raw maxima (30+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A": 49,
+              "B": 43,
+              "C": 36,
+              "D": 30,
+              "E": 24
+            },
+            "sumOfComponentRawMaxima": 90,
+            "optionLetterCodePrintedInPdf": "SY",
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS (2025 PDFs print an en dash for A*)"
+          },
+          {
+            "code": "SZ",
+            "level": "AS",
+            "components": [
+              "13",
+              "23"
+            ],
+            "max": 90,
+            "weighting": "No scaling evident: PDF gives max weighted mark 90, equal to the sum of the listed component raw maxima (30+60). PDF states thresholds are determined from the weighted component thresholds; it prints no multipliers.",
+            "thresholds": {
+              "A": 48,
+              "B": 40,
+              "C": 33,
+              "D": 26,
+              "E": 20
+            },
+            "sumOfComponentRawMaxima": 90,
+            "optionLetterCodePrintedInPdf": "SZ",
+            "gradeLabelsInPdf": "lowercase a-e (AS grades); no A* at AS (2025 PDFs print an en dash for A*)"
+          }
+        ],
+        "notes": "Printed notes: 'Grade thresholds taken for Syllabus 9708 (Economics) in the June 2025 examination.' 'The overall thresholds for the different grades were set as follows.' Column headed 'Maximum mark after weighting'. Option codes (e.g. AX, SY, P1) are as printed in the June 2025 PDF. Component names are not given in the PDF (only 'Component NN'); 'max' is the printed 'Maximum raw mark'. Grade A* is not defined for individual components (PDF note). Percentage uniform marks (PUMs) are a different scale and cannot be used with these thresholds (PDF note). No scaling evident for rows with all components in the table (180; AS 90; P2 150). Staged options use codes 87, 88, 89, 97, 98, 99 not in the component table and not defined in the PDF. Options BN and DN are both printed as '34, 44, 88' with identical numbers (as printed in the PDF). Section headings are not printed; AS options (S*) show an en dash for A*."
+      }
+    }
+  }
+}

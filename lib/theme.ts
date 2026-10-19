@@ -69,5 +69,4 @@ export function applyTheme(id: string): void {
   s.setProperty("--color-brand-strong", t.brandStrong);
   s.setProperty("--color-brand-soft", t.brandSoft);
   s.setProperty("--color-on-brand", t.onBrand);
-  s.setProperty("--ruled-margin", t.brand);
 }

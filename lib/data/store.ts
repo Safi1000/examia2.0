@@ -50,7 +50,8 @@ import type {
   TestStatus,
 } from "@/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import type { Database } from "@/lib/data/seed";
+import { createSeed, type Database } from "@/lib/data/seed";
+import { DEMO } from "@/lib/demo";
 import { supabase } from "@/lib/supabase";
 import { isFullyGraded } from "@/lib/scoring";
 
@@ -433,6 +434,7 @@ class Store {
    * itself are re-read immediately before the runner builds its answer sheet.
    */
   async refreshTest(testId: string): Promise<void> {
+    if (DEMO) return;
     const sb = supabase();
     const [tst, keys] = await Promise.all([
       sb.from("tests").select("*, questions(*)").eq("id", testId).maybeSingle(),
@@ -477,6 +479,13 @@ class Store {
   }
 
   private async hydrate(initial: boolean) {
+    if (DEMO) {
+      // Preview-only: the sample data stands in for the database.
+      if (initial || !this.ready) this.state = createSeed();
+      this.ready = true;
+      this.notify();
+      return;
+    }
     const sb = supabase();
     const [coh, stu, tst, sub, ann, bnk, keys, cls, subj, cCls, cSubj, sCls, sSubj, nts, nAssigns, asg, asgSubs, attD, attM, rep, rem, acts] = await Promise.all([
       sb.from("cohorts").select("*").order("created_at"),
@@ -2067,9 +2076,16 @@ function bankToRow(id: string, item: Omit<QuestionBankItem, "id">): Row {
 
 /** Short, unguessable string for a report's public link. */
 function reportToken(): string {
-  const bytes = new Uint8Array(9);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"[b % 56]).join("");
+  // 16 characters from a 56-letter alphabet (about 93 bits). Rejection
+  // sampling keeps every letter equally likely.
+  const alphabet = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  while (out.length < 16) {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    for (const b of bytes) if (b < 224 && out.length < 16) out += alphabet[b % 56];
+  }
+  return out;
 }
 
 // Module-level singleton (client only).

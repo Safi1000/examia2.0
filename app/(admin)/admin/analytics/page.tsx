@@ -245,7 +245,7 @@ export default function AnalyticsPage() {
   const hasData = base.released.length > 0;
 
   return (
-    <div className="px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader title="Analytics" subtitle={scopeCohort ? `Filtered to ${scopeCohort.name}` : "All cohorts"} />
 
       {/* Controls row */}
@@ -333,19 +333,19 @@ function ClassView({
 
       {data.trendPoints.length >= 2 && (
         <Card className="p-5">
-          <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ink-2">Class average trend</h2>
+          <h2 className="mb-3 text-base font-semibold text-ink">Class average trend</h2>
           <LineChart points={data.trendPoints} height={160} />
         </Card>
       )}
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card className="p-5">
-          <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ink-2">Grade distribution</h2>
+          <h2 className="mb-3 text-base font-semibold text-ink">Grade distribution</h2>
           <BarChart bars={data.bars} />
         </Card>
 
         <Card className="p-5">
-          <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ink-2">Weak topics</h2>
+          <h2 className="mb-3 text-base font-semibold text-ink">Weak topics</h2>
           <div className="space-y-3.5">
             {data.mastery.length === 0 ? (
               <p className="text-sm text-ink-3">No graded topics yet.</p>
@@ -357,7 +357,7 @@ function ClassView({
 
         {prevMonth && (
           <Card className="p-5">
-            <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ink-2">Most improved</h2>
+            <h2 className="mb-3 text-base font-semibold text-ink">Most improved</h2>
             {data.improved.length === 0 ? (
               <p className="text-sm text-ink-3">No comparable data yet.</p>
             ) : (
@@ -384,7 +384,7 @@ function ClassView({
 
         {prevMonth && (
           <Card className="p-5">
-            <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-ink-2">Needs attention</h2>
+            <h2 className="mb-3 text-base font-semibold text-ink">Needs attention</h2>
             {data.slipping.length === 0 ? (
               <p className="text-sm text-ink-3">No notable drops this month.</p>
             ) : (
@@ -412,7 +412,7 @@ function ClassView({
 
       <Card className="p-0">
         <div className="border-b border-border px-5 py-3.5">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-ink-2">Per-test stats</h2>
+          <h2 className="text-base font-semibold text-ink">Per-test stats</h2>
         </div>
         <TableScroll>
           <Table stickyFirst>
@@ -445,7 +445,7 @@ function ClassView({
       {data.cohortCompletion.length > 0 && (
         <Card className="p-0">
           <div className="border-b border-border px-5 py-3.5">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-ink-2">Completion by cohort</h2>
+            <h2 className="text-base font-semibold text-ink">Completion by cohort</h2>
           </div>
           <ul className="divide-y divide-border">
             {data.cohortCompletion.map(({ cohort, pct, submitted, expected }) => (

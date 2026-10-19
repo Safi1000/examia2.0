@@ -4,9 +4,10 @@ import Image from "next/image";
 import { useMemo, useRef, useState } from "react";
 import { PillButton } from "./PillButton";
 import { VideoPlayer } from "./VideoPlayer";
-import { ReviewSlider, type Shot } from "./ReviewSlider";
-import { posterFor, waLink, track, type LevelName, type SubjectName } from "@/lib/landing";
-import { COMPANY_NAME } from "@/lib/config";
+import { useBooking } from "./BookingModal";
+import { SHOT_RATIO, SHOTS as shots, VIDEO_REVIEWS as videoReviews, type VideoReview } from "@/lib/reviews";
+import { FAQS as faqs, posterFor, type LevelName, type SubjectName } from "@/lib/landing";
+import { SUBJECT_PAGES } from "@/lib/subjects";
 
 function Eyebrow({ children }: { children: string }) {
   return (
@@ -14,78 +15,7 @@ function Eyebrow({ children }: { children: string }) {
   );
 }
 
-/* ---------- Trust bar ---------- */
-const trust = [
-  {
-    label: "Who teaches you",
-    value: "ACCA + BSc Applied Accountancy",
-    body: "Qualified in the subjects I teach, and I only teach these three. No side hustles, no rotating tutors.",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 3l9 4.5-9 4.5-9-4.5L12 3z" />
-        <path d="M5 10v4c0 2 3 4 7 4s7-2 7-4v-4" />
-      </svg>
-    ),
-  },
-  {
-    label: "What you cover",
-    value: "The whole syllabus, then some",
-    body: "Concepts in the order the examiner expects, past paper practice every week, and the exam techniques that turn a 7 mark answer into an 11.",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 5a2 2 0 0 1 2-2h11v18H6a2 2 0 0 1-2-2V5z" />
-        <path d="M8 7h6M8 11h6M8 15h4" />
-      </svg>
-    ),
-  },
-  {
-    label: "What a trial costs",
-    value: "Nothing at all",
-    body: "Watch a full lesson at your level before you hand over a single rupee. Decide after, not before.",
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="9" />
-        <path d="M15 9.5c-.7-1-1.9-1.5-3-1.5-1.7 0-3 1-3 2.3 0 1.4 1.3 1.9 3 2.4s3 1 3 2.4c0 1.3-1.3 2.3-3 2.3-1.1 0-2.3-.5-3-1.5M12 6.5v11" />
-      </svg>
-    ),
-  },
-];
 
-export function TrustBar() {
-  return (
-    <section className="bg-band-b py-[54px] md:py-[74px]">
-      <div className="mx-auto max-w-6xl px-5">
-        <div className="grid gap-4 md:grid-cols-3 md:gap-5">
-          {trust.map((t) => (
-            <div
-              key={t.label}
-              className="group relative flex flex-col rounded-[22px] border border-hairline bg-card p-7 transition-all hover:-translate-y-1 hover:border-gold-border hover:bg-card-raised"
-            >
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-gold-border bg-gold-tint text-gold">
-                {t.icon}
-              </span>
-              <p className="mt-5 text-[10px] font-semibold uppercase tracking-[0.25em] text-faint">
-                {t.label}
-              </p>
-              <h3 className="mt-2 text-lg font-bold leading-snug text-foreground">{t.value}</h3>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{t.body}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Cross() {
-  return (
-    <span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[rgba(224,133,133,0.4)]">
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#e08585" strokeWidth="2" strokeLinecap="round">
-        <path d="M2 2l8 8M10 2l-8 8" />
-      </svg>
-    </span>
-  );
-}
 
 /* ---------- Picker ---------- */
 const SUBJECTS: SubjectName[] = ["Accounting", "Business", "Economics"];
@@ -94,25 +24,26 @@ type LevelCard = { level: LevelName; label: string; title: string; body: string 
 
 const LEVEL_CARDS: Record<SubjectName, LevelCard[]> = {
   Accounting: [
-    { level: "O Level / IGCSE", label: "O Level / IGCSE", title: "The foundations", body: "Double entry, the trial balance, and a full set of final accounts from a blank page." },
-    { level: "AS Level", label: "AS Level", title: "Building up", body: "Partnerships, limited companies, and the ratios examiners keep coming back to." },
-    { level: "A2 Level", label: "A2 Level", title: "The hard marks", body: "Manufacturing accounts, investment appraisal, and the analysis questions that carry the weight." },
+    { level: "O Level / IGCSE", label: "O Level / IGCSE", title: "The foundations", body: "Start from zero. Double entry, the trial balance and final accounts." },
+    { level: "AS Level", label: "AS Level", title: "Building up", body: "Partnerships, companies, and the ratios that come up every year." },
+    { level: "A2 Level", label: "A2 Level", title: "The hard marks", body: "Manufacturing accounts, investment appraisal and the big-mark questions." },
   ],
   Business: [
-    { level: "O Level / IGCSE", label: "O Level / IGCSE", title: "The foundations", body: "Business types, the marketing mix, and how a firm actually reaches a decision." },
-    { level: "AS Level", label: "AS Level", title: "Building up", body: "Motivation theory, cash flow, and building an argument the mark scheme rewards." },
-    { level: "A2 Level", label: "A2 Level", title: "The hard marks", body: "Strategy, stakeholder conflict, and the long case study questions." },
+    { level: "O Level / IGCSE", label: "O Level / IGCSE", title: "The foundations", body: "Types of business, the marketing mix, and how firms make decisions." },
+    { level: "AS Level", label: "AS Level", title: "Building up", body: "Motivation, cash flow, and answers built the way the mark scheme wants." },
+    { level: "A2 Level", label: "A2 Level", title: "The hard marks", body: "Strategy, stakeholders and the long case study." },
   ],
   Economics: [
-    { level: "O Level / IGCSE", label: "O Level / IGCSE", title: "The foundations", body: "Supply, demand, and why a price moves the way it does." },
-    { level: "AS Level", label: "AS Level", title: "Building up", body: "Elasticity, market failure, and reading a diagram under exam pressure." },
-    { level: "A2 Level", label: "A2 Level", title: "The hard marks", body: "Macro policy, trade, and the evaluation questions that ask you to pick a side." },
+    { level: "O Level / IGCSE", label: "O Level / IGCSE", title: "The foundations", body: "Supply, demand, and why prices go up and down." },
+    { level: "AS Level", label: "AS Level", title: "Building up", body: "Elasticity, market failure, and drawing diagrams fast." },
+    { level: "A2 Level", label: "A2 Level", title: "The hard marks", body: "Government policy, trade, and evaluation answers." },
   ],
 };
 
 export function FreeLesson() {
   const [subject, setSubject] = useState<SubjectName>("Accounting");
   const [pickedOnce, setPickedOnce] = useState(false);
+  const { open } = useBooking();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const cards = useMemo(() => LEVEL_CARDS[subject], [subject]);
@@ -132,13 +63,16 @@ export function FreeLesson() {
   };
 
   return (
-    <section id="picker" className="bg-band-a py-[78px] md:py-[120px]">
+    <section id="picker" className="py-14 md:py-20">
       <div className="mx-auto max-w-6xl px-5">
         <div className="text-center">
           <Eyebrow>Your free lesson</Eyebrow>
           <h2 className="mx-auto mt-4 max-w-[22ch] text-3xl text-foreground md:text-5xl">
-            Stop guessing. Start with one lesson.
+            Pick your subject and level.
           </h2>
+          <p className="mx-auto mt-4 max-w-3xl text-balance text-[17px] text-muted-foreground">
+            Free trial lesson in O Level, IGCSE, AS or A Level Accounting, Business or Economics.
+          </p>
         </div>
 
         {/* Steps */}
@@ -182,76 +116,89 @@ export function FreeLesson() {
           </div>
         </div>
 
-        <p className="mt-4 text-center text-xs text-faint">
-          Tap a subject. The levels below change to match it.
-        </p>
-
-        <div className="mt-10 text-center">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-faint">Step two</p>
-          <p className="mt-2 text-lg text-foreground">
-            You picked <span className="text-gold">{subject}</span>. Now pick your level.
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">Your chat opens with the booking message ready to send.</p>
-        </div>
-
-        <div className="mt-8 flex flex-col items-center gap-2">
-          <a
-            href={waLink({ subject, trial: true })}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => track("whatsapp_click", { from: "picker_cta", subject })}
-            className="rounded-full bg-gold px-7 py-3 text-sm font-bold text-[#1b1e21] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
-          >
-            Book now on WhatsApp
-          </a>
-          <span className="text-[11px] text-faint">Or pick your level below and it books itself.</span>
-        </div>
 
         {/* Keyed on subject so the level cards remount and replay `float-in` */}
-        <div key={subject} className="mt-10 grid gap-5 md:grid-cols-3">
-          {cards.map((c, i) => (
-            <a
-              key={c.level}
-              href={waLink({ subject, level: c.level, trial: true })}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => track("whatsapp_click", { from: "trial", subject, level: c.level })}
-              className="group float-in relative flex flex-col overflow-hidden rounded-[20px] border border-hairline bg-card p-7 text-left transition-all hover:-translate-y-1 hover:border-gold-border hover:shadow-[0_20px_50px_rgba(0,0,0,0.35)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
-              style={{ animationDelay: `${0.05 + i * 0.09}s` }}
-            >
-              <span aria-hidden className="pointer-events-none absolute right-4 top-2 select-none text-[120px] font-bold leading-none text-white opacity-[0.03]">
-                {i + 1}
-              </span>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-gold">{c.label}</span>
-              <h3 className="mt-3 text-xl font-bold text-foreground">{c.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{c.body}</p>
-              <span className="mt-6 flex items-center justify-between border-t border-hairline pt-4 text-sm font-semibold text-gold">
-                Book it on WhatsApp
-                <span aria-hidden className="transition-transform group-hover:translate-x-1">→</span>
-              </span>
-            </a>
-          ))}
+        <div key={subject} className="mt-8 grid gap-3 md:mt-10 md:grid-cols-3 md:gap-5">
+          {cards.map((c, i) => {
+            return (
+              <button
+                key={c.level}
+                type="button"
+                aria-haspopup="dialog"
+                onClick={() => open({ from: "home_picker", subject, level: c.level })}
+                data-spot className="group float-in relative flex flex-col overflow-hidden rounded-[18px] border border-hairline bg-card p-5 text-left transition-all md:rounded-[20px] md:p-7 hover:-translate-y-1 hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
+                style={{ animationDelay: `${0.05 + i * 0.09}s` }}
+              >
+                <span aria-hidden className="pointer-events-none absolute right-4 top-2 select-none text-[80px] font-bold leading-none text-white opacity-[0.03] md:text-[120px]">
+                  {i + 1}
+                </span>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gold">{c.label}</span>
+                <span className="mt-1 text-xs tabular-nums text-faint">
+                  Cambridge {SUBJECT_PAGES.find((p) => p.subject === subject)?.levels.find((l) => l.level === c.level)?.codes.replace(/O Level |IGCSE |AS Level |A Level /g, "")}
+                </span>
+                <span className="mt-2 text-lg font-bold text-foreground md:mt-3 md:text-xl">{c.title}</span>
+                <span className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground md:mt-2 md:text-[15px]">{c.body}</span>
+                <span className="mt-4 flex items-center justify-between border-t border-hairline pt-3 text-[15px] font-semibold text-gold md:mt-6 md:pt-4">
+                  Pick a time
+                  <span aria-hidden className="transition-transform group-hover:translate-x-1">→</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
+
       </div>
     </section>
   );
 }
 
 /* ---------- Difference ---------- */
+/** Phone table rows: what most classes do, and what mine do instead. */
+const COMPARE: Array<[string, string]> = [
+  ["40 students, one pace for all", "A small group. Stop me any time"],
+  ["Memorise answers and hope they match", "Learn why, so new questions make sense"],
+  ["You find out you're behind at the mock", "I spot a weak topic in week two"],
+  ["Scared to ask in front of everyone", "Ask as many times as you need"],
+];
+
+function Mark({ ok }: { ok: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full sm:h-6 sm:w-6 ${
+        ok ? "bg-gold text-[#1b1e21]" : "border border-[rgba(224,133,133,0.45)] text-[#e08585]"
+      }`}
+    >
+      <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        {ok ? <path d="M2.5 6.5l2.5 2.5 4.5-6" /> : <path d="M3 3l6 6M9 3l-6 6" />}
+      </svg>
+    </span>
+  );
+}
+
+/* Desktop: two cards side by side (as approved). Phones: one compact table. */
 const nowRows = [
-  "Forty students and one pace, which is never yours.",
-  "Memorize the format of the answer and hope the question matches.",
-  "Past papers on repeat until you have accidentally learned the answers.",
-  "You discover you are behind when the mock comes back.",
-  "Asking a question in front of everyone costs more than staying lost.",
+  "40 students, all taught at one pace.",
+  "You memorise answers and hope the question matches.",
+  "You find out you're behind when your mock comes back.",
+  "Asking a question in front of everyone feels scary.",
 ];
 const hereRows = [
-  "Small enough that you can stop me in the middle of a sentence.",
-  "You learn where every figure comes from, so any wording works.",
-  "Original questions, written for the topic you are actually stuck on.",
-  "I know which topic is slipping by the second week, not in March.",
-  "Asking twice is normal. Asking three times is fine too.",
+  "A small group. You can stop me any time.",
+  "You learn why things work, so new questions don't throw you.",
+  "I spot a weak topic in week two, not in March.",
+  "Ask as many times as you need.",
 ];
+
+function Cross() {
+  return (
+    <span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[rgba(224,133,133,0.4)]">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#e08585" strokeWidth="2" strokeLinecap="round">
+        <path d="M2 2l8 8M10 2l-8 8" />
+      </svg>
+    </span>
+  );
+}
 
 function Tick() {
   return (
@@ -265,17 +212,48 @@ function Tick() {
 
 export function Difference() {
   return (
-    <section id="compare" className="bg-band-b py-[78px] md:py-[120px]">
+    <section id="compare" className="py-14 md:py-20">
       <div className="mx-auto max-w-6xl px-5">
         <div className="text-center">
-          <Eyebrow>The difference</Eyebrow>
+          <Eyebrow>How it&apos;s different</Eyebrow>
           <h2 className="mx-auto mt-4 max-w-[22ch] text-3xl text-foreground md:text-5xl">
-            Same syllabus. Opposite experience.
+            Most classes vs my class.
           </h2>
         </div>
 
-        <div className="relative mt-12 grid gap-5 md:grid-cols-2">
-          <div className="rounded-[20px] border border-hairline bg-card">
+        {/* Phones: side-by-side table */}
+        <div className="mt-8 overflow-hidden rounded-[18px] border border-hairline bg-card/80 backdrop-blur-sm md:hidden">
+          <table className="w-full table-fixed border-collapse text-left">
+            <thead>
+              <tr>
+                <th scope="col" className="px-3 py-3 text-sm font-bold text-muted-foreground">Most classes</th>
+                <th scope="col" className="border-l border-gold-border bg-gold-tint px-3 py-3 text-sm font-bold text-foreground">My class</th>
+              </tr>
+            </thead>
+            <tbody>
+              {COMPARE.map(([now, here]) => (
+                <tr key={now} className="border-t border-hairline">
+                  <td className="px-3 py-3 align-top">
+                    <span className="flex items-start gap-2 text-[13px] leading-snug text-muted-foreground">
+                      <Mark ok={false} />
+                      {now}
+                    </span>
+                  </td>
+                  <td className="border-l border-gold-border bg-gold-tint/60 px-3 py-3 align-top">
+                    <span className="flex items-start gap-2 text-[13px] font-medium leading-snug text-foreground">
+                      <Mark ok />
+                      {here}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Desktop: two cards */}
+        <div className="relative mt-10 hidden gap-5 md:grid md:grid-cols-2">
+          <div data-spot className="rounded-[20px] border border-hairline bg-card">
             <div className="border-b border-hairline px-6 py-5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-faint">What you have now</p>
               <h3 className="mt-2 text-2xl font-bold text-foreground">Most classes</h3>
@@ -284,23 +262,13 @@ export function Difference() {
               {nowRows.map((r) => (
                 <li key={r} className="flex items-start gap-4 px-6 py-4">
                   <Cross />
-                  <span className="text-sm text-body">{r}</span>
+                  <span className="text-[15px] leading-relaxed text-body">{r}</span>
                 </li>
               ))}
             </ul>
           </div>
 
-          <div className="relative rounded-[20px] border border-gold-border bg-card-raised">
-            <span
-              aria-hidden
-              className="absolute -top-10 -left-2 hidden rotate-[-6deg] font-hand text-2xl font-bold text-gold min-[900px]:flex min-[900px]:items-center min-[900px]:gap-2"
-            >
-              this is the whole thing
-              <svg width="30" height="34" viewBox="0 0 30 34" fill="none">
-                <path d="M15 2 C 8 12, 22 20, 15 30" stroke="#FBC159" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-                <path d="M10 26 l5 6 5 -6" stroke="#FBC159" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              </svg>
-            </span>
+          <div data-spot className="relative rounded-[20px] border border-gold-border bg-card-raised">
             <div className="border-b border-gold-border bg-gold-tint px-6 py-5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-gold">What you get here</p>
               <h3 className="mt-2 text-2xl font-bold text-foreground">My class</h3>
@@ -309,7 +277,7 @@ export function Difference() {
               {hereRows.map((r) => (
                 <li key={r} className="flex items-start gap-4 px-6 py-4">
                   <Tick />
-                  <span className="text-sm text-body">{r}</span>
+                  <span className="text-[15px] leading-relaxed text-body">{r}</span>
                 </li>
               ))}
             </ul>
@@ -320,125 +288,13 @@ export function Difference() {
   );
 }
 
-/* ---------- Inside a lesson ---------- */
-type TileKind = "class" | "clip" | "notes" | "practice" | "technique";
-
-function TileArt({ kind }: { kind: TileKind }) {
-  const stroke = "#FBC159";
-  const soft = "rgba(255,255,255,0.06)";
-  if (kind === "class") {
-    return (
-      <svg viewBox="0 0 400 500" className="h-full w-full" aria-hidden>
-        <rect width="400" height="500" fill="#141618" />
-        <rect x="30" y="30" width="340" height="220" rx="8" fill={soft} stroke={stroke} strokeWidth="1.5" />
-        <text x="52" y="70" fill={stroke} fontSize="14" fontWeight="700">Trial Balance</text>
-        {[110, 140, 170, 200].map((y) => (
-          <g key={y}>
-            <line x1="50" y1={y} x2="180" y2={y} stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
-            <line x1="220" y1={y} x2="340" y2={y} stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
-          </g>
-        ))}
-        {[{ x: 120, h: 60 }, { x: 200, h: 80 }, { x: 280, h: 70 }].map((p) => (
-          <g key={p.x} transform={`translate(${p.x} ${430 - p.h})`}>
-            <circle cx="0" cy="0" r="14" fill="none" stroke={stroke} strokeWidth="1.5" />
-            <rect x="-14" y="14" width="28" height={p.h} fill="none" stroke={stroke} strokeWidth="1.5" />
-          </g>
-        ))}
-      </svg>
-    );
-  }
-  if (kind === "notes") {
-    return (
-      <svg viewBox="0 0 400 260" className="h-full w-full" aria-hidden>
-        <rect width="400" height="260" fill="#141618" />
-        <polyline points="30,220 90,180 150,190 210,120 270,140 340,60" fill="none" stroke={stroke} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        {[[30, 220], [90, 180], [150, 190], [210, 120], [270, 140], [340, 60]].map(([x, y]) => (
-          <circle key={`${x}-${y}`} cx={x} cy={y} r="4" fill={stroke} />
-        ))}
-        <line x1="20" y1="240" x2="380" y2="240" stroke="rgba(255,255,255,0.2)" />
-      </svg>
-    );
-  }
-  if (kind === "practice") {
-    return (
-      <svg viewBox="0 0 400 260" className="h-full w-full" aria-hidden>
-        <rect width="400" height="260" fill="#141618" />
-        <rect x="80" y="30" width="240" height="200" rx="6" fill={soft} stroke="rgba(255,255,255,0.2)" />
-        {[70, 100, 130, 160, 190].map((y) => (
-          <line key={y} x1="100" y1={y} x2="280" y2={y} stroke="rgba(255,255,255,0.25)" />
-        ))}
-        <circle cx="300" cy="200" r="26" fill={stroke} />
-        <path d="M289 200l7 7 14-14" fill="none" stroke="#1b1e21" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-  if (kind === "technique") {
-    return (
-      <svg viewBox="0 0 400 260" className="h-full w-full" aria-hidden>
-        <rect width="400" height="260" fill="#141618" />
-        <circle cx="200" cy="130" r="70" fill="none" stroke={stroke} strokeWidth="2" />
-        <path d="M200 60 A 70 70 0 0 1 265 155" fill="none" stroke={stroke} strokeWidth="3" strokeLinecap="round" />
-        <polygon points="188,105 188,155 228,130" fill={stroke} />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 400 260" className="h-full w-full" aria-hidden>
-      <rect width="400" height="260" fill="#141618" />
-      <rect x="60" y="40" width="280" height="180" rx="8" fill={soft} stroke="rgba(255,255,255,0.2)" />
-      <polygon points="180,110 180,170 235,140" fill={stroke} />
-    </svg>
-  );
-}
-
-const tiles: Array<{ caption: string; kind: TileKind; span?: string }> = [
-  { caption: "A live class, mid lesson", kind: "class", span: "md:col-span-1 md:row-span-2" },
-  { caption: "Clip: one topic explained", kind: "clip" },
-  { caption: "Notes from a session", kind: "notes" },
-  { caption: "Practice, marked and returned", kind: "practice" },
-  { caption: "Clip: exam technique", kind: "technique" },
-];
-
-export function InsideClass() {
-  return (
-    <section id="inside" className="bg-band-c py-[78px] md:py-[120px]">
-      <div className="mx-auto max-w-6xl px-5">
-        <div className="text-center">
-          <Eyebrow>See a real class</Eyebrow>
-          <h2 className="mx-auto mt-4 max-w-[22ch] text-3xl text-foreground md:text-5xl">
-            Inside a lesson.
-          </h2>
-        </div>
-        <div className="mt-12 grid gap-4 md:auto-rows-[220px] md:grid-cols-3">
-          {tiles.map((t) => (
-            <div
-              key={t.caption}
-              className={`group relative overflow-hidden rounded-[20px] border border-hairline bg-card-raised transition-all hover:-translate-y-1 hover:border-gold-border ${t.span ?? ""}`}
-            >
-              <div className="absolute inset-0">
-                <TileArt kind={t.kind} />
-              </div>
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-0 -translate-x-full bg-linear-to-r from-transparent via-[rgba(255,255,255,0.08)] to-transparent transition-transform duration-700 group-hover:translate-x-full"
-              />
-              <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-[rgba(20,22,24,0.95)] via-[rgba(20,22,24,0.6)] to-transparent p-5">
-                <p className="text-sm font-semibold text-foreground">{t.caption}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 /* ---------- Meet the teacher ---------- */
 export function MeetHamza() {
+  const { open } = useBooking();
   return (
-    <section id="meet" className="relative overflow-hidden bg-band-b py-[78px] md:py-[120px]">
+    <section id="meet" className="relative overflow-hidden py-14 md:py-20">
       <div className="mx-auto grid max-w-6xl gap-12 px-5 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:items-center md:gap-16">
-        <div className="relative mx-auto w-full max-w-sm md:mx-0">
+        <div className="relative mx-auto w-full max-w-[240px] sm:max-w-xs md:mx-0 md:max-w-sm">
           <div className="absolute -inset-4 -z-10 rounded-[28px] bg-gold-tint blur-2xl" aria-hidden />
           <div className="relative aspect-[3/4] w-full overflow-hidden rounded-[24px] border border-hairline-strong bg-card">
             <div
@@ -447,7 +303,7 @@ export function MeetHamza() {
             />
             <Image
               src="/hamza.jpg"
-              alt={`${COMPANY_NAME} — ACCA Affiliate`}
+              alt="Hamza, online O Level and A Level Accounting, Business and Economics tutor"
               fill
               priority
               sizes="(max-width: 768px) 90vw, 384px"
@@ -461,44 +317,36 @@ export function MeetHamza() {
 
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gold">
-            The person on the other end
+            Your teacher
           </p>
           <h2 className="mt-4 max-w-[22ch] text-3xl leading-[1.05] text-foreground md:text-5xl">
             I teach the way I wish someone had taught me.
           </h2>
-          <div className="mt-6 space-y-4 text-[15px] leading-relaxed text-body md:text-base">
+          <div className="mt-6 space-y-4 text-[17px] leading-relaxed text-body">
             <p>
-              I sat where you are. Same subjects. Same textbooks. Same knot in my stomach on
-              paper-two morning. I cleared the ACCA exams, and by the end I had figured out what the
-              good teachers were doing that the others were not.
-            </p>
-            <p>
-              This is that method. Not a franchise. Not a lecture hall. One classroom, three
-              subjects, and enough seats that I remember which topic{" "}
-              <span className="italic text-foreground">you</span> were stuck on last Tuesday.
+              I teach Accounting, Business and Economics online in small groups, so I know which topic you got
+              stuck on last week.
             </p>
           </div>
 
-          <dl className="mt-8 grid grid-cols-2 gap-4">
+          <dl className="mt-8 grid grid-cols-3 gap-3 sm:gap-4">
             {[
+              { k: "In these subjects", v: "Straight A's" },
               { k: "Students taught", v: "100+" },
               { k: "Years teaching", v: "4+" },
             ].map((s) => (
-              <div key={s.k} className="rounded-2xl border border-hairline bg-card p-4">
-                <dd className="text-2xl font-bold text-foreground">{s.v}</dd>
-                <dt className="mt-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-faint">
+              <div key={s.k} className="flex flex-col-reverse rounded-2xl border border-hairline bg-card p-3.5 sm:p-4">
+                <dt className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-faint sm:text-[11px] sm:tracking-[0.2em]">
                   {s.k}
                 </dt>
+                <dd className={`text-lg font-bold leading-tight sm:text-2xl ${s.v === "Straight A's" ? "text-gold" : "text-foreground"}`}>{s.v}</dd>
               </div>
             ))}
           </dl>
 
           <div className="mt-8">
-            <PillButton
-              magnetic
-              onClick={() => document.getElementById("picker")?.scrollIntoView({ behavior: "smooth" })}
-            >
-              Take my class for a spin
+            <PillButton magnetic onClick={() => open({ from: "meet" })}>
+              Book your free trial lesson
               <span aria-hidden>→</span>
             </PillButton>
           </div>
@@ -509,127 +357,114 @@ export function MeetHamza() {
 }
 
 /* ---------- Reviews ---------- */
-/** `src`: paste a YouTube/Vimeo/.mp4 URL to make the card playable. */
-type VideoReview = { name: string; meta: string; quote: string; src?: string; poster?: string };
+/**
+ * Each card is exactly the shape of its video or screenshot (no empty bands),
+ * and every card in a row shares one height, set by --rh on the row.
+ */
+function sized(ratio: number) {
+  return { width: `calc(var(--rh) * ${ratio})` } as const;
+}
 
-const videoReviews: VideoReview[] = [
-  {
-    // TODO: swap in the student's name, level and a line they say on camera.
-    name: "Student review 1",
-    meta: "On camera",
-    quote: "",
-    src: "https://youtube.com/shorts/FceZFLYhPSM",
-  },
-  {
-    name: "Student review 2",
-    meta: "On camera",
-    quote: "",
-    src: "https://youtube.com/shorts/zjlHTRHlDn8",
-  },
-];
-
-const shots: Shot[] = [
-  { src: "/reviews/armaan.jpg", name: "Armaan", meta: "AS · Business", alt: "WhatsApp message from Armaan about his Business classes" },
-  { src: "/reviews/talal.jpg", name: "Talal", meta: "Business", alt: "WhatsApp message from Talal about his Business classes" },
-  { src: "/reviews/meerab.jpg", name: "Meerab", meta: "AS Level", alt: "WhatsApp message from Meerab about her classes" },
-];
-
-function VideoReviewCard({ r }: { r: VideoReview }) {
+export function VideoReviewCard({ r }: { r: VideoReview }) {
   return (
-    <figure className="group relative flex flex-col overflow-hidden rounded-[24px] border border-hairline bg-card">
-      <div className="relative aspect-[9/12] w-full overflow-hidden bg-band-c">
+    <figure
+      data-spot
+      style={sized(r.ratio)}
+      className="max-w-full overflow-hidden rounded-[12px] border border-hairline bg-card/80 transition-[border-color,transform] duration-300 hover:-translate-y-1 hover:border-gold-border sm:rounded-[18px]"
+    >
+      <div className="relative w-full overflow-hidden bg-band-c" style={{ aspectRatio: r.ratio }}>
         <VideoPlayer
-          auto
           src={r.src}
           poster={r.poster ?? (r.src ? posterFor(r.src) : undefined)}
-          title={`Review from ${r.name}`}
+          title={r.name ? `Review from ${r.name}` : `Student review: ${r.meta.toLowerCase()}`}
           label="Clip coming soon"
         />
-        <span className="pointer-events-none absolute left-4 top-4 rounded-full border border-gold-border bg-[rgba(20,22,24,0.7)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-gold backdrop-blur">
-          Video
-        </span>
       </div>
-      <figcaption className="flex flex-col gap-3 p-5">
-        {r.quote && <p className="text-[15px] leading-relaxed text-body">&ldquo;{r.quote}&rdquo;</p>}
-        <div className="flex items-center justify-between border-t border-hairline pt-3">
-          <span className="text-sm font-semibold text-foreground">{r.name}</span>
-          <span className="text-[11px] uppercase tracking-[0.2em] text-faint">{r.meta}</span>
-        </div>
-      </figcaption>
+      {r.name && (
+        <figcaption className="flex items-center justify-between gap-2 px-3.5 py-2.5">
+          <span className="truncate text-sm font-semibold text-foreground">{r.name}</span>
+          <span className="shrink-0 text-[10px] uppercase tracking-[0.2em] text-faint">{r.meta}</span>
+        </figcaption>
+      )}
+    </figure>
+  );
+}
+
+/** A WhatsApp screenshot, whole, at its own shape. Tap for full size. */
+function ShotCard({ s }: { s: (typeof shots)[number] }) {
+  return (
+    <figure
+      data-spot
+      style={sized(SHOT_RATIO)}
+      className="max-w-full overflow-hidden rounded-[12px] border border-hairline bg-card/80 transition-[border-color,transform] duration-300 hover:-translate-y-1 hover:border-gold-border sm:rounded-[18px]"
+    >
+      <a
+        href={s.src}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`Open ${s.name}'s message full size`}
+        className="group relative block focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
+      >
+        <Image src={s.src} alt={s.alt} width={900} height={1524} sizes="(max-width: 768px) 45vw, 260px" className="h-auto w-full" />
+        {/* Name sits on the image, so the card stays exactly the screenshot's shape. */}
+        <figcaption className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-linear-to-t from-[rgba(15,17,19,0.95)] via-[rgba(15,17,19,0.6)] to-transparent px-3.5 pb-3 pt-10">
+          <span className="truncate text-sm font-semibold text-foreground">{s.name}</span>
+          <span className="hidden shrink-0 text-[10px] uppercase tracking-[0.2em] text-muted-foreground sm:inline">{s.meta}</span>
+        </figcaption>
+      </a>
     </figure>
   );
 }
 
 export function Reviews() {
+  // One wall, videos first, then voice notes, then messages. Every card shares
+  // one height (--rh) and keeps its own shape, so rows have no empty space.
+  const videos = videoReviews.filter((v) => v.kind === "video");
+  const voices = videoReviews.filter((v) => v.kind === "voice");
+
   return (
-    <section id="reviews" className="bg-band-a py-[78px] md:py-[120px]">
+    <section id="reviews" className="py-14 md:py-20">
       <div className="mx-auto max-w-6xl px-5">
         <div className="text-center">
-          <Eyebrow>In their own words</Eyebrow>
-          <h2 className="mx-auto mt-4 max-w-[24ch] text-3xl text-foreground md:text-5xl">
-            The students who used to hate this subject.
-          </h2>
-          <p className="mx-auto mt-4 max-w-[46ch] text-muted-foreground">
-            Two of them said it on camera. The rest are the messages that landed in my inbox when
-            the session ended — swipe through them.
-          </p>
+          <Eyebrow>Reviews</Eyebrow>
+          <h2 className="mx-auto mt-4 text-3xl text-foreground md:text-5xl">What my students say.</h2>
         </div>
 
-        <div className="mt-12 grid gap-5 md:grid-cols-2">
-          {videoReviews.map((r) => (
-            <VideoReviewCard key={r.name} r={r} />
+        {/* Phones: three tidy runs (videos 3 across, voice notes, messages 3 across),
+            each with its own height. Larger screens: one mixed wall at one height. */}
+        <div className="mt-8 flex flex-wrap items-start justify-center gap-2 sm:gap-4 sm:[--rh:280px] md:mt-12 md:[--rh:320px]">
+          {videos.map((r) => (
+            <div key={r.src} className="max-sm:[--rh:178px]">
+              <VideoReviewCard r={r} />
+            </div>
+          ))}
+          <span aria-hidden className="h-0 basis-full sm:hidden" />
+          {voices.map((r) => (
+            <div key={r.src} className="max-sm:[--rh:104px]">
+              <VideoReviewCard r={r} />
+            </div>
+          ))}
+          <span aria-hidden className="h-0 basis-full sm:hidden" />
+          {shots.map((s) => (
+            <div key={s.src} className="max-sm:[--rh:170px]">
+              <ShotCard s={s} />
+            </div>
           ))}
         </div>
-
-        <div className="mt-8">
-          <ReviewSlider shots={shots} />
-        </div>
-
-        <p className="mt-10 text-center text-xs text-faint">
-          First names only, chat headers cropped. Originals available on request.
-        </p>
       </div>
     </section>
   );
 }
 
-/* ---------- FAQ ---------- */
-const faqs: Array<{ q: string; a: string }> = [
-  {
-    q: "How is a trial lesson actually free? What's the catch?",
-    a: "No catch. You pick a subject and a level, watch a full recorded lesson, and decide. If it clicks, message me. If it doesn't, nothing happens and I don't chase you. That's it.",
-  },
-  {
-    q: "I'm starting from zero. Is that a problem?",
-    a: "That's actually easier for me than fixing a shaky foundation. We start at the reason a topic exists, then walk into the mechanics. You will not feel behind.",
-  },
-  {
-    q: "My exam is in a few weeks. Am I too late?",
-    a: "Depends on where you are, but usually no. We triage what matters, drill the mark-scheme moves, and leave the rest. Message me your paper and level and I'll tell you honestly.",
-  },
-  {
-    q: "Online or in person? How does a class actually run?",
-    a: "Small live groups on Zoom, camera on, screen shared. You can interrupt me whenever you want. Every session is recorded and sent to you the same night.",
-  },
-  {
-    q: "How much does it cost after the trial?",
-    a: "It depends on level and how many subjects you take. I don't hide the number, but I'd rather quote you after I know what you actually need. Ask on WhatsApp and I'll send fees.",
-  },
-  {
-    q: "What if my parents want to speak to you first?",
-    a: "Please. That's how most families start. I'll happily jump on a five-minute call before you commit to anything.",
-  },
-];
-
-function FaqItem({ q, a, defaultOpen }: { q: string; a: string; defaultOpen?: boolean }) {
+export function FaqItem({ q, a, defaultOpen, last }: { q: string; a: string; defaultOpen?: boolean; last?: boolean }) {
   const [open, setOpen] = useState(!!defaultOpen);
   return (
-    <div className="border-b border-hairline">
+    <div className={last ? "" : "border-b border-hairline"}>
       <button
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="group flex w-full items-center justify-between gap-6 py-6 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
+        className="group flex w-full items-center justify-between gap-4 py-4 text-left md:gap-6 md:py-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
       >
         <span className="min-w-0 text-base font-semibold text-foreground md:text-lg">{q}</span>
         <span
@@ -651,7 +486,7 @@ function FaqItem({ q, a, defaultOpen }: { q: string; a: string; defaultOpen?: bo
         }`}
       >
         <div className="overflow-hidden">
-          <p className="max-w-[62ch] pr-12 text-[15px] leading-relaxed text-muted-foreground">{a}</p>
+          <p className="max-w-[62ch] pr-10 text-[15px] leading-relaxed text-muted-foreground md:pr-12 md:text-[17px]">{a}</p>
         </div>
       </div>
     </div>
@@ -660,32 +495,23 @@ function FaqItem({ q, a, defaultOpen }: { q: string; a: string; defaultOpen?: bo
 
 export function Faq() {
   return (
-    <section id="faq" className="bg-band-b py-[78px] md:py-[120px]">
-      <div className="mx-auto grid max-w-6xl gap-12 px-5 md:grid-cols-[minmax(0,4fr)_minmax(0,7fr)] md:gap-16">
-        <div>
-          <Eyebrow>Fair questions</Eyebrow>
-          <h2 className="mt-4 text-3xl leading-[1.05] text-foreground md:text-4xl">
-            The things you were about to WhatsApp me anyway.
+    <section id="faq" className="py-14 md:py-20">
+      <div className="mx-auto max-w-3xl px-5">
+        <div className="text-center">
+          <Eyebrow>FAQ</Eyebrow>
+          <h2 className="mx-auto mt-4 max-w-[22ch] text-3xl leading-[1.05] text-foreground md:text-5xl">
+            Questions people ask me.
           </h2>
-          <p className="mt-4 max-w-[38ch] text-muted-foreground">
-            If it isn&apos;t here, send it over. I answer everything myself, usually within a few
-            hours.
-          </p>
-          <a
-            href={waLink()}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => track("whatsapp_click", { from: "faq" })}
-            className="mt-6 inline-flex items-center gap-2 rounded-full border border-gold-border bg-gold-tint px-4 py-2 text-xs font-semibold text-gold transition-colors hover:bg-[rgba(251,193,89,0.18)]"
-          >
-            Ask on WhatsApp
-            <span aria-hidden>→</span>
-          </a>
         </div>
-        <div>
+        <div data-spot className="mt-10 rounded-[24px] border border-hairline bg-card/60 px-6 backdrop-blur-sm md:px-10">
           {faqs.map((f, i) => (
-            <FaqItem key={f.q} q={f.q} a={f.a} defaultOpen={i === 0} />
+            <FaqItem key={f.q} q={f.q} a={f.a} defaultOpen={i === 0} last={i === faqs.length - 1} />
           ))}
+        </div>
+        <div className="mt-10 flex flex-col items-center gap-4 text-center">
+          <p className="text-[17px] text-muted-foreground">
+            Something else? Tap the WhatsApp button and ask me. I reply myself, usually within a few hours.
+          </p>
         </div>
       </div>
     </section>
@@ -694,32 +520,19 @@ export function Faq() {
 
 /* ---------- Closing CTA ---------- */
 export function Closing() {
+  const { open } = useBooking();
   return (
-    <section className="bg-band-c py-[78px] md:py-[120px]">
+    <section className="py-14 md:py-20">
       <div className="mx-auto max-w-3xl px-5 text-center">
-        <Eyebrow>Last thing</Eyebrow>
+        <Eyebrow>Free trial lesson</Eyebrow>
         <h2 className="mx-auto mt-4 max-w-[18ch] text-4xl text-foreground md:text-6xl">
-          Twenty minutes. Then you will know.
+          Try a lesson before you decide.
         </h2>
-        <p className="mx-auto mt-5 max-w-[48ch] text-muted-foreground">
-          Watch one lesson and find out whether the last two years of confusion were ever your fault.
-        </p>
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-          <PillButton
-            magnetic
-            onClick={() => document.getElementById("picker")?.scrollIntoView({ behavior: "smooth" })}
-          >
-            Pick my class
+          <PillButton magnetic onClick={() => open({ from: "closing" })}>
+            Book your free trial lesson
           </PillButton>
-          <PillButton
-            variant="ghost"
-            href={waLink()}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => track("whatsapp_click", { from: "closing" })}
-          >
-            Ask me something first
-          </PillButton>
+
         </div>
       </div>
     </section>

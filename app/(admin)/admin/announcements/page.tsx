@@ -40,7 +40,7 @@ export default function AnnouncementsPage() {
   const sorted = [...db.announcements].sort((a, b) => Number(b.pinned) - Number(a.pinned) || +new Date(b.createdAt) - +new Date(a.createdAt));
 
   return (
-    <div className="px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader
         title="Announcements"
         subtitle={`${db.announcements.length} posted`}

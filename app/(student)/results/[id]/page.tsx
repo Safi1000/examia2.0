@@ -13,6 +13,7 @@ import { buttonClasses } from "@/components/ui/Button";
 import { gradeSubmission, gradeLetter, gradeRole } from "@/lib/grading";
 import { formatDuration, formatTimestamp } from "@/lib/time";
 import { cn } from "@/lib/cn";
+import { StudyCoach } from "@/components/student/StudyCoach";
 
 export default function ResultsPage() {
   const params = useParams();
@@ -88,7 +89,11 @@ export default function ResultsPage() {
         </div>
       </Card>
 
-      <h2 className="mb-2.5 mt-7 text-sm font-bold uppercase tracking-wide text-ink-2">
+      <div className="mt-5">
+        <StudyCoach db={db} student={student} test={test} submission={submission} />
+      </div>
+
+      <h2 className="mb-3 mt-9 text-base font-semibold text-ink">
         Question breakdown
       </h2>
       <div className="space-y-3">
@@ -107,7 +112,7 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
   const zero = awarded === 0;
 
   return (
-    <Card className="p-4">
+    <Card id={`q-${index + 1}`} className="scroll-mt-24 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-mono text-xs text-ink-3">Q{index + 1}</span>

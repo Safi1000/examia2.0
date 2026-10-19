@@ -1,101 +1,43 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { PillButton } from "./PillButton";
 import { VideoPlayer } from "./VideoPlayer";
+import { useBooking } from "./BookingModal";
+import { Magnetic } from "./Magnetic";
 import { LANDING, posterFor, track } from "@/lib/landing";
 import { COMPANY_NAME } from "@/lib/config";
 
-const activityCards = [
-  { title: "Trial requested", sub: "AS · Economics", pos: "left-[3%] top-[14%] rotate-[-4deg]", speed: 0.06, delay: "0.35s" },
-  { title: "Notes shared", sub: "Depreciation, O Level", pos: "right-[2%] top-[30%] rotate-[3deg]", speed: 0.1, delay: "0.55s" },
-  { title: "Lesson booked", sub: "A2 · Business", pos: "left-[4%] top-[54%] rotate-[2.5deg]", speed: 0.045, delay: "0.8s" },
-];
-
+/**
+ * Above the fold: the trial pill, the headline, the tagline and one button.
+ * Who and what (subjects, boards, online) is in the trust cards just below.
+ */
 export function Hero() {
-  const heroRef = useRef<HTMLElement>(null);
-  const glowRef = useRef<HTMLDivElement>(null);
-  const [scrollY, setScrollY] = useState(0);
-
-  useEffect(() => {
-    const onScroll = () => setScrollY(window.scrollY);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  const onMouseMove = (e: React.MouseEvent) => {
-    if (!glowRef.current || !heroRef.current) return;
-    const r = heroRef.current.getBoundingClientRect();
-    glowRef.current.style.background = `radial-gradient(560px circle at ${e.clientX - r.left}px ${e.clientY - r.top}px, rgba(251,193,89,0.07), transparent 60%)`;
-  };
-
-  const scrollToPicker = () =>
-    document.getElementById("picker")?.scrollIntoView({ behavior: "smooth" });
+  const { open } = useBooking();
 
   return (
-    <section
-      id="top"
-      ref={heroRef}
-      onMouseMove={onMouseMove}
-      className="relative overflow-hidden bg-band-a pt-[64px]"
-    >
-      <div ref={glowRef} aria-hidden className="pointer-events-none absolute inset-0" />
+    <section id="top">
+      <div className="intro-rise mx-auto flex max-w-4xl flex-col items-center px-5 pb-14 pt-10 text-center md:pb-20 md:pt-16">
+        <Magnetic strength={0.15}>
+          <button
+            type="button"
+            onClick={() => open({ from: "hero_pill" })}
+            className="group inline-flex min-h-10 items-center gap-2 rounded-full border border-hairline-strong bg-[rgba(33,36,39,0.5)] px-4 text-sm text-muted-foreground backdrop-blur transition-colors hover:border-gold-border hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+          >
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-gold" />
+            <span className="hidden sm:inline">Live online · </span>Free trials open for May / June 2027
+            <span aria-hidden className="text-gold transition-transform duration-300 group-hover:translate-x-1">→</span>
+          </button>
+        </Magnetic>
 
-      {/* Editorial corner marks, desktop */}
-      <span aria-hidden className="pointer-events-none absolute left-4 top-4 hidden h-4 w-4 border-l border-t border-hairline-strong min-[1100px]:block" />
-      <span aria-hidden className="pointer-events-none absolute right-4 top-4 hidden h-4 w-4 border-r border-t border-hairline-strong min-[1100px]:block" />
-
-      {activityCards.map((c) => (
-        <div
-          key={c.title}
-          aria-hidden
-          className={`float-in absolute z-10 hidden w-56 rounded-[20px] border border-hairline bg-card p-4 shadow-[0_18px_40px_rgba(0,0,0,0.35)] min-[1280px]:block ${c.pos}`}
-          style={{ animationDelay: c.delay, translate: `0 ${-scrollY * c.speed}px` }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gold-tint text-gold">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M2 8l3 3 7-8" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-foreground">{c.title}</p>
-              <p className="truncate text-xs text-faint">{c.sub}</p>
-            </div>
-          </div>
-          <div className="mt-3 space-y-2">
-            <div className="h-2 w-full rounded-full bg-card-raised" />
-            <div className="h-2 w-2/3 rounded-full bg-card-raised" />
-          </div>
-        </div>
-      ))}
-
-      {/* Text stack, locked to 58svh minus top pad */}
-      <div
-        className="relative z-20 mx-auto flex max-w-4xl flex-col items-center justify-center px-5 text-center"
-        style={{ minHeight: "calc(58svh - 64px)" }}
-      >
-        <p className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.25em] text-faint">
-          <span aria-hidden className="h-px w-8 bg-gold" />
-          Accounting · Business · Economics
-          <span aria-hidden className="h-px w-8 bg-gold" />
-        </p>
-
-        <h1 className="mx-auto mt-6 max-w-[16ch] text-4xl leading-[1.05] text-foreground sm:text-5xl md:text-6xl">
-          You have read it four times. It still does not make sense.
+        <h1 className="mt-7 text-[2.6rem] font-bold leading-[1.04] tracking-[-0.03em] text-foreground sm:text-6xl md:text-[4.25rem]">
+          <span className="block">You know the syllabus.</span>
+          <span className="block text-[#c3c8cd]">You still lose the marks.</span>
         </h1>
 
-        <p className="mt-5 whitespace-nowrap font-hand text-[clamp(1.4rem,4.6vw,2.4rem)] font-bold text-gold">
+        <p className="mt-6 whitespace-nowrap font-hand text-[clamp(1.5rem,4.6vw,2.4rem)] font-bold text-gold">
           Start from scratch. Finish{" "}
           <span className="relative inline-block">
             exam ready.
-            <svg
-              aria-hidden
-              className="absolute -bottom-2 left-0 w-full"
-              viewBox="0 0 220 16"
-              fill="none"
-              preserveAspectRatio="none"
-            >
+            <svg aria-hidden className="absolute -bottom-2 left-0 w-full" viewBox="0 0 220 16" fill="none" preserveAspectRatio="none">
               <path
                 d="M5 10 C 40 4, 75 14, 112 8 C 150 2, 180 12, 215 7"
                 stroke="#FBC159"
@@ -108,37 +50,50 @@ export function Hero() {
           </span>
         </p>
 
-        <div className="mt-9">
-          <PillButton magnetic onClick={scrollToPicker}>
-            <span>Watch a free lesson</span>
-            <span aria-hidden className="transition-transform group-hover:translate-x-1">→</span>
-          </PillButton>
-        </div>
-
-        <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.25em] text-faint">
-          Free. Nothing to pay.
+        <p className="mt-7 flex items-center justify-center gap-3 text-[13px] font-semibold uppercase tracking-[0.22em] text-muted-foreground sm:gap-4 sm:text-sm">
+          <span>Accounting</span>
+          <span aria-hidden className="h-3.5 w-px bg-gold/60" />
+          <span>Business</span>
+          <span aria-hidden className="h-3.5 w-px bg-gold/60" />
+          <span>Economics</span>
         </p>
+
+        <Magnetic strength={0.4} className="mt-8">
+          <button
+            type="button"
+            onClick={() => open({ from: "hero" })}
+            className="btn-shine group inline-flex min-h-14 items-center gap-2 rounded-full bg-gold px-8 text-base font-semibold text-[#1b1e21] shadow-[0_12px_40px_-12px_rgba(251,193,89,0.55)] transition-[background-color,transform] hover:bg-[#ffd07a] active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+          >
+            Book your free trial lesson
+            <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+          </button>
+        </Magnetic>
       </div>
 
-      {/* Video, cut in half by fold */}
-      <div className="relative z-10 mx-auto max-w-4xl px-5 pb-[120px] pt-8">
+      <div className="mx-auto max-w-5xl px-5 pb-12 md:pb-20">
         <div
           onClick={() => track("vsl_play")}
-          className="relative aspect-video w-full overflow-hidden rounded-[28px] border border-hairline bg-band-c shadow-[0_0_120px_rgba(251,193,89,0.12)]"
+          onPointerMove={(e) => {
+            if (e.pointerType !== "mouse") return;
+            const el = e.currentTarget;
+            const r = el.getBoundingClientRect();
+            const px = (e.clientX - r.left) / r.width - 0.5;
+            const py = (e.clientY - r.top) / r.height - 0.5;
+            el.style.transition = "transform 0.2s ease-out";
+            el.style.transform = `perspective(1400px) rotateX(${-py * 4}deg) rotateY(${px * 5}deg)`;
+          }}
+          onPointerLeave={(e) => {
+            e.currentTarget.style.transition = "transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)";
+            e.currentTarget.style.transform = "";
+          }}
+          className="relative aspect-video w-full overflow-hidden rounded-[28px] border border-hairline-strong bg-band-c shadow-[0_40px_120px_-40px_rgba(251,193,89,0.25)]"
         >
           <VideoPlayer
             big
-            auto
             src={LANDING.heroVideo}
             poster={LANDING.heroPoster || posterFor(LANDING.heroVideo)}
-            title={`${COMPANY_NAME} — watch a free lesson`}
+            title={`${COMPANY_NAME}: introduction video`}
           />
-          <span className="pointer-events-none absolute right-4 top-4 rounded-full border border-gold-border px-3 py-1 text-xs font-semibold text-gold">
-            Your video
-          </span>
-          <span className="pointer-events-none absolute bottom-4 left-5 text-[10px] uppercase tracking-[0.2em] text-faint">
-            2 min
-          </span>
         </div>
       </div>
     </section>

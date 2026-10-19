@@ -50,7 +50,8 @@ export function VideoPlayer({
     ) : (
       <iframe
         title={title}
-        src={toEmbedUrl(src)}
+        // A tap means "play it", so the clicked player starts with sound.
+        src={toEmbedUrl(src, true, auto && !playing)}
         loading="lazy"
         className={`h-full w-full bg-black ${className}`}
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -62,8 +63,13 @@ export function VideoPlayer({
   return (
     <div className={`relative h-full w-full ${className}`}>
       {poster ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={poster} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover" />
+        // The still is shown whole (no zoom-crop) over a blurred copy of itself.
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={poster} alt="" aria-hidden loading={big ? "eager" : "lazy"} className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={poster} alt="" aria-hidden loading={big ? "eager" : "lazy"} className="absolute inset-0 h-full w-full object-contain" />
+        </>
       ) : (
         <div
           aria-hidden
@@ -85,10 +91,10 @@ export function VideoPlayer({
           <span className="pulse-ring absolute inset-0 rounded-full border-2 border-gold" aria-hidden />
           <span
             className={`flex items-center justify-center rounded-full bg-gold text-[#1b1e21] shadow-[0_10px_40px_rgba(251,193,89,0.35)] ${
-              big ? "h-16 w-16 md:h-20 md:w-20" : "h-14 w-14"
+              big ? "h-16 w-16 md:h-20 md:w-20" : "h-9 w-9 sm:h-14 sm:w-14"
             }`}
           >
-            <svg width={big ? 22 : 18} height={big ? 22 : 18} viewBox="0 0 22 22" fill="currentColor" className="ml-1">
+            <svg viewBox="0 0 22 22" fill="currentColor" className={`ml-0.5 ${big ? "h-[22px] w-[22px]" : "h-3.5 w-3.5 sm:h-[18px] sm:w-[18px]"}`}>
               <path d="M5 3l14 8-14 8z" />
             </svg>
           </span>

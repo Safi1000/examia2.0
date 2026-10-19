@@ -3,7 +3,7 @@ import { cn } from "@/lib/cn";
 type Tone = "neutral" | "brand" | "success" | "warning" | "error" | "info";
 
 const toneClass: Record<Tone, string> = {
-  neutral: "bg-surface-2 text-ink-2 border-border-strong",
+  neutral: "bg-surface-2 text-ink-2 border-transparent",
   brand: "bg-brand-soft text-brand border-brand/30",
   success: "bg-success-soft text-success border-success/30",
   warning: "bg-warning-soft text-warning border-warning/30",
@@ -39,7 +39,7 @@ export function Pill({ children, className }: { children: React.ReactNode; class
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md border border-border-strong bg-surface-2 px-2 py-0.5 font-mono text-xs tracking-tight text-ink-2",
+        "inline-flex items-center rounded-sm bg-surface-2 px-2 py-0.5 font-mono text-xs tracking-tight text-ink-2",
         className,
       )}
     >

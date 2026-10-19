@@ -66,11 +66,11 @@ export default function ExportPage() {
   }
 
   return (
-    <div className="px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader title="Data export" subtitle="Download a snapshot of your portal data." />
 
       <Card className="max-w-2xl p-5">
-        <h2 className="text-sm font-bold uppercase tracking-wide text-ink-2">Choose entities</h2>
+        <h2 className="text-base font-semibold text-ink">Choose entities</h2>
         <ul className="mt-3 divide-y divide-border">
           {ALL.map((key) => (
             <li key={key} className="flex items-center justify-between gap-3 py-3">

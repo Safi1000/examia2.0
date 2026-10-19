@@ -1,73 +1,52 @@
 "use client";
 
 import { Hero } from "./Hero";
-import {
-  TrustBar,
-  FreeLesson,
-  Difference,
-  InsideClass,
-  MeetHamza,
-  Reviews,
-  Faq,
-  Closing,
-} from "./Sections";
+import { FreeLesson, Difference, MeetHamza, Reviews, Faq, Closing } from "./Sections";
+import { InsideLesson } from "./InsideLesson";
+import { TrustBar } from "./TrustCards";
 import { Nav } from "./Nav";
-import { Announcement } from "./Announcement";
 import { Footer } from "./Footer";
-import { Grain } from "./Grain";
 import { MobileCta } from "./MobileCta";
-import { ScrollProgress } from "./ScrollProgress";
-import { LeadGateProvider } from "./LeadGate";
+import { CookieBanner } from "./CookieBanner";
+import { BookingProvider } from "./BookingModal";
+import { Backdrop } from "./Backdrop";
+import { IntroLogo } from "./IntroLogo";
 
 /**
- * Public marketing homepage. Self-contained: it owns its own nav/footer and its
- * design tokens are scoped to `.landing` (see globals.css), so it never leaks
- * into the student, admin, or test-runner surfaces.
+ * Public homepage: one funnel, ordered for a first-time visitor (see the
+ * comment in <main>). Design tokens are scoped to `.landing` (see globals.css).
  */
 export function LandingPage() {
   return (
-    <LeadGateProvider>
-      <div className="landing">
+    <BookingProvider>
+      <div className="landing relative isolate">
+        <Backdrop />
+        <IntroLogo />
         <a
           href="#main"
           className="sr-only focus:not-sr-only fixed left-4 top-4 z-[110] rounded-full bg-gold px-4 py-2 text-sm font-semibold text-[#1b1e21]"
         >
           Skip to content
         </a>
-
-        <ScrollProgress />
         <Nav />
-        {/* Sits under the sticky nav and rides with it down the page. */}
-        <div className="sticky top-20 z-40 px-5 pt-4">
-          <Announcement />
-        </div>
-
         <main id="main">
+          {/* A first-time visitor's path: what is this → can I trust it → how is it
+              different → do students like it → what do I get → who is the teacher →
+              pick my class → last doubts → book. */}
           <Hero />
           <TrustBar />
-          <FreeLesson />
           <Difference />
-          <InsideClass />
-          <MeetHamza />
           <Reviews />
+          <InsideLesson />
+          <MeetHamza />
+          <FreeLesson />
           <Faq />
           <Closing />
         </main>
-
         <Footer />
         <MobileCta />
-        <Grain />
-
-        {/* Fixed page vignette pulls the eye toward centre */}
-        <div
-          aria-hidden
-          className="pointer-events-none fixed inset-0 z-[80]"
-          style={{
-            background:
-              "radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%)",
-          }}
-        />
+        <CookieBanner />
       </div>
-    </LeadGateProvider>
+    </BookingProvider>
   );
 }

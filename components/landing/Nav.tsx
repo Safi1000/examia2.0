@@ -1,51 +1,61 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth-context";
+import { useOptionalAuth } from "@/lib/auth-context";
 import { COMPANY_NAME } from "@/lib/config";
-import { waLink, track } from "@/lib/landing";
 import { Logo } from "@/components/Brand";
-import { PillButton } from "./PillButton";
+import { BookButton } from "./BookingModal";
+import { Magnetic } from "./Magnetic";
 
+const focusRing =
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
+
+/**
+ * Login and the one main action: book the free trial (opens the calendar).
+ * WhatsApp lives in the floating button, bottom right (MobileCta.tsx).
+ */
 export function Nav() {
-  const { session } = useAuth();
-
-  // A signed-in student gets a way back into the portal instead of auth links.
-  // Admins are untouched by the marketing surface and keep using /admin.
+  // Public pages render outside AuthProvider (so they reach the server HTML),
+  // so there is no session here and the link reads "Login".
+  const session = useOptionalAuth()?.session;
   const isStudent = session?.role === "student";
 
+  // The glass bar gains a soft shadow once the page moves under it.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
-    <header className="sticky top-0 z-50 border-b border-hairline bg-[rgba(33,36,39,0.72)] backdrop-blur-xl">
-      <div className="mx-auto flex h-20 max-w-6xl items-center justify-between gap-3 px-5">
-        <Link href="/" className="flex items-center gap-2.5" aria-label={COMPANY_NAME}>
-          {/* Wide cursive wordmark: needs real height to read as prominent.
-              Mobile 48px · tablet 56px · desktop 64px, width:auto (ratio kept),
-              vertically centred inside the taller navbar. */}
-          <Logo className="h-12 sm:h-14 lg:h-16" />
+    <header className="sticky top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-4">
+      <div
+        className={`glass-bar mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 rounded-full pl-5 pr-2 sm:h-[72px] sm:pl-7 sm:pr-3 ${
+          scrolled ? "glass-bar--scrolled" : ""
+        }`}
+      >
+        <Link href="/" className={`flex shrink-0 items-center rounded-lg ${focusRing}`} aria-label={`${COMPANY_NAME} home`}>
+          <Logo className="h-10 sm:h-12" />
         </Link>
 
-        {/* No hamburger, no rail. Desktop/tablet: WhatsApp + Login.
-            Mobile: Login only (WhatsApp hidden via its wrapper). */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="hidden sm:block">
-            <PillButton
-              href={waLink()}
-              target="_blank"
-              rel="noopener noreferrer"
-              variant="ghost"
-              className="px-5 py-2 text-[13px]"
-              onClick={() => track("whatsapp_click", { from: "nav" })}
-            >
-              Message on WhatsApp
-            </PillButton>
-          </div>
-
-          <PillButton
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Link
             href={isStudent ? "/dashboard" : "/login"}
-            className="px-3.5 py-2 text-[13px] sm:px-5"
+            className={`inline-flex min-h-11 items-center rounded-full px-3 text-[15px] font-medium text-muted-foreground transition-colors hover:text-foreground sm:px-4 ${focusRing}`}
           >
             {isStudent ? "Dashboard" : "Login"}
-          </PillButton>
+          </Link>
+          <Magnetic strength={0.3}>
+            <BookButton
+              from="nav"
+              className={`btn-shine inline-flex min-h-11 items-center whitespace-nowrap rounded-full bg-gold px-4 text-sm font-semibold text-[#1b1e21] transition-[background-color,transform] hover:bg-[#ffd07a] active:scale-[0.97] sm:min-h-12 sm:px-6 sm:text-[15px] ${focusRing}`}
+            >
+              Book free trial
+            </BookButton>
+          </Magnetic>
         </div>
       </div>
     </header>

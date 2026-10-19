@@ -1,5 +1,7 @@
 "use client";
 
+import { StudyCoach } from "@/components/student/StudyCoach";
+
 import Link from "next/link";
 import { useMemo } from "react";
 import { useAuth } from "@/lib/auth-context";
@@ -119,6 +121,10 @@ export default function ProgressPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-6">
+      <div className="animate-fade-up">
+        <StudyCoach db={db} student={student} />
+      </div>
+
       <div className="animate-fade-up">
         <StudentReport
           studentName={student.username}

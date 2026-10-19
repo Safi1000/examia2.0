@@ -62,6 +62,17 @@ export function formatDate(iso: string): string {
   });
 }
 
+/** "in 3 hours", "in 2 days", "in 25 min" — for deadlines on cards. */
+export function formatRelative(iso: string, nowMs: number): string {
+  const mins = Math.round((+new Date(iso) - nowMs) / 60000);
+  if (mins <= 0) return "now";
+  if (mins < 60) return `in ${mins} min`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `in ${hours} hour${hours === 1 ? "" : "s"}`;
+  const days = Math.round(hours / 24);
+  return `in ${days} day${days === 1 ? "" : "s"}`;
+}
+
 /** Test scheduling state relative to a supplied `now`. */
 export type TestWindow = "future" | "open" | "closed";
 

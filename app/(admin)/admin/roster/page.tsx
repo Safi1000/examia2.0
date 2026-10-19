@@ -182,7 +182,7 @@ export default function RosterPage() {
   }
 
   return (
-    <div className="px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader
         title="Roster"
         subtitle={`${students.length} students`}

@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { Modal, Button, Input, Select, Label, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import type { DraftQuestion } from "@/lib/question-parser";
+import { parseQuestions, type DraftQuestion } from "@/lib/question-parser";
+import { useDatabase } from "@/lib/data/store";
 import type { Question } from "@/types";
 
 export const DOC_ACCEPT = ".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp";
@@ -33,8 +34,79 @@ export function ImportDocModal({
   const [dragging, setDragging] = useState(false);
   const [drafts, setDrafts] = useState<DraftQuestion[]>([]);
   const [problems, setProblems] = useState<string[]>([]);
+  const [mode, setMode] = useState<"files" | "paste">("files");
+  const [pasted, setPasted] = useState("");
+  const [allTopic, setAllTopic] = useState("");
+  const [allMarks, setAllMarks] = useState("");
+  const [answerKey, setAnswerKey] = useState("");
+  const db = useDatabase();
+
+  // Topics already used in this portal, offered as suggestions so tags stay consistent.
+  const knownTopics = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of db.tests) for (const q of t.questions) if (q.topic.trim()) set.add(q.topic.trim());
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [db.tests]);
+
+  /** Paste: parsed right here in the browser, no upload needed. */
+  function readPasted() {
+    const found = parseQuestions(pasted, "Pasted text");
+    if (!found.length) {
+      toast("No questions found. Number each one (1. 2. 3.) and letter the options (A) B) C)).", "error");
+      return;
+    }
+    setDrafts((prev) => [...prev, ...found]);
+    setPasted("");
+  }
+
+  function applyToAll(next: Partial<DraftQuestion>) {
+    setDrafts((prev) => prev.map((d) => ({ ...d, ...next })));
+  }
+
+  /**
+   * "1B 2C 3A" (by question number) or "BCA" (in MCQ order). Returns how many
+   * answers were set, so the teacher sees whether it matched.
+   */
+  function applyAnswerKey() {
+    const key = answerKey.trim();
+    if (!key) return;
+    const idx = (l: string) => l.toUpperCase().charCodeAt(0) - 65;
+    let applied = 0;
+    let next: DraftQuestion[];
+    if (/\d/.test(key)) {
+      const byNumber = new Map(
+        Array.from(key.matchAll(/(\d{1,3})\s*[.):\-]?\s*([A-Ha-h])\b/g)).map((m) => [Number(m[1]), m[2]]),
+      );
+      next = drafts.map((d, i) => {
+        const l = byNumber.get(i + 1);
+        if (!l || d.type !== "mcq" || idx(l) >= d.options.length) return d;
+        applied++;
+        return { ...d, correctIndex: idx(l) };
+      });
+    } else {
+      const letters = key.replace(/[^A-Ha-h]/g, "").split("");
+      let n = 0;
+      next = drafts.map((d) => {
+        if (d.type !== "mcq") return d;
+        const l = letters[n++];
+        if (!l || idx(l) >= d.options.length) return d;
+        applied++;
+        return { ...d, correctIndex: idx(l) };
+      });
+    }
+    setDrafts(next);
+    toast(
+      applied ? `Answer key set on ${applied} question${applied === 1 ? "" : "s"}.` : "That key didn't match any multiple-choice questions.",
+      applied ? "success" : "error",
+    );
+  }
+
 
   function reset() {
+    setPasted("");
+    setAllTopic("");
+    setAllMarks("");
+    setAnswerKey("");
     setDrafts([]);
     setProblems([]);
     setBusy(false);
@@ -107,7 +179,7 @@ export function ImportDocModal({
   const valid = drafts.length > 0 && drafts.every((d) => d.prompt.trim().length > 0);
 
   return (
-    <Modal open={open} onClose={close} title="Import questions from documents" size="lg">
+    <Modal open={open} onClose={close} title="Import questions" size="lg">
       <div className="space-y-4">
         <input
           ref={inputRef}
@@ -119,7 +191,42 @@ export function ImportDocModal({
           aria-label="Choose documents"
         />
 
+        <div role="tablist" aria-label="How to add questions" className="inline-flex rounded-md border border-border bg-surface p-1">
+          {(["files", "paste"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="tab"
+              aria-selected={mode === m}
+              onClick={() => setMode(m)}
+              className={cn(
+                "h-9 rounded px-4 text-sm font-semibold",
+                mode === m ? "bg-brand-soft text-brand" : "text-ink-2 hover:text-ink",
+              )}
+            >
+              {m === "files" ? "Upload files" : "Paste text"}
+            </button>
+          ))}
+        </div>
+
+        {mode === "paste" && (
+          <div className="space-y-2">
+            <textarea
+              value={pasted}
+              onChange={(e) => setPasted(e.target.value)}
+              placeholder={"1. Which account is debited when goods are bought on credit?\nA) Sales  B) Purchases  C) Cash  D) Capital\n\n2. Explain one benefit of a partnership. [4 marks]"}
+              aria-label="Paste questions"
+              className="min-h-40 w-full rounded-md border border-border-strong bg-surface p-3 text-base text-ink placeholder:text-ink-3"
+            />
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-ink-3">Copy from a past paper, Word or WhatsApp. Numbered questions and lettered options work best.</p>
+              <Button size="sm" onClick={readPasted} disabled={!pasted.trim()}>Read questions</Button>
+            </div>
+          </div>
+        )}
+
         <div
+          hidden={mode !== "files"}
           onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
           onDrop={(e) => {
@@ -159,6 +266,34 @@ export function ImportDocModal({
               </p>
               <p className="text-xs text-ink-3">Check and edit before saving.</p>
             </div>
+
+            {/* Set things once instead of on every row */}
+            <div className="grid gap-3 rounded-lg border border-border bg-surface p-3 sm:grid-cols-3">
+              <div>
+                <Label>Topic for all</Label>
+                <div className="flex gap-2">
+                  <Input value={allTopic} onChange={(e) => setAllTopic(e.target.value)} list="known-topics" placeholder="e.g. Partnerships" />
+                  <Button size="sm" variant="secondary" disabled={!allTopic.trim()} onClick={() => applyToAll({ topic: allTopic.trim() })}>Apply</Button>
+                </div>
+              </div>
+              <div>
+                <Label>Marks for all</Label>
+                <div className="flex gap-2">
+                  <Input type="number" min={1} value={allMarks} onChange={(e) => setAllMarks(e.target.value)} placeholder="e.g. 1" />
+                  <Button size="sm" variant="secondary" disabled={!(Number(allMarks) >= 1)} onClick={() => applyToAll({ marks: Math.max(1, Math.round(Number(allMarks))) })}>Apply</Button>
+                </div>
+              </div>
+              <div>
+                <Label>Answer key</Label>
+                <div className="flex gap-2">
+                  <Input value={answerKey} onChange={(e) => setAnswerKey(e.target.value)} placeholder="1B 2C or BCA" />
+                  <Button size="sm" variant="secondary" disabled={!answerKey.trim()} onClick={applyAnswerKey}>Apply</Button>
+                </div>
+              </div>
+            </div>
+            <datalist id="known-topics">
+              {knownTopics.map((t) => <option key={t} value={t} />)}
+            </datalist>
 
             <div className="max-h-[26rem] space-y-3 overflow-y-auto pr-1">
               {drafts.map((d, i) => (
@@ -200,6 +335,7 @@ export function ImportDocModal({
                           <Label>Topic</Label>
                           <Input
                             value={d.topic}
+                            list="known-topics"
                             onChange={(e) => patch(i, { topic: e.target.value })}
                           />
                         </div>

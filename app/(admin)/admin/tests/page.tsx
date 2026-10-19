@@ -73,7 +73,7 @@ export default function AdminTestsPage() {
   const target = deleteId ? db.tests.find((t) => t.id === deleteId) : null;
 
   return (
-    <div className="px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader
         title="Tests"
         subtitle={`${tests.length} ${tests.length === 1 ? "test" : "tests"}`}

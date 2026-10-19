@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import type { Annotation, Answer, Question } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { submissionById, studentById, testById } from "@/lib/data/selectors";
@@ -20,6 +21,10 @@ export default function GradingPage() {
   const db = useDatabase();
   const store = useStore();
   const { toast } = useToast();
+  const router = useRouter();
+  // Auto-marked MCQs are hidden by default so the written and photo answers
+  // that actually need a decision are on screen first.
+  const [showAuto, setShowAuto] = useState(false);
 
   const submission = submissionById(db, subId);
   const test = submission ? testById(db, submission.testId) : null;
@@ -27,7 +32,7 @@ export default function GradingPage() {
 
   if (!submission || !test || !student) {
     return (
-      <div className="px-4 py-6 sm:px-6">
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
         <PageHeader title="Submission not found" back={{ href: "/admin/submissions", label: "Submissions" }} />
         <EmptyState icon={<Icon.Inbox />} title="This submission no longer exists" />
       </div>
@@ -40,11 +45,32 @@ export default function GradingPage() {
   const released = submission.status === "released";
   const grade = gradeSubmission(test, submission);
 
+  // The oldest other submission still waiting for a mark: where "next" goes.
+  const nextId = db.submissions
+    .filter((s) => s.status === "submitted" && s.id !== subId)
+    .sort((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""))[0]?.id;
+  const waiting = db.submissions.filter((s) => s.status === "submitted").length;
+
+  const mcqs = test.questions.filter((q) => q.type === "mcq");
+  const hideAuto = !showAuto && mcqs.length > 0 && mcqs.length < test.questions.length;
+  const mcqAwarded = mcqs.reduce(
+    (sum, q) => sum + (submission.answers.find((x) => x.questionId === q.id)?.marksAwarded ?? 0),
+    0,
+  );
+  const mcqTotal = mcqs.reduce((sum, q) => sum + q.marks, 0);
+  const name = student.username.charAt(0).toUpperCase() + student.username.slice(1);
+
+  function release(goNext: boolean) {
+    store.releaseSubmission(subId);
+    toast(`${name}'s result released.`, "success");
+    if (goNext && nextId) router.push(`/admin/grading/${nextId}`);
+  }
+
   return (
-    <div className="px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader
         title="Grading"
-        subtitle={`${student.username} · ${test.title}`}
+        subtitle={`${name} · ${test.title}${waiting ? ` · ${waiting} waiting to be marked` : ""}`}
         back={{ href: "/admin/submissions", label: "Submissions" }}
         actions={
           released ? (
@@ -53,11 +79,21 @@ export default function GradingPage() {
               <Button variant="secondary" onClick={() => { store.unreleaseSubmission(subId); toast("Re-opened for grading.", "info"); }}>
                 <Icon.Refresh className="h-4 w-4" /> Re-grade
               </Button>
+              {nextId && (
+                <Button onClick={() => router.push(`/admin/grading/${nextId}`)}>Next to mark →</Button>
+              )}
             </>
           ) : (
-            <Button disabled={!fullyGraded} onClick={() => { store.releaseSubmission(subId); toast("Result released to student.", "success"); }}>
-              Release result
-            </Button>
+            <>
+              {nextId && (
+                <Link href={`/admin/grading/${nextId}`} className="text-sm font-semibold text-ink-2 hover:text-ink">
+                  Skip to next →
+                </Link>
+              )}
+              <Button disabled={!fullyGraded} onClick={() => release(!!nextId)}>
+                {nextId ? "Release & next" : "Release result"}
+              </Button>
+            </>
           )
         }
       />
@@ -79,8 +115,26 @@ export default function GradingPage() {
         )}
       </Card>
 
+      {mcqs.length > 0 && mcqs.length < test.questions.length && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-surface px-4 py-3 text-sm text-ink-2">
+          <span>
+            {mcqs.length} multiple-choice {mcqs.length === 1 ? "question" : "questions"} marked automatically:{" "}
+            <span className="font-mono font-semibold text-ink">{mcqAwarded}/{mcqTotal}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowAuto((v) => !v)}
+            className="font-semibold text-brand hover:underline"
+            aria-expanded={showAuto}
+          >
+            {showAuto ? "Hide them" : "Show them"}
+          </button>
+        </div>
+      )}
+
       <div className="space-y-3">
         {test.questions.map((q, i) => {
+          if (hideAuto && q.type === "mcq") return null;
           const a = submission.answers.find((x) => x.questionId === q.id);
           return <GradeCard key={q.id} index={i} question={q} answer={a} submissionId={subId} />;
         })}
@@ -264,6 +318,25 @@ function GradeCard({
                   +
                 </button>
                 <span className="text-sm text-ink-3">/ {question.marks}</span>
+              </div>
+              {/* One-tap marks for the common calls */}
+              <div className="flex items-center gap-1.5" role="group" aria-label="Quick marks">
+                {Array.from(new Set([0, Math.round(question.marks / 2), question.marks])).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setMarks(v)}
+                    aria-pressed={awarded === v}
+                    className={cn(
+                      "h-10 min-w-10 rounded-md border px-3 text-sm font-semibold",
+                      awarded === v
+                        ? "border-brand bg-brand-soft text-brand"
+                        : "border-border-strong bg-surface text-ink-2 hover:bg-surface-2",
+                    )}
+                  >
+                    {v === question.marks ? `Full (${v})` : v === 0 ? "0" : `Half (${v})`}
+                  </button>
+                ))}
               </div>
             </div>
             <Textarea

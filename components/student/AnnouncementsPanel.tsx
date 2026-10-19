@@ -11,12 +11,13 @@ export function AnnouncementsPanel({ student }: { student: Student }) {
   if (pinned.length === 0 && dismissible.length === 0) return null;
 
   return (
-    <section aria-label="Announcements" className="space-y-2.5">
+    <section aria-labelledby="ann-title" className="space-y-2.5">
+      <h2 id="ann-title" className="text-base font-semibold text-ink">From your teacher</h2>
       {pinned.map((a) => (
-        <div key={a.id} className="ruled-margin flex items-start gap-3 rounded-lg border border-border bg-info-soft/60 py-3 pl-4 pr-3">
-          <Icon.Flag className="mt-0.5 h-4 w-4 shrink-0 text-info" />
+        <div key={a.id} className="flex items-start gap-3 rounded-lg border border-brand/30 bg-surface py-3 pl-4 pr-3">
+          <Icon.Flag className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-ink">{a.body}</p>
+            <p className="text-[15px] text-ink">{a.body}</p>
             <p className="mt-1 text-xs text-ink-3">Pinned · {formatDate(a.createdAt)}</p>
           </div>
         </div>
@@ -25,7 +26,7 @@ export function AnnouncementsPanel({ student }: { student: Student }) {
         <div key={a.id} className="flex items-start gap-3 rounded-lg border border-border bg-surface py-3 pl-4 pr-2">
           <Icon.Megaphone className="mt-0.5 h-4 w-4 shrink-0 text-ink-3" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-ink">{a.body}</p>
+            <p className="text-[15px] text-ink">{a.body}</p>
             <p className="mt-1 text-xs text-ink-3">{formatDate(a.createdAt)}</p>
           </div>
           <button
