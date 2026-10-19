@@ -6,8 +6,8 @@ import { COMPANY_NAME } from "@/lib/config";
 import { LANDING } from "@/lib/landing";
 import { SUBJECT_PAGES } from "@/lib/subjects";
 
-/** No trailing slash. Override per deploy (e.g. a preview URL). */
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://hamzateaches.com").replace(
+/** No trailing slash. The live site serves on www (hamzateaches.com redirects there). Override per deploy. */
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.hamzateaches.com").replace(
   /\/$/,
   "",
 );

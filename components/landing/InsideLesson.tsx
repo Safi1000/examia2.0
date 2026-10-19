@@ -39,32 +39,91 @@ function Card({
   );
 }
 
-const STUDENTS = ["A", "M", "S", "Z"];
+// A video-call screen: Hamza (a still from the intro video) and four students.
+// Names and initials are placeholders, not real students.
+const STUDENTS = [
+  { i: "A", n: "Ayesha", c: "#7b61c9" },
+  { i: "M", n: "Musa", c: "#2f8f83" },
+  { i: "S", n: "Sara", c: "#c0587e" },
+  { i: "Z", n: "Zain", c: "#4a78c2" },
+];
+
+function MicOff() {
+  return (
+    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
+      <path d="M9 9v3a3 3 0 0 0 5 2.2M15 9.3V5a3 3 0 0 0-5.7-1.3M19 11a7 7 0 0 1-1.2 3.9M5 11a7 7 0 0 0 11.3 5.5M12 18v3M3 3l18 18" />
+    </svg>
+  );
+}
+
+function CallButton({ red = false, children }: { red?: boolean; children: ReactNode }) {
+  return (
+    <span
+      className={`flex h-6 items-center justify-center rounded-full text-white ${red ? "w-9 bg-[#e5685a]" : "w-6 bg-[#3c4043]"}`}
+    >
+      {children}
+    </span>
+  );
+}
 
 function LiveArt() {
   return (
-    <div className="w-full max-w-sm rounded-xl border border-hairline-strong bg-card p-2.5 shadow-[0_16px_40px_rgba(0,0,0,0.4)]">
-      <div className="mb-2 flex items-center justify-between px-1 text-[11px] text-faint">
-        <span className="flex items-center gap-1.5 font-semibold text-foreground">
-          <span className="h-2 w-2 rounded-full bg-[#e5685a]" /> Live
-        </span>
-        <span>Accounting · AS Level</span>
-      </div>
-      <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-2">
-        <div className="relative aspect-video overflow-hidden rounded-lg border-2 border-gold">
-          <Image src="/hamza.jpg" alt="" fill sizes="240px" className="object-cover object-top" />
-          <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">Hamza</span>
+    <div className="w-full max-w-[372px] rounded-xl border border-hairline-strong bg-[#202124] p-2 shadow-[0_16px_40px_rgba(0,0,0,0.4)]">
+      <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-1.5">
+        <div className="relative aspect-video overflow-hidden rounded-lg bg-[#0c1115] ring-2 ring-gold">
+          {/* Whole head and shoulders in view; the sides fade into the frame's own dark background. */}
+          <Image
+            src="/live-hamza.jpg"
+            alt=""
+            fill
+            sizes="260px"
+            className="object-contain [mask-image:linear-gradient(to_right,transparent,#000_12%,#000_88%,transparent)]"
+          />
+          <span className="absolute bottom-1.5 left-1.5 rounded bg-black/55 px-1.5 py-0.5 text-[10px] font-semibold text-white">Hamza</span>
+          <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-gold">
+            <span className="flex h-2 items-end gap-[1.5px]">
+              <span className="w-[2px] h-1 rounded-full bg-[#1b1e21]" />
+              <span className="w-[2px] h-2 rounded-full bg-[#1b1e21]" />
+              <span className="w-[2px] h-1.5 rounded-full bg-[#1b1e21]" />
+            </span>
+          </span>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-1.5">
           {STUDENTS.map((s) => (
-            <span key={s} className="flex aspect-square items-center justify-center rounded-lg bg-card-raised text-xs font-bold text-muted-foreground">
-              {s}
+            <span key={s.i} className="relative flex items-center justify-center rounded-lg bg-[#3c4043]">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold text-white" style={{ background: s.c }}>
+                {s.i}
+              </span>
+              <span className="absolute bottom-0.5 left-1 text-[7px] text-white/80">{s.n}</span>
+              <span className="absolute right-0.5 top-0.5 text-white/70">
+                <MicOff />
+              </span>
             </span>
           ))}
         </div>
       </div>
-      <div className="mt-2 flex items-center gap-2 rounded-lg bg-band-c px-2.5 py-1.5 text-[11px] text-body">
-        <span className="text-gold">?</span> Can you explain that step again?
+      <div className="mt-1.5 flex items-center gap-1.5 rounded-lg bg-[#2d2e31] px-2 py-1.5 text-[10px] text-[#e8eaed]">
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#c0587e] text-[8px] font-semibold text-white">S</span>
+        <span className="truncate">
+          <b className="font-semibold">Sara:</b> Can you explain that step again?
+        </span>
+      </div>
+      <div className="mt-1.5 flex items-center justify-between px-1">
+        <span className="text-[9px] text-[#bdc1c6]">4:00 PM · Accounting, AS</span>
+        <span className="flex items-center gap-1">
+          <CallButton>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v7a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-2.1A7 7 0 0 0 19 12z" /></svg>
+          </CallButton>
+          <CallButton>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11z" /></svg>
+          </CallButton>
+          <CallButton>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M7 11V5.5a1.5 1.5 0 0 1 3 0V11h1V3.5a1.5 1.5 0 0 1 3 0V11h1V5.5a1.5 1.5 0 0 1 3 0V15a7 7 0 0 1-12.6 4.2L2.6 14a1.5 1.5 0 0 1 2.4-1.8L7 14.5z" /></svg>
+          </CallButton>
+          <CallButton red>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 9c-1.6 0-3.2.3-4.6.7v3.1a1 1 0 0 1-.6.9 11 11 0 0 0-2.7 1.9 1 1 0 0 1-1.4 0L.3 13.2a1 1 0 0 1 0-1.4A16.9 16.9 0 0 1 12 7a16.9 16.9 0 0 1 11.7 4.8 1 1 0 0 1 0 1.4l-2.4 2.4a1 1 0 0 1-1.4 0 11 11 0 0 0-2.7-1.9 1 1 0 0 1-.6-.9V9.7C15.2 9.3 13.6 9 12 9z" /></svg>
+          </CallButton>
+        </span>
       </div>
     </div>
   );

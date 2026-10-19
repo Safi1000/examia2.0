@@ -365,6 +365,16 @@ function sized(ratio: number) {
   return { width: `calc(var(--rh) * ${ratio})` } as const;
 }
 
+/** The same name and level strip under every review, whatever its type. */
+function ReviewCaption({ name, meta }: { name: string; meta: string }) {
+  return (
+    <figcaption className="flex flex-col gap-0.5 px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:px-3.5 sm:py-2.5">
+      <span className="truncate text-xs font-semibold text-foreground sm:text-sm">{name || "Student"}</span>
+      <span className="shrink-0 truncate text-[9px] uppercase tracking-[0.16em] text-faint sm:text-[10px] sm:tracking-[0.2em]">{meta}</span>
+    </figcaption>
+  );
+}
+
 export function VideoReviewCard({ r }: { r: VideoReview }) {
   return (
     <figure
@@ -380,12 +390,7 @@ export function VideoReviewCard({ r }: { r: VideoReview }) {
           label="Clip coming soon"
         />
       </div>
-      {r.name && (
-        <figcaption className="flex items-center justify-between gap-2 px-3.5 py-2.5">
-          <span className="truncate text-sm font-semibold text-foreground">{r.name}</span>
-          <span className="shrink-0 text-[10px] uppercase tracking-[0.2em] text-faint">{r.meta}</span>
-        </figcaption>
-      )}
+      <ReviewCaption name={r.name} meta={r.meta} />
     </figure>
   );
 }
@@ -406,12 +411,8 @@ function ShotCard({ s }: { s: (typeof shots)[number] }) {
         className="group relative block focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
       >
         <Image src={s.src} alt={s.alt} width={900} height={1524} sizes="(max-width: 768px) 45vw, 260px" className="h-auto w-full" />
-        {/* Name sits on the image, so the card stays exactly the screenshot's shape. */}
-        <figcaption className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-linear-to-t from-[rgba(15,17,19,0.95)] via-[rgba(15,17,19,0.6)] to-transparent px-3.5 pb-3 pt-10">
-          <span className="truncate text-sm font-semibold text-foreground">{s.name}</span>
-          <span className="hidden shrink-0 text-[10px] uppercase tracking-[0.2em] text-muted-foreground sm:inline">{s.meta}</span>
-        </figcaption>
       </a>
+      <ReviewCaption name={s.name} meta={s.meta} />
     </figure>
   );
 }

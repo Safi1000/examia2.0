@@ -90,23 +90,23 @@ export function GradePredictor() {
   // What the student asks for depends on where they are: top grades want to
   // make it safe, the middle wants the next grade, the bottom wants a restart.
   const band = result ? result.grade.toUpperCase() : "";
+  const top = !!result && !result.next; // already the highest grade at this level (A* or AS a)
   const nextG = result?.next ? g(result.next.grade) : "";
-  const cta =
-    band === "A*"
-      ? "Make my A* exam-proof"
-      : band === "A"
-        ? `Turn my A into an ${nextG}`
-        : ["B", "C"].includes(band)
-          ? `Get my plan to reach ${nextG}`
-          : "Get my catch-up plan";
-  const ask =
-    band === "A*"
-      ? "I'm on track for an A*. I'd like help making it safe for May/June 2027: timed past papers and the top-band answers examiners look for."
-      : band === "A"
-        ? "I'm close to an A*. I'd like help with the top-band answers and timing that get the last few marks."
-        : ["B", "C"].includes(band)
-          ? `I'd like a plan to reach ${nextG} by May/June 2027.`
-          : "I need help catching up before May/June 2027. Where should I start?";
+  const gradeNow = result ? g(result.grade) : "";
+  const cta = top
+    ? `Make my ${gradeNow} exam-proof`
+    : band === "A"
+      ? `Turn my ${gradeNow} into an ${nextG}`
+      : ["B", "C"].includes(band)
+        ? `Get my plan to reach ${nextG}`
+        : "Get my catch-up plan";
+  const ask = top
+    ? `I'm on track for ${gradeNow === "A*" ? "an A*" : `the top grade (${gradeNow})`}. I'd like help making it safe for May/June 2027: timed past papers and the top-band answers examiners look for.`
+    : band === "A"
+      ? "I'm close to an A*. I'd like help with the top-band answers and timing that get the last few marks."
+      : ["B", "C"].includes(band)
+        ? `I'd like a plan to reach ${nextG} by May/June 2027.`
+        : "I need help catching up before May/June 2027. Where should I start?";
   const message =
     result && syl
       ? `Hi, I used the grade predictor on your site. ${subject} ${qual} (Cambridge ${syl.code}): ${papers
@@ -179,10 +179,6 @@ export function GradePredictor() {
             </div>
           </fieldset>
         </div>
-        <p className="mt-8 border-t border-hairline pt-5 text-sm leading-relaxed text-faint">
-          Uses Cambridge&apos;s official grade thresholds from June 2026 and June 2025, including how each paper is
-          weighted. Boundaries change by a few marks each year.
-        </p>
       </form>
 
       <section
@@ -201,7 +197,7 @@ export function GradePredictor() {
         ) : (
           <div>
             <p className="text-sm text-muted-foreground">
-              Most likely grade · {subject} {qual} · {syl.code}
+              {subject} · {qual}
             </p>
             <div className="mt-4 flex items-end gap-5">
               <p className="text-7xl font-extrabold leading-none tracking-tight text-gold">{g(result.grade)}</p>
@@ -209,7 +205,7 @@ export function GradePredictor() {
                 <p className="text-lg tabular-nums text-foreground">
                   {result.total} / {result.max}
                 </p>
-                <p className="text-xs text-faint">{syl.factors.some((f) => f !== 1) ? "Cambridge weighted total" : "Total marks"}</p>
+                <p className="text-xs text-faint">Your total</p>
               </div>
             </div>
             <p className="mt-4 font-hand text-2xl font-bold leading-snug text-gold">{roast(result.grade)}</p>
@@ -283,12 +279,6 @@ export function GradePredictor() {
               </a>
             </Magnetic>
             <p className="mt-3 text-center text-sm text-faint">Opens WhatsApp with your result typed in. You press send.</p>
-            <p className="mt-5 text-center text-xs text-faint">
-              Source:{" "}
-              <a href={result.source} target="_blank" rel="noopener noreferrer" className="underline decoration-hairline-strong underline-offset-2 hover:text-gold">
-                Cambridge grade threshold tables
-              </a>
-            </p>
           </div>
         )}
       </section>
