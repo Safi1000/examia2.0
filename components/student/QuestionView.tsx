@@ -86,10 +86,16 @@ const MAX_PHOTOS = 30; // a PDF lands as one entry per page, so this is a page b
  * first image so existing grading / results / evaluation code that reads the
  * single URL keeps working unchanged.
  */
+/** "42%", or "almost done" once the bytes are sent and Cloudinary is processing. */
+function batchLabel(p: number) {
+  return p >= 0.99 ? "· almost done" : `· ${Math.round(p * 100)}%`;
+}
+
 function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: Answer) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [dragging, setDragging] = useState(false);
 
   const urls = answer.photoUrls ?? (answer.photoDataUrl ? [answer.photoDataUrl] : []);
@@ -113,9 +119,21 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
     const batch = accepted.slice(0, room);
 
     setUploading(true);
+    setProgress(0);
     try {
       // Upload in parallel, but keep the order the student picked them in.
-      const uploaded = (await Promise.all(batch.map((f) => uploadAsImages(f)))).flat();
+      // Progress is the average across all files, so the bar moves smoothly.
+      const parts = batch.map(() => 0);
+      const uploaded = (
+        await Promise.all(
+          batch.map((f, i) =>
+            uploadAsImages(f, (p) => {
+              parts[i] = p;
+              setProgress(parts.reduce((a, b) => a + b, 0) / parts.length);
+            }),
+          ),
+        )
+      ).flat();
       const next = [...urls, ...uploaded];
       if (next.length > MAX_PHOTOS) toast(`Only the first ${MAX_PHOTOS} pages were kept.`, "info");
       apply(next.slice(0, MAX_PHOTOS));
@@ -192,11 +210,16 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
             <Icon.Camera className="h-7 w-7" />
             <span className="text-sm font-semibold">
               {uploading
-                ? "Uploading..."
+                ? `Uploading ${batchLabel(progress)}`
                 : urls.length
                   ? "Add more pages"
                   : "Take photos, upload a PDF, or drag them here"}
             </span>
+            {uploading && (
+              <span className="h-1.5 w-44 overflow-hidden rounded-full bg-surface-2" aria-hidden>
+                <span className="block h-full rounded-full bg-brand transition-[width] duration-300" style={{ width: `${Math.max(4, progress * 100)}%` }} />
+              </span>
+            )}
             <span className="text-xs text-ink-3">
               {urls.length
                 ? `${urls.length} of ${MAX_PHOTOS} pages added`

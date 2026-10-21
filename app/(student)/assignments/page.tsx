@@ -49,6 +49,7 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
   const store = useStore();
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const mine = db.assignmentSubmissions.find(
@@ -63,8 +64,19 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
       return;
     }
     setUploading(true);
+    setProgress(0);
     try {
-      const pages = (await Promise.all(accepted.map((f) => uploadAsImages(f)))).flat();
+      const parts = accepted.map(() => 0);
+      const pages = (
+        await Promise.all(
+          accepted.map((f, i) =>
+            uploadAsImages(f, (p) => {
+              parts[i] = p;
+              setProgress(parts.reduce((a, b) => a + b, 0) / parts.length);
+            }),
+          ),
+        )
+      ).flat();
       await store.submitAssignment(assignment.id, studentId, [...(mine?.fileUrls ?? []), ...pages]);
       toast("Handed in.", "success");
     } catch (err) {
@@ -117,6 +129,14 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
         <Button variant={mine ? "secondary" : "primary"} loading={uploading} onClick={() => fileRef.current?.click()}>
           <Icon.Camera className="h-4 w-4" /> {mine ? "Add more pages" : "Hand in work"}
         </Button>
+        {uploading && (
+          <div className="mt-2.5 flex items-center gap-2.5" role="status">
+            <span className="h-1.5 w-40 overflow-hidden rounded-full bg-surface-2" aria-hidden>
+              <span className="block h-full rounded-full bg-brand transition-[width] duration-300" style={{ width: `${Math.max(4, progress * 100)}%` }} />
+            </span>
+            <span className="text-xs font-semibold text-ink-2">{progress >= 0.99 ? "Almost done…" : `Uploading ${Math.round(progress * 100)}%`}</span>
+          </div>
+        )}
         {overdue && !mine && <p className="mt-1.5 text-xs text-ink-3">The deadline has passed — hand in as soon as you can.</p>}
       </div>
     </Card>
