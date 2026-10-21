@@ -245,7 +245,7 @@ export function SubmitButton({ busy, disabled, children }: { busy: boolean; disa
       className={cn(
         "auth-btn group relative mt-10 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-full px-4",
         "bg-[linear-gradient(180deg,#ffd27e,#f2b44a)] text-[14px] font-semibold uppercase tracking-[0.2em] text-[#1a1d20]",
-        "shadow-[0_10px_30px_-10px_rgba(251,193,89,0.55)] transition-[filter,transform,opacity] active:scale-[0.99]",
+        "shadow-[0_8px_22px_-12px_rgba(251,193,89,0.6)] transition-[filter,transform,opacity] hover:brightness-105 active:scale-[0.99]",
         "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand",
         "disabled:cursor-not-allowed disabled:border disabled:border-brand/25 disabled:bg-none disabled:bg-transparent disabled:text-brand/55 disabled:shadow-none",
       )}

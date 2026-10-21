@@ -499,7 +499,9 @@ textarea:-webkit-autofill:focus {
 }
 .auth-orb-a { animation: auth-drift-a 22s ease-in-out infinite; }
 .auth-orb-b { animation: auth-drift-b 28s ease-in-out infinite; }
-.auth-reveal { animation: auth-reveal 1.1s cubic-bezier(0.16, 1, 0.3, 1) both; }
+/* `backwards`, not `both`: once the reveal ends no blur filter is left on the
+   block, so the button's glow isn't boxed into a dark layer. */
+.auth-reveal { animation: auth-reveal 1.1s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
 .auth-field { position: relative; }
 .auth-field::after {
   content: "";
