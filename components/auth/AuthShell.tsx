@@ -64,7 +64,7 @@ export function AuthShell({
   return (
     <main className="relative isolate flex min-h-dvh items-center justify-center overflow-hidden bg-[#0f1113] px-6 py-14">
       {/* Two slow gold lights, a vignette and a whisper of grain. */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 bg-[#0f1113]">
         <div
           className="auth-orb-a absolute left-1/2 top-1/2 h-[520px] w-[520px] rounded-full opacity-[0.16] blur-[90px]"
           style={{ background: "radial-gradient(closest-side, var(--color-brand), transparent)" }}
@@ -140,14 +140,16 @@ export function AuthShell({
 }
 
 /** Tiny tracked label above a field. */
-export const labelClass = "mb-1 block text-[10px] font-semibold uppercase tracking-[0.28em] text-ink-3";
+export const labelClass = "mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.28em] text-ink-3";
 
 export const fieldClass =
-  "peer w-full h-12 border-0 border-b border-white/15 bg-transparent px-0 text-[17px] tracking-wide text-ink " +
-  "placeholder:text-ink-3/50 transition-colors hover:border-white/30 " +
-  "focus:border-white/30 focus:outline-none focus-visible:outline-none " +
+  "w-full h-[52px] rounded-2xl border border-white/[0.07] bg-white/[0.035] px-4 text-[16px] tracking-wide text-ink " +
+  "shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-sm placeholder:text-ink-3/50 " +
+  "transition-[border-color,background-color,box-shadow] duration-300 hover:border-white/[0.12] " +
+  "focus:border-brand/50 focus:bg-white/[0.05] focus:shadow-[0_0_0_4px_rgba(251,193,89,0.08)] focus:outline-none " +
   "disabled:cursor-not-allowed disabled:opacity-50 " +
-  "[&:-webkit-autofill]:[-webkit-text-fill-color:var(--color-ink)] [&:-webkit-autofill]:[transition:background-color_9999s]";
+  // Browser autofill paints its own square box: repaint it in the field's colour.
+  "[&:-webkit-autofill]:[-webkit-text-fill-color:var(--color-ink)] [&:-webkit-autofill]:shadow-[inset_0_0_0_1000px_#191c1f] [&:-webkit-autofill]:[caret-color:var(--color-ink)]";
 
 /** Wraps a field so a gold line draws under it on focus (styles in globals.css). */
 export function Field({ children }: { children: ReactNode }) {
@@ -192,14 +194,14 @@ export function PasswordField({
           required
           disabled={disabled}
           aria-describedby={caps ? `${id}-caps` : undefined}
-          className={cn(fieldClass, "pr-12")}
+          className={cn(fieldClass, "pr-14")}
         />
         <button
           type="button"
           onClick={() => setShown((s) => !s)}
           aria-label={shown ? "Hide password" : "Show password"}
           aria-pressed={shown}
-          className="absolute -right-2 top-1 flex h-10 w-10 items-center justify-center rounded-md text-ink-3 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-brand"
+          className="absolute right-1.5 top-1.5 flex h-10 w-10 items-center justify-center rounded-md text-ink-3 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-brand"
         >
           {shown ? (
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

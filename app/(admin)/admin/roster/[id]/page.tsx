@@ -346,10 +346,10 @@ function StudentDetail() {
               onChange={(e) => setTeacherNote(e.target.value)}
               placeholder="Add a personal note for the parent..."
               rows={4}
-              maxLength={600}
+              maxLength={260}
               className="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-brand"
             />
-            <p className="mt-1 text-right text-xs text-ink-3">{teacherNote.length}/600</p>
+            <p className="mt-1 text-right text-xs text-ink-3">{teacherNote.length}/260 · keeps the report to one page</p>
           </div>
         </div>
       </Modal>
