@@ -95,8 +95,13 @@ export function hourLabel(h: number): string {
   return `${twelve}:00 ${suffix}`;
 }
 
+/** "Accounting", "Accounting and Business", "Accounting, Business and Economics". */
+export function joinSubjects(list: SubjectName[]): string {
+  return list.length <= 1 ? (list[0] ?? "") : `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`;
+}
+
 export function bookingLink(b: {
-  subject: SubjectName;
+  subjects: SubjectName[];
   level: LevelName;
   day: Day;
   hour: number;
@@ -106,7 +111,7 @@ export function bookingLink(b: {
   const forWhom = b.who === "Parent" ? " for my child" : "";
   const local = visitorInPakistanTime() ? "" : ` (my time: ${localSlotLabel(b.day, b.hour)})`;
   const text =
-    `Hi, I'd like to book the free trial lesson${forWhom} for ${b.subject} (${b.level}, ${
+    `Hi, I'd like to book the free trial lesson${forWhom} for ${joinSubjects(b.subjects)} (${b.level}, ${
       b.board === "Not sure" ? "board not sure yet" : `${b.board} board`
     }).` +
     ` Preferred time: ${b.day.weekday} ${b.day.date}, ${hourLabel(b.hour)} Pakistan time${local}.`;

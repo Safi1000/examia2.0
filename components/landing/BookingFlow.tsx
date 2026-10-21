@@ -62,7 +62,7 @@ function Choice<T extends string | number>({
 }
 
 /**
- * Pick a subject, level, day and time; the button opens WhatsApp with all of it
+ * Pick one or more subjects, a level, day and time; the button opens WhatsApp with all of it
  * typed in. `subject`/`level` pre-select a choice; every step stays editable.
  */
 export function BookingFlow({
@@ -75,7 +75,10 @@ export function BookingFlow({
   from?: string;
 }) {
   const uid = useId().replace(/:/g, "");
-  const [subject, setSubject] = useState<SubjectName | null>(fixedSubject ?? null);
+  // More than one subject can be picked: the trial covers whichever they choose.
+  const [subjects, setSubjects] = useState<SubjectName[]>(fixedSubject ? [fixedSubject] : []);
+  const toggleSubject = (x: SubjectName) =>
+    setSubjects((cur) => (cur.includes(x) ? cur.filter((y) => y !== x) : SUBJECTS.filter((y) => cur.includes(y) || y === x)));
   const [level, setLevel] = useState<LevelName | null>(fixedLevel ?? null);
   const [who, setWho] = useState<Who>("Student");
   const [board, setBoard] = useState<Board>("Not sure");
@@ -96,15 +99,34 @@ export function BookingFlow({
 
 
   const day = days?.find((d) => d.key === dayKey) ?? null;
-  const ready = subject && level && day && hour !== null;
-  const missing = !subject ? "your subject" : !level ? "your level" : !day ? "a day" : hour === null ? "a time" : null;
+  const ready = subjects.length > 0 && level && day && hour !== null;
+  const missing = !subjects.length ? "a subject" : !level ? "your level" : !day ? "a day" : hour === null ? "a time" : null;
 
   let step = 0;
   const n = () => `${++step}.`;
 
   return (
     <div className="space-y-8">
-      <Choice legend={`${n()} Subject`} name={`${uid}-s`} options={SUBJECTS} value={subject} onChange={setSubject} />
+      <fieldset className="min-w-0">
+        <legend className="text-sm font-semibold text-foreground">
+          {n()} Subjects <span className="font-normal text-faint">(pick one or more)</span>
+        </legend>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {SUBJECTS.map((x) => (
+            <label key={x} className={chip}>
+              <input
+                type="checkbox"
+                name={`${uid}-s`}
+                value={x}
+                checked={subjects.includes(x)}
+                onChange={() => toggleSubject(x)}
+                className="sr-only"
+              />
+              {x}
+            </label>
+          ))}
+        </div>
+      </fieldset>
       <Choice legend={`${n()} Level`} name={`${uid}-l`} options={LEVELS} value={level} onChange={setLevel} />
       <Choice legend={`${n()} Exam board`} name={`${uid}-b`} options={BOARDS} value={board} onChange={setBoard} />
       <Choice legend={`${n()} Who is booking?`} name={`${uid}-w`} options={WHO} value={who} onChange={setWho} />
@@ -169,10 +191,10 @@ export function BookingFlow({
         {ready ? (
           <Magnetic block strength={0.08}>
           <a
-            href={bookingLink({ subject: subject!, level: level!, day: day!, hour: hour!, who, board })}
+            href={bookingLink({ subjects, level: level!, day: day!, hour: hour!, who, board })}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => track("whatsapp_click", { from, subject, level, board })}
+            onClick={() => track("whatsapp_click", { from, subject: subjects.join(", "), level, board })}
             className="btn-shine flex min-h-12 w-full items-center justify-center rounded-full bg-gold px-6 py-3.5 text-center text-[15px] font-semibold text-[#1b1e21] transition-[background-color,transform] hover:bg-[#ffd07a] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
           >
             Send my booking on WhatsApp
