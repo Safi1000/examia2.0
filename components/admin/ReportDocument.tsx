@@ -16,6 +16,7 @@ import {
 } from "@react-pdf/renderer";
 import type { GradeLetter, GradeResult } from "@/lib/grading";
 import type { Test } from "@/types";
+import { displayName } from "@/lib/display-name";
 
 // ============================================================================
 // Monthly report PDF — presentation only. The design is a faithful react-pdf
@@ -377,7 +378,7 @@ export function ReportDocument({
         <Text style={styles.meta}>
           MONTHLY PROGRESS REPORT <Text style={styles.metaDot}>·</Text> {formatMonthFull(month).toUpperCase()}
         </Text>
-        <Text style={styles.name}>{studentName}</Text>
+        <Text style={styles.name}>{displayName(studentName)}</Text>
         {cohortName && <Text style={styles.cohort}>Cohort {cohortName}</Text>}
 
         {/* Stats */}

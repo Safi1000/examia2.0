@@ -18,7 +18,8 @@ export function Card({
     <Tag
       id={id}
       className={cn(
-        "rounded-lg border border-border bg-surface shadow-[var(--shadow-sm)]",
+        // A faint light along the top edge gives cards depth without heavy shadows.
+        "rounded-xl border border-border bg-surface bg-[linear-gradient(180deg,rgba(255,255,255,0.028),rgba(255,255,255,0)_42%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.045),var(--shadow-sm)]",
         ruled && "ruled-margin",
         className,
       )}

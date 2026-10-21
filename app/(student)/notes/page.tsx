@@ -114,13 +114,13 @@ export default function StudentNotesPage() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
       <h1 className="mb-1 font-display text-2xl font-bold text-ink">Notes</h1>
-      <p className="mb-6 text-sm text-ink-3">Things your teacher wants you to have.</p>
+      <p className="mb-6 text-sm text-ink-3">Class notes and handouts from Hamza.</p>
 
       {notes.length === 0 ? (
         <EmptyState
           icon={<Icon.Doc />}
           title="No notes yet"
-          message="Your teacher hasn't shared any notes with you yet. Check back later."
+          message="No notes shared with you yet. They'll show up here after class."
         />
       ) : (
         <div className="space-y-8">

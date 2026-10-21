@@ -1,101 +1,158 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { Logo } from "@/components/Brand";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { LogoTight } from "@/components/Brand";
 import { cn } from "@/lib/cn";
 
 /**
- * Shared frame for the student and teacher sign-in screens. Desktop: a quiet
- * brand panel on the left (what the portal is for) and the form on the right.
- * Phones: logo, title and form only, so the form sits on the first screen.
+ * The sign-in door for students and the teacher: near-black, two slow gold
+ * lights, the wordmark, one quiet line, and the form. No box, no clutter.
+ *
+ * `onSecret` turns the logo into a hidden door: press and hold it for a
+ * moment (mouse or finger), or press Alt+Shift+A. Nothing on screen says so.
  */
 export function AuthShell({
-  eyebrow,
+  kicker,
   title,
-  note,
-  points,
+  greeting,
   children,
   footer,
+  onSecret,
 }: {
-  /** Small label above the title, e.g. "Student portal". */
-  eyebrow: string;
+  /** Tiny line under the logo, e.g. "Private · Students only". */
+  kicker: string;
+  /** The page's heading for screen readers. */
   title: string;
-  /** Short handwritten line in gold (desktop panel only). */
-  note?: string;
-  /** What the portal gives you, shown on the desktop panel. */
-  points: Array<{ title: string; text: string }>;
+  /** Optional handwritten gold line. */
+  greeting?: string;
   children: ReactNode;
   footer?: ReactNode;
+  onSecret?: () => void;
 }) {
+  const [holding, setHolding] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const startHold = () => {
+    if (!onSecret) return;
+    setHolding(true);
+    timer.current = setTimeout(() => {
+      setHolding(false);
+      onSecret();
+    }, 1200);
+  };
+  const endHold = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    setHolding(false);
+  };
+
+  useEffect(() => {
+    if (!onSecret) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.altKey && e.shiftKey && e.code === "KeyA") {
+        e.preventDefault();
+        onSecret();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, [onSecret]);
+
   return (
-    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-paper px-4 py-10">
-      {/* Faint grid and a soft gold light, the same atmosphere as the public site. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.35]"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, color-mix(in srgb, var(--color-ink) 6%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in srgb, var(--color-ink) 6%, transparent) 1px, transparent 1px)",
-          backgroundSize: "56px 56px",
-          maskImage: "radial-gradient(ellipse at center, #000 30%, transparent 75%)",
-        }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-40 left-1/2 h-[480px] w-[720px] -translate-x-1/2 rounded-full opacity-25 blur-3xl"
-        style={{ background: "radial-gradient(closest-side, var(--color-brand), transparent)" }}
-      />
+    <main className="relative isolate flex min-h-dvh items-center justify-center overflow-hidden bg-[#0f1113] px-6 py-14">
+      {/* Two slow gold lights, a vignette and a whisper of grain. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+        <div
+          className="auth-orb-a absolute left-1/2 top-1/2 h-[520px] w-[520px] rounded-full opacity-[0.16] blur-[90px]"
+          style={{ background: "radial-gradient(closest-side, var(--color-brand), transparent)" }}
+        />
+        <div
+          className="auth-orb-b absolute left-1/2 top-1/2 h-[380px] w-[620px] rounded-full opacity-[0.08] blur-[100px]"
+          style={{ background: "radial-gradient(closest-side, #e8a24a, transparent)" }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{ background: "radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.65) 100%)" }}
+        />
+        <div
+          className="absolute inset-0 opacity-[0.05] mix-blend-overlay"
+          style={{
+            backgroundImage:
+              "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+          }}
+        />
+      </div>
 
-      <div className="relative grid w-full max-w-4xl animate-fade-up items-center gap-10 md:grid-cols-[1fr_400px] md:gap-14">
-        {/* Brand panel (desktop) */}
-        <section className="hidden md:block">
-          <Logo className="h-12" />
-          <p className="mt-10 text-[11px] font-semibold uppercase tracking-[0.25em] text-brand">{eyebrow}</p>
-          <h1 className="mt-3 max-w-[16ch] text-4xl font-extrabold leading-[1.05] tracking-tight text-ink">{title}</h1>
-          {note && (
-            <p className="mt-3 text-2xl leading-tight text-brand" style={{ fontFamily: "var(--font-caveat)" }}>
-              {note}
-            </p>
-          )}
-          <ul className="mt-9 space-y-4">
-            {points.map((p) => (
-              <li key={p.title} className="flex gap-3">
-                <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-brand/50 text-brand">
-                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M2.5 6.2l2.3 2.3 4.7-5" />
-                  </svg>
-                </span>
-                <span>
-                  <span className="block text-[15px] font-semibold text-ink">{p.title}</span>
-                  <span className="block text-sm text-ink-2">{p.text}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+      <div className="w-full max-w-[340px]">
+        <h1 className="sr-only">{title}</h1>
 
-        {/* Form */}
-        <section className="mx-auto w-full max-w-sm md:max-w-none">
-          <div className="mb-7 text-center md:hidden">
-            <Logo className="mx-auto h-11" />
-            <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.25em] text-brand">{eyebrow}</p>
-            <h1 className="mt-2 text-[26px] font-extrabold leading-tight tracking-tight text-ink">{title}</h1>
+        <div className="auth-reveal text-center" style={{ animationDelay: "80ms" }}>
+          <div
+            onPointerDown={startHold}
+            onPointerUp={endHold}
+            onPointerLeave={endHold}
+            onPointerCancel={endHold}
+            onContextMenu={(e) => onSecret && e.preventDefault()}
+            className={cn(
+              "mx-auto inline-block select-none [-webkit-touch-callout:none] transition-[filter,transform] duration-[1200ms] ease-out",
+              holding && "scale-[1.05] drop-shadow-[0_0_18px_rgba(251,193,89,0.55)]",
+            )}
+          >
+            <LogoTight className="pointer-events-none mx-auto block h-9 sm:h-10" />
           </div>
-          <div className="rounded-2xl border border-border bg-surface/90 p-6 shadow-[var(--shadow-md)] backdrop-blur sm:p-7">
-            {children}
+        </div>
+
+        <p
+          className="auth-reveal mt-7 flex items-center justify-center gap-2 text-[10px] font-semibold uppercase tracking-[0.38em] text-ink-3"
+          style={{ animationDelay: "260ms" }}
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+            <rect x="5" y="11" width="14" height="10" rx="2" />
+            <path d="M8 11V8a4 4 0 018 0v3" />
+          </svg>
+          {kicker}
+        </p>
+
+        {greeting && (
+          <p
+            className="auth-reveal mt-5 text-center text-[32px] leading-none text-brand"
+            style={{ fontFamily: "var(--font-caveat)", animationDelay: "420ms" }}
+          >
+            {greeting}
+          </p>
+        )}
+
+        <div className="auth-reveal mt-10" style={{ animationDelay: "560ms" }}>
+          {children}
+        </div>
+
+        {footer && (
+          <div className="auth-reveal mt-10 text-center text-[12px] text-ink-3" style={{ animationDelay: "760ms" }}>
+            {footer}
           </div>
-          {footer && <div className="mt-5 text-center text-sm text-ink-3">{footer}</div>}
-        </section>
+        )}
       </div>
     </main>
   );
 }
 
+/** Tiny tracked label above a field. */
+export const labelClass = "mb-1 block text-[10px] font-semibold uppercase tracking-[0.28em] text-ink-3";
+
 export const fieldClass =
-  "w-full h-12 rounded-lg border border-border-strong bg-surface-2 px-3.5 text-base text-ink " +
-  "placeholder:text-ink-3 transition-colors hover:border-ink-3 " +
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand " +
-  "disabled:cursor-not-allowed disabled:opacity-60";
+  "peer w-full h-12 border-0 border-b border-white/15 bg-transparent px-0 text-[17px] tracking-wide text-ink " +
+  "placeholder:text-ink-3/50 transition-colors hover:border-white/30 " +
+  "focus:border-white/30 focus:outline-none focus-visible:outline-none " +
+  "disabled:cursor-not-allowed disabled:opacity-50 " +
+  "[&:-webkit-autofill]:[-webkit-text-fill-color:var(--color-ink)] [&:-webkit-autofill]:[transition:background-color_9999s]";
+
+/** Wraps a field so a gold line draws under it on focus (styles in globals.css). */
+export function Field({ children }: { children: ReactNode }) {
+  return <div className="auth-field">{children}</div>;
+}
 
 /** Password input with a show/hide button and a Caps Lock warning. */
 export function PasswordField({
@@ -119,10 +176,10 @@ export function PasswordField({
 
   return (
     <div>
-      <label htmlFor={id} className="mb-2 block text-sm font-semibold text-ink-2">
+      <label htmlFor={id} className={labelClass}>
         {label}
       </label>
-      <div className="relative">
+      <div className="auth-field relative">
         <input
           id={id}
           type={shown ? "text" : "password"}
@@ -142,7 +199,7 @@ export function PasswordField({
           onClick={() => setShown((s) => !s)}
           aria-label={shown ? "Hide password" : "Show password"}
           aria-pressed={shown}
-          className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-md text-ink-3 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand"
+          className="absolute -right-2 top-1 flex h-10 w-10 items-center justify-center rounded-md text-ink-3 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-brand"
         >
           {shown ? (
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -157,7 +214,7 @@ export function PasswordField({
         </button>
       </div>
       {caps && (
-        <p id={`${id}-caps`} className="mt-1.5 text-sm font-medium text-warning">
+        <p id={`${id}-caps`} className="mt-2 text-xs font-medium tracking-wide text-warning">
           Caps Lock is on.
         </p>
       )}
@@ -170,11 +227,12 @@ export function AuthAlert({ tone, children }: { tone: "error" | "warning"; child
     <p
       role="alert"
       className={cn(
-        "mt-4 rounded-lg border px-3 py-2 text-sm font-medium",
-        tone === "error" ? "border-error/30 bg-error-soft text-error" : "border-warning/30 bg-warning-soft text-warning",
+        "mt-6 flex items-start gap-2 text-[13px] leading-snug",
+        tone === "error" ? "text-error" : "text-warning",
       )}
     >
-      {children}
+      <span aria-hidden className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-current" />
+      <span>{children}</span>
     </p>
   );
 }
@@ -185,16 +243,22 @@ export function SubmitButton({ busy, disabled, children }: { busy: boolean; disa
       type="submit"
       disabled={disabled || busy}
       className={cn(
-        "mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-brand px-4 text-[15px] font-semibold text-on-brand",
-        "transition-[filter,transform] hover:brightness-110 active:scale-[0.99] active:brightness-95",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-        "disabled:cursor-not-allowed disabled:opacity-50",
+        "auth-btn group relative mt-10 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-full px-4",
+        "bg-[linear-gradient(180deg,#ffd27e,#f2b44a)] text-[14px] font-semibold uppercase tracking-[0.2em] text-[#1a1d20]",
+        "shadow-[0_10px_30px_-10px_rgba(251,193,89,0.55)] transition-[filter,transform,opacity] active:scale-[0.99]",
+        "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand",
+        "disabled:cursor-not-allowed disabled:border disabled:border-brand/25 disabled:bg-none disabled:bg-transparent disabled:text-brand/55 disabled:shadow-none",
       )}
     >
       {busy ? (
-        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-on-brand/30 border-t-on-brand" aria-label="Signing in" />
+        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[#1a1d20]/25 border-t-[#1a1d20]" aria-label="Signing in" />
       ) : (
-        children
+        <>
+          {children}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="transition-transform group-hover:translate-x-0.5">
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
+        </>
       )}
     </button>
   );

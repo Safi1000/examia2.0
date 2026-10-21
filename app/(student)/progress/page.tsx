@@ -100,7 +100,7 @@ export default function ProgressPage() {
           className="mt-5"
           icon={<Icon.Chart />}
           title="Nothing yet"
-          message="Once your teacher releases results, your scores and topic mastery show up here."
+          message="Once Hamza releases your results, your marks and strongest and weakest topics show up here."
         />
       </div>
     );

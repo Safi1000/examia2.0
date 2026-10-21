@@ -62,7 +62,7 @@ export default function SubmittedPage() {
       </Card>
 
       <p className="mt-5 animate-fade-up text-center text-sm text-ink-2">
-        Your teacher will mark this and release results soon.
+        Hamza will mark this and release your result soon.
       </p>
 
       <Link href="/dashboard" className={buttonClasses({ fullWidth: true, className: "mt-4" })}>

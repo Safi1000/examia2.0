@@ -13,6 +13,7 @@ import { buttonClasses } from "@/components/ui/Button";
 import { formatRelative, testWindow } from "@/lib/time";
 import { buildStudyPlan } from "@/lib/study-plan";
 import { TopicChip } from "@/components/student/TopicChip";
+import { displayName } from "@/lib/display-name";
 
 function greeting(d = new Date()) {
   const h = d.getHours();
@@ -62,17 +63,20 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-9 px-4 py-8 sm:px-6">
       <header className="animate-fade-up">
-        <h1 className="text-[1.75rem] font-bold capitalize tracking-tight text-ink sm:text-3xl">
-          {greeting()}, {student.username}.
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-brand">
+          {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+        </p>
+        <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink sm:text-[2.5rem]">
+          {greeting()}, {displayName(student.username).split(" ")[0]}.
         </h1>
-        <p className="mt-1.5 text-base text-ink-2">{status}</p>
+        <p className="mt-2.5 text-base text-ink-2">{status}</p>
       </header>
 
       {!hasAny && (
         <EmptyState
           icon={<Icon.Doc />}
           title="No tests yet"
-          message="Nothing to do right now. Your teacher will drop something here soon."
+          message="Nothing to do right now. New tests and work will show up here."
         />
       )}
 

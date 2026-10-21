@@ -92,7 +92,10 @@ export default function AnalyticsPage() {
       .filter((s) => activeCohorts.has(s.cohortId))
       .filter((s) => (cohortId ? s.cohortId === cohortId : true));
     const studentIds = new Set(students.map((s) => s.id));
-    const inScope = (t: Test) => (cohortId ? t.cohortId === cohortId || t.cohortId === null : true);
+    // Tests for switched-off (archived) cohorts are left out.
+    const inScope = (t: Test) =>
+      !(t.cohortId && !activeCohorts.has(t.cohortId)) &&
+      (cohortId ? t.cohortId === cohortId || t.cohortId === null : true);
     // Every test that has been sat, draft or not: a released result is real
     // work, and dropping it because its test was left in draft is how whole
     // months went missing from these charts.

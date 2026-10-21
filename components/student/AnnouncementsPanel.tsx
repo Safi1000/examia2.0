@@ -12,7 +12,7 @@ export function AnnouncementsPanel({ student }: { student: Student }) {
 
   return (
     <section aria-labelledby="ann-title" className="space-y-2.5">
-      <h2 id="ann-title" className="text-base font-semibold text-ink">From your teacher</h2>
+      <h2 id="ann-title" className="text-base font-semibold text-ink">From Hamza</h2>
       {pinned.map((a) => (
         <div key={a.id} className="flex items-start gap-3 rounded-lg border border-brand/30 bg-surface py-3 pl-4 pr-3">
           <Icon.Flag className="mt-0.5 h-4 w-4 shrink-0 text-brand" />

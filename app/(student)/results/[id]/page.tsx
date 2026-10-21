@@ -36,7 +36,7 @@ export default function ResultsPage() {
           className="mt-4"
           icon={<Icon.Clock />}
           title="Results pending"
-          message="Your teacher hasn't released results for this test yet. They'll appear here as soon as they do."
+          message="Hamza hasn't released this result yet. It will show up here as soon as it's ready."
         />
       </div>
     );

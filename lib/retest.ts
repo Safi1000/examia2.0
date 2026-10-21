@@ -4,6 +4,7 @@
  * (question bank first, then earlier tests). Pure reads + existing store
  * actions only; nothing new in the database.
  */
+import { archivedCohortIds, isArchivedSubmission } from "@/lib/data/selectors";
 import type { Question, QuestionBankItem, Test } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { topicMastery, type TopicMastery } from "@/lib/scoring";
@@ -14,10 +15,17 @@ const norm = (s: string) => s.trim().toLowerCase();
 
 /** Weakest topics for a cohort (null = everyone), from released results only. */
 export function weakTopics(db: Database, cohortId: string | null, limit = 3): TopicMastery[] {
+  // Current students only: switched-off (archived) cohorts and their tests
+  // don't count towards today's weak topics.
+  const off = archivedCohortIds(db);
   const studentIds = new Set(
-    db.students.filter((s) => cohortId === null || s.cohortId === cohortId).map((s) => s.id),
+    db.students
+      .filter((s) => !off.has(s.cohortId) && (cohortId === null || s.cohortId === cohortId))
+      .map((s) => s.id),
   );
-  const subs = db.submissions.filter((s) => s.status === "released" && studentIds.has(s.studentId));
+  const subs = db.submissions.filter(
+    (s) => s.status === "released" && studentIds.has(s.studentId) && !isArchivedSubmission(db, s, off),
+  );
   return topicMastery(db.tests, subs)
     .filter((t) => t.available > 0 && t.percent < 70)
     .slice(0, limit);

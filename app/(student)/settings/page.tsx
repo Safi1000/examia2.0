@@ -66,7 +66,7 @@ function ChangePassword() {
   return (
     <Card className="mt-5 p-5">
       <h2 className="text-base font-semibold text-ink">Change password</h2>
-      <p className="mt-1 text-sm text-ink-3">Replace the password your teacher gave you with your own.</p>
+      <p className="mt-1 text-sm text-ink-3">Replace the password Hamza gave you with your own.</p>
       <form onSubmit={onSubmit} className="mt-4 space-y-4" noValidate>
         <Input
           label="Current password"

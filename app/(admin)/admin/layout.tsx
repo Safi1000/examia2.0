@@ -10,8 +10,9 @@ import { AdminFilterProvider } from "@/lib/admin-filter";
 import { AdminLogin } from "@/components/admin/AdminLogin";
 import { Sidebar } from "@/components/admin/Sidebar";
 import { Icon } from "@/components/ui";
-import { Logo } from "@/components/Brand";
+import { LogoTight } from "@/components/Brand";
 import { NotificationBell } from "@/components/NotificationBell";
+import { PortalAmbient } from "@/components/PortalAmbient";
 
 const IDLE_MS = 30 * 60 * 1000; // 30-minute idle session timeout
 
@@ -44,9 +45,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <AdminFilterProvider>
-      <div className="flex min-h-dvh">
+      <div className="relative isolate flex min-h-dvh">
+        <PortalAmbient />
         {/* Persistent sidebar — tablet narrower, desktop full */}
-        <aside className="hidden w-56 shrink-0 border-r border-border md:block lg:w-64">
+        <aside className="hidden w-60 shrink-0 border-r border-white/[0.06] md:block lg:w-64">
           <div className="sticky top-0 h-dvh">
             <Sidebar />
           </div>
@@ -64,7 +66,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Top bar */}
-          <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border bg-paper/85 px-4 backdrop-blur">
+          <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-white/[0.06] bg-paper/70 px-4 backdrop-blur-xl">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setMobileOpen(true)}
@@ -73,17 +75,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               >
                 <Icon.Menu />
               </button>
-              <div className="md:hidden"><Logo className="h-8" /></div>
+              <div className="md:hidden"><LogoTight className="h-5" /></div>
             </div>
             <div className="flex items-center gap-1">
               <NotificationBell />
-              <button
-                onClick={() => { logout(); router.replace("/login"); }}
-                className="flex h-11 items-center gap-1.5 rounded-md px-3 text-sm font-semibold text-ink-2 hover:bg-surface-2 hover:text-ink"
-              >
-                <Icon.Logout className="h-[18px] w-[18px]" />
-                <span className="hidden sm:inline">Sign out</span>
-              </button>
             </div>
           </header>
 

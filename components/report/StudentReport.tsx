@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { LineChart, type LinePoint } from "@/components/charts/LineChart";
+import { displayName } from "@/lib/display-name";
 
 /**
  * Monthly progress report — the layout/aesthetic taken from the provided report
@@ -73,7 +74,7 @@ export function StudentReport({
         <div className="sr-meta">
           MONTHLY PROGRESS REPORT <span className="sr-dot">·</span> {monthLabel.toUpperCase()}
         </div>
-        <h1 className="sr-name">{studentName}</h1>
+        <h1 className="sr-name">{displayName(studentName)}</h1>
         {cohortName && <div className="sr-cohort">{cohortName}</div>}
 
         {/* Headline stats */}

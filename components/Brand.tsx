@@ -33,3 +33,31 @@ export function BrandMark({ size = 28 }: { size?: number }) {
     <img src={logo.src} alt={ALT} width={logo.width} height={logo.height} decoding="async" style={{ height: size }} className="w-auto object-contain" />
   );
 }
+
+// The wordmark inside logo-web.png (480 x 223) sits in the box 23,74 → 460,140:
+// the rest is empty space. LogoTight shows only that box, so a given height
+// is the height of the lettering itself. The file is never changed.
+const TRIM = { x: 23, y: 74, w: 438, h: 67 };
+
+/** The wordmark with its empty margins cropped away. Height sets the lettering size. */
+export function LogoTight({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn("relative inline-block overflow-hidden", className)}
+      style={{ aspectRatio: `${TRIM.w} / ${TRIM.h}` }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={logo.src}
+        alt={ALT}
+        decoding="async"
+        className="absolute max-w-none"
+        style={{
+          width: `${(logo.width / TRIM.w) * 100}%`,
+          left: `${(-TRIM.x / TRIM.w) * 100}%`,
+          top: `${(-TRIM.y / TRIM.h) * 100}%`,
+        }}
+      />
+    </span>
+  );
+}

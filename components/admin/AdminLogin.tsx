@@ -4,7 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useLockout } from "@/hooks/useLockout";
-import { AuthAlert, AuthShell, PasswordField, SubmitButton, fieldClass } from "@/components/auth/AuthShell";
+import {
+  AuthAlert,
+  AuthShell,
+  Field,
+  PasswordField,
+  SubmitButton,
+  fieldClass,
+  labelClass,
+} from "@/components/auth/AuthShell";
 import { formatCountdown } from "@/lib/time";
 
 export function AdminLogin() {
@@ -17,7 +25,8 @@ export function AdminLogin() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const canSubmit = email.trim().length > 0 && password.length > 0 && !lock.isLocked;
+  const canSubmit =
+    email.trim().length > 0 && password.length > 0 && !lock.isLocked;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,43 +46,49 @@ export function AdminLogin() {
 
   return (
     <AuthShell
-      eyebrow="Teacher sign in"
-      title="Your classroom, at a glance."
-      points={[
-        { title: "Mark and release", text: "Grade written answers and release results in one go." },
-        { title: "Tests, notes and assignments", text: "Set work for a cohort, class or subject." },
-        { title: "Attendance and reports", text: "Track every student and send parents a report." },
-      ]}
+      kicker="Restricted · Teacher console"
+      title="Teacher sign in"
       footer={
-        <button onClick={() => router.push("/login")} className="font-semibold text-ink-3 hover:text-ink-2">
-          ← Student sign in
+        <button
+          onClick={() => router.push("/login")}
+          className="text-ink-3 transition-colors hover:text-ink-2"
+        >
+          ← Back
         </button>
       }
     >
       <form onSubmit={onSubmit} noValidate>
-        <div className="space-y-4">
+        <div className="space-y-7">
           <div>
-            <label htmlFor="admin-email" className="mb-2 block text-sm font-semibold text-ink-2">
+            <label htmlFor="admin-email" className={labelClass}>
               Email
             </label>
-            <input
-              id="admin-email"
-              type="email"
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); setError(null); }}
-              autoComplete="email"
-              autoCapitalize="none"
-              spellCheck={false}
-              required
-              disabled={busy || lock.isLocked}
-              className={fieldClass}
-            />
+            <Field>
+              <input
+                id="admin-email"
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError(null);
+                }}
+                autoComplete="email"
+                autoCapitalize="none"
+                spellCheck={false}
+                required
+                disabled={busy || lock.isLocked}
+                className={fieldClass}
+              />
+            </Field>
           </div>
           <PasswordField
             id="admin-password"
             label="Password"
             value={password}
-            onChange={(v) => { setPassword(v); setError(null); }}
+            onChange={(v) => {
+              setPassword(v);
+              setError(null);
+            }}
             disabled={busy || lock.isLocked}
           />
         </div>
@@ -81,11 +96,17 @@ export function AdminLogin() {
         {error && !lock.isLocked && <AuthAlert tone="error">{error}</AuthAlert>}
         {lock.isLocked && (
           <AuthAlert tone="warning">
-            Too many attempts. Try again in <span className="font-mono">{formatCountdown(lock.remainingSeconds)}</span>.
+            Too many attempts. Try again in{" "}
+            <span className="font-mono">
+              {formatCountdown(lock.remainingSeconds)}
+            </span>
+            .
           </AuthAlert>
         )}
 
-        <SubmitButton busy={busy} disabled={!canSubmit}>Sign in</SubmitButton>
+        <SubmitButton busy={busy} disabled={!canSubmit}>
+          Unlock
+        </SubmitButton>
       </form>
     </AuthShell>
   );
