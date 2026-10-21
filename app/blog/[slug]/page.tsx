@@ -6,7 +6,7 @@ import { ArticleCta } from "@/components/blog/ArticleCta";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { allArticles, articleSlugs, formatDate, getArticle } from "@/lib/blog";
 import { COMPANY_NAME } from "@/lib/config";
-import { absolute, breadcrumbLd } from "@/lib/seo";
+import { absolute, breadcrumbLd, PERSON_ID } from "@/lib/seo";
 
 export const dynamicParams = false;
 
@@ -62,7 +62,7 @@ export default async function ArticlePage({ params }: Props) {
           image: absolute(`/blog/${slug}/opengraph-image`),
           inLanguage: "en",
           about: [a.subject, a.level, a.code],
-          author: { "@type": "Person", name: "Hamza", url: absolute("/") },
+          author: { "@type": "Person", "@id": PERSON_ID, name: "Hamza Sadaqat", url: absolute("/") },
           publisher: { "@id": `${absolute("/")}/#organization`, "@type": "EducationalOrganization", name: COMPANY_NAME },
         }}
       />

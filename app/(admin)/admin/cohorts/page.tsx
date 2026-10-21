@@ -58,6 +58,7 @@ export default function CohortsPage() {
   const [selSubjectIds, setSelSubjectIds] = useState<string[]>([]);
   const [deleting, setDeleting] = useState<Cohort | null>(null);
   const [reassignTo, setReassignTo] = useState("");
+  const [switchingOff, setSwitchingOff] = useState<Cohort | null>(null);
 
   function toggleClass(id: string) {
     setSelClassIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
@@ -147,14 +148,15 @@ export default function CohortsPage() {
                 <div className="flex shrink-0 gap-1">
                   <button
                     onClick={() => {
-                      store.setCohortActive(c.id, !c.active);
-                      toast(c.active ? `${c.name} switched off.` : `${c.name} switched back on.`, "success");
+                      if (c.active) return setSwitchingOff(c);
+                      store.setCohortActive(c.id, true);
+                      toast(`${c.name} is back on. Its students, tests and work are out of the archive.`, "success");
                     }}
                     className="flex h-9 items-center rounded px-2 text-xs font-semibold text-ink-3 hover:bg-surface-2 hover:text-ink"
                     aria-label={c.active ? `Switch off ${c.name}` : `Switch on ${c.name}`}
                     title={
                       c.active
-                        ? "Switch off: its students cannot sign in and it leaves filters and analytics. Nothing is deleted."
+                        ? "Switch off: its students, tests and work move to the archive. Nothing is deleted."
                         : "Switch back on"
                     }
                   >
@@ -216,6 +218,43 @@ export default function CohortsPage() {
             <ChipToggle items={db.subjects} selected={selSubjectIds} onToggle={toggleSubject} />
           </div>
         </div>
+      </Modal>
+
+      {/* Switch off = archive */}
+      <Modal
+        open={!!switchingOff}
+        onClose={() => setSwitchingOff(null)}
+        title={switchingOff ? `Switch off ${switchingOff.name}?` : ""}
+        description="Everything moves to the archive. Nothing is deleted, and you can switch it back on any time."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setSwitchingOff(null)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (!switchingOff) return;
+                store.setCohortActive(switchingOff.id, false);
+                toast(`${switchingOff.name} switched off and archived.`, "success");
+                setSwitchingOff(null);
+              }}
+            >
+              Switch off &amp; archive
+            </Button>
+          </>
+        }
+      >
+        {switchingOff && (() => {
+          const ids = new Set(studentsInCohort(db, switchingOff.id).map((st) => st.id));
+          const testIds = new Set(db.tests.filter((t) => t.cohortId === switchingOff.id).map((t) => t.id));
+          const work = db.submissions.filter((x) => testIds.has(x.testId) || ids.has(x.studentId)).length;
+          return (
+            <ul className="space-y-1.5 text-sm text-ink-2">
+              <li><span className="font-semibold text-ink">{ids.size}</span> students move to Past students and can&apos;t sign in.</li>
+              <li><span className="font-semibold text-ink">{testIds.size}</span> tests move to the Tests archive.</li>
+              <li><span className="font-semibold text-ink">{work}</span> submissions move to the Submissions archive.</li>
+              <li>To bring a student back, add them to a new cohort from Roster → Past students.</li>
+            </ul>
+          );
+        })()}
       </Modal>
 
       {/* Delete + reassign */}

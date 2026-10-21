@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { Annotation, Answer, Question } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
-import { submissionById, studentById, testById } from "@/lib/data/selectors";
+import { submissionById, studentById, testById, archivedCohortIds, isArchivedSubmission } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { AnnotatedImage, AnnotatorModal } from "@/components/Annotator";
@@ -46,10 +46,13 @@ export default function GradingPage() {
   const grade = gradeSubmission(test, submission);
 
   // The oldest other submission still waiting for a mark: where "next" goes.
-  const nextId = db.submissions
-    .filter((s) => s.status === "submitted" && s.id !== subId)
+  // Archived work (switched-off cohorts) stays out of the marking queue.
+  const off = archivedCohortIds(db);
+  const queue = db.submissions.filter((s) => s.status === "submitted" && !isArchivedSubmission(db, s, off));
+  const nextId = queue
+    .filter((s) => s.id !== subId)
     .sort((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""))[0]?.id;
-  const waiting = db.submissions.filter((s) => s.status === "submitted").length;
+  const waiting = queue.length;
 
   const mcqs = test.questions.filter((q) => q.type === "mcq");
   const hideAuto = !showAuto && mcqs.length > 0 && mcqs.length < test.questions.length;

@@ -16,6 +16,8 @@ export const LANDING = {
    *  dials this one number; override per-deploy with NEXT_PUBLIC_WA_NUMBER. */
   waNumber: process.env.NEXT_PUBLIC_WA_NUMBER || "923475105144",
   instagram: process.env.NEXT_PUBLIC_INSTAGRAM || "https://instagram.com/hamzateaches",
+  /** YouTube channel "Hamza Teaches" (the handle is spelled with a "u" on purpose). */
+  youtube: process.env.NEXT_PUBLIC_YOUTUBE || "https://www.youtube.com/@humzateaches",
   /** Public contact email (privacy policy, structured data). */
   email: process.env.NEXT_PUBLIC_CONTACT_EMAIL || "hamzasadakat7@gmail.com",
   brand: COMPANY_NAME,

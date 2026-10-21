@@ -12,6 +12,7 @@ import { squareThumbnail } from "@/lib/image";
 import { BulkBar, RowCheck } from "@/components/admin/BulkBar";
 import { uploadImage } from "@/lib/cloudinary";
 import { PageHeader } from "@/components/admin/PageHeader";
+import { ArchiveTabs, type ArchiveView } from "@/components/admin/ArchiveTabs";
 import { Card, Button, Input, Select, Label, CohortDot, Modal, EmptyState, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
@@ -91,13 +92,20 @@ export default function RosterPage() {
   const [bulkClass, setBulkClass] = useState("");
   const [bulkCohort, setBulkCohort] = useState("");
 
+  // Past students (in switched-off cohorts) are kept apart. Tick them and use
+  // "Add to cohort" to bring them into a new cohort; they can sign in again.
+  const [view, setView] = useState<ArchiveView>("current");
+  const off = useMemo(() => new Set(db.cohorts.filter((c) => !c.active).map((c) => c.id)), [db.cohorts]);
+  const pastCount = db.students.filter((s) => off.has(s.cohortId)).length;
+
   const students = useMemo(
     () =>
       db.students
+        .filter((s) => (view === "archive") === off.has(s.cohortId))
         .filter((s) => (cohortId ? s.cohortId === cohortId : true))
         .filter((s) => (search.trim() ? (s.username + (s.email ?? "")).toLowerCase().includes(search.toLowerCase()) : true))
         .sort((a, b) => a.username.localeCompare(b.username)),
-    [db.students, cohortId, search],
+    [db.students, cohortId, search, view, off],
   );
 
   // Classes/subjects available for the selected cohort in the form
@@ -195,7 +203,7 @@ export default function RosterPage() {
           {db.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select>
         <Select value={bulkCohort} onChange={(e) => setBulkCohort(e.target.value)} className="h-9 w-auto min-w-36" aria-label="Move to cohort">
-          <option value="">Move to cohort…</option>
+          <option value="">{view === "archive" ? "Add to cohort…" : "Move to cohort…"}</option>
           {db.cohorts.filter((c) => c.active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select>
         <Button
@@ -209,13 +217,33 @@ export default function RosterPage() {
               if (bulkClass) store.setStudentClasses(id, [bulkClass]);
               if (bulkCohort) void store.updateStudent(id, { cohortId: bulkCohort, username: st.username });
             });
-            toast(`${picked.length} students moved.`, "success");
+            toast(
+              view === "archive" && bulkCohort
+                ? `${picked.length} past student${picked.length === 1 ? "" : "s"} added. They can sign in again.`
+                : `${picked.length} students moved.`,
+              "success",
+            );
             setPicked([]);
           }}
         >
           Move
         </Button>
       </BulkBar>
+
+      <ArchiveTabs
+        view={view}
+        onChange={(v) => { setView(v); setPicked([]); }}
+        currentLabel="Current students"
+        archiveLabel="Past students"
+        currentCount={db.students.length - pastCount}
+        archiveCount={pastCount}
+      />
+      {view === "archive" && (
+        <p className="mb-4 text-sm text-ink-2">
+          Students from switched-off cohorts. Tick the ones coming back, then choose a cohort in the bar to add them.
+          Their old tests and marks stay in the archive.
+        </p>
+      )}
 
       <div className="mb-4">
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search students…" className="max-w-xs" aria-label="Search students" />

@@ -8,7 +8,7 @@ import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { useNow } from "@/hooks/useNow";
 import { useToast } from "@/components/toast";
-import { absenceStreak, cohortById, eligibleStudents, testById } from "@/lib/data/selectors";
+import { absenceStreak, cohortById, eligibleStudents, testById, archivedCohortIds, isArchivedTest } from "@/lib/data/selectors";
 import { gradeSubmission } from "@/lib/grading";
 import { formatRelative } from "@/lib/time";
 import { createRetest, retestQuestions, weakTopics } from "@/lib/retest";
@@ -41,8 +41,11 @@ export default function TodayPage() {
   const nowMs = useNow();
 
   const data = useMemo(() => {
-    const inScope = (s: Student) => cohortId === null || s.cohortId === cohortId;
-    const testInScope = (t: Test) => cohortId === null || t.cohortId === null || t.cohortId === cohortId;
+    // Switched-off cohorts are archived: they never show up on Today.
+    const off = archivedCohortIds(db);
+    const inScope = (s: Student) => !off.has(s.cohortId) && (cohortId === null || s.cohortId === cohortId);
+    const testInScope = (t: Test) =>
+      !isArchivedTest(db, t, off) && (cohortId === null || t.cohortId === null || t.cohortId === cohortId);
     const students = db.students.filter(inScope);
     const studentIds = new Set(students.map((s) => s.id));
     const live = db.tests.filter((t) => t.status !== "draft" && testInScope(t));

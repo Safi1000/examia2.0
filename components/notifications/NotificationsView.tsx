@@ -85,7 +85,8 @@ export function NotificationsView() {
     (a: Activity) => {
       if (isUnread(a)) markRead([a.id]);
       const href = resolveLink(a);
-      if (href) router.push(href);
+      // Internal pages only: never follow an outside link from a notification.
+      if (href && href.startsWith("/") && !href.startsWith("//")) router.push(href);
     },
     [isUnread, markRead, resolveLink, router],
   );

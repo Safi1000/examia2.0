@@ -27,15 +27,19 @@ export async function POST(req: NextRequest) {
   const { data: user } = await sb.auth.getUser();
   if (!user.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const { data: note, error } = await sb
-    .from("notes")
-    .select("file_url, file_name, file_type")
-    .eq("id", noteId)
-    .single();
-  if (error || !note?.file_url) return NextResponse.json({ error: "not found" }, { status: 404 });
+  // Row-level security decides whether they may see the note; the raw file
+  // link lives in an admin-only table and comes back only through
+  // note_file_url(), which repeats that check.
+  const [{ data: note, error }, link] = await Promise.all([
+    sb.from("notes").select("*").eq("id", noteId).single(),
+    sb.rpc("note_file_url", { p_note_id: noteId }),
+  ]);
+  // Until migration 20261020010000 is applied the link is still on the notes row.
+  const fileUrl = link.error?.code === "PGRST202" ? (note?.file_url as string | null) : link.data;
+  if (error || !note || !fileUrl) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   return NextResponse.json({
-    url: signViewUrl(note.file_url as string, (note.file_name as string) ?? "note"),
+    url: signViewUrl(fileUrl as string, (note.file_name as string) ?? "note"),
     fileType: note.file_type ?? "application/octet-stream",
   });
 }

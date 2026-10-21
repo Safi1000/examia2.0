@@ -1,6 +1,6 @@
 /**
- * Pure selectors over the database snapshot. These approximate the row-level
- * security a real backend would enforce; TODO(rls) move scoping server-side.
+ * Pure selectors over the database snapshot, for display. Access itself is
+ * enforced by row-level security in supabase/migrations.
  */
 import type { Announcement, Student, Submission, Test, TestStats, TestStatus } from "@/types";
 import type { Database } from "@/lib/data/seed";
@@ -10,6 +10,30 @@ export const cohortById = (db: Database, id: string | null) =>
   id ? db.cohorts.find((c) => c.id === id) ?? null : null;
 export const studentById = (db: Database, id: string) => db.students.find((s) => s.id === id) ?? null;
 export const testById = (db: Database, id: string) => db.tests.find((t) => t.id === id) ?? null;
+
+// ---- Archive ---------------------------------------------------------------
+// Switching a cohort off moves everything that belongs to it into the archive:
+// its students, its tests, and the work handed in for them. Nothing is deleted,
+// and switching the cohort back on brings it all back.
+
+/** Ids of the cohorts that are switched off. */
+export function archivedCohortIds(db: Database): Set<string> {
+  return new Set(db.cohorts.filter((c) => !c.active).map((c) => c.id));
+}
+/** A test for one switched-off cohort. Tests for everyone are never archived. */
+export function isArchivedTest(db: Database, t: Test, off = archivedCohortIds(db)): boolean {
+  return !!t.cohortId && off.has(t.cohortId);
+}
+/** A student whose cohort is switched off (a past student). */
+export function isArchivedStudent(db: Database, s: Student, off = archivedCohortIds(db)): boolean {
+  return off.has(s.cohortId);
+}
+/** Work handed in for an archived test, or by a past student. */
+export function isArchivedSubmission(db: Database, sub: Submission, off = archivedCohortIds(db)): boolean {
+  const t = testById(db, sub.testId);
+  const st = studentById(db, sub.studentId);
+  return (!!t && isArchivedTest(db, t, off)) || (!!st && isArchivedStudent(db, st, off));
+}
 export const submissionById = (db: Database, id: string) =>
   db.submissions.find((s) => s.id === id) ?? null;
 

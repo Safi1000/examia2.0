@@ -4,15 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useLockout } from "@/hooks/useLockout";
-import { Logo } from "@/components/Brand";
 import { formatCountdown } from "@/lib/time";
-import { cn } from "@/lib/cn";
-
-const fieldClass =
-  "w-full h-12 rounded-md border border-border-strong bg-surface-2 px-3.5 text-ink " +
-  "placeholder:text-ink-3 transition-colors " +
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand " +
-  "disabled:cursor-not-allowed disabled:opacity-60";
+import { waTextLink } from "@/lib/landing";
+import { AuthAlert, AuthShell, PasswordField, SubmitButton, fieldClass } from "@/components/auth/AuthShell";
 
 export default function StudentLoginPage() {
   const router = useRouter();
@@ -31,7 +25,14 @@ export default function StudentLoginPage() {
     if (!canSubmit) return;
     setBusy(true);
     setError(null);
-    const ok = await loginStudent(username, password);
+    let ok: boolean;
+    try {
+      ok = await loginStudent(username, password);
+    } catch {
+      setError("You're signed in, but your portal didn't load. Check your internet and tap Sign in again.");
+      setBusy(false);
+      return;
+    }
     if (ok) {
       lock.reset();
       router.push("/dashboard");
@@ -42,106 +43,76 @@ export default function StudentLoginPage() {
     }
   }
 
+  const forgotLink = waTextLink(
+    `Hi Hamza, I forgot my portal password. My username is ${username.trim() || "[your username]"}.`,
+  );
+
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center px-4 py-10">
-      <div className="w-full max-w-sm">
-        {/* Single card containing brand, tagline, and form */}
-        <form
-          onSubmit={onSubmit}
-          className="animate-fade-up rounded-xl border border-border bg-surface p-6 shadow-[var(--shadow-md)]"
-          style={{ animationDelay: "80ms" }}
-        >
-          {/* Brand + tagline inside the card */}
-          <div className="mb-8 text-center">
-            <Logo className="mx-auto h-12 sm:h-14" />
-            <h1
-              className="mt-4 text-4xl font-bold leading-tight"
-              style={{ fontFamily: "var(--font-caveat)", color: "var(--color-brand)" }}
-            >
-              Start from scratch.<br />Finish exam ready.
-            </h1>
+    <AuthShell
+      eyebrow="Student portal"
+      title="Welcome back."
+      note="Start from scratch. Finish exam ready."
+      points={[
+        { title: "Notes and recordings", text: "Every class and every handout, in one place." },
+        { title: "Weekly tests", text: "Sit them here. I mark them and tell you where the marks went." },
+        { title: "Your progress", text: "See your marks topic by topic, week by week." },
+      ]}
+      footer={
+        <>
+          Forgot your password?{" "}
+          <a href={forgotLink} target="_blank" rel="noopener noreferrer" className="font-semibold text-brand hover:underline">
+            Message Hamza on WhatsApp
+          </a>
+        </>
+      }
+    >
+      <form onSubmit={onSubmit} noValidate>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="login-username" className="mb-2 block text-sm font-semibold text-ink-2">
+              Username
+            </label>
+            <input
+              id="login-username"
+              value={username}
+              onChange={(e) => { setUsername(e.target.value); setError(null); }}
+              placeholder="The username Hamza gave you"
+              autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              required
+              disabled={busy || lock.isLocked}
+              className={fieldClass}
+            />
           </div>
+          <PasswordField
+            id="login-password"
+            label="Password"
+            value={password}
+            onChange={(v) => { setPassword(v); setError(null); }}
+            disabled={busy || lock.isLocked}
+          />
+        </div>
 
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="login-username" className="mb-2 block text-sm font-semibold text-ink-2">
-                Username
-              </label>
-              <input
-                id="login-username"
-                value={username}
-                onChange={(e) => { setUsername(e.target.value); setError(null); }}
-                placeholder="Your username"
-                autoComplete="username"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                required
-                disabled={busy || lock.isLocked}
-                className={fieldClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="login-password" className="mb-2 block text-sm font-semibold text-ink-2">
-                Password
-              </label>
-              <input
-                id="login-password"
-                type="password"
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); setError(null); }}
-                placeholder="Your password"
-                autoComplete="current-password"
-                required
-                disabled={busy || lock.isLocked}
-                className={fieldClass}
-              />
-            </div>
-          </div>
+        {error && !lock.isLocked && <AuthAlert tone="error">{error}</AuthAlert>}
+        {lock.isLocked && (
+          <AuthAlert tone="warning">
+            Too many wrong tries. Try again in <span className="font-mono">{formatCountdown(lock.remainingSeconds)}</span>.
+          </AuthAlert>
+        )}
 
-          {error && !lock.isLocked && (
-            <p className="mt-3 rounded-md border border-error/30 bg-error-soft px-3 py-2 text-sm font-medium text-error" role="alert">
-              {error}
-            </p>
-          )}
-          {lock.isLocked && (
-            <p className="mt-3 rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-sm font-medium text-warning" role="alert">
-              Too many wrong guesses. Try again in{" "}
-              <span className="font-mono">{formatCountdown(lock.remainingSeconds)}</span>.
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={!canSubmit || busy}
-            className={cn(
-              "mt-6 h-12 w-full rounded-full bg-brand px-4 text-[15px] font-semibold text-on-brand",
-              "transition-[filter] hover:brightness-110 active:brightness-95",
-              "disabled:cursor-not-allowed disabled:opacity-50",
-              "flex items-center justify-center gap-2",
-            )}
-          >
-            {busy ? (
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-on-brand/30 border-t-on-brand" />
-            ) : (
-              "Let me in"
-            )}
-          </button>
-
-          <p className="mt-4 text-center text-sm text-ink-3">
-            Locked out? Your teacher has the key.
-          </p>
-        </form>
-      </div>
+        <SubmitButton busy={busy} disabled={!canSubmit}>Sign in</SubmitButton>
+      </form>
 
       {/* Hidden admin hotspot */}
       <button
         onClick={() => router.push("/admin")}
         aria-label="Administrator access"
         title=""
-        className="mt-4 h-8 w-24 rounded opacity-0"
+        className="mx-auto mt-2 block h-6 w-24 rounded opacity-0"
         tabIndex={-1}
       />
-    </main>
+    </AuthShell>
   );
 }

@@ -1,0 +1,52 @@
+import { allArticles } from "@/lib/blog";
+import { FAQS, LANDING } from "@/lib/landing";
+import { absolute } from "@/lib/seo";
+
+/**
+ * /llms.txt: a plain summary of the site for AI assistants (ChatGPT, Claude,
+ * Perplexity, Google's AI answers), in the llmstxt.org format. Built from the
+ * same data as the pages, so new articles appear here on their own.
+ */
+export const dynamic = "force-static";
+
+export async function GET() {
+  const articles = await allArticles();
+
+  const body = `# Hamza Teaches
+
+> Live online small-group tuition in Accounting, Business and Economics for Cambridge O Level, IGCSE, AS Level and A Level students, taught by Hamza Sadaqat. Classes run on Google Meet or Zoom with cameras on. The first lesson is a free trial, booked on WhatsApp.
+
+Key facts:
+- Teacher: Hamza Sadaqat, ACCA Affiliate, who got straight A's in these same subjects and teaches every class personally. 100+ students taught over 4+ years.
+- Subjects: Accounting, Business Studies, Economics.
+- Syllabuses: Cambridge IGCSE Accounting 0452, Business Studies 0450, Economics 0455; Cambridge O Level Accounting 7707, Business Studies 7115, Economics 2281; Cambridge International AS & A Level Accounting 9706, Business 9609, Economics 9708.
+- Format: live online classes in small groups, every class recorded, weekly tests marked by Hamza, and a personal student portal for notes, tests and marks.
+- Current session: preparing students for the May/June 2027 Cambridge exams.
+- Fees: shared privately on WhatsApp; they depend on level and number of subjects.
+- Based in Rawalpindi, Pakistan; teaches students online.
+- Contact: WhatsApp from the website, Instagram ${LANDING.instagram}, YouTube ${LANDING.youtube}, email ${LANDING.email}.
+
+## Main pages
+
+- [Home](${absolute("/")}): how the classes work, student reviews, and booking the free trial lesson.
+- [Grade predictor](${absolute("/tools/grade-predictor")}): free tool. Enter your marks and see your likely Cambridge grade using official grade thresholds, plus what to work on for May/June 2027.
+- [The Exam Room](${absolute("/blog")}): free articles on topics and exam technique.
+
+## Articles
+
+${articles.map((a) => `- [${a.title}](${absolute(`/blog/${a.slug}`)}): ${a.description}`).join("\n")}
+
+## Common questions
+
+${FAQS.map((f) => `- ${f.q} ${f.a}`).join("\n")}
+
+## Optional
+
+- [Privacy policy](${absolute("/privacy")})
+- [Terms](${absolute("/terms")})
+`;
+
+  return new Response(body, {
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
+}

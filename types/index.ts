@@ -211,6 +211,8 @@ export interface Submission {
   startedAt: string;
   submittedAt?: string;
   autoSubmitted?: boolean;
+  /** Set by the server: handed in past the time limit or after the test closed. */
+  late?: boolean;
   durationSeconds?: number;
   releasedAt?: string;
 }

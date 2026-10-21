@@ -50,8 +50,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * or the auth listener reaches it first wins and the other no-ops. Safe to call
    * from login (outside the auth lock) but NEVER directly inside onAuthStateChange.
    */
-  const establish = useCallback(async (user: User) => {
-    if (currentUserId.current === user.id) return;
+  /** Loads the signed-in user's portal. Returns false if it couldn't. */
+  const establish = useCallback(async (user: User): Promise<boolean> => {
+    if (currentUserId.current === user.id) return true;
     currentUserId.current = user.id;
     setInitializing(true);
     try {
@@ -66,9 +67,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       saveThemeId(themeUserKey(next), tid);
     } catch (e) {
       console.error("auth establish failed", e);
+      currentUserId.current = null; // so trying again actually retries
+      return false;
     } finally {
       setInitializing(false);
     }
+    return true;
   }, []);
 
   /** Preview-only sign-in as a sample student or the admin (lib/demo.ts). */
@@ -128,7 +132,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password,
       });
       if (error || !data.user) return false;
-      await establish(data.user); // fully ready before the caller navigates
+      // Fully ready before the caller navigates. A right password whose portal
+      // then fails to load is not a wrong password: tell the page apart.
+      if (!(await establish(data.user))) throw new Error("portal-load-failed");
       return true;
     },
     [establish, establishDemo],

@@ -292,6 +292,7 @@ const mapSubmission = (r: Row): Submission => ({
   startedAt: r.started_at as string,
   submittedAt: (r.submitted_at as string) ?? undefined,
   autoSubmitted: (r.auto_submitted as boolean) ?? undefined,
+  late: (r.late as boolean) ?? undefined,
   durationSeconds: (r.duration_seconds as number) ?? undefined,
   releasedAt: (r.released_at as string) ?? undefined,
   answers: ((r.answers as Row[]) ?? []).map(mapAnswer),
@@ -1351,6 +1352,16 @@ class Store {
   }
 
   // ---- Submissions -----------------------------------------------------
+  /**
+   * Records the official start time on the server (the first one, if the test
+   * is reopened). Returns null when there is none (demo, admin preview, or the
+   * test isn't open); the runner then falls back to its own clock.
+   */
+  async startTestAttempt(testId: string): Promise<string | null> {
+    const { data, error } = await supabase().rpc("start_test_attempt", { p_test_id: testId });
+    if (error || !data) return null;
+    return data as string;
+  }
   async submitTest(input: {
     testId: string;
     studentId: string;
@@ -1359,9 +1370,55 @@ class Store {
     autoSubmitted: boolean;
     durationSeconds: number;
   }): Promise<string> {
-    const id = genId();
+    // Saved on the server first, in one call (submission + every answer, or
+    // nothing), then shown. On failure this throws: the runner keeps the draft
+    // and offers a retry, so a bad connection never loses the work.
+    const rows = input.answers.map((a) => {
+      // Keep photo_url populated with the first image so existing grading /
+      // results / evaluation paths are untouched; photo_urls carries the rest.
+      const urls = a.photoUrls?.filter(Boolean) ?? (a.photoDataUrl ? [a.photoDataUrl] : []);
+      return {
+        question_id: a.questionId,
+        type: a.type,
+        selected_index: a.selectedIndex ?? null,
+        text: a.text ?? null,
+        photo_url: urls[0] ?? a.photoDataUrl ?? null,
+        photo_urls: urls,
+      };
+    });
+    const sb = supabase();
+    const newId = genId();
+    let { data, error } = await sb.rpc("submit_test", {
+      p_id: newId,
+      p_test_id: input.testId,
+      p_auto: input.autoSubmitted,
+      p_answers: rows,
+    });
+    // Until migration 20261020010000 is applied the function doesn't exist
+    // (PGRST202): fall back to the old two-step save, still failing loudly.
+    if (error?.code === "PGRST202") {
+      const sub = await sb.from("submissions").insert({
+        id: newId,
+        test_id: input.testId,
+        student_id: input.studentId,
+        status: "submitted",
+        started_at: input.startedAt,
+        submitted_at: new Date().toISOString(),
+        auto_submitted: input.autoSubmitted,
+        duration_seconds: input.durationSeconds,
+      });
+      error = sub.error;
+      if (!error && rows.length) {
+        error = (await sb.from("answers").insert(rows.map((r) => ({ ...r, submission_id: newId })))).error;
+      }
+      data = error ? null : newId;
+    }
+    if (error) {
+      this.report(`submitTest: ${error.message}`);
+      throw new Error(error.message);
+    }
+    const id = (data as string | null) ?? newId;
     const submittedAt = new Date().toISOString();
-    // Optimistic: show the submission immediately (MCQ marks fill in server-side).
     this.commit((d) => {
       d.submissions = d.submissions.filter(
         (s) => !(s.testId === input.testId && s.studentId === input.studentId),
@@ -1378,40 +1435,6 @@ class Store {
         durationSeconds: input.durationSeconds,
       });
     });
-
-    const sb = supabase();
-    const { error: subErr } = await sb.from("submissions").insert({
-      id,
-      test_id: input.testId,
-      student_id: input.studentId,
-      status: "submitted",
-      started_at: input.startedAt,
-      submitted_at: submittedAt,
-      auto_submitted: input.autoSubmitted,
-      duration_seconds: input.durationSeconds,
-    });
-    if (subErr) {
-      this.report(`submitTest: ${subErr.message}`);
-      return id;
-    }
-    const rows = input.answers.map((a) => {
-      // Keep photo_url populated with the first image so existing grading /
-      // results / evaluation paths are untouched; photo_urls carries the rest.
-      const urls = a.photoUrls?.filter(Boolean) ?? (a.photoDataUrl ? [a.photoDataUrl] : []);
-      return {
-        submission_id: id,
-        question_id: a.questionId,
-        type: a.type,
-        selected_index: a.selectedIndex ?? null,
-        text: a.text ?? null,
-        photo_url: urls[0] ?? a.photoDataUrl ?? null,
-        photo_urls: urls,
-      };
-    });
-    if (rows.length) {
-      const { error: ansErr } = await sb.from("answers").insert(rows);
-      if (ansErr) this.report(`submitTest/answers: ${ansErr.message}`);
-    }
 
     const test = this.state.tests.find((t) => t.id === input.testId);
     const student = this.state.students.find((s) => s.id === input.studentId);
@@ -1773,8 +1796,8 @@ class Store {
     });
     this.run(supabase().from("assignments").delete().eq("id", id), "deleteAssignment");
   }
-  /** Hand in (or replace) a student's files for one assignment. */
-  submitAssignment(assignmentId: string, studentId: string, fileUrls: string[]) {
+  /** Hand in (or replace) a student's files for one assignment. Throws if not saved. */
+  async submitAssignment(assignmentId: string, studentId: string, fileUrls: string[]): Promise<void> {
     const existing = this.state.assignmentSubmissions.find(
       (s) => s.assignmentId === assignmentId && s.studentId === studentId,
     );
@@ -1788,13 +1811,19 @@ class Store {
     });
     // One row per student per assignment (unique constraint), so re-handing in
     // replaces the files instead of stacking duplicates.
-    this.run(
-      supabase().from("assignment_submissions").upsert(
-        { id, assignment_id: assignmentId, student_id: studentId, file_urls: fileUrls, submitted_at: submittedAt },
-        { onConflict: "assignment_id,student_id" },
-      ),
-      "submitAssignment",
+    const { error } = await supabase().from("assignment_submissions").upsert(
+      { id, assignment_id: assignmentId, student_id: studentId, file_urls: fileUrls, submitted_at: submittedAt },
+      { onConflict: "assignment_id,student_id" },
     );
+    if (error) {
+      // Undo the optimistic row so the badge doesn't claim it was handed in.
+      this.commit((d) => {
+        d.assignmentSubmissions = d.assignmentSubmissions.filter((s) => s.id !== id);
+        if (existing) d.assignmentSubmissions.push(existing);
+      });
+      console.error("[store] submitAssignment:", error.message);
+      throw new Error("Not handed in. Check your internet and try again.");
+    }
   }
   /** Teacher's reply. Assignments carry no marks — feedback is the whole grade. */
   setAssignmentFeedback(submissionId: string, feedback: string) {

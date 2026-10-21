@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter, useStickyFilter } from "@/lib/admin-filter";
-import { cohortById, studentById, testById } from "@/lib/data/selectors";
+import { archivedCohortIds, cohortById, isArchivedSubmission, studentById, testById } from "@/lib/data/selectors";
+import { ArchiveTabs, type ArchiveView } from "@/components/admin/ArchiveTabs";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Button, Badge, CohortDot, EmptyState, Icon, TableScroll, Table, Th, Td, Modal } from "@/components/ui";
@@ -34,8 +35,16 @@ export default function SubmissionsPage() {
     return Array.from(new Set(db.tests.filter((t) => withSubs.has(t.id)).map((t) => t.subject))).sort();
   }, [db.tests, db.submissions]);
 
+  // Work for switched-off cohorts lives in the archive.
+  const [view, setView] = useState<ArchiveView>("current");
+  const archived = useMemo(() => {
+    const off = archivedCohortIds(db);
+    return new Set(db.submissions.filter((s) => isArchivedSubmission(db, s, off)).map((s) => s.id));
+  }, [db]);
+
   const rows = useMemo(() => {
     return db.submissions
+      .filter((sub) => (view === "archive") === archived.has(sub.id))
       .map((sub) => ({ sub, test: testById(db, sub.testId), student: studentById(db, sub.studentId) }))
       .filter((r): r is { sub: typeof r.sub; test: NonNullable<typeof r.test>; student: typeof r.student } => r.test !== null)
       .filter((r) => (cohortId ? r.student?.cohortId === cohortId : true))
@@ -49,7 +58,7 @@ export default function SubmissionsPage() {
           (a.sub.status === "released" ? 1 : 0) - (b.sub.status === "released" ? 1 : 0) ||
           +new Date(b.sub.submittedAt ?? 0) - +new Date(a.sub.submittedAt ?? 0),
       );
-  }, [db, cohortId, subjectFilter, classFilter, statuses]);
+  }, [db, cohortId, subjectFilter, classFilter, statuses, view, archived]);
 
   // Bulk release covers exactly what the filters are showing: every awaiting
   // submission on an all-MCQ test, which needs no human marking.
@@ -70,6 +79,14 @@ export default function SubmissionsPage() {
         title="Submissions"
         subtitle={`${rows.length} submission${rows.length === 1 ? "" : "s"}`}
         actions={releasable.length > 0 ? <Button onClick={() => setBulkOpen(true)}><Icon.Check className="h-4 w-4" /> Release all (MCQ)</Button> : undefined}
+      />
+
+      <ArchiveTabs
+        view={view}
+        onChange={(v) => { setView(v); setPicked([]); }}
+        currentLabel="Current"
+        currentCount={db.submissions.length - archived.size}
+        archiveCount={archived.size}
       />
 
       <div className="mb-4 space-y-2">
@@ -151,6 +168,7 @@ export default function SubmissionsPage() {
                       <Td>
                         {sub.status === "released" ? <Badge tone="success">Released</Badge> : <Badge tone="warning">Awaiting</Badge>}
                         {sub.autoSubmitted && <span className="ml-1 text-xs text-ink-3">auto</span>}
+                        {sub.late && <span className="ml-1 text-xs font-semibold text-error">late</span>}
                       </Td>
                       <Td className="font-mono">{sub.status === "released" ? `${grade.percent}% · ${grade.letter}` : <span className="text-ink-3">—</span>}</Td>
                       <Td className="hidden whitespace-nowrap text-ink-2 md:table-cell">{sub.submittedAt ? formatTimestamp(sub.submittedAt) : "—"}</Td>

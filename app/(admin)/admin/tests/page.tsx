@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import type { TestStatus } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter, useStickyFilter } from "@/lib/admin-filter";
-import { cohortById, liveStatus, testStats } from "@/lib/data/selectors";
+import { archivedCohortIds, cohortById, isArchivedTest, liveStatus, testStats } from "@/lib/data/selectors";
+import { ArchiveTabs, type ArchiveView } from "@/components/admin/ArchiveTabs";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Button, Card, Badge, Pill, CohortTag, EmptyState, Modal, Icon } from "@/components/ui";
@@ -38,8 +39,16 @@ export default function AdminTestsPage() {
 
   const subjects = useMemo(() => Array.from(new Set(db.tests.map((t) => t.subject))).sort(), [db.tests]);
 
+  // Tests for switched-off cohorts live in the archive.
+  const [view, setView] = useState<ArchiveView>("current");
+  const archived = useMemo(() => {
+    const off = archivedCohortIds(db);
+    return new Set(db.tests.filter((t) => isArchivedTest(db, t, off)).map((t) => t.id));
+  }, [db]);
+
   const tests = useMemo(() => {
     return db.tests
+      .filter((t) => (view === "archive") === archived.has(t.id))
       .filter((t) => (cohortId ? t.cohortId === cohortId || t.cohortId === null : true))
       .filter((t) => (subjectFilter.length === 0 ? true : subjectFilter.includes(t.subject)))
       .filter((t) => (statuses.length === 0 ? true : statuses.includes(liveStatus(t))))
@@ -48,7 +57,7 @@ export default function AdminTestsPage() {
           (liveStatus(a) === "closed" ? 1 : 0) - (liveStatus(b) === "closed" ? 1 : 0) ||
           +new Date(b.createdAt) - +new Date(a.createdAt),
       );
-  }, [db.tests, cohortId, subjectFilter, statuses]);
+  }, [db.tests, cohortId, subjectFilter, statuses, view, archived]);
 
   function createTest() {
     const now = Date.now();
@@ -118,6 +127,14 @@ export default function AdminTestsPage() {
           Close now
         </Button>
       </BulkBar>
+
+      <ArchiveTabs
+        view={view}
+        onChange={(v) => { setView(v); setPicked([]); }}
+        currentLabel="Current"
+        currentCount={db.tests.length - archived.size}
+        archiveCount={archived.size}
+      />
 
       <div className="mb-4 space-y-2">
         <FilterChips

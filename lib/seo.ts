@@ -25,6 +25,10 @@ export const PUBLIC_ROUTES: Array<{ path: string; priority: number }> = [
 ];
 
 const ORG_ID = `${SITE_URL}/#organization`;
+export const PERSON_ID = `${SITE_URL}/#hamza`;
+
+/** Every profile that is Hamza / Hamza Teaches. Search engines use these to join them into one entity. */
+export const SAME_AS = [LANDING.instagram, LANDING.youtube];
 
 export function organizationLd() {
   return {
@@ -36,8 +40,10 @@ export function organizationLd() {
     description:
       "Live online small-group tuition in Accounting, Business and Economics for Cambridge and Pearson Edexcel O Level, IGCSE, AS and A Level.",
     address: { "@type": "PostalAddress", addressLocality: "Rawalpindi", addressCountry: "PK" },
-    sameAs: [LANDING.instagram],
+    sameAs: SAME_AS,
     email: LANDING.email,
+    founder: { "@id": PERSON_ID },
+    logo: absolute("/apple-icon"),
     knowsAbout: [
       "Accounting",
       "Business Studies",
@@ -48,6 +54,38 @@ export function organizationLd() {
       "Pearson Edexcel International GCSE",
       "Pearson Edexcel International A Level",
     ],
+  };
+}
+
+/** Hamza as a person: the teacher behind the brand (articles point their author here). */
+export function personLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "@id": PERSON_ID,
+    // Use this exact spelling on every profile (Instagram, YouTube, LinkedIn, Google).
+    name: "Hamza Sadaqat",
+    givenName: "Hamza",
+    familyName: "Sadaqat",
+    alternateName: "Hamza Teaches",
+    url: SITE_URL,
+    image: absolute("/hamza.jpg"),
+    jobTitle: "Accounting, Business and Economics tutor",
+    worksFor: { "@id": ORG_ID },
+    sameAs: SAME_AS,
+    knowsAbout: ["Accounting", "Business Studies", "Economics", "Cambridge O Level", "Cambridge IGCSE", "Cambridge International AS & A Level"],
+  };
+}
+
+export function websiteLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": `${SITE_URL}/#website`,
+    name: COMPANY_NAME,
+    url: SITE_URL,
+    publisher: { "@id": ORG_ID },
+    inLanguage: "en",
   };
 }
 

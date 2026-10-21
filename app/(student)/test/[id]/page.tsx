@@ -49,26 +49,38 @@ export default function TestRunnerPage() {
   // the resolved `boot`.
   const [boot, setBoot] = useState<Boot | null>(null);
 
+  // Re-boot when the test opens while the page is up: the paper's questions
+  // only arrive once it is open, and the start time must be taken then.
+  const db = useDatabase();
+  const nowMs = useNow();
+  const t = testById(db, id);
+  // Once past the opening time this stays true, so closing doesn't re-boot.
+  const open = !!t && nowMs >= new Date(t.opensAt).getTime();
+
   useEffect(() => {
     let active = true;
-    void store.refreshTest(id).finally(() => {
+    void store.refreshTest(id).finally(async () => {
       if (!active) return;
       const d = studentId ? loadDraft(studentId, id) : null;
+      // The server's start time wins, so clearing the browser or switching
+      // device doesn't reset the clock.
+      const serverStart = open ? await store.startTestAttempt(id) : null;
+      if (!active) return;
       setBoot({
-        startedAt: d?.startedAt ?? new Date().toISOString(),
+        startedAt: serverStart ?? d?.startedAt ?? new Date().toISOString(),
         answers: d?.answers ?? null,
         index: d?.currentIndex ?? 0,
       });
     });
     return () => { active = false; };
-  }, [id, studentId, store]);
+  }, [id, studentId, store, open]);
 
   if (!boot) {
     return (
       <div className="flex min-h-dvh items-center justify-center text-ink-3">Loading test…</div>
     );
   }
-  return <TestRunner id={id} boot={boot} />;
+  return <TestRunner key={`${open}-${boot.startedAt}`} id={id} boot={boot} />;
 }
 
 function TestRunner({ id, boot }: { id: string; boot: Boot }) {
@@ -101,6 +113,9 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   const [index, setIndex] = useState(boot.index);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const submittedRef = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(false);
+  const lastAuto = useRef(false);
   const prevState = useRef<string>("normal");
 
   // Log the attempt once, when the runner actually opens for a live sitting.
@@ -145,18 +160,31 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
     async (auto: boolean) => {
       if (submittedRef.current || !test || !student) return;
       submittedRef.current = true;
+      setSubmitting(true);
+      setSubmitError(false);
       const duration = Math.min(
         test.durationMinutes * 60,
         Math.round((Date.now() - new Date(boot.startedAt).getTime()) / 1000),
       );
-      await store.submitTest({
-        testId: test.id,
-        studentId: student.id,
-        answers,
-        startedAt: boot.startedAt,
-        autoSubmitted: auto,
-        durationSeconds: duration,
-      });
+      try {
+        await store.submitTest({
+          testId: test.id,
+          studentId: student.id,
+          answers,
+          startedAt: boot.startedAt,
+          autoSubmitted: auto,
+          durationSeconds: duration,
+        });
+      } catch {
+        // Not saved: keep the draft and the answers on screen, and let the
+        // student try again.
+        submittedRef.current = false;
+        setSubmitting(false);
+        setConfirmOpen(false);
+        setSubmitError(true);
+        lastAuto.current = auto;
+        return;
+      }
       clearDraft(student.id, test.id);
       router.replace(`/test/${test.id}/submitted`);
     },
@@ -310,13 +338,32 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
         footer={
           <>
             <Button variant="secondary" onClick={() => setConfirmOpen(false)}>Not yet</Button>
-            <Button onClick={() => doSubmit(false)}>Yes, submit</Button>
+            <Button onClick={() => doSubmit(false)} disabled={submitting}>
+              {submitting ? "Submitting…" : "Yes, submit"}
+            </Button>
           </>
         }
       >
         <p className="text-sm text-ink-2">
           <span className="font-semibold text-ink">{answeredCount}/{test.questions.length}</span> answered.
           {answeredCount < test.questions.length && " Blanks stay blank."}
+        </p>
+      </Modal>
+
+      <Modal
+        open={submitError}
+        onClose={() => setSubmitError(false)}
+        title="Not handed in yet"
+        description="Your answers are still saved on this device."
+        footer={
+          <Button onClick={() => doSubmit(lastAuto.current)} disabled={submitting}>
+            {submitting ? "Trying…" : "Try again"}
+          </Button>
+        }
+      >
+        <p className="text-sm text-ink-2">
+          The paper didn&apos;t reach the server. Check your internet, then tap Try again. Don&apos;t close this
+          page until it says submitted.
         </p>
       </Modal>
     </div>

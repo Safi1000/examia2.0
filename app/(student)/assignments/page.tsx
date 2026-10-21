@@ -65,7 +65,7 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
     setUploading(true);
     try {
       const pages = (await Promise.all(accepted.map((f) => uploadAsImages(f)))).flat();
-      store.submitAssignment(assignment.id, studentId, [...(mine?.fileUrls ?? []), ...pages]);
+      await store.submitAssignment(assignment.id, studentId, [...(mine?.fileUrls ?? []), ...pages]);
       toast("Handed in.", "success");
     } catch (err) {
       toast(err instanceof Error ? err.message : "Upload failed. Try again.", "error");

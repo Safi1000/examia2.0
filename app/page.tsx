@@ -3,7 +3,7 @@ import { LandingPage } from "@/components/landing/LandingPage";
 import { COMPANY_NAME } from "@/lib/config";
 import { JsonLd } from "@/components/JsonLd";
 import { FAQS } from "@/lib/landing";
-import { coursesLd, faqLd, organizationLd } from "@/lib/seo";
+import { coursesLd, faqLd, organizationLd, personLd, websiteLd } from "@/lib/seo";
 
 const description =
   "Live online Accounting, Business and Economics classes for Cambridge and Edexcel O Level, IGCSE, AS and A Level. Small groups, weekly tests. Free trial lesson.";
@@ -31,6 +31,8 @@ export default function Home() {
   return (
     <>
       <JsonLd data={organizationLd()} />
+      <JsonLd data={personLd()} />
+      <JsonLd data={websiteLd()} />
       <JsonLd data={faqLd(FAQS)} />
       {coursesLd().map((c) => (
         <JsonLd key={c.name} data={c} />
