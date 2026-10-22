@@ -64,7 +64,7 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
         <div className="max-w-md">
           <h2 className="text-base font-semibold text-ink">Automatic Meet links and recordings</h2>
           {!status.ready ? (
-            <p className="mt-1 text-sm text-ink-3">Switches on after your developer finishes the Google setup (hand-off, section 4).</p>
+            <p className="mt-1 text-sm text-ink-3">Switches on once the Google setup is done and your developer has added the keys.</p>
           ) : status.connected ? (
             <p className="mt-1 text-sm text-ink-2">
               Connected{status.email ? ` as ${status.email}` : ""}. Every class gets its own link at 8 am. Press Record in Meet, and

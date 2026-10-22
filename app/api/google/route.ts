@@ -12,6 +12,8 @@ import { runClassAutomation } from "@/lib/class-automation";
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Making a day's Meet links can take a few seconds.
+export const maxDuration = 60;
 
 const ready = () => googleReady() && pushReady();
 
