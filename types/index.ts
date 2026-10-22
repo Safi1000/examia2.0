@@ -161,7 +161,12 @@ export interface Test {
 
 /** One piece of grader markup drawn over a submitted image. */
 export type Annotation =
-  | { id: string; t: "draw"; color: string; w: number; pts: number[] }
+  /**
+   * Freehand ink. `p` (pen pressure per point, 0..1) makes it pressure ink,
+   * drawn as a filled outline; `line` marks a straightened line (two points).
+   * Both are optional, so older markup still draws exactly as before.
+   */
+  | { id: string; t: "draw"; color: string; w: number; pts: number[]; p?: number[]; line?: boolean }
   | { id: string; t: "text"; color: string; x: number; y: number; size: number; s: string }
   /**
    * Marks written in the margin. Stored as a number rather than ink so the

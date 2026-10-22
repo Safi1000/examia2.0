@@ -203,3 +203,113 @@ export function drawGrid(ctx: CanvasRenderingContext2D, cam: Camera, w: number, 
 export function packStroke(s: Stroke): Stroke {
   return { ...s, pts: s.pts.map((p) => [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10, Math.round(p[2] * 100) / 100]) };
 }
+
+// ---------------------------------------------------------------- images
+
+/** A picture or PDF page placed on the board (world units). */
+export interface BoardImage {
+  id: string;
+  url: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export const imageAt = (imgs: BoardImage[], x: number, y: number): BoardImage | undefined => {
+  for (let i = imgs.length - 1; i >= 0; i--) {
+    const m = imgs[i];
+    if (x >= m.x && x <= m.x + m.w && y >= m.y && y <= m.y + m.h) return m;
+  }
+  return undefined;
+};
+
+/** Loaded pictures, shared by every board on the page. */
+const cache = new Map<string, HTMLImageElement>();
+export function loadImage(url: string, onReady: () => void): HTMLImageElement | null {
+  const hit = cache.get(url);
+  if (hit) return hit.complete && hit.naturalWidth ? hit : null;
+  const img = new Image();
+  img.decoding = "async";
+  img.onload = onReady;
+  img.src = url;
+  cache.set(url, img);
+  return null;
+}
+
+/** Natural size of a picture (waits for it to load). */
+export function imageSize(url: string): Promise<{ w: number; h: number }> {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res({ w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = () => rej(new Error("That file couldn't be opened."));
+    img.src = url;
+  });
+}
+
+export function drawImages(ctx: CanvasRenderingContext2D, imgs: BoardImage[], onReady: () => void) {
+  for (const m of imgs) {
+    const el = loadImage(m.url, onReady);
+    // A faint page behind every picture, so a transparent PNG still reads.
+    ctx.fillStyle = "#ffffff";
+    ctx.globalAlpha = el ? 1 : 0.06;
+    ctx.fillRect(m.x, m.y, m.w, m.h);
+    ctx.globalAlpha = 1;
+    if (el) ctx.drawImage(el, m.x, m.y, m.w, m.h);
+  }
+}
+
+// ---------------------------------------------------------------- ink outline (SVG)
+
+/** Width at a point for pressure ink (same feel as the board). */
+export const inkWidth = (size: number, p: number) => size * (0.38 + 0.9 * Math.pow(Math.min(1, Math.max(0, p)), 0.75));
+
+/**
+ * Pressure ink as one filled SVG outline: the shape traced around a stroke
+ * whose width follows pen pressure, with round ends. Used where markup is SVG
+ * (marking scripts), so pressure ink shows the same for Hamza and students.
+ */
+export function inkOutlinePath(xs: number[], ps: number[], size: number): string {
+  const n = Math.floor(xs.length / 2);
+  if (!n) return "";
+  const P = (i: number) => [xs[i * 2], xs[i * 2 + 1]];
+  const W = (i: number) => inkWidth(size, ps[i] ?? 0.5) / 2;
+  if (n === 1) {
+    const [x, y] = P(0);
+    const r = W(0);
+    return `M${x - r} ${y}a${r} ${r} 0 1 0 ${r * 2} 0a${r} ${r} 0 1 0 ${-r * 2} 0Z`;
+  }
+  const left: number[][] = [];
+  const right: number[][] = [];
+  for (let i = 0; i < n; i++) {
+    const [ax, ay] = P(Math.max(0, i - 1));
+    const [bx, by] = P(Math.min(n - 1, i + 1));
+    let tx = bx - ax;
+    let ty = by - ay;
+    const l = Math.hypot(tx, ty) || 1;
+    tx /= l;
+    ty /= l;
+    const [x, y] = P(i);
+    const r = W(i);
+    left.push([x - ty * r, y + tx * r]);
+    right.push([x + ty * r, y - tx * r]);
+  }
+  const f = (v: number) => Math.round(v * 10) / 10;
+  const rEnd = W(n - 1);
+  const rStart = W(0);
+  let d = `M${f(left[0][0])} ${f(left[0][1])}`;
+  for (let i = 1; i < n; i++) d += `L${f(left[i][0])} ${f(left[i][1])}`;
+  d += `A${f(rEnd)} ${f(rEnd)} 0 0 1 ${f(right[n - 1][0])} ${f(right[n - 1][1])}`;
+  for (let i = n - 2; i >= 0; i--) d += `L${f(right[i][0])} ${f(right[i][1])}`;
+  d += `A${f(rStart)} ${f(rStart)} 0 0 1 ${f(left[0][0])} ${f(left[0][1])}Z`;
+  return d;
+}
+
+/**
+ * Pen events that mean "erase": the S Pen side button (secondary button) or an
+ * eraser end, whichever way the browser reports it.
+ */
+export function isPenEraser(e: { pointerType: string; button: number; buttons: number }): boolean {
+  if (e.pointerType === "touch") return false;
+  return (e.buttons & 2) !== 0 || (e.buttons & 32) !== 0 || e.button === 2 || e.button === 5;
+}

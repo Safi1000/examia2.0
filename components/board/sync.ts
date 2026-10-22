@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
-import type { Stroke, View } from "@/components/board/engine";
+import type { BoardImage, Stroke, View } from "@/components/board/engine";
 
 /**
  * Live link between Hamza's board and the students watching it.
@@ -15,7 +15,9 @@ export type BoardMsg =
   | { t: "live"; s: Stroke } // stroke being drawn right now
   | { t: "add"; s: Stroke }
   | { t: "del"; ids: string[] }
-  | { t: "set"; strokes: Stroke[] } // full board (join, undo, redo, clear)
+  | { t: "set"; strokes: Stroke[]; images?: BoardImage[] } // full board (join, undo, redo, clear)
+  | { t: "img"; m: BoardImage } // picture added, moved or resized
+  | { t: "imgdel"; ids: string[] }
   | { t: "view"; v: View } // what Hamza's screen shows, for "follow"
   | { t: "hello" }; // a viewer asking for the full board
 

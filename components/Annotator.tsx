@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import type { Annotation, Annotations } from "@/types";
 import { Button, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
+import { inkOutlinePath, isPenEraser, snapLine, type Pt } from "@/components/board/engine";
 
 /**
  * Grader markup over submitted pages.
@@ -16,7 +17,14 @@ import { cn } from "@/lib/cn";
  */
 
 const COLORS = ["#ef4444", "#22c55e", "#3b82f6", "#eab308", "#111827"];
-type Tool = "pen" | "highlight" | "mark" | "tick" | "cross" | "text" | "erase";
+type Tool = "pen" | "line" | "highlight" | "mark" | "tick" | "cross" | "text" | "erase";
+
+/** Same feel as the whiteboard: hold the pen still to straighten a stroke. */
+const HOLD_MS = 480;
+const HOLD_STILL_PX = 4;
+const MIN_HOLD_PATH_PX = 28;
+/** Fingers stay locked out this long after the pen was last near the screen. */
+const PALM_LOCK_MS = 350;
 type Stroke = Extract<Annotation, { t: "draw" }>;
 
 const nid = () => Math.random().toString(36).slice(2, 10);
@@ -71,6 +79,7 @@ function Shape({ s }: { s: Annotation }) {
       </text>
     );
   }
+  if (s.p && !s.line) return <path d={inkOutlinePath(s.pts, s.p, s.w)} fill={s.color} />;
   return (
     <path
       d={pathFor(s.pts)}
@@ -82,6 +91,15 @@ function Shape({ s }: { s: Annotation }) {
       strokeOpacity={s.w > 20 ? 0.35 : 1}
     />
   );
+}
+
+/** Distance from a point to a segment (for erasing straight lines). */
+function segDist(px: number, py: number, ax: number, ay: number, bx: number, by: number) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const l2 = dx * dx + dy * dy;
+  const t = l2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2)) : 0;
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
 }
 
 /**
@@ -97,8 +115,9 @@ function shapeAt(shapes: Annotation[], x: number, y: number, tolerance: number) 
     const s = shapes[i];
     if (s.t === "draw") {
       const r = Math.max(s.w, tolerance);
-      for (let j = 0; j + 1 < s.pts.length; j += 2) {
-        if (Math.hypot(x - s.pts[j], y - s.pts[j + 1]) <= r) return s;
+      if (s.pts.length === 2 && Math.hypot(x - s.pts[0], y - s.pts[1]) <= r) return s;
+      for (let j = 0; j + 3 < s.pts.length; j += 2) {
+        if (segDist(x, y, s.pts[j], s.pts[j + 1], s.pts[j + 2], s.pts[j + 3]) <= r) return s;
       }
     } else {
       // Text sits on its baseline, so the box is above y. A mark is centred on
@@ -252,7 +271,7 @@ export function AnnotatorModal({
           the row scrolls sideways rather than dropping tools off the edge. */}
       <div className="shrink-0 border-b border-border bg-surface px-3 py-2 lg:flex lg:items-center lg:gap-3 lg:px-4">
         <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0">
-          {(["pen", "highlight", "mark", "tick", "cross", "text", "erase"] as Tool[]).map((t) => (
+          {(["pen", "line", "highlight", "mark", "tick", "cross", "text", "erase"] as Tool[]).map((t) => (
             <button
               key={t}
               onClick={() => setTool(t)}
@@ -422,6 +441,19 @@ function EditablePage({
   // phone photo and a 4000px scan.
   const strokeFor = (t: Tool) => (Math.max(dim.w, dim.h) / 260) * size * (t === "highlight" ? 8 : 1);
 
+  // Pressure per point for the stroke being drawn, and the "hold still to
+  // straighten" timer — the same pen feel as the whiteboard.
+  const pressures = useRef<number[]>([]);
+  const straight = useRef(false);
+  const hold = useRef<{ x: number; y: number; path: number; timer: ReturnType<typeof setTimeout> | null }>({ x: 0, y: 0, path: 0, timer: null });
+  const penNearAt = useRef(0);
+
+  /** Image pixels per screen pixel, for screen-sized thresholds. */
+  const pxScale = () => {
+    const r = svgRef.current?.getBoundingClientRect();
+    return r && r.width ? canvasW / r.width : 1;
+  };
+
   /**
    * The in-progress stroke is painted by writing straight to one <path>, NOT
    * through state: a drag fires pointermove ~120x/s, and re-rendering every
@@ -430,22 +462,83 @@ function EditablePage({
    */
   function paintLive() {
     const d = drawing.current;
-    if (liveRef.current) liveRef.current.setAttribute("d", d ? pathFor(d.pts) : "");
+    const el = liveRef.current;
+    if (!el) return;
+    if (!d) {
+      el.setAttribute("d", "");
+      return;
+    }
+    if (d.p && !d.line) {
+      // Pressure ink: a filled outline, exactly how it will be saved.
+      el.setAttribute("d", inkOutlinePath(d.pts, d.p, d.w));
+      el.setAttribute("fill", d.color);
+      el.setAttribute("stroke", "none");
+    } else {
+      el.setAttribute("d", pathFor(d.pts));
+      el.setAttribute("fill", "none");
+      el.setAttribute("stroke", d.color);
+    }
+  }
+
+  function clearHold() {
+    if (hold.current.timer) clearTimeout(hold.current.timer);
+    hold.current.timer = null;
+  }
+
+  /** Pen held still at the end of a stroke: it becomes a straight line (0/45/90° snap). */
+  function armHold(cx: number, cy: number) {
+    clearHold();
+    hold.current.x = cx;
+    hold.current.y = cy;
+    hold.current.timer = setTimeout(() => {
+      const d = drawing.current;
+      if (!d || d.line || hold.current.path < MIN_HOLD_PATH_PX) return;
+      const n = d.pts.length;
+      const a: Pt = [d.pts[0], d.pts[1], 0.5];
+      const b = snapLine(a, [d.pts[n - 2], d.pts[n - 1], 0.5]);
+      d.pts = [a[0], a[1], b[0], b[1]];
+      d.line = true;
+      delete d.p;
+      straight.current = true;
+      try {
+        navigator.vibrate?.(10);
+      } catch {}
+      paintLive();
+    }, HOLD_MS);
+  }
+
+  function startErase(e: React.PointerEvent) {
+    clearHold();
+    drawing.current = null;
+    paintLive();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+    activePointer.current = e.pointerId;
+    erasing.current = true;
+    const p = at(e);
+    eraseAt(p.x, p.y);
   }
 
   function down(e: React.PointerEvent) {
     if (!dim.w) return;
-    if (e.pointerType === "pen" && !sawPen.current) sawPen.current = true;
+    if (e.pointerType === "pen") {
+      sawPen.current = true;
+      penNearAt.current = Date.now();
+    }
     // Fingers scroll instead of drawing once the pen is in play. The browser
     // can't do it for us: touch-action has to stay `none` or Chrome steals a
     // slow downward pen stroke and scrolls with it instead.
     if (e.pointerType === "touch" && sawPen.current) {
-      // Not while the pen is down, and not for a resting hand — otherwise the
-      // palm holding the tablet steady would drag the script out from under it.
-      if (activePointer.current === null && !isPalm(e, false)) {
+      // Not while the pen is down or hovering, and not for a resting hand —
+      // otherwise the palm holding the tablet steady would drag the script.
+      const penNear = Date.now() - penNearAt.current < PALM_LOCK_MS;
+      if (activePointer.current === null && !penNear && !isPalm(e, false)) {
         const el = e.currentTarget.closest<HTMLElement>("[data-annot-scroll]");
         if (el) {
-          e.currentTarget.setPointerCapture(e.pointerId);
+          try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+          } catch {}
           touchScroll.current = { id: e.pointerId, y: e.clientY, el };
         }
       }
@@ -457,17 +550,12 @@ function EditablePage({
     if (activePointer.current !== null) return;
 
     const p = at(e);
-    // The S Pen's side button (barrel = bit 2) and its flipped eraser tip
-    // (bit 32) both mean "rub out", whichever tool is selected.
-    const penErase = e.pointerType === "pen" && ((e.buttons & 2) !== 0 || (e.buttons & 32) !== 0);
-    const active: Tool = penErase ? "erase" : tool;
+    // The S Pen's side button and an eraser end both mean "rub out",
+    // whichever tool is selected.
+    const active: Tool = isPenEraser(e) ? "erase" : tool;
 
     if (active === "erase") {
-      // Capture so a drag keeps rubbing out whatever it passes over.
-      e.currentTarget.setPointerCapture(e.pointerId);
-      activePointer.current = e.pointerId;
-      erasing.current = true;
-      eraseAt(p.x, p.y);
+      startErase(e);
       return;
     }
     if (active === "text") {
@@ -493,34 +581,81 @@ function EditablePage({
       });
       return;
     }
-    // Only the freehand tools start a stroke.
-    if (active !== "pen" && active !== "highlight") return;
-    e.currentTarget.setPointerCapture(e.pointerId);
+    if (active !== "pen" && active !== "highlight" && active !== "line") return;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
     activePointer.current = e.pointerId;
-    drawing.current = { id: nid(), t: "draw", color, w: strokeFor(active), pts: [p.x, p.y] };
+    straight.current = active === "line";
+    const pressure = e.pointerType === "pen" ? e.pressure || 0.5 : 0.5;
+    if (active === "pen") {
+      // Pressure ink.
+      pressures.current = [pressure];
+      drawing.current = { id: nid(), t: "draw", color, w: strokeFor("pen"), pts: [p.x, p.y], p: pressures.current };
+      hold.current.path = 0;
+      armHold(e.clientX, e.clientY);
+    } else if (active === "line") {
+      drawing.current = { id: nid(), t: "draw", color, w: strokeFor("pen"), pts: [p.x, p.y, p.x, p.y], line: true };
+    } else {
+      drawing.current = { id: nid(), t: "draw", color, w: strokeFor(active), pts: [p.x, p.y] };
+    }
     paintLive();
   }
 
   function move(e: React.PointerEvent) {
+    if (e.pointerType === "pen") penNearAt.current = Date.now();
     const ts = touchScroll.current;
     if (ts && ts.id === e.pointerId) {
-      ts.el.scrollTop -= e.clientY - ts.y;
+      ts.el.scrollTop -= (e.clientY - ts.y) * 1.15;
       ts.y = e.clientY;
       return;
     }
     if (activePointer.current !== e.pointerId) return;
+    // Side button pressed after the pen touched down: erase from here on.
+    if (!erasing.current && e.pointerType === "pen" && isPenEraser(e)) {
+      startErase(e);
+      return;
+    }
     if (erasing.current) {
-      const p = at(e);
-      eraseAt(p.x, p.y);
+      const list = e.nativeEvent.getCoalescedEvents?.();
+      for (const ev of list && list.length ? list : [e.nativeEvent]) {
+        const r = svgRef.current!.getBoundingClientRect();
+        eraseAt(((ev.clientX - r.left) / r.width) * canvasW, ((ev.clientY - r.top) / r.height) * dim.h);
+      }
       return;
     }
     const d = drawing.current;
     if (!d) return;
-    const p = at(e);
-    // Drop points the stroke can't show anyway — bounds how long pts can grow.
-    const n = d.pts.length;
-    if (Math.hypot(p.x - d.pts[n - 2], p.y - d.pts[n - 1]) < d.w / 4) return;
-    d.pts.push(p.x, p.y);
+
+    if (d.line) {
+      const p = at(e);
+      const b = snapLine([d.pts[0], d.pts[1], 0.5], [p.x, p.y, 0.5]);
+      d.pts = [d.pts[0], d.pts[1], b[0], b[1]];
+      paintLive();
+      return;
+    }
+
+    // Every pen sample since the last frame: smoother curves on the S Pen.
+    const r = svgRef.current!.getBoundingClientRect();
+    const list = e.nativeEvent.getCoalescedEvents?.();
+    const scale = pxScale();
+    for (const ev of list && list.length ? list : [e.nativeEvent]) {
+      const x = ((ev.clientX - r.left) / r.width) * canvasW;
+      const y = ((ev.clientY - r.top) / r.height) * dim.h;
+      const n = d.pts.length;
+      const lx = d.pts[n - 2];
+      const ly = d.pts[n - 1];
+      const step = Math.hypot(x - lx, y - ly);
+      // Drop points too close to show — bounds how long pts can grow.
+      if (step < d.w / 8) continue;
+      // Light smoothing steadies the line without lag.
+      const sx = lx + (x - lx) * 0.55;
+      const sy = ly + (y - ly) * 0.55;
+      d.pts.push(sx, sy);
+      if (d.p) d.p.push(e.pointerType === "pen" ? ev.pressure || 0.5 : 0.5);
+      hold.current.path += step / scale;
+    }
+    if (d.p && Math.hypot(e.clientX - hold.current.x, e.clientY - hold.current.y) > HOLD_STILL_PX) armHold(e.clientX, e.clientY);
     paintLive();
   }
 
@@ -530,14 +665,21 @@ function EditablePage({
    * far beats dropping the line on the floor.
    */
   function up(e: React.PointerEvent) {
+    if (e.pointerType === "pen") penNearAt.current = Date.now();
     if (touchScroll.current?.id === e.pointerId) touchScroll.current = null;
     if (activePointer.current !== e.pointerId) return;
+    clearHold();
     activePointer.current = null;
     erasing.current = false;
+    straight.current = false;
     const d = drawing.current;
     if (!d) return;
     drawing.current = null;
     paintLive();
+    if (d.line && Math.hypot(d.pts[2] - d.pts[0], d.pts[3] - d.pts[1]) / pxScale() < 3) return;
+    // Keep saved pressure data compact.
+    if (d.p) d.p = d.p.map((v) => Math.round(v * 100) / 100);
+    d.pts = d.pts.map((v) => Math.round(v * 10) / 10);
     // liveShapes, not the prop: two quick strokes land before the parent has
     // re-rendered, and the second would otherwise wipe out the first.
     add(d);
@@ -592,7 +734,7 @@ function EditablePage({
             ref={liveRef}
             fill="none"
             stroke={color}
-            strokeWidth={strokeFor(tool)}
+            strokeWidth={strokeFor(tool === "line" ? "pen" : tool)}
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeOpacity={tool === "highlight" ? 0.35 : 1}
