@@ -1,6 +1,8 @@
 "use client";
 
 import { StudyCoach } from "@/components/student/StudyCoach";
+import { StudyStats } from "@/components/student/StudyStats";
+import { useNow } from "@/hooks/useNow";
 
 import Link from "next/link";
 import { useMemo } from "react";
@@ -20,6 +22,7 @@ function monthOf(iso: string | null | undefined) {
 export default function ProgressPage() {
   const { session } = useAuth();
   const db = useDatabase();
+  const nowMs = useNow();
   const student = session?.studentId ? studentById(db, session.studentId) : null;
 
   const data = useMemo(() => {
@@ -96,6 +99,9 @@ export default function ProgressPage() {
     return (
       <div className="mx-auto max-w-2xl px-4 py-8">
         <h1 className="text-2xl font-extrabold tracking-tight text-ink">My progress</h1>
+        <div className="mt-5">
+          <StudyStats nowMs={nowMs} />
+        </div>
         <EmptyState
           className="mt-5"
           icon={<Icon.Chart />}
@@ -122,6 +128,7 @@ export default function ProgressPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-6">
       <h1 className="text-2xl font-extrabold tracking-tight text-ink">My progress</h1>
+      <StudyStats nowMs={nowMs} />
       <div className="animate-fade-up">
         <StudyCoach db={db} student={student} />
       </div>

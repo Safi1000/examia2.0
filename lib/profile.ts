@@ -19,6 +19,10 @@ export interface FocusStats {
   weekOf: string | null;
   weekMinutes: number;
   bySubject: Record<string, number>;
+  /** All-time minutes (for levels). */
+  totalMinutes?: number;
+  /** Minutes per day (YYYY-MM-DD), last ~4 months, for the study calendar. */
+  days?: Record<string, number>;
 }
 
 export interface Profile {
@@ -33,17 +37,15 @@ export interface Profile {
   focus?: FocusStats;
 }
 
-/**
- * Portal avatars: a face on a colour, Netflix-style. Muted jewel tones that
- * sit well on the charcoal portal; the face is always warm off-white.
- */
-export const AVATARS: Array<{ id: string; bg: string; face: "smile" | "grin" | "wink" | "cool" | "calm" | "wow" | "focus" | "joy" }> = [
-  { id: "gold", bg: "#C9962F", face: "smile" },
-  { id: "teal", bg: "#2F7F7A", face: "grin" },
-  { id: "plum", bg: "#6E4A7E", face: "wink" },
-  { id: "navy", bg: "#2E4C7A", face: "cool" },
-  { id: "rust", bg: "#A4553A", face: "calm" },
-  { id: "olive", bg: "#6B7A3A", face: "wow" },
-  { id: "rose", bg: "#A34E66", face: "focus" },
-  { id: "slate", bg: "#4A5560", face: "joy" },
+/** Portal avatars (public/avatars/*.webp), cut from Hamza's illustrated set. */
+export const AVATARS: Array<{ id: string; label: string }> = [
+  { id: "pakol-boy", label: "Pakol" },
+  { id: "dupatta-girl", label: "Dupatta" },
+  { id: "glasses-boy", label: "Glasses" },
+  { id: "ajrak-girl", label: "Ajrak" },
+  { id: "turban-man", label: "Turban" },
+  { id: "chitrali-girl", label: "Chitrali" },
+  { id: "curly-boy", label: "Curls" },
+  { id: "clown", label: "Clown" },
+  { id: "hijab-girl", label: "Hijab" },
 ];

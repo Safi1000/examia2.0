@@ -1,6 +1,9 @@
 import type { FocusStats } from "@/lib/profile";
 import { addDays, pkDate } from "@/lib/timetable";
 
+/** The study space's name, in one place so it can be changed in one line. */
+export const STUDY_NAME = "Study room";
+
 /** Session lengths offered by the study timer, in minutes. */
 export const FOCUS_MODES = [
   { id: "pomodoro", label: "Classic", focus: 25, rest: 5 },
@@ -31,6 +34,8 @@ export function currentStats(f: FocusStats | undefined, nowMs: number): FocusSta
     weekOf: week,
     weekMinutes: sameWeek ? base.weekMinutes : 0,
     bySubject: sameWeek ? base.bySubject : {},
+    totalMinutes: base.totalMinutes ?? base.weekMinutes ?? 0,
+    days: base.days ?? {},
   };
 }
 
@@ -39,13 +44,36 @@ export function recordFocus(f: FocusStats | undefined, minutes: number, subject:
   const today = pkDate(nowMs);
   const cur = currentStats(f, nowMs);
   const streak = cur.lastDay === today ? Math.max(1, cur.streak) : cur.streak + 1;
+  // Keep about four months of days, so the saved profile stays small.
+  const cutoff = addDays(today, -120);
+  const days = Object.fromEntries(Object.entries({ ...cur.days, [today]: (cur.days?.[today] ?? 0) + minutes }).filter(([d]) => d >= cutoff));
   return {
     streak,
     lastDay: today,
     weekOf: cur.weekOf,
     weekMinutes: cur.weekMinutes + minutes,
     bySubject: { ...cur.bySubject, [subject]: (cur.bySubject[subject] ?? 0) + minutes },
+    totalMinutes: (cur.totalMinutes ?? 0) + minutes,
+    days,
   };
+}
+
+/** Levels by all-time study hours. Each one unlocks a frame for the avatar. */
+export const LEVELS = [
+  { name: "Starter", hours: 0, frame: null },
+  { name: "Steady", hours: 5, frame: "#B07A4A" },
+  { name: "Sharp", hours: 15, frame: "#C7CCD1" },
+  { name: "Scholar", hours: 30, frame: "#FBC159" },
+  { name: "Topper", hours: 60, frame: "conic-gradient(#FBC159, #FFE3A3, #E5A832, #FBC159)" },
+  { name: "Legend", hours: 100, frame: "conic-gradient(#7DB7F5, #FBC159, #F07A6A, #7FD1A6, #7DB7F5)" },
+] as const;
+
+export function levelFor(totalMinutes: number) {
+  const h = totalMinutes / 60;
+  let i = 0;
+  while (i + 1 < LEVELS.length && h >= LEVELS[i + 1].hours) i++;
+  const next = LEVELS[i + 1];
+  return { index: i, ...LEVELS[i], next: next ?? null, toNext: next ? Math.max(0, next.hours - h) : 0, progress: next ? (h - LEVELS[i].hours) / (next.hours - LEVELS[i].hours) : 1 };
 }
 
 /**

@@ -72,7 +72,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
       title: "Pick your face.",
       sub: "It shows at the top of your portal.",
       body: (
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 gap-4">
           {AVATARS.map((a) => (
             <button
               key={a.id}
@@ -81,7 +81,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
               aria-label={`Avatar ${a.id}`}
               onClick={() => setAvatar(a.id)}
               className={cn(
-                "aspect-square rounded-2xl p-1 transition-all",
+                "aspect-square rounded-full p-1 transition-all",
                 avatar === a.id ? "scale-105 ring-2 ring-brand ring-offset-2 ring-offset-paper" : "opacity-70 hover:opacity-100",
               )}
             >
