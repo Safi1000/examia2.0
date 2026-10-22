@@ -230,6 +230,7 @@ function StudentDetail() {
                 <Icon.Users className="h-4 w-4" /> Parent
               </a>
             )}
+            <ResetPassword studentId={student.id} username={student.username} phone={student.phone} />
             <Button variant="secondary" size="sm" onClick={openReport}>
               <Icon.Download className="h-4 w-4" /> Monthly Report
             </Button>
@@ -400,5 +401,84 @@ function TheirPortal({ profile }: { profile: Profile }) {
         {focus.streak > 1 ? ` · ${focus.streak}-day streak` : ""}
       </p>
     </Card>
+  );
+}
+
+/** Same style as the roster's generated passwords: an easy word plus 3 digits (8+ characters). */
+function newPassword() {
+  const words = ["maple", "river", "amber", "delta", "lunar", "cedar", "north", "ochre", "coral", "atlas"];
+  const pick = new Uint32Array(2);
+  crypto.getRandomValues(pick);
+  return `${words[pick[0] % words.length]}${100 + (pick[1] % 900)}`;
+}
+
+/**
+ * "Reset password": makes a new password, shows it once, and lets Hamza copy
+ * it or send it on WhatsApp. Passwords are never stored in a readable form,
+ * so this is how Hamza gets a student back in.
+ */
+function ResetPassword({ studentId, username, phone }: { studentId: string; username: string; phone?: string }) {
+  const store = useStore();
+  const { toast } = useToast();
+  const [step, setStep] = useState<"idle" | "confirm" | "busy" | "done">("idle");
+  const [pw, setPw] = useState("");
+  const message = `Your new Hamza Teaches portal password is ${pw}. Sign in at www.hamzateaches.com/login with your username ${username}. You can change it in Settings.`;
+
+  async function reset() {
+    const next = newPassword();
+    setStep("busy");
+    try {
+      await store.updateStudent(studentId, { tempPassword: next });
+      setPw(next);
+      setStep("done");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Couldn't reset the password. Try again.", "error");
+      setStep("idle");
+    }
+  }
+
+  return (
+    <>
+      <Button variant="secondary" size="sm" onClick={() => setStep("confirm")}>
+        <Icon.Lock className="h-4 w-4" /> Reset password
+      </Button>
+      <Modal
+        open={step !== "idle"}
+        onClose={() => setStep("idle")}
+        title={step === "done" ? "New password" : `Reset ${username}'s password?`}
+        description={step === "done" ? "Shown only now. Send it to the student." : "Their current password stops working straight away."}
+        footer={
+          step === "done" ? (
+            <>
+              {phone && (
+                <a href={`https://wa.me/${waDigits(phone)}?text=${encodeURIComponent(message)}`} target="_blank" rel="noreferrer" className={buttonClasses({ variant: "secondary" })}>
+                  Send on WhatsApp
+                </a>
+              )}
+              <Button
+                onClick={() => {
+                  void navigator.clipboard?.writeText(pw).then(() => toast("Password copied.", "success"));
+                }}
+              >
+                Copy
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="secondary" onClick={() => setStep("idle")}>
+                Cancel
+              </Button>
+              <Button loading={step === "busy"} onClick={() => void reset()}>
+                Reset password
+              </Button>
+            </>
+          )
+        }
+      >
+        {step === "done" && (
+          <p className="select-all rounded-lg border border-border bg-surface-2 px-4 py-3 text-center font-mono text-2xl font-bold tracking-wide text-ink">{pw}</p>
+        )}
+      </Modal>
+    </>
   );
 }
