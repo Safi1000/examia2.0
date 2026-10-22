@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import type { Answer, Question } from "@/types";
 import { RadioCard, Textarea, Pill, Badge, Icon } from "@/components/ui";
 import { uploadAsImages } from "@/lib/cloudinary";
+import { readPhotoTakenAt, withTakenTime } from "@/lib/photo-time";
 import { useToast } from "@/components/toast";
 import { PageStack } from "@/components/PageStack";
 import { cn } from "@/lib/cn";
@@ -126,12 +127,16 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
       const parts = batch.map(() => 0);
       const uploaded = (
         await Promise.all(
-          batch.map((f, i) =>
-            uploadAsImages(f, (p) => {
+          batch.map(async (f, i) => {
+            // When the page was photographed (read before shrinking drops it),
+            // kept on the link so Hamza sees it while marking.
+            const taken = await readPhotoTakenAt(f);
+            const got = await uploadAsImages(f, (p) => {
               parts[i] = p;
               setProgress(parts.reduce((a, b) => a + b, 0) / parts.length);
-            }),
-          ),
+            });
+            return got.map((u) => withTakenTime(u, taken));
+          }),
         )
       ).flat();
       const next = [...urls, ...uploaded];

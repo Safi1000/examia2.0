@@ -13,6 +13,7 @@ import { FilterChips } from "@/components/admin/FilterChips";
 import { BulkBar, RowCheck } from "@/components/admin/BulkBar";
 import { buttonClasses } from "@/components/ui/Button";
 import { gradeSubmission, isAllMcq } from "@/lib/grading";
+import { isFullyGraded } from "@/lib/scoring";
 import { formatTimestamp } from "@/lib/time";
 
 export default function SubmissionsPage() {
@@ -117,8 +118,19 @@ export default function SubmissionsPage() {
         <Button
           size="sm"
           onClick={() => {
-            picked.forEach((id) => store.releaseSubmission(id));
-            toast(`${picked.length} results released.`, "success");
+            // Only fully marked papers that haven't gone out yet. Unmarked written
+            // work would reach students as zeros; released ones would notify twice.
+            const ready = rows.filter(
+              (r) => picked.includes(r.sub.id) && r.sub.status === "submitted" && isFullyGraded(r.test, r.sub),
+            );
+            ready.forEach((r) => store.releaseSubmission(r.sub.id));
+            const skipped = picked.length - ready.length;
+            toast(
+              ready.length
+                ? `${ready.length} result${ready.length === 1 ? "" : "s"} released.${skipped ? ` ${skipped} skipped: not fully marked or already released.` : ""}`
+                : "Nothing released: the ticked papers aren't fully marked yet, or are already released.",
+              ready.length ? "success" : "info",
+            );
             setPicked([]);
           }}
         >

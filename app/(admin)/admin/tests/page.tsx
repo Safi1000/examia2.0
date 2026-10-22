@@ -36,6 +36,7 @@ export default function AdminTestsPage() {
   // Bulk edit: tick rows, then change them all in one go.
   const [picked, setPicked] = useState<string[]>([]);
   const [bulkClose, setBulkClose] = useState("");
+  const [confirmClose, setConfirmClose] = useState(false);
 
   const subjects = useMemo(() => Array.from(new Set(db.tests.map((t) => t.subject))).sort(), [db.tests]);
 
@@ -118,11 +119,7 @@ export default function AdminTestsPage() {
         <Button
           size="sm"
           variant="secondary"
-          onClick={() => {
-            picked.forEach((id) => store.updateTest(id, { status: "closed" }));
-            toast(`${picked.length} tests closed.`, "success");
-            setPicked([]);
-          }}
+          onClick={() => setConfirmClose(true)}
         >
           Close now
         </Button>
@@ -225,6 +222,35 @@ export default function AdminTestsPage() {
           })}
         </div>
       )}
+
+      {/* Closing stops students handing in, so it's confirmed, and it can be undone. */}
+      <Modal
+        open={confirmClose}
+        onClose={() => setConfirmClose(false)}
+        title={`Close ${picked.length} test${picked.length === 1 ? "" : "s"} now?`}
+        description="Students who haven't handed in won't be able to any more."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmClose(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                const before = picked.map((id) => ({ id, status: db.tests.find((t) => t.id === id)?.status ?? "active" }));
+                picked.forEach((id) => store.updateTest(id, { status: "closed" }));
+                setConfirmClose(false);
+                setPicked([]);
+                toast(`${before.length} test${before.length === 1 ? "" : "s"} closed.`, "success", {
+                  label: "Undo",
+                  onClick: () => before.forEach((b) => store.updateTest(b.id, { status: b.status })),
+                });
+              }}
+            >
+              Close now
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-2">You can reopen a test, or give one more day, from its edit page.</p>
+      </Modal>
 
       <Modal
         open={!!deleteId}

@@ -1,6 +1,6 @@
 import type { Database } from "@/lib/data/seed";
 import type { Student } from "@/types";
-import { absenceStreak, liveStatus, testCoversStudent } from "@/lib/data/selectors";
+import { absenceStreak, archivedCohortIds, isArchivedTest, liveStatus, testCoversStudent } from "@/lib/data/selectors";
 import { COMPANY_NAME } from "@/lib/config";
 
 /**
@@ -38,18 +38,26 @@ const monthName = (month: string) => {
 
 export function dueReminders(db: Database, nowMs: number, cohortId: string | null): Reminder[] {
   const sent = new Set(db.remindersSent.map((r) => `${r.studentId}|${r.kind}|${r.ref}`));
-  const students = db.students.filter((s) => (cohortId ? s.cohortId === cohortId : true));
+  // Past students (switched-off cohorts) are never chased.
+  const off = archivedCohortIds(db);
+  const students = db.students.filter((s) => !off.has(s.cohortId) && (cohortId ? s.cohortId === cohortId : true));
   const out: Reminder[] = [];
 
   const add = (r: Reminder) => {
     if (!sent.has(`${r.student.id}|${r.kind}|${r.ref}`)) out.push(r);
   };
 
-  // 1. Tests that have closed with nothing handed in.
-  const closed = db.tests.filter((t) => liveStatus(t, nowMs) === "closed");
+  // 1. Tests that closed in the last 14 days with nothing handed in. Older
+  // ones are history, and a student who joined after the test opened owes
+  // nothing for it.
+  const RECENT = 14 * 24 * 60 * 60 * 1000;
+  const closed = db.tests.filter(
+    (t) => liveStatus(t, nowMs) === "closed" && nowMs - new Date(t.closesAt).getTime() <= RECENT && !isArchivedTest(db, t, off),
+  );
   for (const test of closed) {
     for (const student of students) {
       if (!testCoversStudent(test, student)) continue;
+      if (new Date(student.createdAt).getTime() > new Date(test.opensAt).getTime()) continue;
       if (db.submissions.some((s) => s.testId === test.id && s.studentId === student.id)) continue;
       add({
         kind: "missed_test",
@@ -82,6 +90,11 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
   const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, "0")}`;
   for (const student of students) {
+    // Nothing marked last month means nothing to report.
+    const hadResults = db.submissions.some(
+      (x) => x.studentId === student.id && x.status === "released" && (x.submittedAt ?? "").slice(0, 7) === lastMonth,
+    );
+    if (!hadResults) continue;
     const report = db.reports.find((r) => r.studentId === student.id && r.month.slice(0, 7) === lastMonth);
     if (report?.sentAt) continue;
     add({

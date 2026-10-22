@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import type { Answer } from "@/types";
+import type { Answer, Test } from "@/types";
 import { useAuth } from "@/lib/auth-context";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { studentById, testById, submissionFor } from "@/lib/data/selectors";
@@ -59,15 +59,27 @@ export default function TestRunnerPage() {
   // Once past the opening time this stays true, so closing doesn't re-boot.
   const open = !!t && nowMs >= new Date(t.opensAt).getTime();
 
+  // Fresh attempt on an open test: show the "Ready?" screen first, so a stray
+  // tap or a notification never starts the clock.
+  const [gate, setGate] = useState(false);
+  const [beginning, setBeginning] = useState(false);
+
   useEffect(() => {
     let active = true;
     void store.refreshTest(id).finally(async () => {
       if (!active) return;
       const d = studentId ? loadDraft(studentId, id) : null;
+      const fresh = testById(store.getSnapshot(), id);
+      const live = !!fresh && Date.now() >= new Date(fresh.opensAt).getTime() && Date.now() < new Date(fresh.closesAt).getTime();
+      const handedIn = !!(studentId && fresh && submissionFor(store.getSnapshot(), studentId, id));
       // The server's start time wins, so clearing the browser or switching
-      // device doesn't reset the clock.
-      const serverStart = open ? await store.startTestAttempt(id) : null;
+      // device doesn't reset the clock. Looking it up never starts one.
+      const serverStart = open ? await store.getTestAttempt(id) : null;
       if (!active) return;
+      if (live && !handedIn && !d && !serverStart) {
+        setGate(true);
+        return;
+      }
       setBoot({
         startedAt: serverStart ?? d?.startedAt ?? new Date().toISOString(),
         answers: d?.answers ?? null,
@@ -77,12 +89,80 @@ export default function TestRunnerPage() {
     return () => { active = false; };
   }, [id, studentId, store, open]);
 
+  async function begin() {
+    setBeginning(true);
+    const serverStart = await store.startTestAttempt(id);
+    setGate(false);
+    setBoot({ startedAt: serverStart ?? new Date().toISOString(), answers: null, index: 0 });
+  }
+
+  if (gate && !boot && t) return <ReadyScreen test={t} nowMs={nowMs} busy={beginning} onBegin={() => void begin()} />;
   if (!boot) {
     return (
       <div className="flex min-h-dvh items-center justify-center text-ink-3">Loading test…</div>
     );
   }
   return <TestRunner key={`${open}-${boot.startedAt}`} id={id} boot={boot} />;
+}
+
+/**
+ * Shown once, before a fresh attempt: what the test is, how long they really
+ * have, and that the clock only starts on Begin.
+ */
+function ReadyScreen({ test, nowMs, busy, onBegin }: { test: Test; nowMs: number; busy: boolean; onBegin: () => void }) {
+  const minsToClose = Math.max(0, Math.floor((new Date(test.closesAt).getTime() - nowMs) / 60_000));
+  const minutes = Math.min(test.durationMinutes, minsToClose);
+  const short = minsToClose < test.durationMinutes;
+  const marks = test.questions.reduce((n, q) => n + q.marks, 0);
+  const closes = new Date(test.closesAt).toLocaleString("en-GB", { weekday: "short", hour: "numeric", minute: "2-digit" });
+  const facts = [
+    { k: "Time", v: `${minutes} min` },
+    { k: "Questions", v: String(test.questions.length) },
+    { k: "Marks", v: String(marks) },
+  ];
+  return (
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-brand">{test.subject}</p>
+      <h1 className="mt-2 text-[1.9rem] font-extrabold leading-tight tracking-tight text-ink">{test.title}</h1>
+
+      <dl className="mt-7 grid grid-cols-3 gap-3">
+        {facts.map((f) => (
+          <div key={f.k} className="rounded-xl border border-border bg-surface px-3 py-3 text-center">
+            <dd className="text-xl font-extrabold tabular-nums text-ink">{f.v}</dd>
+            <dt className="mt-0.5 text-[11px] font-semibold uppercase tracking-wider text-ink-3">{f.k}</dt>
+          </div>
+        ))}
+      </dl>
+
+      <ul className="mt-6 space-y-2.5 text-[15px] text-ink-2">
+        <li className="flex gap-2.5">
+          <Icon.Clock className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+          {short ? (
+            <span>The test closes at {closes}, so you get <b className="text-ink">{minutes} minutes</b> instead of {test.durationMinutes}.</span>
+          ) : (
+            <span>The clock starts when you tap Begin, not before.</span>
+          )}
+        </li>
+        <li className="flex gap-2.5">
+          <Icon.Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+          <span>Your answers save on this phone as you go, even if the internet drops.</span>
+        </li>
+        {test.questions.some((q) => q.type === "photo") && (
+          <li className="flex gap-2.5">
+            <Icon.Camera className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+            <span>Some answers are photos of your working. Keep paper, a pen and your camera ready.</span>
+          </li>
+        )}
+      </ul>
+
+      <Button size="lg" fullWidth loading={busy} disabled={minutes <= 0} onClick={onBegin} className="mt-8">
+        Begin test
+      </Button>
+      <Link href="/dashboard" className="mt-4 text-center text-sm font-semibold text-ink-3 hover:text-ink">
+        Not now, back to Home
+      </Link>
+    </main>
+  );
 }
 
 function TestRunner({ id, boot }: { id: string; boot: Boot }) {
@@ -156,6 +236,8 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   }, [test, writeEndMs, hasPhotoQuestion]);
 
   const [uploading, setUploading] = useState(false);
+  // The one-tap "Pens down" moment between writing and uploading.
+  const [pensDown, setPensDown] = useState(false);
   const endMs = uploading ? uploadEndMs : writeEndMs;
 
   const doSubmit = useCallback(
@@ -198,6 +280,10 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   const onExpire = useCallback(() => {
     if (!uploading && uploadEndMs != null) {
       setUploading(true);
+      setPensDown(true);
+      try {
+        navigator.vibrate?.(200);
+      } catch {}
       return;
     }
     void doSubmit(true);
@@ -307,14 +393,27 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
         )}
       </header>
 
+      {pensDown && (
+        <div role="alertdialog" aria-modal="true" aria-labelledby="pens-down" className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-paper/95 px-6 text-center backdrop-blur">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-brand">Time&apos;s up</p>
+          <h2 id="pens-down" className="mt-3 text-4xl font-extrabold tracking-tight text-ink">Pens down.</h2>
+          <p className="mt-3 max-w-xs text-[15px] text-ink-2">
+            You have {Math.max(1, Math.round((test.uploadMinutes ?? 0)))} minutes to photograph and upload your pages.
+          </p>
+          <Button size="lg" className="mt-8 min-w-60" onClick={() => { setPensDown(false); globalThis.scrollTo({ top: 0 }); }}>
+            <Icon.Camera className="h-5 w-5" /> Take photos now
+          </Button>
+        </div>
+      )}
+
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
         {uploading ? (
           <div className="animate-fade-up space-y-6">
             <div className="rounded-lg border border-warning/40 bg-warning-soft px-4 py-3">
               <p className="font-bold text-ink">Writing time is over.</p>
               <p className="mt-0.5 text-sm text-ink-2">
-                The paper is put away. Photograph your answer sheets and upload them before this
-                timer runs out — whatever is uploaded by then is what gets marked.
+                Photograph your pages now and upload them before this timer runs out. Whatever is
+                uploaded by then is what gets marked.
               </p>
             </div>
             {test.questions.map((qq, i) =>

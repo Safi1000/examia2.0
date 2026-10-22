@@ -112,6 +112,29 @@ export default function TestEditorPage() {
         actions={
           <>
             <Pill>{test.testCode}</Pill>
+            {test.status !== "draft" && (
+              // Give a late student one more day, or reopen a closed test for a day.
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  const was = new Date(test.closesAt).getTime();
+                  const closed = test.status === "closed" || was <= Date.now();
+                  const closesAt = new Date(Math.max(Date.now(), was) + 86_400_000).toISOString();
+                  store.updateTest(id, { closesAt, status: "active" });
+                  set("closesAt", toLocalInput(closesAt));
+                  const when = new Date(closesAt).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+                  toast(closed ? `Reopened until ${when}.` : `Now closes ${when}.`, "success", {
+                    label: "Undo",
+                    onClick: () => {
+                      store.updateTest(id, { closesAt: test.closesAt, status: test.status });
+                      set("closesAt", toLocalInput(test.closesAt));
+                    },
+                  });
+                }}
+              >
+                {test.status === "closed" ? "Reopen for 1 day" : "+1 day"}
+              </Button>
+            )}
             <Button variant={test.status === "draft" ? "secondary" : "primary"} onClick={saveSettings} disabled={!canSave}>Save</Button>
             {test.status === "draft" && (
               <Button
@@ -155,7 +178,15 @@ export default function TestEditorPage() {
                 min={0}
                 value={form.uploadMinutes}
                 onChange={(e) => set("uploadMinutes", Number(e.target.value))}
-                hint="Extra minutes to photograph and upload. 0 = submit when the writing time ends."
+                hint={
+                  !test.questions.some((q) => q.type === "photo")
+                    ? "Only used when the test has a photo question."
+                    : form.uploadMinutes > 10
+                      ? "That's long: students may keep writing. 3 to 5 minutes is usually enough."
+                      : form.uploadMinutes === 0
+                        ? "No upload window: photos must be in before the writing time ends. 3 to 5 minutes is usual."
+                        : "Paper hides, then this many minutes to photograph and upload. 3 to 5 is usual."
+                }
               />
             </div>
             <Input label="Test code" value={form.testCode} onChange={(e) => set("testCode", e.target.value)} />

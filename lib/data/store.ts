@@ -53,7 +53,6 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createSeed, type Database } from "@/lib/data/seed";
 import { DEMO } from "@/lib/demo";
 import { supabase } from "@/lib/supabase";
-import { isFullyGraded } from "@/lib/scoring";
 
 /**
  * How long a realtime channel is held open after its last subscriber leaves.
@@ -1357,6 +1356,13 @@ class Store {
    * is reopened). Returns null when there is none (demo, admin preview, or the
    * test isn't open); the runner then falls back to its own clock.
    */
+  /** The official start time if this student already began the test, else null. Never starts one. */
+  async getTestAttempt(testId: string): Promise<string | null> {
+    if (DEMO) return null;
+    const { data, error } = await supabase().from("test_attempts").select("started_at").eq("test_id", testId).maybeSingle();
+    if (error || !data) return null;
+    return (data as Row).started_at as string;
+  }
   async startTestAttempt(testId: string): Promise<string | null> {
     const { data, error } = await supabase().rpc("start_test_attempt", { p_test_id: testId });
     if (error || !data) return null;
@@ -1469,13 +1475,9 @@ class Store {
       supabase().from("answers").update(patch).eq("submission_id", submissionId).eq("question_id", questionId),
       "gradeAnswer",
     );
-    // Marking the last answer is the release: once nothing is left to score,
-    // the result goes out without a second click.
-    const sub = this.state.submissions.find((s) => s.id === submissionId);
-    const test = sub ? this.state.tests.find((t) => t.id === sub.testId) : null;
-    if (sub && test && sub.status === "submitted" && isFullyGraded(test, sub)) {
-      this.releaseSubmission(submissionId);
-    }
+    // Results never go out from here: a half-typed mark ("1" on the way to
+    // "15") must not reach the student. Release is always a deliberate click
+    // (Release & next, or Ctrl/Cmd + Enter) on the marking page.
   }
   /** Grader markup for one image of a photo answer. Saved as you draw. */
   saveAnnotations(submissionId: string, questionId: string, imageUrl: string, shapes: Annotation[]) {

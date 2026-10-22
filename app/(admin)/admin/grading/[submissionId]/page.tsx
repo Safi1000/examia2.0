@@ -13,6 +13,7 @@ import { PageStack } from "@/components/PageStack";
 import { Card, Button, Badge, Pill, Textarea, EmptyState, Icon } from "@/components/ui";
 import { awardedMarks, isFullyGraded, totalMarks } from "@/lib/scoring";
 import { gradeSubmission } from "@/lib/grading";
+import { takenTimeOf } from "@/lib/photo-time";
 import { cn } from "@/lib/cn";
 
 export default function GradingPage() {
@@ -42,6 +43,19 @@ export default function GradingPage() {
   const total = totalMarks(test);
   const awarded = awardedMarks(submission);
   const fullyGraded = isFullyGraded(test, submission);
+  // Writing time ended at start + duration (or when the test closed, if sooner).
+  // Photos taken well after that are flagged gently; nothing is blocked.
+  const writeEndMs = submission.startedAt
+    ? Math.min(new Date(submission.startedAt).getTime() + test.durationMinutes * 60_000, new Date(test.closesAt).getTime())
+    : null;
+  const pagePhotos = test.questions
+    .filter((q) => q.type === "photo")
+    .flatMap((q) => {
+      const a = submission.answers.find((x) => x.questionId === q.id);
+      const urls = a?.photoUrls ?? (a?.photoDataUrl ? [a.photoDataUrl] : []);
+      const qn = test.questions.indexOf(q) + 1;
+      return urls.map((u, i) => ({ label: `Q${qn}${urls.length > 1 ? ` p${i + 1}` : ""}`, taken: takenTimeOf(u) }));
+    });
   const released = submission.status === "released";
   const grade = gradeSubmission(test, submission);
 
@@ -145,11 +159,15 @@ export default function GradingPage() {
         </div>
       )}
 
+      {pagePhotos.length > 0 && writeEndMs && (
+        <PhotoTimeline writeEndMs={writeEndMs} submittedAt={submission.submittedAt ?? null} late={!!submission.late} pages={pagePhotos} />
+      )}
+
       <div className="space-y-3">
         {test.questions.map((q, i) => {
           if (hideAuto && q.type === "mcq") return null;
           const a = submission.answers.find((x) => x.questionId === q.id);
-          return <GradeCard key={q.id} index={i} question={q} answer={a} submissionId={subId} />;
+          return <GradeCard key={q.id} index={i} question={q} answer={a} submissionId={subId} writeEndMs={writeEndMs} />;
         })}
       </div>
     </div>
@@ -161,11 +179,14 @@ function GradeCard({
   question,
   answer,
   submissionId,
+  writeEndMs,
 }: {
   index: number;
   question: Question;
   answer?: Answer;
   submissionId: string;
+  /** When this student's writing time ended (for photo time checks). */
+  writeEndMs: number | null;
 }) {
   const store = useStore();
   const awarded = answer?.marksAwarded;
@@ -255,6 +276,7 @@ function GradeCard({
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-ink-3">
+                <TakenNote url={url} writeEndMs={writeEndMs} />
                 {photos.length > 1 && (
                   <>
                     <button
@@ -362,6 +384,78 @@ function GradeCard({
           </div>
         )}
       </div>
+    </Card>
+  );
+}
+
+const GRACE_MS = 2 * 60_000;
+const clock = (ms: number) => new Date(ms).toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true });
+
+/** "Taken 4:46 pm" under a page, with a gentle flag if it was well after time. */
+function TakenNote({ url, writeEndMs }: { url: string; writeEndMs: number | null }) {
+  const taken = takenTimeOf(url);
+  if (!taken) return <span className="text-ink-3">Photo time unknown</span>;
+  const after = writeEndMs ? Math.round((taken.getTime() - writeEndMs) / 60_000) : null;
+  const flag = writeEndMs != null && taken.getTime() > writeEndMs + GRACE_MS;
+  return (
+    <span className={flag ? "font-semibold text-warning" : "text-ink-3"}>
+      Taken {clock(taken.getTime())}
+      {flag && after != null ? ` · ${after} min after time was up` : ""}
+    </span>
+  );
+}
+
+/** Writing end, each page's photo time, and hand-in time, on one line. */
+function PhotoTimeline({
+  writeEndMs,
+  submittedAt,
+  late,
+  pages,
+}: {
+  writeEndMs: number;
+  submittedAt: string | null;
+  late: boolean;
+  pages: Array<{ label: string; taken: Date | null }>;
+}) {
+  const flagged = pages.filter((p) => p.taken && p.taken.getTime() > writeEndMs + GRACE_MS).length;
+  return (
+    <Card className="mb-5 p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink-3">Photo timeline</p>
+        {flagged > 0 ? (
+          <p className="text-xs font-semibold text-warning">
+            {flagged} page{flagged === 1 ? "" : "s"} photographed more than 2 min after time was up
+          </p>
+        ) : pages.some((p) => p.taken) ? (
+          <p className="text-xs text-ink-3">Photos taken on time</p>
+        ) : (
+          <p className="text-xs text-ink-3">Photo times not available for these pages</p>
+        )}
+      </div>
+      <ol className="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
+        <li className="rounded-full bg-surface-2 px-2.5 py-1 font-semibold text-ink">Time up {clock(writeEndMs)}</li>
+        {pages.map((p, i) => {
+          const flag = p.taken && p.taken.getTime() > writeEndMs + GRACE_MS;
+          return (
+            <li
+              key={i}
+              className={
+                flag
+                  ? "rounded-full border border-warning/40 bg-warning-soft px-2.5 py-1 font-semibold text-warning"
+                  : "rounded-full border border-border px-2.5 py-1 text-ink-2"
+              }
+            >
+              {p.label} {p.taken ? clock(p.taken.getTime()) : "· time unknown"}
+            </li>
+          );
+        })}
+        {submittedAt && (
+          <li className={late ? "rounded-full bg-warning-soft px-2.5 py-1 font-semibold text-warning" : "rounded-full bg-surface-2 px-2.5 py-1 font-semibold text-ink"}>
+            Handed in {clock(new Date(submittedAt).getTime())}
+            {late ? " · late" : ""}
+          </li>
+        )}
+      </ol>
     </Card>
   );
 }
