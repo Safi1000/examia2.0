@@ -1509,6 +1509,32 @@ class Store {
       // Addressed to the student: their result is now visible.
       this.announceResult(sub.studentId, sub.testId, submissionId);
     }
+    this.queueResultPush(submissionId);
+  }
+  // Phone notification for released results. Batched for a moment so
+  // "Release all" sends one notification per student, not one per paper.
+  private pushQueue: string[] = [];
+  private pushTimer: ReturnType<typeof setTimeout> | null = null;
+  private queueResultPush(id: string) {
+    if (DEMO) return;
+    this.pushQueue.push(id);
+    if (this.pushTimer) return;
+    this.pushTimer = setTimeout(async () => {
+      const ids = this.pushQueue.splice(0);
+      this.pushTimer = null;
+      try {
+        const { data } = await supabase().auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) return;
+        await fetch("/api/notify/released", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ ids }),
+        });
+      } catch {
+        // Not critical: the 15-minute reminder run sends any result not yet notified.
+      }
+    }, 2000);
   }
   bulkReleaseForTest(testId: string) {
     const releasedAt = new Date().toISOString();

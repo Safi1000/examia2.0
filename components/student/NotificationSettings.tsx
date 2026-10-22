@@ -1,0 +1,166 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Button, Card } from "@/components/ui";
+import { useToast } from "@/components/toast";
+import { supabase } from "@/lib/supabase";
+
+/**
+ * "Phone notifications" card in Settings.
+ *
+ * Kept quiet on purpose (rules live in lib/push-server.ts): only results,
+ * tests opening/closing and assignments due; never twice; at most 3 a day;
+ * nothing between 10 pm and 8 am. Each kind can be switched off here.
+ */
+
+const VAPID = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
+
+type Prefs = { results: boolean; tests: boolean; assignments: boolean };
+const KINDS: Array<{ key: keyof Prefs; label: string; hint: string }> = [
+  { key: "results", label: "Results", hint: "When Hamza releases your marks" },
+  { key: "tests", label: "Tests", hint: "30 min before a test opens, and 3 hours before it closes if you haven't handed in" },
+  { key: "assignments", label: "Assignments", hint: "The day before it's due, if you haven't handed it in" },
+];
+
+function keyBytes(base64: string) {
+  const pad = "=".repeat((4 - (base64.length % 4)) % 4);
+  const raw = atob((base64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+}
+
+export function NotificationSettings({ studentId }: { studentId: string }) {
+  const { toast } = useToast();
+  const [status, setStatus] = useState<"loading" | "unsupported" | "iphone" | "off" | "on" | "blocked" | "notReady">("loading");
+  const [prefs, setPrefs] = useState<Prefs>({ results: true, tests: true, assignments: true });
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    const run = async () => {
+      const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const installed = window.matchMedia("(display-mode: standalone)").matches;
+      let next: typeof status;
+      if (!VAPID) next = "notReady";
+      else if (ios && !installed) next = "iphone";
+      else if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) next = "unsupported";
+      else if (Notification.permission === "denied") next = "blocked";
+      else {
+        const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+        const sub = await reg?.pushManager.getSubscription();
+        next = sub ? "on" : "off";
+      }
+      const { data } = await supabase().from("notify_prefs").select("results,tests,assignments").eq("student_id", studentId).maybeSingle();
+      if (!alive) return;
+      if (data) setPrefs(data as Prefs);
+      setStatus(next);
+    };
+    void run();
+    return () => {
+      alive = false;
+    };
+  }, [studentId]);
+
+  async function turnOn() {
+    setBusy(true);
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") {
+        setStatus(perm === "denied" ? "blocked" : "off");
+        return;
+      }
+      const reg = await navigator.serviceWorker.register("/sw.js");
+      await navigator.serviceWorker.ready;
+      const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(VAPID) }));
+      const j = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
+      const { error } = await supabase()
+        .from("push_subscriptions")
+        .upsert({ student_id: studentId, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }, { onConflict: "endpoint" });
+      if (error) throw error;
+      setStatus("on");
+      toast("Notifications on. We'll keep them few.", "success");
+    } catch {
+      toast("Couldn't turn notifications on. Try again in a moment.", "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function turnOff() {
+    setBusy(true);
+    try {
+      const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+      const sub = await reg?.pushManager.getSubscription();
+      if (sub) {
+        await supabase().from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+        await sub.unsubscribe();
+      }
+      setStatus("off");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setPref(key: keyof Prefs, value: boolean) {
+    const next = { ...prefs, [key]: value };
+    setPrefs(next);
+    await supabase().from("notify_prefs").upsert({ student_id: studentId, ...next, updated_at: new Date().toISOString() });
+  }
+
+  return (
+    <Card className="mt-5 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold text-ink">Phone notifications</h2>
+          <p className="mt-1 text-sm text-ink-3">Only what matters, never at night, at most 3 a day.</p>
+        </div>
+        {status === "on" && (
+          <Button variant="secondary" size="sm" loading={busy} onClick={() => void turnOff()}>
+            Turn off
+          </Button>
+        )}
+        {status === "off" && (
+          <Button size="sm" loading={busy} onClick={() => void turnOn()}>
+            Turn on
+          </Button>
+        )}
+      </div>
+
+      {status === "iphone" && (
+        <p className="mt-4 rounded-lg bg-surface-2 px-3 py-2.5 text-sm text-ink-2">
+          On iPhone, first add this portal to your Home Screen: tap Share, then &quot;Add to Home Screen&quot;. Open it from
+          there and come back here.
+        </p>
+      )}
+      {status === "blocked" && (
+        <p className="mt-4 rounded-lg bg-surface-2 px-3 py-2.5 text-sm text-ink-2">
+          Notifications are blocked for this site. Allow them in your browser&apos;s site settings, then reload.
+        </p>
+      )}
+      {status === "unsupported" && <p className="mt-4 text-sm text-ink-3">This browser can&apos;t show notifications.</p>}
+      {status === "notReady" && <p className="mt-4 text-sm text-ink-3">Notifications are coming soon.</p>}
+
+      {status === "on" && (
+        <ul className="mt-4 divide-y divide-border">
+          {KINDS.map((k) => (
+            <li key={k.key} className="flex items-center justify-between gap-4 py-3">
+              <span>
+                <span className="block text-sm font-semibold text-ink">{k.label}</span>
+                <span className="block text-xs text-ink-3">{k.hint}</span>
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={prefs[k.key]}
+                aria-label={`${k.label} notifications`}
+                onClick={() => void setPref(k.key, !prefs[k.key])}
+                className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${prefs[k.key] ? "bg-brand" : "bg-surface-2 ring-1 ring-inset ring-border-strong"}`}
+              >
+                <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${prefs[k.key] ? "left-6" : "left-1"}`} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}

@@ -5,14 +5,18 @@ import { Button, Card, Input } from "@/components/ui";
 import { ThemeSettings } from "@/components/ThemeSettings";
 import { useToast } from "@/components/toast";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth-context";
+import { NotificationSettings } from "@/components/student/NotificationSettings";
 
 export default function StudentSettingsPage() {
+  const studentId = useAuth().session?.studentId;
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
       <h1 className="text-2xl font-extrabold tracking-tight text-ink">Settings</h1>
-      <p className="mt-1 text-sm text-ink-2">Your password and how your portal looks.</p>
+      <p className="mt-1 text-sm text-ink-2">Your password, notifications and how your portal looks.</p>
 
       <ChangePassword />
+      {studentId && <NotificationSettings studentId={studentId} />}
 
       <Card className="mt-5 p-5">
         <h2 className="text-base font-semibold text-ink">Accent colour</h2>
