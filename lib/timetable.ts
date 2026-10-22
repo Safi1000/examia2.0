@@ -10,6 +10,8 @@ import type { Database } from "@/lib/data/seed";
 export const TERM_STARTS = "2026-11-02";
 /** Monday to Friday. */
 export const CLASS_DAYS = [1, 2, 3, 4, 5];
+/** Hour (Pakistan time) when the day's Meet links are made, before the first class at 3:30. */
+export const LINKS_AT_HOUR = 13;
 /** How early the Join button wakes up. */
 export const JOIN_EARLY_MIN = 10;
 

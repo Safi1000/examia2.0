@@ -1,14 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { LEVEL_LABEL, addDays, pkDate, slotsOn, type DaySlot } from "@/lib/timetable";
+import { LEVEL_LABEL, LINKS_AT_HOUR, addDays, pkDate, slotsOn, type DaySlot } from "@/lib/timetable";
 import { accessToken, createClassEvent, findRecording, getEvent } from "@/lib/google";
 
 /**
  * Runs with the 15-minute reminder check (and from "Make today's links now"):
  *
- *  1. From 8 am on a class day, every class without a link gets its own Meet
+ *  1. From 1 pm on a class day, every class without a link gets its own Meet
  *     link (a Calendar event on Hamza's account). A link Hamza pasted by hand
  *     is never replaced.
- *  2. From 15 minutes after a class ends (up to 3 days back), the recording
+ *  2. From 15 minutes after a class ends (checked every 15 minutes for up to
+ *     3 days, since Meet can take 30 to 40 minutes to save it), the recording
  *     Meet saved to Drive is shared "anyone with the link" and added for
  *     students. Recording still has to be started in Meet.
  */
@@ -51,9 +52,9 @@ export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), f
   let links = 0;
   let recordings = 0;
 
-  // 1. Today's links (from 8 am, or straight away when Hamza asks).
+  // 1. Today's links (from 1 pm, or straight away when Hamza asks).
   const hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", hour: "numeric", hour12: false }).format(now));
-  if (force || hour >= 8) {
+  if (force || hour >= LINKS_AT_HOUR) {
     for (const s of slotsOn(db, today)) {
       if (s.endMs <= now) continue;
       const row = byKey.get(key(s.date, s.classId, s.subjectId));
@@ -97,4 +98,25 @@ export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), f
   }
 
   return { connected: true, links, recordings };
+}
+
+// ---- Test run (Admin → Classes → "Make a test class") ----------------------
+// Lets Hamza try links and recordings before term, without touching students.
+
+export const TEST_TITLE = "Test class · Hamza Teaches";
+
+export async function makeTestClass(sb: SupabaseClient) {
+  const token = await accessToken(sb);
+  if (!token) return { error: "not connected" };
+  const start = Date.now();
+  const ev = await createClassEvent(token, TEST_TITLE, new Date(start).toISOString(), new Date(start + 20 * 60_000).toISOString());
+  return { eventId: ev.eventId, meetUrl: ev.meetUrl ?? (await getEvent(token, ev.eventId)).hangoutLink ?? null, startedAt: new Date(start).toISOString() };
+}
+
+export async function findTestRecording(sb: SupabaseClient, eventId: string, startedAt: string) {
+  const token = await accessToken(sb);
+  if (!token) return { error: "not connected" };
+  const ev = await getEvent(token, eventId);
+  const after = new Date(+new Date(startedAt) - 30 * 60_000).toISOString();
+  return { recordingUrl: await findRecording(token, ev, TEST_TITLE, after) };
 }
