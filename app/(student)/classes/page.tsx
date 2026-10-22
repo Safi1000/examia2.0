@@ -7,7 +7,7 @@ import { useDatabase } from "@/lib/data/store";
 import { studentById } from "@/lib/data/selectors";
 import { ClassNow } from "@/components/student/ClassNow";
 import { EmptyState, Icon } from "@/components/ui";
-import { LEVEL_LABEL, RECORDING_HOURS, TERM_STARTS, addDays, isClassDay, pkDate, slotKey, slotsForStudent, timeLabel, useClassLinks } from "@/lib/classes";
+import { LEVEL_LABEL, RECORDING_HOURS, getSchedule, addDays, isClassDay, pkDate, slotKey, slotsForStudent, timeLabel, useClassLinks } from "@/lib/classes";
 
 /** The student's daily timetable and the recordings of past classes. */
 export default function ClassesPage() {
@@ -22,7 +22,7 @@ export default function ClassesPage() {
 
   // The timetable is the same every class day, so show one (the next) day's slots.
   const day = useMemo(() => {
-    let d = today < TERM_STARTS ? TERM_STARTS : today;
+    let d = today < getSchedule().termStarts ? getSchedule().termStarts : today;
     for (let i = 0; i < 7 && !isClassDay(d); i++) d = addDays(d, 1);
     return d;
   }, [today]);
@@ -47,8 +47,8 @@ export default function ClassesPage() {
       <header className="animate-fade-up">
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-brand">Monday to Friday · Pakistan time</p>
         <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink sm:text-[2.5rem]">Classes</h1>
-        {today < TERM_STARTS && <p className="mt-2.5 text-base text-ink-2">
-            Classes start on {new Date(`${TERM_STARTS}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.
+        {today < getSchedule().termStarts && <p className="mt-2.5 text-base text-ink-2">
+            Classes start on {new Date(`${getSchedule().termStarts}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.
           </p>}
       </header>
 

@@ -1,5 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { LEVEL_LABEL, LINKS_AT_HOUR, RECORDING_HOURS, addDays, pkDate, slotsOn, type DaySlot } from "@/lib/timetable";
+import { LEVEL_LABEL, LINKS_AT_HOUR, RECORDING_HOURS, addDays, pkDate, setSchedule, slotsOn as allSlotsOn, type DaySlot } from "@/lib/timetable";
+import { loadSchedule } from "@/lib/schedule-server";
+
+// Cancelled classes get no link and no recording.
+const slotsOn: typeof allSlotsOn = (db, date) => allSlotsOn(db, date).filter((s) => !s.cancelled);
 import { RECORDINGS_ROOT, accessToken, closeLinkSharing, createClassEvent, fileIdOf, findRecording, getEvent } from "@/lib/google";
 
 /**
@@ -32,6 +36,7 @@ interface LinkRow {
 export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), force = false) {
   const token = await accessToken(sb);
   if (!token) return { connected: false, links: 0, recordings: 0 };
+  setSchedule(await loadSchedule(sb));
 
   const [{ data: classes }, { data: subjects }] = await Promise.all([
     sb.from("classes").select("id,name,created_at"),

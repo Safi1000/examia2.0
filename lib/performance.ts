@@ -19,7 +19,15 @@ export interface Snapshot {
   points: number[];
   last: { test: Test; percent: number; letter: string } | null;
   weakest: Array<{ subject: string; name: string; percent: number }>;
+  /** Each subject's recent average (last five marked tests in it). */
+  bySubject: Array<{ subject: string; recent: number; grade: string }>;
 }
+
+/** Lowest percentage for each target grade (same bands as gradeLetter). */
+export const GRADE_FLOOR: Record<string, number> = { "A*": 92, A: 85, B: 75, C: 65 };
+
+/** "Business Studies" and "Business" are the same subject. */
+export const sameSubject = (a: string, b: string) => a.trim().toLowerCase().slice(0, 4) === b.trim().toLowerCase().slice(0, 4);
 
 export function performanceSnapshot(db: Database, student: Student): Snapshot | null {
   const released = submissionsForStudent(db, student.id)
@@ -38,7 +46,15 @@ export function performanceSnapshot(db: Database, student: Student): Snapshot | 
   const recent = avg(recentSet);
   const lastR = results[results.length - 1];
 
+  const subjects = [...new Set(results.map((r) => r.test.subject.trim()))];
+  const bySubject = subjects.map((subject) => {
+    const mine = results.filter((r) => r.test.subject.trim() === subject).map((r) => r.pct).slice(-5);
+    const a = avg(mine);
+    return { subject, recent: a, grade: gradeLetter(a) };
+  });
+
   return {
+    bySubject,
     recent,
     grade: gradeLetter(recent),
     delta: before.length >= 2 ? Math.round((recent - avg(before)) * 10) / 10 : null,

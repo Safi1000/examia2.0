@@ -1,5 +1,10 @@
 "use client";
 
+import { useStudentProfiles } from "@/lib/student-profiles";
+import { Avatar } from "@/components/student/Avatar";
+import type { Profile } from "@/lib/profile";
+import { currentStats } from "@/lib/focus";
+import { useNow } from "@/hooks/useNow";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -43,6 +48,7 @@ function StudentDetail() {
   const params = useParams();
   const id = String(params.id);
   const db = useDatabase();
+  const profiles = useStudentProfiles();
   const store = useStore();
   const student = studentById(db, id);
 
@@ -250,6 +256,8 @@ function StudentDetail() {
         />
       </div>
 
+      {profiles[student.id] && <TheirPortal profile={profiles[student.id]} />}
+
       {data.released.length > 0 ? (
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
           <Card className="p-5">
@@ -362,6 +370,34 @@ function Stat({ label, value }: { label: string; value: string }) {
     <Card className="p-4 text-center">
       <p className="font-display text-2xl font-extrabold text-ink">{value}</p>
       <p className="text-xs text-ink-3">{label}</p>
+    </Card>
+  );
+}
+
+/** What the student set for themselves, and their study timer this week. */
+function TheirPortal({ profile }: { profile: Profile }) {
+  const nowMs = useNow();
+  const focus = currentStats(profile.focus, nowMs);
+  const targets = Object.entries(profile.targets ?? {});
+  return (
+    <Card className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3 p-4">
+      <Avatar id={profile.avatar} initials="?" className="h-10 w-10" />
+      {targets.length > 0 && (
+        <p className="text-sm text-ink-2">
+          Aiming for{" "}
+          {targets.map(([sub, t], i) => (
+            <span key={sub}>
+              {i > 0 && ", "}
+              <span className="font-semibold text-ink">{t}</span> in {sub}
+            </span>
+          ))}
+        </p>
+      )}
+      <p className="text-sm text-ink-2">
+        Study timer: <span className="font-semibold text-ink">{Math.round(focus.weekMinutes / 6) / 10} h</span> this week
+        {profile.weeklyGoal ? ` of ${profile.weeklyGoal} h` : ""}
+        {focus.streak > 1 ? ` · ${focus.streak}-day streak` : ""}
+      </p>
     </Card>
   );
 }

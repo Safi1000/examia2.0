@@ -10,3 +10,14 @@ export async function isAdminRequest(req: Request): Promise<boolean> {
   const { data } = await sb.auth.getUser();
   return (data.user?.app_metadata as { role?: string } | undefined)?.role === "admin";
 }
+
+/** The signed-in admin's user id, or null. */
+export async function adminIdFromRequest(req: Request): Promise<string | null> {
+  const token = req.headers.get("authorization")?.replace(/^Bearer /, "");
+  if (!token) return null;
+  const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+  const { data } = await sb.auth.getUser();
+  return (data.user?.app_metadata as { role?: string } | undefined)?.role === "admin" ? data.user!.id : null;
+}

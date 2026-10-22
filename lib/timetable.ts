@@ -2,14 +2,11 @@ import type { ClassItem, Student, SubjectItem } from "@/types";
 import type { Database } from "@/lib/data/seed";
 
 /**
- * The fixed weekly timetable and date helpers (Pakistan time). Pure, so both
- * the pages and the server (Google automation) use the same slots. Change a
- * time here; no database needed.
+ * The weekly timetable and date helpers (Pakistan time). Hamza edits the
+ * schedule in Admin → Classes (saved on the server, see app/api/schedule);
+ * DEFAULT_SCHEDULE is the starting point and the fallback. Pure, so both the
+ * pages and the server (Google automation) use the same slots.
  */
-
-export const TERM_STARTS = "2026-11-02";
-/** Monday to Friday. */
-export const CLASS_DAYS = [1, 2, 3, 4, 5];
 /** Hour (Pakistan time) when the day's Meet links are made, before the first class at 3:30. */
 export const LINKS_AT_HOUR = 13;
 /** Students can watch a class recording until this many hours after the class ends. */
@@ -30,7 +27,32 @@ export interface Slot {
 
 export const LEVEL_LABEL: Record<LevelKey, string> = { A2: "A2", AS: "AS", O: "IGCSE / O Level" };
 
-export const TIMETABLE: Slot[] = [
+/** A weekly class. `days` (0 = Sunday … 6) overrides the schedule's class days. */
+export interface WeekSlot extends Slot {
+  days?: number[];
+}
+
+/** A change for one date: cancel a class, move it, or add an extra one. */
+export interface Exception {
+  date: string;
+  level: LevelKey;
+  subject: SubjectKey;
+  cancelled?: boolean;
+  /** New times for this date (or the times of an extra class). */
+  start?: string;
+  end?: string;
+  extra?: boolean;
+}
+
+export interface Schedule {
+  termStarts: string;
+  /** Class days, 0 = Sunday … 6 = Saturday. */
+  days: number[];
+  slots: WeekSlot[];
+  exceptions: Exception[];
+}
+
+const TIMETABLE: WeekSlot[] = [
   { level: "A2", subject: "Economics", start: "15:30", end: "16:10" },
   { level: "A2", subject: "Business", start: "16:10", end: "16:50" },
   { level: "A2", subject: "Accounting", start: "16:50", end: "17:30" },
@@ -41,6 +63,41 @@ export const TIMETABLE: Slot[] = [
   { level: "AS", subject: "Business", start: "20:10", end: "20:50" },
   { level: "AS", subject: "Economics", start: "20:50", end: "21:30" },
 ];
+
+export const DEFAULT_SCHEDULE: Schedule = { termStarts: "2026-11-02", days: [1, 2, 3, 4, 5], slots: TIMETABLE, exceptions: [] };
+
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const LEVELS: LevelKey[] = ["A2", "AS", "O"];
+const SUBJECTS: SubjectKey[] = ["Economics", "Business", "Accounting"];
+
+/** A clean copy, or null if anything is malformed (so a bad save can't break the portal). */
+export function cleanSchedule(v: unknown): Schedule | null {
+  const x = v as Partial<Schedule> | null;
+  if (!x || typeof x.termStarts !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(x.termStarts)) return null;
+  if (!Array.isArray(x.days) || !Array.isArray(x.slots) || !Array.isArray(x.exceptions)) return null;
+  const okSlot = (s: Partial<Slot>) => LEVELS.includes(s.level!) && SUBJECTS.includes(s.subject!) && HHMM.test(s.start ?? "") && HHMM.test(s.end ?? "") && s.start! < s.end!;
+  const days = x.days.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+  const slots = x.slots.filter(okSlot).slice(0, 60).map((s) => ({
+    level: s.level,
+    subject: s.subject,
+    start: s.start,
+    end: s.end,
+    ...(Array.isArray(s.days) ? { days: s.days.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6) } : {}),
+  }));
+  const exceptions = x.exceptions
+    .filter((e) => /^\d{4}-\d{2}-\d{2}$/.test(e?.date ?? "") && LEVELS.includes(e.level) && SUBJECTS.includes(e.subject))
+    .filter((e) => e.cancelled || !e.start || (HHMM.test(e.start) && HHMM.test(e.end ?? "") && e.start < e.end!))
+    .slice(-200)
+    .map((e) => ({ date: e.date, level: e.level, subject: e.subject, ...(e.cancelled ? { cancelled: true } : {}), ...(e.start ? { start: e.start, end: e.end } : {}), ...(e.extra ? { extra: true } : {}) }));
+  return { termStarts: x.termStarts, days, slots, exceptions };
+}
+
+// The schedule in use. Pages set it once fetched (ScheduleGate), the server per run.
+let active: Schedule = DEFAULT_SCHEDULE;
+export const getSchedule = () => active;
+export function setSchedule(s: Schedule | null) {
+  active = s ?? DEFAULT_SCHEDULE;
+}
 
 /** Match the database class/subject rows to the timetable by name. */
 export function levelOf(c: Pick<ClassItem, "name">): LevelKey | null {
@@ -66,7 +123,10 @@ export const addDays = (ymd: string, n: number) => {
   return pkDate(+d);
 };
 const weekday = (ymd: string) => new Date(`${ymd}T12:00:00+05:00`).getUTCDay();
-export const isClassDay = (ymd: string) => ymd >= TERM_STARTS && CLASS_DAYS.includes(weekday(ymd));
+/** Any class on this date (weekly ones from term start, or an extra one). */
+export const isClassDay = (ymd: string) =>
+  (ymd >= active.termStarts && active.slots.some((s) => (s.days ?? active.days).includes(weekday(ymd)))) ||
+  active.exceptions.some((e) => e.date === ymd && e.extra && !e.cancelled);
 /** Milliseconds for a Pakistan wall-clock time on a date. */
 export const at = (ymd: string, hhmm: string) => +new Date(`${ymd}T${hhmm}:00+05:00`);
 export const timeLabel = (hhmm: string) => {
@@ -76,15 +136,37 @@ export const timeLabel = (hhmm: string) => {
 
 export interface DaySlot extends Slot {
   date: string;
+  /** Called off for this date (Hamza still sees it, students don't). */
+  cancelled?: boolean;
+  /** One-off: moved or extra for this date. */
+  changed?: boolean;
   classId: string;
   subjectId: string;
   startMs: number;
   endMs: number;
 }
 
-/** Every slot on a date, joined to the database ids (slots with no match are skipped). */
+/**
+ * Every slot on a date, with that date's changes applied and joined to the
+ * database ids (slots with no match are skipped). Cancelled classes are
+ * included and flagged; use `liveSlotsOn` for what actually happens.
+ */
 export function slotsOn(db: Pick<Database, "classes" | "subjects">, date: string): DaySlot[] {
-  if (!isClassDay(date)) return [];
+  const wd = weekday(date);
+  const weekly: Array<Slot & { cancelled?: boolean; changed?: boolean }> =
+    date >= active.termStarts ? active.slots.filter((s) => (s.days ?? active.days).includes(wd)).map((s) => ({ ...s })) : [];
+  for (const e of active.exceptions.filter((x) => x.date === date)) {
+    const i = weekly.findIndex((s) => s.level === e.level && s.subject === e.subject);
+    if (e.extra) {
+      if (i < 0 && e.start && e.end) weekly.push({ level: e.level, subject: e.subject, start: e.start, end: e.end, changed: true, cancelled: e.cancelled });
+      else if (i >= 0 && e.cancelled) weekly[i].cancelled = true;
+      continue;
+    }
+    if (i < 0) continue;
+    if (e.cancelled) weekly[i].cancelled = true;
+    else if (e.start && e.end) weekly[i] = { ...weekly[i], start: e.start, end: e.end, changed: true };
+  }
+  if (!weekly.length) return [];
   const classId = new Map<LevelKey, string>();
   for (const c of db.classes) {
     const l = levelOf(c);
@@ -95,13 +177,18 @@ export function slotsOn(db: Pick<Database, "classes" | "subjects">, date: string
     const k = subjectOf(s);
     if (k && !subjectId.has(k)) subjectId.set(k, s.id);
   }
-  return TIMETABLE.flatMap((s) => {
-    const c = classId.get(s.level);
-    const sub = subjectId.get(s.subject);
-    if (!c || !sub) return [];
-    return [{ ...s, date, classId: c, subjectId: sub, startMs: at(date, s.start), endMs: at(date, s.end) }];
-  });
+  return weekly
+    .flatMap((s) => {
+      const c = classId.get(s.level);
+      const sub = subjectId.get(s.subject);
+      if (!c || !sub) return [];
+      return [{ ...s, date, classId: c, subjectId: sub, startMs: at(date, s.start), endMs: at(date, s.end) }];
+    })
+    .sort((a, b) => a.startMs - b.startMs);
 }
+
+/** Classes that are actually happening on a date. */
+export const liveSlotsOn = (db: Pick<Database, "classes" | "subjects">, date: string) => slotsOn(db, date).filter((s) => !s.cancelled);
 
 /**
  * The slots a student sits: their own level and subjects, falling back to the
@@ -111,7 +198,7 @@ export function slotsForStudent(db: Database, student: Student, date: string): D
   const cohort = db.cohorts.find((c) => c.id === student.cohortId);
   const classes = student.classIds.length ? student.classIds : (cohort?.classIds ?? []);
   const subjects = student.subjectIds.length ? student.subjectIds : (cohort?.subjectIds ?? []);
-  return slotsOn(db, date).filter((s) => classes.includes(s.classId) && (!subjects.length || subjects.includes(s.subjectId)));
+  return liveSlotsOn(db, date).filter((s) => classes.includes(s.classId) && (!subjects.length || subjects.includes(s.subjectId)));
 }
 
 export const slotKey = (s: { date: string; classId: string; subjectId: string }) => `${s.date}|${s.classId}|${s.subjectId}`;

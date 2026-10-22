@@ -1,5 +1,6 @@
 "use client";
 
+import { ScheduleGate } from "@/components/ScheduleGate";
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -103,7 +104,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </header>
 
-          <main className="flex-1">{children}</main>
+          <main className="flex-1"><ScheduleGate>{children}</ScheduleGate></main>
         </div>
       </div>
     </AdminFilterProvider>

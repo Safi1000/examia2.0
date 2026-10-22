@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Student, Test } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
@@ -9,7 +9,9 @@ import { useAdminFilter } from "@/lib/admin-filter";
 import { useNow } from "@/hooks/useNow";
 import { useToast } from "@/components/toast";
 import { absenceStreak, cohortById, eligibleStudents, testById, archivedCohortIds, isArchivedTest } from "@/lib/data/selectors";
-import { gradeSubmission } from "@/lib/grading";
+import { GRADE_ORDER, gradeSubmission, type GradeLetter } from "@/lib/grading";
+import { performanceSnapshot, sameSubject } from "@/lib/performance";
+import { useStudentProfiles } from "@/lib/student-profiles";
 import { formatRelative } from "@/lib/time";
 import { createRetest, retestQuestions, weakTopics } from "@/lib/retest";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -39,6 +41,22 @@ export default function TodayPage() {
   const { toast } = useToast();
   const { cohortId } = useAdminFilter();
   const nowMs = useNow();
+  const profiles = useStudentProfiles();
+  const [checked, setChecked] = useState<Record<string, number>>(() => {
+    try {
+      return typeof window === "undefined" ? {} : (JSON.parse(localStorage.getItem("ht_checked") ?? "{}") as Record<string, number>);
+    } catch {
+      return {};
+    }
+  });
+  const [showAll, setShowAll] = useState(false);
+  const markChecked = (id: string) => {
+    const next = { ...checked, [id]: nowMs };
+    setChecked(next);
+    try {
+      localStorage.setItem("ht_checked", JSON.stringify(next));
+    } catch {}
+  };
 
   const data = useMemo(() => {
     // Switched-off cohorts are archived: they never show up on Today.
@@ -90,9 +108,17 @@ export default function TodayPage() {
         if (missed.length) reasons.push(`Missed ${missed.map((t) => t.title).join(", ")}`);
         if (lowAvg !== null && lowAvg < 50) reasons.push(`Last two tests averaged ${lowAvg}%`);
         if (absent >= 2) reasons.push(`Absent ${absent} classes in a row`);
+        // Only a real gap counts: two or more grades under their own target.
+        const targets = profiles[s.id]?.targets ?? {};
+        for (const sub of performanceSnapshot(db, s)?.bySubject ?? []) {
+          const key = Object.keys(targets).find((k) => sameSubject(k, sub.subject));
+          if (key && GRADE_ORDER.indexOf(sub.grade as GradeLetter) - GRADE_ORDER.indexOf(targets[key] as GradeLetter) >= 2)
+            reasons.push(`${sub.subject}: ${sub.grade}, aiming for ${targets[key]}`);
+        }
         return { student: s, reasons, missed, lowAvg, absent };
       })
-      .filter((r) => r.reasons.length > 0)
+      // "Checked" hides a student for a week, so the same names don't nag daily.
+      .filter((r) => r.reasons.length > 0 && !(checked[r.student.id] && nowMs - checked[r.student.id] < 7 * DAY))
       .sort((a, b) => b.reasons.length - a.reasons.length);
 
     const monthAgo = nowMs - 30 * DAY;
@@ -107,7 +133,7 @@ export default function TodayPage() {
     const weak = weakTopics(db, cohortId).map((w) => ({ ...w, available: retestQuestions(db, w.subject, w.name).length }));
 
     return { toMark, closing, attention, avg30, weak };
-  }, [db, cohortId, nowMs]);
+  }, [db, cohortId, nowMs, profiles, checked]);
 
   const cohortName = cohortId ? cohortById(db, cohortId)?.name : null;
 
@@ -231,7 +257,7 @@ export default function TodayPage() {
             <p className="mt-2 text-[15px] text-ink-2">Everyone is on track.</p>
           ) : (
             <ul className="mt-3 divide-y divide-border">
-              {data.attention.map(({ student: s, reasons, missed, lowAvg }) => {
+              {(showAll ? data.attention : data.attention.slice(0, 5)).map(({ student: s, reasons, missed, lowAvg }) => {
                 const msg = missed.length
                   ? `Hi ${nameOf(s)}, I noticed you missed ${missed[0].title}. Is everything okay? Let me know if you need help catching up.`
                   : lowAvg !== null && lowAvg < 50
@@ -263,11 +289,19 @@ export default function TodayPage() {
                       {!studentLink && !parentLink && (
                         <Link href={`/admin/roster/${s.id}`} className="text-sm text-ink-3 hover:text-ink">Add a number →</Link>
                       )}
+                      <button type="button" onClick={() => markChecked(s.id)} className={buttonClasses({ variant: "ghost", size: "sm" })} title="Hide for a week">
+                        Checked
+                      </button>
                     </div>
                   </li>
                 );
               })}
             </ul>
+          )}
+          {!showAll && data.attention.length > 5 && (
+            <button type="button" onClick={() => setShowAll(true)} className="mt-2 h-10 text-sm font-semibold text-brand hover:underline">
+              Show {data.attention.length - 5} more
+            </button>
           )}
         </Card>
 

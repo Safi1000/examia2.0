@@ -1,5 +1,9 @@
 "use client";
 
+import { createPortal } from "react-dom";
+import { Avatar } from "@/components/student/Avatar";
+import { Welcome } from "@/components/student/Welcome";
+import { ScheduleGate } from "@/components/ScheduleGate";
 import { waTextLink } from "@/lib/landing";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -32,7 +36,7 @@ const TITLES: Record<string, string> = {
 };
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
-  const { session, logout, initializing } = useAuth();
+  const { session, logout, initializing, profile } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const db = useDatabase();
@@ -140,12 +144,13 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
             <div className="flex shrink-0 items-center gap-1.5">
               <NotificationBell />
-              <AccountMenu name={name} cohort={cohort} onSignOut={signOut} />
+              <AccountMenu name={name} cohort={cohort} avatar={profile.avatar} onSignOut={signOut} />
             </div>
           </div>
         </header>
       )}
-      {children}
+      <ScheduleGate>{children}</ScheduleGate>
+      {!inRunner && !profile.onboarded && createPortal(<Welcome db={db} student={student} />, document.body)}
 
       {/* Phones: a floating dock at the thumb. */}
       {!inRunner && (
@@ -185,10 +190,12 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 function AccountMenu({
   name,
   cohort,
+  avatar,
   onSignOut,
 }: {
   name: string;
   cohort: { name: string; color: Cohort["color"] } | null;
+  avatar?: string;
   onSignOut: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -210,9 +217,9 @@ function AccountMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account"
-        className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(145deg,#2c3034,#1c1f22)] text-[13px] font-bold tracking-wide text-brand shadow-[inset_0_0_0_1px_rgba(251,193,89,0.35)] transition-shadow hover:shadow-[inset_0_0_0_1px_rgba(251,193,89,0.7)]"
+        className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl text-[13px] tracking-wide shadow-[inset_0_0_0_1px_rgba(251,193,89,0.35)] transition-shadow hover:shadow-[inset_0_0_0_1px_rgba(251,193,89,0.7)]"
       >
-        {initials}
+        <Avatar id={avatar} initials={initials} className="h-10 w-10" />
       </button>
       {open && (
         <div role="menu" className="absolute right-0 top-12 w-60 animate-fade-up rounded-2xl border border-white/[0.08] bg-[#1d2023]/95 p-2 shadow-[0_24px_48px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl">

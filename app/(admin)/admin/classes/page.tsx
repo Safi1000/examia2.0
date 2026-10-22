@@ -9,11 +9,14 @@ import { archivedCohortIds } from "@/lib/data/selectors";
 import { displayName } from "@/lib/display-name";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { GoogleConnect } from "@/components/admin/GoogleConnect";
+import { TimetableEditor } from "@/components/admin/TimetableEditor";
+import { storeSchedule } from "@/components/ScheduleGate";
+import type { Exception, SubjectKey } from "@/lib/timetable";
 import { Badge, Button, Card, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import {
   LEVEL_LABEL,
-  TERM_STARTS,
+  getSchedule,
   addDays,
   isClassDay,
   looksLikeLink,
@@ -42,14 +45,32 @@ export default function ClassesPage() {
   const date = picked ?? nextClassDay(today);
   const { links, joins, ready, save, reload } = useClassLinks(date, date, true);
 
-  const slots = useMemo(() => slotsOn(db, date), [db, date]);
+  const [view, setView] = useState<"day" | "week">("day");
+  // Bumped after a timetable change so the day re-reads it.
+  const [rev, setRev] = useState(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const slots = useMemo(() => slotsOn(db, date), [db, date, rev]);
   const off = useMemo(() => archivedCohortIds(db), [db]);
   const students = useMemo(() => db.students.filter((s) => !off.has(s.cohortId)), [db.students, off]);
   const enrolled = useMemo(() => {
     const m = new Map<string, Student[]>();
     for (const s of students) for (const sl of slotsForStudent(db, s, date)) m.set(slotKey(sl), [...(m.get(slotKey(sl)) ?? []), s]);
     return m;
-  }, [db, students, date]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db, students, date, rev]);
+
+  /** Change one class on this date only (cancel, move, extra), or undo that change. */
+  async function changeDay(level: LevelKey, subject: SubjectKey, change: Omit<Exception, "date" | "level" | "subject"> | null, done: string) {
+    const cur = getSchedule();
+    const others = cur.exceptions.filter((e) => !(e.date === date && e.level === level && e.subject === subject));
+    try {
+      await storeSchedule({ ...cur, exceptions: change ? [...others, { date, level, subject, ...change }] : others });
+      setRev((n) => n + 1);
+      toast(done, "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Couldn't save. Try again.", "error");
+    }
+  }
 
   const linkFor = (s: DaySlot) => links.find((l) => slotKey(l) === slotKey(s));
   const levels = (["A2", "O", "AS"] as LevelKey[]).filter((l) => slots.some((s) => s.level === l));
@@ -66,7 +87,7 @@ export default function ClassesPage() {
 
   const step = (dir: 1 | -1) => {
     let d = addDays(date, dir);
-    for (let i = 0; i < 7 && !isClassDay(d) && d >= TERM_STARTS; i++) d = addDays(d, dir);
+    for (let i = 0; i < 7 && !isClassDay(d) && d >= getSchedule().termStarts; i++) d = addDays(d, dir);
     setPicked(d);
   };
 
@@ -77,6 +98,24 @@ export default function ClassesPage() {
         subtitle="Each class's Meet link. Students see Join 10 minutes before it starts, and joining marks them present."
       />
 
+      <div className="mb-6 inline-flex rounded-full border border-border bg-surface p-1">
+        {(["day", "week"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            aria-pressed={view === v}
+            className={`h-9 rounded-full px-4 text-sm font-semibold transition-colors ${view === v ? "bg-brand text-on-brand" : "text-ink-2 hover:text-ink"}`}
+          >
+            {v === "day" ? "Day by day" : "Weekly timetable"}
+          </button>
+        ))}
+      </div>
+
+      {view === "week" ? (
+        <TimetableEditor onSaved={() => setRev((n) => n + 1)} />
+      ) : (
+      <>
       <div className="mb-6 flex items-center justify-between gap-3">
         <Button variant="ghost" size="sm" onClick={() => step(-1)} aria-label="Previous class day">
           <Icon.ChevronLeft className="h-4 w-4" />
@@ -106,10 +145,10 @@ export default function ClassesPage() {
 
       {!slots.length && (
         <Card className="p-6 text-center text-sm text-ink-2">
-          {date < TERM_STARTS
-            ? `Classes start on ${new Date(`${TERM_STARTS}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.`
+          {date < getSchedule().termStarts
+            ? `Classes start on ${new Date(`${getSchedule().termStarts}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.`
             : db.classes.length
-              ? "No classes on this day. Classes run Monday to Friday."
+              ? "No classes on this day."
               : "Add the levels and subjects first (Cohorts)."}
         </Card>
       )}
@@ -150,6 +189,20 @@ export default function ClassesPage() {
                   const joined = new Set(joins.filter((j) => slotKey(j) === slotKey(s)).map((j) => j.studentId));
                   const missing = who.filter((w) => !joined.has(w.id));
                   const phase = nowMs < s.startMs ? "later" : nowMs < s.endMs ? "live" : "done";
+                  if (s.cancelled)
+                    return (
+                      <li key={slotKey(s)} className="flex flex-wrap items-center justify-between gap-2 px-5 py-4 opacity-70">
+                        <p className="font-semibold text-ink-3 line-through">
+                          {s.subject} <span className="text-sm font-normal">{timeLabel(s.start)} to {timeLabel(s.end)}</span>
+                        </p>
+                        <span className="flex items-center gap-2">
+                          <Badge tone="warning">Cancelled</Badge>
+                          <button type="button" className="h-9 px-2 text-xs font-semibold text-brand hover:underline" onClick={() => void changeDay(s.level, s.subject, null, "Class is back on.")}>
+                            Restore
+                          </button>
+                        </span>
+                      </li>
+                    );
                   return (
                     <li key={slotKey(s)} className="space-y-3 px-5 py-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -160,6 +213,14 @@ export default function ClassesPage() {
                           </span>
                         </p>
                         <div className="flex items-center gap-2">
+                          {s.changed && <Badge tone="info">Changed for this day</Badge>}
+                          {phase === "later" && (
+                            <DayActions
+                              slot={s}
+                              onCancel={() => void changeDay(s.level, s.subject, { cancelled: true }, `${s.subject} cancelled for this day. Students won't see it.`)}
+                              onMove={(start, end) => void changeDay(s.level, s.subject, { start, end }, `${s.subject} moved to ${timeLabel(start)} for this day.`)}
+                            />
+                          )}
                           {date === today && phase === "live" && <Badge tone="brand">Live now</Badge>}
                           {who.length > 0 && (date < today || (date === today && phase !== "later")) && (
                             <Badge tone={missing.length ? "neutral" : "success"}>
@@ -217,6 +278,10 @@ export default function ClassesPage() {
         })}
       </div>
 
+      {(date >= today || picked === null) && <ExtraClass date={date} onAdd={(level, subject, start, end) => void changeDay(level, subject, { extra: true, start, end }, `Extra ${subject} class added.`)} />}
+      </>
+      )}
+
       {/* Setup sits quietly under the classes: the day's classes come first. */}
       <GoogleConnect onSynced={() => void reload()} />
     </div>
@@ -224,7 +289,7 @@ export default function ClassesPage() {
 }
 
 function nextClassDay(today: string) {
-  let d = today < TERM_STARTS ? TERM_STARTS : today;
+  let d = today < getSchedule().termStarts ? getSchedule().termStarts : today;
   for (let i = 0; i < 7 && !isClassDay(d); i++) d = addDays(d, 1);
   return d;
 }
@@ -321,5 +386,77 @@ function OneLinkForAll({ disabled, onSave }: { disabled?: boolean; onSave: (v: s
         Save
       </Button>
     </form>
+  );
+}
+
+/** "Cancel this day" / "Change time" for one class on one date. */
+function DayActions({ slot, onCancel, onMove }: { slot: DaySlot; onCancel: () => void; onMove: (start: string, end: string) => void }) {
+  const [moving, setMoving] = useState(false);
+  const [start, setStart] = useState(slot.start);
+  const [end, setEnd] = useState(slot.end);
+  const small = "h-9 rounded-full px-3 text-xs font-semibold transition-colors";
+  if (moving)
+    return (
+      <span className="flex flex-wrap items-center gap-1.5">
+        <input type="time" value={start} onChange={(e) => setStart(e.target.value)} className="h-9 rounded-md border border-border-strong bg-surface px-2 text-sm text-ink" aria-label="New start" />
+        <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} className="h-9 rounded-md border border-border-strong bg-surface px-2 text-sm text-ink" aria-label="New end" />
+        <button type="button" disabled={!(start < end)} className={`${small} bg-brand text-on-brand disabled:opacity-50`} onClick={() => { onMove(start, end); setMoving(false); }}>
+          Save
+        </button>
+        <button type="button" className={`${small} text-ink-3 hover:text-ink`} onClick={() => setMoving(false)}>
+          Cancel
+        </button>
+      </span>
+    );
+  return (
+    <span className="flex items-center">
+      <button type="button" className={`${small} text-ink-3 hover:bg-surface-2 hover:text-ink`} onClick={() => setMoving(true)}>
+        Change time
+      </button>
+      <button type="button" className={`${small} text-ink-3 hover:bg-surface-2 hover:text-error`} onClick={onCancel}>
+        Cancel class
+      </button>
+    </span>
+  );
+}
+
+/** One-off class on this date (a make-up or revision class). */
+function ExtraClass({ date, onAdd }: { date: string; onAdd: (level: LevelKey, subject: SubjectKey, start: string, end: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [level, setLevel] = useState<LevelKey>("A2");
+  const [subject, setSubject] = useState<SubjectKey>("Economics");
+  const [start, setStart] = useState("16:00");
+  const [end, setEnd] = useState("16:40");
+  const f = "h-10 rounded-md border border-border-strong bg-surface px-2.5 text-sm text-ink";
+  if (!open)
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="mt-4 inline-flex h-10 items-center gap-1.5 text-sm font-semibold text-brand hover:underline">
+        <Icon.Plus className="h-4 w-4" /> Add an extra class on this day
+      </button>
+    );
+  return (
+    <Card className="mt-4 flex flex-wrap items-center gap-2 p-4">
+      <span className="w-full text-sm font-semibold text-ink">
+        Extra class on {new Date(`${date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
+      </span>
+      <select className={f} value={level} onChange={(e) => setLevel(e.target.value as LevelKey)} aria-label="Level">
+        {(["A2", "O", "AS"] as LevelKey[]).map((l) => (
+          <option key={l} value={l}>{LEVEL_LABEL[l]}</option>
+        ))}
+      </select>
+      <select className={f} value={subject} onChange={(e) => setSubject(e.target.value as SubjectKey)} aria-label="Subject">
+        {(["Economics", "Business", "Accounting"] as SubjectKey[]).map((x) => (
+          <option key={x}>{x}</option>
+        ))}
+      </select>
+      <input type="time" className={f} value={start} onChange={(e) => setStart(e.target.value)} aria-label="Starts" />
+      <input type="time" className={f} value={end} onChange={(e) => setEnd(e.target.value)} aria-label="Ends" />
+      <Button size="sm" disabled={!(start < end)} onClick={() => { onAdd(level, subject, start, end); setOpen(false); }}>
+        Add
+      </Button>
+      <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+        Cancel
+      </Button>
+    </Card>
   );
 }

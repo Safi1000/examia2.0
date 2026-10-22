@@ -12,7 +12,9 @@ import { TopicChip } from "@/components/student/TopicChip";
 import { Icon } from "@/components/ui";
 import { formatRelative, formatWhen, testWindow } from "@/lib/time";
 import { buildStudyPlan, type PlanWeek } from "@/lib/study-plan";
-import { performanceSnapshot, type Snapshot } from "@/lib/performance";
+import { GRADE_FLOOR, performanceSnapshot, sameSubject, type Snapshot } from "@/lib/performance";
+import { StudyBuddy } from "@/components/student/StudyBuddy";
+import type { Profile } from "@/lib/profile";
 import { displayName } from "@/lib/display-name";
 import { cn } from "@/lib/cn";
 
@@ -35,7 +37,7 @@ const PHASE_LABEL: Record<PlanWeek["phase"], string> = {
  * Tests, Tasks and Progress, so nothing here repeats them.
  */
 export default function DashboardPage() {
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const db = useDatabase();
   const nowMs = useNow();
   const student = session?.studentId ? studentById(db, session.studentId) : null;
@@ -117,9 +119,11 @@ export default function DashboardPage() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <PerformanceCard perf={perf} />
+        <PerformanceCard perf={perf} targets={profile.targets} />
         <PlanCard week={week} daysLeft={plan.daysLeft} />
       </div>
+
+      <StudyBuddy db={db} student={student} nowMs={nowMs} />
 
       <div className="animate-fade-up" style={{ animationDelay: "60ms" }}>
         <AnnouncementsPanel student={student} />
@@ -128,7 +132,13 @@ export default function DashboardPage() {
   );
 }
 
-function PerformanceCard({ perf }: { perf: Snapshot | null }) {
+function PerformanceCard({ perf, targets }: { perf: Snapshot | null; targets?: Profile["targets"] }) {
+  // Each subject against the student's own target, when they set one.
+  const vsTarget = (perf?.bySubject ?? []).flatMap((s) => {
+    const key = Object.keys(targets ?? {}).find((k) => sameSubject(k, s.subject));
+    const target = key ? targets![key] : undefined;
+    return target ? [{ ...s, target, gap: Math.max(0, Math.ceil(GRADE_FLOOR[target] - s.recent)) }] : [];
+  });
   return (
     <Link
       href="/progress"
@@ -154,6 +164,20 @@ function PerformanceCard({ perf }: { perf: Snapshot | null }) {
             <p className={cn("mt-3 text-sm font-semibold", perf.delta > 0 ? "text-success" : "text-warning")}>
               {perf.delta > 0 ? "▲" : "▼"} {Math.abs(Math.round(perf.delta))}% vs the tests before
             </p>
+          )}
+          {vsTarget.length > 0 && (
+            <ul className="mt-3 space-y-1.5">
+              {vsTarget.map((s) => (
+                <li key={s.subject} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="truncate text-ink-2">{s.subject}</span>
+                  <span className="shrink-0 tabular-nums">
+                    <span className="font-semibold text-ink">{s.grade}</span>
+                    <span className="text-ink-3"> → {s.target}</span>
+                    {s.gap > 0 ? <span className="text-warning"> +{s.gap}%</span> : <span className="text-success"> ✓</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
           {perf.weakest.length > 0 && (
             <p className="mt-3 text-sm text-ink-2">

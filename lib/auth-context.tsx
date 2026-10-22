@@ -1,5 +1,6 @@
 "use client";
 
+import type { Profile } from "@/lib/profile";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import type { Role, Session } from "@/types";
@@ -26,9 +27,13 @@ interface AuthContextValue {
   /** Current accent theme id; persists per user (server + local cache). */
   themeId: string;
   setTheme: (id: string) => void;
+  /** The student's own settings (avatar, targets, exam session, study stats). */
+  profile: Profile;
+  updateProfile: (patch: Partial<Profile>) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+const DEMO_PROFILE_KEY = "ht_demo_profile";
 
 /** Resolve a Supabase user into the app's session shape (role + studentId). */
 async function resolveSession(user: User): Promise<Session> {
@@ -42,6 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [themeId, setThemeId] = useState<string>(() => loadLastThemeId());
+  const [profile, setProfile] = useState<Profile>({});
   const currentUserId = useRef<string | null>(null);
 
   /**
@@ -61,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(next);
       // Server-stored preference is the source of truth; fall back to this
       // device's last choice, then default. Sync the local cache either way.
+      setProfile(((user.user_metadata as Record<string, unknown>)?.profile as Profile) ?? {});
       const serverTheme = (user.user_metadata as Record<string, unknown>)?.theme as string | undefined;
       const tid = serverTheme || loadThemeId(themeUserKey(next)) || DEFAULT_THEME_ID;
       setThemeId(tid);
@@ -80,6 +87,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setDemoRole(role);
     await getStore().load();
     setSession(role === "admin" ? { role: "admin" } : { role: "student", studentId: DEMO_STUDENT_ID });
+    try {
+      setProfile(JSON.parse(localStorage.getItem(DEMO_PROFILE_KEY) ?? "{}") as Profile);
+    } catch {}
     setInitializing(false);
   }, []);
 
@@ -178,6 +188,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     getStore().reset();
     setSession(null);
     setThemeId(DEFAULT_THEME_ID);
+    setProfile({});
+  }, []);
+
+  /** Save part of the student's profile (state now, account in the background). */
+  const updateProfile = useCallback((patch: Partial<Profile>) => {
+    setProfile((cur) => {
+      const next = { ...cur, ...patch };
+      if (DEMO) {
+        try {
+          localStorage.setItem(DEMO_PROFILE_KEY, JSON.stringify(next));
+        } catch {}
+      } else {
+        void supabase().auth.updateUser({ data: { profile: next } });
+      }
+      return next;
+    });
   }, []);
 
   /** Persist the accent choice for this user: state + local cache + server. */
@@ -200,8 +226,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isRole: (role) => session?.role === role,
       themeId,
       setTheme,
+      profile,
+      updateProfile,
     }),
-    [session, initializing, loginStudent, loginAdmin, logout, themeId, setTheme],
+    [session, initializing, loginStudent, loginAdmin, logout, themeId, setTheme, profile, updateProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
