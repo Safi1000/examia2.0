@@ -9,10 +9,11 @@ import { archivedCohortIds } from "@/lib/data/selectors";
 import { displayName } from "@/lib/display-name";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { GoogleConnect } from "@/components/admin/GoogleConnect";
+import { StartCard } from "@/components/admin/StartCard";
 import { TimetableEditor } from "@/components/admin/TimetableEditor";
 import { storeSchedule } from "@/components/ScheduleGate";
 import type { Exception, SubjectKey } from "@/lib/timetable";
-import { Badge, Button, Card, Icon } from "@/components/ui";
+import { Button, Card, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import {
   LEVEL_LABEL,
@@ -31,8 +32,10 @@ import {
 } from "@/lib/classes";
 
 /**
- * Hamza's class console: paste each class's Meet link (students get a Join
- * button 10 minutes before), see who joined, and add the recording after.
+ * Hamza's class console. "Day" is one simple timeline: the next class with a
+ * Start button, then every class of the day in time order. Everything rarer
+ * (move, cancel, own link, recording) sits behind each row's "More".
+ * "Weekly timetable" edits the regular week.
  */
 export default function ClassesPage() {
   const db = useDatabase();
@@ -46,6 +49,7 @@ export default function ClassesPage() {
   const { links, joins, ready, save, reload } = useClassLinks(date, date, true);
 
   const [view, setView] = useState<"day" | "week">("day");
+  const [openRow, setOpenRow] = useState<string | null>(null);
   // Bumped after a timetable change so the day re-reads it.
   const [rev, setRev] = useState(0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -59,21 +63,10 @@ export default function ClassesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [db, students, date, rev]);
 
-  /** Change one class on this date only (cancel, move, extra), or undo that change. */
-  async function changeDay(level: LevelKey, subject: SubjectKey, change: Omit<Exception, "date" | "level" | "subject"> | null, done: string) {
-    const cur = getSchedule();
-    const others = cur.exceptions.filter((e) => !(e.date === date && e.level === level && e.subject === subject));
-    try {
-      await storeSchedule({ ...cur, exceptions: change ? [...others, { date, level, subject, ...change }] : others });
-      setRev((n) => n + 1);
-      toast(done, "success");
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "Couldn't save. Try again.", "error");
-    }
-  }
-
   const linkFor = (s: DaySlot) => links.find((l) => slotKey(l) === slotKey(s));
-  const levels = (["A2", "O", "AS"] as LevelKey[]).filter((l) => slots.some((s) => s.level === l));
+  const live = slots.filter((s) => !s.cancelled);
+  // The class to start: live now, or the next one today (from 30 min before).
+  const hero = date === today ? live.find((s) => nowMs < s.endMs && s.startMs - nowMs < 3 * 3_600_000) : undefined;
 
   async function store(targets: DaySlot[], field: "meetUrl" | "recordingUrl", value: string) {
     if (value.trim() && !looksLikeLink(value)) {
@@ -85,18 +78,44 @@ export default function ClassesPage() {
     return ok;
   }
 
+  /** Change one class on this date only (cancel, move, extra), or undo that change. */
+  async function changeDay(level: LevelKey, subject: SubjectKey, change: Omit<Exception, "date" | "level" | "subject"> | null, done: string) {
+    const cur = getSchedule();
+    const others = cur.exceptions.filter((e) => !(e.date === date && e.level === level && e.subject === subject));
+    try {
+      await storeSchedule({ ...cur, exceptions: change ? [...others, { date, level, subject, ...change }] : others });
+      setRev((n) => n + 1);
+      setOpenRow(null);
+      toast(done, "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Couldn't save. Try again.", "error");
+    }
+  }
+
+  // After a level's last class: students in it who joined none of its classes
+  // and have no mark yet. One tap marks them absent.
+  const noShows = (["A2", "O", "AS"] as LevelKey[]).flatMap((level) => {
+    const block = live.filter((s) => s.level === level);
+    if (!block.length || nowMs < block[block.length - 1].endMs) return [];
+    const joined = new Set(joins.filter((j) => j.classId === block[0].classId).map((j) => j.studentId));
+    if (!joined.size) return [];
+    const who = [...new Set(block.flatMap((s) => enrolled.get(slotKey(s)) ?? []))].filter(
+      (st) => !joined.has(st.id) && !db.attendanceDays.some((a) => a.studentId === st.id && a.date === date),
+    );
+    return who.length ? [{ level, classId: block[0].classId, who }] : [];
+  });
+
   const step = (dir: 1 | -1) => {
     let d = addDays(date, dir);
     for (let i = 0; i < 7 && !isClassDay(d) && d >= getSchedule().termStarts; i++) d = addDays(d, dir);
     setPicked(d);
+    setOpenRow(null);
   };
+  const dayName = new Date(`${date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-      <PageHeader
-        title="Classes"
-        subtitle="Each class's Meet link. Students see Join 10 minutes before it starts, and joining marks them present."
-      />
+    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+      <PageHeader title="Classes" />
 
       <div className="mb-6 inline-flex rounded-full border border-border bg-surface p-1">
         {(["day", "week"] as const).map((v) => (
@@ -107,7 +126,7 @@ export default function ClassesPage() {
             aria-pressed={view === v}
             className={`h-9 rounded-full px-4 text-sm font-semibold transition-colors ${view === v ? "bg-brand text-on-brand" : "text-ink-2 hover:text-ink"}`}
           >
-            {v === "day" ? "Day by day" : "Weekly timetable"}
+            {v === "day" ? "Day" : "Weekly timetable"}
           </button>
         ))}
       </div>
@@ -115,171 +134,151 @@ export default function ClassesPage() {
       {view === "week" ? (
         <TimetableEditor onSaved={() => setRev((n) => n + 1)} />
       ) : (
-      <>
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <Button variant="ghost" size="sm" onClick={() => step(-1)} aria-label="Previous class day">
-          <Icon.ChevronLeft className="h-4 w-4" />
-        </Button>
-        <div className="text-center">
-          <p className="text-base font-semibold text-ink">
-            {new Date(`${date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
-          </p>
-          {date !== today ? (
-            <button type="button" onClick={() => setPicked(today)} className="text-xs font-semibold text-brand hover:underline">
-              Back to today
-            </button>
+        <>
+          {hero && <StartCard slot={hero} url={linkFor(hero)?.meetUrl ?? null} nowMs={nowMs} />}
+
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <Button variant="ghost" size="sm" onClick={() => step(-1)} aria-label="Previous class day">
+              <Icon.ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="text-center">
+              <p className="text-base font-semibold text-ink">{dayName}</p>
+              {date !== today ? (
+                <button type="button" onClick={() => setPicked(today)} className="text-xs font-semibold text-brand hover:underline">
+                  Back to today
+                </button>
+              ) : (
+                <p className="text-xs text-ink-3">Today</p>
+              )}
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => step(1)} aria-label="Next class day">
+              <Icon.ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {!slots.length ? (
+            <Card className="p-6 text-center text-sm text-ink-2">
+              {date < getSchedule().termStarts
+                ? `Classes start on ${new Date(`${getSchedule().termStarts}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.`
+                : "No classes on this day."}
+            </Card>
           ) : (
-            <p className="text-xs text-ink-3">Today</p>
-          )}
-        </div>
-        <Button variant="ghost" size="sm" onClick={() => step(1)} aria-label="Next class day">
-          <Icon.ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {ready === false && (
-        <Card className="mb-6 p-5 text-sm text-ink-2">
-          Classes switch on after your developer applies the database update (hand-off, section 1). Until then links can&apos;t be saved.
-        </Card>
-      )}
-
-      {!slots.length && (
-        <Card className="p-6 text-center text-sm text-ink-2">
-          {date < getSchedule().termStarts
-            ? `Classes start on ${new Date(`${getSchedule().termStarts}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.`
-            : db.classes.length
-              ? "No classes on this day."
-              : "Add the levels and subjects first (Cohorts)."}
-        </Card>
-      )}
-
-      <div className="space-y-6">
-        {levels.map((level) => {
-          const block = slots.filter((s) => s.level === level);
-          // After the block ends: everyone in this level who joined none of its
-          // classes and has no mark yet. One tap marks them absent.
-          const levelStudents = [...new Set(block.flatMap((s) => enrolled.get(slotKey(s)) ?? []))];
-          const joinedLevel = new Set(joins.filter((j) => j.classId === block[0].classId).map((j) => j.studentId));
-          const noShows =
-            nowMs >= block[block.length - 1].endMs && joinedLevel.size > 0
-              ? levelStudents.filter(
-                  (st) =>
-                    !joinedLevel.has(st.id) &&
-                    !db.attendanceDays.some((a) => a.studentId === st.id && a.date === date),
-                )
-              : [];
-          return (
-            <Card key={level} className="overflow-hidden">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-3">Level</p>
-                  <h2 className="text-lg font-bold text-ink">
-                    {LEVEL_LABEL[level]}{" "}
-                    <span className="text-sm font-medium text-ink-3">
-                      {timeLabel(block[0].start)} to {timeLabel(block[block.length - 1].end)} PM
-                    </span>
-                  </h2>
-                </div>
-                <OneLinkForAll disabled={ready === false} onSave={(v) => store(block, "meetUrl", v)} />
-              </div>
+            <Card className="overflow-hidden p-0">
               <ul className="divide-y divide-border">
-                {block.map((s) => {
+                {slots.map((s) => {
+                  const key = slotKey(s);
                   const link = linkFor(s);
-                  const who = enrolled.get(slotKey(s)) ?? [];
-                  const joined = new Set(joins.filter((j) => slotKey(j) === slotKey(s)).map((j) => j.studentId));
-                  const missing = who.filter((w) => !joined.has(w.id));
+                  const who = enrolled.get(key) ?? [];
+                  const joined = joins.filter((j) => slotKey(j) === key).length;
                   const phase = nowMs < s.startMs ? "later" : nowMs < s.endMs ? "live" : "done";
-                  if (s.cancelled)
-                    return (
-                      <li key={slotKey(s)} className="flex flex-wrap items-center justify-between gap-2 px-5 py-4 opacity-70">
-                        <p className="font-semibold text-ink-3 line-through">
-                          {s.subject} <span className="text-sm font-normal">{timeLabel(s.start)} to {timeLabel(s.end)}</span>
-                        </p>
-                        <span className="flex items-center gap-2">
-                          <Badge tone="warning">Cancelled</Badge>
-                          <button type="button" className="h-9 px-2 text-xs font-semibold text-brand hover:underline" onClick={() => void changeDay(s.level, s.subject, null, "Class is back on.")}>
-                            Restore
-                          </button>
-                        </span>
-                      </li>
-                    );
+                  const isOpen = openRow === key;
                   return (
-                    <li key={slotKey(s)} className="space-y-3 px-5 py-4">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="font-semibold text-ink">
-                          {s.subject}{" "}
-                          <span className="text-sm font-normal text-ink-3">
-                            {timeLabel(s.start)} to {timeLabel(s.end)}
+                    <li key={key} className={cn(s.cancelled && "opacity-60")}>
+                      <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                        <span className="w-14 shrink-0 text-sm font-semibold tabular-nums text-ink">{timeLabel(s.start)}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className={cn("block truncate font-semibold text-ink", s.cancelled && "line-through")}>
+                            {s.subject} <span className="font-normal text-ink-3">· {LEVEL_LABEL[s.level]}</span>
                           </span>
-                        </p>
-                        <div className="flex items-center gap-2">
-                          {s.changed && <Badge tone="info">Changed for this day</Badge>}
-                          {phase === "later" && (
-                            <DayActions
-                              slot={s}
-                              onCancel={() => void changeDay(s.level, s.subject, { cancelled: true }, `${s.subject} cancelled for this day. Students won't see it.`)}
-                              onMove={(start, end) => void changeDay(s.level, s.subject, { start, end }, `${s.subject} moved to ${timeLabel(start)} for this day.`)}
-                            />
-                          )}
-                          {date === today && phase === "live" && <Badge tone="brand">Live now</Badge>}
-                          {who.length > 0 && (date < today || (date === today && phase !== "later")) && (
-                            <Badge tone={missing.length ? "neutral" : "success"}>
-                              {joined.size} of {who.length} joined
-                            </Badge>
+                          <span className="block text-xs text-ink-3">
+                            {s.cancelled
+                              ? "Cancelled for this day"
+                              : phase === "live" && date === today
+                                ? `Live now · ${joined} of ${who.length} joined`
+                                : phase === "done" || date < today
+                                  ? `${joined} of ${who.length} joined${link?.recordingUrl ? " · recording ready" : ""}`
+                                  : `${timeLabel(s.start)} to ${timeLabel(s.end)}${s.changed ? " · changed for this day" : ""}${link?.meetUrl ? " · link ready" : ""}`}
+                          </span>
+                        </span>
+                        {phase === "live" && date === today && !s.cancelled && link?.meetUrl && (
+                          <a href={link.meetUrl} target="_blank" rel="noreferrer" className="hidden h-9 items-center rounded-full bg-brand px-4 text-xs font-semibold text-on-brand sm:inline-flex">
+                            Open
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setOpenRow(isOpen ? null : key)}
+                          aria-expanded={isOpen}
+                          className="h-9 shrink-0 rounded-full px-3 text-xs font-semibold text-ink-3 hover:bg-surface-2 hover:text-ink"
+                        >
+                          {isOpen ? "Close" : "More"}
+                        </button>
+                      </div>
+                      {isOpen && (
+                        <div className="space-y-3 border-t border-border bg-surface-2/40 px-4 py-4 sm:px-5">
+                          {s.cancelled ? (
+                            <Button size="sm" variant="secondary" onClick={() => void changeDay(s.level, s.subject, null, "Class is back on.")}>
+                              Put this class back on
+                            </Button>
+                          ) : (
+                            <>
+                              {phase === "later" && (
+                                <DayActions
+                                  slot={s}
+                                  onCancel={() => void changeDay(s.level, s.subject, { cancelled: true }, `${s.subject} cancelled for this day. Students won't see it.`)}
+                                  onMove={(start, end) => void changeDay(s.level, s.subject, { start, end }, `${s.subject} moved to ${timeLabel(start)} for this day.`)}
+                                />
+                              )}
+                              <LinkField
+                                key={`m-${key}-${link?.meetUrl ?? ""}`}
+                                label="Meet link"
+                                placeholder="Made automatically, or paste your own"
+                                initial={link?.meetUrl ?? ""}
+                                disabled={ready === false}
+                                onSave={(v) => store([s], "meetUrl", v)}
+                              />
+                              {(phase === "done" || date < today) && (
+                                <LinkField
+                                  key={`r-${key}-${link?.recordingUrl ?? ""}`}
+                                  label="Recording"
+                                  placeholder="Added automatically, or paste a Drive link"
+                                  initial={link?.recordingUrl ?? ""}
+                                  disabled={ready === false}
+                                  onSave={(v) => store([s], "recordingUrl", v)}
+                                />
+                              )}
+                              {phase !== "later" && who.length > joined && joined > 0 && (
+                                <p className="text-xs text-ink-3">
+                                  Not joined:{" "}
+                                  {who
+                                    .filter((w) => !joins.some((j) => slotKey(j) === key && j.studentId === w.id))
+                                    .map((m) => displayName(m.username))
+                                    .join(", ")}
+                                </p>
+                              )}
+                            </>
                           )}
                         </div>
-                      </div>
-                      <LinkField
-                        key={`m-${slotKey(s)}-${link?.meetUrl ?? ""}`}
-                        label="Meet link"
-                        placeholder="Paste the Meet link"
-                        initial={link?.meetUrl ?? ""}
-                        disabled={ready === false}
-                        onSave={(v) => store([s], "meetUrl", v)}
-                      />
-                      {(phase === "done" || date < today) && (
-                        <LinkField
-                          key={`r-${slotKey(s)}-${link?.recordingUrl ?? ""}`}
-                          label="Recording"
-                          placeholder="Paste the recording link (Drive)"
-                          initial={link?.recordingUrl ?? ""}
-                          disabled={ready === false}
-                          onSave={(v) => store([s], "recordingUrl", v)}
-                        />
-                      )}
-                      {phase !== "later" && missing.length > 0 && joined.size > 0 && (
-                        <p className="text-xs text-ink-3">
-                          Not joined: {missing.map((m) => displayName(m.username)).join(", ")}
-                        </p>
                       )}
                     </li>
                   );
                 })}
               </ul>
-              {noShows.length > 0 && (
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface-2/40 px-5 py-3">
-                  <p className="text-sm text-ink-2">
-                    {noShows.length === 1 ? "1 student" : `${noShows.length} students`} didn&apos;t join any class today.
-                  </p>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      for (const st of noShows) portal.setAttendance(st.id, block[0].classId, date, "absent");
-                      toast(`Marked ${noShows.length} absent. Change any in Attendance.`, "success");
-                    }}
-                  >
-                    Mark them absent
-                  </Button>
-                </div>
-              )}
             </Card>
-          );
-        })}
-      </div>
+          )}
 
-      {(date >= today || picked === null) && <ExtraClass date={date} onAdd={(level, subject, start, end) => void changeDay(level, subject, { extra: true, start, end }, `Extra ${subject} class added.`)} />}
-      </>
+          {noShows.map((n) => (
+            <div key={n.level} className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface px-5 py-3">
+              <p className="text-sm text-ink-2">
+                {LEVEL_LABEL[n.level]}: {n.who.length === 1 ? "1 student" : `${n.who.length} students`} didn&apos;t join any class today.
+              </p>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  for (const st of n.who) portal.setAttendance(st.id, n.classId, date, "absent");
+                  toast(`Marked ${n.who.length} absent. Change any in Attendance.`, "success");
+                }}
+              >
+                Mark them absent
+              </Button>
+            </div>
+          ))}
+
+          {date >= today && (
+            <ExtraClass date={date} onAdd={(level, subject, start, end) => void changeDay(level, subject, { extra: true, start, end }, `Extra ${subject} class added.`)} />
+          )}
+        </>
       )}
 
       {/* Setup sits quietly under the classes: the day's classes come first. */}
@@ -350,42 +349,6 @@ function LinkField({
         </a>
       )}
     </div>
-  );
-}
-
-/** One Meet link for the whole level block (saves pasting three times). */
-function OneLinkForAll({ disabled, onSave }: { disabled?: boolean; onSave: (v: string) => Promise<boolean> }) {
-  const [open, setOpen] = useState(false);
-  const [value, setValue] = useState("");
-  if (!open)
-    return (
-      <Button variant="secondary" size="sm" disabled={disabled} onClick={() => setOpen(true)}>
-        One link for all three
-      </Button>
-    );
-  return (
-    <form
-      className="flex w-full items-center gap-2 sm:w-auto"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        if (await onSave(value)) {
-          setOpen(false);
-          setValue("");
-        }
-      }}
-    >
-      <input
-        autoFocus
-        type="url"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="Paste the Meet link"
-        className="h-10 min-w-0 flex-1 rounded-md border border-border-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 sm:w-64"
-      />
-      <Button size="sm" type="submit" disabled={!value.trim()}>
-        Save
-      </Button>
-    </form>
   );
 }
 

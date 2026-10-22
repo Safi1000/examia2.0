@@ -8,6 +8,9 @@ import { AVATARS, TARGETS, WEEKLY_GOALS, type Target } from "@/lib/profile";
 import { Avatar } from "@/components/student/Avatar";
 import { displayName } from "@/lib/display-name";
 import { cn } from "@/lib/cn";
+import { NavIcon } from "@/components/nav/NavIcons";
+import { NotificationSettings } from "@/components/student/NotificationSettings";
+import { addDays, pkDate, slotsForStudent, timeLabel } from "@/lib/timetable";
 
 /** The subjects a student takes: their own, else their cohort's, else all. */
 export function studentSubjects(db: Database, student: Student): string[] {
@@ -34,10 +37,40 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
   const first = displayName(student.username).split(" ")[0];
 
   const finish = () => updateProfile({ avatar, targets, weeklyGoal: goal, onboarded: true });
+  // For the summary: their classes on the next class day.
+  const nextDay = (() => {
+    let d = pkDate(Date.now());
+    for (let i = 0; i < 21; i++, d = addDays(d, 1)) {
+      const sl = slotsForStudent(db, student, d);
+      if (sl.length) return sl;
+    }
+    return [];
+  })();
   const steps = [
     {
       title: `Welcome, ${first}.`,
-      sub: "Three quick things and your portal is yours. Pick your face first.",
+      sub: "This is where everything for your classes lives. Here's how it works, in 20 seconds.",
+      body: (
+        <ul className="space-y-3">
+          {[
+            { icon: <NavIcon.Classes active className="h-6 w-6" />, t: "Join class from Home", d: "A gold Join button appears 10 minutes before each class. Joining marks you present." },
+            { icon: <NavIcon.Tests active className="h-6 w-6" />, t: "One list of what's due", d: "Tests and assignments show on Home with their deadlines. Results come back here too." },
+            { icon: <NavIcon.Progress active className="h-6 w-6" />, t: "See where you stand", d: "Your grade, your weak topics and this week's plan, updated after every test." },
+          ].map((x) => (
+            <li key={x.t} className="flex gap-4 rounded-2xl border border-border bg-surface p-4">
+              <span className="mt-0.5 shrink-0">{x.icon}</span>
+              <span>
+                <span className="block font-semibold text-ink">{x.t}</span>
+                <span className="mt-0.5 block text-sm text-ink-2">{x.d}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      ),
+    },
+    {
+      title: "Pick your face.",
+      sub: "It shows at the top of your portal.",
       body: (
         <div className="grid grid-cols-4 gap-3">
           {AVATARS.map((a) => (
@@ -109,6 +142,46 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
         </div>
       ),
     },
+    {
+      title: "Stay on top of things.",
+      sub: "Get a quiet heads-up on your phone: results, a test opening, work due tomorrow. Never at night, at most 3 a day.",
+      body: (
+        <div className="-mt-5">
+          <NotificationSettings studentId={student.id} />
+          <p className="mt-4 text-sm text-ink-3">
+            Tip: add the portal to your home screen so it opens like an app. On iPhone tap Share, then &quot;Add to Home Screen&quot;. On Android tap the
+            menu, then &quot;Add to Home screen&quot;.
+          </p>
+        </div>
+      ),
+    },
+    {
+      title: "You're set.",
+      sub: "Here's your portal, made for you.",
+      body: (
+        <div className="space-y-3">
+          <div className="flex items-center gap-4 rounded-2xl border border-border bg-surface p-4">
+            <Avatar id={avatar} className="h-14 w-14" />
+            <div>
+              <p className="font-semibold text-ink">{displayName(student.username)}</p>
+              <p className="text-sm text-ink-2">{goal} hours of study a week</p>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border bg-surface p-4 text-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-3">Aiming for</p>
+            <p className="mt-1.5 text-ink">{subjects.map((sub) => `${targets[sub] ?? "A"} in ${sub}`).join(" · ")}</p>
+          </div>
+          {nextDay.length > 0 && (
+            <div className="rounded-2xl border border-border bg-surface p-4 text-sm">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-3">Your classes</p>
+              <p className="mt-1.5 text-ink">
+                {nextDay.map((sl) => sl.subject).join(", ")}, from {timeLabel(nextDay[0].start)} to {timeLabel(nextDay[nextDay.length - 1].end)} PM
+              </p>
+            </div>
+          )}
+        </div>
+      ),
+    },
   ];
   const s = steps[step];
   const last = step === steps.length - 1;
@@ -146,7 +219,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
             onClick={() => (last ? finish() : setStep(step + 1))}
             className="h-12 flex-1 rounded-full bg-brand text-base font-semibold text-on-brand transition hover:brightness-110"
           >
-            {last ? "Open my portal" : "Next"}
+            {last ? "Open my portal" : step === 0 ? "Let's set it up" : "Next"}
           </button>
         </div>
         <p className="mt-4 text-center text-xs text-ink-3">You can change any of this later in Settings.</p>

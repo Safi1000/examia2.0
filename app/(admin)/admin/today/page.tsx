@@ -12,6 +12,8 @@ import { absenceStreak, cohortById, eligibleStudents, testById, archivedCohortId
 import { GRADE_ORDER, gradeSubmission, type GradeLetter } from "@/lib/grading";
 import { performanceSnapshot, sameSubject } from "@/lib/performance";
 import { useStudentProfiles } from "@/lib/student-profiles";
+import { StartCard } from "@/components/admin/StartCard";
+import { liveSlotsOn, pkDate, slotKey, useClassLinks } from "@/lib/classes";
 import { formatRelative } from "@/lib/time";
 import { createRetest, retestQuestions, weakTopics } from "@/lib/retest";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -42,6 +44,9 @@ export default function TodayPage() {
   const { cohortId } = useAdminFilter();
   const nowMs = useNow();
   const profiles = useStudentProfiles();
+  const todayPk = pkDate(nowMs);
+  const { links: classLinks } = useClassLinks(todayPk, todayPk);
+  const heroClass = liveSlotsOn(db, todayPk).find((s) => nowMs < s.endMs && s.startMs - nowMs < 3 * 3_600_000);
   const [checked, setChecked] = useState<Record<string, number>>(() => {
     try {
       return typeof window === "undefined" ? {} : (JSON.parse(localStorage.getItem("ht_checked") ?? "{}") as Record<string, number>);
@@ -167,6 +172,9 @@ export default function TodayPage() {
           ) : undefined
         }
       />
+
+      {/* The class to start, from 3 hours before until it ends. */}
+      {heroClass && <StartCard slot={heroClass} url={classLinks.find((l) => slotKey(l) === slotKey(heroClass))?.meetUrl ?? null} nowMs={nowMs} />}
 
       {/* At a glance */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

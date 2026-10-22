@@ -118,7 +118,8 @@ export async function createClassEvent(token: string, title: string, startIso: s
       summary: title,
       start: { dateTime: startIso, timeZone: "Asia/Karachi" },
       end: { dateTime: endIso, timeZone: "Asia/Karachi" },
-      reminders: { useDefault: false, overrides: [] },
+      // A phone alert from Google Calendar 10 minutes before each class.
+      reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 10 }] },
       conferenceData: { createRequest: { requestId: randomUUID(), conferenceSolutionKey: { type: "hangoutsMeet" } } },
     }),
   });
