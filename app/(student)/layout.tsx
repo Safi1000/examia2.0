@@ -78,11 +78,11 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const links = [
     // `short` is the phone dock label, where six items share 375px.
     { href: "/dashboard", label: "Home", short: "Home", Icon: NavIcon.Home },
+    { href: "/classes", label: "Classes", short: "Classes", Icon: NavIcon.Classes },
     { href: "/plan", label: "Plan", short: "Plan", Icon: NavIcon.Plan },
     { href: "/progress", label: "Progress", short: "Progress", Icon: NavIcon.Progress },
     { href: "/assignments", label: "Assignments", short: "Tasks", Icon: NavIcon.Tasks },
     { href: "/notes", label: "Notes", short: "Notes", Icon: NavIcon.Notes },
-    { href: "/settings", label: "Settings", short: "Settings", Icon: NavIcon.Settings },
   ];
   const name = displayName(student.username);
   const signOut = () => { logout(); router.replace("/login"); };
@@ -206,6 +206,15 @@ function AccountMenu({
             {cohort && <CohortTag color={cohort.color} name={cohort.name} className="mt-1 text-xs" />}
           </div>
           <div className="h-px bg-white/[0.06]" />
+          <Link
+            role="menuitem"
+            href="/settings"
+            onClick={() => setOpen(false)}
+            className="mt-1 flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink"
+          >
+            <NavIcon.Settings className="h-[18px] w-[18px]" />
+            Settings
+          </Link>
           <button
             role="menuitem"
             onClick={onSignOut}

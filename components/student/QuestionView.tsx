@@ -1,5 +1,6 @@
 "use client";
 
+import { trackUpload } from "@/lib/upload-tracker";
 import { useRef, useState } from "react";
 import type { Answer, Question } from "@/types";
 import { RadioCard, Textarea, Pill, Badge, Icon } from "@/components/ui";
@@ -121,6 +122,7 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
 
     setUploading(true);
     setProgress(0);
+    const finished = trackUpload();
     try {
       // Upload in parallel, but keep the order the student picked them in.
       // Progress is the average across all files, so the bar moves smoothly.
@@ -147,6 +149,7 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
     } catch (err) {
       toast(err instanceof Error ? err.message : "Photo upload failed. Try again.", "error");
     } finally {
+      finished();
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
     }

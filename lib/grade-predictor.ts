@@ -2,10 +2,10 @@
  * Pure logic for the free grade predictor (/tools/grade-predictor), built on
  * Cambridge's official grade thresholds in lib/grade-thresholds.ts.
  *
- * - Marks from a June 2026 or June 2025 paper with a known variant are graded
- *   against that exact paper's published thresholds.
+ * - Marks from a June 2026, November 2025, June 2025 or June 2024 paper with
+ *   a known variant are graded against that exact paper's published thresholds.
  * - Any other paper (a school mock, an older past paper) is graded against
- *   every June 2026 and June 2025 variant, and the result says the most common
+ *   every one of those sessions' variants, and the result says the most common
  *   grade and the range.
  */
 import {
@@ -132,7 +132,7 @@ export function predict(
     next: nextGrade(s, ref, total),
     range: { high: sorted[0], low: sorted[sorted.length - 1] },
     source: s.sessions["June 2026"].source,
-    label: "June 2026 and June 2025 papers",
+    label: "the last four exam sessions",
   };
 }
 
@@ -174,7 +174,8 @@ export function outlook(s: SyllabusThresholds, grade: string, total: number): Bo
   const all = bySession.flat();
   if (!all.length) return null;
   const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN);
-  const trend = Math.round(avg(bySession[0]) - avg(bySession[1]));
+  // Like for like: this June against last June.
+  const trend = Math.round(avg(bySession[SESSIONS.indexOf("June 2026")]) - avg(bySession[SESSIONS.indexOf("June 2025")]));
   const safe = Math.max(...all);
   const paper = s.papers.indexOf(Math.max(...s.papers));
   const gap = Math.max(0, safe - total);
@@ -210,4 +211,36 @@ export function roast(grade: string): string {
     default:
       return "Bold strategy. Let's not take it into the real exam.";
   }
+}
+
+export interface Need {
+  grade: string;
+  /** Weighted total that cleared this grade on every recent paper. */
+  safe: number;
+  percent: number;
+  /** The same share of each paper, in raw marks. */
+  perPaper: number[];
+}
+
+/**
+ * "What do I need for an A*?": the highest recent minimum for the grade (so
+ * it was enough on every paper in the last four sessions), spread evenly
+ * across the papers.
+ */
+export function marksNeeded(s: SyllabusThresholds, grade: string): Need | null {
+  const mins = SESSIONS.flatMap((sess) =>
+    Object.values(s.sessions[sess]?.variants ?? {})
+      .map((v) => v.thresholds[grade])
+      .filter((n): n is number => typeof n === "number"),
+  );
+  if (!mins.length) return null;
+  const safe = Math.max(...mins);
+  const share = safe / s.max;
+  return { grade, safe, percent: Math.ceil(share * 100), perPaper: s.papers.map((p) => Math.min(p, Math.ceil(share * p))) };
+}
+
+/** Grades a student would aim for at this level, top first (A* to C, or a to c at AS). */
+export function targetGrades(s: SyllabusThresholds): string[] {
+  const first = Object.values(s.sessions[SESSIONS[0]]?.variants ?? {})[0];
+  return Object.keys(first?.thresholds ?? {}).slice(0, s.qualification === "AS Level" ? 3 : 4);
 }

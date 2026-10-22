@@ -12,6 +12,7 @@ import { useDraftAutosave, loadDraft, clearDraft } from "@/hooks/useDraftAutosav
 import { useToast } from "@/components/toast";
 import { CountdownTimer } from "@/components/student/CountdownTimer";
 import { QuestionView } from "@/components/student/QuestionView";
+import { useUploadsInProgress } from "@/lib/upload-tracker";
 import { Button, Modal, Pill, Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 import { formatCountdown, testWindow } from "@/lib/time";
@@ -242,6 +243,9 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   }, [test, writeEndMs, hasPhotoQuestion]);
 
   const [uploading, setUploading] = useState(false);
+  // Answer photos still on their way up, and when time ran out while they were.
+  const photosBusy = useUploadsInProgress();
+  const [finishingAt, setFinishingAt] = useState<number | null>(null);
   // The one-tap "Pens down" moment between writing and uploading.
   const [pensDown, setPensDown] = useState(false);
   const endMs = uploading ? uploadEndMs : writeEndMs;
@@ -292,8 +296,21 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
       } catch {}
       return;
     }
+    // Photos still uploading: let them land first (up to 60 s, well inside
+    // the server's 2-minute grace), then hand in with them.
+    if (photosBusy > 0) {
+      setFinishingAt(Date.now());
+      return;
+    }
     void doSubmit(true);
-  }, [uploading, uploadEndMs, doSubmit]);
+  }, [uploading, uploadEndMs, doSubmit, photosBusy]);
+
+  useEffect(() => {
+    if (finishingAt == null) return;
+    const wait = photosBusy === 0 ? 0 : Math.max(0, finishingAt + 60_000 - Date.now());
+    const t = setTimeout(() => void doSubmit(true), wait);
+    return () => clearTimeout(t);
+  }, [finishingAt, photosBusy, doSubmit]);
 
   const { remaining, state } = useCountdown(endMs, onExpire);
 
@@ -402,6 +419,14 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
           </p>
         )}
       </header>
+
+      {finishingAt != null && photosBusy > 0 && (
+        <div role="status" className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-paper/95 px-6 text-center backdrop-blur">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-brand">Time&apos;s up</p>
+          <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-ink">Saving your last photos…</h2>
+          <p className="mt-3 max-w-xs text-[15px] text-ink-2">Keep this screen open. Your paper is handed in as soon as they finish.</p>
+        </div>
+      )}
 
       {pensDown && (
         <div role="alertdialog" aria-modal="true" aria-labelledby="pens-down" className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-paper/95 px-6 text-center backdrop-blur">

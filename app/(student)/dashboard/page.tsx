@@ -141,14 +141,6 @@ export default function DashboardPage() {
       )}
 
       <Link
-        href="/classes"
-        className={buttonClasses({ variant: "secondary", fullWidth: true, className: "justify-between" })}
-      >
-        <span className="inline-flex items-center gap-2"><Icon.Clock className="h-[18px] w-[18px]" /> Timetable and recordings</span>
-        <Icon.ChevronRight className="h-[18px] w-[18px]" />
-      </Link>
-
-      <Link
         href="/progress"
         className={buttonClasses({ variant: "secondary", fullWidth: true, className: "justify-between" })}
       >

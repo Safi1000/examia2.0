@@ -1,6 +1,7 @@
 /**
  * Official Cambridge International grade thresholds (minimum marks for each
- * grade), June 2026 and June 2025, for the grade predictor.
+ * grade), June 2026, November 2025, June 2025 and June 2024, for the grade
+ * predictor.
  *
  * Generated from the published grade threshold tables (each session's
  * `source` is the PDF it came from). Do not edit numbers by hand: when the
@@ -36,7 +37,7 @@ export interface SyllabusThresholds {
   sessions: Record<string, { source: string; variants: Record<string, ThresholdSet> }>;
 }
 
-export const SESSIONS = ["June 2026", "June 2025"] as const;
+export const SESSIONS = ["June 2026", "November 2025", "June 2025", "June 2024"] as const;
 
 export const THRESHOLDS: SyllabusThresholds[] = [
   {
@@ -88,6 +89,37 @@ export const THRESHOLDS: SyllabusThresholds[] = [
           }
         }
       },
+      "November 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/750654-accounting-0452-november-2025-grade-threshold-table.pdf",
+        "variants": {
+          "2": {
+            "max": 143,
+            "thresholds": {
+              "A*": 107,
+              "A": 87,
+              "B": 67,
+              "C": 48,
+              "D": 40,
+              "E": 32,
+              "F": 25,
+              "G": 18
+            }
+          },
+          "3": {
+            "max": 143,
+            "thresholds": {
+              "A*": 109,
+              "A": 88,
+              "B": 67,
+              "C": 47,
+              "D": 39,
+              "E": 32,
+              "F": 24,
+              "G": 16
+            }
+          }
+        }
+      },
       "June 2025": {
         "source": "https://www.cambridgeinternational.org/Images/741347-accounting-0452-june-2025-grade-threshold-table.pdf",
         "variants": {
@@ -123,6 +155,50 @@ export const THRESHOLDS: SyllabusThresholds[] = [
               "A*": 99,
               "A": 79,
               "B": 59,
+              "C": 40,
+              "D": 34,
+              "E": 29,
+              "F": 23,
+              "G": 17
+            }
+          }
+        }
+      },
+      "June 2024": {
+        "source": "https://www.cambridgeinternational.org/Images/716094-accounting-0452-june-2024-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 143,
+            "thresholds": {
+              "A*": 93,
+              "A": 74,
+              "B": 55,
+              "C": 37,
+              "D": 31,
+              "E": 26,
+              "F": 21,
+              "G": 16
+            }
+          },
+          "2": {
+            "max": 143,
+            "thresholds": {
+              "A*": 109,
+              "A": 86,
+              "B": 63,
+              "C": 40,
+              "D": 34,
+              "E": 29,
+              "F": 23,
+              "G": 17
+            }
+          },
+          "3": {
+            "max": 143,
+            "thresholds": {
+              "A*": 109,
+              "A": 86,
+              "B": 63,
               "C": 40,
               "D": 34,
               "E": 29,
@@ -192,6 +268,50 @@ export const THRESHOLDS: SyllabusThresholds[] = [
           }
         }
       },
+      "November 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/750666-business-studies-0450-november-2025-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 160,
+            "thresholds": {
+              "A*": 99,
+              "A": 81,
+              "B": 63,
+              "C": 46,
+              "D": 38,
+              "E": 31,
+              "F": 24,
+              "G": 17
+            }
+          },
+          "2": {
+            "max": 160,
+            "thresholds": {
+              "A*": 105,
+              "A": 87,
+              "B": 69,
+              "C": 52,
+              "D": 42,
+              "E": 33,
+              "F": 25,
+              "G": 17
+            }
+          },
+          "3": {
+            "max": 160,
+            "thresholds": {
+              "A*": 106,
+              "A": 87,
+              "B": 68,
+              "C": 49,
+              "D": 40,
+              "E": 32,
+              "F": 24,
+              "G": 16
+            }
+          }
+        }
+      },
       "June 2025": {
         "source": "https://www.cambridgeinternational.org/Images/741357-business-studies-0450-june-2025-grade-threshold-table.pdf",
         "variants": {
@@ -231,6 +351,50 @@ export const THRESHOLDS: SyllabusThresholds[] = [
               "D": 45,
               "E": 37,
               "F": 28,
+              "G": 19
+            }
+          }
+        }
+      },
+      "June 2024": {
+        "source": "https://www.cambridgeinternational.org/Images/716093-business-studies-0450-june-2024-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 160,
+            "thresholds": {
+              "A*": 91,
+              "A": 75,
+              "B": 59,
+              "C": 44,
+              "D": 37,
+              "E": 30,
+              "F": 24,
+              "G": 18
+            }
+          },
+          "2": {
+            "max": 160,
+            "thresholds": {
+              "A*": 105,
+              "A": 87,
+              "B": 69,
+              "C": 52,
+              "D": 43,
+              "E": 34,
+              "F": 26,
+              "G": 18
+            }
+          },
+          "3": {
+            "max": 160,
+            "thresholds": {
+              "A*": 93,
+              "A": 77,
+              "B": 61,
+              "C": 45,
+              "D": 38,
+              "E": 31,
+              "F": 25,
               "G": 19
             }
           }
@@ -296,6 +460,50 @@ export const THRESHOLDS: SyllabusThresholds[] = [
           }
         }
       },
+      "November 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/750676-economics-0455-november-2025-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 150,
+            "thresholds": {
+              "A*": 126,
+              "A": 108,
+              "B": 90,
+              "C": 72,
+              "D": 59,
+              "E": 47,
+              "F": 36,
+              "G": 25
+            }
+          },
+          "2": {
+            "max": 150,
+            "thresholds": {
+              "A*": 126,
+              "A": 105,
+              "B": 84,
+              "C": 64,
+              "D": 52,
+              "E": 41,
+              "F": 31,
+              "G": 21
+            }
+          },
+          "3": {
+            "max": 150,
+            "thresholds": {
+              "A*": 122,
+              "A": 105,
+              "B": 88,
+              "C": 71,
+              "D": 59,
+              "E": 48,
+              "F": 36,
+              "G": 24
+            }
+          }
+        }
+      },
       "June 2025": {
         "source": "https://www.cambridgeinternational.org/Images/741372-economics-0455-june-2025-grade-threshold-table.pdf",
         "variants": {
@@ -336,6 +544,50 @@ export const THRESHOLDS: SyllabusThresholds[] = [
               "E": 47,
               "F": 37,
               "G": 27
+            }
+          }
+        }
+      },
+      "June 2024": {
+        "source": "https://www.cambridgeinternational.org/Images/716096-economics-0455-june-2024-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 150,
+            "thresholds": {
+              "A*": 112,
+              "A": 97,
+              "B": 82,
+              "C": 67,
+              "D": 57,
+              "E": 47,
+              "F": 37,
+              "G": 27
+            }
+          },
+          "2": {
+            "max": 150,
+            "thresholds": {
+              "A*": 122,
+              "A": 103,
+              "B": 84,
+              "C": 66,
+              "D": 56,
+              "E": 46,
+              "F": 36,
+              "G": 26
+            }
+          },
+          "3": {
+            "max": 150,
+            "thresholds": {
+              "A*": 120,
+              "A": 101,
+              "B": 82,
+              "C": 64,
+              "D": 55,
+              "E": 46,
+              "F": 36,
+              "G": 26
             }
           }
         }
@@ -383,6 +635,33 @@ export const THRESHOLDS: SyllabusThresholds[] = [
           }
         }
       },
+      "November 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/750792-accounting-7707-november-2025-grade-threshold-table.pdf",
+        "variants": {
+          "2": {
+            "max": 143,
+            "thresholds": {
+              "A*": 107,
+              "A": 87,
+              "B": 67,
+              "C": 48,
+              "D": 40,
+              "E": 32
+            }
+          },
+          "3": {
+            "max": 143,
+            "thresholds": {
+              "A*": 109,
+              "A": 88,
+              "B": 67,
+              "C": 47,
+              "D": 39,
+              "E": 32
+            }
+          }
+        }
+      },
       "June 2025": {
         "source": "https://www.cambridgeinternational.org/Images/741485-accounting-7707-june-2025-grade-threshold-table.pdf",
         "variants": {
@@ -403,6 +682,33 @@ export const THRESHOLDS: SyllabusThresholds[] = [
               "A*": 105,
               "A": 83,
               "B": 61,
+              "C": 40,
+              "D": 34,
+              "E": 29
+            }
+          }
+        }
+      },
+      "June 2024": {
+        "source": "https://www.cambridgeinternational.org/Images/716043-business-studies-7115-june-2024-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 143,
+            "thresholds": {
+              "A*": 93,
+              "A": 74,
+              "B": 55,
+              "C": 37,
+              "D": 31,
+              "E": 26
+            }
+          },
+          "2": {
+            "max": 143,
+            "thresholds": {
+              "A*": 109,
+              "A": 86,
+              "B": 63,
               "C": 40,
               "D": 34,
               "E": 29
@@ -453,6 +759,33 @@ export const THRESHOLDS: SyllabusThresholds[] = [
           }
         }
       },
+      "November 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/750798-business-studies-7115-november-2025-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 160,
+            "thresholds": {
+              "A*": 99,
+              "A": 81,
+              "B": 63,
+              "C": 46,
+              "D": 38,
+              "E": 31
+            }
+          },
+          "2": {
+            "max": 160,
+            "thresholds": {
+              "A*": 105,
+              "A": 87,
+              "B": 69,
+              "C": 52,
+              "D": 42,
+              "E": 33
+            }
+          }
+        }
+      },
       "June 2025": {
         "source": "https://www.cambridgeinternational.org/Images/741493-business-studies-7115-june-2025-grade-threshold-table.pdf",
         "variants": {
@@ -476,6 +809,33 @@ export const THRESHOLDS: SyllabusThresholds[] = [
               "C": 56,
               "D": 47,
               "E": 38
+            }
+          }
+        }
+      },
+      "June 2024": {
+        "source": "https://www.cambridgeinternational.org/Images/716041-business-studies-7115-june-2024-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 160,
+            "thresholds": {
+              "A*": 91,
+              "A": 75,
+              "B": 59,
+              "C": 44,
+              "D": 37,
+              "E": 30
+            }
+          },
+          "2": {
+            "max": 160,
+            "thresholds": {
+              "A*": 105,
+              "A": 87,
+              "B": 69,
+              "C": 52,
+              "D": 43,
+              "E": 34
             }
           }
         }
@@ -523,6 +883,33 @@ export const THRESHOLDS: SyllabusThresholds[] = [
           }
         }
       },
+      "November 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/750803-economics-2281-november-2025-grade-threshold-table.pdf",
+        "variants": {
+          "2": {
+            "max": 150,
+            "thresholds": {
+              "A*": 126,
+              "A": 105,
+              "B": 84,
+              "C": 64,
+              "D": 52,
+              "E": 41
+            }
+          },
+          "3": {
+            "max": 150,
+            "thresholds": {
+              "A*": 122,
+              "A": 105,
+              "B": 88,
+              "C": 71,
+              "D": 59,
+              "E": 48
+            }
+          }
+        }
+      },
       "June 2025": {
         "source": "https://www.cambridgeinternational.org/Images/741498-economics-2281-june-2025-grade-threshold-table.pdf",
         "variants": {
@@ -546,6 +933,33 @@ export const THRESHOLDS: SyllabusThresholds[] = [
               "C": 68,
               "D": 58,
               "E": 48
+            }
+          }
+        }
+      },
+      "June 2024": {
+        "source": "https://www.cambridgeinternational.org/Images/716013-economics-2281-june-2024-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 150,
+            "thresholds": {
+              "A*": 112,
+              "A": 97,
+              "B": 82,
+              "C": 67,
+              "D": 57,
+              "E": 47
+            }
+          },
+          "2": {
+            "max": 150,
+            "thresholds": {
+              "A*": 122,
+              "A": 103,
+              "B": 84,
+              "C": 66,
+              "D": 56,
+              "E": 46
             }
           }
         }
@@ -601,6 +1015,41 @@ export const THRESHOLDS: SyllabusThresholds[] = [
           }
         }
       },
+      "November 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/749690-accounting-9706-november-2025-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 125,
+            "thresholds": {
+              "A": 84,
+              "B": 71,
+              "C": 59,
+              "D": 47,
+              "E": 35
+            }
+          },
+          "2": {
+            "max": 125,
+            "thresholds": {
+              "A": 82,
+              "B": 66,
+              "C": 55,
+              "D": 44,
+              "E": 33
+            }
+          },
+          "3": {
+            "max": 125,
+            "thresholds": {
+              "A": 86,
+              "B": 71,
+              "C": 59,
+              "D": 47,
+              "E": 35
+            }
+          }
+        }
+      },
       "June 2025": {
         "source": "https://www.cambridgeinternational.org/Images/740281-accounting-9706-june-2025-grade-threshold-table.pdf",
         "variants": {
@@ -632,6 +1081,41 @@ export const THRESHOLDS: SyllabusThresholds[] = [
               "C": 57,
               "D": 45,
               "E": 33
+            }
+          }
+        }
+      },
+      "June 2024": {
+        "source": "https://www.cambridgeinternational.org/Images/715947-accounting-9706-june-2024-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 125,
+            "thresholds": {
+              "A": 87,
+              "B": 71,
+              "C": 57,
+              "D": 44,
+              "E": 31
+            }
+          },
+          "2": {
+            "max": 125,
+            "thresholds": {
+              "A": 87,
+              "B": 71,
+              "C": 57,
+              "D": 44,
+              "E": 31
+            }
+          },
+          "3": {
+            "max": 125,
+            "thresholds": {
+              "A": 87,
+              "B": 71,
+              "C": 57,
+              "D": 44,
+              "E": 31
             }
           }
         }
@@ -690,6 +1174,44 @@ export const THRESHOLDS: SyllabusThresholds[] = [
           }
         }
       },
+      "November 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/749690-accounting-9706-november-2025-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 250,
+            "thresholds": {
+              "A*": 182,
+              "A": 164,
+              "B": 146,
+              "C": 121,
+              "D": 97,
+              "E": 73
+            }
+          },
+          "2": {
+            "max": 250,
+            "thresholds": {
+              "A*": 185,
+              "A": 158,
+              "B": 131,
+              "C": 109,
+              "D": 87,
+              "E": 65
+            }
+          },
+          "3": {
+            "max": 250,
+            "thresholds": {
+              "A*": 188,
+              "A": 166,
+              "B": 144,
+              "C": 119,
+              "D": 95,
+              "E": 71
+            }
+          }
+        }
+      },
       "June 2025": {
         "source": "https://www.cambridgeinternational.org/Images/740281-accounting-9706-june-2025-grade-threshold-table.pdf",
         "variants": {
@@ -713,6 +1235,44 @@ export const THRESHOLDS: SyllabusThresholds[] = [
               "C": 116,
               "D": 95,
               "E": 75
+            }
+          }
+        }
+      },
+      "June 2024": {
+        "source": "https://www.cambridgeinternational.org/Images/715947-accounting-9706-june-2024-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 250,
+            "thresholds": {
+              "A*": 188,
+              "A": 160,
+              "B": 132,
+              "C": 110,
+              "D": 88,
+              "E": 67
+            }
+          },
+          "2": {
+            "max": 250,
+            "thresholds": {
+              "A*": 188,
+              "A": 160,
+              "B": 132,
+              "C": 110,
+              "D": 88,
+              "E": 67
+            }
+          },
+          "3": {
+            "max": 250,
+            "thresholds": {
+              "A*": 188,
+              "A": 160,
+              "B": 132,
+              "C": 110,
+              "D": 88,
+              "E": 67
             }
           }
         }
@@ -772,6 +1332,41 @@ export const THRESHOLDS: SyllabusThresholds[] = [
           }
         }
       },
+      "November 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/749697-business-9609-november-2025-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 100,
+            "thresholds": {
+              "A": 84,
+              "B": 78,
+              "C": 71,
+              "D": 64,
+              "E": 57
+            }
+          },
+          "2": {
+            "max": 100,
+            "thresholds": {
+              "A": 78,
+              "B": 73,
+              "C": 66,
+              "D": 59,
+              "E": 52
+            }
+          },
+          "3": {
+            "max": 100,
+            "thresholds": {
+              "A": 80,
+              "B": 74,
+              "C": 67,
+              "D": 60,
+              "E": 54
+            }
+          }
+        }
+      },
       "June 2025": {
         "source": "https://www.cambridgeinternational.org/Images/740287-business-9609-june-2025-grade-threshold-table.pdf",
         "variants": {
@@ -803,6 +1398,41 @@ export const THRESHOLDS: SyllabusThresholds[] = [
               "C": 67,
               "D": 60,
               "E": 53
+            }
+          }
+        }
+      },
+      "June 2024": {
+        "source": "https://www.cambridgeinternational.org/Images/715950-business-9609-june-2024-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 100,
+            "thresholds": {
+              "A": 78,
+              "B": 72,
+              "C": 66,
+              "D": 60,
+              "E": 54
+            }
+          },
+          "2": {
+            "max": 100,
+            "thresholds": {
+              "A": 78,
+              "B": 70,
+              "C": 62,
+              "D": 54,
+              "E": 46
+            }
+          },
+          "3": {
+            "max": 100,
+            "thresholds": {
+              "A": 75,
+              "B": 69,
+              "C": 61,
+              "D": 54,
+              "E": 47
             }
           }
         }
@@ -861,6 +1491,44 @@ export const THRESHOLDS: SyllabusThresholds[] = [
           }
         }
       },
+      "November 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/749697-business-9609-november-2025-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 200,
+            "thresholds": {
+              "A*": 164,
+              "A": 153,
+              "B": 142,
+              "C": 125,
+              "D": 108,
+              "E": 91
+            }
+          },
+          "2": {
+            "max": 200,
+            "thresholds": {
+              "A*": 156,
+              "A": 146,
+              "B": 136,
+              "C": 122,
+              "D": 108,
+              "E": 95
+            }
+          },
+          "3": {
+            "max": 200,
+            "thresholds": {
+              "A*": 159,
+              "A": 149,
+              "B": 139,
+              "C": 124,
+              "D": 109,
+              "E": 95
+            }
+          }
+        }
+      },
       "June 2025": {
         "source": "https://www.cambridgeinternational.org/Images/740287-business-9609-june-2025-grade-threshold-table.pdf",
         "variants": {
@@ -895,6 +1563,44 @@ export const THRESHOLDS: SyllabusThresholds[] = [
               "C": 124,
               "D": 109,
               "E": 95
+            }
+          }
+        }
+      },
+      "June 2024": {
+        "source": "https://www.cambridgeinternational.org/Images/715950-business-9609-june-2024-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 200,
+            "thresholds": {
+              "A*": 164,
+              "A": 152,
+              "B": 140,
+              "C": 126,
+              "D": 112,
+              "E": 98
+            }
+          },
+          "2": {
+            "max": 200,
+            "thresholds": {
+              "A*": 149,
+              "A": 137,
+              "B": 125,
+              "C": 111,
+              "D": 98,
+              "E": 85
+            }
+          },
+          "3": {
+            "max": 200,
+            "thresholds": {
+              "A*": 161,
+              "A": 149,
+              "B": 137,
+              "C": 121,
+              "D": 105,
+              "E": 89
             }
           }
         }
@@ -964,6 +1670,51 @@ export const THRESHOLDS: SyllabusThresholds[] = [
           }
         }
       },
+      "November 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/749706-economics-9708-november-2025-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 90,
+            "thresholds": {
+              "A": 50,
+              "B": 46,
+              "C": 39,
+              "D": 33,
+              "E": 27
+            }
+          },
+          "2": {
+            "max": 90,
+            "thresholds": {
+              "A": 47,
+              "B": 42,
+              "C": 36,
+              "D": 31,
+              "E": 26
+            }
+          },
+          "3": {
+            "max": 90,
+            "thresholds": {
+              "A": 49,
+              "B": 43,
+              "C": 36,
+              "D": 29,
+              "E": 23
+            }
+          },
+          "4": {
+            "max": 90,
+            "thresholds": {
+              "A": 49,
+              "B": 44,
+              "C": 37,
+              "D": 31,
+              "E": 25
+            }
+          }
+        }
+      },
       "June 2025": {
         "source": "https://www.cambridgeinternational.org/Images/740318-economics-9708-june-2025-grade-threshold-table.pdf",
         "variants": {
@@ -995,6 +1746,41 @@ export const THRESHOLDS: SyllabusThresholds[] = [
               "C": 36,
               "D": 30,
               "E": 24
+            }
+          },
+          "3": {
+            "max": 90,
+            "thresholds": {
+              "A": 48,
+              "B": 40,
+              "C": 33,
+              "D": 26,
+              "E": 20
+            }
+          }
+        }
+      },
+      "June 2024": {
+        "source": "https://www.cambridgeinternational.org/Images/715953-economics-9708-june-2024-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 90,
+            "thresholds": {
+              "A": 50,
+              "B": 42,
+              "C": 34,
+              "D": 26,
+              "E": 19
+            }
+          },
+          "2": {
+            "max": 90,
+            "thresholds": {
+              "A": 46,
+              "B": 40,
+              "C": 34,
+              "D": 28,
+              "E": 23
             }
           },
           "3": {
@@ -1074,6 +1860,55 @@ export const THRESHOLDS: SyllabusThresholds[] = [
           }
         }
       },
+      "November 2025": {
+        "source": "https://www.cambridgeinternational.org/Images/749706-economics-9708-november-2025-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 180,
+            "thresholds": {
+              "A*": 126,
+              "A": 111,
+              "B": 96,
+              "C": 85,
+              "D": 74,
+              "E": 63
+            }
+          },
+          "2": {
+            "max": 180,
+            "thresholds": {
+              "A*": 124,
+              "A": 109,
+              "B": 94,
+              "C": 83,
+              "D": 72,
+              "E": 61
+            }
+          },
+          "3": {
+            "max": 180,
+            "thresholds": {
+              "A*": 126,
+              "A": 110,
+              "B": 94,
+              "C": 81,
+              "D": 68,
+              "E": 55
+            }
+          },
+          "4": {
+            "max": 180,
+            "thresholds": {
+              "A*": 128,
+              "A": 111,
+              "B": 94,
+              "C": 82,
+              "D": 70,
+              "E": 59
+            }
+          }
+        }
+      },
       "June 2025": {
         "source": "https://www.cambridgeinternational.org/Images/740318-economics-9708-june-2025-grade-threshold-table.pdf",
         "variants": {
@@ -1119,6 +1954,44 @@ export const THRESHOLDS: SyllabusThresholds[] = [
               "C": 77,
               "D": 66,
               "E": 55
+            }
+          }
+        }
+      },
+      "June 2024": {
+        "source": "https://www.cambridgeinternational.org/Images/715953-economics-9708-june-2024-grade-threshold-table.pdf",
+        "variants": {
+          "1": {
+            "max": 180,
+            "thresholds": {
+              "A*": 129,
+              "A": 112,
+              "B": 95,
+              "C": 81,
+              "D": 68,
+              "E": 55
+            }
+          },
+          "2": {
+            "max": 180,
+            "thresholds": {
+              "A*": 116,
+              "A": 104,
+              "B": 92,
+              "C": 81,
+              "D": 70,
+              "E": 59
+            }
+          },
+          "3": {
+            "max": 180,
+            "thresholds": {
+              "A*": 127,
+              "A": 110,
+              "B": 93,
+              "C": 80,
+              "D": 68,
+              "E": 56
             }
           }
         }

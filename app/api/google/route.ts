@@ -1,0 +1,36 @@
+import { type NextRequest, NextResponse } from "next/server";
+import { isAdminRequest } from "@/lib/admin-auth";
+import { authUrl, googleReady } from "@/lib/google";
+import { pushReady, serviceClient } from "@/lib/push-server";
+import { runClassAutomation } from "@/lib/class-automation";
+
+/**
+ * Admin only. GET: is Google connected? POST { action }:
+ *   "connect"    -> the Google sign-in URL to send Hamza to
+ *   "sync"       -> make today's links / pick up recordings now
+ *   "disconnect" -> forget the account (links already made stay)
+ */
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const ready = () => googleReady() && pushReady();
+
+export async function GET(req: NextRequest) {
+  if (!(await isAdminRequest(req))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!ready()) return NextResponse.json({ ready: false, connected: false });
+  const { data } = await serviceClient().from("google_account").select("email").eq("id", 1).maybeSingle();
+  return NextResponse.json({ ready: true, connected: !!data, email: data?.email ?? null });
+}
+
+export async function POST(req: NextRequest) {
+  if (!(await isAdminRequest(req))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!ready()) return NextResponse.json({ error: "not set up" }, { status: 400 });
+  const { action } = (await req.json().catch(() => ({}))) as { action?: string };
+  if (action === "connect") return NextResponse.json({ url: authUrl(req.nextUrl.origin) });
+  if (action === "sync") return NextResponse.json(await runClassAutomation(serviceClient(), Date.now(), true));
+  if (action === "disconnect") {
+    await serviceClient().from("google_account").delete().eq("id", 1);
+    return NextResponse.json({ connected: false });
+  }
+  return NextResponse.json({ error: "unknown action" }, { status: 400 });
+}

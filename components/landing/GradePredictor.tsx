@@ -9,10 +9,12 @@ import {
   SUBJECTS,
   gradeLabel,
   markError,
+  marksNeeded,
   outlook,
   predict,
   roast,
   syllabusFor,
+  targetGrades,
   type Subject,
 } from "@/lib/grade-predictor";
 
@@ -57,8 +59,9 @@ function Segmented<T extends string>({
 
 /**
  * Three steps: subject, level, marks. Graded against Cambridge's official
- * June 2026 and June 2025 boundaries (most likely grade plus the range), with
- * a "be safe for May / June 2027" target from how the boundaries moved.
+ * boundaries from the last four sessions (most likely grade plus the range),
+ * with a "be safe for May / June 2027" target, a "what do I need for…" mode
+ * and a shareable grade card.
  */
 export function GradePredictor() {
   const uid = useId().replace(/:/g, "");
@@ -212,7 +215,7 @@ export function GradePredictor() {
 
             {result.range && result.range.low !== result.range.high && (
               <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
-                On the last two June papers, these marks earned anything from {g(result.range.low)} to{" "}
+                Over the last four exam sessions, these marks earned anything from {g(result.range.low)} to{" "}
                 {g(result.range.high)}, depending on the paper.
               </p>
             )}
@@ -252,17 +255,17 @@ export function GradePredictor() {
                       {ahead.rawToSafe} more marks.
                     </>
                   ) : (
-                    <>You&apos;re above every {g(ahead.grade)} boundary from the last two years.</>
+                    <>You&apos;re above every {g(ahead.grade)} boundary from the last four sessions.</>
                   )}
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {g(ahead.grade)} needed {ahead.low === ahead.high ? ahead.low : `${ahead.low} to ${ahead.high}`} in the last
-                  two Junes
+                  {g(ahead.grade)} needed {ahead.low === ahead.high ? ahead.low : `${ahead.low} to ${ahead.high}`} over the last
+                  four sessions
                   {ahead.trend > 0
-                    ? ` (up about ${ahead.trend} in 2026).`
+                    ? ` (up about ${ahead.trend} from June 2025 to June 2026).`
                     : ahead.trend < 0
-                      ? ` (down about ${-ahead.trend} in 2026).`
-                      : " (about the same both years)."}
+                      ? ` (down about ${-ahead.trend} from June 2025 to June 2026).`
+                      : " (about the same in June 2025 and June 2026)."}
                 </p>
               </div>
             )}
@@ -279,9 +282,87 @@ export function GradePredictor() {
               </a>
             </Magnetic>
             <p className="mt-3 text-center text-sm text-faint">Opens WhatsApp with your result typed in. You press send.</p>
+            <button
+              type="button"
+              onClick={() => void shareCard(g(result.grade), subject, qual)}
+              className="mt-4 flex min-h-12 w-full items-center justify-center rounded-full border border-hairline-strong px-6 text-[15px] font-semibold text-foreground transition-colors hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+            >
+              Share my grade card
+            </button>
           </div>
         )}
       </section>
+
+      {syl && <MarksNeeded key={`${subject}-${qual}`} syl={syl} qual={qual} />}
     </div>
+  );
+}
+
+/** The story-size card as an image: shared straight to WhatsApp/Instagram where the phone allows, else saved. */
+async function shareCard(grade: string, subject: string, level: string) {
+  const url = `/tools/grade-predictor/card?${new URLSearchParams({ g: grade, s: subject, l: level })}`;
+  track("grade_card_share", { subject, level, grade });
+  try {
+    const blob = await (await fetch(url)).blob();
+    const file = new File([blob], `my-${subject.toLowerCase()}-grade.png`, { type: "image/png" });
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], text: "My predicted grade. Check yours free at hamzateaches.com" });
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(file);
+    a.download = file.name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch {
+    // Share sheet closed: nothing to do.
+  }
+}
+
+/** "What do I need for an A*?": pick a grade, see the marks that were enough on every recent paper. */
+function MarksNeeded({ syl, qual }: { syl: NonNullable<ReturnType<typeof syllabusFor>>; qual: Qualification }) {
+  const grades = targetGrades(syl);
+  const [target, setTarget] = useState(grades[0]);
+  const need = marksNeeded(syl, target);
+  const g = (x: string) => gradeLabel(qual, x);
+  return (
+    <section className="min-w-0 rounded-[20px] border border-hairline bg-card/80 p-6 backdrop-blur-sm md:p-8">
+      <h3 className="text-sm font-semibold text-foreground">What do I need for…</h3>
+      <div className="mt-3 grid grid-cols-4 gap-2" role="radiogroup" aria-label="Target grade">
+        {grades.map((gr) => (
+          <button
+            key={gr}
+            type="button"
+            role="radio"
+            aria-checked={target === gr}
+            onClick={() => setTarget(gr)}
+            className={`min-h-12 rounded-full border text-[15px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${
+              target === gr ? "border-gold bg-gold text-[#1b1e21]" : "border-hairline-strong text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {g(gr)}
+          </button>
+        ))}
+      </div>
+      {need && (
+        <div className="mt-5">
+          <p className="text-[17px] leading-relaxed text-body">
+            About <strong className="text-foreground">{need.percent}%</strong> was enough for {g(need.grade)} on every paper in the last
+            four sessions:
+          </p>
+          <ul className="mt-3 grid grid-cols-2 gap-3">
+            {need.perPaper.map((m, i) => (
+              <li key={i} className="rounded-xl border border-hairline bg-band-c px-4 py-3">
+                <p className="text-xs text-faint">Paper {i + 1}</p>
+                <p className="text-lg font-semibold tabular-nums text-foreground">
+                  {m} <span className="text-sm font-normal text-faint">/ {syl.papers[i]}</span>
+                </p>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-sm text-faint">Doing better on one paper means you can drop a little on another.</p>
+        </div>
+      )}
+    </section>
   );
 }

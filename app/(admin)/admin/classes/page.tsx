@@ -8,6 +8,7 @@ import { useToast } from "@/components/toast";
 import { archivedCohortIds } from "@/lib/data/selectors";
 import { displayName } from "@/lib/display-name";
 import { PageHeader } from "@/components/admin/PageHeader";
+import { GoogleConnect } from "@/components/admin/GoogleConnect";
 import { Badge, Button, Card, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import {
@@ -39,7 +40,7 @@ export default function ClassesPage() {
   const [picked, setPicked] = useState<string | null>(null);
   // Default to today, or the next class day (the first Monday before term starts).
   const date = picked ?? nextClassDay(today);
-  const { links, joins, ready, save } = useClassLinks(date, date, true);
+  const { links, joins, ready, save, reload } = useClassLinks(date, date, true);
 
   const slots = useMemo(() => slotsOn(db, date), [db, date]);
   const off = useMemo(() => archivedCohortIds(db), [db]);
@@ -73,8 +74,10 @@ export default function ClassesPage() {
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
       <PageHeader
         title="Classes"
-        subtitle="Paste each class's Meet link. Students see Join 10 minutes before it starts, and joining marks them present."
+        subtitle="Each class's Meet link. Students see Join 10 minutes before it starts, and joining marks them present."
       />
+
+      <GoogleConnect onSynced={() => void reload()} />
 
       <div className="mb-6 flex items-center justify-between gap-3">
         <Button variant="ghost" size="sm" onClick={() => step(-1)} aria-label="Previous class day">

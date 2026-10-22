@@ -63,6 +63,20 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
   );
   const overdue = +new Date(assignment.dueAt) < useNow();
 
+  async function removePage(i: number) {
+    if (!mine) return;
+    const before = mine.fileUrls;
+    try {
+      await store.submitAssignment(assignment.id, studentId, before.filter((_, idx) => idx !== i));
+      toast(`Page ${i + 1} removed.`, "default", {
+        label: "Undo",
+        onClick: () => void store.submitAssignment(assignment.id, studentId, before).catch(() => {}),
+      });
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Couldn't remove it. Try again.", "error");
+    }
+  }
+
   async function addFiles(files: File[]) {
     const accepted = files.filter((f) => f.type.startsWith("image/") || f.type === "application/pdf");
     if (!accepted.length) {
@@ -114,6 +128,23 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
         <div className="mt-4">
           <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-3">Your work</p>
           <PageStack urls={mine.fileUrls} label="Your work" />
+          {/* Wrong photo? Take it out, until Hamza has replied. */}
+          {!mine.feedback && mine.fileUrls.length > 1 && (
+            <ul className="mt-2 flex flex-wrap gap-2" aria-label="Remove a page">
+              {mine.fileUrls.map((url, i) => (
+                <li key={url}>
+                  <button
+                    type="button"
+                    disabled={uploading}
+                    onClick={() => void removePage(i)}
+                    className="inline-flex h-10 items-center gap-1.5 rounded-full border border-border-strong px-3 text-xs font-semibold text-ink-2 transition-colors hover:border-error hover:text-error disabled:opacity-40"
+                  >
+                    <Icon.Close className="h-3.5 w-3.5" /> Remove page {i + 1}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
