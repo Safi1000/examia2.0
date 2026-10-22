@@ -200,7 +200,7 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
       {answer?.feedback && (
         <div className="mt-3 rounded-md border border-info/30 bg-info-soft/60 px-3 py-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-info">Teacher feedback</p>
-          <p className="mt-0.5 text-sm text-ink">{answer.feedback}</p>
+          <p className="mt-0.5 whitespace-pre-wrap text-sm text-ink">{answer.feedback}</p>
         </div>
       )}
     </Card>

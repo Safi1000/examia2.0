@@ -54,3 +54,21 @@ create policy notify_prefs_own on public.notify_prefs for all to authenticated
 revoke all on public.notify_log from authenticated, anon;
 grant select, insert, update, delete on public.push_subscriptions to authenticated;
 grant select, insert, update on public.notify_prefs to authenticated;
+
+-- A shared phone (siblings): turning notifications on moves the device to the
+-- student who is signed in now, so it never keeps the other child's alerts.
+create or replace function public.claim_push_device(p_endpoint text, p_p256dh text, p_auth text)
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  v_student uuid := public.current_student_id();
+begin
+  if v_student is null then
+    raise exception 'not a student';
+  end if;
+  insert into public.push_subscriptions (student_id, endpoint, p256dh, auth)
+  values (v_student, p_endpoint, p_p256dh, p_auth)
+  on conflict (endpoint) do update
+    set student_id = excluded.student_id, p256dh = excluded.p256dh, auth = excluded.auth;
+end; $$;
+revoke all on function public.claim_push_device(text, text, text) from public, anon;
+grant execute on function public.claim_push_device(text, text, text) to authenticated;

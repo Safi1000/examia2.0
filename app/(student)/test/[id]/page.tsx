@@ -91,7 +91,13 @@ export default function TestRunnerPage() {
 
   async function begin() {
     setBeginning(true);
-    const serverStart = await store.startTestAttempt(id);
+    let serverStart = await store.startTestAttempt(id);
+    // Weak signal: try a couple more times quietly, so an honest start is
+    // recorded on the server and never later looks "late".
+    for (let i = 0; !serverStart && i < 2; i++) {
+      await new Promise((r) => setTimeout(r, 2500));
+      serverStart = await store.startTestAttempt(id);
+    }
     setGate(false);
     setBoot({ startedAt: serverStart ?? new Date().toISOString(), answers: null, index: 0 });
   }
@@ -297,9 +303,13 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   // Time left in the browser tab, so it shows even on another tab.
   useDocumentTitle(sitting && test ? `${formatCountdown(remaining)} · ${test.title}` : null);
 
-  // Back online after a failed hand-in: try again by itself.
+  // Back online after a failed hand-in: try again by itself, once per
+  // reconnection (never in a loop while the signal is merely weak).
+  const wasOnline = useRef(online);
   useEffect(() => {
-    if (online && submitError && !submitting) void doSubmit(lastAuto.current);
+    const cameBack = online && !wasOnline.current;
+    wasOnline.current = online;
+    if (cameBack && submitError && !submitting) void doSubmit(lastAuto.current);
   }, [online, submitError, submitting, doSubmit]);
 
   useDraftAutosave({
@@ -330,7 +340,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   }
   if (existing) return <RunnerNotice title="Already submitted" message="You've already done this one." />;
   if (window === "future") return <RunnerNotice title="Not open yet" message="Not live yet. Check back at the start time." />;
-  if (window === "closed") return <RunnerNotice title="Test closed" message="You missed the window." />;
+  if (window === "closed" && !submitting && !submitError) return <RunnerNotice title="Test closed" message="You missed the window." />;
 
   const q = test.questions[index];
   const answer = answers[index];
@@ -371,7 +381,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
                     aria-label={`Question ${i + 1}${done ? ", answered" : ""}`}
                     aria-current={i === index ? "step" : undefined}
                     className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums transition-all",
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums transition-all",
                       done ? "bg-brand text-on-brand" : "border border-border-strong text-ink-3 hover:text-ink",
                       i === index && "ring-2 ring-brand ring-offset-2 ring-offset-paper",
                     )}
@@ -398,7 +408,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-brand">Time&apos;s up</p>
           <h2 id="pens-down" className="mt-3 text-4xl font-extrabold tracking-tight text-ink">Pens down.</h2>
           <p className="mt-3 max-w-xs text-[15px] text-ink-2">
-            You have {Math.max(1, Math.round((test.uploadMinutes ?? 0)))} minutes to photograph and upload your pages.
+            You have {Math.max(1, Math.ceil(((uploadEndMs ?? nowMs) - nowMs) / 60_000))} minutes to photograph and upload your pages.
           </p>
           <Button size="lg" className="mt-8 min-w-60" onClick={() => { setPensDown(false); globalThis.scrollTo({ top: 0 }); }}>
             <Icon.Camera className="h-5 w-5" /> Take photos now

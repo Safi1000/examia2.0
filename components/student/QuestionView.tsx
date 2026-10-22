@@ -125,8 +125,8 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
       // Upload in parallel, but keep the order the student picked them in.
       // Progress is the average across all files, so the bar moves smoothly.
       const parts = batch.map(() => 0);
-      const uploaded = (
-        await Promise.all(
+      // allSettled: one bad file never throws away the pages that did upload.
+      const results = await Promise.allSettled(
           batch.map(async (f, i) => {
             // When the page was photographed (read before shrinking drops it),
             // kept on the link so Hamza sees it while marking.
@@ -137,8 +137,10 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
             });
             return got.map((u) => withTakenTime(u, taken));
           }),
-        )
-      ).flat();
+      );
+      const uploaded = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed) toast(failed === 1 ? "1 page didn't upload. Add it again." : `${failed} pages didn't upload. Add them again.`, "error");
       const next = [...urls, ...uploaded];
       if (next.length > MAX_PHOTOS) toast(`Only the first ${MAX_PHOTOS} pages were kept.`, "info");
       apply(next.slice(0, MAX_PHOTOS));
@@ -182,8 +184,9 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
               <button
                 type="button"
                 onClick={() => remove(i)}
+                disabled={uploading}
                 aria-label={`Remove image ${i + 1}`}
-                className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-md bg-paper/85 text-ink-2 backdrop-blur transition-colors hover:bg-error hover:text-paper"
+                className="absolute right-1 top-1 flex h-10 w-10 disabled:opacity-40 items-center justify-center rounded-md bg-paper/85 text-ink-2 backdrop-blur transition-colors hover:bg-error hover:text-paper"
               >
                 <Icon.Close className="h-4 w-4" />
               </button>

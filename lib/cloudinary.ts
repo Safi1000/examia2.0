@@ -31,7 +31,8 @@ export async function uploadNote(file: File): Promise<{ url: string; fileType: s
   );
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    throw new Error(`Cloudinary upload failed (${res.status}). ${detail}`);
+    console.error("Cloudinary upload failed", res.status, detail);
+    throw new Error("That file didn't upload. Try again.");
   }
   const json = (await res.json()) as { secure_url?: string };
   if (!json.secure_url) throw new Error("Cloudinary upload returned no secure_url.");
@@ -49,6 +50,10 @@ function postWithProgress(url: string, form: FormData, onProgress?: OnProgress):
     if (onProgress) xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
     xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, text: xhr.responseText });
     xhr.onerror = () => reject(new Error("Upload failed. Check your internet and try again."));
+    // A stalled connection must end, so the student can simply try again.
+    xhr.timeout = 120_000;
+    xhr.ontimeout = () => reject(new Error("The upload took too long. Check your internet and try again."));
+    xhr.onabort = () => reject(new Error("Upload stopped. Try again."));
     xhr.send(form);
   });
 }
@@ -66,7 +71,10 @@ export async function uploadImage(file: File, onProgress?: OnProgress): Promise<
   form.append("upload_preset", CLOUDINARY_PRESET);
 
   const res = await postWithProgress(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, form, onProgress);
-  if (!res.ok) throw new Error(`Cloudinary upload failed (${res.status}). ${res.text}`);
+  if (!res.ok) {
+    console.error("Cloudinary upload failed", res.status, res.text);
+    throw new Error("That photo didn't upload. Try again.");
+  }
   const json = JSON.parse(res.text) as { secure_url?: string };
   if (!json.secure_url) throw new Error("Cloudinary upload returned no secure_url.");
   onProgress?.(1);
@@ -96,7 +104,10 @@ export async function uploadPdfPages(file: File, onProgress?: OnProgress): Promi
   form.append("upload_preset", CLOUDINARY_PRESET);
 
   const res = await postWithProgress(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, form, onProgress);
-  if (!res.ok) throw new Error(`PDF upload failed (${res.status}). ${res.text}`);
+  if (!res.ok) {
+    console.error("PDF upload failed", res.status, res.text);
+    throw new Error("That PDF didn't upload. Try again.");
+  }
   const json = JSON.parse(res.text) as { secure_url?: string; pages?: number };
   onProgress?.(1);
   if (!json.secure_url) throw new Error("Cloudinary upload returned no secure_url.");

@@ -4,8 +4,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 /**
  * Phone notifications, server side. The rules that keep them quiet:
  *
- *  1. Only four kinds: results out, test opens in 30 min, test closes in 3 h
- *     (not handed in), assignment due within 24 h (not handed in).
+ *  1. Only three kinds: results out, test opens in 30 min, assignment due
+ *     within 24 h (not handed in).
  *  2. Never the same thing twice (notify_log is the memory).
  *  3. At most 3 a day per student (Pakistan day).
  *  4. Nothing between 10 pm and 8 am Pakistan time. Results released at night
@@ -149,8 +149,17 @@ const covers = (w: { cohort_id: string | null; class_id: string | null; subject_
 async function resultItems(sb: SupabaseClient, onlyIds?: string[]): Promise<Item[]> {
   let q = sb.from("submissions").select("id,student_id,test_id,released_at").eq("status", "released");
   q = onlyIds?.length ? q.in("id", onlyIds) : q.gte("released_at", new Date(Date.now() - 864e5).toISOString());
-  const { data: subs } = await q;
-  if (!subs?.length) return [];
+  const { data: found } = await q;
+  if (!found?.length) return [];
+  // Past students (switched-off cohorts) never get anything (rule 7).
+  const [{ data: studs }, { data: cohorts }] = await Promise.all([
+    sb.from("students").select("id,cohort_id").in("id", [...new Set(found.map((s) => s.student_id as string))]),
+    sb.from("cohorts").select("id,active").eq("active", false),
+  ]);
+  const off = new Set((cohorts ?? []).map((c) => c.id as string));
+  const current = new Set((studs ?? []).filter((s) => !(s.cohort_id && off.has(s.cohort_id))).map((s) => s.id as string));
+  const subs = found.filter((s) => current.has(s.student_id as string));
+  if (!subs.length) return [];
   const { data: tests } = await sb.from("tests").select("id,title").in("id", [...new Set(subs.map((s) => s.test_id))]);
   const title = new Map((tests ?? []).map((t) => [t.id as string, t.title as string]));
   const by = new Map<string, typeof subs>();
@@ -177,9 +186,8 @@ export async function runReminders(): Promise<{ sent: number; quiet?: boolean }>
   const now = Date.now();
   const iso = (ms: number) => new Date(ms).toISOString();
 
-  const [{ data: opening }, { data: closing }, { data: due }, { data: handed }, { data: handedA }] = await Promise.all([
+  const [{ data: opening }, { data: due }, { data: handed }, { data: handedA }] = await Promise.all([
     sb.from("tests").select("id,title,opens_at,closes_at,cohort_id,class_id,subject_id").neq("status", "draft").gt("opens_at", iso(now)).lte("opens_at", iso(now + 35 * 6e4)),
-    sb.from("tests").select("id,title,opens_at,closes_at,cohort_id,class_id,subject_id").neq("status", "draft").lte("opens_at", iso(now)).gt("closes_at", iso(now)).lte("closes_at", iso(now + 3 * 36e5)),
     sb.from("assignments").select("id,title,due_at,cohort_id,class_id,subject_id").gt("due_at", iso(now)).lte("due_at", iso(now + 864e5)),
     sb.from("submissions").select("test_id,student_id"),
     sb.from("assignment_submissions").select("assignment_id,student_id"),
@@ -189,10 +197,6 @@ export async function runReminders(): Promise<{ sent: number; quiet?: boolean }>
 
   const items: Item[] = [...(await resultItems(sb))];
   for (const s of students) {
-    for (const t of closing ?? []) {
-      if (!covers(t, s) || done.has(`${s.id}|${t.id}`)) continue;
-      items.push({ studentId: s.id, kind: "tests", refs: [`close:${t.id}`], title: "Test closing soon", body: `${t.title} closes at ${pkTime(t.closes_at)}. You haven't handed it in yet.`, url: `/test/${t.id}`, tag: `test-${t.id}`, priority: 1 });
-    }
     for (const t of opening ?? []) {
       if (!covers(t, s) || done.has(`${s.id}|${t.id}`)) continue;
       items.push({ studentId: s.id, kind: "tests", refs: [`open:${t.id}`], title: "Test opens soon", body: `${t.title} opens at ${pkTime(t.opens_at)}.`, url: "/dashboard", tag: `test-${t.id}`, priority: 2 });

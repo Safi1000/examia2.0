@@ -160,7 +160,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     if (DEMO) setDemoRole(null);
-    void supabase().auth.signOut(); // onAuthStateChange clears session + cache
+    // Signing out of a shared phone stops this student's notifications on it.
+    void (async () => {
+      try {
+        const reg = await navigator.serviceWorker?.getRegistration("/sw.js");
+        const sub = await reg?.pushManager.getSubscription();
+        if (sub) {
+          await supabase().from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+          await sub.unsubscribe();
+        }
+      } catch {}
+      await supabase().auth.signOut();
+    })(); // onAuthStateChange clears session + cache
     currentUserId.current = null;
     getStore().reset();
     setSession(null);

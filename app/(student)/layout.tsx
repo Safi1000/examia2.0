@@ -22,6 +22,7 @@ const TITLES: Record<string, string> = {
   "/plan": "My plan",
   "/progress": "Progress",
   "/assignments": "Assignments",
+  "/classes": "Classes",
   "/notes": "Notes",
   "/settings": "Settings",
   "/notifications": "Notifications",

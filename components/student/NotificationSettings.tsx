@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
  * "Phone notifications" card in Settings.
  *
  * Kept quiet on purpose (rules live in lib/push-server.ts): only results,
- * tests opening/closing and assignments due; never twice; at most 3 a day;
+ * tests opening and assignments due; never twice; at most 3 a day;
  * nothing between 10 pm and 8 am. Each kind can be switched off here.
  */
 
@@ -18,7 +18,7 @@ const VAPID = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 type Prefs = { results: boolean; tests: boolean; assignments: boolean };
 const KINDS: Array<{ key: keyof Prefs; label: string; hint: string }> = [
   { key: "results", label: "Results", hint: "When Hamza releases your marks" },
-  { key: "tests", label: "Tests", hint: "30 min before a test opens, and 3 hours before it closes if you haven't handed in" },
+  { key: "tests", label: "Tests", hint: "30 minutes before a test opens" },
   { key: "assignments", label: "Assignments", hint: "The day before it's due, if you haven't handed it in" },
 ];
 
@@ -36,7 +36,7 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
 
   useEffect(() => {
     let alive = true;
-    const run = async () => {
+    const check = async () => {
       const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
       const installed = window.matchMedia("(display-mode: standalone)").matches;
       let next: typeof status;
@@ -54,6 +54,8 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
       if (data) setPrefs(data as Prefs);
       setStatus(next);
     };
+    // A failed check never leaves the card stuck on "loading".
+    const run = () => check().catch(() => alive && setStatus(VAPID ? "off" : "notReady"));
     void run();
     return () => {
       alive = false;
@@ -72,9 +74,8 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
       await navigator.serviceWorker.ready;
       const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(VAPID) }));
       const j = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
-      const { error } = await supabase()
-        .from("push_subscriptions")
-        .upsert({ student_id: studentId, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }, { onConflict: "endpoint" });
+      // Claims the device for this student (a phone shared by siblings moves over).
+      const { error } = await supabase().rpc("claim_push_device", { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth });
       if (error) throw error;
       setStatus("on");
       toast("Notifications on. We'll keep them few.", "success");
@@ -101,9 +102,14 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
   }
 
   async function setPref(key: keyof Prefs, value: boolean) {
+    const before = prefs;
     const next = { ...prefs, [key]: value };
     setPrefs(next);
-    await supabase().from("notify_prefs").upsert({ student_id: studentId, ...next, updated_at: new Date().toISOString() });
+    const { error } = await supabase().from("notify_prefs").upsert({ student_id: studentId, ...next, updated_at: new Date().toISOString() });
+    if (error) {
+      setPrefs(before);
+      toast("Couldn't save that. Try again.", "error");
+    }
   }
 
   return (

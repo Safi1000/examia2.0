@@ -27,7 +27,11 @@ const nextConfig: NextConfig = {
     return [
       { source: "/:path*", headers: securityHeaders },
       // Private pages: never stored by shared caches.
-      { source: "/reports/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }] },
+      { source: "/reports/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }, { key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+      // The portal never appears in search results, even if a link leaks.
+      ...["/admin/:path*", "/admin", "/login", "/dashboard", "/assignments", "/classes", "/progress", "/notes", "/notifications", "/plan", "/settings", "/test/:path*", "/results/:path*", "/board-lab/:path*", "/board-lab"].map(
+        (source) => ({ source, headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] }),
+      ),
     ];
   },
 };

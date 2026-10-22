@@ -35,7 +35,7 @@ export function AddToCalendar({ test }: { test: Test }) {
     <a
       href={`data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`}
       download={`${test.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.ics`}
-      className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-3 transition-colors hover:text-brand"
+      className="inline-flex min-h-10 items-center gap-1.5 px-1 py-2 text-xs font-semibold text-ink-3 transition-colors hover:text-brand"
     >
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
         <rect x="3.5" y="5" width="17" height="15.5" rx="2" />

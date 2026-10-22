@@ -17,6 +17,7 @@ const GROUPS = [
     title: "Teach",
     items: [
       { href: "/admin/today", label: "Today", Icon: NavIcon.Today },
+      { href: "/admin/classes", label: "Classes", Icon: NavIcon.Classes },
       { href: "/admin/tests", label: "Tests", Icon: NavIcon.Tests },
       { href: "/admin/submissions", label: "Submissions", Icon: NavIcon.Inbox },
       { href: "/admin/assignments", label: "Assignments", Icon: NavIcon.Assignments },

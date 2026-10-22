@@ -68,6 +68,8 @@ export default function TestEditorPage() {
 
   function saveSettings() {
     if (!form || !canSave) return;
+    if (!form.opensAt || !form.closesAt) return toast("Set both an opening and a closing time.", "error");
+    if (fromLocalInput(form.closesAt) <= fromLocalInput(form.opensAt)) return toast("The closing time must be after the opening time.", "error");
     store.updateTest(id, {
       title: form.title.trim(),
       subject: form.subject || "General",

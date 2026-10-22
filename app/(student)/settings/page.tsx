@@ -49,13 +49,20 @@ function ChangePassword() {
 
     setBusy(true);
     const sb = supabase();
-    const { data } = await sb.auth.getUser();
+    const { data, error: userErr } = await sb.auth.getUser();
+    if (userErr && !navigator.onLine) {
+      setBusy(false);
+      return setError({ field: "current", msg: "You're offline. Connect to the internet and try again." });
+    }
     const email = data.user?.email;
     // Check the current password first, so a phone left signed in can't be
     // used to lock the student out.
     const check = email ? await sb.auth.signInWithPassword({ email, password: current }) : null;
     if (!check || check.error) {
       setBusy(false);
+      if (check?.error && /fetch|network/i.test(check.error.message)) {
+        return setError({ field: "current", msg: "Couldn't reach the server. Check your internet and try again." });
+      }
       return setError({ field: "current", msg: "That isn't your current password." });
     }
     const { error: upErr } = await sb.auth.updateUser({ password: next });

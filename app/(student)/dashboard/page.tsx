@@ -15,6 +15,7 @@ import { buildStudyPlan } from "@/lib/study-plan";
 import { TopicChip } from "@/components/student/TopicChip";
 import { displayName } from "@/lib/display-name";
 import { AddToCalendar } from "@/components/student/AddToCalendar";
+import { ClassNow } from "@/components/student/ClassNow";
 
 function greeting(d = new Date()) {
   const h = d.getHours();
@@ -72,6 +73,8 @@ export default function DashboardPage() {
         </h1>
         <p className="mt-2.5 text-base text-ink-2">{status}</p>
       </header>
+
+      <ClassNow db={db} student={student} nowMs={nowMs} />
 
       {!hasAny && (
         <EmptyState
@@ -136,6 +139,14 @@ export default function DashboardPage() {
           ))}
         </Section>
       )}
+
+      <Link
+        href="/classes"
+        className={buttonClasses({ variant: "secondary", fullWidth: true, className: "justify-between" })}
+      >
+        <span className="inline-flex items-center gap-2"><Icon.Clock className="h-[18px] w-[18px]" /> Timetable and recordings</span>
+        <Icon.ChevronRight className="h-[18px] w-[18px]" />
+      </Link>
 
       <Link
         href="/progress"

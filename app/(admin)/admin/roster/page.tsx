@@ -148,6 +148,11 @@ export default function RosterPage() {
     // Passwords live in Supabase auth and are never read back, so the field is
     // always blank when editing — blank there means "keep the current one".
     if (editing === "new" && !form.tempPassword.trim()) return setError("Set a temporary password.");
+    if (form.tempPassword.trim() && form.tempPassword.trim().length < 8) return setError("Passwords need at least 8 characters.");
+    const nameChanged = editing === "new" || (editing && editing.username !== form.username.trim());
+    if (nameChanged && !/^[a-z0-9._-]{3,30}$/i.test(form.username.trim())) {
+      return setError("Usernames: 3 to 30 letters or numbers, no spaces (dots and dashes are fine).");
+    }
 
     const whatsapp = form.whatsapp.trim() ? normalizePhone(form.whatsapp) : "";
     if (whatsapp && !isValidPhone(whatsapp)) {

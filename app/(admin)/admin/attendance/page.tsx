@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type { AttendanceStatus } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
-import { attendancePercent } from "@/lib/data/selectors";
+import { attendancePercent, archivedCohortIds } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Select, EmptyState, Icon } from "@/components/ui";
@@ -18,7 +18,8 @@ const STATUS: { value: AttendanceStatus; label: string; tone: string }[] = [
   { value: "absent", label: "Absent", tone: "border-error bg-error-soft text-error" },
 ];
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+// Pakistan date, so early-morning marks never land on yesterday.
+const todayISO = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date());
 const monthStart = (iso: string) => `${iso.slice(0, 7)}-01`;
 
 export default function AttendancePage() {
@@ -34,10 +35,11 @@ export default function AttendancePage() {
   const students = useMemo(
     () =>
       db.students
+        .filter((s) => !archivedCohortIds(db).has(s.cohortId))
         .filter((s) => (cohortId ? s.cohortId === cohortId : true))
         .filter((s) => (classId ? s.classIds.includes(classId) : true))
         .sort((a, b) => a.username.localeCompare(b.username)),
-    [db.students, cohortId, classId],
+    [db, cohortId, classId],
   );
 
   const month = monthStart(date);
@@ -113,9 +115,12 @@ export default function AttendancePage() {
       <Card className="divide-y divide-border p-0">
         {students.map((s) => {
           // No row means present: the register only stores the exceptions.
-          const mark = db.attendanceDays.find(
-            (a) => a.studentId === s.id && a.classId === classId && a.date === date,
-          );
+          // A mark made elsewhere that day (e.g. a Join tap, which is filed under
+          // the level) counts too, and tapping edits that row, so a day never
+          // ends up with two different marks.
+          const mark =
+            db.attendanceDays.find((a) => a.studentId === s.id && a.classId === classId && a.date === date) ??
+            db.attendanceDays.find((a) => a.studentId === s.id && a.date === date);
           const current: AttendanceStatus = mark?.status ?? "present";
           return (
             <div key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
@@ -124,7 +129,7 @@ export default function AttendancePage() {
                 {STATUS.map((opt) => (
                   <button
                     key={opt.value}
-                    onClick={() => store.setAttendance(s.id, classId, date, opt.value)}
+                    onClick={() => store.setAttendance(s.id, mark ? mark.classId : classId, date, opt.value)}
                     aria-pressed={current === opt.value}
                     className={cn(
                       "h-9 rounded-md border px-3 text-sm font-semibold transition-colors",
@@ -170,7 +175,8 @@ export default function AttendancePage() {
                 defaultValue={value ?? ""}
                 onBlur={(e) => {
                   const v = e.target.value.trim();
-                  if (v === "") return;
+                  // Only a real change becomes a typed figure; tabbing past leaves it live.
+                  if (v === "" || Number(v) === value) return;
                   store.setMonthlyAttendance(s.id, month, Number(v));
                   onSaved();
                 }}

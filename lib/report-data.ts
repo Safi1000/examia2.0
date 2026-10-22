@@ -154,10 +154,11 @@ export function reportData(db: Database, studentId: string, month: string, teach
   const present = days.filter((d) => d.status === "present").length;
   const late = days.filter((d) => d.status === "late").length;
   const absent = days.filter((d) => d.status === "absent").length;
-  const attendance = days.length
-    ? { percent: round1(((present + late * 0.5) / days.length) * 100), present, late, absent }
-    : typed
-      ? { percent: typed.percent, present: 0, late: 0, absent: 0 }
+  // A figure Hamza typed wins (as on the Attendance page); the day counts still show.
+  const attendance = typed
+    ? { percent: typed.percent, present, late, absent }
+    : days.length
+      ? { percent: round1(((present + late * 0.5) / days.length) * 100), present, late, absent }
       : null;
 
   // Topics from this month's marked work.

@@ -44,10 +44,19 @@ export function entityRows(db: Database, key: EntityKey): Record<string, string 
     case "cohorts":
       return db.cohorts.map((c) => ({ id: c.id, name: c.name, color: c.color, createdAt: c.createdAt }));
     case "students":
-      return db.students.map((s) => ({ id: s.id, username: s.username, email: s.email ?? "", cohortId: s.cohortId, createdAt: s.createdAt }));
+      return db.students.map((s) => ({
+        id: s.id,
+        username: s.username,
+        email: s.email ?? "",
+        cohort: db.cohorts.find((c) => c.id === s.cohortId)?.name ?? "",
+        cohortId: s.cohortId,
+        createdAt: s.createdAt,
+      }));
     case "submissions":
       return db.submissions.map((s) => ({
         id: s.id,
+        student: db.students.find((x) => x.id === s.studentId)?.username ?? "",
+        test: db.tests.find((t) => t.id === s.testId)?.title ?? "",
         testId: s.testId,
         studentId: s.studentId,
         status: s.status,
@@ -65,7 +74,8 @@ export function toCsv(rows: Record<string, string | number>[]): string {
   if (rows.length === 0) return "";
   const headers = Object.keys(rows[0]);
   const escape = (v: string | number) => {
-    const s = String(v);
+    // A cell starting with = + - @ would run as a formula in Excel or Sheets.
+    const s = /^[=+\-@]/.test(String(v)) && typeof v === "string" ? `'${v}` : String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const lines = [headers.join(","), ...rows.map((r) => headers.map((h) => escape(r[h])).join(","))];

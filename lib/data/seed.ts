@@ -102,7 +102,7 @@ export function createSeed(now: number = Date.now()): Database {
 
   // ---- Students ----------------------------------------------------------
   const students: Student[] = [
-    { id: "st_amelia", username: "amelia", email: "amelia@meridian.edu", cohortId: "co_autumn", classIds: [], subjectIds: [], tempPassword: "study123", createdAt: iso(-80 * DAY) },
+    { id: "st_amelia", username: "amelia", email: "amelia@meridian.edu", cohortId: "co_autumn", classIds: ["cl_as"], subjectIds: [], tempPassword: "study123", createdAt: iso(-80 * DAY) },
     { id: "st_noah", username: "noah", cohortId: "co_autumn", classIds: [], subjectIds: [], tempPassword: "noah2026", createdAt: iso(-80 * DAY) },
     { id: "st_priya", username: "priya", email: "priya@meridian.edu", cohortId: "co_autumn", classIds: [], subjectIds: [], tempPassword: "priya2026", createdAt: iso(-79 * DAY) },
     { id: "st_liam", username: "liam", cohortId: "co_autumn", classIds: [], subjectIds: [], tempPassword: "liam2026", createdAt: iso(-78 * DAY) },
@@ -396,14 +396,23 @@ export function createSeed(now: number = Date.now()): Database {
     submissions,
     announcements,
     bank,
-    classes: [],
+    // Preview only: the three levels and subjects, so Classes has something to show.
+    classes: [
+      { id: "cl_o", name: "IGCSE/O-Levels", createdAt: iso(-90 * DAY) },
+      { id: "cl_as", name: "A-Levels (AS)", createdAt: iso(-90 * DAY) },
+      { id: "cl_a2", name: "A-Levels (A2)", createdAt: iso(-90 * DAY) },
+    ],
     assignments: [],
     reports: [],
     remindersSent: [],
     attendanceDays: [],
     attendanceMonths: [],
     assignmentSubmissions: [],
-    subjects: [],
+    subjects: [
+      { id: "sj_acc", name: "Accounting", createdAt: iso(-90 * DAY) },
+      { id: "sj_bus", name: "Business Studies", createdAt: iso(-90 * DAY) },
+      { id: "sj_eco", name: "Economics", createdAt: iso(-90 * DAY) },
+    ],
     notes: [],
     noteAssignments: [],
     adminPassword: "admin2026",

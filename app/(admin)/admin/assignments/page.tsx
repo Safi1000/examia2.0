@@ -91,6 +91,8 @@ export default function AdminAssignmentsPage() {
   function save() {
     if (!form) return;
     if (!form.title.trim()) return toast("Give the assignment a title.", "error");
+    if (!form.dueAt) return toast("Set a due date.", "error");
+    if (!form.cohortId) return toast("Choose a cohort.", "error");
     const payload = {
       title: form.title.trim(),
       instructions: form.instructions.trim() || undefined,
@@ -200,7 +202,8 @@ export default function AdminAssignmentsPage() {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Select label="Cohort" value={form.cohortId} onChange={(e) => setForm({ ...form, cohortId: e.target.value })}>
-                <option value="">All cohorts</option>
+                {/* An assignment needs a cohort: without one, no student can see it. */}
+                <option value="">Choose a cohort</option>
                 {db.cohorts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </Select>
               <Select label="Class" value={form.classId} onChange={(e) => setForm({ ...form, classId: e.target.value })}>

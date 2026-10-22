@@ -719,13 +719,22 @@ class Store {
       d.cohorts = d.cohorts.filter((c) => c.id !== id);
     });
     const sb = supabase();
-    this.run(sb.from("students").update({ cohort_id: reassignToId }).eq("cohort_id", id), "deleteCohort/students");
-    this.run(sb.from("tests").update({ cohort_id: reassignToId }).eq("cohort_id", id), "deleteCohort/tests");
-    this.run(sb.from("announcements").update({ cohort_id: reassignToId }).eq("cohort_id", id), "deleteCohort/announcements");
-    // Delete only after reassignment so the FKs never dangle.
-    Promise.resolve()
-      .then(() => sb.from("cohorts").delete().eq("id", id))
-      .then(({ error }) => { if (error) this.report(`deleteCohort: ${error.message}`); });
+    // One step at a time, and delete only once everything has moved: a delete
+    // racing ahead would orphan tests (shown to everyone) and wipe assignments,
+    // hand-ins and note links along with the cohort.
+    void (async () => {
+      for (const table of ["students", "tests", "announcements", "assignments", "note_assignments", "activities"]) {
+        const { error } = await sb.from(table).update({ cohort_id: reassignToId }).eq("cohort_id", id);
+        // A table without a cohort column is fine to skip; anything else stops the delete.
+        if (error && !/column .* does not exist/i.test(error.message)) {
+          this.report(`deleteCohort/${table}: ${error.message}`);
+          return;
+        }
+      }
+      const { error } = await sb.from("cohorts").delete().eq("id", id);
+      if (error) this.report(`deleteCohort: ${error.message}`);
+      await this.refresh();
+    })();
   }
 
   setCohortClasses(cohortId: string, classIds: string[]) {
@@ -1557,6 +1566,8 @@ class Store {
     // A result is personal, so this is addressed per student rather than
     // broadcast to the cohort — students who did not sit the test get nothing.
     released.forEach((s) => this.announceResult(s.studentId, testId, s.id));
+    // Phone notification too (batched into one per student, quiet rules apply).
+    released.forEach((s) => this.queueResultPush(s.id));
   }
   /** Tell one student their result for a test is now available. */
   private announceResult(studentId: string, testId: string, submissionId: string) {

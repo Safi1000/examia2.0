@@ -22,7 +22,13 @@ export default function StudentAssignmentsPage() {
 
   // RLS already limits what this client can see to the student's own cohort,
   // class and subject, so nothing further needs filtering here.
-  const assignments = [...db.assignments].sort((a, b) => +new Date(a.dueAt) - +new Date(b.dueAt));
+  // Upcoming first (soonest at the top), then past work, newest first.
+  const nowMs = useNow();
+  const due = (a: { dueAt: string }) => +new Date(a.dueAt);
+  const assignments = [
+    ...db.assignments.filter((a) => due(a) >= nowMs).sort((a, b) => due(a) - due(b)),
+    ...db.assignments.filter((a) => due(a) < nowMs).sort((a, b) => due(b) - due(a)),
+  ];
 
   if (!studentId) return null;
 
@@ -67,16 +73,18 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
     setProgress(0);
     try {
       const parts = accepted.map(() => 0);
-      const pages = (
-        await Promise.all(
-          accepted.map((f, i) =>
-            uploadAsImages(f, (p) => {
-              parts[i] = p;
-              setProgress(parts.reduce((a, b) => a + b, 0) / parts.length);
-            }),
-          ),
-        )
-      ).flat();
+      const results = await Promise.allSettled(
+        accepted.map((f, i) =>
+          uploadAsImages(f, (p) => {
+            parts[i] = p;
+            setProgress(parts.reduce((a, b) => a + b, 0) / parts.length);
+          }),
+        ),
+      );
+      const pages = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+      const failed = results.length - results.filter((r) => r.status === "fulfilled").length;
+      if (!pages.length) throw new Error("Nothing uploaded. Check your internet and try again.");
+      if (failed) toast(failed === 1 ? "1 file didn't upload. Add it again." : `${failed} files didn't upload. Add them again.`, "error");
       await store.submitAssignment(assignment.id, studentId, [...(mine?.fileUrls ?? []), ...pages]);
       toast("Handed in.", "success");
     } catch (err) {

@@ -48,6 +48,11 @@ create policy ans_insert on public.answers for insert to authenticated
       where s.id = submission_id
         and s.student_id = public.current_student_id()
         and s.status <> 'released'
+        -- The question must belong to this submission's own test.
+        and exists (
+          select 1 from public.questions q
+          where q.id = answers.question_id and q.test_id = s.test_id
+        )
     )
   );
 

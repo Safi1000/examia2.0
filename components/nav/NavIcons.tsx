@@ -85,6 +85,13 @@ export const NavIcon = {
       <circle cx="7" cy="17" r="2" fill="var(--color-paper)" />
     </Svg>
   ),
+  Classes: ({ active, className }: P) => (
+    <Svg active={active} className={className}>
+      <rect x="3" y="6" width="13" height="12" rx="2.5" />
+      <path d="M16 10.5l5-3v9l-5-3" />
+      <Gold active={active}><circle cx="9.5" cy="12" r="2.2" strokeWidth="0" /></Gold>
+    </Svg>
+  ),
   Today: ({ active, className }: P) => (
     <Svg active={active} className={className}>
       <path d="M12 2.8v2M12 19.2v2M2.8 12h2M19.2 12h2M5.5 5.5l1.4 1.4M17.1 17.1l1.4 1.4M5.5 18.5l1.4-1.4M17.1 6.9l1.4-1.4" />

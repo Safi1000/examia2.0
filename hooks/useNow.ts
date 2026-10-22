@@ -20,6 +20,8 @@ let timer: ReturnType<typeof setInterval> | null = null;
 function subscribe(onChange: () => void) {
   listeners.add(onChange);
   if (!timer) {
+    // Fresh reading when the clock wakes up again, never a stale one.
+    now = Date.now();
     timer = setInterval(() => {
       now = Date.now();
       listeners.forEach((l) => l());

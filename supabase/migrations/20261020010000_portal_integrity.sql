@@ -18,8 +18,17 @@
 --
 -- Admins are untouched. Apply after 20261016010000_harden_student_writes.sql.
 
+-- Tests target a cohort, level and subject. These columns already exist on the
+-- live database (the app writes them); this only guards a fresh install.
+alter table public.tests
+  add column if not exists class_id uuid references public.classes(id) on delete set null,
+  add column if not exists subject_id uuid references public.subjects(id) on delete set null;
+
 -- ---------------------------------------------------------------------------
--- 1. Questions are hidden until the test opens.
+-- 1. Questions are hidden until the test opens, and only shown to the
+--    students the test is for (cohort, level and subject, as in the app).
+--    Apply when no test is in progress: an attempt already running has no
+--    recorded start and would be flagged late.
 drop policy if exists questions_read on public.questions;
 create policy questions_read on public.questions for select to authenticated
   using (
@@ -28,7 +37,7 @@ create policy questions_read on public.questions for select to authenticated
       where t.id = questions.test_id
         and t.status <> 'draft'
         and t.opens_at <= now()
-        and (t.cohort_id is null or t.cohort_id = public.current_student_cohort())
+        and public.student_can_see_activity(t.cohort_id, t.class_id, t.subject_id)
     )
   );
 
@@ -80,7 +89,7 @@ begin
   select * into v_test from public.tests where id = p_test_id;
   if not found
      or v_test.status = 'draft'
-     or (v_test.cohort_id is not null and v_test.cohort_id <> public.current_student_cohort()) then
+     or not public.student_can_see_activity(v_test.cohort_id, v_test.class_id, v_test.subject_id) then
     raise exception 'test not available';
   end if;
   if now() < v_test.opens_at or now() > v_test.closes_at then
@@ -116,7 +125,7 @@ begin
   select * into v_test from public.tests where id = new.test_id;
   if not found
      or v_test.status = 'draft'
-     or (v_test.cohort_id is not null and v_test.cohort_id <> public.current_student_cohort()) then
+     or not public.student_can_see_activity(v_test.cohort_id, v_test.class_id, v_test.subject_id) then
     raise exception 'test not available';
   end if;
   if now() < v_test.opens_at then
