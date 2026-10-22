@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { LEVEL_LABEL, LINKS_AT_HOUR, addDays, pkDate, slotsOn, type DaySlot } from "@/lib/timetable";
-import { accessToken, createClassEvent, findRecording, getEvent } from "@/lib/google";
+import { LEVEL_LABEL, LINKS_AT_HOUR, RECORDING_HOURS, addDays, pkDate, slotsOn, type DaySlot } from "@/lib/timetable";
+import { RECORDINGS_ROOT, accessToken, closeLinkSharing, createClassEvent, fileIdOf, findRecording, getEvent } from "@/lib/google";
 
 /**
  * Runs with the 15-minute reminder check (and from "Make today's links now"):
@@ -10,8 +10,12 @@ import { accessToken, createClassEvent, findRecording, getEvent } from "@/lib/go
  *     is never replaced.
  *  2. From 15 minutes after a class ends (checked every 15 minutes for up to
  *     3 days, since Meet can take 30 to 40 minutes to save it), the recording
- *     Meet saved to Drive is shared "anyone with the link" and added for
- *     students. Recording still has to be started in Meet.
+ *     is moved to "Hamza Teaches recordings / level / subject" in Drive,
+ *     shared "anyone with the link" and added for students.
+ *  3. 24 hours after the class ends, link sharing is switched off again, so
+ *     students can't save it for later. Anyone Hamza shared the folder with
+ *     by email (late joiners) still has access. Recording still has to be
+ *     started in Meet.
  */
 
 export const eventTitle = (s: DaySlot) => `${LEVEL_LABEL[s.level]} ${s.subject} · Hamza Teaches`;
@@ -83,10 +87,21 @@ export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), f
     for (const s of slotsOn(db, d)) {
       if (now < s.endMs + 15 * 60_000) continue;
       const row = byKey.get(key(s.date, s.classId, s.subjectId));
+      const closesAt = s.endMs + RECORDING_HOURS * 3_600_000;
+      // 3. Past its 24 hours: close the link (retried for a few hours).
+      if (row?.recording_url && now >= closesAt && now < closesAt + 6 * 3_600_000) {
+        const id = fileIdOf(row.recording_url);
+        if (id) await closeLinkSharing(token, id).catch((e) => console.error("[classes] close", eventTitle(s), e));
+        continue;
+      }
       if (!row?.event_id || row.recording_url) continue;
       try {
         const ev = await getEvent(token, row.event_id);
-        const url = await findRecording(token, ev, eventTitle(s), new Date(s.startMs - 30 * 60_000).toISOString());
+        const url = await findRecording(token, ev, eventTitle(s), new Date(s.startMs - 30 * 60_000).toISOString(), {
+          // Found only after its 24 hours: filed for Hamza, never opened to students.
+          share: now < closesAt,
+          folder: [RECORDINGS_ROOT, LEVEL_LABEL[s.level].replace(" / ", " and "), s.subject],
+        });
         if (url) {
           await save(s, { recording_url: url });
           recordings++;
@@ -118,5 +133,5 @@ export async function findTestRecording(sb: SupabaseClient, eventId: string, sta
   if (!token) return { error: "not connected" };
   const ev = await getEvent(token, eventId);
   const after = new Date(+new Date(startedAt) - 30 * 60_000).toISOString();
-  return { recordingUrl: await findRecording(token, ev, TEST_TITLE, after) };
+  return { recordingUrl: await findRecording(token, ev, TEST_TITLE, after, { share: true, folder: [RECORDINGS_ROOT, "Tests"] }) };
 }

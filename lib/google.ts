@@ -128,9 +128,56 @@ export async function createClassEvent(token: string, title: string, startIso: s
 export const getEvent = (token: string, id: string) =>
   g<CalEvent>(token, `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(id)}`);
 
-// ---- Drive: find the recording and share it with "anyone with the link" -----
+// ---- Drive: find the recording, file it, share it for a day -----------------
 
-export async function findRecording(token: string, ev: CalEvent, title: string, afterIso: string): Promise<string | null> {
+/** Recordings live in "Hamza Teaches recordings / <level> / <subject>" in Hamza's Drive. */
+export const RECORDINGS_ROOT = "Hamza Teaches recordings";
+const FOLDER = "application/vnd.google-apps.folder";
+
+/**
+ * Find (or make) a folder path. Folders are tagged with a hidden property, so
+ * Hamza can rename or move them in Drive and they're still found.
+ */
+async function folderPath(token: string, path: string[]): Promise<string> {
+  let parent: string | null = null;
+  for (let i = 0; i < path.length; i++) {
+    const tag = path.slice(0, i + 1).join("/").replace(/'/g, "");
+    const q = `mimeType = '${FOLDER}' and trashed = false and appProperties has { key='htPath' and value='${tag}' }`;
+    const found = await g<{ files: Array<{ id: string }> }>(
+      token,
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)&pageSize=1`,
+    );
+    parent =
+      found.files[0]?.id ??
+      (
+        await g<{ id: string }>(token, "https://www.googleapis.com/drive/v3/files?fields=id", {
+          method: "POST",
+          body: JSON.stringify({ name: path[i], mimeType: FOLDER, appProperties: { htPath: tag }, ...(parent ? { parents: [parent] } : {}) }),
+        })
+      ).id;
+  }
+  return parent!;
+}
+
+/** Move a file into a folder (out of "Meet Recordings"). */
+async function moveInto(token: string, fileId: string, folderId: string) {
+  const f = await g<{ parents?: string[] }>(token, `https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents`);
+  if (f.parents?.includes(folderId)) return;
+  const q = new URLSearchParams({ addParents: folderId, removeParents: (f.parents ?? []).join(","), fields: "id" });
+  await g(token, `https://www.googleapis.com/drive/v3/files/${fileId}?${q}`, { method: "PATCH", body: "{}" });
+}
+
+/**
+ * The class recording, or null if Meet hasn't saved it yet. When found it is
+ * filed into `folder` and, if `share`, opened to "anyone with the link".
+ */
+export async function findRecording(
+  token: string,
+  ev: CalEvent,
+  title: string,
+  afterIso: string,
+  opts: { share: boolean; folder?: string[] } = { share: true },
+): Promise<string | null> {
   // Meet attaches the recording to the Calendar event...
   let fileId = ev.attachments?.find((a) => a.mimeType?.startsWith("video/"))?.fileId ?? null;
   // ...and also names the Drive file after the event, so search as a fallback.
@@ -143,10 +190,28 @@ export async function findRecording(token: string, ev: CalEvent, title: string, 
     fileId = list.files[0]?.id ?? null;
   }
   if (!fileId) return null;
-  await g(token, `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
-    method: "POST",
-    body: JSON.stringify({ role: "reader", type: "anyone" }),
-  }).catch(() => null); // Already shared is fine.
+  if (opts.folder) await moveInto(token, fileId, await folderPath(token, opts.folder)).catch((e) => console.error("[google] move", e));
+  if (opts.share) {
+    await g(token, `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+      method: "POST",
+      body: JSON.stringify({ role: "reader", type: "anyone" }),
+    }).catch(() => null); // Already shared is fine.
+  }
   const f = await g<{ webViewLink?: string }>(token, `https://www.googleapis.com/drive/v3/files/${fileId}?fields=webViewLink`);
   return f.webViewLink ?? null;
+}
+
+/** Drive file id from a recording link. */
+export const fileIdOf = (url: string) => url.match(/\/d\/([\w-]+)/)?.[1] ?? url.match(/[?&]id=([\w-]+)/)?.[1] ?? null;
+
+/**
+ * Close the "anyone with the link" door. People Hamza shared the file or its
+ * folder with by email (late joiners) keep access.
+ */
+export async function closeLinkSharing(token: string, fileId: string) {
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions/anyoneWithLink`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok && res.status !== 404) throw new Error(`Google ${res.status}`);
 }

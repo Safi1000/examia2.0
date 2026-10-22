@@ -7,7 +7,7 @@ import { useDatabase } from "@/lib/data/store";
 import { studentById } from "@/lib/data/selectors";
 import { ClassNow } from "@/components/student/ClassNow";
 import { EmptyState, Icon } from "@/components/ui";
-import { LEVEL_LABEL, TERM_STARTS, addDays, isClassDay, pkDate, slotKey, slotsForStudent, timeLabel, useClassLinks } from "@/lib/classes";
+import { LEVEL_LABEL, RECORDING_HOURS, TERM_STARTS, addDays, isClassDay, pkDate, slotKey, slotsForStudent, timeLabel, useClassLinks } from "@/lib/classes";
 
 /** The student's daily timetable and the recordings of past classes. */
 export default function ClassesPage() {
@@ -16,7 +16,8 @@ export default function ClassesPage() {
   const nowMs = useNow();
   const student = session?.studentId ? studentById(db, session.studentId) : null;
   const today = pkDate(nowMs);
-  const from = addDays(today, -60);
+  // Recordings stay open for a day, so two days back is plenty.
+  const from = addDays(today, -2);
   const { links } = useClassLinks(from, today);
 
   // The timetable is the same every class day, so show one (the next) day's slots.
@@ -29,12 +30,14 @@ export default function ClassesPage() {
 
   const recordings = (() => {
     if (!student) return [];
-    const mine = new Set<string>();
-    for (let d = from; d <= today; d = addDays(d, 1)) for (const s of slotsForStudent(db, student, d)) mine.add(slotKey(s));
+    // Each of my classes, and when its recording closes (24 h after it ends).
+    const closes = new Map<string, number>();
+    for (let d = from; d <= today; d = addDays(d, 1))
+      for (const s of slotsForStudent(db, student, d)) closes.set(slotKey(s), s.endMs + RECORDING_HOURS * 3_600_000);
     return links
-      .filter((l) => l.recordingUrl && mine.has(slotKey(l)))
-      .map((l) => ({ ...l, subject: db.subjects.find((s) => s.id === l.subjectId)?.name ?? "Class" }))
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .filter((l) => l.recordingUrl && nowMs < (closes.get(slotKey(l)) ?? 0))
+      .map((l) => ({ ...l, closesAt: closes.get(slotKey(l))!, subject: db.subjects.find((s) => s.id === l.subjectId)?.name ?? "Class" }))
+      .sort((a, b) => b.closesAt - a.closesAt);
   })();
 
   if (!student) return null;
@@ -73,7 +76,10 @@ export default function ClassesPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-ink">Recordings</h2>
+        <div>
+          <h2 className="text-base font-semibold text-ink">Recordings</h2>
+          <p className="mt-0.5 text-sm text-ink-3">Watch within {RECORDING_HOURS} hours of class. After that they close.</p>
+        </div>
         {recordings.length ? (
           <ul className="space-y-2">
             {recordings.map((r) => (
@@ -87,7 +93,9 @@ export default function ClassesPage() {
                   <span>
                     <span className="block font-semibold text-ink">{r.subject}</span>
                     <span className="block text-xs text-ink-3">
-                      {new Date(`${r.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
+                      {new Date(`${r.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} · open
+                      until{" "}
+                      {new Date(r.closesAt).toLocaleString("en-GB", { timeZone: "Asia/Karachi", weekday: "short", hour: "numeric", minute: "2-digit", hour12: true })}
                     </span>
                   </span>
                   <span className="inline-flex items-center gap-1 text-sm font-semibold text-brand">
@@ -98,7 +106,11 @@ export default function ClassesPage() {
             ))}
           </ul>
         ) : (
-          <EmptyState icon={<Icon.Doc />} title="No recordings yet" message="Recordings of your classes will appear here." />
+          <EmptyState
+            icon={<Icon.Doc />}
+            title="No recordings right now"
+            message={`Each class recording appears here after class and stays open for ${RECORDING_HOURS} hours.`}
+          />
         )}
       </section>
     </div>

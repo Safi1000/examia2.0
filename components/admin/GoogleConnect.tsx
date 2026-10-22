@@ -93,9 +93,10 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
             <p className="mt-1 text-sm text-ink-3">Switches on once the Google setup is done and your developer has added the keys.</p>
           ) : status.connected ? (
             <p className="mt-1 text-sm text-ink-2">
-              Connected{status.email ? ` as ${status.email}` : ""}. Every class gets its own link at 1 pm. Press Record in Meet; the
-              recording is saved in your Drive&apos;s &quot;Meet Recordings&quot; folder and appears here once Google has processed it
-              (usually within an hour).
+              Connected{status.email ? ` as ${status.email}` : ""}. Every class gets its own link at 1 pm. Press Record in Meet. Once Google has
+              processed it (usually within an hour), the recording moves to &quot;Hamza Teaches recordings&quot; in your Drive, sorted by
+              level and subject, and students can watch it for 24 hours. To give a late joiner old classes, share that folder
+              with their Gmail in Drive.
             </p>
           ) : (
             <p className="mt-1 text-sm text-ink-2">Connect your Google account once. You can still paste a link by hand at any time.</p>

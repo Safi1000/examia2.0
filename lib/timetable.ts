@@ -12,6 +12,8 @@ export const TERM_STARTS = "2026-11-02";
 export const CLASS_DAYS = [1, 2, 3, 4, 5];
 /** Hour (Pakistan time) when the day's Meet links are made, before the first class at 3:30. */
 export const LINKS_AT_HOUR = 13;
+/** Students can watch a class recording until this many hours after the class ends. */
+export const RECORDING_HOURS = 24;
 /** How early the Join button wakes up. */
 export const JOIN_EARLY_MIN = 10;
 
