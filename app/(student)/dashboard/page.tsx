@@ -14,6 +14,7 @@ import { formatRelative, testWindow } from "@/lib/time";
 import { buildStudyPlan } from "@/lib/study-plan";
 import { TopicChip } from "@/components/student/TopicChip";
 import { displayName } from "@/lib/display-name";
+import { AddToCalendar } from "@/components/student/AddToCalendar";
 
 function greeting(d = new Date()) {
   const h = d.getHours();
@@ -118,7 +119,12 @@ export default function DashboardPage() {
       {groups.upcoming.length > 0 && (
         <Section title="Coming up">
           {groups.upcoming.map((t) => (
-            <TestCard key={t.id} test={t} submission={submissionFor(db, student.id, t.id)} nowMs={nowMs} />
+            <div key={t.id}>
+              <TestCard test={t} submission={submissionFor(db, student.id, t.id)} nowMs={nowMs} />
+              <div className="mt-1.5 flex justify-end pr-1">
+                <AddToCalendar test={t} />
+              </div>
+            </div>
           ))}
         </Section>
       )}

@@ -70,7 +70,16 @@ export default function GradingPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+    <div
+      className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8"
+      // Ctrl/Cmd + Enter while marking: release and move to the next one.
+      onKeyDown={(e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && fullyGraded && !released) {
+          e.preventDefault();
+          release(!!nextId);
+        }
+      }}
+    >
       <PageHeader
         title="Grading"
         subtitle={`${name} · ${test.title}${waiting ? ` · ${waiting} waiting to be marked` : ""}`}
@@ -95,6 +104,7 @@ export default function GradingPage() {
               )}
               <Button disabled={!fullyGraded} onClick={() => release(!!nextId)}>
                 {nextId ? "Release & next" : "Release result"}
+                <kbd className="ml-1.5 hidden rounded border border-current/30 px-1 text-[10px] font-semibold opacity-70 lg:inline">Ctrl ↵</kbd>
               </Button>
             </>
           )

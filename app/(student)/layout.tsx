@@ -15,6 +15,18 @@ import { cohortById } from "@/lib/data/selectors";
 import { cn } from "@/lib/cn";
 import { displayName } from "@/lib/display-name";
 import { PortalAmbient } from "@/components/PortalAmbient";
+import { pageTitle, useDocumentTitle } from "@/hooks/usePageTitle";
+
+const TITLES: Record<string, string> = {
+  "/dashboard": "Home",
+  "/plan": "My plan",
+  "/progress": "Progress",
+  "/assignments": "Assignments",
+  "/notes": "Notes",
+  "/settings": "Settings",
+  "/notifications": "Notifications",
+  "/results": "Result",
+};
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
   const { session, logout, initializing } = useAuth();
@@ -26,6 +38,8 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   useEffect(() => {
     if (!initializing && (!session || session.role !== "student")) router.replace("/login");
   }, [session, initializing, router]);
+  // Tab title per page; the test runner sets its own (the countdown).
+  useDocumentTitle(/^\/test\/[^/]+$/.test(pathname) ? null : pageTitle(pathname, TITLES, "Hamza Teaches"));
 
   if (initializing || !ready || !session || session.role !== "student" || !session.studentId) {
     return <div className="flex min-h-dvh items-center justify-center text-ink-3">Loading…</div>;

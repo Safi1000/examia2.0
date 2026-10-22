@@ -14,7 +14,9 @@ import { CountdownTimer } from "@/components/student/CountdownTimer";
 import { QuestionView } from "@/components/student/QuestionView";
 import { Button, Modal, Pill, Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
-import { testWindow } from "@/lib/time";
+import { formatCountdown, testWindow } from "@/lib/time";
+import { useTestSafety } from "@/hooks/useTestSafety";
+import { useDocumentTitle } from "@/hooks/usePageTitle";
 import { cn } from "@/lib/cn";
 import Link from "next/link";
 
@@ -203,6 +205,17 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
 
   const { remaining, state } = useCountdown(endMs, onExpire);
 
+  // Awake screen, leave warning, online status.
+  const sitting = !!test && !!student && !existing && window === "open";
+  const { online } = useTestSafety({ active: sitting });
+  // Time left in the browser tab, so it shows even on another tab.
+  useDocumentTitle(sitting && test ? `${formatCountdown(remaining)} · ${test.title}` : null);
+
+  // Back online after a failed hand-in: try again by itself.
+  useEffect(() => {
+    if (online && submitError && !submitting) void doSubmit(lastAuto.current);
+  }, [online, submitError, submitting, doSubmit]);
+
   useDraftAutosave({
     studentId: student?.id ?? "",
     testId: test?.id ?? "",
@@ -259,17 +272,39 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
           </div>
           <CountdownTimer remaining={remaining} state={state} />
         </div>
-        <div className={cn("mx-auto flex max-w-2xl items-center gap-3 px-4 pb-3", uploading && "hidden")}>
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
-            <div
-              className="h-full rounded-full bg-brand transition-[width] duration-300"
-              style={{ width: `${((index + 1) / test.questions.length) * 100}%` }}
-            />
-          </div>
-          <span className="shrink-0 font-mono text-xs text-ink-2">
-            {index + 1}/{test.questions.length}
+        {/* Question map: tap any number to jump. Gold = answered, ring = where you are. */}
+        <nav aria-label="Questions" className={cn("mx-auto flex max-w-2xl items-center gap-3 px-4 pb-3", uploading && "hidden")}>
+          <ol className="flex flex-1 gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
+            {test.questions.map((qq, i) => {
+              const done = answers[i] ? isAnswered(answers[i]) : false;
+              return (
+                <li key={qq.id}>
+                  <button
+                    type="button"
+                    onClick={() => setIndex(i)}
+                    aria-label={`Question ${i + 1}${done ? ", answered" : ""}`}
+                    aria-current={i === index ? "step" : undefined}
+                    className={cn(
+                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums transition-all",
+                      done ? "bg-brand text-on-brand" : "border border-border-strong text-ink-3 hover:text-ink",
+                      i === index && "ring-2 ring-brand ring-offset-2 ring-offset-paper",
+                    )}
+                  >
+                    {i + 1}
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+          <span className="shrink-0 text-xs font-semibold text-ink-2">
+            {answeredCount}/{test.questions.length} done
           </span>
-        </div>
+        </nav>
+        {!online && (
+          <p role="status" className="border-t border-warning/30 bg-warning-soft px-4 py-2 text-center text-xs font-semibold text-warning">
+            You&apos;re offline. Keep going: your answers are saved on this device.
+          </p>
+        )}
       </header>
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">

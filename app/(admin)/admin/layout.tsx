@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useDataReady } from "@/lib/data/store";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
@@ -13,8 +13,27 @@ import { Icon } from "@/components/ui";
 import { LogoTight } from "@/components/Brand";
 import { NotificationBell } from "@/components/NotificationBell";
 import { PortalAmbient } from "@/components/PortalAmbient";
+import { pageTitle, useDocumentTitle } from "@/hooks/usePageTitle";
 
 const IDLE_MS = 30 * 60 * 1000; // 30-minute idle session timeout
+
+const TITLES: Record<string, string> = {
+  "/admin/today": "Today",
+  "/admin/tests": "Tests",
+  "/admin/submissions": "Submissions",
+  "/admin/grading": "Marking",
+  "/admin/assignments": "Assignments",
+  "/admin/bank": "Question bank",
+  "/admin/notes": "Notes",
+  "/admin/announcements": "Announcements",
+  "/admin/roster": "Roster",
+  "/admin/cohorts": "Cohorts",
+  "/admin/attendance": "Attendance",
+  "/admin/analytics": "Analytics",
+  "/admin/export": "Export",
+  "/admin/settings": "Settings",
+  "/admin/notifications": "Notifications",
+};
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { session, logout, initializing } = useAuth();
@@ -24,6 +43,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isAdmin = session?.role === "admin";
+  const pathname = usePathname();
+  useDocumentTitle(isAdmin ? pageTitle(pathname, TITLES, "Teacher console") : "Teacher sign in · Hamza Teaches");
 
   useSessionTimeout(
     () => {
