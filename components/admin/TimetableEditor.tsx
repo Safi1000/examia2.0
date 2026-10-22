@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { Button, Card, Icon } from "@/components/ui";
 import { useToast } from "@/components/toast";
-import { storeSchedule } from "@/components/ScheduleGate";
-import { DEFAULT_SCHEDULE, LEVEL_LABEL, getSchedule, timeLabel, type LevelKey, type Schedule, type SubjectKey, type WeekSlot } from "@/lib/timetable";
+import { saveWeekly } from "@/components/ScheduleGate";
+import { useSchedule } from "@/lib/classes";
+import { DEFAULT_SCHEDULE, LEVEL_LABEL, scheduleLoaded, timeLabel, type LevelKey, type Schedule, type SubjectKey, type WeekSlot } from "@/lib/timetable";
 import { cn } from "@/lib/cn";
 
 const LEVELS: LevelKey[] = ["A2", "O", "AS"];
@@ -27,11 +28,19 @@ const field =
  * (subject and times). Changes apply from the next page load for students;
  * one-off changes for a single date live on the day view instead.
  */
-export function TimetableEditor({ onSaved }: { onSaved: () => void }) {
+export function TimetableEditor() {
   const { toast } = useToast();
-  const [draft, setDraft] = useState<Schedule>(() => structuredClone(getSchedule()));
+  const saved = useSchedule();
+  const [draft, setDraft] = useState<Schedule>(() => structuredClone(saved));
   const [busy, setBusy] = useState(false);
-  const dirty = JSON.stringify(draft) !== JSON.stringify(getSchedule());
+  const weekly = (x: Schedule) => JSON.stringify([x.termStarts, x.days, x.slots]);
+  const dirty = weekly(draft) !== weekly(saved);
+  // The saved timetable arrived (or changed elsewhere) while nothing was edited here: show it.
+  const [seen, setSeen] = useState(saved);
+  if (seen !== saved) {
+    setSeen(saved);
+    if (!dirty) setDraft(structuredClone(saved));
+  }
 
   const setSlot = (i: number, patch: Partial<WeekSlot>) =>
     setDraft((d) => ({ ...d, slots: d.slots.map((s, j) => (j === i ? { ...s, ...patch } : s)) }));
@@ -51,9 +60,8 @@ export function TimetableEditor({ onSaved }: { onSaved: () => void }) {
     if (!draft.days.length) return toast("Pick at least one class day.", "error");
     setBusy(true);
     try {
-      setDraft(structuredClone(await storeSchedule(draft)));
+      setDraft(structuredClone(await saveWeekly(draft)));
       toast("Timetable saved. Students see it next time they open the portal.", "success");
-      onSaved();
     } catch (e) {
       toast(e instanceof Error ? e.message : "Couldn't save. Try again.", "error");
     } finally {
@@ -135,10 +143,11 @@ export function TimetableEditor({ onSaved }: { onSaved: () => void }) {
         <Button variant="ghost" size="sm" onClick={() => setDraft({ ...structuredClone(DEFAULT_SCHEDULE), exceptions: draft.exceptions })}>
           Back to the original timetable
         </Button>
-        <Button variant="secondary" size="sm" disabled={!dirty || busy} onClick={() => setDraft(structuredClone(getSchedule()))}>
+        <Button variant="secondary" size="sm" disabled={!dirty || busy} onClick={() => setDraft(structuredClone(saved))}>
           Undo changes
         </Button>
-        <Button size="sm" loading={busy} disabled={!dirty} onClick={() => void save()}>
+        {/* Never save before the real timetable has loaded (that would overwrite it with the default). */}
+        <Button size="sm" loading={busy} disabled={!dirty || !scheduleLoaded()} onClick={() => void save()}>
           Save timetable
         </Button>
       </div>

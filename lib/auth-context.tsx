@@ -29,7 +29,8 @@ interface AuthContextValue {
   setTheme: (id: string) => void;
   /** The student's own settings (avatar, targets, exam session, study stats). */
   profile: Profile;
-  updateProfile: (patch: Partial<Profile>) => void;
+  /** A patch, or a function of the latest saved profile (use that for counters like study time). */
+  updateProfile: (patch: Partial<Profile> | ((latest: Profile) => Partial<Profile>)) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -191,20 +192,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile({});
   }, []);
 
-  /** Save part of the student's profile (state now, account in the background). */
-  const updateProfile = useCallback((patch: Partial<Profile>) => {
-    setProfile((cur) => {
-      const next = { ...cur, ...patch };
+  /**
+   * Save part of the student's profile. Shows at once, then saves one change
+   * at a time on top of the latest copy on their account, so a phone and a
+   * laptop never undo each other.
+   */
+  const saving = useRef<Promise<unknown>>(Promise.resolve());
+  const updateProfile = useCallback((patch: Partial<Profile> | ((latest: Profile) => Partial<Profile>)) => {
+    const apply = (base: Profile) => ({ ...base, ...(typeof patch === "function" ? patch(base) : patch) });
+    setProfile((cur) => apply(cur));
+    saving.current = saving.current.then(async () => {
       if (DEMO) {
+        let base: Profile = {};
+        try {
+          base = JSON.parse(localStorage.getItem(DEMO_PROFILE_KEY) ?? "{}") as Profile;
+        } catch {}
+        const next = apply(base);
         try {
           localStorage.setItem(DEMO_PROFILE_KEY, JSON.stringify(next));
         } catch {}
-      } else {
-        void supabase().auth.updateUser({ data: { profile: next } });
+        return;
       }
-      return next;
+      try {
+        const { data } = await supabase().auth.getUser();
+        const latest = ((data.user?.user_metadata as Record<string, unknown> | undefined)?.profile as Profile) ?? {};
+        const next = apply(latest);
+        const { data: saved } = await supabase().auth.updateUser({ data: { profile: next } });
+        setProfile(((saved.user?.user_metadata as Record<string, unknown> | undefined)?.profile as Profile) ?? next);
+      } catch (e) {
+        console.error("[profile] save", e);
+      }
     });
   }, []);
+
+  // Coming back to the tab: pick up changes made on another device.
+  useEffect(() => {
+    if (DEMO || session?.role !== "student") return;
+    const onVis = () => {
+      if (document.visibilityState !== "visible") return;
+      void supabase()
+        .auth.getUser()
+        .then(({ data }) => {
+          const p = (data.user?.user_metadata as Record<string, unknown> | undefined)?.profile as Profile | undefined;
+          if (p) setProfile(p);
+        })
+        .catch(() => {});
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [session?.role]);
 
   /** Persist the accent choice for this user: state + local cache + server. */
   const setTheme = useCallback(

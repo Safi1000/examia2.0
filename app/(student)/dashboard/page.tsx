@@ -136,7 +136,7 @@ function PerformanceCard({ perf, targets }: { perf: Snapshot | null; targets?: P
   // Each subject against the student's own target, when they set one.
   const vsTarget = (perf?.bySubject ?? []).flatMap((s) => {
     const key = Object.keys(targets ?? {}).find((k) => sameSubject(k, s.subject));
-    const target = key ? targets![key] : undefined;
+    const target = key && typeof targets![key] === "string" && targets![key] in GRADE_FLOOR ? targets![key] : undefined;
     return target ? [{ ...s, target, gap: Math.max(0, Math.ceil(GRADE_FLOOR[target] - s.recent)) }] : [];
   });
   return (

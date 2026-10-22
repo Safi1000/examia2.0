@@ -1,8 +1,8 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { useEffect } from "react";
 import { DEMO } from "@/lib/demo";
-import { cleanSchedule, getSchedule, setSchedule } from "@/lib/timetable";
+import { applyDayChange, cleanSchedule, setSchedule, type DayChange, type Schedule } from "@/lib/timetable";
 
 const DEMO_KEY = "ht_demo_schedule";
 
@@ -27,43 +27,62 @@ export function saveDemoSchedule(v: unknown) {
 }
 
 /**
- * Wraps the portal: shows pages straight away with the last known timetable,
- * then swaps in Hamza's saved one if it differs (one quiet re-render).
+ * Wraps the portal: shows pages straight away with the default timetable,
+ * then loads Hamza's saved one; pages showing classes pick it up live.
  */
 export function ScheduleGate({ children }: { children: React.ReactNode }) {
-  const [version, setVersion] = useState(0);
   useEffect(() => {
     let alive = true;
     void fetchSchedule()
-      .then((s) => {
-        if (!alive || !s || JSON.stringify(s) === JSON.stringify(getSchedule())) return;
-        setSchedule(s);
-        setVersion((v) => v + 1);
-      })
+      .then((s) => alive && setSchedule(s))
       .catch(() => {});
     return () => {
       alive = false;
     };
   }, []);
-  return <Fragment key={version}>{children}</Fragment>;
+  // Pages subscribe with useSchedule(), so nothing remounts (unsaved work and timers survive).
+  return <>{children}</>;
 }
 
-/** Hamza saves the timetable. Returns the saved copy, or throws with a message. */
-export async function storeSchedule(next: unknown) {
-  const clean = cleanSchedule(next);
-  if (!clean) throw new Error("That timetable has a mistake in it.");
+/**
+ * Hamza's edits. Sent as small operations and applied on the server to the
+ * latest saved timetable, so a change made on the phone is never undone by
+ * an older copy open on the laptop.
+ */
+type Op = { op: "weekly"; termStarts: string; days: number[]; slots: Schedule["slots"] } | ({ op: "day" } & DayChange);
+
+async function send(op: Op): Promise<Schedule> {
   if (DEMO) {
-    saveDemoSchedule(clean);
-  } else {
-    const { supabase } = await import("@/lib/supabase");
-    const { data } = await supabase().auth.getSession();
-    const res = await fetch("/api/schedule", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${data.session?.access_token ?? ""}`, "Content-Type": "application/json" },
-      body: JSON.stringify(clean),
-    });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Couldn't save. Try again.");
+    let cur: Schedule | null = null;
+    try {
+      cur = cleanSchedule(JSON.parse(localStorage.getItem(DEMO_KEY) ?? "null"));
+    } catch {}
+    const { DEFAULT_SCHEDULE, pkDate } = await import("@/lib/timetable");
+    const base = cur ?? DEFAULT_SCHEDULE;
+    const next = cleanSchedule(op.op === "weekly" ? { ...base, termStarts: op.termStarts, days: op.days, slots: op.slots } : applyDayChange(base, op, pkDate(Date.now())));
+    if (!next) throw new Error("That timetable has a mistake in it.");
+    saveDemoSchedule(next);
+    setSchedule(next);
+    return next;
   }
-  setSchedule(clean);
-  return clean;
+  const { supabase } = await import("@/lib/supabase");
+  const { data } = await supabase().auth.getSession();
+  const res = await fetch("/api/schedule", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${data.session?.access_token ?? ""}`, "Content-Type": "application/json" },
+    body: JSON.stringify(op),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? "Couldn't save. Try again.");
+  const saved = cleanSchedule(body);
+  if (!saved) throw new Error("Couldn't save. Try again.");
+  setSchedule(saved);
+  return saved;
 }
+
+/** Save the weekly timetable (days, term start, classes). One-day changes are kept. */
+export const saveWeekly = (s: Pick<Schedule, "termStarts" | "days" | "slots">) =>
+  send({ op: "weekly", termStarts: s.termStarts, days: s.days, slots: s.slots });
+
+/** Cancel, move or add a class on one date (or undo that with change: null). */
+export const saveDayChange = (c: DayChange) => send({ op: "day", ...c });

@@ -31,7 +31,7 @@ export function ProfileSettings({ db, student }: { db: Database; student: Studen
               key={a.id}
               type="button"
               aria-pressed={profile.avatar === a.id}
-              aria-label={`Avatar ${a.id}`}
+              aria-label={`Avatar: ${a.label}`}
               onClick={() => updateProfile({ avatar: a.id })}
               className={cn("rounded-full p-0.5", profile.avatar === a.id ? "ring-2 ring-brand" : "opacity-70 hover:opacity-100")}
             >

@@ -7,7 +7,7 @@ import { useDatabase } from "@/lib/data/store";
 import { studentById } from "@/lib/data/selectors";
 import { ClassNow } from "@/components/student/ClassNow";
 import { EmptyState, Icon } from "@/components/ui";
-import { LEVEL_LABEL, RECORDING_HOURS, getSchedule, addDays, isClassDay, pkDate, slotKey, slotsForStudent, timeLabel, useClassLinks } from "@/lib/classes";
+import { useSchedule, LEVEL_LABEL, RECORDING_HOURS, getSchedule, addDays, isClassDay, pkDate, slotKey, slotsForStudent, span, useClassLinks } from "@/lib/classes";
 
 /** The student's daily timetable and the recordings of past classes. */
 export default function ClassesPage() {
@@ -19,13 +19,14 @@ export default function ClassesPage() {
   // Recordings stay open for a day, so two days back is plenty.
   const from = addDays(today, -2);
   const { links } = useClassLinks(from, today);
+  const schedule = useSchedule(); // re-render when the timetable loads or changes
 
   // The timetable is the same every class day, so show one (the next) day's slots.
   const day = useMemo(() => {
-    let d = today < getSchedule().termStarts ? getSchedule().termStarts : today;
+    let d = today < schedule.termStarts ? schedule.termStarts : today;
     for (let i = 0; i < 7 && !isClassDay(d); i++) d = addDays(d, 1);
     return d;
-  }, [today]);
+  }, [today, schedule]);
   const slots = student ? slotsForStudent(db, student, day) : [];
 
   const recordings = (() => {
@@ -65,7 +66,7 @@ export default function ClassesPage() {
                   <span className="block text-xs text-ink-3">{LEVEL_LABEL[s.level]}</span>
                 </span>
                 <span className="text-sm tabular-nums text-ink-2">
-                  {timeLabel(s.start)} to {timeLabel(s.end)} PM
+                  {span(s.start, s.end)}
                 </span>
               </li>
             ))}

@@ -10,7 +10,7 @@ import { displayName } from "@/lib/display-name";
 import { cn } from "@/lib/cn";
 import { NavIcon } from "@/components/nav/NavIcons";
 import { NotifyStep } from "@/components/student/NotifyStep";
-import { addDays, pkDate, slotsForStudent, timeLabel } from "@/lib/timetable";
+import { addDays, pkDate, slotsForStudent, span } from "@/lib/timetable";
 
 /** The subjects a student takes: their own, else their cohort's, else all. */
 export function studentSubjects(db: Database, student: Student): string[] {
@@ -69,7 +69,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
       ),
     },
     {
-      title: "Pick your face.",
+      title: "Pick your avatar.",
       sub: "It shows at the top of your portal.",
       body: (
         <div className="grid grid-cols-3 gap-4">
@@ -78,7 +78,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
               key={a.id}
               type="button"
               aria-pressed={avatar === a.id}
-              aria-label={`Avatar ${a.id}`}
+              aria-label={`Avatar: ${a.label}`}
               onClick={() => setAvatar(a.id)}
               className={cn(
                 "aspect-square rounded-full p-1 transition-all",
@@ -122,7 +122,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
     },
     {
       title: "How much will you study each week?",
-      sub: "Outside class. The study timer on Home counts towards it.",
+      sub: "Outside class. Groundwork, on Home, keeps count for you.",
       body: (
         <div className="grid grid-cols-2 gap-2.5">
           {WEEKLY_GOALS.map((h) => (
@@ -169,7 +169,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
             <div className="rounded-2xl border border-border bg-surface p-4 text-sm">
               <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-3">Your classes</p>
               <p className="mt-1.5 text-ink">
-                {nextDay.map((sl) => sl.subject).join(", ")}, from {timeLabel(nextDay[0].start)} to {timeLabel(nextDay[nextDay.length - 1].end)} PM
+                {nextDay.map((sl) => sl.subject).join(", ")}, {span(nextDay[0].start, nextDay[nextDay.length - 1].end)}
               </p>
             </div>
           )}

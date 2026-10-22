@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { supabase } from "@/lib/supabase";
 import { DEMO } from "@/lib/demo";
-import { slotKey, type DaySlot } from "@/lib/timetable";
+import { DEFAULT_SCHEDULE, getSchedule, slotKey, subscribeSchedule, type DaySlot, type Schedule } from "@/lib/timetable";
 
 export * from "@/lib/timetable";
 
@@ -147,3 +147,8 @@ export async function joinClass(slot: DaySlot, fallbackUrl: string | null): Prom
   return (data as string | null) ?? fallbackUrl;
 }
 
+
+/** The timetable in use; components re-render when Hamza's saved one arrives or changes. */
+export function useSchedule(): Schedule {
+  return useSyncExternalStore(subscribeSchedule, getSchedule, () => DEFAULT_SCHEDULE);
+}

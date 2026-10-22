@@ -40,7 +40,13 @@ export async function GET(req: NextRequest) {
         const m = byUser.get(u.id);
         const p = (u.user_metadata as { profile?: Profile } | undefined)?.profile;
         if (!m || !p?.focus) continue;
-        const minutes = Math.min(MAX_WEEK_MIN, currentStats(p.focus, Date.now()).weekMinutes);
+        // Students can edit their own saved stats, so only believe what adds up:
+        // this week's days (at most 16 h a day), never more than the week total.
+        const st = currentStats(p.focus, Date.now());
+        const fromDays = Object.entries(st.days ?? {})
+          .filter(([d]) => d >= (st.weekOf ?? ""))
+          .reduce((n, [, m]) => n + Math.min(960, Math.max(0, Number(m) || 0)), 0);
+        const minutes = Math.round(Math.min(MAX_WEEK_MIN, Math.max(0, Number(st.weekMinutes) || 0), fromDays));
         if (minutes > 0) rows.push({ id: m.id as string, name: displayName(m.username as string).split(" ")[0], avatar: p.avatar, minutes });
       }
       if (data.users.length < 1000) break;

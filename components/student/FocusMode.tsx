@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { FOCUS_MODES, MIN_COUNTED, quoteFor, recordFocus, type FocusMode as Mode } from "@/lib/focus";
+import { FOCUS_MODES, MIN_COUNTED, STUDY_NAME, quoteFor, recordFocus, type FocusMode as Mode } from "@/lib/focus";
 import { cn } from "@/lib/cn";
 
 /**
@@ -20,7 +20,7 @@ type Phase = "setup" | "focus" | "rest" | "done";
 
 /** Full-screen timer: pick a subject and length, then nothing else on screen. */
 export default function FocusMode({ subjects, mission, onClose }: { subjects: string[]; mission?: Mission | null; onClose: () => void }) {
-  const { profile, updateProfile } = useAuth();
+  const { updateProfile } = useAuth();
   const [subject, setSubject] = useState(mission?.subject ?? subjects[0] ?? "Study");
   const [mode, setMode] = useState<Mode>(FOCUS_MODES[0]);
   const [phase, setPhase] = useState<Phase>("setup");
@@ -58,7 +58,7 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
     const m = Math.floor(minutes) - logged.current;
     if (m <= 0 || logged.current + m < MIN_COUNTED) return;
     logged.current += m;
-    updateProfile({ focus: recordFocus(profile.focus, m, subject, Date.now()) });
+    updateProfile((latest) => ({ focus: recordFocus(latest.focus, m, subject, Date.now()) }));
   };
 
   // Phase end: focus → chime, log, rest; rest → done.
@@ -107,10 +107,10 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
     cn("h-11 rounded-full border px-4 text-sm font-semibold transition-colors", on ? "border-brand bg-brand text-on-brand" : "border-border-strong text-ink-2 hover:text-ink");
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Focus mode" className="fixed inset-0 z-[70] overflow-y-auto bg-[#141618]">
+    <div role="dialog" aria-modal="true" aria-label={STUDY_NAME} className="fixed inset-0 z-[70] overflow-y-auto bg-[#141618]">
       <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center px-6 py-8 text-center">
         <div className="flex w-full items-center justify-between">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-brand">Focus mode</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-brand">{STUDY_NAME}</p>
           <button type="button" onClick={close} className="h-10 px-2 text-sm font-semibold text-ink-3 hover:text-ink">
             {phase === "setup" || phase === "done" ? "Close" : "End session"}
           </button>

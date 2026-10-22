@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { createPortal } from "react-dom";
 import type { Student } from "@/types";
 import type { Database } from "@/lib/data/seed";
@@ -25,7 +26,7 @@ export interface TopThree {
 }
 
 /** This week's top 3 study hours in the student's cohort (first names only). */
-function useTopThree(): TopThree | null {
+export function useTopThree(): TopThree | null {
   const [data, setData] = useState<TopThree | null>(null);
   useEffect(() => {
     if (DEMO) return;
@@ -95,7 +96,9 @@ export function StudyBuddy({ db, student, nowMs }: { db: Database; student: Stud
             {pct > 0 && <circle cx="28" cy="28" r={r} fill="none" stroke="var(--color-brand)" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${c * pct} ${c}`} />}
           </svg>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-3">{STUDY_NAME}</p>
+            <Link href="/groundwork" className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-3 hover:text-brand">
+              {STUDY_NAME} →
+            </Link>
             <p className="mt-1 text-sm text-ink-2">
               <span className="font-semibold text-ink">{fmt(stats.weekMinutes)}</span> of {profile.weeklyGoal ?? 5} h this week
             </p>

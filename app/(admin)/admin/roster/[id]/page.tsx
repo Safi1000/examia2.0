@@ -378,7 +378,8 @@ function Stat({ label, value }: { label: string; value: string }) {
 function TheirPortal({ profile }: { profile: Profile }) {
   const nowMs = useNow();
   const focus = currentStats(profile.focus, nowMs);
-  const targets = Object.entries(profile.targets ?? {});
+  // Only real grades (the student's own data could hold anything).
+  const targets = Object.entries(profile.targets ?? {}).filter(([, t]) => typeof t === "string" && ["A*", "A", "B", "C"].includes(t));
   return (
     <Card className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3 p-4">
       <Avatar id={profile.avatar} initials="?" className="h-10 w-10" />
@@ -394,7 +395,7 @@ function TheirPortal({ profile }: { profile: Profile }) {
         </p>
       )}
       <p className="text-sm text-ink-2">
-        Study timer: <span className="font-semibold text-ink">{Math.round(focus.weekMinutes / 6) / 10} h</span> this week
+        Groundwork: <span className="font-semibold text-ink">{Math.round(focus.weekMinutes / 6) / 10} h</span> this week
         {profile.weeklyGoal ? ` of ${profile.weeklyGoal} h` : ""}
         {focus.streak > 1 ? ` · ${focus.streak}-day streak` : ""}
       </p>

@@ -30,6 +30,7 @@ const TITLES: Record<string, string> = {
   "/progress": "Progress",
   "/assignments": "Assignments",
   "/tests": "Tests",
+  "/groundwork": "Groundwork",
   "/classes": "Classes",
   "/notes": "Notes",
   "/settings": "Settings",
@@ -98,6 +99,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     { href: "/dashboard", label: "Home", short: "Home", Icon: NavIcon.Home },
     { href: "/classes", label: "Classes", short: "Classes", Icon: NavIcon.Classes },
     { href: "/tests", label: "Tests", short: "Tests", Icon: NavIcon.Tests },
+    { href: "/groundwork", label: "Groundwork", short: "Groundwork", Icon: NavIcon.Groundwork, feature: true },
     { href: "/assignments", label: "Assignments", short: "Tasks", Icon: NavIcon.Tasks },
     { href: "/notes", label: "Notes", short: "Notes", Icon: NavIcon.Notes },
     { href: "/progress", label: "Progress", short: "Progress", Icon: NavIcon.Progress },
@@ -163,9 +165,26 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           className="fixed inset-x-3 bottom-3 z-30 md:hidden"
           style={{ marginBottom: "env(safe-area-inset-bottom)" }}
         >
-          <ul className="grid grid-cols-6 rounded-[22px] border border-white/[0.08] bg-[#1d2023]/85 p-1.5 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl">
+          <ul className="grid grid-cols-7 rounded-[22px] border border-white/[0.08] bg-[#1d2023]/85 p-1.5 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl">
             {links.map((l) => {
               const active = isActive(l.href);
+              // Groundwork sits in the middle as a raised gold button (no room for its full name).
+              if ("feature" in l && l.feature)
+                return (
+                  <li key={l.href} className="flex items-center justify-center">
+                    <Link
+                      href={l.href}
+                      aria-label={l.label}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "-mt-5 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-brand text-on-brand shadow-[0_10px_24px_-8px_rgba(251,193,89,0.6)] ring-4 ring-paper transition-transform active:scale-95",
+                        active && "ring-brand/30",
+                      )}
+                    >
+                      <l.Icon active className="h-[22px] w-[22px] [&_g]:fill-current [&_g]:stroke-current" />
+                    </Link>
+                  </li>
+                );
               return (
                 <li key={l.href}>
                   <Link

@@ -1,7 +1,7 @@
 "use client";
 
 import { Icon } from "@/components/ui";
-import { LEVEL_LABEL, timeLabel, type DaySlot } from "@/lib/timetable";
+import { LEVEL_LABEL, clock, span, type DaySlot } from "@/lib/timetable";
 
 /** "Start class": the one thing Hamza needs as a class comes up. */
 export function StartCard({ slot, url, nowMs }: { slot: DaySlot; url: string | null; nowMs: number }) {
@@ -12,13 +12,13 @@ export function StartCard({ slot, url, nowMs }: { slot: DaySlot; url: string | n
       <div>
         <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-brand">
           <span className="h-2 w-2 animate-low-pulse rounded-full bg-brand" />
-          {live ? "Live now" : mins < 60 ? `Starts in ${mins} min` : `Next at ${timeLabel(slot.start)} PM`}
+          {live ? "Live now" : mins < 60 ? `Starts in ${mins} min` : `Next at ${clock(slot.start)}`}
         </p>
         <h2 className="mt-1.5 text-2xl font-extrabold tracking-[-0.01em] text-ink">
           {slot.subject} <span className="text-lg font-semibold text-ink-2">· {LEVEL_LABEL[slot.level]}</span>
         </h2>
         <p className="text-sm text-ink-2">
-          {timeLabel(slot.start)} to {timeLabel(slot.end)} PM
+          {span(slot.start, slot.end)}
         </p>
       </div>
       {url ? (

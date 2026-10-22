@@ -32,7 +32,9 @@ export async function loadSchedule(sb: SupabaseClient, fresh = false): Promise<S
   }
 }
 
-export async function saveSchedule(sb: SupabaseClient, adminId: string, schedule: Schedule) {
+export async function saveSchedule(sb: SupabaseClient, callerId: string, schedule: Schedule) {
+  // One home for the timetable: whichever admin already holds it, else the caller.
+  const adminId = (await adminUser(sb).catch(() => null))?.id ?? callerId;
   const { data, error } = await sb.auth.admin.getUserById(adminId);
   if (error || !data.user) throw error ?? new Error("no admin");
   const { error: upErr } = await sb.auth.admin.updateUserById(adminId, { app_metadata: { ...data.user.app_metadata, schedule } });

@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { GoogleConnect } from "@/components/admin/GoogleConnect";
 import { StartCard } from "@/components/admin/StartCard";
 import { TimetableEditor } from "@/components/admin/TimetableEditor";
-import { storeSchedule } from "@/components/ScheduleGate";
+import { saveDayChange } from "@/components/ScheduleGate";
 import type { Exception, SubjectKey } from "@/lib/timetable";
 import { Button, Card, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
@@ -26,6 +26,9 @@ import {
   slotsForStudent,
   slotsOn,
   timeLabel,
+  clock,
+  span,
+  useSchedule,
   useClassLinks,
   type DaySlot,
   type LevelKey,
@@ -50,10 +53,10 @@ export default function ClassesPage() {
 
   const [view, setView] = useState<"day" | "week">("day");
   const [openRow, setOpenRow] = useState<string | null>(null);
-  // Bumped after a timetable change so the day re-reads it.
-  const [rev, setRev] = useState(0);
+  // Re-reads the timetable whenever it's saved or loaded.
+  const schedule = useSchedule();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const slots = useMemo(() => slotsOn(db, date), [db, date, rev]);
+  const slots = useMemo(() => slotsOn(db, date), [db, date, schedule]);
   const off = useMemo(() => archivedCohortIds(db), [db]);
   const students = useMemo(() => db.students.filter((s) => !off.has(s.cohortId)), [db.students, off]);
   const enrolled = useMemo(() => {
@@ -61,7 +64,7 @@ export default function ClassesPage() {
     for (const s of students) for (const sl of slotsForStudent(db, s, date)) m.set(slotKey(sl), [...(m.get(slotKey(sl)) ?? []), s]);
     return m;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [db, students, date, rev]);
+  }, [db, students, date, schedule]);
 
   const linkFor = (s: DaySlot) => links.find((l) => slotKey(l) === slotKey(s));
   const live = slots.filter((s) => !s.cancelled);
@@ -80,11 +83,8 @@ export default function ClassesPage() {
 
   /** Change one class on this date only (cancel, move, extra), or undo that change. */
   async function changeDay(level: LevelKey, subject: SubjectKey, change: Omit<Exception, "date" | "level" | "subject"> | null, done: string) {
-    const cur = getSchedule();
-    const others = cur.exceptions.filter((e) => !(e.date === date && e.level === level && e.subject === subject));
     try {
-      await storeSchedule({ ...cur, exceptions: change ? [...others, { date, level, subject, ...change }] : others });
-      setRev((n) => n + 1);
+      await saveDayChange({ date, level, subject, change });
       setOpenRow(null);
       toast(done, "success");
     } catch (e) {
@@ -132,7 +132,7 @@ export default function ClassesPage() {
       </div>
 
       {view === "week" ? (
-        <TimetableEditor onSaved={() => setRev((n) => n + 1)} />
+        <TimetableEditor />
       ) : (
         <>
           {hero && <StartCard slot={hero} url={linkFor(hero)?.meetUrl ?? null} nowMs={nowMs} />}
@@ -187,7 +187,7 @@ export default function ClassesPage() {
                                 ? `Live now · ${joined} of ${who.length} joined`
                                 : phase === "done" || date < today
                                   ? `${joined} of ${who.length} joined${link?.recordingUrl ? " · recording ready" : ""}`
-                                  : `${timeLabel(s.start)} to ${timeLabel(s.end)}${s.changed ? " · changed for this day" : ""}${link?.meetUrl ? " · link ready" : ""}`}
+                                  : `${span(s.start, s.end)}${s.extra ? " · extra class" : s.changed ? " · changed for this day" : ""}${link?.meetUrl ? " · link ready" : ""}`}
                           </span>
                         </span>
                         {phase === "live" && date === today && !s.cancelled && link?.meetUrl && (
@@ -207,7 +207,13 @@ export default function ClassesPage() {
                       {isOpen && (
                         <div className="space-y-3 border-t border-border bg-surface-2/40 px-4 py-4 sm:px-5">
                           {s.cancelled ? (
-                            <Button size="sm" variant="secondary" onClick={() => void changeDay(s.level, s.subject, null, "Class is back on.")}>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() =>
+                                void changeDay(s.level, s.subject, s.extra ? { extra: true, start: s.start, end: s.end } : null, "Class is back on.")
+                              }
+                            >
                               Put this class back on
                             </Button>
                           ) : (
@@ -215,8 +221,17 @@ export default function ClassesPage() {
                               {phase === "later" && (
                                 <DayActions
                                   slot={s}
-                                  onCancel={() => void changeDay(s.level, s.subject, { cancelled: true }, `${s.subject} cancelled for this day. Students won't see it.`)}
-                                  onMove={(start, end) => void changeDay(s.level, s.subject, { start, end }, `${s.subject} moved to ${timeLabel(start)} for this day.`)}
+                                  onCancel={() =>
+                                    void changeDay(
+                                      s.level,
+                                      s.subject,
+                                      s.extra ? { extra: true, cancelled: true, start: s.start, end: s.end } : { cancelled: true },
+                                      `${s.subject} cancelled for this day. Students won't see it.`,
+                                    )
+                                  }
+                                  onMove={(start, end) =>
+                                    void changeDay(s.level, s.subject, { start, end, ...(s.extra ? { extra: true } : {}) }, `${s.subject} moved to ${clock(start)} for this day.`)
+                                  }
                                 />
                               )}
                               <LinkField
@@ -276,7 +291,15 @@ export default function ClassesPage() {
           ))}
 
           {date >= today && (
-            <ExtraClass date={date} onAdd={(level, subject, start, end) => void changeDay(level, subject, { extra: true, start, end }, `Extra ${subject} class added.`)} />
+            <ExtraClass
+              date={date}
+              onAdd={(level, subject, start, end) => {
+                // One class per level and subject per day: an existing one is moved instead.
+                if (slots.some((x) => x.level === level && x.subject === subject && !x.cancelled))
+                  return toast(`${LEVEL_LABEL[level]} ${subject} is already on this day. Use More, then Change time, instead.`, "error");
+                void changeDay(level, subject, { extra: true, start, end }, `Extra ${subject} class added.`);
+              }}
+            />
           )}
         </>
       )}

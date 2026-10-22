@@ -5,7 +5,7 @@ import type { Student } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { Icon } from "@/components/ui";
 import { formatRelative } from "@/lib/time";
-import { JOIN_EARLY_MIN, addDays, joinClass, pkDate, slotKey, slotsForStudent, timeLabel, useClassLinks } from "@/lib/classes";
+import { useSchedule, JOIN_EARLY_MIN, addDays, clock, span, joinClass, pkDate, slotKey, slotsForStudent, useClassLinks } from "@/lib/classes";
 
 /**
  * Home-screen class card. Quiet unless a class is close: from 10 minutes
@@ -15,6 +15,7 @@ import { JOIN_EARLY_MIN, addDays, joinClass, pkDate, slotKey, slotsForStudent, t
 export function ClassNow({ db, student, nowMs }: { db: Database; student: Student; nowMs: number }) {
   const today = pkDate(nowMs);
   const { links, ready } = useClassLinks(today, today);
+  useSchedule(); // re-render when the timetable loads or changes
   const slots = slotsForStudent(db, student, today);
   if (ready === false) return null;
 
@@ -33,8 +34,8 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
         <span className="text-sm text-ink-2">
           Next class: <span className="font-semibold text-ink">{next.subject}</span>{" "}
           {next.date === today
-            ? `at ${timeLabel(next.start)} PM`
-            : `${new Date(`${next.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}, ${timeLabel(next.start)} PM`}
+            ? `at ${clock(next.start)}`
+            : `${new Date(`${next.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}, ${clock(next.start)}`}
         </span>
         <Icon.ChevronRight className="h-4 w-4 text-ink-3" />
       </Link>
@@ -54,7 +55,7 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
         <div>
           <h2 className="text-2xl font-extrabold tracking-[-0.01em] text-ink">{current.subject}</h2>
           <p className="text-sm text-ink-2">
-            {timeLabel(current.start)} to {timeLabel(current.end)} PM
+            {span(current.start, current.end)}
           </p>
         </div>
         {url ? (

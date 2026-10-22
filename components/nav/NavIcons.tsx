@@ -85,6 +85,13 @@ export const NavIcon = {
       <circle cx="7" cy="17" r="2" fill="var(--color-paper)" />
     </Svg>
   ),
+  Groundwork: ({ active, className }: P) => (
+    <Svg active={active} className={className}>
+      <path d="M3.5 20.5h17M4.5 20.5v-4.5h7v4.5M12.5 20.5v-4.5h7v4.5M8 16v-4.5h8V16" />
+      <Gold active={active}><path d="M9.5 11.5V8h5v3.5z" strokeWidth="0" /></Gold>
+      <path d="M12 3.5v2.5" />
+    </Svg>
+  ),
   Classes: ({ active, className }: P) => (
     <Svg active={active} className={className}>
       <rect x="3" y="6" width="13" height="12" rx="2.5" />

@@ -93,10 +93,37 @@ export function cleanSchedule(v: unknown): Schedule | null {
 }
 
 // The schedule in use. Pages set it once fetched (ScheduleGate), the server per run.
+// Pages that show classes subscribe (useSchedule in lib/classes.ts) and re-render.
 let active: Schedule = DEFAULT_SCHEDULE;
+let loaded = false;
+const listeners = new Set<() => void>();
 export const getSchedule = () => active;
+/** True once the saved timetable has been fetched (so edits never start from the default by mistake). */
+export const scheduleLoaded = () => loaded;
 export function setSchedule(s: Schedule | null) {
   active = s ?? DEFAULT_SCHEDULE;
+  loaded = true;
+  listeners.forEach((l) => l());
+}
+export function subscribeSchedule(l: () => void) {
+  listeners.add(l);
+  return () => {
+    listeners.delete(l);
+  };
+}
+
+/** One change to one class on one date (null clears it). Applied on the server to the latest timetable. */
+export interface DayChange {
+  date: string;
+  level: LevelKey;
+  subject: SubjectKey;
+  change: Omit<Exception, "date" | "level" | "subject"> | null;
+}
+
+/** Apply a one-day change, and drop changes older than a week (they no longer matter). */
+export function applyDayChange(s: Schedule, c: DayChange, today: string): Schedule {
+  const keep = s.exceptions.filter((e) => e.date >= addDays(today, -7) && !(e.date === c.date && e.level === c.level && e.subject === c.subject));
+  return { ...s, exceptions: c.change ? [...keep, { date: c.date, level: c.level, subject: c.subject, ...c.change }] : keep };
 }
 
 /** Match the database class/subject rows to the timetable by name. */
@@ -133,6 +160,11 @@ export const timeLabel = (hhmm: string) => {
   const [h, m] = hhmm.split(":").map(Number);
   return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")}`;
 };
+/** "15:30" → "3:30 PM". */
+export const clock = (hhmm: string) => `${timeLabel(hhmm)} ${Number(hhmm.slice(0, 2)) < 12 ? "AM" : "PM"}`;
+/** "3:30 to 4:10 PM", or "11:30 AM to 12:10 PM" when it crosses noon. */
+export const span = (a: string, b: string) =>
+  clock(a).slice(-2) === clock(b).slice(-2) ? `${timeLabel(a)} to ${clock(b)}` : `${clock(a)} to ${clock(b)}`;
 
 export interface DaySlot extends Slot {
   date: string;
@@ -140,6 +172,8 @@ export interface DaySlot extends Slot {
   cancelled?: boolean;
   /** One-off: moved or extra for this date. */
   changed?: boolean;
+  /** Not on the weekly timetable: added for this date only. */
+  extra?: boolean;
   classId: string;
   subjectId: string;
   startMs: number;
@@ -153,12 +187,12 @@ export interface DaySlot extends Slot {
  */
 export function slotsOn(db: Pick<Database, "classes" | "subjects">, date: string): DaySlot[] {
   const wd = weekday(date);
-  const weekly: Array<Slot & { cancelled?: boolean; changed?: boolean }> =
+  const weekly: Array<Slot & { cancelled?: boolean; changed?: boolean; extra?: boolean }> =
     date >= active.termStarts ? active.slots.filter((s) => (s.days ?? active.days).includes(wd)).map((s) => ({ ...s })) : [];
   for (const e of active.exceptions.filter((x) => x.date === date)) {
     const i = weekly.findIndex((s) => s.level === e.level && s.subject === e.subject);
     if (e.extra) {
-      if (i < 0 && e.start && e.end) weekly.push({ level: e.level, subject: e.subject, start: e.start, end: e.end, changed: true, cancelled: e.cancelled });
+      if (i < 0 && e.start && e.end) weekly.push({ level: e.level, subject: e.subject, start: e.start, end: e.end, changed: true, extra: true, cancelled: e.cancelled });
       else if (i >= 0 && e.cancelled) weekly[i].cancelled = true;
       continue;
     }

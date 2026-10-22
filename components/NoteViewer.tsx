@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { Icon, Spinner } from "@/components/ui";
+import { PdfView } from "@/components/PdfView";
 
 /**
  * Reads a note inside the portal.
@@ -23,6 +24,9 @@ export function NoteViewer({
 }) {
   const [state, setState] = useState<{ url: string; fileType: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // PDFs open in our own reader (zoom works everywhere); the browser's viewer is the fallback.
+  const [pdfFailed, setPdfFailed] = useState(false);
+  const onPdfFail = useCallback(() => setPdfFailed(true), []);
 
   const onCloseRef = useRef(onClose);
   useEffect(() => {
@@ -69,6 +73,7 @@ export function NoteViewer({
   if (typeof document === "undefined") return null;
 
   const isImage = state?.fileType?.startsWith("image/");
+  const isPdf = !!state && (state.fileType?.includes("pdf") || /\.pdf($|\?)/i.test(title));
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-paper" role="dialog" aria-modal="true" aria-label={title}>
@@ -83,11 +88,13 @@ export function NoteViewer({
         </button>
       </div>
 
-      <div className="flex flex-1 items-center justify-center overflow-auto bg-surface-2/40 p-3">
+      <div className={isPdf && !pdfFailed ? "relative flex-1 overflow-hidden bg-surface-2/40" : "flex flex-1 items-center justify-center overflow-auto bg-surface-2/40 p-3"}>
         {error ? (
           <p className="text-sm text-error">{error}</p>
         ) : !state ? (
           <Spinner size={28} className="text-ink-3" />
+        ) : isPdf && !pdfFailed ? (
+          <PdfView url={state.url} onFail={onPdfFail} />
         ) : isImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={state.url} alt={title} className="max-h-full max-w-full rounded-md" />

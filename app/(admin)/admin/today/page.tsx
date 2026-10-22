@@ -13,7 +13,7 @@ import { GRADE_ORDER, gradeSubmission, type GradeLetter } from "@/lib/grading";
 import { performanceSnapshot, sameSubject } from "@/lib/performance";
 import { useStudentProfiles } from "@/lib/student-profiles";
 import { StartCard } from "@/components/admin/StartCard";
-import { liveSlotsOn, pkDate, slotKey, useClassLinks } from "@/lib/classes";
+import { liveSlotsOn, pkDate, slotKey, useClassLinks, useSchedule } from "@/lib/classes";
 import { formatRelative } from "@/lib/time";
 import { createRetest, retestQuestions, weakTopics } from "@/lib/retest";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -46,6 +46,7 @@ export default function TodayPage() {
   const profiles = useStudentProfiles();
   const todayPk = pkDate(nowMs);
   const { links: classLinks } = useClassLinks(todayPk, todayPk);
+  useSchedule(); // re-render when the timetable loads or changes
   const heroClass = liveSlotsOn(db, todayPk).find((s) => nowMs < s.endMs && s.startMs - nowMs < 3 * 3_600_000);
   const [checked, setChecked] = useState<Record<string, number>>(() => {
     try {
@@ -117,7 +118,7 @@ export default function TodayPage() {
         const targets = profiles[s.id]?.targets ?? {};
         for (const sub of performanceSnapshot(db, s)?.bySubject ?? []) {
           const key = Object.keys(targets).find((k) => sameSubject(k, sub.subject));
-          if (key && GRADE_ORDER.indexOf(sub.grade as GradeLetter) - GRADE_ORDER.indexOf(targets[key] as GradeLetter) >= 2)
+          if (key && typeof targets[key] === "string" && GRADE_ORDER.indexOf(sub.grade as GradeLetter) - GRADE_ORDER.indexOf(targets[key] as GradeLetter) >= 2)
             reasons.push(`${sub.subject}: ${sub.grade}, aiming for ${targets[key]}`);
         }
         return { student: s, reasons, missed, lowAvg, absent };

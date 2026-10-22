@@ -107,6 +107,9 @@ async function g<T>(token: string, url: string, init: RequestInit = {}): Promise
 
 interface CalEvent {
   id: string;
+  summary?: string;
+  start?: { dateTime?: string };
+  end?: { dateTime?: string };
   hangoutLink?: string;
   attachments?: Array<{ fileId?: string; fileUrl?: string; mimeType?: string; title?: string }>;
 }
@@ -128,6 +131,22 @@ export async function createClassEvent(token: string, title: string, startIso: s
 
 export const getEvent = (token: string, id: string) =>
   g<CalEvent>(token, `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(id)}`);
+
+/** A class moved for one day: move its Calendar event (the Meet link stays the same). */
+export const moveEvent = (token: string, id: string, startIso: string, endIso: string) =>
+  g<CalEvent>(token, `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ start: { dateTime: startIso, timeZone: "Asia/Karachi" }, end: { dateTime: endIso, timeZone: "Asia/Karachi" } }),
+  });
+
+/** A class cancelled for one day: remove its Calendar event and alert. */
+export async function deleteEvent(token: string, id: string) {
+  const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`Google ${res.status}`);
+}
 
 // ---- Drive: find the recording, file it, share it for a day -----------------
 

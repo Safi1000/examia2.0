@@ -51,7 +51,7 @@ export function StudyStats({ nowMs }: { nowMs: number }) {
 
       <div>
         <p className="mb-2 text-sm font-semibold text-ink">Study calendar</p>
-        <div className="flex gap-[3px]" role="img" aria-label="Study minutes per day for the last 12 weeks">
+        <div className="flex max-w-md gap-[3px]" role="img" aria-label="Study minutes per day for the last 12 weeks">
           {Array.from({ length: WEEKS }, (_, w) => (
             <div key={w} className="flex flex-1 flex-col gap-[3px]">
               {Array.from({ length: 7 }, (_, d) => {
