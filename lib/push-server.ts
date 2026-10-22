@@ -199,7 +199,7 @@ export async function runReminders(): Promise<{ sent: number; quiet?: boolean }>
   for (const s of students) {
     for (const t of opening ?? []) {
       if (!covers(t, s) || done.has(`${s.id}|${t.id}`)) continue;
-      items.push({ studentId: s.id, kind: "tests", refs: [`open:${t.id}`], title: "Test opens soon", body: `${t.title} opens at ${pkTime(t.opens_at)}.`, url: "/dashboard", tag: `test-${t.id}`, priority: 2 });
+      items.push({ studentId: s.id, kind: "tests", refs: [`open:${t.id}`], title: "Test opens soon", body: `${t.title} opens at ${pkTime(t.opens_at)}.`, url: "/tests", tag: `test-${t.id}`, priority: 2 });
     }
     for (const a of due ?? []) {
       if (!covers(a, s, true) || doneA.has(`${s.id}|${a.id}`)) continue;

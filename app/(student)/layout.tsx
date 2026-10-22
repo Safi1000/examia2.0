@@ -1,5 +1,6 @@
 "use client";
 
+import { waTextLink } from "@/lib/landing";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -22,6 +23,7 @@ const TITLES: Record<string, string> = {
   "/plan": "My plan",
   "/progress": "Progress",
   "/assignments": "Assignments",
+  "/tests": "Tests",
   "/classes": "Classes",
   "/notes": "Notes",
   "/settings": "Settings",
@@ -48,7 +50,17 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
   const student = studentById(db, session.studentId);
   if (!student) {
-    return <div className="flex min-h-dvh items-center justify-center text-ink-3">Session expired…</div>;
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
+        <p className="text-ink-2">Your session has ended. Please sign in again.</p>
+        <button
+          onClick={() => { logout(); router.replace("/login"); }}
+          className="inline-flex h-11 items-center rounded-full bg-brand px-6 text-sm font-semibold text-on-brand"
+        >
+          Sign in
+        </button>
+      </div>
+    );
   }
   const cohort = cohortById(db, student.cohortId);
 
@@ -79,11 +91,14 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     // `short` is the phone dock label, where six items share 375px.
     { href: "/dashboard", label: "Home", short: "Home", Icon: NavIcon.Home },
     { href: "/classes", label: "Classes", short: "Classes", Icon: NavIcon.Classes },
-    { href: "/plan", label: "Plan", short: "Plan", Icon: NavIcon.Plan },
-    { href: "/progress", label: "Progress", short: "Progress", Icon: NavIcon.Progress },
+    { href: "/tests", label: "Tests", short: "Tests", Icon: NavIcon.Tests },
     { href: "/assignments", label: "Assignments", short: "Tasks", Icon: NavIcon.Tasks },
     { href: "/notes", label: "Notes", short: "Notes", Icon: NavIcon.Notes },
+    { href: "/progress", label: "Progress", short: "Progress", Icon: NavIcon.Progress },
   ];
+  // Results belong to Tests; the full plan opens from Home.
+  const isActive = (href: string) =>
+    pathname === href || (href === "/tests" && pathname.startsWith("/results")) || (href === "/dashboard" && pathname === "/plan");
   const name = displayName(student.username);
   const signOut = () => { logout(); router.replace("/login"); };
 
@@ -101,7 +116,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             <nav aria-label="Primary" className="hidden md:block">
               <ul className="flex items-center gap-0.5 rounded-full border border-white/[0.07] bg-surface/50 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_8px_24px_-12px_rgba(0,0,0,0.6)]">
                 {links.map((l) => {
-                  const active = pathname === l.href;
+                  const active = isActive(l.href);
                   return (
                     <li key={l.href}>
                       <Link
@@ -142,7 +157,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         >
           <ul className="grid grid-cols-6 rounded-[22px] border border-white/[0.08] bg-[#1d2023]/85 p-1.5 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl">
             {links.map((l) => {
-              const active = pathname === l.href;
+              const active = isActive(l.href);
               return (
                 <li key={l.href}>
                   <Link
@@ -215,6 +230,19 @@ function AccountMenu({
             <NavIcon.Settings className="h-[18px] w-[18px]" />
             Settings
           </Link>
+          <a
+            role="menuitem"
+            href={waTextLink(`Hi Hamza, it's ${name}. `)}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setOpen(false)}
+            className="flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink"
+          >
+            <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z" />
+            </svg>
+            Message Hamza
+          </a>
           <button
             role="menuitem"
             onClick={onSignOut}

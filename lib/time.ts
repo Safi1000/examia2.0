@@ -42,15 +42,30 @@ export function formatDuration(totalSeconds: number): string {
   return `${m}m ${String(rem).padStart(2, "0")}s`;
 }
 
-/** Friendly absolute timestamp, e.g. "17 Jun 2026, 14:05". */
+/** Friendly absolute timestamp in Pakistan time, e.g. "17 Jun 2026, 2:05 pm". */
 export function formatTimestamp(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleString("en-GB", {
-    day: "2-digit",
+    timeZone: "Asia/Karachi",
+    day: "numeric",
     month: "short",
     year: "numeric",
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
+    hour12: true,
+  });
+}
+
+/** Short day and time in Pakistan time, e.g. "Mon 3 Nov, 5:30 pm". */
+export function formatWhen(iso: string): string {
+  return new Date(iso).toLocaleString("en-GB", {
+    timeZone: "Asia/Karachi",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
   });
 }
 

@@ -63,7 +63,13 @@ export function buildStudyPlan(db: Database, student: Student, nowMs: number): S
     db.submissions.filter((s) => s.studentId === student.id && s.status !== "in_progress").map((s) => s.testId),
   );
   const tests = testsForStudent(db, student);
-  const subjects = Array.from(new Set(tests.map((t) => t.subject.trim()))).sort();
+  // Subjects from tests, plus the ones the student (or their cohort) is enrolled
+  // in, so the plan has topics from the question bank before the first test.
+  const cohort = db.cohorts.find((c) => c.id === student.cohortId);
+  const enrolled = (student.subjectIds.length ? student.subjectIds : (cohort?.subjectIds ?? []))
+    .map((id) => db.subjects.find((x) => x.id === id)?.name.trim())
+    .filter((n): n is string => !!n);
+  const subjects = Array.from(new Set([...tests.map((t) => t.subject.trim()), ...enrolled])).sort();
 
   // Every topic Hamza has tagged in this student's subjects (tests + bank).
   const topicKeys = new Map<string, PlanTopic>();

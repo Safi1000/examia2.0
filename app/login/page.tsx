@@ -37,9 +37,11 @@ export default function StudentLoginPage() {
     let ok: boolean;
     try {
       ok = await loginStudent(username, password);
-    } catch {
+    } catch (err) {
       setError(
-        "You're signed in, but your portal didn't load. Check your internet and tap Sign in again.",
+        err instanceof Error && err.message === "network"
+          ? "Can't reach the server. Check your internet and try again."
+          : "You're signed in, but your portal didn't load. Check your internet and tap Sign in again.",
       );
       setBusy(false);
       return;

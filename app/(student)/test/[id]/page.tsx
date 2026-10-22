@@ -15,7 +15,7 @@ import { QuestionView } from "@/components/student/QuestionView";
 import { useUploadsInProgress } from "@/lib/upload-tracker";
 import { Button, Modal, Pill, Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
-import { formatCountdown, testWindow } from "@/lib/time";
+import { formatWhen, formatCountdown, testWindow } from "@/lib/time";
 import { useTestSafety } from "@/hooks/useTestSafety";
 import { useDocumentTitle } from "@/hooks/usePageTitle";
 import { cn } from "@/lib/cn";
@@ -121,7 +121,7 @@ function ReadyScreen({ test, nowMs, busy, onBegin }: { test: Test; nowMs: number
   const minutes = Math.min(test.durationMinutes, minsToClose);
   const short = minsToClose < test.durationMinutes;
   const marks = test.questions.reduce((n, q) => n + q.marks, 0);
-  const closes = new Date(test.closesAt).toLocaleString("en-GB", { weekday: "short", hour: "numeric", minute: "2-digit" });
+  const closes = formatWhen(test.closesAt);
   const facts = [
     { k: "Time", v: `${minutes} min` },
     { k: "Questions", v: String(test.questions.length) },
@@ -473,8 +473,8 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
       <footer className="sticky bottom-0 border-t border-border bg-paper/90 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
           {uploading ? (
-            <Button className="w-full" onClick={() => setConfirmOpen(true)}>
-              Hand in <Icon.Check className="h-4 w-4" />
+            <Button className="w-full" disabled={photosBusy > 0} onClick={() => setConfirmOpen(true)}>
+              {photosBusy > 0 ? "Waiting for your photos…" : <>Hand in <Icon.Check className="h-4 w-4" /></>}
             </Button>
           ) : (
           <>
@@ -486,8 +486,8 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
             <Icon.ChevronLeft className="h-4 w-4" /> Back
           </Button>
           {isLast ? (
-            <Button onClick={() => setConfirmOpen(true)}>
-              I&apos;m done <Icon.Check className="h-4 w-4" />
+            <Button disabled={photosBusy > 0} onClick={() => setConfirmOpen(true)}>
+              {photosBusy > 0 ? "Uploading…" : <>I&apos;m done <Icon.Check className="h-4 w-4" /></>}
             </Button>
           ) : (
             <Button onClick={() => setIndex((i) => Math.min(test.questions.length - 1, i + 1))}>
@@ -507,8 +507,9 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
         footer={
           <>
             <Button variant="secondary" onClick={() => setConfirmOpen(false)}>Not yet</Button>
-            <Button onClick={() => doSubmit(false)} disabled={submitting}>
-              {submitting ? "Submitting…" : "Yes, submit"}
+            {/* Never hand in while a photo is still on its way up. */}
+            <Button onClick={() => doSubmit(false)} disabled={submitting || photosBusy > 0}>
+              {submitting ? "Submitting…" : photosBusy > 0 ? "Waiting for photos…" : "Yes, submit"}
             </Button>
           </>
         }

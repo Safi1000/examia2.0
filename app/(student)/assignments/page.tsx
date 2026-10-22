@@ -62,6 +62,7 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
     (s) => s.assignmentId === assignment.id && s.studentId === studentId,
   );
   const overdue = +new Date(assignment.dueAt) < useNow();
+  const subjectName = assignment.subjectId ? db.subjects.find((x) => x.id === assignment.subjectId)?.name : undefined;
 
   async function removePage(i: number) {
     if (!mine) return;
@@ -113,6 +114,7 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
     <Card className="p-4">
       <div className="flex flex-wrap items-center gap-2">
         {mine ? <Badge tone="success">Handed in</Badge> : <Badge tone={overdue ? "warning" : "neutral"}>{overdue ? "Overdue" : "To do"}</Badge>}
+        {subjectName && <Badge tone="neutral">{subjectName}</Badge>}
         <span className="text-sm text-ink-2">Due {formatTimestamp(assignment.dueAt)}</span>
       </div>
       <h2 className="mt-1.5 text-lg font-bold text-ink">{assignment.title}</h2>
@@ -176,6 +178,7 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
             <span className="text-xs font-semibold text-ink-2">{progress >= 0.99 ? "Almost done…" : `Uploading ${Math.round(progress * 100)}%`}</span>
           </div>
         )}
+        {mine?.feedback && <p className="mt-1.5 text-xs text-ink-3">Hamza has already replied. If you add pages, message him so he sees them.</p>}
         {overdue && !mine && <p className="mt-1.5 text-xs text-ink-3">The deadline has passed — hand in as soon as you can.</p>}
       </div>
     </Card>

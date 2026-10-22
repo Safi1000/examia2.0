@@ -13,6 +13,7 @@ export default function robots(): MetadataRoute.Robots {
         "/dashboard",
         "/assignments",
         "/classes",
+        "/tests",
         "/progress",
         "/notes",
         "/notifications",

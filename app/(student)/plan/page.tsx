@@ -14,7 +14,7 @@ const PHASE: Record<PlanWeek["phase"], { label: string; tasks: string[] }> = {
   learn: {
     label: "Learn and practise",
     tasks: [
-      "Revise the two focus topics from your notes",
+      "Revise this week's focus topics (or class topics) from your notes",
       "Do every test set this week",
       "Redo any question you dropped marks on",
     ],
@@ -103,7 +103,7 @@ export default function PlanPage() {
           {current.tests.map((t) => (
             <li key={t.id} className="flex items-start gap-3 text-[15px] text-ink">
               <Icon.Doc className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-              <Link href="/dashboard" className="hover:text-brand">Test: {t.title}</Link>
+              <Link href={`/test/${t.id}`} className="hover:text-brand">Test: {t.title}</Link>
             </li>
           ))}
           {PHASE[current.phase].tasks.map((task) => (
@@ -126,7 +126,13 @@ export default function PlanPage() {
                   <span className="font-semibold text-ink">{weekLabel(w.start)}</span> · {PHASE[w.phase].label}
                 </span>
                 <span className="text-sm text-ink-2 sm:text-right">
-                  {w.topics.length ? w.topics.map((t) => t.name).join(", ") : w.phase === "final" ? "Light revision" : "Past papers"}
+                  {w.topics.length
+                    ? w.topics.map((t) => t.name).join(", ")
+                    : w.phase === "final"
+                      ? "Light revision"
+                      : w.phase === "learn"
+                        ? "Topics from your classes"
+                        : "Past papers"}
                 </span>
               </li>
             ))}

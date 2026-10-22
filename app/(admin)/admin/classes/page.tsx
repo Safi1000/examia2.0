@@ -77,8 +77,6 @@ export default function ClassesPage() {
         subtitle="Each class's Meet link. Students see Join 10 minutes before it starts, and joining marks them present."
       />
 
-      <GoogleConnect onSynced={() => void reload()} />
-
       <div className="mb-6 flex items-center justify-between gap-3">
         <Button variant="ghost" size="sm" onClick={() => step(-1)} aria-label="Previous class day">
           <Icon.ChevronLeft className="h-4 w-4" />
@@ -218,6 +216,9 @@ export default function ClassesPage() {
           );
         })}
       </div>
+
+      {/* Setup sits quietly under the classes: the day's classes come first. */}
+      <GoogleConnect onSynced={() => void reload()} />
     </div>
   );
 }

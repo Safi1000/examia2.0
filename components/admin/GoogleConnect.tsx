@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { DEMO } from "@/lib/demo";
 import { useToast } from "@/components/toast";
-import { Button, Card } from "@/components/ui";
+import { Button } from "@/components/ui";
 
 /**
  * Admin → Classes: connect Google once, then Meet links are made every
@@ -84,73 +84,67 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
     }
   }
 
-  return (
-    <Card className="mb-6 p-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="max-w-md">
-          <h2 className="text-base font-semibold text-ink">Automatic Meet links and recordings</h2>
-          {!status.ready ? (
-            <p className="mt-1 text-sm text-ink-3">Switches on once the Google setup is done and your developer has added the keys.</p>
-          ) : status.connected ? (
-            <p className="mt-1 text-sm text-ink-2">
-              Connected{status.email ? ` as ${status.email}` : ""}. Every class gets its own link at 1 pm. Press Record in Meet. Once Google has
-              processed it (usually within an hour), the recording moves to &quot;Hamza Teaches recordings&quot; in your Drive, sorted by
-              level and subject, and students can watch it for 24 hours. To give a late joiner old classes, share that folder
-              with their Gmail in Drive.
-            </p>
-          ) : (
-            <p className="mt-1 text-sm text-ink-2">Connect your Google account once. You can still paste a link by hand at any time.</p>
-          )}
-        </div>
-        {status.ready && (
-          <div className="flex flex-wrap gap-2">
-            {status.connected ? (
-              <>
-                <Button size="sm" loading={busy === "sync"} onClick={() => void act("sync")}>
-                  Make today&apos;s links now
-                </Button>
-                <Button size="sm" variant="ghost" loading={busy === "disconnect"} onClick={() => void act("disconnect")}>
-                  Disconnect
-                </Button>
-              </>
-            ) : (
-              <Button size="sm" loading={busy === "connect"} onClick={() => void act("connect")}>
-                Connect Google
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
+  const btn = "inline-flex h-9 items-center rounded-full px-3 text-xs font-semibold transition-colors disabled:opacity-50";
 
-      {status.ready && status.connected && (
-        <div className="mt-5 border-t border-border pt-4">
-          <p className="text-sm font-semibold text-ink">Try it first</p>
-          <p className="mt-1 text-sm text-ink-3">
-            A 20-minute test class starting now. Students never see it. Join, press Record for a minute, end the call, then check for the
-            recording later.
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="secondary" loading={busy === "test"} onClick={() => void act("test")}>
-              {test ? "Make another test class" : "Make a test class"}
-            </Button>
-            {test?.meetUrl && (
-              <a href={test.meetUrl} target="_blank" rel="noreferrer" className="text-sm font-semibold text-brand hover:underline">
-                Open test class
-              </a>
-            )}
-            {test && !test.recordingUrl && (
-              <Button size="sm" variant="ghost" loading={busy === "test-check"} onClick={() => void act("test-check")}>
-                Check for the recording
-              </Button>
-            )}
-            {test?.recordingUrl && (
-              <a href={test.recordingUrl} target="_blank" rel="noreferrer" className="text-sm font-semibold text-success hover:underline">
-                Recording found: watch it
-              </a>
-            )}
-          </div>
+  return (
+    <div className="mt-10 border-t border-border pt-5 text-sm">
+      {!status.ready ? (
+        <p className="text-ink-3">Automatic Meet links switch on once the Google keys are added.</p>
+      ) : !status.connected ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-ink-2">Connect Google once and every class gets its own Meet link at 1 pm.</p>
+          <Button size="sm" loading={busy === "connect"} onClick={() => void act("connect")}>
+            Connect Google
+          </Button>
         </div>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="flex items-center gap-2 text-ink-3">
+              <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden />
+              Google connected{status.email ? ` (${status.email})` : ""}. Links at 1 pm, recordings open 24 h.
+            </p>
+            <div className="flex items-center gap-1">
+              <button type="button" className={`${btn} text-ink-2 hover:bg-surface-2 hover:text-ink`} disabled={!!busy} onClick={() => void act("sync")}>
+                {busy === "sync" ? "Working…" : "Make today's links now"}
+              </button>
+              <button type="button" className={`${btn} text-ink-3 hover:text-error`} disabled={!!busy} onClick={() => void act("disconnect")}>
+                Disconnect
+              </button>
+            </div>
+          </div>
+          <details className="mt-3 text-ink-3">
+            <summary className="cursor-pointer select-none text-xs font-semibold hover:text-ink">Test the setup</summary>
+            <div className="mt-3 space-y-2">
+              <p className="text-xs">
+                A 20-minute test class starting now (students never see it). Join, press Record for a minute, end the call, then check
+                30 to 40 minutes later. Recordings go to &quot;Hamza Teaches recordings&quot; in your Drive, sorted by level and subject. To give
+                a late joiner old classes, share that folder with their Gmail.
+              </p>
+              <div className="flex flex-wrap items-center gap-1">
+                <button type="button" className={`${btn} text-ink-2 hover:bg-surface-2 hover:text-ink`} disabled={!!busy} onClick={() => void act("test")}>
+                  {busy === "test" ? "Working…" : test ? "Make another test class" : "Make a test class"}
+                </button>
+                {test?.meetUrl && (
+                  <a href={test.meetUrl} target="_blank" rel="noreferrer" className={`${btn} text-brand hover:underline`}>
+                    Open test class
+                  </a>
+                )}
+                {test && !test.recordingUrl && (
+                  <button type="button" className={`${btn} text-ink-2 hover:bg-surface-2 hover:text-ink`} disabled={!!busy} onClick={() => void act("test-check")}>
+                    {busy === "test-check" ? "Checking…" : "Check for the recording"}
+                  </button>
+                )}
+                {test?.recordingUrl && (
+                  <a href={test.recordingUrl} target="_blank" rel="noreferrer" className={`${btn} text-success hover:underline`}>
+                    Recording found: watch it
+                  </a>
+                )}
+              </div>
+            </div>
+          </details>
+        </>
       )}
-    </Card>
+    </div>
   );
 }

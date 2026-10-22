@@ -122,7 +122,7 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
           {awarded}/{question.marks} marks
         </Badge>
       </div>
-      <p className="mt-2 font-semibold text-ink">{question.prompt}</p>
+      <p className="mt-2 whitespace-pre-wrap font-semibold text-ink">{question.prompt}</p>
       {question.attachments && question.attachments.length > 0 && (
         <div className="mt-3">
           <PageStack urls={question.attachments} label="Question paper" />
@@ -160,7 +160,7 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
                   ) : (
                     <span className="h-4 w-4 shrink-0" />
                   )}
-                  <span>{opt}</span>
+                  <span className="whitespace-pre-wrap">{opt}</span>
                   {chosen && <span className="ml-auto text-xs font-semibold">Your pick</span>}
                   {correct && !chosen && (
                     <span className="ml-auto text-xs font-semibold">Correct answer</span>
@@ -173,7 +173,7 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
         })()}
 
         {question.type === "text" && (
-          <div className="rounded-md border border-border bg-surface-2/60 p-3 text-sm text-ink">
+          <div className="whitespace-pre-wrap rounded-md border border-border bg-surface-2/60 p-3 text-sm text-ink">
             {answer?.text ? answer.text : <span className="italic text-ink-3">(blank)</span>}
           </div>
         )}

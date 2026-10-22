@@ -131,6 +131,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: studentEmail(username),
         password,
       });
+      // No internet is not a wrong password: never count it towards the lockout.
+      if (error && (error.status === 0 || /fetch|network/i.test(error.message))) throw new Error("network");
       if (error || !data.user) return false;
       // Fully ready before the caller navigates. A right password whose portal
       // then fails to load is not a wrong password: tell the page apart.

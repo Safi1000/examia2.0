@@ -5,7 +5,7 @@ import type { Student } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { Icon } from "@/components/ui";
 import { formatRelative } from "@/lib/time";
-import { JOIN_EARLY_MIN, joinClass, pkDate, slotKey, slotsForStudent, timeLabel, useClassLinks } from "@/lib/classes";
+import { JOIN_EARLY_MIN, addDays, joinClass, pkDate, slotKey, slotsForStudent, timeLabel, useClassLinks } from "@/lib/classes";
 
 /**
  * Home-screen class card. Quiet unless a class is close: from 10 minutes
@@ -19,7 +19,9 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
   if (ready === false) return null;
 
   const current = slots.find((s) => nowMs >= s.startMs - JOIN_EARLY_MIN * 6e4 && nowMs < s.endMs);
-  const next = slots.find((s) => s.startMs > nowMs);
+  // Next class today, or else on the next class day (weekends, before term, late evening).
+  let next = slots.find((s) => s.startMs > nowMs);
+  for (let d = addDays(today, 1), i = 0; !next && i < 21; d = addDays(d, 1), i++) next = slotsForStudent(db, student, d)[0];
 
   if (!current) {
     if (!next) return null;
@@ -29,7 +31,10 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
         className="animate-fade-up flex items-center justify-between gap-3 rounded-lg border border-border bg-surface px-5 py-4 transition-colors hover:border-border-strong"
       >
         <span className="text-sm text-ink-2">
-          Next class: <span className="font-semibold text-ink">{next.subject}</span> at {timeLabel(next.start)} PM
+          Next class: <span className="font-semibold text-ink">{next.subject}</span>{" "}
+          {next.date === today
+            ? `at ${timeLabel(next.start)} PM`
+            : `${new Date(`${next.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}, ${timeLabel(next.start)} PM`}
         </span>
         <Icon.ChevronRight className="h-4 w-4 text-ink-3" />
       </Link>
@@ -49,7 +54,7 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
         <div>
           <h2 className="text-2xl font-extrabold tracking-[-0.01em] text-ink">{current.subject}</h2>
           <p className="text-sm text-ink-2">
-            {timeLabel(current.start)} to {timeLabel(current.end)}
+            {timeLabel(current.start)} to {timeLabel(current.end)} PM
           </p>
         </div>
         {url ? (

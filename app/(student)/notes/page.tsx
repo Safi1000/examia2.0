@@ -141,7 +141,7 @@ export default function StudentNotesPage() {
                       className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface p-4"
                     >
                       <div className="flex min-w-0 items-center gap-3">
-                        <span className="text-2xl leading-none">{fileIcon(note.fileType)}</span>
+                        <span className="text-2xl leading-none" aria-hidden>{fileIcon(note.fileType)}</span>
                         <div className="min-w-0">
                           <p className="truncate font-semibold text-ink">{note.title}</p>
                           <p className="flex items-center gap-1.5 text-xs text-ink-3">
@@ -151,6 +151,7 @@ export default function StudentNotesPage() {
                             )}>
                               {fileLabel(note.fileType)}
                             </span>
+                            <span className="shrink-0">{new Date(note.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
                             {scope && <span className="truncate">{scope}</span>}
                           </p>
                         </div>
@@ -158,13 +159,13 @@ export default function StudentNotesPage() {
                       <button
                         onClick={() => onOpen(note.id, note.title, note.fileName)}
                         className={cn(
-                          "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold",
+                          "flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold",
                           "bg-brand-soft text-brand hover:opacity-80 transition-opacity",
                         )}
                         aria-label={`Read ${note.title}`}
                       >
                         <Icon.Doc className="h-4 w-4" />
-                        <span className="hidden sm:inline">Read</span>
+                        <span>Read</span>
                       </button>
                     </div>
                   );

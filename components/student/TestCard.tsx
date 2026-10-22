@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Submission, Test } from "@/types";
 import { Badge, Card, Pill, Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
-import { testWindow, formatDate, formatRelative } from "@/lib/time";
+import { testWindow, formatDate, formatRelative, formatWhen } from "@/lib/time";
 import { gradeSubmission } from "@/lib/grading";
 
 export function TestCard({
@@ -41,7 +41,7 @@ export function TestCard({
         {window === "future" && (
           <>
             <Badge tone="neutral"><Icon.Lock className="h-3 w-3" /> Locked</Badge>
-            <span className="text-xs text-ink-3">Opens {formatDate(test.opensAt)}</span>
+            <span className="text-xs text-ink-3">Opens {formatWhen(test.opensAt)}</span>
           </>
         )}
 

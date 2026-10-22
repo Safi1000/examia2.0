@@ -32,7 +32,7 @@ export function QuestionView({
         <span className="text-xs uppercase tracking-wide text-ink-3">{question.type}</span>
       </div>
       {!paperHidden && question.prompt.trim() && (
-        <p className="mt-3 text-lg font-semibold leading-snug text-ink">{question.prompt}</p>
+        <p className="mt-3 whitespace-pre-wrap text-lg font-semibold leading-snug text-ink">{question.prompt}</p>
       )}
       {!paperHidden && question.attachments && question.attachments.length > 0 && (
         <div className="mt-3">

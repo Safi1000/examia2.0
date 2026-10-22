@@ -121,6 +121,7 @@ export default function ProgressPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-6">
+      <h1 className="text-2xl font-extrabold tracking-tight text-ink">My progress</h1>
       <div className="animate-fade-up">
         <StudyCoach db={db} student={student} />
       </div>
