@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button, Card } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { supabase } from "@/lib/supabase";
+import { device, installed } from "@/lib/push-client";
 
 /**
  * "Phone notifications" card in Settings.
@@ -37,11 +38,11 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
   useEffect(() => {
     let alive = true;
     const check = async () => {
-      const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      const installed = window.matchMedia("(display-mode: standalone)").matches;
+      const ios = device() === "iphone";
+      const isInstalled = installed();
       let next: typeof status;
       if (!VAPID) next = "notReady";
-      else if (ios && !installed) next = "iphone";
+      else if (ios && !isInstalled) next = "iphone";
       else if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) next = "unsupported";
       else if (Notification.permission === "denied") next = "blocked";
       else {

@@ -3,6 +3,7 @@
 import { createPortal } from "react-dom";
 import { Avatar } from "@/components/student/Avatar";
 import { Welcome } from "@/components/student/Welcome";
+import { NotifyNudge } from "@/components/student/NotifyNudge";
 import { ScheduleGate } from "@/components/ScheduleGate";
 import { waTextLink } from "@/lib/landing";
 import { useEffect, useRef, useState } from "react";
@@ -151,6 +152,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       )}
       <ScheduleGate>{children}</ScheduleGate>
       {!inRunner && !profile.onboarded && createPortal(<Welcome db={db} student={student} />, document.body)}
+      {!inRunner && <NotifyNudge />}
 
       {/* Phones: a floating dock at the thumb. */}
       {!inRunner && (

@@ -26,6 +26,8 @@ export interface Profile {
   /** Target grade per subject name ("Accounting": "A"). */
   targets?: Record<string, Target>;
   weeklyGoal?: number;
+  /** Already asked once about notifications outside the welcome flow. */
+  notifyAsked?: boolean;
   /** Finished (or skipped) the welcome flow. */
   onboarded?: boolean;
   focus?: FocusStats;

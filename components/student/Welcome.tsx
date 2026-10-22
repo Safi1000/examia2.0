@@ -9,7 +9,7 @@ import { Avatar } from "@/components/student/Avatar";
 import { displayName } from "@/lib/display-name";
 import { cn } from "@/lib/cn";
 import { NavIcon } from "@/components/nav/NavIcons";
-import { NotificationSettings } from "@/components/student/NotificationSettings";
+import { NotifyStep } from "@/components/student/NotifyStep";
 import { addDays, pkDate, slotsForStudent, timeLabel } from "@/lib/timetable";
 
 /** The subjects a student takes: their own, else their cohort's, else all. */
@@ -53,7 +53,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
       body: (
         <ul className="space-y-3">
           {[
-            { icon: <NavIcon.Classes active className="h-6 w-6" />, t: "Join class from Home", d: "A gold Join button appears 10 minutes before each class. Joining marks you present." },
+            { icon: <NavIcon.Classes active className="h-6 w-6" />, t: "Join class from Home", d: "A gold Join button appears 10 minutes before each class. One tap and you are in." },
             { icon: <NavIcon.Tests active className="h-6 w-6" />, t: "One list of what's due", d: "Tests and assignments show on Home with their deadlines. Results come back here too." },
             { icon: <NavIcon.Progress active className="h-6 w-6" />, t: "See where you stand", d: "Your grade, your weak topics and this week's plan, updated after every test." },
           ].map((x) => (
@@ -144,15 +144,9 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
     },
     {
       title: "Stay on top of things.",
-      sub: "Get a quiet heads-up on your phone: results, a test opening, work due tomorrow. Never at night, at most 3 a day.",
+      sub: "A quiet heads-up when your result is out, a test is about to open or work is due tomorrow. Never at night, at most 3 a day.",
       body: (
-        <div className="-mt-5">
-          <NotificationSettings studentId={student.id} />
-          <p className="mt-4 text-sm text-ink-3">
-            Tip: add the portal to your home screen so it opens like an app. On iPhone tap Share, then &quot;Add to Home Screen&quot;. On Android tap the
-            menu, then &quot;Add to Home screen&quot;.
-          </p>
-        </div>
+        <NotifyStep />
       ),
     },
     {
