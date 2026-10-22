@@ -276,6 +276,7 @@ export function TeacherBoard({ room }: { room: string }) {
   // What the toolbar needs to know, mirrored from the refs after each change.
   const [meta, setMeta] = useState({ undo: 0, redo: 0, content: 0 });
   const [copied, setCopied] = useState(false);
+  const [copiedPresent, setCopiedPresent] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedRef = useRef<string | null>(null);
@@ -335,7 +336,7 @@ export function TeacherBoard({ room }: { room: string }) {
       sendView.current = null;
       const { w, h } = screen.current;
       if (w && h) send({ t: "view", v: visibleView(cam.current, w, h) });
-    }, 120);
+    }, 60);
   }, [send, screen]);
 
   useEffect(() => {
@@ -362,8 +363,13 @@ export function TeacherBoard({ room }: { room: string }) {
       },
       (n) => setViewers(n),
     );
+    // Heartbeat: viewers compare it with what they have and ask again if behind.
+    const beat = setInterval(() => {
+      send({ t: "rev", n: strokes.current.length + images.current.length, last: strokes.current[strokes.current.length - 1]?.id ?? "" });
+    }, 3000);
     return () => {
       clearTimeout(t);
+      clearInterval(beat);
       link.current?.close();
     };
   }, [room, storeKey, requestDraw, send, screen, fullBoard]);
@@ -519,7 +525,7 @@ export function TeacherBoard({ room }: { room: string }) {
 
   const sendLive = () => {
     const now = performance.now();
-    if (current.current && now - liveSend.current > 45) {
+    if (current.current && now - liveSend.current > 30) {
       liveSend.current = now;
       send({ t: "live", s: packStroke(current.current) });
     }
@@ -883,14 +889,16 @@ export function TeacherBoard({ room }: { room: string }) {
   };
 
   const viewerUrl = typeof window !== "undefined" ? `${window.location.origin}/board-lab/view?room=${room}` : "";
-  const copyLink = async () => {
+  const copyLink = async (present = false) => {
+    const url = present ? `${viewerUrl}&present=1` : viewerUrl;
     try {
-      await navigator.clipboard.writeText(viewerUrl);
+      await navigator.clipboard.writeText(url);
     } catch {
-      window.prompt("Student link", viewerUrl);
+      window.prompt(present ? "Laptop link" : "Student link", url);
     }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
+    const set = present ? setCopiedPresent : setCopied;
+    set(true);
+    setTimeout(() => set(false), 1800);
   };
 
   const hasContent = meta.content > 0;
@@ -960,6 +968,14 @@ export function TeacherBoard({ room }: { room: string }) {
           >
             {I.link}
             {copied ? "Copied" : "Student link"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void copyLink(true)}
+            title="Open this on your MacBook and share that screen in Meet: it mirrors this tablet, with no buttons on screen."
+            className="flex h-9 items-center gap-1.5 rounded-xl bg-[#FBC159]/15 px-3 text-xs font-semibold text-[#FBC159] transition-colors hover:bg-[#FBC159]/25 [&_svg]:h-4 [&_svg]:w-4"
+          >
+            {copiedPresent ? "Copied" : "Laptop link"}
           </button>
         </div>
       </div>
@@ -1078,7 +1094,7 @@ export function TeacherBoard({ room }: { room: string }) {
 
 // ---------------------------------------------------------------- viewer
 
-export function ViewerBoard({ room }: { room: string }) {
+export function ViewerBoard({ room, present = false }: { room: string; present?: boolean }) {
   const strokes = useRef<Stroke[]>([]);
   const images = useRef<BoardImage[]>([]);
   const live = useRef<Stroke | null>(null);
@@ -1102,6 +1118,7 @@ export function ViewerBoard({ room }: { room: string }) {
   }, [screen, requestDraw]);
 
   useEffect(() => {
+    const linkRef: { l: BoardLink | null } = { l: null };
     const l = connectBoard(
       room,
       "viewer",
@@ -1130,11 +1147,18 @@ export function ViewerBoard({ room }: { room: string }) {
         } else if (m.t === "view") {
           teacherView.current = m.v;
           if (followRef.current) followTeacher();
+        } else if (m.t === "rev") {
+          // Self-check: if anything was missed, fetch the whole board again.
+          const n = strokes.current.length + images.current.length;
+          const last = strokes.current[strokes.current.length - 1]?.id ?? "";
+          if (n !== m.n || last !== m.last) linkRef.l?.send({ t: "hello" });
+          return;
         }
         requestDraw();
       },
       (_n, t) => setTeacherHere(t),
     );
+    linkRef.l = l;
     return () => l.close();
   }, [room, requestDraw, followTeacher]);
 
@@ -1156,6 +1180,7 @@ export function ViewerBoard({ room }: { room: string }) {
         ref={canvasRef}
         className="absolute inset-0 h-full w-full touch-none"
         onPointerDown={(e) => {
+          if (present) return;
           const [x, y] = local(e);
           touches.current.set(e.pointerId, { x, y });
           if (touches.current.size === 2) {
@@ -1190,6 +1215,7 @@ export function ViewerBoard({ room }: { room: string }) {
         }}
         onPointerCancel={(e) => touches.current.delete(e.pointerId)}
         onWheel={(e) => {
+          if (present) return;
           stopFollow();
           const [x, y] = local(e);
           if (e.ctrlKey || e.metaKey) cam.current = zoomAt(cam.current, Math.exp(-e.deltaY * 0.01), x, y);
@@ -1198,7 +1224,13 @@ export function ViewerBoard({ room }: { room: string }) {
         }}
       />
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3 sm:p-4">
+      {/* Present mode (screen-sharing from the laptop): just the board and a small mark. */}
+      {present && (
+        <span style={{ fontFamily: "var(--font-caveat)" }} className="pointer-events-none absolute bottom-4 right-5 text-lg text-[#FBC159]/60">
+          hamzateaches
+        </span>
+      )}
+      <div className={`pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3 sm:p-4 ${present ? "hidden" : ""}`}>
         <div className="flex items-center gap-3 rounded-2xl border border-white/[0.07] bg-[#1c1f22]/80 px-4 py-2.5 backdrop-blur-xl">
           <span style={{ fontFamily: "var(--font-caveat)" }} className="text-xl leading-none text-[#FBC159]">
             hamzateaches
@@ -1217,7 +1249,7 @@ export function ViewerBoard({ room }: { room: string }) {
         </div>
       )}
 
-      {!follow && (
+      {!follow && !present && (
         <button
           type="button"
           onClick={() => {
