@@ -34,6 +34,7 @@ Key facts:
 - [Grade thresholds](${absolute("/grade-thresholds")}): official Cambridge grade thresholds for O Level, IGCSE, AS and A Level Accounting, Business and Economics, every variant, with 2027 targets.
 - [Private candidate guide, Pakistan](${absolute("/private-candidates/pakistan")}): how to enter Cambridge exams through the British Council without a school, deadlines and a study plan.
 - [Online classes](${absolute("/online-classes")}): live online classes for students in Pakistan, with pages for Karachi, Lahore and Islamabad / Rawalpindi.
+- [Online classes for Gulf students](${absolute("/online-classes/gulf")}): the same live classes for students in the UAE, Saudi Arabia, Qatar, Oman, Kuwait and Bahrain, with class times in local time.
 
 ## Articles
 

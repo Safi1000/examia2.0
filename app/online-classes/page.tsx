@@ -90,6 +90,10 @@ export default function OnlineClassesPakistan() {
               </li>
             ))}
           </ul>
+          <p className="mt-5 text-[17px] leading-relaxed text-body">
+            Studying in the UAE, Saudi Arabia, Qatar, Oman, Kuwait or Bahrain? See the{" "}
+            <Link href="/online-classes/gulf" className="text-gold hover:underline">class times for Gulf students</Link>.
+          </p>
         </Section>
 
         <Section title="Free study tools">

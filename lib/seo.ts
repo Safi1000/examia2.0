@@ -24,6 +24,7 @@ export const PUBLIC_ROUTES: Array<{ path: string; priority: number }> = [
   { path: "/grade-thresholds", priority: 0.7 },
   { path: "/private-candidates/pakistan", priority: 0.6 },
   { path: "/online-classes", priority: 0.6 },
+  { path: "/online-classes/gulf", priority: 0.6 },
   { path: "/privacy", priority: 0.2 },
   { path: "/terms", priority: 0.2 },
 ];
