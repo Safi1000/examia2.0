@@ -23,6 +23,8 @@ export const PUBLIC_ROUTES: Array<{ path: string; priority: number }> = [
   // Study pages: indexed and in the sitemap, but kept off the landing page.
   { path: "/grade-thresholds", priority: 0.7 },
   { path: "/private-candidates/pakistan", priority: 0.6 },
+  { path: "/private-candidates/uae", priority: 0.6 },
+  { path: "/private-candidates/saudi-arabia", priority: 0.6 },
   { path: "/online-classes", priority: 0.6 },
   { path: "/online-classes/gulf", priority: 0.6 },
   { path: "/privacy", priority: 0.2 },

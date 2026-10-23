@@ -3,7 +3,7 @@ import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import { Crumbs, Section, Table, TrialBox } from "@/components/study/StudyBits";
-import { GULF_ZONES, levelBlocks, shiftHours } from "@/lib/gulf-pages";
+import { GULF_CITY_PAGES, GULF_ZONES, levelBlocks, shiftHours } from "@/lib/gulf-pages";
 import { breadcrumbLd, faqLd } from "@/lib/seo";
 import { LEVEL_LABEL, span } from "@/lib/timetable";
 
@@ -11,7 +11,7 @@ import { LEVEL_LABEL, span } from "@/lib/timetable";
  * Online classes for students in the Gulf. Same classes as /online-classes,
  * so this page only carries what differs for a Gulf family: the times on
  * their own clock. Country and city facts (school week, private candidate
- * entry) are added only once checked against official sources.
+ * entry) live on the city pages and the private candidate guides.
  */
 const title = "Online O Level and A Level Classes for Gulf Students";
 const description =
@@ -88,6 +88,26 @@ export default function OnlineClassesGulf() {
             <li>Weekly tests made and marked by me, with written feedback.</li>
             <li>A direct line to me for questions between classes.</li>
           </ul>
+        </Section>
+
+        <Section title="Classes for your city">
+          <ul className="grid gap-3 sm:grid-cols-3">
+            {GULF_CITY_PAGES.map((c) => (
+              <li key={c.slug}>
+                <Link href={`/online-classes/${c.slug}`} className="block rounded-[16px] border border-hairline bg-card px-5 py-4 text-foreground hover:border-gold-border">
+                  {c.city}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Section>
+
+        <Section title="Private candidates">
+          <p className="text-[17px] leading-relaxed text-body">
+            Entering without a school? Read the{" "}
+            <Link href="/private-candidates/uae" className="text-gold hover:underline">UAE guide</Link> or the{" "}
+            <Link href="/private-candidates/saudi-arabia" className="text-gold hover:underline">Saudi Arabia guide</Link>.
+          </p>
         </Section>
 
         <Section title="Free study tools">
