@@ -32,9 +32,34 @@ Second pass (quality over quantity): every page now has one job, no copied parag
 6. Registered: `PUBLIC_ROUTES` in `lib/seo.ts` (hub, both guides), `app/sitemap.ts` (Gulf city pages), `app/llms.txt/route.ts`.
 7. A scan of every study page and article found no sentence of 70+ characters repeated across pages (only code and the one-line "confirm with the British Council" note).
 
+## Past paper MCQ checker (new, started 23 October 2026)
+
+Hamza asked for Paper 1 multiple-choice practice for Accounting and Economics, for every level, using real Cambridge past papers, with both a timed mock and topic practice, on the website and later in the portal.
+
+**How it respects Cambridge's copyright:** the site never shows Cambridge's questions. Each paper is a link to the official PDF on cambridgeinternational.org, plus the answer letters from the official mark scheme, plus Hamza's own topic tags and explanations. This follows the rule in `content/blog/README.md` (never paste a full paper or mark scheme).
+
+**Built:**
+- `lib/mcq-papers.ts`: the 7 multiple-choice papers taught (IGCSE 0452, O Level 7707, AS 9706 Paper 1; IGCSE 0455, O Level 2281, AS 9708 Paper 1, A Level 9708 Paper 3), the paper data format, `checkPapers()` (drops any entry whose key length, letters, topics or notes do not match), marking and topic grouping.
+- `/tools/past-paper-mcq`: hub. Lists every syllabus; ones with no papers show "Papers coming". The page is `noindex` and out of the sitemap and llms.txt until at least one paper exists.
+- `/tools/past-paper-mcq/[syllabus]`: the syllabus's papers, plus topic practice (one real question at a time, checked instantly, with Hamza's note) when papers have topic tags.
+- `/tools/past-paper-mcq/[syllabus]/[paper]`: timed mock. Link to the official paper, optional timer set from the paper's own time, A to D answer sheet (saved on the device, so a closed tab loses nothing), then score, topic breakdown weakest first, each wrong answer with the right letter and Hamza's note, blanks on one line, link to the official mark scheme and the grade predictor.
+- `components/tools/McqChecker.tsx`, `components/tools/TopicPractice.tsx`.
+- Tested in Chromium at phone width with a made-up paper (removed before commit): marking, saved answers after reload, timer, topic practice and feedback all worked; no sideways scroll.
+
+**To do (needs web access, for the account that has it):**
+1. For each syllabus, open its past papers page (links in `MCQ_SYLLABUSES`) and add papers to `MCQ_PAPERS`: question paper PDF link, mark scheme PDF link, `minutes` and question count from the cover, and the answer key typed from the mark scheme as one string. Start with the latest three sessions, all variants.
+2. Double-check each key twice against the mark scheme: one wrong letter marks every student wrong on that question.
+3. Topic tags and notes are Hamza's to write (or for Claude to draft for Hamza to approve). Notes must be in Hamza's own words, never copied from Cambridge.
+4. Check: Paper 1 maximum marks in `lib/grade-thresholds.ts` say 0452/7707 Paper 1 is 35 marks and the others 30 (for 0455/2281 the 2027 syllabus changes Paper 1 to 40 questions in 1 hour). The data format takes the count from the key, so both work.
+5. Check: A Level Accounting 9706 has no multiple-choice paper at A2 (Papers 3 and 4 are written; their maximums in the thresholds data are 75 and 50).
+6. Once papers exist, add `/tools/past-paper-mcq` to the footer or the grade predictor page only if Hamza agrees (the landing page stays untouched).
+
+**Portal ("both"):** the portal already has multiple-choice tests (`components/admin/ImportDocModal.tsx`, `lib/question-parser.ts`). Loading past paper questions there is private use for enrolled students, and is Hamza's call. That work is in the portal, which agent-2 must not edit, so it is for the other agent.
+
 ## Files created or changed
 
 - created `lib/gulf-pages.ts`, `app/online-classes/gulf/page.tsx`, `app/private-candidates/uae/page.tsx`, `app/private-candidates/saudi-arabia/page.tsx`, the four `.mdx` articles, `WORKBOARD.md`
+- created `lib/mcq-papers.ts`, `components/tools/McqChecker.tsx`, `components/tools/TopicPractice.tsx`, `app/tools/past-paper-mcq/page.tsx`, `app/tools/past-paper-mcq/[syllabus]/page.tsx`, `app/tools/past-paper-mcq/[syllabus]/[paper]/page.tsx`
 - changed `app/online-classes/[city]/page.tsx` (adds a `GulfCity` view; Pakistan cities unchanged), `app/online-classes/page.tsx`, `app/sitemap.ts`, `lib/seo.ts`, `app/llms.txt/route.ts`
 
 ## Checks run (23 October 2026)

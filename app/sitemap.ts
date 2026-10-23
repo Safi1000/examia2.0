@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { allArticles } from "@/lib/blog";
 import { CITY_PAGES } from "@/lib/city-pages";
 import { GULF_CITY_PAGES } from "@/lib/gulf-pages";
+import { PAPERS, liveSyllabuses, paperSlug } from "@/lib/mcq-papers";
 import { PUBLIC_ROUTES, absolute } from "@/lib/seo";
 import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
 
@@ -24,6 +25,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly" as const,
       priority: 0.5,
     })),
+    // The MCQ checker is listed only once it has papers (lib/mcq-papers.ts).
+    ...(PAPERS.length ? ["/tools/past-paper-mcq"] : []).map((path) => ({ url: absolute(path), changeFrequency: "monthly" as const, priority: 0.6 })),
+    ...liveSyllabuses().map((m) => ({ url: absolute(`/tools/past-paper-mcq/${m.slug}`), changeFrequency: "monthly" as const, priority: 0.5 })),
+    ...PAPERS.map((p) => ({ url: absolute(`/tools/past-paper-mcq/${p.syllabus}/${paperSlug(p)}`), changeFrequency: "yearly" as const, priority: 0.4 })),
     ...articles.map((a) => ({
       url: absolute(`/blog/${a.slug}`),
       lastModified: a.updated ?? a.date,
