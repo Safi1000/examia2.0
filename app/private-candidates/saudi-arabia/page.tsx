@@ -1,20 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
-import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
+import { MarketingShell } from "@/components/landing/MarketingShell";
 import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
-import { breadcrumbLd, faqLd } from "@/lib/seo";
+import { breadcrumbLd } from "@/lib/seo";
 
 /**
  * Private candidates in Saudi Arabia. The British Council Saudi Arabia pages
- * publish less detail than the UAE and Pakistan ones (no current deadline
- * table, fee list or document list for school exams), so this guide states
- * only what those pages say and sends readers to the office for the rest.
- * Add the dates table once the British Council publishes one.
+ * publish less than the UAE and Pakistan ones (no current deadline table,
+ * fee list or document list for school exams), so this guide says only what
+ * they say and gives the questions to put to the office. Add a dates table
+ * once the British Council publishes one.
  */
 const title = "Private Candidate Guide Saudi Arabia: IGCSE and A Level";
 const description =
-  "How to sit Cambridge IGCSE and A Level as a private candidate in Saudi Arabia through the British Council in Riyadh, Jeddah or Al Khobar, and how to prepare.";
+  "How to sit Cambridge IGCSE and A Level as a private candidate in Saudi Arabia through the British Council in Riyadh, Jeddah or Al Khobar, and what to ask first.";
 const UPDATED = "2026-10-23";
 
 export const metadata: Metadata = {
@@ -24,25 +24,6 @@ export const metadata: Metadata = {
   openGraph: { title, description, url: "/private-candidates/saudi-arabia", type: "article", images: ["/opengraph-image"] },
   twitter: { card: "summary_large_image", title, description, images: ["/opengraph-image"] },
 };
-
-const FAQ = [
-  {
-    q: "Can I sit IGCSE or A Level without a school in Saudi Arabia?",
-    a: "Yes. The British Council in Saudi Arabia registers private candidates for IGCSE and school exams, with offices in Riyadh, Jeddah and Al Khobar.",
-  },
-  {
-    q: "When are the Cambridge exams?",
-    a: "Cambridge exams run in two sessions, May / June and October / November. Each exam board has its own registration dates, so check the British Council page for your session.",
-  },
-  {
-    q: "Can I register after the deadline?",
-    a: "The British Council says you may be able to register after the deadline, but late registration costs extra. Contact your local office.",
-  },
-  {
-    q: "Are Accounting, Business and Economics a good choice as a private candidate?",
-    a: "Yes. They are assessed by written papers only, so you need no laboratory or coursework. What you do need is past paper practice and feedback on your written answers.",
-  },
-];
 
 export default function PrivateCandidatesSaudiArabia() {
   return (
@@ -65,7 +46,6 @@ export default function PrivateCandidatesSaudiArabia() {
           author: { "@type": "Person", name: "Hamza Sadaqat" },
         }}
       />
-      <JsonLd data={faqLd(FAQ)} />
 
       <article className="mx-auto max-w-3xl px-5 pb-20 pt-14 md:pt-20">
         <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Private candidate guide, Saudi Arabia" }]} />
@@ -73,78 +53,69 @@ export default function PrivateCandidatesSaudiArabia() {
           Sitting IGCSE or A Level as a private candidate in Saudi Arabia
         </h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
-          Updated 23 October 2026. What the British Council in Saudi Arabia says about entering Cambridge exams without a school, and what to
-          ask your local office. I have kept to what it publishes, so where a detail is missing, the office is the place to ask.
+          Updated 23 October 2026. The British Council in Saudi Arabia publishes less detail online than it does in the UAE or Pakistan. So
+          this guide is short: what it does say, and the questions to ask the office before you pay anything.
         </p>
 
-        <Section title="How entry works">
-          <ol className="list-decimal space-y-3 pl-5 text-[17px] leading-relaxed text-body">
-            <li>
-              <strong className="text-foreground">Register with the British Council.</strong> Its IGCSE and school exams pages have a separate
-              registration route for private candidates. The offices are in Riyadh, Jeddah and Al Khobar.
-            </li>
-            <li>
-              <strong className="text-foreground">Choose the right session and syllabus.</strong> Cambridge exams run in May / June and October /
-              November. Check the syllabus code: IGCSE Accounting is 0452 and O Level Accounting is 7707, and they are different exams.
-            </li>
-            <li>
-              <strong className="text-foreground">Check your entry as soon as you get it.</strong> If anything is wrong, contact your local
-              British Council office straight away. Each session has a deadline for corrections.
-            </li>
-          </ol>
-        </Section>
-
-        <Section title="Deadlines">
+        <Section title="Who handles your entry">
           <p className="text-[17px] leading-relaxed text-body">
-            The two exam boards have different registration dates. The British Council says you may be able to register after the deadline,
-            at an extra fee for late registration. Ask your local office for the May / June 2027 dates before the start of the new year.
+            Without a school, you enter Cambridge exams through the British Council, which has a separate registration route for private
+            candidates. It has offices in Riyadh, in the Diplomatic Quarter, and in Jeddah and Al Khobar. Contact the one nearest you: it is
+            also where special arrangement requests and corrections go.
           </p>
         </Section>
 
-        <Section title="Special arrangements">
+        <Section title="The two sessions">
           <p className="text-[17px] leading-relaxed text-body">
-            If you need special arrangements, contact the British Council office in Riyadh, Jeddah or Al Khobar at least six weeks before your
-            exam date. You need a medical certificate issued within the last two years.
+            Cambridge exams run in May / June and in October / November. Each exam board has its own
+            registration dates, so the dates for Cambridge are not the same as the dates for Pearson Edexcel.
           </p>
         </Section>
 
-        <Section title="Questions to ask the office">
-          <ul className="list-disc space-y-2 pl-5 text-[17px] leading-relaxed text-body">
-            <li>What are the regular and late registration dates for May / June 2027?</li>
-            <li>What is the fee for each of my subjects, and can it be refunded?</li>
-            <li>Which documents do I need, and how do I send them?</li>
-            <li>Where will I sit my exams?</li>
+        <Section title="Three rules the British Council states">
+          <ul className="list-disc space-y-3 pl-5 text-[17px] leading-relaxed text-body">
+            <li>
+              <strong className="text-foreground">Late entry costs more.</strong> You may be able to register after the deadline, but late
+              registration carries extra fees.
+            </li>
+            <li>
+              <strong className="text-foreground">Special arrangements need six weeks.</strong> Apply to the office at least six weeks before
+              your exam date, with a medical certificate issued in the last two years.
+            </li>
+            <li>
+              <strong className="text-foreground">Mistakes have a deadline too.</strong> If anything in your entry is wrong, contact the
+              office straight away. Each session has a cut-off for corrections.
+            </li>
           </ul>
         </Section>
 
-        <Section title="Preparing on your own">
-          <p className="text-[17px] leading-relaxed text-body">
-            The hard part on your own is not finding past papers. It is knowing why an answer you thought was right only got half the marks.
-            Accounting formats, Business evaluation and Economics analysis are where self-study students lose the most, because nobody marks
-            their written answers.
+        <Section title="What to ask the office before you pay">
+          <ol className="list-decimal space-y-3 pl-5 text-[17px] leading-relaxed text-body">
+            <li>When do regular and late registration open and close for May / June 2027?</li>
+            <li>What is the fee for each of my subjects, and can it be refunded if I withdraw?</li>
+            <li>Which documents do you need from me, and how do I send them?</li>
+            <li>Where will I sit the exams?</li>
+            <li>If I am still enrolled at a school, do I need anything from it?</li>
+          </ol>
+          <p className="mt-5 text-[17px] leading-relaxed text-body">
+            Write the answers down with the date and the name of the person you spoke to. If anything changes later, you have a record.
           </p>
-          <p className="mt-4 text-[17px] leading-relaxed text-body">
-            Classes run from 1:30 pm to 7:30 pm Saudi time, Monday to Friday: see the{" "}
-            <Link href="/online-classes/gulf" className="text-gold hover:underline">
-              class times for Gulf students
-            </Link>
-            . To see the marks you need, use the{" "}
-            <Link href="/grade-thresholds" className="text-gold hover:underline">
-              official grade thresholds
-            </Link>
-            .
+        </Section>
+
+        <Section title="Fitting study around a Saudi week">
+          <p className="text-[17px] leading-relaxed text-body">
+            The school week here runs Sunday to Thursday, and my classes run Monday to Friday, from 1:30 pm Saudi time. The{" "}
+            <Link href="/online-classes/riyadh" className="text-gold hover:underline">Riyadh</Link> and{" "}
+            <Link href="/online-classes/jeddah" className="text-gold hover:underline">Jeddah</Link> pages show every class on your clock and how
+            the two weeks fit together.
           </p>
         </Section>
 
         <TrialBox
           from="private-candidates:saudi-arabia"
-          title="No school. Still not alone."
-          body="Live small-group classes online for IGCSE, O Level, AS and A Level Accounting, Business and Economics, with weekly tests I mark myself. Private candidates are welcome. Start with one free lesson."
+          title="Your entry. My marking."
+          body="Private candidates in Saudi Arabia join the same live classes as school students, and every weekly test is marked by me with written feedback. Start with one free lesson."
         />
-
-        <Section title="Questions private candidates ask">
-          <FaqList items={FAQ} />
-        </Section>
 
         <p className="mt-12 text-sm leading-relaxed text-faint">
           Sources:{" "}
@@ -154,6 +125,10 @@ export default function PrivateCandidatesSaudiArabia() {
           ,{" "}
           <a href="https://www.britishcouncil.sa/en/exam/igcse-school/register/dates-deadlines" className="hover:text-gold" rel="noopener">
             registration dates and deadlines
+          </a>
+          ,{" "}
+          <a href="https://www.britishcouncil.sa/english/schools/riyadh/mens" className="hover:text-gold" rel="noopener">
+            Riyadh office
           </a>
           . Fees and dates change each session: always confirm with the British Council before you pay.
         </p>

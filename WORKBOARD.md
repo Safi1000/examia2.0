@@ -13,16 +13,24 @@ This session could not open web pages (network policy) and could not push to Git
 
 ## Done
 
-1. `/online-classes/gulf`: hub for Gulf students. Class times by level in UAE / Oman time and in Saudi / Qatar / Kuwait / Bahrain time, worked out from `lib/timetable.ts`, so they follow timetable changes. Lists the five cities and both private candidate guides. Linked from `/online-classes` (not from the landing page).
-2. City pages, served by the existing `app/online-classes/[city]` route (data in `lib/gulf-pages.ts`, `GULF_CITY_PAGES`): `/online-classes/dubai`, `abu-dhabi`, `riyadh`, `jeddah`, `doha`. Each has: local class times table, how that country's school week meets the Monday to Friday timetable, the British Council office for private candidates, its own FAQ and a Sources line.
-3. `/private-candidates/uae`: same structure as the Pakistan guide. Two rules first (no MoE endorsement, one centre and board per session), registration steps, documents, deadlines table, fees policy, FAQ, Sources.
-4. `/private-candidates/saudi-arabia`: shorter, because the British Council Saudi pages publish no current deadline table, fee list or document list for school exams. States only what they say and lists questions to ask the office. Add a deadlines table when one is published.
-5. Articles (date 2026-10-23):
-   - `content/blog/igcse-business-0450-justify-evaluate-questions.mdx`
-   - `content/blog/o-level-business-7115-syllabus-explained.mdx`
-   - `content/blog/as-level-economics-9708-paper-1-mcq-tips.mdx`
-   - `content/blog/igcse-accounting-partnership-accounts.mdx` (worked example, all totals checked: appropriation 49,000 = 8,000 + 5,000 + 36,000; Amina current account 27,100 each side, c/d 6,500; Bilal 24,400 each side, c/d 4,800; capital plus current 111,300)
-6. Registered everywhere: `PUBLIC_ROUTES` in `lib/seo.ts` (gulf hub, both guides), `app/sitemap.ts` (Gulf city pages), `app/llms.txt/route.ts`.
+Second pass (quality over quantity): every page now has one job, no copied paragraphs, and only content that is true of that page.
+
+1. `/online-classes/gulf`: answers the two questions a Gulf family has. Times by level for each time zone (stacked cards, readable on a phone), how the classes meet each country's school week (links to the city pages), why recordings matter more abroad, and how exam entry differs in the UAE, Saudi Arabia and Qatar. No copied "What you get" list, no generic tools list.
+2. City pages, served by `app/online-classes/[city]` (data in `lib/gulf-pages.ts`, `GULF_CITY_PAGES`): `/online-classes/dubai`, `abu-dhabi`, `riyadh`, `jeddah`, `doha`. Each shows every class of the day on the local clock (from `lib/timetable.ts`), then sections that only make sense for that city, one local question, its own trial box wording and a Sources line. Boilerplate questions ("Do you have a centre?", "How do I start?") removed.
+   - Dubai: Friday half day (KHDA), Oud Metha office, Sharjah candidates sit in Dubai, attached centres, a Sharjah weekend question.
+   - Abu Dhabi: government week, NOC, taking subjects at two levels.
+   - Riyadh: how a Sunday to Thursday week lines up with Monday to Friday classes, 2026 to 2027 start date, which levels a late school day affects, Diplomatic Quarter office, special arrangements.
+   - Jeddah: different regional school start in 2025, private school calendar flexibility, a Friday past paper routine, corrections deadline.
+   - Doha: Sunday to Thursday week, British Council Qatar process (online, pay at Al Sadd, someone can submit for you, under-18 letter, no practicals), Oct / Nov 2026 dates.
+3. `/private-candidates/uae`: two rules first, steps, documents, dates table, fees policy, a UAE-specific "working back from the deadline" section, FAQ with questions not answered in the body. The paragraph copied from the Pakistan guide is gone.
+4. `/private-candidates/saudi-arabia`: short on purpose. Who handles entry, the two sessions, three rules the British Council states, and five questions to ask the office before paying.
+5. Articles (date 2026-10-23), each with a different job from the existing articles:
+   - `igcse-accounting-partnership-accounts.mdx`: rewritten, because `igcse-o-level-accounting-formats.mdx` already has the basic appropriation and current account layout. This one covers a partner's loan, interest on drawings by the month, a residual loss and an overdrawn current account. Totals: profit 12,300 minus 500 loan interest = 11,800; plus 500 interest on drawings = 12,300; minus 9,000 salary and 4,800 interest on capital = residual loss 1,500 (Sana 1,000, Omar 500); Sana current account 7,300 each side, closing debit 2,900; Omar 11,500 each side, closing credit 2,800; capital 80,000 plus current (100) = 79,900; loan 10,000 as a liability.
+   - `as-level-economics-9708-paper-1-mcq-tips.mdx`: rewritten so it no longer mirrors `o-level-igcse-economics-paper-1-mcq-tips.mdx` (links to it for the basics). About what is new at AS: two shifts at once, four true options, two-step calculations. Six own practice questions.
+   - `igcse-business-0450-justify-evaluate-questions.mdx`: the method for the 12-mark justify question.
+   - `o-level-business-7115-syllabus-explained.mdx`: the syllabus and the 7081 switch; links to the 0450 article for the method instead of repeating it.
+6. Registered: `PUBLIC_ROUTES` in `lib/seo.ts` (hub, both guides), `app/sitemap.ts` (Gulf city pages), `app/llms.txt/route.ts`.
+7. A scan of every study page and article found no sentence of 70+ characters repeated across pages (only code and the one-line "confirm with the British Council" note).
 
 ## Files created or changed
 
@@ -33,7 +41,7 @@ This session could not open web pages (network policy) and could not push to Git
 
 - `npx tsc --noEmit -p .`: pass. `npx eslint` on every changed .ts/.tsx file: pass. `npx next build`: pass, all 5 city pages, the hub, both guides and the 4 articles prerender.
 - Zero em dashes or en dashes in every file above. No banned words.
-- Opened every new page at phone width (390 px) in Chromium: no sideways page scroll, tables scroll inside themselves.
+- Opened every new page at phone width (390 px) in Chromium: no sideways page scroll. Class times on the Gulf pages are stacked cards, not wide tables, so nothing is cut off on a phone.
 - Not checked: the pages on a real phone, and dark/light theme beyond the default.
 
 ## Verify before merge (fact: source)
@@ -43,13 +51,25 @@ Pakistan time is UTC+5; UAE and Oman one hour behind; Saudi, Qatar, Kuwait, Bahr
 **Dubai**: private schools Monday to Friday, Friday ends by 12 pm at the latest, Saturday and Sunday weekend: https://web.khda.gov.ae/en/Guides/Parents/Faq/4-5-day-week-FAQs-for-Dubai-private-schools
 **Abu Dhabi**: Abu Dhabi government, like the federal government, works Monday to Friday, Saturday and Sunday weekend (government, not schools; ADEK school rule not found, so not claimed): https://u.ae/en/information-and-services/jobs/Sector-of-employment/working-in-uae-government-sector/working-hours-in-the-public-sector
 **British Council UAE** (city pages and UAE guide): https://www.britishcouncil.ae/sites/default/files/candidate_information_flyer_-_oct_nov_2026.pdf , https://www.britishcouncil.ae/sites/default/files/cambridge_candidate_information_flyer_june_2026.pdf , https://www.britishcouncil.ae/sites/default/files/declaration_by_candidate_0.pdf
-- offices: Abu Dhabi (Al Qasbah Street, Al Bateen), Dubai (Oud Metha), Sharjah (its candidates sit exams in Dubai); Cambridge sessions run at Abu Dhabi and Dubai centres
+- offices: Abu Dhabi, Dubai (Oud Metha), Sharjah (its candidates sit exams in Dubai). The Abu Dhabi street address differs between sources (Al Bateen and Khalidiya Street), so no address is used.
 - register online, then email documents to the Dubai school exams team or visit an office; documents within three working days (declaration form)
 - documents: passport or Emirates ID original and copy, three photos from the last six months, registration summary, signed declaration, NOC
 - NOC required for IGCSE and AS and A Level private candidates; declaration: NOC from your school if you are at an MoE-recognised school
 - certificates not endorsed by MoEY; one centre and one board per session
 - offline payment due with documents, cash or credit card; fees non-refundable, non-transferable, not carried forward
 - dates: May / June 2026 regular 2 Dec 2025 to 13 Feb 2026, late stage 1 14 Feb to 10 Apr 2026; Oct / Nov 2026 regular 26 Jun to 7 Aug 2026, late stage 1 8 Aug to 14 Sep 2026
+
+**Added in the second pass (verify these too)**
+- Sharjah government weekend is Friday to Sunday: u.ae working hours page above
+- British Council UAE lists Dubai attached centres: https://www.britishcouncil.ae/en/exam/igcse-school/choosing/find-british-council-attached-centre
+- Riyadh 2026 to 2027 school year started Sunday 23 August 2026: https://spa.gov.sa/en/N2659363
+- In 2025, Jeddah and Taif, and the Makkah and Madinah regions, started a week after most regions: https://www.spa.gov.sa/en/N2384169 (check this link is the 2025 article)
+- Saudi private and international schools can move their start by up to two weeks: https://www.moe.gov.sa/en/education/generaleducation/Pages/Reg-priv-int-schools.aspx
+- British Council Riyadh office in the Diplomatic Quarter (from the Riyadh English school page; confirm the exams team is at the same office): https://www.britishcouncil.sa/english/schools/riyadh/mens
+- Qatar: in special cases someone else can submit and pay for you: British Council Qatar private candidates page below
+- Qatar shorter Thursday: https://www.edu.gov.qa/en/News/Details/9271800
+
+**Removed** because the source turned out to be the British Council Cambridge English (language exams) page, not school exams: "the British Council runs Cambridge exam sessions at its Abu Dhabi and Dubai centres".
 
 **Saudi Arabia**: Sunday to Thursday week, Friday and Saturday weekend (2013 Royal Order): https://www.spa.gov.sa/en/bee255bdbb
 **British Council Saudi** (Riyadh, Jeddah pages and Saudi guide): https://www.britishcouncil.sa/en/exam/igcse-school/register , https://www.britishcouncil.sa/en/exam/igcse-school/register/dates-deadlines
@@ -72,7 +92,7 @@ Pakistan time is UTC+5; UAE and Oman one hour behind; Saudi, Qatar, Kuwait, Bahr
 ## For Hamza to decide
 
 - **0450 and 7115 are being replaced.** IGCSE Business becomes 0264 (first exams March 2027) and O Level Business becomes 7081 (first exams June 2027). The site still lists 0450 and 7115 in several places (FAQs, llms.txt, grade thresholds). Students sitting in 2027 take the new codes. I did not change the existing pages.
-- Riyadh and Jeddah share most facts (same country, same British Council rules). If Google treats them as too similar, merge them into one Saudi Arabia page.
+- Riyadh and Jeddah are now written as separate pages with different content (week fit and late school days for Riyadh; regional calendar and a Friday routine for Jeddah). If you would rather have one Saudi page, they can be merged.
 
 ## Seen, not changed
 

@@ -26,24 +26,20 @@ export const metadata: Metadata = {
 
 const FAQ = [
   {
-    q: "Can I sit IGCSE or A Level without a school in the UAE?",
-    a: "Yes. You register as a private candidate with the British Council, which has offices in Abu Dhabi, Dubai and Sharjah and runs Cambridge exam sessions at its Abu Dhabi and Dubai centres.",
+    q: "I am still enrolled at a school. Can I enter a subject privately?",
+    a: "Yes, if your school agrees. The declaration form has a box for exactly this: if you are at a school recognised by the Ministry of Education, you attach a No Objection Certificate from that school.",
   },
   {
-    q: "Do I need a No Objection Certificate?",
-    a: "The British Council says private candidates registering for IGCSE or Cambridge International AS and A Level must submit one. If you are at a school recognised by the Ministry of Education, the declaration form asks for a No Objection Certificate from that school.",
+    q: "Can I register at two centres, to be safe?",
+    a: "No. The British Council allows one exam centre and one exam board per session, so choose before you register.",
+  },
+  {
+    q: "I missed the regular deadline. Is it too late?",
+    a: "Not straight away. After the regular window, a late stage runs for several weeks at a higher fee. For May / June 2026 it ran from 14 February to 10 April 2026.",
   },
   {
     q: "Can I get my fee back if I change my mind?",
     a: "No. The British Council says exam fees are non-refundable and non-transferable, and they are not carried forward to a later session.",
-  },
-  {
-    q: "Will my certificate be accepted for further study in the UAE?",
-    a: "The British Council says certificates it issues to private candidates will not be endorsed by the Ministry of Education. Ask your university or next school what they accept before you register.",
-  },
-  {
-    q: "Are Accounting, Business and Economics a good choice as a private candidate?",
-    a: "Yes. They are assessed by written papers only, so you need no laboratory or coursework. What you do need is past paper practice and feedback on your written answers.",
   },
 ];
 
@@ -77,7 +73,7 @@ export default function PrivateCandidatesUae() {
         </h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
           Updated 23 October 2026. How British Council registration works in the UAE, the documents to keep ready, the deadlines, and
-          the two rules private candidates most often miss.
+          the two rules to check before you pay.
         </p>
 
         <Section title="Read these two rules first">
@@ -98,8 +94,8 @@ export default function PrivateCandidatesUae() {
           <ol className="list-decimal space-y-3 pl-5 text-[17px] leading-relaxed text-body">
             <li>
               <strong className="text-foreground">Register online with the British Council.</strong> Choose the session, Cambridge as the board, and
-              your subjects. Check the syllabus code carefully: IGCSE Accounting is 0452 and O Level Accounting is 7707, and they are different
-              exams.
+              your subjects. Check every syllabus code, and Business in particular: from 2027, IGCSE Business is 0264 and O Level Business is
+              7081.
             </li>
             <li>
               <strong className="text-foreground">Send your documents within three working days.</strong> Email them to the British Council&apos;s
@@ -111,8 +107,8 @@ export default function PrivateCandidatesUae() {
               by cash or credit card.
             </li>
             <li>
-              <strong className="text-foreground">Sit the exams.</strong> The British Council runs Cambridge exam sessions at its Abu Dhabi and
-              Dubai centres. Candidates registered at the Sharjah office sit their exams in Dubai.
+              <strong className="text-foreground">Sit the exams.</strong> The British Council has offices in Abu Dhabi, Dubai and Sharjah.
+              Candidates registered at the Sharjah office sit their exams in Dubai.
             </li>
           </ol>
         </Section>
@@ -154,29 +150,37 @@ export default function PrivateCandidatesUae() {
           </p>
         </Section>
 
-        <Section title="Preparing on your own">
+        <Section title="Working back from the deadline">
           <p className="text-[17px] leading-relaxed text-body">
-            The hard part on your own is not finding past papers. It is knowing why an answer you thought was right only got half the marks.
-            Accounting formats, Business evaluation and Economics analysis are where self-study students lose the most, because nobody marks
-            their written answers.
+            If the May / June 2027 window follows the 2026 pattern, registration opens in early December and the regular deadline falls in
+            mid-February. Three things are worth doing before it opens:
           </p>
-          <p className="mt-4 text-[17px] leading-relaxed text-body">
-            Classes run from 2:30 pm to 8:30 pm UAE time, Monday to Friday: see the{" "}
-            <Link href="/online-classes/gulf" className="text-gold hover:underline">
-              class times for Gulf students
-            </Link>
-            . To see the marks you need, use the{" "}
-            <Link href="/grade-thresholds" className="text-gold hover:underline">
-              official grade thresholds
-            </Link>
-            .
+          <ul className="mt-5 list-disc space-y-3 pl-5 text-[17px] leading-relaxed text-body">
+            <li>
+              <strong className="text-foreground">Ask for the No Objection Certificate early.</strong> If it comes from your school, it is out of
+              your hands until the school writes it.
+            </li>
+            <li>
+              <strong className="text-foreground">Get the photos and copies done.</strong> You have only three working days after registering
+              online to send everything.
+            </li>
+            <li>
+              <strong className="text-foreground">Settle your subject list.</strong> The fee cannot be refunded or moved to a later session, so
+              decide on subjects and paper options first.
+            </li>
+          </ul>
+          <p className="mt-6 text-[17px] leading-relaxed text-body">
+            Then the work that actually decides your grade: past papers, marked properly. Classes run from 2:30 pm to 8:30 pm UAE time,
+            Monday to Friday, and the <Link href="/online-classes/dubai" className="text-gold hover:underline">Dubai</Link> and{" "}
+            <Link href="/online-classes/abu-dhabi" className="text-gold hover:underline">Abu Dhabi</Link> pages show each class on your
+            clock.
           </p>
         </Section>
 
         <TrialBox
           from="private-candidates:uae"
-          title="No school. Still not alone."
-          body="Live small-group classes online for IGCSE, O Level, AS and A Level Accounting, Business and Economics, with weekly tests I mark myself. Private candidates are welcome. Start with one free lesson."
+          title="On your own. Not alone."
+          body="Private candidates in the UAE join the same live classes as school students, and every weekly test is marked by me with written feedback. Start with one free lesson."
         />
 
         <Section title="Questions private candidates ask">
