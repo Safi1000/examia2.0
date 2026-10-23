@@ -3,71 +3,72 @@
 import { useId } from "react";
 
 /**
- * Groundwork level frames, drawn in SVG around the round avatar. They apply
- * automatically by level and get more extravagant as students climb:
+ * Groundwork level frames, drawn like a premium watch bezel or an esports
+ * rank ring: real metal shading, engraved detail, cut stones. They apply
+ * automatically by level and get richer as students climb:
  *
  *  0 Starter  none
- *  1 Steady   bronze ring with studs
- *  2 Sharp    bevelled silver with small wings
- *  3 Scholar  gold double ring with a laurel wreath and a star
- *  4 Topper   ornate gold with laurels, a crown, a ruby and a moving shine
- *  5 Legend   prismatic ring that slowly turns, feathered wings, jewelled
- *             crown, sparkles and a soft glow
+ *  1 Steady   polished bronze bezel, fine engraved ticks
+ *  2 Sharp    brushed steel bezel, hour markers, chamfered edge
+ *  3 Scholar  polished gold bezel, markers, a small rank chevron
+ *  4 Topper   black ceramic ring set in gold, four cut diamonds, light sweep
+ *  5 Legend   ceramic and gold, twelve diamonds, a slow iridescent halo, crest
  *
- * The avatar keeps its full size; the frame is drawn around it, spilling
- * outside the avatar's box (the ring and ornaments add about 60%).
+ * One light source (top left) everywhere, so it reads as real material.
+ * The avatar keeps its full size; the frame is drawn around it.
  */
-const C = 100; // centre of the 200 x 200 drawing
+const C = 100;
+const at = (r: number, deg: number) => [C + r * Math.cos(((deg - 90) * Math.PI) / 180), C + r * Math.sin(((deg - 90) * Math.PI) / 180)] as const;
 
-/** Points on a circle, for placing ornaments. */
-const at = (r: number, deg: number) => [C + r * Math.cos((deg * Math.PI) / 180), C + r * Math.sin((deg * Math.PI) / 180)] as const;
-
-function Laurel({ fill, side, from, to }: { fill: string; side: 1 | -1; from: number; to: number }) {
-  // Leaves along an arc on one side, each tilted along the curve.
-  const leaves = [];
-  for (let a = from, i = 0; a <= to; a += 13, i++) {
-    const deg = side === 1 ? a : 180 - a;
-    const [x, y] = at(84, deg);
-    const tilt = deg + (side === 1 ? 90 : -90) + (side === 1 ? -28 : 28);
-    leaves.push(<ellipse key={i} cx={x} cy={y} rx="9" ry="4" fill={fill} transform={`rotate(${tilt} ${x} ${y})`} />);
-  }
-  return <g>{leaves}</g>;
+/** A small brilliant-cut stone seen from above (four facets and a glint). */
+function Diamond({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
+  return (
+    <g transform={`translate(${x} ${y}) scale(${s})`}>
+      <path d="M0 -6 L6 0 L0 6 L-6 0 Z" fill="#DDE8F2" stroke="#2a2f36" strokeWidth=".6" />
+      <path d="M0 -6 L6 0 L0 0 Z" fill="#FFFFFF" />
+      <path d="M-6 0 L0 6 L0 0 Z" fill="#A9B8C6" />
+      <path d="M0 0 L6 0 L0 6 Z" fill="#C7D5E2" />
+      <circle cx="-1.6" cy="-2.2" r="1" fill="#fff" />
+    </g>
+  );
 }
 
-function Wings({ fill, big }: { fill: string; big?: boolean }) {
-  // A symmetrical fan of feathers on each side, longest in the middle.
-  const angles = big ? [-34, -17, 0, 17, 34] : [-18, 0, 18];
+/** Thin engraved lines around the ring: `n` ticks between two radii. */
+function Ticks({ n, r1, r2, color, width = 0.8, skip }: { n: number; r1: number; r2: number; color: string; width?: number; skip?: number }) {
   const out: React.ReactNode[] = [];
-  for (const side of [1, -1] as const) {
-    angles.forEach((a, i) => {
-      const deg = side === 1 ? a : 180 - a;
-      const len = (big ? 40 : 24) - Math.abs(a) * (big ? 0.3 : 0.35);
-      const w = big ? 8 : 5.5;
-      const [x, y] = at(big ? 82 : 79, deg);
-      // A tapered feather: fat near the ring, pointed at the tip, with a quill line.
-      out.push(
-        <g key={`${side}${i}`} transform={`translate(${x} ${y}) rotate(${deg})`}>
-          <path d={`M0 0 Q${len * 0.35} ${-w} ${len} 0 Q${len * 0.35} ${w} 0 0 Z`} fill={fill} stroke="#5a3a08" strokeOpacity=".4" strokeWidth=".8" />
-          <path d={`M2 0 L${len * 0.85} 0`} stroke="#5a3a08" strokeOpacity=".35" strokeWidth=".8" />
-        </g>,
-      );
-    });
+  for (let i = 0; i < n; i++) {
+    if (skip && i % skip === 0) continue;
+    const d = (360 / n) * i;
+    const [x1, y1] = at(r1, d);
+    const [x2, y2] = at(r2, d);
+    out.push(<line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={width} strokeLinecap="round" />);
   }
   return <g>{out}</g>;
 }
 
-function Crown({ fill, gem, big }: { fill: string; gem?: string; big?: boolean }) {
+/** Twelve hour markers, slim bars set into the bezel. */
+function Markers({ r1, r2, fill, edge }: { r1: number; r2: number; fill: string; edge: string }) {
   return (
-    <g transform={big ? "translate(100 22) scale(1.35) translate(-100 -22)" : undefined}>
-      <path d="M78 30 L84 12 L92 24 L100 6 L108 24 L116 12 L122 30 Z" fill={fill} stroke="#5a3a08" strokeWidth="1.2" strokeLinejoin="round" />
-      <rect x="77" y="28" width="46" height="7" rx="2" fill={fill} stroke="#5a3a08" strokeWidth="1.2" />
-      {gem && (
-        <>
-          <circle cx="100" cy="31.5" r="3.2" fill={gem} />
-          <circle cx="86" cy="31.5" r="2.2" fill="#7DB7F5" />
-          <circle cx="114" cy="31.5" r="2.2" fill="#7FD1A6" />
-        </>
-      )}
+    <g>
+      {Array.from({ length: 12 }, (_, i) => {
+        const d = i * 30;
+        const [x, y] = at((r1 + r2) / 2, d);
+        const big = i % 3 === 0;
+        return (
+          <rect
+            key={i}
+            x={x - (big ? 1.6 : 1.1)}
+            y={y - (r2 - r1) / 2}
+            width={big ? 3.2 : 2.2}
+            height={r2 - r1}
+            rx=".8"
+            fill={fill}
+            stroke={edge}
+            strokeWidth=".5"
+            transform={`rotate(${d} ${x} ${y})`}
+          />
+        );
+      })}
     </g>
   );
 }
@@ -77,8 +78,8 @@ export function AvatarFrame({ level, children, className }: { level: number; chi
   const id = (n: string) => `${n}-${uid}`;
   if (level <= 0) return <>{children}</>;
 
-  const metal = level === 1 ? "bronze" : level === 2 ? "silver" : "gold";
-  const ring = level >= 5 ? `url(#${id("prism")})` : `url(#${id(metal)})`;
+  const metal = level === 1 ? "bronze" : level === 2 ? "steel" : "gold";
+  const ceramic = level >= 4;
 
   return (
     <span className={`relative inline-block shrink-0 ${className ?? ""}`}>
@@ -86,131 +87,134 @@ export function AvatarFrame({ level, children, className }: { level: number; chi
       {/* 200-unit drawing where the avatar is the middle 124 units. */}
       <svg viewBox="0 0 200 200" className="pointer-events-none absolute overflow-visible" style={{ inset: "-30.6%", width: "161.2%", height: "161.2%" }} aria-hidden>
         <defs>
+          {/* Metals: light from the top left, a bright band, darker lower right. */}
           <linearGradient id={id("bronze")} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#E2A877" />
-            <stop offset=".35" stopColor="#8A5229" />
-            <stop offset=".6" stopColor="#C98A55" />
-            <stop offset="1" stopColor="#5C3216" />
+            <stop offset="0" stopColor="#F3C9A0" />
+            <stop offset=".22" stopColor="#B57A4A" />
+            <stop offset=".45" stopColor="#E7B183" />
+            <stop offset=".7" stopColor="#7A4723" />
+            <stop offset="1" stopColor="#3E2210" />
           </linearGradient>
-          <linearGradient id={id("silver")} x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id={id("steel")} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor="#FFFFFF" />
-            <stop offset=".3" stopColor="#9AA3AD" />
-            <stop offset=".55" stopColor="#E9EDF1" />
-            <stop offset="1" stopColor="#5E6670" />
+            <stop offset=".2" stopColor="#A7AFB8" />
+            <stop offset=".42" stopColor="#EEF1F4" />
+            <stop offset=".68" stopColor="#6C747E" />
+            <stop offset="1" stopColor="#2E333A" />
           </linearGradient>
           <linearGradient id={id("gold")} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#FFF1C4" />
-            <stop offset=".3" stopColor="#E5A832" />
-            <stop offset=".55" stopColor="#FFD77A" />
-            <stop offset=".8" stopColor="#B9821F" />
-            <stop offset="1" stopColor="#FFE3A3" />
+            <stop offset="0" stopColor="#FFF4D2" />
+            <stop offset=".2" stopColor="#D9A23A" />
+            <stop offset=".42" stopColor="#FFE29A" />
+            <stop offset=".68" stopColor="#9C6A15" />
+            <stop offset="1" stopColor="#4A3008" />
           </linearGradient>
-          <linearGradient id={id("prism")} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#4FA3FF" />
-            <stop offset=".25" stopColor="#A66BFF" />
-            <stop offset=".5" stopColor="#FF5C8A" />
-            <stop offset=".75" stopColor="#FFB020" />
-            <stop offset="1" stopColor="#2FD39A" />
-            {level >= 5 && <animateTransform attributeName="gradientTransform" type="rotate" from="0 .5 .5" to="360 .5 .5" dur="6s" repeatCount="indefinite" />}
+          <linearGradient id={id("ceramic")} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#4A4F57" />
+            <stop offset=".35" stopColor="#15171A" />
+            <stop offset=".6" stopColor="#2B2F35" />
+            <stop offset="1" stopColor="#050607" />
           </linearGradient>
-          <radialGradient id={id("glow")}>
-            <stop offset=".62" stopColor="#FBC159" stopOpacity="0" />
-            <stop offset=".7" stopColor="#FBC159" stopOpacity=".6" />
-            <stop offset="1" stopColor="#FBC159" stopOpacity="0" />
-          </radialGradient>
-          <linearGradient id={id("shine")} x1="0" y1="0" x2="1" y2="0">
+          <linearGradient id={id("halo")} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#8EC5FF" />
+            <stop offset=".3" stopColor="#C8A6FF" />
+            <stop offset=".55" stopColor="#FFD9A0" />
+            <stop offset=".8" stopColor="#9FF0D4" />
+            <stop offset="1" stopColor="#8EC5FF" />
+            <animateTransform attributeName="gradientTransform" type="rotate" from="0 .5 .5" to="360 .5 .5" dur="9s" repeatCount="indefinite" />
+          </linearGradient>
+          <linearGradient id={id("sweep")} x1="0" y1="0" x2="1" y2="0">
             <stop offset="0" stopColor="#fff" stopOpacity="0" />
-            <stop offset=".5" stopColor="#fff" stopOpacity=".85" />
+            <stop offset=".5" stopColor="#fff" stopOpacity=".55" />
             <stop offset="1" stopColor="#fff" stopOpacity="0" />
           </linearGradient>
-          <radialGradient id={id("ruby")} cx=".35" cy=".35">
-            <stop offset="0" stopColor="#FFB3B3" />
-            <stop offset=".5" stopColor="#E0283C" />
-            <stop offset="1" stopColor="#7A0A18" />
+          <radialGradient id={id("aura")}>
+            <stop offset=".78" stopColor="#FBC159" stopOpacity="0" />
+            <stop offset=".86" stopColor="#FBC159" stopOpacity=".35" />
+            <stop offset="1" stopColor="#FBC159" stopOpacity="0" />
           </radialGradient>
         </defs>
 
-        {/* Legend: a soft pulsing glow behind everything. */}
+        {/* Legend: a soft warm aura outside the bezel only. */}
         {level >= 5 && (
-          <circle cx={C} cy={C} r="98" fill={`url(#${id("glow")})`}>
-            <animate attributeName="opacity" values=".55;1;.55" dur="2.6s" repeatCount="indefinite" />
+          <circle cx={C} cy={C} r="99" fill={`url(#${id("aura")})`}>
+            <animate attributeName="opacity" values=".6;1;.6" dur="3.2s" repeatCount="indefinite" />
           </circle>
         )}
 
-        {/* Wings: small silver from Sharp, big golden feathers for Legend. */}
-        {level === 2 && <Wings fill={`url(#${id("silver")})`} />}
-        {level >= 5 && <Wings fill={`url(#${id("gold")})`} big />}
+        {/* Shadow under the bezel, so it sits above the page. */}
+        <circle cx={C} cy={C + 1.5} r="72" fill="none" stroke="#000" strokeOpacity=".45" strokeWidth={ceramic ? 22 : 18} />
 
-        {/* Laurel wreath from Scholar. */}
-        {level >= 3 && (
+        {/* Outer metal bezel. */}
+        <circle cx={C} cy={C} r={ceramic ? 77 : 71.5} fill="none" stroke={`url(#${id(metal)})`} strokeWidth={ceramic ? 8 : level === 3 ? 16 : 14} />
+        {/* Chamfered edges: a bright outer lip and a dark inner lip. */}
+        <circle cx={C} cy={C} r={ceramic ? 81 : level === 3 ? 79.5 : 78.5} fill="none" stroke="#fff" strokeOpacity=".5" strokeWidth=".8" />
+        <circle cx={C} cy={C} r={ceramic ? 73 : level === 3 ? 63.5 : 64.5} fill="none" stroke="#000" strokeOpacity=".55" strokeWidth="1" />
+
+        {/* Topper and Legend: black ceramic ring set inside the gold. */}
+        {ceramic && (
           <>
-            <Laurel fill={level >= 4 ? `url(#${id("gold")})` : "#C9962F"} side={1} from={-55} to={70} />
-            <Laurel fill={level >= 4 ? `url(#${id("gold")})` : "#C9962F"} side={-1} from={-55} to={70} />
+            <circle cx={C} cy={C} r="67.5" fill="none" stroke={`url(#${id("ceramic")})`} strokeWidth="11" />
+            <circle cx={C} cy={C} r="62.5" fill="none" stroke={`url(#${id("gold")})`} strokeWidth="1.6" />
+            <circle cx={C} cy={C} r="73" fill="none" stroke="#000" strokeOpacity=".6" strokeWidth=".8" />
           </>
         )}
 
-        {/* The main ring: thicker and bevelled as the level rises. */}
-        <circle cx={C} cy={C} r="71" fill="none" stroke="#1A1D20" strokeWidth={level >= 3 ? 20 : 16} />
-        <circle cx={C} cy={C} r="71" fill="none" stroke={ring} strokeWidth={level >= 3 ? 16 : 12} />
-        <circle cx={C} cy={C} r={level >= 3 ? 63 : 65} fill="none" stroke="#000" strokeOpacity=".35" strokeWidth="1.5" />
-        <circle cx={C} cy={C} r={level >= 3 ? 79 : 77} fill="none" stroke="#fff" strokeOpacity=".35" strokeWidth="1" />
-        {level >= 3 && <circle cx={C} cy={C} r="71" fill="none" stroke="#000" strokeOpacity=".25" strokeWidth="1" strokeDasharray="2 5" />}
-        {/* Legend: gold edges either side of the prism, so it reads as jewellery. */}
-        {level >= 5 && (
-          <>
-            <circle cx={C} cy={C} r="80" fill="none" stroke={`url(#${id("gold")})`} strokeWidth="3" />
-            <circle cx={C} cy={C} r="62.5" fill="none" stroke={`url(#${id("gold")})`} strokeWidth="2.5" />
-          </>
-        )}
+        {/* Engraving: fine ticks (bronze), markers (steel and gold), gold markers on ceramic. */}
+        {level === 1 && <Ticks n={60} r1={66.5} r2={70} color="#3E2210" width={0.6} />}
+        {level === 1 && <Ticks n={12} r1={65.5} r2={72} color="#2a1608" width={1.2} />}
+        {level === 2 && <Ticks n={60} r1={66} r2={68.5} color="#2E333A" width={0.5} skip={5} />}
+        {level === 2 && <Markers r1={66} r2={75} fill="#F7F9FB" edge="#4a525c" />}
+        {level === 3 && <Markers r1={66} r2={76} fill="#3a2706" edge="#FFE29A" />}
+        {ceramic && <Markers r1={64.5} r2={70.5} fill={`url(#${id("gold")})`} edge="#4A3008" />}
 
-        {/* Studs around the ring (bronze and silver). */}
-        {level <= 2 &&
-          [45, 135, 225, 315].map((d) => {
-            const [x, y] = at(71, d);
-            return <circle key={d} cx={x} cy={y} r="4.5" fill={`url(#${id(metal)})`} stroke="#000" strokeOpacity=".35" />;
+        {/* Steel: an extra fine outer ring, like a watch case. */}
+        {level === 2 && <circle cx={C} cy={C} r="81" fill="none" stroke={`url(#${id("steel")})`} strokeWidth="1.6" />}
+
+        {/* Stones: four on Topper, twelve on Legend, set into the ceramic. */}
+        {level === 4 &&
+          [0, 90, 180, 270].map((d) => {
+            const [x, y] = at(67.5, d);
+            return <Diamond key={d} x={x} y={y} s={0.85} />;
+          })}
+        {level >= 5 &&
+          Array.from({ length: 12 }, (_, i) => {
+            const [x, y] = at(67.5, i * 30);
+            return <Diamond key={i} x={x} y={y} s={i % 3 === 0 ? 0.85 : 0.6} />;
           })}
 
-        {/* Moving shine across the metal (Topper and Legend). */}
+        {/* Legend: a thin iridescent halo that slowly shifts colour. */}
+        {level >= 5 && <circle cx={C} cy={C} r="84.5" fill="none" stroke={`url(#${id("halo")})`} strokeWidth="2.4" />}
+
+        {/* Light catching the metal: a fixed highlight, and a slow sweep from Topper. */}
+        <circle
+          cx={C}
+          cy={C}
+          r={ceramic ? 77 : 71.5}
+          fill="none"
+          stroke="#fff"
+          strokeOpacity=".35"
+          strokeWidth={ceramic ? 2 : 3}
+          strokeDasharray="70 400"
+          strokeDashoffset="-300"
+          strokeLinecap="round"
+        />
         {level >= 4 && (
-          <g>
-            <circle cx={C} cy={C} r="71" fill="none" stroke={`url(#${id("shine")})`} strokeWidth="16" strokeDasharray="60 386" strokeLinecap="round" opacity=".7">
-              <animateTransform attributeName="transform" type="rotate" from={`0 ${C} ${C}`} to={`360 ${C} ${C}`} dur={level >= 5 ? "3s" : "4.5s"} repeatCount="indefinite" />
-            </circle>
-          </g>
+          <circle cx={C} cy={C} r="77" fill="none" stroke={`url(#${id("sweep")})`} strokeWidth="8" strokeDasharray="45 440" strokeLinecap="round">
+            <animateTransform attributeName="transform" type="rotate" from={`0 ${C} ${C}`} to={`360 ${C} ${C}`} dur={level >= 5 ? "5s" : "7s"} repeatCount="indefinite" />
+          </circle>
         )}
 
-        {/* Scholar: a star at the top. Topper and Legend: a crown. */}
+        {/* Rank mark at the top: a chevron for Scholar, a crest with a stone for Legend. */}
         {level === 3 && (
-          <path
-            d="M100 12 L105 24 L118 24 L108 32 L112 45 L100 37 L88 45 L92 32 L82 24 L95 24 Z"
-            fill={`url(#${id("gold")})`}
-            stroke="#5a3a08"
-            strokeWidth="1.2"
-            strokeLinejoin="round"
-          />
+          <path d="M91 21 L100 15 L109 21 L109 25 L100 19 L91 25 Z" fill={`url(#${id("gold")})`} stroke="#4A3008" strokeWidth=".7" strokeLinejoin="round" />
         )}
-        {level >= 4 && <Crown fill={`url(#${id("gold")})`} gem={level >= 5 ? "#E0283C" : undefined} big={level >= 5} />}
-
-        {/* Topper and Legend: a ruby at the bottom. */}
-        {level >= 4 && (
+        {level >= 5 && (
           <g>
-            <path d="M100 160 L112 172 L100 188 L88 172 Z" fill={`url(#${id("ruby")})`} stroke="#5a3a08" strokeWidth="1.5" strokeLinejoin="round" />
-            <path d="M100 160 L106 172 L100 182 L94 172 Z" fill="#fff" opacity=".25" />
+            <path d="M86 20 L100 10 L114 20 L114 26 L100 16 L86 26 Z" fill={`url(#${id("gold")})`} stroke="#4A3008" strokeWidth=".8" strokeLinejoin="round" />
+            <Diamond x={100} y={21} s={0.7} />
           </g>
         )}
-
-        {/* Legend: twinkling sparkles. */}
-        {level >= 5 &&
-          [
-            [32, 48, "0s"],
-            [170, 56, ".8s"],
-            [24, 140, "1.6s"],
-            [176, 146, "1.1s"],
-          ].map(([x, y, d], i) => (
-            <path key={i} d={`M${x} ${Number(y) - 7} L${Number(x) + 2} ${Number(y) - 2} L${Number(x) + 7} ${y} L${Number(x) + 2} ${Number(y) + 2} L${x} ${Number(y) + 7} L${Number(x) - 2} ${Number(y) + 2} L${Number(x) - 7} ${y} L${Number(x) - 2} ${Number(y) - 2} Z`} fill="#FFF6D8">
-              <animate attributeName="opacity" values="0;1;0" dur="2s" begin={String(d)} repeatCount="indefinite" />
-            </path>
-          ))}
       </svg>
     </span>
   );
