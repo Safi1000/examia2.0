@@ -336,7 +336,7 @@ export function TeacherBoard({ room }: { room: string }) {
       sendView.current = null;
       const { w, h } = screen.current;
       if (w && h) send({ t: "view", v: visibleView(cam.current, w, h) });
-    }, 60);
+    }, 33); // ~30 position updates a second; the laptop glides between them
   }, [send, screen]);
 
   useEffect(() => {
@@ -890,7 +890,9 @@ export function TeacherBoard({ room }: { room: string }) {
 
   const viewerUrl = typeof window !== "undefined" ? `${window.location.origin}/board-lab/view?room=${room}` : "";
   const copyLink = async (present = false) => {
-    const url = present ? `${viewerUrl}&present=1` : viewerUrl;
+    // Inside the portal the laptop just opens /teach/present (it pairs by sign-in).
+    const inPortal = window.location.pathname.startsWith("/teach");
+    const url = present ? (inPortal ? `${window.location.origin}/teach/present` : `${viewerUrl}&present=1`) : viewerUrl;
     try {
       await navigator.clipboard.writeText(url);
     } catch {
@@ -1109,12 +1111,47 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
     paint(ctx, w, h, cam.current, images.current, strokes.current, [live.current], again),
   );
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
-  const followTeacher = useCallback(() => {
-    const v = teacherView.current;
-    const { w, h } = screen.current;
-    if (v && w && h) cam.current = fitView(v, w, h);
-    requestDraw();
+  // Following the tablet: each position update sets a target, and the camera
+  // glides to it at screen speed (60 fps), so panning and zooming look smooth
+  // on the shared laptop screen instead of jumping in steps.
+  const target = useRef<Camera | null>(null);
+  const gliding = useRef(false);
+  const glideStep = useRef<() => void>(() => {});
+  useEffect(() => {
+    glideStep.current = () => {
+      const t = target.current;
+      if (!t) {
+        gliding.current = false;
+        return;
+      }
+      const c = cam.current;
+      const k = 0.38;
+      const next = { x: c.x + (t.x - c.x) * k, y: c.y + (t.y - c.y) * k, z: c.z + (t.z - c.z) * k };
+      const done = Math.abs(t.x - next.x) * next.z < 0.25 && Math.abs(t.y - next.y) * next.z < 0.25 && Math.abs(t.z - next.z) < 0.0008;
+      cam.current = done ? t : next;
+      requestDraw();
+      if (done) gliding.current = false;
+      else requestAnimationFrame(() => glideStep.current());
+    };
+  }, [requestDraw]);
+  // Held in a ref so the live connection never has to restart to use it.
+  const followFn = useRef<(jump?: boolean) => void>(() => {});
+  useEffect(() => {
+    followFn.current = (jump = false) => {
+      const v = teacherView.current;
+      const { w, h } = screen.current;
+      if (!v || !w || !h) return;
+      target.current = fitView(v, w, h);
+      if (jump) {
+        cam.current = target.current;
+        requestDraw();
+        return;
+      }
+      if (!gliding.current) {
+        gliding.current = true;
+        requestAnimationFrame(() => glideStep.current());
+      }
+    };
   }, [screen, requestDraw]);
 
   useEffect(() => {
@@ -1146,7 +1183,7 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
           images.current = images.current.filter((x) => !ids.has(x.id));
         } else if (m.t === "view") {
           teacherView.current = m.v;
-          if (followRef.current) followTeacher();
+          if (followRef.current) followFn.current();
         } else if (m.t === "rev") {
           // Self-check: if anything was missed, fetch the whole board again.
           const n = strokes.current.length + images.current.length;
@@ -1160,7 +1197,14 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
     );
     linkRef.l = l;
     return () => l.close();
-  }, [room, requestDraw, followTeacher]);
+  }, [room, requestDraw]);
+
+  // The laptop window changes size (going full screen to share): re-fit at once.
+  useEffect(() => {
+    const onResize = () => followRef.current && setTimeout(() => followFn.current(true), 50);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   // Students can look around; doing so stops following until they tap "Follow".
   const touches = useRef(new Map<number, { x: number; y: number }>());
@@ -1255,7 +1299,7 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
           onClick={() => {
             followRef.current = true;
             setFollow(true);
-            followTeacher();
+            followFn.current();
           }}
           className="absolute bottom-5 left-1/2 h-11 -translate-x-1/2 rounded-full bg-[#FBC159] px-5 text-sm font-bold text-[#141618] shadow-[0_12px_30px_-10px_rgba(251,193,89,0.6)]"
         >

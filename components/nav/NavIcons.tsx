@@ -92,6 +92,13 @@ export const NavIcon = {
       <path d="M12 3.5v2.5" />
     </Svg>
   ),
+  Board: ({ active, className }: P) => (
+    <Svg active={active} className={className}>
+      <rect x="3.5" y="4" width="17" height="12" rx="2" />
+      <path d="M12 16v4M8.5 20.5h7" />
+      <Gold active={active}><path d="M7 12.5c2-3 3.5-3.5 5-1.5s3 1.5 5-2" fill="none" strokeWidth="1.6" /></Gold>
+    </Svg>
+  ),
   Classes: ({ active, className }: P) => (
     <Svg active={active} className={className}>
       <rect x="3" y="6" width="13" height="12" rx="2.5" />
