@@ -3,219 +3,218 @@
 import { useId } from "react";
 
 /**
- * Groundwork level frames, drawn like a premium watch bezel or an esports
- * rank ring: real metal shading, engraved detail, cut stones. They apply
- * automatically by level and get richer as students climb:
+ * Groundwork rank frames, in the style of game rank borders (PUBG Conqueror,
+ * Ace, Crown): a sculpted metal ring, a crest with a gem on top, swept blades
+ * at the sides, getting heavier and richer at every level. Applied
+ * automatically by level:
  *
  *  0 Starter  none
- *  1 Steady   polished bronze bezel, fine engraved ticks
- *  2 Sharp    brushed steel bezel, hour markers, chamfered edge
- *  3 Scholar  polished gold bezel, markers, a small rank chevron
- *  4 Topper   black ceramic ring set in gold, four cut diamonds, light sweep
- *  5 Legend   ceramic and gold, twelve diamonds, a slow iridescent halo, crest
+ *  1 Steady   bronze ring, small shield crest with an amber stone
+ *  2 Sharp    silver ring, sapphire crest, a pair of short blades each side
+ *  3 Scholar  gold ring, emerald crest, three blades each side, lower crest
+ *  4 Topper   gold with a crimson enamel ring, crowned ruby crest, four blades
+ *  5 Legend   dark gunmetal and gold, glowing amber enamel, five sweeping
+ *             blades, a large flame-stone crown, soft aura and drifting embers
  *
- * One light source (top left) everywhere, so it reads as real material.
- * The avatar keeps its full size; the frame is drawn around it.
+ * The metal is shaded with an SVG lighting filter (light from the top left),
+ * so the shapes read as real, raised metal. That layer never animates; the
+ * Legend aura and embers live in a separate layer, so nothing heavy redraws.
  */
 const C = 100;
-const at = (r: number, deg: number) => [C + r * Math.cos(((deg - 90) * Math.PI) / 180), C + r * Math.sin(((deg - 90) * Math.PI) / 180)] as const;
+/** Point at radius r, angle deg (0 = top, clockwise). */
+const at = (r: number, deg: number) => [C + r * Math.sin((deg * Math.PI) / 180), C - r * Math.cos((deg * Math.PI) / 180)] as const;
+const p = (r: number, deg: number) => at(r, deg).map((n) => n.toFixed(2)).join(" ");
 
-/** A small brilliant-cut stone seen from above (four facets and a glint). */
-function Diamond({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
-  return (
-    <g transform={`translate(${x} ${y}) scale(${s})`}>
-      <path d="M0 -6 L6 0 L0 6 L-6 0 Z" fill="#DDE8F2" stroke="#2a2f36" strokeWidth=".6" />
-      <path d="M0 -6 L6 0 L0 0 Z" fill="#FFFFFF" />
-      <path d="M-6 0 L0 6 L0 0 Z" fill="#A9B8C6" />
-      <path d="M0 0 L6 0 L0 6 Z" fill="#C7D5E2" />
-      <circle cx="-1.6" cy="-2.2" r="1" fill="#fff" />
-    </g>
-  );
-}
+type Tier = {
+  metal: [string, string, string, string];
+  trim: string;
+  gem: [string, string];
+  enamel?: string;
+  /** A different metal for the ring band (Legend: dark band, gold ornaments). */
+  band?: [string, string, string, string];
+  blades: number[]; // blade angles (right side), mirrored on the left
+  bladeLen: number;
+  crest: "shield" | "crown" | "great";
+  lower?: boolean;
+};
 
-/** Thin engraved lines around the ring: `n` ticks between two radii. */
-function Ticks({ n, r1, r2, color, width = 0.8, skip }: { n: number; r1: number; r2: number; color: string; width?: number; skip?: number }) {
-  const out: React.ReactNode[] = [];
-  for (let i = 0; i < n; i++) {
-    if (skip && i % skip === 0) continue;
-    const d = (360 / n) * i;
-    const [x1, y1] = at(r1, d);
-    const [x2, y2] = at(r2, d);
-    out.push(<line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={width} strokeLinecap="round" />);
-  }
-  return <g>{out}</g>;
-}
+const TIERS: Record<number, Tier> = {
+  1: { metal: ["#F6D2AE", "#C0834F", "#8A5328", "#4A2810"], trim: "#F3C9A0", gem: ["#FFD38A", "#B35A00"], blades: [], bladeLen: 0, crest: "shield" },
+  2: { metal: ["#FFFFFF", "#C9D0D7", "#7D868F", "#3A4048"], trim: "#F4F7FA", gem: ["#A9DBFF", "#1F5FBF"], blades: [62, 82], bladeLen: 16, crest: "shield" },
+  3: { metal: ["#FFF3C8", "#E6B24A", "#A5711A", "#5A3A08"], trim: "#FFE7A6", gem: ["#9BF5C8", "#0E7A4C"], blades: [52, 70, 88], bladeLen: 22, crest: "shield", lower: true },
+  4: { metal: ["#FFF3C8", "#E6B24A", "#A5711A", "#5A3A08"], trim: "#FFE7A6", gem: ["#FFB0B0", "#9E0A1F"], enamel: "#A3122B", blades: [44, 60, 76, 92], bladeLen: 27, crest: "crown", lower: true },
+  5: {
+    metal: ["#FFF6D6", "#F2C14E", "#B8811C", "#5E3B06"],
+    band: ["#5A6068", "#2A2E34", "#16191D", "#08090B"],
+    trim: "#FFE29A",
+    gem: ["#FFF0B3", "#FF5A00"],
+    enamel: "#FF8A1F",
+    blades: [34, 50, 66, 82, 98],
+    bladeLen: 36,
+    crest: "great",
+    lower: true,
+  },
+};
 
-/** Twelve hour markers, slim bars set into the bezel. */
-function Markers({ r1, r2, fill, edge }: { r1: number; r2: number; fill: string; edge: string }) {
-  return (
-    <g>
-      {Array.from({ length: 12 }, (_, i) => {
-        const d = i * 30;
-        const [x, y] = at((r1 + r2) / 2, d);
-        const big = i % 3 === 0;
-        return (
-          <rect
-            key={i}
-            x={x - (big ? 1.6 : 1.1)}
-            y={y - (r2 - r1) / 2}
-            width={big ? 3.2 : 2.2}
-            height={r2 - r1}
-            rx=".8"
-            fill={fill}
-            stroke={edge}
-            strokeWidth=".5"
-            transform={`rotate(${d} ${x} ${y})`}
-          />
-        );
-      })}
-    </g>
-  );
+/** One swept blade, rooted on the ring and curving up towards the crest. */
+function blade(deg: number, len: number, side: 1 | -1) {
+  const a = side * deg;
+  const sweep = side * 20; // tips lean towards the top, like wings
+  const base1 = p(72, a - side * 7);
+  const base2 = p(72, a + side * 7);
+  const tip = p(72 + len, a - sweep);
+  const c1 = p(72 + len * 0.6, a - side * 11);
+  const c2 = p(72 + len * 0.5, a + side * 4);
+  return `M${base1} Q${c1} ${tip} Q${c2} ${base2} Z`;
 }
 
 export function AvatarFrame({ level, children, className }: { level: number; children: React.ReactNode; className?: string }) {
   const uid = useId().replace(/:/g, "");
   const id = (n: string) => `${n}-${uid}`;
-  if (level <= 0) return <>{children}</>;
-
-  const metal = level === 1 ? "bronze" : level === 2 ? "steel" : "gold";
-  const ceramic = level >= 4;
+  const t = TIERS[Math.min(5, level)];
+  if (!t) return <>{children}</>;
+  const metal = `url(#${id("metal")})`;
+  const trim = `url(#${id("trim")})`;
+  const gem = `url(#${id("gem")})`;
+  const box = { inset: "-30.6%", width: "161.2%", height: "161.2%" } as const;
 
   return (
     <span className={`relative inline-block shrink-0 ${className ?? ""}`}>
+      {/* Legend aura sits behind the avatar. */}
+      {level >= 5 && (
+        <svg viewBox="0 0 200 200" className="pointer-events-none absolute overflow-visible motion-reduce:hidden" style={box} aria-hidden>
+          <defs>
+            <radialGradient id={id("aura")}>
+              <stop offset=".6" stopColor="#FFB020" stopOpacity="0" />
+              <stop offset=".72" stopColor="#FFB020" stopOpacity=".75" />
+              <stop offset="1" stopColor="#FF6A00" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          <circle cx={C} cy={C} r="104" fill={`url(#${id("aura")})`}>
+            <animate attributeName="opacity" values=".55;1;.55" dur="3.4s" repeatCount="indefinite" />
+          </circle>
+        </svg>
+      )}
+
       {children}
-      {/* 200-unit drawing where the avatar is the middle 124 units. */}
-      <svg viewBox="0 0 200 200" className="pointer-events-none absolute overflow-visible" style={{ inset: "-30.6%", width: "161.2%", height: "161.2%" }} aria-hidden>
+
+      {/* The frame itself: drawn once, never animated. */}
+      <svg viewBox="0 0 200 200" className="pointer-events-none absolute overflow-visible" style={box} aria-hidden>
         <defs>
-          {/* Metals: light from the top left, a bright band, darker lower right. */}
-          <linearGradient id={id("bronze")} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#F3C9A0" />
-            <stop offset=".22" stopColor="#B57A4A" />
-            <stop offset=".45" stopColor="#E7B183" />
-            <stop offset=".7" stopColor="#7A4723" />
-            <stop offset="1" stopColor="#3E2210" />
+          <linearGradient id={id("metal")} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor={t.metal[0]} />
+            <stop offset=".35" stopColor={t.metal[1]} />
+            <stop offset=".7" stopColor={t.metal[2]} />
+            <stop offset="1" stopColor={t.metal[3]} />
           </linearGradient>
-          <linearGradient id={id("steel")} x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id={id("band")} x1="0" y1="0" x2="1" y2="1">
+            {(t.band ?? t.metal).map((c, i) => (
+              <stop key={i} offset={[0, 0.35, 0.7, 1][i]} stopColor={c} />
+            ))}
+          </linearGradient>
+          <linearGradient id={id("trim")} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor="#FFFFFF" />
-            <stop offset=".2" stopColor="#A7AFB8" />
-            <stop offset=".42" stopColor="#EEF1F4" />
-            <stop offset=".68" stopColor="#6C747E" />
-            <stop offset="1" stopColor="#2E333A" />
+            <stop offset=".4" stopColor={t.trim} />
+            <stop offset="1" stopColor={level >= 5 ? "#9C6A15" : t.metal[2]} />
           </linearGradient>
-          <linearGradient id={id("gold")} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#FFF4D2" />
-            <stop offset=".2" stopColor="#D9A23A" />
-            <stop offset=".42" stopColor="#FFE29A" />
-            <stop offset=".68" stopColor="#9C6A15" />
-            <stop offset="1" stopColor="#4A3008" />
-          </linearGradient>
-          <linearGradient id={id("ceramic")} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#4A4F57" />
-            <stop offset=".35" stopColor="#15171A" />
-            <stop offset=".6" stopColor="#2B2F35" />
-            <stop offset="1" stopColor="#050607" />
-          </linearGradient>
-          <linearGradient id={id("halo")} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#8EC5FF" />
-            <stop offset=".3" stopColor="#C8A6FF" />
-            <stop offset=".55" stopColor="#FFD9A0" />
-            <stop offset=".8" stopColor="#9FF0D4" />
-            <stop offset="1" stopColor="#8EC5FF" />
-            <animateTransform attributeName="gradientTransform" type="rotate" from="0 .5 .5" to="360 .5 .5" dur="9s" repeatCount="indefinite" />
-          </linearGradient>
-          <linearGradient id={id("sweep")} x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#fff" stopOpacity="0" />
-            <stop offset=".5" stopColor="#fff" stopOpacity=".55" />
-            <stop offset="1" stopColor="#fff" stopOpacity="0" />
-          </linearGradient>
-          <radialGradient id={id("aura")}>
-            <stop offset=".78" stopColor="#FBC159" stopOpacity="0" />
-            <stop offset=".86" stopColor="#FBC159" stopOpacity=".35" />
-            <stop offset="1" stopColor="#FBC159" stopOpacity="0" />
+          <radialGradient id={id("gem")} cx=".35" cy=".3" r=".8">
+            <stop offset="0" stopColor="#FFFFFF" />
+            <stop offset=".25" stopColor={t.gem[0]} />
+            <stop offset="1" stopColor={t.gem[1]} />
           </radialGradient>
+          {/* Raised-metal look: blur the shape's edge, light it from the top left. */}
+          <filter id={id("emboss")} x="-30%" y="-30%" width="160%" height="160%" colorInterpolationFilters="sRGB">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="1.3" result="blur" />
+            <feSpecularLighting in="blur" surfaceScale="3.2" specularConstant=".95" specularExponent="20" lightingColor="#ffffff" result="spec">
+              <fePointLight x="30" y="-10" z="110" />
+            </feSpecularLighting>
+            <feComposite in="spec" in2="SourceAlpha" operator="in" result="shine" />
+            <feComposite in="SourceGraphic" in2="shine" operator="arithmetic" k1="0" k2="1" k3=".8" k4="0" result="lit" />
+            <feDropShadow dx="0" dy="2" stdDeviation="1.8" floodColor="#000" floodOpacity=".65" />
+          </filter>
+          <filter id={id("glow")} x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="2.4" result="g" />
+            <feMerge>
+              <feMergeNode in="g" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
         </defs>
 
-        {/* Legend: a soft warm aura outside the bezel only. */}
+        <g filter={`url(#${id("emboss")})`}>
+          {/* Blades, behind the ring. */}
+          {t.blades.map((d, i) => {
+            const len = t.bladeLen - i * (t.bladeLen * 0.12);
+            return (
+              <g key={d}>
+                <path d={blade(d, len, 1)} fill={metal} />
+                <path d={blade(d, len, -1)} fill={metal} />
+              </g>
+            );
+          })}
+
+          {/* The ring: a broad metal band with bright trims either side. */}
+          <circle cx={C} cy={C} r="69" fill="none" stroke={`url(#${id("band")})`} strokeWidth="12" />
+          <circle cx={C} cy={C} r="75.2" fill="none" stroke={trim} strokeWidth="2.2" />
+          <circle cx={C} cy={C} r="62.8" fill="none" stroke={trim} strokeWidth="2" />
+
+          {/* Lower crest (Scholar up). */}
+          {t.lower && <path d="M100 186 Q91 180 89 172 L100 166 L111 172 Q109 180 100 186 Z" fill={metal} />}
+
+          {/* Top crest. */}
+          {t.crest === "shield" && <path d="M100 12 Q109 13 115 18 Q114 33 100 44 Q86 33 85 18 Q91 13 100 12 Z" fill={metal} />}
+          {t.crest === "crown" && (
+            <path d="M80 34 L84 16 L92 26 L100 8 L108 26 L116 16 L120 34 Q110 40 100 46 Q90 40 80 34 Z" fill={metal} />
+          )}
+          {t.crest === "great" && (
+            <path
+              d="M72 36 Q74 24 78 18 L86 28 L92 12 L100 0 L108 12 L114 28 L122 18 Q126 24 128 36 Q114 42 100 50 Q86 42 72 36 Z"
+              fill={metal}
+            />
+          )}
+        </g>
+
+        {/* Enamel ring between the metal and the face (Topper, Legend). */}
+        {t.enamel && <circle cx={C} cy={C} r="64.9" fill="none" stroke={t.enamel} strokeWidth="2.6" filter={level >= 5 ? `url(#${id("glow")})` : undefined} />}
+
+        {/* Gold trims on Legend's dark metal, so it reads as gunmetal set in gold. */}
         {level >= 5 && (
-          <circle cx={C} cy={C} r="99" fill={`url(#${id("aura")})`}>
-            <animate attributeName="opacity" values=".6;1;.6" dur="3.2s" repeatCount="indefinite" />
-          </circle>
-        )}
-
-        {/* Shadow under the bezel, so it sits above the page. */}
-        <circle cx={C} cy={C + 1.5} r="72" fill="none" stroke="#000" strokeOpacity=".45" strokeWidth={ceramic ? 22 : 18} />
-
-        {/* Outer metal bezel. */}
-        <circle cx={C} cy={C} r={ceramic ? 77 : 71.5} fill="none" stroke={`url(#${id(metal)})`} strokeWidth={ceramic ? 8 : level === 3 ? 16 : 14} />
-        {/* Chamfered edges: a bright outer lip and a dark inner lip. */}
-        <circle cx={C} cy={C} r={ceramic ? 81 : level === 3 ? 79.5 : 78.5} fill="none" stroke="#fff" strokeOpacity=".5" strokeWidth=".8" />
-        <circle cx={C} cy={C} r={ceramic ? 73 : level === 3 ? 63.5 : 64.5} fill="none" stroke="#000" strokeOpacity=".55" strokeWidth="1" />
-
-        {/* Topper and Legend: black ceramic ring set inside the gold. */}
-        {ceramic && (
           <>
-            <circle cx={C} cy={C} r="67.5" fill="none" stroke={`url(#${id("ceramic")})`} strokeWidth="11" />
-            <circle cx={C} cy={C} r="62.5" fill="none" stroke={`url(#${id("gold")})`} strokeWidth="1.6" />
-            <circle cx={C} cy={C} r="73" fill="none" stroke="#000" strokeOpacity=".6" strokeWidth=".8" />
+            <circle cx={C} cy={C} r="75.2" fill="none" stroke={trim} strokeWidth="2.2" />
+            <circle cx={C} cy={C} r="62.8" fill="none" stroke={trim} strokeWidth="2" />
           </>
         )}
 
-        {/* Engraving: fine ticks (bronze), markers (steel and gold), gold markers on ceramic. */}
-        {level === 1 && <Ticks n={60} r1={66.5} r2={70} color="#3E2210" width={0.6} />}
-        {level === 1 && <Ticks n={12} r1={65.5} r2={72} color="#2a1608" width={1.2} />}
-        {level === 2 && <Ticks n={60} r1={66} r2={68.5} color="#2E333A" width={0.5} skip={5} />}
-        {level === 2 && <Markers r1={66} r2={75} fill="#F7F9FB" edge="#4a525c" />}
-        {level === 3 && <Markers r1={66} r2={76} fill="#3a2706" edge="#FFE29A" />}
-        {ceramic && <Markers r1={64.5} r2={70.5} fill={`url(#${id("gold")})`} edge="#4A3008" />}
-
-        {/* Steel: an extra fine outer ring, like a watch case. */}
-        {level === 2 && <circle cx={C} cy={C} r="81" fill="none" stroke={`url(#${id("steel")})`} strokeWidth="1.6" />}
-
-        {/* Stones: four on Topper, twelve on Legend, set into the ceramic. */}
-        {level === 4 &&
-          [0, 90, 180, 270].map((d) => {
-            const [x, y] = at(67.5, d);
-            return <Diamond key={d} x={x} y={y} s={0.85} />;
+        {/* Stones: crest (and lower crest), with a glint. */}
+        <g filter={level >= 4 ? `url(#${id("glow")})` : undefined}>
+          <circle cx="100" cy={t.crest === "great" ? 30 : t.crest === "crown" ? 30 : 27} r={t.crest === "great" ? 7.5 : t.crest === "crown" ? 6 : 5.2} fill={gem} stroke="#1a1208" strokeOpacity=".6" />
+          {t.lower && <circle cx="100" cy="175" r="3.6" fill={gem} stroke="#1a1208" strokeOpacity=".6" />}
+        </g>
+        <circle cx={98} cy={t.crest === "great" ? 27.5 : t.crest === "crown" ? 28 : 25.2} r="1.6" fill="#fff" opacity=".9" />
+        {/* Side studs on the ring (Sharp up). */}
+        {level >= 2 &&
+          [90, 270].map((d) => {
+            const [x, y] = at(69, d);
+            return <circle key={d} cx={x} cy={y} r="3.4" fill={gem} stroke="#1a1208" strokeOpacity=".6" />;
           })}
-        {level >= 5 &&
-          Array.from({ length: 12 }, (_, i) => {
-            const [x, y] = at(67.5, i * 30);
-            return <Diamond key={i} x={x} y={y} s={i % 3 === 0 ? 0.85 : 0.6} />;
-          })}
-
-        {/* Legend: a thin iridescent halo that slowly shifts colour. */}
-        {level >= 5 && <circle cx={C} cy={C} r="84.5" fill="none" stroke={`url(#${id("halo")})`} strokeWidth="2.4" />}
-
-        {/* Light catching the metal: a fixed highlight, and a slow sweep from Topper. */}
-        <circle
-          cx={C}
-          cy={C}
-          r={ceramic ? 77 : 71.5}
-          fill="none"
-          stroke="#fff"
-          strokeOpacity=".35"
-          strokeWidth={ceramic ? 2 : 3}
-          strokeDasharray="70 400"
-          strokeDashoffset="-300"
-          strokeLinecap="round"
-        />
-        {level >= 4 && (
-          <circle cx={C} cy={C} r="77" fill="none" stroke={`url(#${id("sweep")})`} strokeWidth="8" strokeDasharray="45 440" strokeLinecap="round">
-            <animateTransform attributeName="transform" type="rotate" from={`0 ${C} ${C}`} to={`360 ${C} ${C}`} dur={level >= 5 ? "5s" : "7s"} repeatCount="indefinite" />
-          </circle>
-        )}
-
-        {/* Rank mark at the top: a chevron for Scholar, a crest with a stone for Legend. */}
-        {level === 3 && (
-          <path d="M91 21 L100 15 L109 21 L109 25 L100 19 L91 25 Z" fill={`url(#${id("gold")})`} stroke="#4A3008" strokeWidth=".7" strokeLinejoin="round" />
-        )}
-        {level >= 5 && (
-          <g>
-            <path d="M86 20 L100 10 L114 20 L114 26 L100 16 L86 26 Z" fill={`url(#${id("gold")})`} stroke="#4A3008" strokeWidth=".8" strokeLinejoin="round" />
-            <Diamond x={100} y={21} s={0.7} />
-          </g>
-        )}
       </svg>
+
+      {/* Legend: a few embers drifting up past the crest (separate, light layer). */}
+      {level >= 5 && (
+        <svg viewBox="0 0 200 200" className="pointer-events-none absolute overflow-visible motion-reduce:hidden" style={box} aria-hidden>
+          {[
+            [70, "0s", 2.2],
+            [128, "1.1s", 1.8],
+            [88, "2.0s", 1.5],
+            [116, "2.8s", 2],
+          ].map(([x, delay, r], i) => (
+            <circle key={i} cx={Number(x)} cy="40" r={Number(r)} fill="#FFC56B">
+              <animate attributeName="cy" values="44;4" dur="3.6s" begin={String(delay)} repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0;1;0" dur="3.6s" begin={String(delay)} repeatCount="indefinite" />
+            </circle>
+          ))}
+        </svg>
+      )}
     </span>
   );
 }
