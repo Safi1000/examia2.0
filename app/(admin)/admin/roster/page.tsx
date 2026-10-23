@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { ArchiveTabs, type ArchiveView } from "@/components/admin/ArchiveTabs";
 import { Card, Button, Input, Select, Label, CohortDot, Modal, EmptyState, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
+import { LoginDetails } from "@/components/admin/LoginDetails";
 
 function genPassword() {
   const words = ["maple", "river", "amber", "delta", "lunar", "cedar", "north", "ochre"];
@@ -69,6 +70,8 @@ export default function RosterPage() {
   const [form, setForm] = useState({ username: "", email: "", whatsapp: "", phone: "", photoUrl: "", cohortId: "", tempPassword: "", classIds: [] as string[], subjectIds: [] as string[] });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // The just-added student's login, for the ready-made welcome message.
+  const [sent, setSent] = useState<{ username: string; password: string; phone?: string; parent?: string } | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
 
@@ -181,7 +184,8 @@ export default function RosterPage() {
     try {
       if (editing === "new") {
         await store.addStudent(fields);
-        toast("Student added.", "success");
+        // Straight into the ready-made message with their login.
+        setSent({ username: fields.username, password: fields.tempPassword, phone: fields.phone, parent: fields.whatsapp });
       } else if (editing) {
         await store.updateStudent(editing.id, fields);
         toast("Student updated.", "success");
@@ -196,6 +200,9 @@ export default function RosterPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+      {sent && (
+        <LoginDetails open kind="welcome" onClose={() => setSent(null)} username={sent.username} password={sent.password} phone={sent.phone} parent={sent.parent} />
+      )}
       <PageHeader
         title="Roster"
         subtitle={`${students.length} students`}

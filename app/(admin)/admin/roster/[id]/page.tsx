@@ -20,6 +20,7 @@ import { notesConfigured, uploadNote } from "@/lib/cloudinary";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import { LineChart, type LinePoint } from "@/components/charts/LineChart";
 import { MasteryBar } from "@/components/charts/MasteryBar";
+import { LoginDetails } from "@/components/admin/LoginDetails";
 import { gradeSubmission } from "@/lib/grading";
 import { topicMastery } from "@/lib/scoring";
 import { buildStudentReport } from "@/lib/report-build";
@@ -230,7 +231,7 @@ function StudentDetail() {
                 <Icon.Users className="h-4 w-4" /> Parent
               </a>
             )}
-            <ResetPassword studentId={student.id} username={student.username} phone={student.phone} />
+            <ResetPassword studentId={student.id} username={student.username} phone={student.phone} parent={student.whatsapp} />
             <Button variant="secondary" size="sm" onClick={openReport}>
               <Icon.Download className="h-4 w-4" /> Monthly Report
             </Button>
@@ -413,16 +414,16 @@ function newPassword() {
 }
 
 /**
- * "Reset password": makes a new password, shows it once, and lets Hamza copy
- * it or send it on WhatsApp. Passwords are never stored in a readable form,
- * so this is how Hamza gets a student back in.
+ * "Reset password": makes a new password and opens the ready-made message
+ * (copy, or WhatsApp to the student or parent). Passwords are never stored
+ * in a readable form, so this is also how Hamza re-sends login details.
  */
-function ResetPassword({ studentId, username, phone }: { studentId: string; username: string; phone?: string }) {
+function ResetPassword({ studentId, username, phone, parent }: { studentId: string; username: string; phone?: string; parent?: string }) {
   const store = useStore();
   const { toast } = useToast();
   const [step, setStep] = useState<"idle" | "confirm" | "busy" | "done">("idle");
+  const [kind, setKind] = useState<"reset" | "welcome">("reset");
   const [pw, setPw] = useState("");
-  const message = `Your new Hamza Teaches portal password is ${pw}. Sign in at www.hamzateaches.com/login with your username ${username}. You can change it in Settings.`;
 
   async function reset() {
     const next = newPassword();
@@ -439,46 +440,35 @@ function ResetPassword({ studentId, username, phone }: { studentId: string; user
 
   return (
     <>
-      <Button variant="secondary" size="sm" onClick={() => setStep("confirm")}>
+      <Button variant="secondary" size="sm" onClick={() => { setKind("welcome"); setStep("confirm"); }}>
+        <Icon.Users className="h-4 w-4" /> Send login details
+      </Button>
+      <Button variant="secondary" size="sm" onClick={() => { setKind("reset"); setStep("confirm"); }}>
         <Icon.Lock className="h-4 w-4" /> Reset password
       </Button>
       <Modal
-        open={step !== "idle"}
+        open={step === "confirm" || step === "busy"}
         onClose={() => setStep("idle")}
-        title={step === "done" ? "New password" : `Reset ${username}'s password?`}
-        description={step === "done" ? "Shown only now. Send it to the student." : "Their current password stops working straight away."}
+        title={kind === "welcome" ? `Send ${username} their login?` : `Reset ${username}'s password?`}
+        description={
+          kind === "welcome"
+            ? "Passwords can't be read back, so this makes a new one and puts it in the welcome message. Their old password stops working."
+            : "Their current password stops working straight away."
+        }
         footer={
-          step === "done" ? (
-            <>
-              {phone && (
-                <a href={`https://wa.me/${waDigits(phone)}?text=${encodeURIComponent(message)}`} target="_blank" rel="noreferrer" className={buttonClasses({ variant: "secondary" })}>
-                  Send on WhatsApp
-                </a>
-              )}
-              <Button
-                onClick={() => {
-                  void navigator.clipboard?.writeText(pw).then(() => toast("Password copied.", "success"));
-                }}
-              >
-                Copy
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="secondary" onClick={() => setStep("idle")}>
-                Cancel
-              </Button>
-              <Button loading={step === "busy"} onClick={() => void reset()}>
-                Reset password
-              </Button>
-            </>
-          )
+          <>
+            <Button variant="secondary" onClick={() => setStep("idle")}>
+              Cancel
+            </Button>
+            <Button loading={step === "busy"} onClick={() => void reset()}>
+              {kind === "welcome" ? "Make the message" : "Reset password"}
+            </Button>
+          </>
         }
       >
-        {step === "done" && (
-          <p className="select-all rounded-lg border border-border bg-surface-2 px-4 py-3 text-center font-mono text-2xl font-bold tracking-wide text-ink">{pw}</p>
-        )}
+        {null}
       </Modal>
+      <LoginDetails open={step === "done"} onClose={() => setStep("idle")} kind={kind} username={username} password={pw} phone={phone} parent={parent} />
     </>
   );
 }
