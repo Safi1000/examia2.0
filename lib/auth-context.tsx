@@ -63,8 +63,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     currentUserId.current = user.id;
     setInitializing(true);
     try {
-      const next = await resolveSession(user);
-      await getStore().load();
+      // Role is known from the sign-in itself; load the portal while the
+      // student record is looked up, instead of one after the other.
+      getStore().setAudience((user.app_metadata as Record<string, unknown>)?.role === "admin" ? "admin" : "student");
+      const [next] = await Promise.all([resolveSession(user), getStore().load()]);
       setSession(next);
       // Server-stored preference is the source of truth; fall back to this
       // device's last choice, then default. Sync the local cache either way.

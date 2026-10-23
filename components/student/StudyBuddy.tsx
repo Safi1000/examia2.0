@@ -26,15 +26,33 @@ export interface TopThree {
 }
 
 /** This week's top 3 study hours in the student's cohort (first names only). */
+const TOP_KEY = "ht_top3";
 export function useTopThree(): TopThree | null {
-  const [data, setData] = useState<TopThree | null>(null);
+  // Shown straight from the last copy (kept 5 minutes), so Home doesn't wait or jump.
+  const [data, setData] = useState<TopThree | null>(() => {
+    try {
+      const c = JSON.parse(sessionStorage.getItem(TOP_KEY) ?? "null") as { at: number; v: TopThree } | null;
+      return c ? c.v : null;
+    } catch {
+      return null;
+    }
+  });
   useEffect(() => {
     if (DEMO) return;
+    try {
+      const c = JSON.parse(sessionStorage.getItem(TOP_KEY) ?? "null") as { at: number } | null;
+      if (c && Date.now() - c.at < 5 * 60_000) return;
+    } catch {}
     let alive = true;
     void (async () => {
       const { data: s } = await supabase().auth.getSession();
       const res = await fetch("/api/leaderboard", { headers: { Authorization: `Bearer ${s.session?.access_token ?? ""}` } });
-      if (alive && res.ok) setData((await res.json()) as TopThree);
+      if (!res.ok) return;
+      const v = (await res.json()) as TopThree;
+      try {
+        sessionStorage.setItem(TOP_KEY, JSON.stringify({ at: Date.now(), v }));
+      } catch {}
+      if (alive) setData(v);
     })().catch(() => {});
     return () => {
       alive = false;
@@ -60,14 +78,15 @@ const medal = ["🥇", "🥈", "🥉"];
  * Home card for the study space: today's mission, this week's time against the
  * student's goal, their level and streak, and the cohort's top 3 this week.
  */
-export function StudyBuddy({ db, student, nowMs }: { db: Database; student: Student; nowMs: number }) {
+export function StudyBuddy({ db, student, nowMs, mission: given }: { db: Database; student: Student; nowMs: number; mission?: Mission | null }) {
   const { profile } = useAuth();
   const [open, setOpen] = useState<null | "free" | "mission">(null);
   const stats = currentStats(profile.focus, nowMs);
   const level = levelFor(stats.totalMinutes ?? 0);
   const goalMin = (profile.weeklyGoal ?? 5) * 60;
   const pct = Math.min(1, stats.weekMinutes / goalMin);
-  const mission = todaysMission(db, student, nowMs);
+  // Home passes the mission it already worked out; elsewhere it's computed here.
+  const mission = given !== undefined ? given : todaysMission(db, student, nowMs);
   const top = useTopThree();
   const r = 22;
   const c = 2 * Math.PI * r;

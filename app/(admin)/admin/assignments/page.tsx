@@ -1,5 +1,6 @@
 "use client";
 
+import { cld } from "@/lib/cld";
 import { useMemo, useRef, useState } from "react";
 import type { Assignment } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
@@ -232,7 +233,7 @@ export default function AdminAssignmentsPage() {
                   {form.attachments.map((url, i) => (
                     <li key={url} className="relative">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={url} alt={`Page ${i + 1}`} className="h-24 w-full rounded border border-border bg-surface-2 object-cover" />
+                      <img src={cld(url, 400)} loading="lazy" decoding="async" alt={`Page ${i + 1}`} className="h-24 w-full rounded border border-border bg-surface-2 object-cover" />
                       <button
                         type="button"
                         onClick={() => setForm({ ...form, attachments: form.attachments.filter((_, idx) => idx !== i) })}

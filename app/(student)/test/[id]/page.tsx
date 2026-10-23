@@ -92,12 +92,17 @@ export default function TestRunnerPage() {
 
   async function begin() {
     setBeginning(true);
-    let serverStart = await store.startTestAttempt(id);
     // Weak signal: try a couple more times quietly, so an honest start is
-    // recorded on the server and never later looks "late".
-    for (let i = 0; !serverStart && i < 2; i++) {
-      await new Promise((r) => setTimeout(r, 2500));
-      serverStart = await store.startTestAttempt(id);
+    // recorded on the server and never later looks "late". Other answers
+    // (no network problem) are taken straight away, with no waiting.
+    let serverStart: string | null = null;
+    for (let i = 0; i < 3; i++) {
+      try {
+        serverStart = await store.startTestAttempt(id);
+        break;
+      } catch {
+        if (i < 2) await new Promise((r) => setTimeout(r, 2500));
+      }
     }
     setGate(false);
     setBoot({ startedAt: serverStart ?? new Date().toISOString(), answers: null, index: 0 });
@@ -376,7 +381,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   return (
     <div className="flex min-h-dvh flex-col">
       {/* Focus-mode header with the live countdown */}
-      <header className="sticky top-0 z-30 border-b border-border bg-paper/90 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-border bg-paper/[0.97]">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
             <div className="min-w-0">
@@ -471,7 +476,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
         )}
       </main>
 
-      <footer className="sticky bottom-0 border-t border-border bg-paper/90 backdrop-blur">
+      <footer className="sticky bottom-0 border-t border-border bg-paper/[0.97]">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
           {uploading ? (
             <Button className="w-full" disabled={photosBusy > 0} onClick={() => setConfirmOpen(true)}>

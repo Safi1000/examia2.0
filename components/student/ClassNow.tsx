@@ -16,10 +16,12 @@ import { useSchedule, JOIN_EARLY_MIN, addDays, clock, span, joinClass, pkDate, s
  */
 export function ClassNow({ db, student, nowMs }: { db: Database; student: Student; nowMs: number }) {
   const today = pkDate(nowMs);
-  const { links, ready } = useClassLinks(today, today);
-  const [joining, setJoining] = useState(false);
   useSchedule(); // re-render when the timetable loads or changes
   const slots = slotsForStudent(db, student, today);
+  // Only check for a fresh Meet link around class time, not all day.
+  const nearClass = slots.some((s) => nowMs >= s.startMs - 20 * 60_000 && nowMs < s.endMs);
+  const { links, ready } = useClassLinks(today, today, false, nearClass);
+  const [joining, setJoining] = useState(false);
   if (ready === false) return null;
 
   const current = slots.find((s) => nowMs >= s.startMs - JOIN_EARLY_MIN * 6e4 && nowMs < s.endMs);

@@ -44,7 +44,8 @@ function demoLinks(): ClassLink[] {
  * when the tab comes back. `ready` is false when the database update hasn't
  * been applied yet, so pages can say so instead of looking broken.
  */
-export function useClassLinks(from: string, to: string, withJoins = false) {
+/** `poll`: check every minute (only worth it around class time). */
+export function useClassLinks(from: string, to: string, withJoins = false, poll = true) {
   const [links, setLinks] = useState<ClassLink[]>([]);
   const [joins, setJoins] = useState<ClassJoin[]>([]);
   const [ready, setReady] = useState<boolean | null>(null);
@@ -89,14 +90,14 @@ export function useClassLinks(from: string, to: string, withJoins = false) {
     // Initial fetch plus a gentle refresh; the effect owns the subscription.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-    const t = setInterval(() => void load(), 60_000);
+    const t = poll ? setInterval(() => void load(), 60_000) : undefined;
     const onVis = () => document.visibilityState === "visible" && void load();
     document.addEventListener("visibilitychange", onVis);
     return () => {
-      clearInterval(t);
+      if (t) clearInterval(t);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [load]);
+  }, [load, poll]);
 
   /** Hamza: save a Meet or recording link (blank clears it). */
   const save = useCallback(

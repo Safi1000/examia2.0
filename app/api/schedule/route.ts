@@ -14,7 +14,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const schedule = pushReady() ? await loadSchedule(serviceClient()) : DEFAULT_SCHEDULE;
-  return NextResponse.json(schedule, { headers: { "Cache-Control": "no-store" } });
+  // Shared for 30 s at the edge, so a classroom opening at once is one lookup.
+  return NextResponse.json(schedule, { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=300" } });
 }
 
 export async function POST(req: NextRequest) {

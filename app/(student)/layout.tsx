@@ -114,7 +114,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     <div className="relative isolate min-h-dvh">
       <PortalAmbient />
       {!inRunner && (
-        <header className="sticky top-0 z-30 border-b border-white/[0.05] bg-paper/60 backdrop-blur-xl">
+        <header className="sticky top-0 z-30 border-b border-white/[0.05] bg-paper/95 md:bg-paper/60 md:backdrop-blur-xl">
           <div className="mx-auto flex h-[68px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
             <Link href="/dashboard" className="flex shrink-0 items-center" aria-label="Home">
               <LogoTight className="h-[18px] sm:h-5" />
@@ -165,7 +165,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           className="fixed inset-x-3 bottom-3 z-30 md:hidden"
           style={{ marginBottom: "env(safe-area-inset-bottom)" }}
         >
-          <ul className="grid grid-cols-7 rounded-[22px] border border-white/[0.08] bg-[#1d2023]/85 p-1.5 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl">
+          <ul className="grid grid-cols-7 rounded-[22px] border border-white/[0.08] bg-[#1d2023]/[0.97] p-1.5 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.05)]">
             {links.map((l) => {
               const active = isActive(l.href);
               // Groundwork sits in the middle as a raised gold button (no room for its full name).
@@ -243,7 +243,7 @@ function AccountMenu({
         aria-label="Account"
         className="flex h-10 w-10 items-center justify-center rounded-full text-[13px] tracking-wide transition-transform hover:scale-105"
       >
-        <Avatar id={avatar} initials={initials} level={level} className="h-10 w-10" />
+        <Avatar id={avatar} initials={initials} level={level} still className="h-10 w-10" />
       </button>
       {open && (
         <div role="menu" className="absolute right-0 top-12 w-60 animate-fade-up rounded-2xl border border-white/[0.08] bg-[#1d2023]/95 p-2 shadow-[0_24px_48px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl">

@@ -1,5 +1,6 @@
 "use client";
 
+import { cld } from "@/lib/cld";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/ui";
@@ -30,7 +31,7 @@ export function PageStack({ urls, label }: { urls: string[]; label: string }) {
         aria-label={`Open ${label} full screen`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={url} alt={`${label} — page ${shown + 1}`} className="block w-full" />
+        <img src={cld(url, 1000)} decoding="async" alt={`${label} — page ${shown + 1}`} className="block w-full" />
       </button>
       <figcaption className="flex flex-wrap items-center gap-2 border-t border-border px-3 py-2 text-xs text-ink-3">
         {urls.length > 1 && (
@@ -137,7 +138,9 @@ function PageViewerModal({
               <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-sm)]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={u}
+                  src={cld(u, 1800)}
+                  loading={i === startAt ? "eager" : "lazy"}
+                  decoding="async"
                   alt={`${label} — page ${i + 1}`}
                   className="block w-full"
                   onLoad={i === startAt ? (e) => e.currentTarget.scrollIntoView({ block: "start" }) : undefined}

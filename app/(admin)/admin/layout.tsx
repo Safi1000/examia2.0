@@ -88,7 +88,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Top bar */}
-          <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-white/[0.06] bg-paper/70 px-4 backdrop-blur-xl">
+          <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-white/[0.06] bg-paper/95 px-4 lg:bg-paper/70 lg:backdrop-blur-xl">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setMobileOpen(true)}

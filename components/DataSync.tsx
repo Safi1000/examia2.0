@@ -4,8 +4,11 @@ import { useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { getStore } from "@/lib/data/store";
 
-/** Ignore focus flurries — at most one refresh per this window. */
-const MIN_INTERVAL_MS = 10_000;
+/**
+ * At most one refresh per this window. Short trips (WhatsApp, the camera for a
+ * photo answer) don't trigger a full re-read; live updates cover the rest.
+ */
+const MIN_INTERVAL_MS = 2 * 60_000;
 
 /**
  * Keeps the in-memory cache honest.
@@ -26,6 +29,8 @@ export function DataSync() {
 
     const maybeRefresh = () => {
       if (document.visibilityState !== "visible") return;
+      // Never mid-test: a full re-read there competes with photo uploads.
+      if (/^\/test\//.test(window.location.pathname)) return;
       const now = Date.now();
       if (now - lastRun.current < MIN_INTERVAL_MS) return;
       lastRun.current = now;

@@ -1,5 +1,6 @@
 "use client";
 
+import { cld } from "@/lib/cld";
 import { useRef, useState } from "react";
 import type { QuestionCommon, QuestionType, QuestionVariant } from "@/types";
 import { Modal, Button, Input, Textarea, Label, Checkbox } from "@/components/ui";
@@ -161,7 +162,7 @@ export function QuestionModal({
               {attachments.map((url, i) => (
                 <li key={url} className="relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt={`Attached page ${i + 1}`} className="h-24 w-full rounded border border-border bg-surface-2 object-cover" />
+                  <img src={cld(url, 400)} loading="lazy" decoding="async" alt={`Attached page ${i + 1}`} className="h-24 w-full rounded border border-border bg-surface-2 object-cover" />
                   <button
                     type="button"
                     onClick={() => setAttachments(attachments.filter((_, idx) => idx !== i))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { Annotation, Answer, Question } from "@/types";
@@ -167,7 +167,7 @@ export default function GradingPage() {
         {test.questions.map((q, i) => {
           if (hideAuto && q.type === "mcq") return null;
           const a = submission.answers.find((x) => x.questionId === q.id);
-          return <GradeCard key={q.id} index={i} question={q} answer={a} submissionId={subId} writeEndMs={writeEndMs} />;
+          return <GradeCard key={`${subId}-${q.id}`} index={i} question={q} answer={a} submissionId={subId} writeEndMs={writeEndMs} />;
         })}
       </div>
     </div>
@@ -221,9 +221,32 @@ function GradeCard({
     };
   }, [store, submissionId, question.id]);
 
+  // Feedback is typed into local state and saved after a short pause (or on
+  // leaving the box): saving on every keystroke made typing lag.
+  const [feedback, setFeedback] = useState(answer?.feedback ?? "");
+  const feedbackRef = useRef(feedback);
+  const fbTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const marksRef = useRef(awarded);
+  useEffect(() => {
+    marksRef.current = awarded;
+  }, [awarded]);
+  const flushFeedback = useCallback(() => {
+    if (fbTimer.current) clearTimeout(fbTimer.current);
+    fbTimer.current = null;
+    if ((answer?.feedback ?? "") !== feedbackRef.current) store.gradeAnswer(submissionId, question.id, marksRef.current, feedbackRef.current);
+  }, [answer?.feedback, store, submissionId, question.id]);
+  function typeFeedback(v: string) {
+    setFeedback(v);
+    feedbackRef.current = v;
+    if (fbTimer.current) clearTimeout(fbTimer.current);
+    fbTimer.current = setTimeout(flushFeedback, 700);
+  }
+  useEffect(() => () => flushFeedback(), [flushFeedback]);
+
   function setMarks(v: number) {
     const clamped = Math.max(0, Math.min(question.marks, v));
-    store.gradeAnswer(submissionId, question.id, clamped, answer?.feedback);
+    marksRef.current = clamped;
+    store.gradeAnswer(submissionId, question.id, clamped, feedbackRef.current);
   }
 
   return (
@@ -388,8 +411,9 @@ function GradeCard({
             </div>
             <Textarea
               label="Feedback (optional)"
-              value={answer?.feedback ?? ""}
-              onChange={(e) => store.gradeAnswer(submissionId, question.id, awarded, e.target.value)}
+              value={feedback}
+              onChange={(e) => typeFeedback(e.target.value)}
+              onBlur={flushFeedback}
               placeholder="A short note for the student…"
               className="min-h-20"
             />

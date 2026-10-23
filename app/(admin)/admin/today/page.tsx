@@ -64,6 +64,8 @@ export default function TodayPage() {
     } catch {}
   };
 
+  // The heavy sums below follow the clock in 5-minute steps, not every 30 s tick.
+  const tick = Math.floor(nowMs / 300_000) * 300_000;
   const data = useMemo(() => {
     // Switched-off cohorts are archived: they never show up on Today.
     const off = archivedCohortIds(db);
@@ -82,7 +84,7 @@ export default function TodayPage() {
       new Set(db.submissions.filter((s) => s.testId === t.id && s.status !== "in_progress").map((s) => s.studentId));
 
     const closing = live
-      .filter((t) => +new Date(t.opensAt) <= nowMs && +new Date(t.closesAt) > nowMs && +new Date(t.closesAt) - nowMs < 2 * DAY)
+      .filter((t) => +new Date(t.opensAt) <= tick && +new Date(t.closesAt) > tick && +new Date(t.closesAt) - tick < 2 * DAY)
       .sort((a, b) => +new Date(a.closesAt) - +new Date(b.closesAt))
       .map((t) => {
         const done = handedIn(t);
@@ -92,7 +94,7 @@ export default function TodayPage() {
 
     // Per-student reasons to get in touch.
     const recentClosed = live.filter(
-      (t) => +new Date(t.closesAt) <= nowMs && nowMs - +new Date(t.closesAt) < 14 * DAY,
+      (t) => +new Date(t.closesAt) <= tick && tick - +new Date(t.closesAt) < 14 * DAY,
     );
     const attention = students
       .map((s) => {
@@ -124,10 +126,10 @@ export default function TodayPage() {
         return { student: s, reasons, missed, lowAvg, absent };
       })
       // "Checked" hides a student for a week, so the same names don't nag daily.
-      .filter((r) => r.reasons.length > 0 && !(checked[r.student.id] && nowMs - checked[r.student.id] < 7 * DAY))
+      .filter((r) => r.reasons.length > 0 && !(checked[r.student.id] && tick - checked[r.student.id] < 7 * DAY))
       .sort((a, b) => b.reasons.length - a.reasons.length);
 
-    const monthAgo = nowMs - 30 * DAY;
+    const monthAgo = tick - 30 * DAY;
     const recentPcts = db.submissions
       .filter((x) => x.status === "released" && studentIds.has(x.studentId) && +new Date(x.submittedAt ?? 0) >= monthAgo)
       .flatMap((x) => {
@@ -139,7 +141,7 @@ export default function TodayPage() {
     const weak = weakTopics(db, cohortId).map((w) => ({ ...w, available: retestQuestions(db, w.subject, w.name).length }));
 
     return { toMark, closing, attention, avg30, weak };
-  }, [db, cohortId, nowMs, profiles, checked]);
+  }, [db, cohortId, tick, profiles, checked]);
 
   const cohortName = cohortId ? cohortById(db, cohortId)?.name : null;
 

@@ -13,7 +13,7 @@ import { Icon } from "@/components/ui";
 import { formatRelative, formatWhen, testWindow } from "@/lib/time";
 import { buildStudyPlan, type PlanWeek } from "@/lib/study-plan";
 import { GRADE_FLOOR, performanceSnapshot, sameSubject, type Snapshot } from "@/lib/performance";
-import { StudyBuddy } from "@/components/student/StudyBuddy";
+import { StudyBuddy, todaysMission } from "@/components/student/StudyBuddy";
 import type { Profile } from "@/lib/profile";
 import { displayName } from "@/lib/display-name";
 import { cn } from "@/lib/cn";
@@ -52,7 +52,16 @@ export default function DashboardPage() {
     return { open, next };
   }, [db, student, nowMs]);
 
-  if (!student) return null;
+  // Plan, performance and today's mission are the heavy sums on Home: work them
+  // out once per data change (or every 5 minutes), not on every tick.
+  const hourBucket = Math.floor(nowMs / 300_000);
+  const heavy = useMemo(() => {
+    if (!student) return { plan: null, perf: null, mission: null };
+    const at = hourBucket * 300_000;
+    return { plan: buildStudyPlan(db, student, at), perf: performanceSnapshot(db, student), mission: todaysMission(db, student, at) };
+  }, [db, student, hourBucket]);
+
+  if (!student || !heavy.plan) return null;
 
   // Assignments due in the next 3 days that aren't handed in yet.
   const dueSoon = db.assignments
@@ -69,9 +78,8 @@ export default function DashboardPage() {
     })
     .sort((a, b) => +new Date(a.dueAt) - +new Date(b.dueAt));
 
-  const plan = buildStudyPlan(db, student, nowMs);
+  const { plan, perf, mission } = heavy;
   const week = plan.weeks.find((w) => w.isCurrent) ?? null;
-  const perf = performanceSnapshot(db, student);
 
   // One line that answers "what do I do now?".
   const first = tests.open[0];
@@ -136,7 +144,7 @@ export default function DashboardPage() {
         <PlanCard week={week} daysLeft={plan.daysLeft} />
       </div>
 
-      <StudyBuddy db={db} student={student} nowMs={nowMs} />
+      <StudyBuddy db={db} student={student} nowMs={nowMs} mission={mission} />
 
     </div>
   );

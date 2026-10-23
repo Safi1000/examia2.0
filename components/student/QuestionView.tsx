@@ -1,7 +1,8 @@
 "use client";
 
+import { cld } from "@/lib/cld";
 import { trackUpload } from "@/lib/upload-tracker";
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import type { Answer, Question } from "@/types";
 import { RadioCard, Textarea, Pill, Badge, Icon } from "@/components/ui";
 import { uploadAsImages } from "@/lib/cloudinary";
@@ -10,8 +11,18 @@ import { useToast } from "@/components/toast";
 import { PageStack } from "@/components/PageStack";
 import { cn } from "@/lib/cn";
 
-/** Renders one question and its answer control (MCQ / Text / Photo). */
-export function QuestionView({
+/**
+ * Renders one question and its answer control (MCQ / Text / Photo).
+ *
+ * Memoised: the test timer re-renders the runner every second, and redrawing
+ * the question, its photos and the answer box each time made typing and
+ * scrolling stutter on phones. It redraws only when the question or the
+ * answer changes. (onChange is ignored on purpose: each mount is tied to one
+ * question, so its handler never changes meaning.)
+ */
+export const QuestionView = memo(QuestionViewInner, (a, b) => a.question === b.question && a.answer === b.answer && a.paperHidden === b.paperHidden);
+
+function QuestionViewInner({
   question,
   answer,
   onChange,
@@ -177,7 +188,9 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
             <li key={url} className="group relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={url}
+                src={cld(url, 400)}
+                loading="lazy"
+                decoding="async"
                 alt={`Answer image ${i + 1}`}
                 className="h-32 w-full rounded-lg border border-border bg-surface-2 object-cover"
               />

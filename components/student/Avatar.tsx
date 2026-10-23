@@ -3,12 +3,12 @@ import { cn } from "@/lib/cn";
 import { AvatarFrame } from "@/components/student/AvatarFrame";
 
 /** A student's portal avatar (or their initials until they pick one). */
-export function Avatar({ id, initials, className, level }: { id?: string; initials?: string; className?: string; level?: number }) {
+export function Avatar({ id, initials, className, level, still }: { id?: string; initials?: string; className?: string; level?: number; still?: boolean }) {
   const a = AVATARS.find((x) => x.id === id);
   // The Groundwork level frame, applied automatically (level 0 has none).
   if (level && level > 0)
     return (
-      <AvatarFrame level={level} className={className}>
+      <AvatarFrame level={level} still={still} className={className}>
         <Avatar id={id} initials={initials} className="h-full w-full" />
       </AvatarFrame>
     );

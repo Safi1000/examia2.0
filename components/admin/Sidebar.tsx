@@ -58,7 +58,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const cohorts = db.cohorts.filter((c) => c.active);
 
   return (
-    <div className="flex h-full flex-col bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0)_30%)] bg-paper/70 backdrop-blur-xl">
+    <div className="flex h-full flex-col bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0)_30%)] bg-paper">
       <div className="px-5 pb-5 pt-6">
         <Link href="/admin/today" onClick={onNavigate} className="inline-flex">
           <LogoTight className="h-[22px]" />

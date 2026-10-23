@@ -68,7 +68,7 @@ function blade(deg: number, len: number, side: 1 | -1) {
   return `M${base1} Q${c1} ${tip} Q${c2} ${base2} Z`;
 }
 
-export function AvatarFrame({ level, children, className }: { level: number; children: React.ReactNode; className?: string }) {
+export function AvatarFrame({ level, children, className, still }: { level: number; children: React.ReactNode; className?: string; still?: boolean }) {
   const uid = useId().replace(/:/g, "");
   const id = (n: string) => `${n}-${uid}`;
   const t = TIERS[Math.min(5, level)];
@@ -81,7 +81,7 @@ export function AvatarFrame({ level, children, className }: { level: number; chi
   return (
     <span className={`relative inline-block shrink-0 ${className ?? ""}`}>
       {/* Legend aura sits behind the avatar. */}
-      {level >= 5 && (
+      {level >= 5 && !still && (
         <svg viewBox="0 0 200 200" className="pointer-events-none absolute overflow-visible motion-reduce:hidden" style={box} aria-hidden>
           <defs>
             <radialGradient id={id("aura")}>
@@ -200,7 +200,7 @@ export function AvatarFrame({ level, children, className }: { level: number; chi
       </svg>
 
       {/* Legend: a few embers drifting up past the crest (separate, light layer). */}
-      {level >= 5 && (
+      {level >= 5 && !still && (
         <svg viewBox="0 0 200 200" className="pointer-events-none absolute overflow-visible motion-reduce:hidden" style={box} aria-hidden>
           {[
             [70, "0s", 2.2],

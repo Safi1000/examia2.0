@@ -428,6 +428,25 @@ class Store {
   private refreshing: Promise<void> | null = null;
 
   /**
+   * A refresh a moment later, merging a burst of live events (40 hand-ins at
+   * the end of a test, three notes published in a row) into one round trip.
+   */
+  softRefresh(delayMs = 2500) {
+    if (this.softTimer) return;
+    this.softTimer = setTimeout(() => {
+      this.softTimer = null;
+      void this.refresh();
+    }, delayMs);
+  }
+  private softTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Students never read the question bank, answer keys or reminder log: skip them. */
+  setAudience(a: "admin" | "student") {
+    this.audience = a;
+  }
+  private audience: "admin" | "student" = "admin";
+
+  /**
    * Pull one test and its questions straight from the database and merge them
    * into the cache. This is the guarantee that a student always sits the LATEST
    * version of a paper: option text, option order, marks and the question set
@@ -487,14 +506,17 @@ class Store {
       return;
     }
     const sb = supabase();
+    // For a student these come back empty anyway (RLS); don't spend a round trip.
+    const empty = Promise.resolve({ data: [] as Row[], error: null });
+    const staffOnly = <T,>(q: () => T) => (this.audience === "student" ? empty : q());
     const [coh, stu, tst, sub, ann, bnk, keys, cls, subj, cCls, cSubj, sCls, sSubj, nts, nAssigns, asg, asgSubs, attD, attM, rep, rem, acts] = await Promise.all([
       sb.from("cohorts").select("*").order("created_at"),
       sb.from("students").select("*").order("created_at"),
       sb.from("tests").select("*, questions(*)").order("created_at"),
       sb.from("submissions").select("*, answers(*)"),
       sb.from("announcements").select("*").order("created_at", { ascending: false }),
-      sb.from("question_bank").select("*").order("created_at"),
-      sb.from("question_keys").select("*"), // admin-only: empty for students
+      staffOnly(() => sb.from("question_bank").select("*").order("created_at")),
+      staffOnly(() => sb.from("question_keys").select("*")), // admin-only: empty for students
       sb.from("classes").select("*").order("name"),
       sb.from("subjects").select("*").order("name"),
       sb.from("cohort_classes").select("*"),
@@ -508,7 +530,7 @@ class Store {
       sb.from("attendance_days").select("*"),
       sb.from("attendance_months").select("*"),
       sb.from("reports").select("*").order("created_at", { ascending: false }),
-      sb.from("reminders_sent").select("*"),
+      staffOnly(() => sb.from("reminders_sent").select("*")),
       // Feed is capped: the bell only ever shows recent history.
       sb.from("activities").select("*").order("created_at", { ascending: false }).limit(100),
     ]);
@@ -1373,8 +1395,11 @@ class Store {
     if (error || !data) return null;
     return (data as Row).started_at as string;
   }
+  /** The official start time, or null. `retry` is true only for a network blip worth retrying. */
   async startTestAttempt(testId: string): Promise<string | null> {
+    if (DEMO) return new Date().toISOString();
     const { data, error } = await supabase().rpc("start_test_attempt", { p_test_id: testId });
+    if (error && /fetch|network|timeout/i.test(error.message)) throw new Error("network");
     if (error || !data) return null;
     return data as string;
   }
@@ -2090,7 +2115,7 @@ class Store {
           // not in this session's cache, so the card would render blank until
           // the next refresh. Pull the referenced row in; refresh() coalesces,
           // so a burst of submissions costs one round trip.
-          if (added && this.referencesUncachedRow(row)) void this.refresh();
+          if (added && this.referencesUncachedRow(row)) this.softRefresh();
         },
       );
     });
@@ -2119,7 +2144,7 @@ class Store {
    */
   subscribeToNotes(): () => void {
     return this.shareChannel("notes-feed", (channel) => {
-      const reload = () => { void this.refresh(); };
+      const reload = () => this.softRefresh();
       channel.on("postgres_changes", { event: "*", schema: "public", table: "notes" }, reload);
       channel.on("postgres_changes", { event: "*", schema: "public", table: "note_assignments" }, reload);
     });

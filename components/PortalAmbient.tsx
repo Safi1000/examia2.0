@@ -7,8 +7,9 @@ export function PortalAmbient() {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
       <div
-        className="absolute left-1/2 top-0 h-[420px] w-[900px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.10] blur-[110px]"
-        style={{ background: "radial-gradient(closest-side, var(--color-brand), transparent)" }}
+        className="absolute left-1/2 top-0 h-[640px] w-[1200px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.10]"
+        // A soft gradient instead of a 110px blur filter: same glow, no repaint cost on phones.
+        style={{ background: "radial-gradient(closest-side, var(--color-brand), color-mix(in srgb, var(--color-brand) 40%, transparent) 45%, transparent)" }}
       />
       <div
         className="absolute inset-x-0 top-0 h-[520px] opacity-[0.22]"

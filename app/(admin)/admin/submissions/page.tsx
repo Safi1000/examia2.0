@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter, useStickyFilter } from "@/lib/admin-filter";
-import { archivedCohortIds, cohortById, isArchivedSubmission, studentById, testById } from "@/lib/data/selectors";
+import { archivedCohortIds, cohortById, isArchivedSubmission } from "@/lib/data/selectors";
 import { ArchiveTabs, type ArchiveView } from "@/components/admin/ArchiveTabs";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -43,10 +43,14 @@ export default function SubmissionsPage() {
     return new Set(db.submissions.filter((s) => isArchivedSubmission(db, s, off)).map((s) => s.id));
   }, [db]);
 
+  // Lookups as maps (not a search per row), and 50 rows at a time.
+  const [limit, setLimit] = useState(50);
   const rows = useMemo(() => {
+    const testsById = new Map(db.tests.map((t) => [t.id, t]));
+    const studentsById = new Map(db.students.map((st) => [st.id, st]));
     return db.submissions
       .filter((sub) => (view === "archive") === archived.has(sub.id))
-      .map((sub) => ({ sub, test: testById(db, sub.testId), student: studentById(db, sub.studentId) }))
+      .map((sub) => ({ sub, test: testsById.get(sub.testId) ?? null, student: studentsById.get(sub.studentId) ?? null }))
       .filter((r): r is { sub: typeof r.sub; test: NonNullable<typeof r.test>; student: typeof r.student } => r.test !== null)
       .filter((r) => (cohortId ? r.student?.cohortId === cohortId : true))
       .filter((r) => (subjectFilter.length === 0 ? true : subjectFilter.includes(r.test.subject)))
@@ -163,7 +167,7 @@ export default function SubmissionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ sub, test, student, grade }) => {
+                {rows.slice(0, limit).map(({ sub, test, student, grade }) => {
                   const cohort = student ? cohortById(db, student.cohortId) : null;
                   return (
                     <tr key={sub.id}>
@@ -200,6 +204,13 @@ export default function SubmissionsPage() {
               </tbody>
             </Table>
           </TableScroll>
+          {rows.length > limit && (
+            <div className="flex justify-center p-3">
+              <button type="button" onClick={() => setLimit((n) => n + 100)} className="h-10 rounded-full px-5 text-sm font-semibold text-brand hover:bg-surface-2">
+                Show more ({rows.length - limit} left)
+              </button>
+            </div>
+          )}
         </Card>
       )}
 

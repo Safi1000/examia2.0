@@ -63,12 +63,14 @@ function StudentDetail() {
   const { toast } = useToast();
   const [downloading, setDownloading] = useState(false);
 
-  // Landing here from the roster's WhatsApp button opens the report dialog
-  // straight away, so start fetching the PDF renderer now rather than on click.
+  // Landing here from the roster's WhatsApp button (?report=1) opens the report
+  // dialog straight away, so only then fetch the PDF renderer early (it's large).
+  const wantsReport = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("report");
   useEffect(() => {
+    if (!wantsReport) return;
     void import("@react-pdf/renderer");
     void import("@/components/admin/ReportDocument");
-  }, []);
+  }, [wantsReport]);
 
   const data = useMemo(() => {
     if (!student) return null;
