@@ -63,10 +63,11 @@ function Segmented<T extends string>({
  * with a "be safe for May / June 2027" target, a "what do I need for…" mode
  * and a shareable grade card.
  */
-export function GradePredictor() {
+export function GradePredictor({ initial }: { initial?: { subject: Subject; qual: Qualification } } = {}) {
   const uid = useId().replace(/:/g, "");
-  const [subject, setSubject] = useState<Subject>("Accounting");
-  const [qual, setQual] = useState<Qualification>("IGCSE");
+  // A syllabus page opens the predictor already set to its own subject and level.
+  const [subject, setSubject] = useState<Subject>(initial?.subject ?? "Accounting");
+  const [qual, setQual] = useState<Qualification>(initial?.qual ?? "IGCSE");
   const [marks, setMarks] = useState<string[]>(["", "", "", ""]);
 
   const syl = syllabusFor(subject, qual);

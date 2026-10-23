@@ -31,6 +31,9 @@ Key facts:
 - [Home](${absolute("/")}): how the classes work, student reviews, and booking the free trial lesson.
 - [Grade predictor](${absolute("/tools/grade-predictor")}): free tool. Enter your marks and see your likely Cambridge grade using official grade thresholds, plus what to work on for May/June 2027.
 - [The Exam Room](${absolute("/blog")}): free articles on topics and exam technique.
+- [Grade thresholds](${absolute("/grade-thresholds")}): official Cambridge grade thresholds for O Level, IGCSE, AS and A Level Accounting, Business and Economics, every variant, with 2027 targets.
+- [Private candidate guide, Pakistan](${absolute("/private-candidates/pakistan")}): how to enter Cambridge exams through the British Council without a school, deadlines and a study plan.
+- [Online classes](${absolute("/online-classes")}): live online classes for students in Pakistan, with pages for Karachi, Lahore and Islamabad / Rawalpindi.
 
 ## Articles
 
