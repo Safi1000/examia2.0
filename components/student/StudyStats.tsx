@@ -28,7 +28,7 @@ export function StudyStats({ nowMs }: { nowMs: number }) {
   return (
     <Card className="space-y-6 p-5">
       <div className="flex items-center gap-4">
-        <Avatar id={profile.avatar} initials="?" frame={level.frame} className="h-14 w-14" />
+        <Avatar id={profile.avatar} initials="?" level={level.index} className="m-4 h-16 w-16" />
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-3">{STUDY_NAME}</p>
           <p className="text-lg font-extrabold text-ink">

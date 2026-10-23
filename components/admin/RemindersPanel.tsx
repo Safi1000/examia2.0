@@ -1,5 +1,7 @@
 "use client";
 
+import { openLater } from "@/lib/open-later";
+
 import { useMemo, useState } from "react";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
@@ -59,14 +61,16 @@ export function RemindersPanel() {
       return;
     }
     setBusy(key(r));
+    const tab = openLater();
     try {
       let text = r.message;
       if (r.kind === "report_due") {
         const link = await reportLink(r);
         if (link) text = `${text}\n\n${link}`;
       }
-      window.open(`https://wa.me/${waDigits(number)}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
+      tab.go(`https://wa.me/${waDigits(number)}?text=${encodeURIComponent(text)}`);
     } catch (err) {
+      tab.cancel();
       console.error("Reminder failed:", err);
       toast("Could not prepare that message.", "error");
     } finally {

@@ -74,8 +74,8 @@ export default function AdminTestsPage() {
       opensAt: new Date(now).toISOString(),
       closesAt: new Date(now + 7 * 86_400_000).toISOString(),
       testCode: code,
-      // Tests go live as soon as they are created; the close time ends them.
-      status: "active",
+      // A new test is a draft: students see nothing until Hamza presses Publish.
+      status: "draft",
     });
     router.push(`/admin/tests/${id}`);
   }

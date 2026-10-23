@@ -239,12 +239,14 @@ export function AnnotatorModal({
     setByUrl(next);
     onChange(url, shapes);
     // The marks written in the margin ARE the score: hand the caller the total
-    // so nobody adds them up by hand and mistypes it.
+    // so nobody adds them up by hand and mistypes it. Only when the stamps
+    // themselves change, so a pen stroke never overwrites a typed score.
     if (onMarksTotal) {
-      const marks = Object.values(next)
-        .flat()
-        .filter((a): a is Extract<Annotation, { t: "mark" }> => a.t === "mark");
-      if (marks.length) onMarksTotal(marks.reduce((n, m) => n + m.value, 0));
+      const stamps = (list: Annotation[]) => list.filter((a): a is Extract<Annotation, { t: "mark" }> => a.t === "mark");
+      const sum = (list: Annotation[]) => stamps(list).reduce((n, m) => n + m.value, 0);
+      const before = Object.values(byUrl).flat();
+      const after = Object.values(next).flat();
+      if (stamps(before).length !== stamps(after).length || sum(before) !== sum(after)) onMarksTotal(sum(after));
     }
   }
 

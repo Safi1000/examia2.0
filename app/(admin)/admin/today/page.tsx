@@ -240,7 +240,10 @@ export default function TodayPage() {
                   {missing.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
                       {missing.map((s) => {
-                        const link = waTo(s.phone ?? s.whatsapp, `Hi ${nameOf(s)}, a reminder that ${test.title} closes ${formatRelative(test.closesAt, nowMs)}. Don't miss it!`);
+                        // To the student if we have their number, else to the parent (worded for them).
+                        const link = s.phone
+                          ? waTo(s.phone, `Hi ${nameOf(s)}, a reminder that ${test.title} closes ${formatRelative(test.closesAt, nowMs)}. Don't miss it!`)
+                          : waTo(s.whatsapp, `Assalam o Alaikum, a quick reminder that ${nameOf(s)}'s test, ${test.title}, closes ${formatRelative(test.closesAt, nowMs)}. Thank you.`);
                         return link ? (
                           <a key={s.id} href={link} target="_blank" rel="noopener noreferrer" className="rounded-full border border-border-strong px-3 py-1.5 text-sm font-semibold text-ink hover:border-brand">
                             Remind {nameOf(s)}
@@ -266,12 +269,18 @@ export default function TodayPage() {
             <p className="mt-2 text-[15px] text-ink-2">Everyone is on track.</p>
           ) : (
             <ul className="mt-3 divide-y divide-border">
-              {(showAll ? data.attention : data.attention.slice(0, 5)).map(({ student: s, reasons, missed, lowAvg }) => {
+              {(showAll ? data.attention : data.attention.slice(0, 5)).map(({ student: s, reasons, missed, lowAvg, absent }) => {
+                // The message matches the reason they're on the list.
+                const gap = reasons.find((r) => r.includes("aiming for"));
                 const msg = missed.length
                   ? `Hi ${nameOf(s)}, I noticed you missed ${missed[0].title}. Is everything okay? Let me know if you need help catching up.`
                   : lowAvg !== null && lowAvg < 50
                     ? `Hi ${nameOf(s)}, your last two tests were tough. Let's fix it together. When can we do a quick call?`
-                    : `Hi ${nameOf(s)}, I noticed you've missed a few classes. Is everything okay?`;
+                    : absent >= 2
+                      ? `Hi ${nameOf(s)}, I noticed you've missed a few classes. Is everything okay?`
+                      : gap
+                        ? `Hi ${nameOf(s)}, you're aiming high and I want to get you there. ${gap.split(":")[0]} needs a bit more work. Shall we plan the next two weeks together?`
+                        : `Hi ${nameOf(s)}, just checking in. How are things going?`;
                 const studentLink = waTo(s.phone, msg);
                 const parentLink = waTo(s.whatsapp, `Assalam o Alaikum, a quick update about ${nameOf(s)}: ${reasons.join(". ")}. Happy to talk whenever suits you.`);
                 return (

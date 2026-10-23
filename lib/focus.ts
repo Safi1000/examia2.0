@@ -58,7 +58,7 @@ export function recordFocus(f: FocusStats | undefined, minutes: number, subject:
   };
 }
 
-/** Levels by all-time study hours. Each one unlocks a frame for the avatar. */
+/** Levels by all-time study hours. Each unlocks a richer avatar frame (components/student/AvatarFrame.tsx). */
 export const LEVELS = [
   { name: "Starter", hours: 0, frame: null },
   { name: "Steady", hours: 5, frame: "#B07A4A" },

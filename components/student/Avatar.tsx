@@ -1,15 +1,16 @@
 import { AVATARS } from "@/lib/profile";
 import { cn } from "@/lib/cn";
+import { AvatarFrame } from "@/components/student/AvatarFrame";
 
 /** A student's portal avatar (or their initials until they pick one). */
-export function Avatar({ id, initials, className, frame }: { id?: string; initials?: string; className?: string; frame?: string | null }) {
+export function Avatar({ id, initials, className, level }: { id?: string; initials?: string; className?: string; level?: number }) {
   const a = AVATARS.find((x) => x.id === id);
-  // A frame earned by study level: a thin ring of colour around the face.
-  if (frame)
+  // The Groundwork level frame, applied automatically (level 0 has none).
+  if (level && level > 0)
     return (
-      <span className={cn("inline-flex shrink-0 rounded-full p-[2px]", className)} style={{ background: frame }}>
+      <AvatarFrame level={level} className={className}>
         <Avatar id={id} initials={initials} className="h-full w-full" />
-      </span>
+      </AvatarFrame>
     );
   if (!a)
     return (
@@ -19,6 +20,6 @@ export function Avatar({ id, initials, className, frame }: { id?: string; initia
     );
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={`/avatars/${a.id}.webp`} alt="" width={256} height={256} loading="lazy" decoding="async" className={cn("rounded-full object-cover", className)} />
+    <img src={`/avatars/${a.id}.webp`} alt="" width={256} height={256} loading="lazy" decoding="async" className={cn("shrink-0 rounded-full object-cover", className)} />
   );
 }

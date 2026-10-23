@@ -106,34 +106,37 @@ export default function NotesPage() {
     // Silently doing nothing here is how a teacher ends up uploading a note
     // with no assignment at all: they fill in class/subject, forget the cohort,
     // click Add, and see no reason to think anything is wrong.
-    if (!aCohortId) return setUploadError("Choose a cohort for the assignment.");
+    if (!aCohortId) return setUploadError("Choose a cohort first.");
     setUploadError(null);
     const already = pendingAssignments.some(
       (a) => a.cohortId === aCohortId && a.classId === (aClassId || null) && a.subjectId === (aSubjectId || null),
     );
-    if (already) return setUploadError("That assignment is already in the list.");
+    if (already) return setUploadError("That group is already in the list.");
     setPendingAssignments((prev) => [...prev, { cohortId: aCohortId, classId: aClassId || null, subjectId: aSubjectId || null }]);
     setAClassId("");
     setASubjectId("");
   }
 
   async function handleUpload() {
-    if (!uploadTitle.trim()) return setUploadError("Title is required.");
-    if (!uploadFile) return setUploadError("Select a file.");
+    if (!uploadTitle.trim()) return setUploadError("Give the note a title.");
+    if (!uploadFile) return setUploadError("Choose a file.");
+    // Picked a cohort but didn't press "Add"? Use that choice instead of erroring.
+    const assigned =
+      pendingAssignments.length || !aCohortId ? pendingAssignments : [{ cohortId: aCohortId, classId: aClassId || null, subjectId: aSubjectId || null }];
     // A note reaches students ONLY through an assignment. Uploading without one
     // produces a note the teacher can see and no student ever can — which is
     // indistinguishable, from the teacher's side, from notes being broken.
-    if (pendingAssignments.length === 0) {
-      return setUploadError("Add at least one assignment — a note with no assignment is not visible to any student.");
+    if (assigned.length === 0) {
+      return setUploadError("Choose who can see it (at least a cohort), so students can find it.");
     }
-    if (!notesConfigured()) return setUploadError("Cloudinary is not configured. Set NEXT_PUBLIC_CLOUDINARY_CLOUD and NEXT_PUBLIC_CLOUDINARY_NOTES_PRESET.");
+    if (!notesConfigured()) return setUploadError("Note uploads aren't set up yet. Ask your developer to check the Cloudinary settings.");
 
     setUploading(true);
     setUploadError(null);
     try {
       const { url, fileType, fileName } = await uploadNote(uploadFile);
       const noteId = await store.addNote(uploadTitle.trim(), url, fileType, fileName);
-      for (const a of pendingAssignments) {
+      for (const a of assigned) {
         await store.addNoteAssignment(noteId, a.cohortId, a.classId, a.subjectId);
       }
       toast("Note uploaded.", "success");
@@ -309,7 +312,12 @@ export default function NotesPage() {
                 ref={fileRef}
                 type="file"
                 accept={ACCEPT}
-                onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  setUploadFile(f);
+                  // Name it after the file unless a title was typed.
+                  if (f && !uploadTitle.trim()) setUploadTitle(f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " "));
+                }}
                 className="block w-full text-sm text-ink-2 file:mr-3 file:rounded-md file:border-0 file:bg-brand-soft file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-brand hover:file:opacity-80"
               />
               <p className="mt-1 text-xs text-ink-3">PDF, Word, Excel, PowerPoint, or image (max 100 MB)</p>
@@ -348,7 +356,7 @@ export default function NotesPage() {
                 disabled={!aCohortId}
                 className="w-full"
               >
-                <Icon.Plus className="h-4 w-4" /> Add assignment
+                <Icon.Plus className="h-4 w-4" /> Add who can see it
               </Button>
             </div>
 

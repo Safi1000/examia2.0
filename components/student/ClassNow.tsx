@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import Link from "next/link";
 import type { Student } from "@/types";
 import type { Database } from "@/lib/data/seed";
@@ -15,6 +17,7 @@ import { useSchedule, JOIN_EARLY_MIN, addDays, clock, span, joinClass, pkDate, s
 export function ClassNow({ db, student, nowMs }: { db: Database; student: Student; nowMs: number }) {
   const today = pkDate(nowMs);
   const { links, ready } = useClassLinks(today, today);
+  const [joining, setJoining] = useState(false);
   useSchedule(); // re-render when the timetable loads or changes
   const slots = slotsForStudent(db, student, today);
   if (ready === false) return null;
@@ -61,16 +64,19 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
         {url ? (
           <a
             href={url}
+            aria-busy={joining}
             onClick={async (e) => {
               // Record attendance first (at most 2.5 s), then go to Meet in this
               // tab, so switching to the Meet app can't cut the request off.
               e.preventDefault();
+              if (joining) return;
+              setJoining(true);
               const go = await Promise.race([joinClass(current, url), new Promise<null>((r) => setTimeout(() => r(null), 2500))]);
               window.location.href = go ?? url;
             }}
             className="inline-flex h-12 items-center gap-2 rounded-full bg-brand px-7 text-base font-semibold text-on-brand transition hover:brightness-110 active:scale-[0.98]"
           >
-            Join class <Icon.ChevronRight className="h-4 w-4" />
+            {joining ? "Joining…" : <>Join class <Icon.ChevronRight className="h-4 w-4" /></>}
           </a>
         ) : (
           <p className="max-w-[16rem] text-sm text-ink-2">The Join button appears here when Hamza opens the class.</p>

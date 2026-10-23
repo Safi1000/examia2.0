@@ -178,7 +178,7 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
             <span className="text-xs font-semibold text-ink-2">{progress >= 0.99 ? "Almost done…" : `Uploading ${Math.round(progress * 100)}%`}</span>
           </div>
         )}
-        {mine?.feedback && <p className="mt-1.5 text-xs text-ink-3">Hamza has already replied. If you add pages, message him so he sees them.</p>}
+        {mine?.feedback && <p className="mt-1.5 text-xs text-ink-3">Hamza has already replied. If you add pages, message Hamza so they see them.</p>}
         {overdue && !mine && <p className="mt-1.5 text-xs text-ink-3">The deadline has passed — hand in as soon as you can.</p>}
       </div>
     </Card>

@@ -41,7 +41,7 @@ export default function StudentLoginPage() {
       setError(
         err instanceof Error && err.message === "network"
           ? "Can't reach the server. Check your internet and try again."
-          : "You're signed in, but your portal didn't load. Check your internet and tap Sign in again.",
+          : "You're signed in, but your portal didn't load. Check your internet and tap Enter again.",
       );
       setBusy(false);
       return;

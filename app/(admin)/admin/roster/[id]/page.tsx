@@ -1,5 +1,7 @@
 "use client";
 
+import { openLater } from "@/lib/open-later";
+
 import { useStudentProfiles } from "@/lib/student-profiles";
 import { Avatar } from "@/components/student/Avatar";
 import type { Profile } from "@/lib/profile";
@@ -150,16 +152,14 @@ function StudentDetail() {
   async function sendReportOnWhatsapp() {
     if (!student?.whatsapp) return;
     setSending(true);
+    const tab = openLater();
     try {
       const link = await publishReport();
-      if (!link) return;
-      window.open(
-        `https://wa.me/${waDigits(student.whatsapp)}?text=${encodeURIComponent(`${reportMessage()}\n\n${link}`)}`,
-        "_blank",
-        "noopener",
-      );
+      if (!link) return tab.cancel();
+      tab.go(`https://wa.me/${waDigits(student.whatsapp)}?text=${encodeURIComponent(`${reportMessage()}\n\n${link}`)}`);
       setReportOpen(false);
     } catch (err) {
+      tab.cancel();
       console.error("WhatsApp send failed:", err);
       toast(err instanceof Error ? err.message : "Could not build the report.", "error");
     } finally {

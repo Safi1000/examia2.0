@@ -31,7 +31,7 @@ export function StartCard({ slot, url, nowMs }: { slot: DaySlot; url: string | n
           Start class <Icon.ChevronRight className="h-4 w-4" />
         </a>
       ) : (
-        <p className="max-w-[16rem] text-sm text-ink-2">The Meet link appears here at 1 pm. Or open More on the class to paste one.</p>
+        <p className="max-w-[16rem] text-sm text-ink-2">No Meet link yet. If Google is connected it appears here automatically; or open More on the class to paste one.</p>
       )}
     </section>
   );

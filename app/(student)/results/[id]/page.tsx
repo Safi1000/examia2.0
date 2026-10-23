@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import type { Answer, Question } from "@/types";
 import { useAuth } from "@/lib/auth-context";
@@ -110,13 +111,14 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
   const awarded = answer?.marksAwarded ?? 0;
   const full = awarded >= question.marks;
   const zero = awarded === 0;
+  const [big, setBig] = useState<string | null>(null);
 
   return (
     <Card id={`q-${index + 1}`} className="scroll-mt-24 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-mono text-xs text-ink-3">Q{index + 1}</span>
-          <Badge tone="neutral">{question.topic}</Badge>
+          {question.topic?.trim() && <Badge tone="neutral">{question.topic}</Badge>}
         </div>
         <Badge tone={full ? "success" : zero ? "error" : "warning"}>
           {awarded}/{question.marks} marks
@@ -184,14 +186,17 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
           return (
             <div className="space-y-2">
               {photos.map((url, i) => (
-                <AnnotatedImage
-                  key={url}
-                  url={url}
-                  shapes={answer?.annotations?.[url] ?? []}
-                  alt={`Your answer to question ${index + 1}, image ${i + 1}`}
-                  className="mx-auto block max-h-64 w-auto max-w-full rounded-md border border-border bg-surface-2"
-                />
+                // Tap a marked page to see it full width (Hamza's marks are readable on a phone).
+                <button key={url} type="button" onClick={() => setBig(big === url ? null : url)} className="block w-full" aria-label={big === url ? "Make smaller" : "Make bigger"}>
+                  <AnnotatedImage
+                    url={url}
+                    shapes={answer?.annotations?.[url] ?? []}
+                    alt={`Your answer to question ${index + 1}, image ${i + 1}`}
+                    className={cn("mx-auto block rounded-md border border-border bg-surface-2", big === url ? "w-full" : "max-h-64 w-auto max-w-full")}
+                  />
+                </button>
               ))}
+              <p className="text-center text-xs text-ink-3">Tap a page to make it bigger.</p>
             </div>
           );
         })()}
@@ -209,8 +214,8 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
 
 function BackLink() {
   return (
-    <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-2 hover:text-ink">
-      <Icon.ArrowLeft className="h-4 w-4" /> Home
+    <Link href="/tests" className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-2 hover:text-ink">
+      <Icon.ArrowLeft className="h-4 w-4" /> Tests
     </Link>
   );
 }

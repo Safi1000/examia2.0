@@ -64,7 +64,9 @@ export default function TestEditorPage() {
     );
   }
 
-  const canSave = form.title.trim().length > 0 && questions.length > 0;
+  // Details can be saved any time; publishing needs at least one question.
+  const canSave = form.title.trim().length > 0;
+  const canPublish = canSave && questions.length > 0;
 
   function saveSettings() {
     if (!form || !canSave) return;
@@ -140,7 +142,7 @@ export default function TestEditorPage() {
             <Button variant={test.status === "draft" ? "secondary" : "primary"} onClick={saveSettings} disabled={!canSave}>Save</Button>
             {test.status === "draft" && (
               <Button
-                disabled={!canSave}
+                disabled={!canPublish}
                 onClick={() => {
                   saveSettings();
                   store.setTestStatus(id, "active");
@@ -158,9 +160,9 @@ export default function TestEditorPage() {
           <span className="font-semibold text-ink">Draft.</span> Students can&apos;t see this test yet. Check the questions, then press Publish.
         </p>
       )}
-      {!canSave && (
+      {!canPublish && (
         <p className="mb-4 rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-warning">
-          Add a title and at least one question to save this test.
+          {canSave ? "Add at least one question before publishing." : "Give the test a title to save it."}
         </p>
       )}
 

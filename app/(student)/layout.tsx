@@ -148,7 +148,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
             <div className="flex shrink-0 items-center gap-1.5">
               <NotificationBell />
-              <AccountMenu name={name} cohort={cohort} avatar={profile.avatar} frame={levelFor(profile.focus?.totalMinutes ?? 0).frame} onSignOut={signOut} />
+              <AccountMenu name={name} cohort={cohort} avatar={profile.avatar} level={levelFor(profile.focus?.totalMinutes ?? 0).index} onSignOut={signOut} />
             </div>
           </div>
         </header>
@@ -213,13 +213,13 @@ function AccountMenu({
   name,
   cohort,
   avatar,
-  frame,
+  level,
   onSignOut,
 }: {
   name: string;
   cohort: { name: string; color: Cohort["color"] } | null;
   avatar?: string;
-  frame?: string | null;
+  level?: number;
   onSignOut: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -241,9 +241,9 @@ function AccountMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account"
-        className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full text-[13px] tracking-wide transition-transform hover:scale-105"
+        className="flex h-10 w-10 items-center justify-center rounded-full text-[13px] tracking-wide transition-transform hover:scale-105"
       >
-        <Avatar id={avatar} initials={initials} frame={frame} className="h-10 w-10" />
+        <Avatar id={avatar} initials={initials} level={level} className="h-10 w-10" />
       </button>
       {open && (
         <div role="menu" className="absolute right-0 top-12 w-60 animate-fade-up rounded-2xl border border-white/[0.08] bg-[#1d2023]/95 p-2 shadow-[0_24px_48px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl">

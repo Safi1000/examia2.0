@@ -21,7 +21,7 @@ import type { Mission } from "@/components/student/FocusMode";
 const FocusMode = dynamic(() => import("@/components/student/FocusMode"), { ssr: false });
 
 export interface TopThree {
-  top: Array<{ name: string; avatar?: string; minutes: number }>;
+  top: Array<{ name: string; avatar?: string; minutes: number; level?: number }>;
   me: { rank: number; minutes: number } | null;
 }
 

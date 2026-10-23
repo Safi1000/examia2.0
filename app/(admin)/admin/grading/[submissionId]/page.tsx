@@ -196,18 +196,30 @@ function GradeCard({
   // One debounce per page: a scribble is a single write, and moving to the next
   // page never cancels the previous page's pending save.
   const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  // What is still waiting to be saved, so leaving the page saves it instead of dropping it.
+  const pending = useRef(new Map<string, Annotation[]>());
 
   function saveShapes(url: string, shapes: Annotation[]) {
     clearTimeout(saveTimers.current.get(url));
+    pending.current.set(url, shapes);
     saveTimers.current.set(
       url,
-      setTimeout(() => store.saveAnnotations(submissionId, question.id, url, shapes), 500),
+      setTimeout(() => {
+        pending.current.delete(url);
+        store.saveAnnotations(submissionId, question.id, url, shapes);
+      }, 500),
     );
   }
   useEffect(() => {
     const timers = saveTimers.current;
-    return () => timers.forEach(clearTimeout);
-  }, []);
+    const waiting = pending.current;
+    return () => {
+      timers.forEach(clearTimeout);
+      // Release & next, or any other way out: save the last strokes now.
+      waiting.forEach((shapes, url) => store.saveAnnotations(submissionId, question.id, url, shapes));
+      waiting.clear();
+    };
+  }, [store, submissionId, question.id]);
 
   function setMarks(v: number) {
     const clamped = Math.max(0, Math.min(question.marks, v));

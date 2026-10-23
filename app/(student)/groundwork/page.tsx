@@ -101,13 +101,13 @@ export default function GroundworkPage() {
         <h2 className="text-base font-semibold text-ink">Top this week</h2>
         <p className="mt-0.5 text-xs text-ink-3">Your cohort, by study hours. Resets every Monday.</p>
         {top && top.top.length > 0 ? (
-          <ol className="mt-4 space-y-2.5">
+          <ol className="mt-4 space-y-4">
             {top.top.map((t, i) => (
               <li key={i} className="flex items-center gap-3">
                 <span className="w-6 text-center text-lg" aria-label={`Number ${i + 1}`}>
                   {medal[i]}
                 </span>
-                <Avatar id={t.avatar} initials={t.name[0]} className="h-9 w-9 text-sm" />
+                <Avatar id={t.avatar} initials={t.name[0]} level={t.level} className="mx-2 my-1.5 h-10 w-10 text-sm" />
                 <span className="flex-1 font-semibold text-ink">{t.name}</span>
                 <span className="tabular-nums text-sm text-ink-2">{fmt(t.minutes)}</span>
               </li>

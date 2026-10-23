@@ -61,6 +61,13 @@ export default function DashboardPage() {
       return due > nowMs && due - nowMs < 3 * 86_400_000 && !db.assignmentSubmissions.some((x) => x.assignmentId === a.id && x.studentId === student.id);
     })
     .sort((a, b) => +new Date(a.dueAt) - +new Date(b.dueAt));
+  // Missed deadlines from the last two weeks stay on the list until handed in.
+  const overdue = db.assignments
+    .filter((a) => {
+      const due = +new Date(a.dueAt);
+      return due <= nowMs && nowMs - due < 14 * 86_400_000 && !db.assignmentSubmissions.some((x) => x.assignmentId === a.id && x.studentId === student.id);
+    })
+    .sort((a, b) => +new Date(a.dueAt) - +new Date(b.dueAt));
 
   const plan = buildStudyPlan(db, student, nowMs);
   const week = plan.weeks.find((w) => w.isCurrent) ?? null;
@@ -70,7 +77,9 @@ export default function DashboardPage() {
   const first = tests.open[0];
   const status = first
     ? `${tests.open.length === 1 ? "One test" : `${tests.open.length} tests`} to do. ${first.title} closes ${formatRelative(first.closesAt, nowMs)}.`
-    : dueSoon.length
+    : overdue.length
+      ? `${overdue.length === 1 ? `${overdue[0].title} is` : `${overdue.length} assignments are`} overdue. Hand ${overdue.length === 1 ? "it" : "them"} in when you can.`
+      : dueSoon.length
       ? `${dueSoon[0].title} is due ${formatRelative(dueSoon[0].dueAt, nowMs)}.`
       : tests.next
         ? `Nothing due. Next test opens ${formatWhen(tests.next.opensAt)}.`
@@ -78,6 +87,7 @@ export default function DashboardPage() {
 
   const todo = [
     ...tests.open.map((t) => ({ key: t.id, href: `/test/${t.id}`, title: t.title, meta: `Test · closes ${formatRelative(t.closesAt, nowMs)}`, cta: "Start" })),
+    ...overdue.map((a) => ({ key: a.id, href: "/assignments", title: a.title, meta: `Assignment · overdue since ${formatWhen(a.dueAt)}`, cta: "Hand in" })),
     ...dueSoon.map((a) => ({ key: a.id, href: "/assignments", title: a.title, meta: `Assignment · due ${formatWhen(a.dueAt)}`, cta: "Hand in" })),
   ];
 
@@ -94,6 +104,9 @@ export default function DashboardPage() {
       </header>
 
       <ClassNow db={db} student={student} nowMs={nowMs} />
+
+      {/* Hamza's notices sit high, where students actually see them. */}
+      <AnnouncementsPanel student={student} />
 
       {todo.length > 0 && (
         <section className="animate-fade-up space-y-2.5">
@@ -125,9 +138,6 @@ export default function DashboardPage() {
 
       <StudyBuddy db={db} student={student} nowMs={nowMs} />
 
-      <div className="animate-fade-up" style={{ animationDelay: "60ms" }}>
-        <AnnouncementsPanel student={student} />
-      </div>
     </div>
   );
 }

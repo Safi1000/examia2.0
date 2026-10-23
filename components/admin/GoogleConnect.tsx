@@ -21,7 +21,10 @@ async function call(method: "GET" | "POST", body?: object) {
     headers: { Authorization: `Bearer ${data.session?.access_token ?? ""}`, "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
   });
-  return res.json();
+  const j = await res.json().catch(() => ({}));
+  // Say what actually went wrong, never a fake "Done".
+  if (!res.ok) throw new Error(res.status === 403 ? "Your session has expired. Sign in again." : (j.error ?? "Google didn't respond. Try again."));
+  return j;
 }
 
 export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
@@ -77,8 +80,8 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
         onSynced();
       }
       if (action === "disconnect") setStatus({ ...status!, connected: false, email: null });
-    } catch {
-      toast("Something went wrong. Try again.", "error");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Something went wrong. Try again.", "error");
     } finally {
       setBusy(null);
     }
@@ -108,7 +111,9 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
               <button type="button" className={`${btn} text-ink-2 hover:bg-surface-2 hover:text-ink`} disabled={!!busy} onClick={() => void act("sync")}>
                 {busy === "sync" ? "Working…" : "Make today's links now"}
               </button>
-              <button type="button" className={`${btn} text-ink-3 hover:text-error`} disabled={!!busy} onClick={() => void act("disconnect")}>
+              <button type="button" className={`${btn} text-ink-3 hover:text-error`} disabled={!!busy} onClick={() => {
+                  if (window.confirm("Disconnect Google? Classes will stop getting Meet links and recordings automatically until you connect again.")) void act("disconnect");
+                }}>
                 Disconnect
               </button>
             </div>

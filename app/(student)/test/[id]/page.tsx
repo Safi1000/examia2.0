@@ -353,11 +353,12 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   }, [existing, id, router]);
 
   if (!student || !test || !visible) {
-    return <RunnerNotice title="Test unavailable" message="Something's wrong. Head back and try again." />;
+    return <RunnerNotice title="Test unavailable" message="This test isn't open to you. It may have been moved or removed. Check Tests for what's open." />;
   }
   if (existing) return <RunnerNotice title="Already submitted" message="You've already done this one." />;
-  if (window === "future") return <RunnerNotice title="Not open yet" message="Not live yet. Check back at the start time." />;
-  if (window === "closed" && !submitting && !submitError) return <RunnerNotice title="Test closed" message="You missed the window." />;
+  if (window === "future") return <RunnerNotice title="Not open yet" message={`It opens ${formatWhen(test.opensAt)}. Come back then.`} />;
+  // Never while photos are still being handed in after time ran out.
+  if (window === "closed" && !submitting && !submitError && finishingAt == null && photosBusy === 0) return <RunnerNotice title="Test closed" message="You missed the window." />;
 
   const q = test.questions[index];
   const answer = answers[index];

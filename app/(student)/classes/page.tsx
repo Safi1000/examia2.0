@@ -46,7 +46,7 @@ export default function ClassesPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-9 px-4 py-8 sm:px-6">
       <header className="animate-fade-up">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-brand">Monday to Friday · Pakistan time</p>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-brand">{dayRange(schedule.days)} · Pakistan time</p>
         <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink sm:text-[2.5rem]">Classes</h1>
         {today < getSchedule().termStarts && <p className="mt-2.5 text-base text-ink-2">
             Classes start on {new Date(`${getSchedule().termStarts}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.
@@ -116,4 +116,13 @@ export default function ClassesPage() {
       </section>
     </div>
   );
+}
+
+/** [1,2,3,4,5] → "Monday to Friday"; other sets are listed. */
+function dayRange(days: number[]) {
+  const names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const d = [...days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
+  const consecutive = d.every((x, i) => i === 0 || (d[i - 1] + 1) % 7 === x);
+  if (d.length > 2 && consecutive) return `${names[d[0]]} to ${names[d[d.length - 1]]}`;
+  return d.map((x) => names[x].slice(0, 3)).join(", ");
 }

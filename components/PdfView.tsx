@@ -33,6 +33,10 @@ export function PdfView({ url, onFail }: { url: string; onFail: () => void }) {
   // Pages are redrawn sharply a moment after zooming stops; until then CSS scales them.
   const [drawZoom, setDrawZoom] = useState(1);
   const canvases = useRef<Array<HTMLCanvasElement | null>>([]);
+  // Pages near the screen (only these are drawn, so long notes stay light on phones).
+  const [near, setNear] = useState<Set<number>>(() => new Set([0, 1]));
+  const [page, setPage] = useState(1);
+  const drawn = useRef(new Map<number, number>()); // page index -> zoom it was drawn at
 
   // Load PDF.js and the file.
   useEffect(() => {
@@ -76,28 +80,60 @@ export function PdfView({ url, onFail }: { url: string; onFail: () => void }) {
     return () => clearTimeout(t);
   }, [zoom]);
 
-  // Draw (or redraw) every page at the settled zoom.
+  // Watch which pages are on (or near) the screen, and which one is in view.
+  useEffect(() => {
+    const root = box.current;
+    if (!doc || !root) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        setNear((prev) => {
+          const next = new Set(prev);
+          for (const e of entries) {
+            const i = Number((e.target as HTMLElement).dataset.page);
+            if (e.isIntersecting) next.add(i);
+            else next.delete(i);
+          }
+          return next;
+        });
+        const top = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (top) setPage(Number((top.target as HTMLElement).dataset.page) + 1);
+      },
+      { root, rootMargin: "100% 0px" },
+    );
+    canvases.current.forEach((c) => c && io.observe(c));
+    return () => io.disconnect();
+  }, [doc, sizes.length]);
+
+  // Draw the nearby pages at the settled zoom; others are left blank.
   useEffect(() => {
     if (!doc || !width) return;
     let alive = true;
     void (async () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      for (let i = 0; i < doc.numPages && alive; i++) {
-        const page = await doc.getPage(i + 1);
+      for (const i of [...near].sort((a, b) => a - b)) {
+        if (!alive) return;
+        if (drawn.current.get(i) === drawZoom * width) continue;
+        const pg = await doc.getPage(i + 1);
         const c = canvases.current[i];
         if (!c || !alive) continue;
-        const fit = width / page.getViewport({ scale: 1 }).width;
-        const vp = page.getViewport({ scale: fit * drawZoom * dpr });
+        const fit = width / pg.getViewport({ scale: 1 }).width;
+        // Keep each canvas under ~16 MP so iPhones never run out of canvas memory.
+        let scale = fit * drawZoom * dpr;
+        const base = pg.getViewport({ scale: 1 });
+        const maxScale = Math.sqrt(16_000_000 / (base.width * base.height));
+        scale = Math.min(scale, maxScale);
+        const vp = pg.getViewport({ scale });
         c.width = vp.width;
         c.height = vp.height;
         const ctx = c.getContext("2d");
-        if (ctx) await page.render({ canvasContext: ctx, viewport: vp }).promise.catch(() => {});
+        if (ctx) await pg.render({ canvasContext: ctx, viewport: vp }).promise.catch(() => {});
+        drawn.current.set(i, drawZoom * width);
       }
     })();
     return () => {
       alive = false;
     };
-  }, [doc, width, drawZoom]);
+  }, [doc, width, drawZoom, near]);
 
   /** Zoom around a point on screen, keeping that spot under the fingers. */
   const zoomAt = useCallback((factor: number, clientX?: number, clientY?: number) => {
@@ -182,6 +218,7 @@ export function PdfView({ url, onFail }: { url: string; onFail: () => void }) {
             {sizes.map((s, i) => (
               <canvas
                 key={i}
+                data-page={i}
                 ref={(c) => {
                   canvases.current[i] = c;
                 }}
@@ -194,6 +231,9 @@ export function PdfView({ url, onFail }: { url: string; onFail: () => void }) {
       </div>
       {doc && (
         <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-[#1d2023]/95 p-1 shadow-lg backdrop-blur">
+          <span className="px-2 text-xs tabular-nums text-ink-3" aria-live="polite">
+            {page} / {sizes.length}
+          </span>
           <button type="button" className={btn} onClick={() => zoomAt(1 / 1.25)} aria-label="Zoom out">
             −
           </button>

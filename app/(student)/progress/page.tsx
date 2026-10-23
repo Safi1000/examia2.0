@@ -43,7 +43,9 @@ export default function ProgressPage() {
       results.map((r) => r.test),
       results.map((r) => r.sub),
     ).filter((m) => m.available > 0);
-    const set = testsForStudent(db, student).filter((t) => +new Date(t.opensAt) <= nowMs);
+    // Tests that are over (or already handed in), so a test still open today isn't "missed".
+    const done0 = new Set(submissionsForStudent(db, student.id).filter((s) => s.status !== "in_progress").map((s) => s.testId));
+    const set = testsForStudent(db, student).filter((t) => +new Date(t.closesAt) <= nowMs || done0.has(t.id));
     const handedIn = new Set(submissionsForStudent(db, student.id).filter((s) => s.status !== "in_progress").map((s) => s.testId));
     return {
       results,

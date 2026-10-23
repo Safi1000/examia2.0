@@ -146,6 +146,9 @@ export default function RosterPage() {
   async function save() {
     if (!form.username.trim()) return setError("Username is required.");
     if (!form.cohortId) return setError("Choose a cohort.");
+    // Tests, notes and the timetable reach students through their level and subjects.
+    if (db.classes.length && form.classIds.length === 0) return setError("Pick their level, so the right tests, notes and classes reach them.");
+    if (db.subjects.length && form.subjectIds.length === 0) return setError("Pick at least one subject.");
     const exceptId = editing !== "new" && editing ? editing.id : undefined;
     if (store.usernameTaken(form.username, exceptId)) return setError("That username is already taken.");
     // Passwords live in Supabase auth and are never read back, so the field is
@@ -221,20 +224,27 @@ export default function RosterPage() {
         <Button
           size="sm"
           disabled={!bulkClass && !bulkCohort}
-          onClick={() => {
-            picked.forEach((id) => {
-              const st = db.students.find((x) => x.id === id);
-              if (!st) return;
-              // Moving class replaces the class list; the cohort is a straight swap.
-              if (bulkClass) store.setStudentClasses(id, [bulkClass]);
-              if (bulkCohort) void store.updateStudent(id, { cohortId: bulkCohort, username: st.username });
-            });
-            toast(
-              view === "archive" && bulkCohort
-                ? `${picked.length} past student${picked.length === 1 ? "" : "s"} added. They can sign in again.`
-                : `${picked.length} students moved.`,
-              "success",
+          onClick={async () => {
+            // Wait for every save, then say how it went (never "moved" before it is).
+            const results = await Promise.allSettled(
+              picked.map(async (id) => {
+                const st = db.students.find((x) => x.id === id);
+                if (!st) return;
+                // Moving class replaces the class list; the cohort is a straight swap.
+                if (bulkClass) store.setStudentClasses(id, [bulkClass]);
+                if (bulkCohort) await store.updateStudent(id, { cohortId: bulkCohort, username: st.username });
+              }),
             );
+            const failed = results.filter((r) => r.status === "rejected").length;
+            const ok = picked.length - failed;
+            if (failed) toast(`${failed} couldn't be moved. Try them again.`, "error");
+            if (ok)
+              toast(
+                view === "archive" && bulkCohort
+                  ? `${ok} past student${ok === 1 ? "" : "s"} added. They can sign in again.`
+                  : `${ok} student${ok === 1 ? "" : "s"} moved.`,
+                "success",
+              );
             setPicked([]);
           }}
         >

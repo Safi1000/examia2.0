@@ -50,8 +50,9 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
     };
   }, [phase]);
   useEffect(() => {
-    if (phase === "focus" && sound !== "off") return startSound(sound);
-  }, [phase, sound]);
+    // Sound stops while paused, and starts again on Resume.
+    if (phase === "focus" && sound !== "off" && pausedLeft == null) return startSound(sound);
+  }, [phase, sound, pausedLeft]);
 
   /** Count the minutes actually focused (once per session). */
   const logFocus = (minutes: number) => {

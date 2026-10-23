@@ -959,12 +959,13 @@ class Store {
   updateStudent(id: string, patch: Partial<Omit<Student, "id" | "createdAt">>): Promise<Row> {
     this.commit((d) => {
       const s = d.students.find((x) => x.id === id);
+      // Only the fields passed in change (a password reset must not blank the numbers).
       if (s) Object.assign(s, {
         username: patch.username ?? s.username,
-        email: patch.email,
-        whatsapp: patch.whatsapp,
-        phone: patch.phone,
-        photoUrl: patch.photoUrl,
+        email: "email" in patch ? patch.email : s.email,
+        whatsapp: "whatsapp" in patch ? patch.whatsapp : s.whatsapp,
+        phone: "phone" in patch ? patch.phone : s.phone,
+        photoUrl: "photoUrl" in patch ? patch.photoUrl : s.photoUrl,
         cohortId: patch.cohortId ?? s.cohortId,
         classIds: patch.classIds ?? s.classIds,
         subjectIds: patch.subjectIds ?? s.subjectIds,

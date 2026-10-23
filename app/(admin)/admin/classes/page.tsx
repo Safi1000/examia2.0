@@ -142,7 +142,17 @@ export default function ClassesPage() {
               <Icon.ChevronLeft className="h-4 w-4" />
             </Button>
             <div className="text-center">
-              <p className="text-base font-semibold text-ink">{dayName}</p>
+              {/* Tap the date to jump to any day (e.g. to add a weekend revision class). */}
+              <label className="relative inline-block cursor-pointer text-base font-semibold text-ink hover:text-brand">
+                {dayName}
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => e.target.value && setPicked(e.target.value)}
+                  className="absolute inset-0 cursor-pointer opacity-0"
+                  aria-label="Pick a day"
+                />
+              </label>
               {date !== today ? (
                 <button type="button" onClick={() => setPicked(today)} className="text-xs font-semibold text-brand hover:underline">
                   Back to today
