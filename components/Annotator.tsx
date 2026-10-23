@@ -207,6 +207,8 @@ export function AnnotatorModal({
   // Seeded once per mount — callers key the modal by answer.
   const [byUrl, setByUrl] = useState<Annotations>(initial);
   const [tool, setTool] = useState<Tool>("pen");
+  // The page's ink just before Clear, so one Undo can bring it all back.
+  const [cleared, setCleared] = useState<{ url: string; shapes: Annotations[string] } | null>(null);
   const [color, setColor] = useState(COLORS[0]);
   const [size, setSize] = useState(1);
   const [markValue, setMarkValue] = useState(1);
@@ -320,19 +322,38 @@ export function AnnotatorModal({
         <div className="mt-1.5 flex items-center gap-2 lg:ml-auto lg:mt-0">
           {urls.length > 1 && (
             <div className="flex shrink-0 items-center gap-1.5 text-sm text-ink-2">
-              <button onClick={() => goto(page - 1)} disabled={page === 0} className="h-9 rounded-md border border-border-strong px-2.5 disabled:opacity-40" aria-label="Previous page">‹</button>
+              <button onClick={() => goto(page - 1)} disabled={page === 0} className="h-10 w-10 rounded-md border border-border-strong text-lg disabled:opacity-40" aria-label="Previous page">‹</button>
               <span className="tabular">{page + 1} / {urls.length}</span>
-              <button onClick={() => goto(page + 1)} disabled={page === urls.length - 1} className="h-9 rounded-md border border-border-strong px-2.5 disabled:opacity-40" aria-label="Next page">›</button>
+              <button onClick={() => goto(page + 1)} disabled={page === urls.length - 1} className="h-10 w-10 rounded-md border border-border-strong text-lg disabled:opacity-40" aria-label="Next page">›</button>
             </div>
           )}
-          <Button variant="secondary" size="sm" onClick={() => commit(current, currentShapes.slice(0, -1))} disabled={!currentShapes.length}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              // Straight after Clear, Undo brings the whole page's ink back.
+              if (!currentShapes.length && cleared?.url === current) {
+                commit(current, cleared.shapes);
+                setCleared(null);
+              } else commit(current, currentShapes.slice(0, -1));
+            }}
+            disabled={!currentShapes.length && cleared?.url !== current}
+          >
             Undo
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => commit(current, [])} disabled={!currentShapes.length}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setCleared({ url: current, shapes: currentShapes });
+              commit(current, []);
+            }}
+            disabled={!currentShapes.length}
+          >
             Clear
           </Button>
           <span className="hidden text-xs text-ink-3 xl:inline">Saved automatically</span>
-          <button onClick={onClose} aria-label="Close annotator" className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink lg:ml-0">
+          <button onClick={onClose} aria-label="Close annotator" className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink lg:ml-0">
             <Icon.Close className="h-5 w-5" />
           </button>
         </div>

@@ -67,8 +67,9 @@ export function todaysMission(db: Database, student: Student, nowMs: number): Mi
   const planned = buildStudyPlan(db, student, nowMs).weeks.find((w) => w.isCurrent)?.topics[0];
   const pick = weak ? { subject: weak.subject, topic: weak.name } : planned ? { subject: planned.subject, topic: planned.name } : null;
   if (!pick) return null;
-  const hasNote = db.notes.some((n) => n.title.toLowerCase().includes(pick.topic.toLowerCase()));
-  return { ...pick, noteHref: hasNote ? "/notes" : undefined };
+  // "Open the notes for it" opens that note straight away, not the whole list.
+  const note = db.notes.find((n) => n.title.toLowerCase().includes(pick.topic.toLowerCase()));
+  return { ...pick, noteHref: note ? `/notes?open=${note.id}` : undefined };
 }
 
 const fmt = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`);

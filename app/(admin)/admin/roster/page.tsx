@@ -15,7 +15,9 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { ArchiveTabs, type ArchiveView } from "@/components/admin/ArchiveTabs";
 import { Card, Button, Input, Select, Label, CohortDot, Modal, EmptyState, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
+import { cld } from "@/lib/cld";
 import { LoginDetails } from "@/components/admin/LoginDetails";
+import { BulkAddStudents } from "@/components/admin/BulkAddStudents";
 
 function genPassword() {
   const words = ["maple", "river", "amber", "delta", "lunar", "cedar", "north", "ochre"];
@@ -73,6 +75,7 @@ export default function RosterPage() {
   // The just-added student's login, for the ready-made welcome message.
   const [sent, setSent] = useState<{ username: string; password: string; phone?: string; parent?: string } | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [bulk, setBulk] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
 
   async function pickPhoto(file: File | undefined) {
@@ -203,13 +206,19 @@ export default function RosterPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+      {bulk && <BulkAddStudents open onClose={() => setBulk(false)} defaultCohort={cohortId ?? db.cohorts.find((c) => c.active)?.id ?? ""} />}
       {sent && (
         <LoginDetails open kind="welcome" onClose={() => setSent(null)} username={sent.username} password={sent.password} phone={sent.phone} parent={sent.parent} />
       )}
       <PageHeader
         title="Roster"
         subtitle={`${students.length} students`}
-        actions={<Button onClick={openNew} disabled={db.cohorts.length === 0}><Icon.Plus className="h-4 w-4" /> Add student</Button>}
+        actions={
+          <>
+            <Button variant="secondary" onClick={() => setBulk(true)} disabled={db.cohorts.length === 0}>Add many</Button>
+            <Button onClick={openNew} disabled={db.cohorts.length === 0}><Icon.Plus className="h-4 w-4" /> Add student</Button>
+          </>
+        }
       />
 
       <BulkBar count={picked.length} noun="student" onClear={() => setPicked([])}>
@@ -252,6 +261,27 @@ export default function RosterPage() {
         </Button>
       </BulkBar>
 
+      {/* Tests, notes and assignments reach students through their level and subjects. */}
+      {(() => {
+        const unset = db.students.filter((s) => !off.has(s.cohortId) && (!s.classIds.length || !s.subjectIds.length));
+        if (!unset.length || !db.classes.length) return null;
+        return (
+          <div className="mb-4 rounded-lg border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink">
+            {unset.length === 1 ? "1 student has" : `${unset.length} students have`} no level or subjects set, so subject tests, notes and assignments
+            don&apos;t reach them. Tap a name to pick them:{" "}
+            {unset.slice(0, 12).map((s, i) => (
+              <span key={s.id}>
+                {i > 0 && ", "}
+                <button type="button" onClick={() => openEdit(s)} className="font-semibold text-brand hover:underline">
+                  {s.username}
+                </button>
+              </span>
+            ))}
+            {unset.length > 12 && ` and ${unset.length - 12} more`}.
+          </div>
+        );
+      })()}
+
       <ArchiveTabs
         view={view}
         onChange={(v) => { setView(v); setPicked([]); }}
@@ -293,7 +323,7 @@ export default function RosterPage() {
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-2 font-display text-sm font-bold uppercase text-ink-2">
                     {s.photoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={s.photoUrl} alt="" className="h-full w-full object-cover" />
+                      <img src={cld(s.photoUrl, 96)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                     ) : (
                       s.username.slice(0, 2)
                     )}

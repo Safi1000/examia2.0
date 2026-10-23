@@ -9,6 +9,8 @@ import { getStore } from "@/lib/data/store";
  * photo answer) don't trigger a full re-read; live updates cover the rest.
  */
 const MIN_INTERVAL_MS = 2 * 60_000;
+/** Students' phones: live updates already bring new tests and results, so re-read less (data, battery). */
+const STUDENT_INTERVAL_MS = 5 * 60_000;
 
 /**
  * Keeps the in-memory cache honest.
@@ -26,13 +28,16 @@ export function DataSync() {
 
   useEffect(() => {
     if (initializing || !session) return;
+    // Everything was just loaded at sign-in: the first window starts now.
+    lastRun.current = Date.now();
+    const gap = session.role === "student" ? STUDENT_INTERVAL_MS : MIN_INTERVAL_MS;
 
     const maybeRefresh = () => {
       if (document.visibilityState !== "visible") return;
       // Never mid-test: a full re-read there competes with photo uploads.
       if (/^\/test\//.test(window.location.pathname)) return;
       const now = Date.now();
-      if (now - lastRun.current < MIN_INTERVAL_MS) return;
+      if (now - lastRun.current < gap) return;
       lastRun.current = now;
       void getStore().refresh();
     };

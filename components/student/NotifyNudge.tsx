@@ -13,9 +13,12 @@ export function NotifyNudge() {
   const { profile, updateProfile } = useAuth();
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Onboarding (with its own notifications step) happens on this visit: don't
+  // ask again seconds later. The nudge waits for a later visit.
+  const [onboardingThisVisit] = useState(() => !profile.onboarded);
 
   useEffect(() => {
-    if (!profile.onboarded || profile.notifyAsked) return;
+    if (!profile.onboarded || profile.notifyAsked || onboardingThisVisit) return;
     let alive = true;
     const t = setTimeout(() => {
       void pushStatus().then((s) => alive && s === "off" && setShow(true)).catch(() => {});
@@ -24,7 +27,7 @@ export function NotifyNudge() {
       alive = false;
       clearTimeout(t);
     };
-  }, [profile.onboarded, profile.notifyAsked]);
+  }, [profile.onboarded, profile.notifyAsked, onboardingThisVisit]);
 
   if (!show) return null;
   const done = () => {

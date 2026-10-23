@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Button, Card, CardHeader, CardBody, Icon } from "@/components/ui";
 import { ThemeSettings } from "@/components/ThemeSettings";
+import { AutomationSettings } from "@/components/admin/Automations";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useToast } from "@/components/toast";
 import { levelOf, subjectOf } from "@/lib/timetable";
@@ -11,7 +12,8 @@ import { levelOf, subjectOf } from "@/lib/timetable";
 export default function AdminSettingsPage() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-8 sm:px-8">
-      <PageHeader title="Settings" subtitle="Personalise your console" />
+      <PageHeader title="Settings" subtitle="Automations, levels and look" />
+      <AutomationSettings />
       <LevelsAndSubjects />
       <Card className="max-w-2xl">
         <CardHeader><h2 className="font-bold text-ink">Accent colour</h2></CardHeader>

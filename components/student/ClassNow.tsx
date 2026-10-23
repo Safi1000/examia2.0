@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import Link from "next/link";
 import type { Student } from "@/types";
@@ -22,9 +22,29 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
   const nearClass = slots.some((s) => nowMs >= s.startMs - 20 * 60_000 && nowMs < s.endMs);
   const { links, ready } = useClassLinks(today, today, false, nearClass);
   const [joining, setJoining] = useState(false);
+
+  // Meet often opens in its own app and this page stays put underneath, or the
+  // student comes back to it later: either way, Join must be tappable again
+  // rather than stuck on "Joining…".
+  useEffect(() => {
+    if (!joining) return;
+    const reset = () => setJoining(false);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") reset();
+    };
+    window.addEventListener("pageshow", reset);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("pageshow", reset);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [joining]);
+
   if (ready === false) return null;
 
-  const current = slots.find((s) => nowMs >= s.startMs - JOIN_EARLY_MIN * 6e4 && nowMs < s.endMs);
+  // Back-to-back classes (3:30, 4:10, 4:50): once the next one's join window
+  // opens, show that one rather than the class that is ending.
+  const current = slots.filter((s) => nowMs >= s.startMs - JOIN_EARLY_MIN * 6e4 && nowMs < s.endMs).pop();
   // Next class today, or else on the next class day (weekends, before term, late evening).
   let next = slots.find((s) => s.startMs > nowMs);
   for (let d = addDays(today, 1), i = 0; !next && i < 21; d = addDays(d, 1), i++) next = slotsForStudent(db, student, d)[0];
@@ -75,6 +95,8 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
               setJoining(true);
               const go = await Promise.race([joinClass(current, url), new Promise<null>((r) => setTimeout(() => r(null), 2500))]);
               window.location.href = go ?? url;
+              // Handed over to Meet: back to "Join class" shortly after.
+              setTimeout(() => setJoining(false), 4000);
             }}
             className="inline-flex h-12 items-center gap-2 rounded-full bg-brand px-7 text-base font-semibold text-on-brand transition hover:brightness-110 active:scale-[0.98]"
           >

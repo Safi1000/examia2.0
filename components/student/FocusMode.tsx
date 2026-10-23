@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { FOCUS_MODES, MIN_COUNTED, STUDY_NAME, quoteFor, recordFocus, type FocusMode as Mode } from "@/lib/focus";
+import { FOCUS_MODES, STUDY_NAME, quoteFor, recordFocus, type FocusMode as Mode } from "@/lib/focus";
+import { clearRunning, loadRunning, minutesToAdd, ownRunning, saveRunning } from "@/components/student/focus-session";
+import { useBackToClose } from "@/components/student/useBackToClose";
 import { cn } from "@/lib/cn";
 
 /**
@@ -31,9 +34,61 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
   const [quote] = useState(() => quoteFor(Math.floor(Date.now() / 60_000)));
   const startedAt = useRef<number | null>(null);
   const logged = useRef(0);
+  const panel = useRef<HTMLDivElement>(null);
+  // One audio context for the whole visit, made inside a tap: iPhone keeps
+  // sound silent unless it was started (or woken) by the student's own tap.
+  const audio = useRef<AudioContext | null>(null);
 
   const left = pausedLeft ?? (endsAt ? Math.max(0, endsAt - now) : 0);
   const total = (phase === "rest" ? mode.rest : mode.focus) * 60_000;
+  const focusedMin = phase === "focus" ? Math.floor((total - left) / 60_000) : 0;
+
+  // The latest session state, for the page-hide and close handlers (which run
+  // outside render and would otherwise see an old copy).
+  const live = useRef({ phase, subject, planned: mode.focus as number, endsAt, pausedLeft });
+  useEffect(() => {
+    live.current = { phase, subject, planned: mode.focus, endsAt, pausedLeft };
+  });
+
+  /** Focused time in the current stretch, in ms. */
+  const doneMs = (at: number) => {
+    const l = live.current;
+    if (l.phase !== "focus" || startedAt.current == null) return 0;
+    const remaining = l.pausedLeft ?? (l.endsAt ? Math.max(0, l.endsAt - at) : 0);
+    return Math.max(0, l.planned * 60_000 - remaining);
+  };
+
+  /** Keep the running session on the phone (instant, works while the page is closing). */
+  const persist = () => {
+    if (live.current.phase !== "focus" || startedAt.current == null) return;
+    const at = Date.now();
+    saveRunning({ subject: live.current.subject, planned: live.current.planned, startedAt: startedAt.current, doneMs: doneMs(at), savedAt: at, logged: logged.current });
+  };
+
+  /** Count the minutes actually focused (each minute once). */
+  const logFocus = (minutes: number, subj: string) => {
+    const m = minutesToAdd(minutes * 60_000, logged.current);
+    if (!m) return;
+    logged.current += m;
+    updateProfile((latest) => ({ focus: recordFocus(latest.focus, m, subj, Date.now()) }));
+  };
+
+  /** The session is ending here (End session, Back, leaving the page in the app): add its minutes now. */
+  const flush = () => {
+    if (live.current.phase === "focus" && startedAt.current != null) logFocus(doneMs(Date.now()) / 60_000, live.current.subject);
+    startedAt.current = null;
+    clearRunning();
+  };
+
+  /** Create or wake the audio. Only ever called from a tap. */
+  const wakeAudio = () => {
+    try {
+      const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctx) return;
+      if (!audio.current || audio.current.state === "closed") audio.current = new Ctx();
+      if (audio.current.state !== "running") void audio.current.resume().catch(() => {});
+    } catch {}
+  };
 
   // Tick, keep the screen awake while timing, and stop sound on the way out.
   useEffect(() => {
@@ -51,24 +106,55 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
   }, [phase]);
   useEffect(() => {
     // Sound stops while paused, and starts again on Resume.
-    if (phase === "focus" && sound !== "off" && pausedLeft == null) return startSound(sound);
+    if (phase === "focus" && sound !== "off" && pausedLeft == null && audio.current) return startSound(audio.current, sound);
   }, [phase, sound, pausedLeft]);
 
-  /** Count the minutes actually focused (once per session). */
-  const logFocus = (minutes: number) => {
-    const m = Math.floor(minutes) - logged.current;
-    if (m <= 0 || logged.current + m < MIN_COUNTED) return;
-    logged.current += m;
-    updateProfile((latest) => ({ focus: recordFocus(latest.focus, m, subject, Date.now()) }));
-  };
+  // Save the session on the phone each minute and on every pause or resume.
+  useEffect(() => {
+    persist();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, focusedMin, pausedLeft, endsAt]);
+
+  // Leaving the page (app switched away, tab closed, Android Back past the
+  // portal): write the latest minutes to the phone. The next visit adds them
+  // if this session never comes back.
+  useEffect(() => {
+    const onHide = () => persist();
+    const onVis = () => {
+      if (document.visibilityState === "hidden") persist();
+    };
+    window.addEventListener("pagehide", onHide);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("pagehide", onHide);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Closed from outside (a link, the page changing): count what was done.
+  // Also moves focus into the timer as it opens.
+  useEffect(() => {
+    panel.current?.focus();
+    const ctx = audio;
+    return () => {
+      flush();
+      ownRunning(false);
+      void ctx.current?.close().catch(() => {});
+      ctx.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Phase end: focus → chime, log, rest; rest → done.
   useEffect(() => {
     if (pausedLeft != null || !endsAt || now < endsAt) return;
     const t = setTimeout(() => {
-      chime();
+      chime(audio.current);
       if (phase === "focus") {
-        logFocus(mode.focus);
+        logFocus(mode.focus, subject);
+        startedAt.current = null;
+        clearRunning();
         setPhase("rest");
         setEndsAt(Date.now() + mode.rest * 60_000);
       } else if (phase === "rest") {
@@ -81,22 +167,40 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
   }, [now, endsAt, pausedLeft, phase]);
 
   const start = () => {
+    wakeAudio();
+    // A session from an earlier visit that was cut off: add its minutes
+    // before this one takes its place on the phone.
+    const old = loadRunning();
+    if (old && old.startedAt !== startedAt.current) {
+      const m = minutesToAdd(old.doneMs, old.logged);
+      if (m > 0) updateProfile((latest) => ({ focus: recordFocus(latest.focus, m, old.subject, Date.now()) }));
+    }
+    const at = Date.now();
     logged.current = 0;
-    startedAt.current = Date.now();
+    startedAt.current = at;
+    ownRunning(true);
+    saveRunning({ subject, planned: mode.focus, startedAt: at, doneMs: 0, savedAt: at, logged: 0 });
     setPhase("focus");
     setPausedLeft(null);
-    setEndsAt(Date.now() + mode.focus * 60_000);
-    setNow(Date.now());
+    setEndsAt(at + mode.focus * 60_000);
+    setNow(at);
   };
   const close = () => {
-    if (phase === "focus" && startedAt.current) logFocus((mode.focus * 60_000 - left) / 60_000);
+    flush();
     onClose();
   };
+  // The phone's Back button ends the session here, like End session.
+  useBackToClose(close);
   const togglePause = () => {
     if (pausedLeft != null) {
+      wakeAudio();
       setEndsAt(Date.now() + pausedLeft);
       setPausedLeft(null);
     } else setPausedLeft(left);
+  };
+  const pickSound = (s: Sound) => {
+    if (s !== "off") wakeAudio();
+    setSound(s);
   };
 
   const mm = String(Math.floor(left / 60_000)).padStart(2, "0");
@@ -108,7 +212,7 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
     cn("h-11 rounded-full border px-4 text-sm font-semibold transition-colors", on ? "border-brand bg-brand text-on-brand" : "border-border-strong text-ink-2 hover:text-ink");
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={STUDY_NAME} className="fixed inset-0 z-[70] overflow-y-auto bg-[#141618]">
+    <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label={STUDY_NAME} className="fixed inset-0 z-[70] overflow-y-auto bg-[#141618] outline-none">
       <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center px-6 py-8 text-center">
         <div className="flex w-full items-center justify-between">
           <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-brand">{STUDY_NAME}</p>
@@ -125,9 +229,9 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
                 <p className="mt-1.5 text-xl font-extrabold text-ink">{mission.topic}</p>
                 <p className="text-sm text-ink-2">{mission.subject}</p>
                 {mission.noteHref && (
-                  <a href={mission.noteHref} className="mt-2 inline-block text-sm font-semibold text-brand hover:underline">
+                  <Link href={mission.noteHref} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-brand hover:underline">
                     Open the notes for it
-                  </a>
+                  </Link>
                 )}
               </div>
             ) : (
@@ -154,8 +258,8 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
                 </button>
               ))}
             </div>
-            <SoundPicker sound={sound} setSound={setSound} />
-            <button type="button" onClick={start} className="h-14 w-full rounded-full bg-brand text-base font-semibold text-on-brand transition hover:brightness-110">
+            <SoundPicker sound={sound} setSound={pickSound} />
+            <button type="button" onClick={start} className="h-14 w-full rounded-full bg-brand text-base font-semibold text-on-brand transition hover:brightness-110 active:scale-[0.98]">
               Start {mode.focus} minutes
             </button>
           </div>
@@ -208,7 +312,7 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
                 </button>
               )}
             </div>
-            {phase === "focus" && <SoundPicker sound={sound} setSound={setSound} compact />}
+            {phase === "focus" && <SoundPicker sound={sound} setSound={pickSound} compact />}
           </>
         )}
 
@@ -250,11 +354,8 @@ function SoundPicker({ sound, setSound, compact }: { sound: Sound; setSound: (s:
   );
 }
 
-/** Starts a looping noise; returns a stop function. */
-function startSound(kind: Exclude<Sound, "off">): () => void {
-  const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-  if (!Ctx) return () => {};
-  const ctx = new Ctx();
+/** Starts a looping noise on the shared audio context; returns a stop function. */
+function startSound(ctx: AudioContext, kind: Exclude<Sound, "off">): () => void {
   const len = ctx.sampleRate * 4;
   const buf = ctx.createBuffer(1, len, ctx.sampleRate);
   const d = buf.getChannelData(0);
@@ -275,8 +376,9 @@ function startSound(kind: Exclude<Sound, "off">): () => void {
   gain.gain.value = kind === "rain" ? 0.08 : kind === "waves" ? 0.1 : 0.25;
   src.connect(filter).connect(gain).connect(ctx.destination);
   // Waves: the volume swells and falls slowly, like the sea.
+  let lfo: OscillatorNode | null = null;
   if (kind === "waves") {
-    const lfo = ctx.createOscillator();
+    lfo = ctx.createOscillator();
     const depth = ctx.createGain();
     lfo.frequency.value = 0.09;
     depth.gain.value = 0.08;
@@ -284,20 +386,24 @@ function startSound(kind: Exclude<Sound, "off">): () => void {
     lfo.start();
   }
   src.start();
+  // The context stays open for the chime and the next sound; only this one stops.
   return () => {
     try {
       src.stop();
+      lfo?.stop();
     } catch {}
-    void ctx.close();
+    gain.disconnect();
   };
 }
 
-/** A soft two-note chime at the end of a session or break. */
-function chime() {
+/** A soft two-note chime at the end of a session or break, on the context made by the Start tap. */
+function chime(ctx: AudioContext | null) {
   try {
     navigator.vibrate?.([120, 80, 120]);
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new Ctx();
+  } catch {}
+  if (!ctx || ctx.state === "closed") return;
+  try {
+    if (ctx.state !== "running") void ctx.resume().catch(() => {});
     [660, 880].forEach((f, i) => {
       const o = ctx.createOscillator();
       const g = ctx.createGain();
@@ -309,6 +415,5 @@ function chime() {
       o.start(ctx.currentTime + i * 0.25);
       o.stop(ctx.currentTime + i * 0.25 + 1);
     });
-    setTimeout(() => void ctx.close(), 1800);
   } catch {}
 }

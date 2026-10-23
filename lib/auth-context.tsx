@@ -20,6 +20,9 @@ interface AuthContextValue {
   session: Session | null;
   /** True while a session is being brought up (initial load or login). */
   initializing: boolean;
+  /** Signed in, but the portal couldn't load (weak signal). `retryLoad` tries again. */
+  loadFailed: boolean;
+  retryLoad: () => void;
   loginStudent: (username: string, password: string) => Promise<boolean>;
   loginAdmin: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
@@ -40,9 +43,16 @@ const DEMO_PROFILE_KEY = "ht_demo_profile";
 async function resolveSession(user: User): Promise<Session> {
   const isAdmin = (user.app_metadata as Record<string, unknown>)?.role === "admin";
   if (isAdmin) return { role: "admin" };
-  const { data } = await supabase().from("students").select("id").eq("user_id", user.id).maybeSingle();
-  return { role: "student", studentId: (data?.id as string) ?? undefined };
+  // A weak signal at sign-in shouldn't look like "no account": try a few times.
+  for (let attempt = 0; ; attempt++) {
+    const { data, error } = await supabase().from("students").select("id").eq("user_id", user.id).maybeSingle();
+    if (!error) return { role: "student", studentId: (data?.id as string) ?? undefined };
+    if (attempt >= 2) throw new Error(error.message);
+    await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+  }
 }
+
+const sameProfile = (a: Profile, b: Profile) => JSON.stringify(a) === JSON.stringify(b);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -50,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [themeId, setThemeId] = useState<string>(() => loadLastThemeId());
   const [profile, setProfile] = useState<Profile>({});
   const currentUserId = useRef<string | null>(null);
+  const [failedUser, setFailedUser] = useState<User | null>(null);
 
   /**
    * Bring up a session: resolve role, hydrate the data cache, publish. Idempotent
@@ -61,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const establish = useCallback(async (user: User): Promise<boolean> => {
     if (currentUserId.current === user.id) return true;
     currentUserId.current = user.id;
+    setFailedUser(null);
     setInitializing(true);
     try {
       // Role is known from the sign-in itself; load the portal while the
@@ -78,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error("auth establish failed", e);
       currentUserId.current = null; // so trying again actually retries
+      setFailedUser(user);
       return false;
     } finally {
       setInitializing(false);
@@ -200,9 +213,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * laptop never undo each other.
    */
   const saving = useRef<Promise<unknown>>(Promise.resolve());
-  const updateProfile = useCallback((patch: Partial<Profile> | ((latest: Profile) => Partial<Profile>)) => {
+  /** Changes that couldn't be saved yet (offline); retried when the student is back. */
+  const unsaved = useRef<Array<Partial<Profile> | ((latest: Profile) => Partial<Profile>)>>([]);
+  const updateProfile = useCallback((patch: Partial<Profile> | ((latest: Profile) => Partial<Profile>), local = true) => {
     const apply = (base: Profile) => ({ ...base, ...(typeof patch === "function" ? patch(base) : patch) });
-    setProfile((cur) => apply(cur));
+    if (local) setProfile((cur) => apply(cur));
     saving.current = saving.current.then(async () => {
       if (DEMO) {
         let base: Profile = {};
@@ -219,30 +234,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data } = await supabase().auth.getUser();
         const latest = ((data.user?.user_metadata as Record<string, unknown> | undefined)?.profile as Profile) ?? {};
         const next = apply(latest);
-        const { data: saved } = await supabase().auth.updateUser({ data: { profile: next } });
-        setProfile(((saved.user?.user_metadata as Record<string, unknown> | undefined)?.profile as Profile) ?? next);
+        const { data: saved, error } = await supabase().auth.updateUser({ data: { profile: next } });
+        if (error) throw error;
+        const fresh = ((saved.user?.user_metadata as Record<string, unknown> | undefined)?.profile as Profile) ?? next;
+        if (!unsaved.current.length) setProfile((cur) => (sameProfile(cur, fresh) ? cur : fresh));
       } catch (e) {
         console.error("[profile] save", e);
+        unsaved.current.push(patch);
       }
     });
   }, []);
+
+  /** Send any changes that failed to save (study minutes, settings). */
+  const retryUnsaved = useCallback(() => {
+    const queue = unsaved.current;
+    if (!queue.length) return false;
+    unsaved.current = [];
+    for (const p of queue) updateProfile(p, false);
+    return true;
+  }, [updateProfile]);
 
   // Coming back to the tab: pick up changes made on another device.
   useEffect(() => {
     if (DEMO || session?.role !== "student") return;
     const onVis = () => {
       if (document.visibilityState !== "visible") return;
+      // Unsaved changes on this phone go up first; the server copy would be older.
+      if (retryUnsaved()) return;
       void supabase()
         .auth.getUser()
         .then(({ data }) => {
           const p = (data.user?.user_metadata as Record<string, unknown> | undefined)?.profile as Profile | undefined;
-          if (p) setProfile(p);
+          // Only redraw when something actually changed on another device.
+          if (p && !unsaved.current.length) setProfile((cur) => (sameProfile(cur, p) ? cur : p));
         })
         .catch(() => {});
     };
     document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
-  }, [session?.role]);
+    window.addEventListener("online", retryUnsaved);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("online", retryUnsaved);
+    };
+  }, [session?.role, retryUnsaved]);
+
+  const retryLoad = useCallback(() => {
+    if (failedUser) void establish(failedUser);
+    else if (typeof window !== "undefined") window.location.reload();
+  }, [failedUser, establish]);
 
   /** Persist the accent choice for this user: state + local cache + server. */
   const setTheme = useCallback(
@@ -258,6 +297,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       session,
       initializing,
+      loadFailed: !!failedUser && !session,
+      retryLoad,
       loginStudent,
       loginAdmin,
       logout,
@@ -267,7 +308,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       profile,
       updateProfile,
     }),
-    [session, initializing, loginStudent, loginAdmin, logout, themeId, setTheme, profile, updateProfile],
+    [session, initializing, failedUser, retryLoad, loginStudent, loginAdmin, logout, themeId, setTheme, profile, updateProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
 
 /**
- * Hidden test area for the live whiteboard. Not linked anywhere, not indexed.
- * Remove this folder (and components/board) to take it away completely.
+ * The students' watch-only board link (/board-lab/view). Not indexed.
+ * /board-lab itself now forwards to the teacher console.
  */
 export const metadata: Metadata = {
   title: "Board · Hamza Teaches",

@@ -27,8 +27,16 @@ function isAnswered(a: Answer): boolean {
   return !!a.photoDataUrl;
 }
 
-/** Resume point for an attempt: a saved draft, or a fresh start. */
-type Boot = { startedAt: string; answers: Answer[] | null; index: number };
+/**
+ * Resume point for an attempt: a saved draft, or a fresh start. `at` is when
+ * it was worked out, so the runner never reads an older clock than that.
+ */
+type Boot = { startedAt: string; answers: Answer[] | null; index: number; at: number };
+
+/** Published, and for this student's cohort (or everyone). */
+function visibleTo(test: Test, cohortId: string | undefined) {
+  return test.status !== "draft" && (test.cohortId === null || test.cohortId === cohortId);
+}
 
 /**
  * Re-reads the paper from the database before the runner mounts.
@@ -52,30 +60,51 @@ export default function TestRunnerPage() {
   // the resolved `boot`.
   const [boot, setBoot] = useState<Boot | null>(null);
 
-  // Re-boot when the test opens while the page is up: the paper's questions
-  // only arrive once it is open, and the start time must be taken then.
   const db = useDatabase();
   const nowMs = useNow();
   const t = testById(db, id);
+  const student = studentId ? studentById(db, studentId) : null;
+  const opensMs = t ? new Date(t.opensAt).getTime() : null;
+
+  // The shared clock only ticks every 30 s. A student waiting for the test to
+  // open shouldn't sit on "Not open yet" for up to half a minute, so wake up
+  // right on the opening time.
+  const [wokeAt, setWokeAt] = useState(0);
+  const clock = Math.max(nowMs, wokeAt);
   // Once past the opening time this stays true, so closing doesn't re-boot.
-  const open = !!t && nowMs >= new Date(t.opensAt).getTime();
+  const open = opensMs != null && clock >= opensMs;
+  useEffect(() => {
+    if (opensMs == null || open) return;
+    // Long waits are checked again every hour (timers can't run for weeks).
+    const wait = Math.min(Math.max(0, opensMs - Date.now()) + 50, 3_600_000);
+    const timer = setTimeout(() => setWokeAt(Date.now()), wait);
+    return () => clearTimeout(timer);
+  }, [opensMs, open, wokeAt]);
 
   // Fresh attempt on an open test: show the "Ready?" screen first, so a stray
   // tap or a notification never starts the clock.
   const [gate, setGate] = useState(false);
   const [beginning, setBeginning] = useState(false);
+  // Bumped by "Try again" when the paper didn't load.
+  const [attempt, setAttempt] = useState(0);
 
+  // Runs again when the test opens while the page is up: the paper's questions
+  // only arrive once it is open, and the start time must be taken then.
   useEffect(() => {
     let active = true;
     void store.refreshTest(id).finally(async () => {
       if (!active) return;
-      const d = studentId ? loadDraft(studentId, id) : null;
       const fresh = testById(store.getSnapshot(), id);
-      const live = !!fresh && Date.now() >= new Date(fresh.opensAt).getTime() && Date.now() < new Date(fresh.closesAt).getTime();
+      // Not open yet: nothing to set up. The page shows "Not open yet" and
+      // this runs again the moment it opens. Booting now would build the
+      // answer sheet from a paper that has no questions yet.
+      if (fresh && Date.now() < new Date(fresh.opensAt).getTime()) return;
+      const d = studentId ? loadDraft(studentId, id) : null;
+      const live = !!fresh && Date.now() < new Date(fresh.closesAt).getTime();
       const handedIn = !!(studentId && fresh && submissionFor(store.getSnapshot(), studentId, id));
       // The server's start time wins, so clearing the browser or switching
       // device doesn't reset the clock. Looking it up never starts one.
-      const serverStart = open ? await store.getTestAttempt(id) : null;
+      const serverStart = fresh ? await store.getTestAttempt(id) : null;
       if (!active) return;
       if (live && !handedIn && !d && !serverStart) {
         setGate(true);
@@ -85,10 +114,11 @@ export default function TestRunnerPage() {
         startedAt: serverStart ?? d?.startedAt ?? new Date().toISOString(),
         answers: d?.answers ?? null,
         index: d?.currentIndex ?? 0,
+        at: Date.now(),
       });
     });
     return () => { active = false; };
-  }, [id, studentId, store, open]);
+  }, [id, studentId, store, open, attempt]);
 
   async function begin() {
     setBeginning(true);
@@ -105,16 +135,54 @@ export default function TestRunnerPage() {
       }
     }
     setGate(false);
-    setBoot({ startedAt: serverStart ?? new Date().toISOString(), answers: null, index: 0 });
+    setBoot({ startedAt: serverStart ?? new Date().toISOString(), answers: null, index: 0, at: Date.now() });
   }
 
-  if (gate && !boot && t) return <ReadyScreen test={t} nowMs={nowMs} busy={beginning} onBegin={() => void begin()} />;
+  function retryPaper() {
+    setBoot(null);
+    setGate(false);
+    setAttempt((a) => a + 1);
+  }
+
+  const visible = !!t && visibleTo(t, student?.cohortId);
+  // Never mount the runner before the test opens.
+  if (t && !open) {
+    if (!student || !visible) return <RunnerNotice title="Test unavailable" message="This test isn't open to you. It may have been moved or removed. Check Tests for what's open." />;
+    return <RunnerNotice title="Not open yet" message={`It opens ${formatWhen(t.opensAt)}. Come back then, or keep this page open.`} />;
+  }
+  if (!boot && !gate) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center text-ink-3">Loading test…</div>
+    );
+  }
+
+  // The paper is needed (to sit it, or to hand in answers saved on this phone)
+  // but its questions didn't arrive, usually a weak signal right at opening
+  // time. Never start the clock or build an empty answer sheet from it.
+  const handedIn = !!(student && t && submissionFor(db, student.id, t.id));
+  const closed = !!t && clock >= new Date(t.closesAt).getTime();
+  if (t && visible && !handedIn && t.questions.length === 0 && (!closed || !!boot?.answers)) {
+    return (
+      <RunnerNotice
+        icon="warn"
+        title="Couldn't load the paper."
+        message={gate && !boot ? "Check your internet, then try again. Your time hasn't started." : "Check your internet, then try again."}
+        action={
+          <Button size="lg" className="mt-5 min-w-48" onClick={retryPaper}>
+            <Icon.Refresh className="h-4 w-4" /> Try again
+          </Button>
+        }
+      />
+    );
+  }
+
+  if (gate && !boot && t) return <ReadyScreen test={t} nowMs={clock} busy={beginning} onBegin={() => void begin()} />;
   if (!boot) {
     return (
       <div className="flex min-h-dvh items-center justify-center text-ink-3">Loading test…</div>
     );
   }
-  return <TestRunner key={`${open}-${boot.startedAt}`} id={id} boot={boot} />;
+  return <TestRunner key={boot.startedAt} id={id} boot={boot} />;
 }
 
 /**
@@ -157,12 +225,12 @@ function ReadyScreen({ test, nowMs, busy, onBegin }: { test: Test; nowMs: number
         </li>
         <li className="flex gap-2.5">
           <Icon.Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-          <span>Your answers save on this phone as you go, even if the internet drops.</span>
+          <span>Your typed answers and choices are kept on this phone as you go, even if the internet drops.</span>
         </li>
         {test.questions.some((q) => q.type === "photo") && (
           <li className="flex gap-2.5">
             <Icon.Camera className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-            <span>Some answers are photos of your working. Keep paper, a pen and your camera ready.</span>
+            <span>Some answers are photos of your working. Keep paper, a pen and your camera ready. Photos need internet to upload.</span>
           </li>
         )}
       </ul>
@@ -170,7 +238,7 @@ function ReadyScreen({ test, nowMs, busy, onBegin }: { test: Test; nowMs: number
       <Button size="lg" fullWidth loading={busy} disabled={minutes <= 0} onClick={onBegin} className="mt-8">
         Begin test
       </Button>
-      <Link href="/dashboard" className="mt-4 text-center text-sm font-semibold text-ink-3 hover:text-ink">
+      <Link href="/dashboard" className="mt-4 flex min-h-11 items-center justify-center text-sm font-semibold text-ink-3 hover:text-ink">
         Not now, back to Home
       </Link>
     </main>
@@ -183,12 +251,12 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   const db = useDatabase();
   const store = useStore();
   const { toast } = useToast();
-  const nowMs = useNow();
+  // Never an older reading than the moment this attempt was set up.
+  const nowMs = Math.max(useNow(), boot.at);
 
   const student = session?.studentId ? studentById(db, session.studentId) : null;
   const test = testById(db, id);
-  const visible =
-    test && test.status !== "draft" && (test.cohortId === null || test.cohortId === student?.cohortId);
+  const visible = test && visibleTo(test, student?.cohortId);
   const existing = student && test ? submissionFor(db, student.id, test.id) : null;
   const window = test ? testWindow(test.opensAt, test.closesAt, nowMs) : "closed";
 
@@ -209,8 +277,10 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   const submittedRef = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(false);
-  const lastAuto = useRef(false);
+  // Whether the hand-in that failed was the automatic one at time-up.
+  const [lastAuto, setLastAuto] = useState(false);
   const prevState = useRef<string>("normal");
+  const retryRef = useRef<HTMLButtonElement>(null);
 
   // Log the attempt once, when the runner actually opens for a live sitting.
   const startLogged = useRef(false);
@@ -281,7 +351,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
         setSubmitting(false);
         setConfirmOpen(false);
         setSubmitError(true);
-        lastAuto.current = auto;
+        setLastAuto(auto);
         return;
       }
       clearDraft(student.id, test.id);
@@ -331,8 +401,13 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   useEffect(() => {
     const cameBack = online && !wasOnline.current;
     wasOnline.current = online;
-    if (cameBack && submitError && !submitting) void doSubmit(lastAuto.current);
-  }, [online, submitError, submitting, doSubmit]);
+    if (cameBack && submitError && !submitting) void doSubmit(lastAuto);
+  }, [online, submitError, submitting, doSubmit, lastAuto]);
+
+  // The "Not handed in yet" box takes focus, so a screen reader lands on it.
+  useEffect(() => {
+    if (submitError) retryRef.current?.focus();
+  }, [submitError]);
 
   useDraftAutosave({
     studentId: student?.id ?? "",
@@ -363,15 +438,48 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   if (existing) return <RunnerNotice title="Already submitted" message="You've already done this one." />;
   if (window === "future") return <RunnerNotice title="Not open yet" message={`It opens ${formatWhen(test.opensAt)}. Come back then.`} />;
   // Never while photos are still being handed in after time ran out.
-  if (window === "closed" && !submitting && !submitError && finishingAt == null && photosBusy === 0) return <RunnerNotice title="Test closed" message="You missed the window." />;
+  if (window === "closed" && finishingAt == null && photosBusy === 0) {
+    // Answers saved on this phone that never reached the server (a hand-in
+    // that failed on a weak signal at the deadline, then a refresh): offer to
+    // send them, rather than calling it missed.
+    if (submitting || submitError || boot.answers) {
+      return (
+        <RunnerNotice
+          icon="warn"
+          title={submitting ? "Handing in…" : "Not handed in yet"}
+          message={
+            submitting
+              ? "Keep this page open until you see Done."
+              : "Your answers are saved on this phone but haven't reached Hamza. Hand them in now."
+          }
+          action={
+            <>
+              <Button size="lg" className="mt-5 min-w-48" loading={submitting} onClick={() => void doSubmit(lastAuto)}>
+                Hand in now <Icon.Check className="h-4 w-4" />
+              </Button>
+              {submitError && !submitting && (
+                <p role="alert" className="mt-3 max-w-xs text-sm text-error">
+                  That didn&apos;t go through. Check your internet, then try again.
+                </p>
+              )}
+            </>
+          }
+        />
+      );
+    }
+    return <RunnerNotice title="Test closed" message="You missed the window." />;
+  }
 
-  const q = test.questions[index];
-  const answer = answers[index];
+  // A saved place past the end (a question was removed mid-attempt) lands on the last one.
+  const at = Math.min(index, test.questions.length - 1);
+  const q = test.questions[at];
+  const answer = answers[at];
   const answeredCount = answers.filter(isAnswered).length;
-  const isLast = index === test.questions.length - 1;
+  const isLast = at === test.questions.length - 1;
+  const uploadMins = Math.max(1, Math.ceil(((uploadEndMs ?? nowMs) - nowMs) / 60_000));
 
   function update(next: Answer) {
-    setAnswers((prev) => prev.map((a, i) => (i === index ? next : a)));
+    setAnswers((prev) => prev.map((a, i) => (i === at ? next : a)));
   }
 
   function updateAt(at: number, next: Answer) {
@@ -402,11 +510,11 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
                     type="button"
                     onClick={() => setIndex(i)}
                     aria-label={`Question ${i + 1}${done ? ", answered" : ""}`}
-                    aria-current={i === index ? "step" : undefined}
+                    aria-current={i === at ? "step" : undefined}
                     className={cn(
                       "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums transition-all",
                       done ? "bg-brand text-on-brand" : "border border-border-strong text-ink-3 hover:text-ink",
-                      i === index && "ring-2 ring-brand ring-offset-2 ring-offset-paper",
+                      i === at && "ring-2 ring-brand ring-offset-2 ring-offset-paper",
                     )}
                   >
                     {i + 1}
@@ -439,7 +547,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-brand">Time&apos;s up</p>
           <h2 id="pens-down" className="mt-3 text-4xl font-extrabold tracking-tight text-ink">Pens down.</h2>
           <p className="mt-3 max-w-xs text-[15px] text-ink-2">
-            You have {Math.max(1, Math.ceil(((uploadEndMs ?? nowMs) - nowMs) / 60_000))} minutes to photograph and upload your pages.
+            You have {uploadMins} {uploadMins === 1 ? "minute" : "minutes"} to photograph and upload your pages.
           </p>
           <Button size="lg" className="mt-8 min-w-60" onClick={() => { setPensDown(false); globalThis.scrollTo({ top: 0 }); }}>
             <Icon.Camera className="h-5 w-5" /> Take photos now
@@ -470,9 +578,11 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
             )}
           </div>
         ) : (
-          <div key={q.id} className="animate-fade-up">
-            <QuestionView question={q} answer={answer} onChange={update} />
-          </div>
+          q && (
+            <div key={q.id} className="animate-fade-up">
+              <QuestionView question={q} answer={answer} onChange={update} />
+            </div>
+          )
         )}
       </main>
 
@@ -486,8 +596,8 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
           <>
           <Button
             variant="secondary"
-            disabled={index === 0}
-            onClick={() => setIndex((i) => Math.max(0, i - 1))}
+            disabled={at <= 0}
+            onClick={() => setIndex(Math.max(0, at - 1))}
           >
             <Icon.ChevronLeft className="h-4 w-4" /> Back
           </Button>
@@ -496,7 +606,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
               {photosBusy > 0 ? "Uploading…" : <>I&apos;m done <Icon.Check className="h-4 w-4" /></>}
             </Button>
           ) : (
-            <Button onClick={() => setIndex((i) => Math.min(test.questions.length - 1, i + 1))}>
+            <Button onClick={() => setIndex(Math.min(test.questions.length - 1, at + 1))}>
               Save &amp; Next <Icon.ChevronRight className="h-4 w-4" />
             </Button>
           )}
@@ -526,34 +636,61 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
         </p>
       </Modal>
 
-      <Modal
-        open={submitError}
-        onClose={() => setSubmitError(false)}
-        title="Not handed in yet"
-        description="Your answers are still saved on this device."
-        footer={
-          <Button onClick={() => doSubmit(lastAuto.current)} disabled={submitting}>
-            {submitting ? "Trying…" : "Try again"}
+      {/* A hand-in that didn't reach the server. Not a dismissable dialog: a
+          stray tap outside it must never leave the answers unsent. Only a
+          hand-in the student chose (not the one at time-up) can go back. */}
+      {submitError && (
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="not-handed-in"
+          aria-describedby="not-handed-in-why"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-paper/95 px-6 text-center backdrop-blur"
+        >
+          <Icon.Warn className="h-8 w-8 text-warning" />
+          <h2 id="not-handed-in" className="mt-3 text-3xl font-extrabold tracking-tight text-ink">Not handed in yet</h2>
+          <p id="not-handed-in-why" className="mt-3 max-w-xs text-[15px] text-ink-2">
+            Your answers are still saved on this phone. Check your internet, then tap Try again. Keep this page open
+            until you see Done.
+          </p>
+          <Button ref={retryRef} size="lg" className="mt-8 min-w-60" loading={submitting} onClick={() => void doSubmit(lastAuto)}>
+            Try again
           </Button>
-        }
-      >
-        <p className="text-sm text-ink-2">
-          The paper didn&apos;t reach the server. Check your internet, then tap Try again. Don&apos;t close this
-          page until it says submitted.
-        </p>
-      </Modal>
+          {!lastAuto && !submitting && (
+            <button
+              type="button"
+              onClick={() => setSubmitError(false)}
+              className="mt-3 min-h-11 px-4 text-sm font-semibold text-ink-3 hover:text-ink"
+            >
+              Back to my answers
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-function RunnerNotice({ title, message }: { title: string; message: string }) {
+function RunnerNotice({
+  title,
+  message,
+  icon = "lock",
+  action,
+}: {
+  title: string;
+  message: string;
+  icon?: "lock" | "warn";
+  action?: React.ReactNode;
+}) {
+  const Glyph = icon === "warn" ? Icon.Warn : Icon.Lock;
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center px-6 text-center">
-      <Icon.Lock className="h-8 w-8 text-ink-3" />
+      <Glyph className={cn("h-8 w-8", icon === "warn" ? "text-warning" : "text-ink-3")} />
       <h1 className="mt-3 text-xl font-bold text-ink">{title}</h1>
       <p className="mt-1 text-sm text-ink-2">{message}</p>
+      {action}
       <Link href="/dashboard" className={buttonClasses({ variant: "secondary", className: "mt-5" })}>
-        Back to home
+        Back to Home
       </Link>
     </div>
   );

@@ -5,7 +5,7 @@ import { useMemo, useRef, useState } from "react";
 import type { Assignment } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
-import { studentById } from "@/lib/data/selectors";
+import { archivedCohortIds, studentById } from "@/lib/data/selectors";
 import { uploadAsImages } from "@/lib/cloudinary";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -289,12 +289,61 @@ function HandIns({ assignmentId }: { assignmentId: string }) {
   const db = useDatabase();
   const store = useStore();
   const { toast } = useToast();
+  const nowMs = useNow();
   const rows = db.assignmentSubmissions.filter((s) => s.assignmentId === assignmentId);
+  const a = db.assignments.find((x) => x.id === assignmentId);
+  // Who it was set for (its cohort, and level/subject when set) and hasn't handed in.
+  const off = archivedCohortIds(db);
+  const handed = new Set(rows.map((r) => r.studentId));
+  const owed = a
+    ? db.students.filter(
+        (s) =>
+          !off.has(s.cohortId) &&
+          a.cohortId === s.cohortId &&
+          (!a.classId || s.classIds.includes(a.classId)) &&
+          (!a.subjectId || s.subjectIds.includes(a.subjectId)) &&
+          !handed.has(s.id),
+      )
+    : [];
+  const open = a ? +new Date(a.dueAt) > nowMs : false;
+  const nameOf = (u: string) => u.charAt(0).toUpperCase() + u.slice(1);
+  const due = a ? new Date(a.dueAt).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
 
-  if (!rows.length) return <p className="text-sm italic text-ink-3">Nobody has handed in yet.</p>;
+  const missing = owed.length > 0 && (
+    <details className="rounded-md border border-border bg-surface-2/40 px-4 py-3">
+      <summary className="cursor-pointer select-none text-sm font-semibold text-ink">Not handed in yet ({owed.length})</summary>
+      <ul className="mt-2 divide-y divide-border">
+        {owed.map((s) => (
+          <li key={s.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+            <span className="text-ink-2">{nameOf(s.username)}</span>
+            {/* Before the deadline only: no nudging towards late work. */}
+            {open && s.phone && (
+              <a
+                href={`https://wa.me/${s.phone.replace(/\D/g, "")}?text=${encodeURIComponent(`Hi ${nameOf(s.username)}, a reminder that "${a!.title}" is due ${due}.`)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs font-semibold text-brand hover:underline"
+              >
+                Remind on WhatsApp
+              </a>
+            )}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+
+  if (!rows.length)
+    return (
+      <div className="space-y-3">
+        <p className="text-sm italic text-ink-3">Nobody has handed in yet.</p>
+        {missing}
+      </div>
+    );
 
   return (
     <div className="space-y-5">
+      {missing}
       {rows.map((s) => {
         const student = studentById(db, s.studentId);
         return (

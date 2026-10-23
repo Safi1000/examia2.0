@@ -77,6 +77,29 @@ type StoreLike = {
 };
 
 /**
+ * Who a retest is for: the level and subject of the tests the weak topic came
+ * from (the most common), so "All cohorts" never sends it to every level.
+ */
+export function retestTarget(db: Database, subject: string, topic: string): { classId: string | null; subjectId: string | null } {
+  const from = db.tests.filter((t) => norm(t.subject) === norm(subject) && t.questions.some((q) => norm(q.topic) === norm(topic)));
+  const most = (ids: Array<string | null>) => {
+    const n = new Map<string, number>();
+    for (const id of ids) if (id) n.set(id, (n.get(id) ?? 0) + 1);
+    return [...n.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  };
+  return {
+    classId: most(from.map((t) => t.classId)),
+    subjectId: most(from.map((t) => t.subjectId)) ?? db.subjects.find((x) => norm(x.name) === norm(subject))?.id ?? null,
+  };
+}
+
+/** How many current students a test with this target reaches. */
+export function reachOf(db: Database, target: Pick<Test, "cohortId" | "classId" | "subjectId">): number {
+  const off = archivedCohortIds(db);
+  return db.students.filter((s) => !off.has(s.cohortId) && testCoversStudent(target as Test, s)).length;
+}
+
+/**
  * Creates the retest as a DRAFT (students can't see it) so Hamza can check it
  * and press publish. Returns the new test id, or null if there was nothing to use.
  */
@@ -88,11 +111,12 @@ export function createRetest(
   const sources = retestQuestions(db, input.subject, input.topic);
   if (!sources.length) return null;
   const now = Date.now();
+  const target = retestTarget(db, input.subject, input.topic);
   const id = store.addTest({
     title: `Retest: ${input.topic}`,
     subject: input.subject,
-    subjectId: null,
-    classId: null,
+    subjectId: target.subjectId,
+    classId: target.classId,
     durationMinutes: retestMinutes(sources),
     uploadMinutes: 0,
     cohortId: input.cohortId,

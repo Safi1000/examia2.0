@@ -64,7 +64,7 @@ export default function ProgressPage() {
     const t = key ? profile.targets![key] : undefined;
     return typeof t === "string" && t in GRADE_FLOOR ? t : undefined;
   };
-  const noteFor = (topic: string) => db.notes.some((n) => n.title.toLowerCase().includes(topic.toLowerCase()));
+  const noteFor = (topic: string) => db.notes.find((n) => n.title.toLowerCase().includes(topic.toLowerCase()));
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-4 py-8 sm:px-6">
@@ -151,8 +151,12 @@ export default function ProgressPage() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => setPractise({ subject: m.subject, topic: m.name, noteHref: noteFor(m.name) ? "/notes" : undefined })}
-                          className="h-9 shrink-0 rounded-full bg-brand px-3.5 text-xs font-semibold text-on-brand"
+                          onClick={() => {
+                            // "Open the notes for it" opens that note straight away.
+                            const note = noteFor(m.name);
+                            setPractise({ subject: m.subject, topic: m.name, noteHref: note ? `/notes?open=${note.id}` : undefined });
+                          }}
+                          className="h-9 shrink-0 rounded-full bg-brand px-3.5 text-xs font-semibold text-on-brand active:scale-[0.98]"
                         >
                           Practise
                         </button>

@@ -78,18 +78,20 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
     process.env.VAPID_PRIVATE_KEY!,
   );
   const ids = [...new Set(items.map((i) => i.studentId))];
+  const today = pkDayStart();
+  // Only today's log is read (for the daily cap): the whole log would pass the
+  // 1,000-row read limit within weeks, and repeats are stopped by the insert below.
   const [{ data: subs }, { data: prefs }, { data: log }] = await Promise.all([
     sb.from("push_subscriptions").select("*").in("student_id", ids),
     sb.from("notify_prefs").select("*").in("student_id", ids),
-    sb.from("notify_log").select("student_id,kind,ref,sent_at").in("student_id", ids),
+    sb.from("notify_log").select("student_id,kind,ref,sent_at").in("student_id", ids).gte("sent_at", today),
   ]);
   const subsBy = new Map<string, Sub[]>();
   for (const s of (subs ?? []) as Sub[]) subsBy.set(s.student_id, [...(subsBy.get(s.student_id) ?? []), s]);
   const prefBy = new Map((prefs ?? []).map((p) => [p.student_id as string, p as Record<Kind, boolean>]));
   const sent = new Set((log ?? []).map((l) => `${l.student_id}|${l.kind}|${l.ref}`));
-  const today = pkDayStart();
   const todayCount = new Map<string, number>();
-  for (const l of log ?? []) if ((l.sent_at as string) >= today) todayCount.set(l.student_id as string, (todayCount.get(l.student_id as string) ?? 0) + 1);
+  for (const l of log ?? []) todayCount.set(l.student_id as string, (todayCount.get(l.student_id as string) ?? 0) + 1);
 
   let count = 0;
   for (const it of items.sort((a, b) => a.priority - b.priority)) {
@@ -100,12 +102,14 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
     if (!fresh.length) continue;
     if ((todayCount.get(it.studentId) ?? 0) >= DAILY_CAP) continue;
 
-    // Remember first, so a retry can never double-send.
-    const { error } = await sb
+    // Remember first, so a retry can never double-send. Only rows this insert
+    // actually added come back: if every one was already logged, it was sent before.
+    const { data: added, error } = await sb
       .from("notify_log")
-      .upsert(fresh.map((ref) => ({ student_id: it.studentId, kind: it.kind, ref })), { onConflict: "student_id,kind,ref", ignoreDuplicates: true });
-    if (error) continue;
+      .upsert(fresh.map((ref) => ({ student_id: it.studentId, kind: it.kind, ref })), { onConflict: "student_id,kind,ref", ignoreDuplicates: true })
+      .select("ref");
     fresh.forEach((r) => sent.add(`${it.studentId}|${it.kind}|${r}`));
+    if (error || !added?.length) continue;
     todayCount.set(it.studentId, (todayCount.get(it.studentId) ?? 0) + 1);
 
     const payload = JSON.stringify({ title: it.title, body: it.body, url: it.url, tag: it.tag });
@@ -121,6 +125,18 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
     count++;
   }
   return count;
+}
+
+/**
+ * Hamza cancelled, moved or added a class: tell just the students in it.
+ * Quiet hours and the daily cap still apply (the portal shows the change too).
+ */
+export async function notifyClassChange(sb: SupabaseClient, studentIds: string[], ref: string, title: string, body: string): Promise<number> {
+  if (!pushReady() || isQuietHours() || !studentIds.length) return 0;
+  return deliver(
+    sb,
+    studentIds.map((studentId) => ({ studentId, kind: "classes" as const, refs: [ref], title, body, url: "/classes", tag: `change-${ref}`, priority: -2 })),
+  );
 }
 
 /** Students we may notify: have a device, and their cohort is switched on. */
@@ -190,11 +206,15 @@ export async function runReminders(): Promise<{ sent: number; quiet?: boolean }>
   const now = Date.now();
   const iso = (ms: number) => new Date(ms).toISOString();
 
-  const [{ data: opening }, { data: due }, { data: handed }, { data: handedA }] = await Promise.all([
+  const [{ data: opening }, { data: due }] = await Promise.all([
     sb.from("tests").select("id,title,opens_at,closes_at,cohort_id,class_id,subject_id").neq("status", "draft").gt("opens_at", iso(now)).lte("opens_at", iso(now + 35 * 6e4)),
     sb.from("assignments").select("id,title,due_at,cohort_id,class_id,subject_id").gt("due_at", iso(now)).lte("due_at", iso(now + 864e5)),
-    sb.from("submissions").select("test_id,student_id"),
-    sb.from("assignment_submissions").select("assignment_id,student_id"),
+  ]);
+  // Who already handed in, for just these tests and assignments (never the whole table).
+  const none = Promise.resolve({ data: [] as Array<Record<string, string>> });
+  const [{ data: handed }, { data: handedA }] = await Promise.all([
+    opening?.length ? sb.from("submissions").select("test_id,student_id").in("test_id", opening.map((t) => t.id)) : none,
+    due?.length ? sb.from("assignment_submissions").select("assignment_id,student_id").in("assignment_id", due.map((a) => a.id)) : none,
   ]);
   const done = new Set((handed ?? []).map((h) => `${h.student_id}|${h.test_id}`));
   const doneA = new Set((handedA ?? []).map((h) => `${h.student_id}|${h.assignment_id}`));

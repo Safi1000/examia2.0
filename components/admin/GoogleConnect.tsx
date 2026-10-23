@@ -10,7 +10,7 @@ import { Button } from "@/components/ui";
  * Admin → Classes: connect Google once, then Meet links are made every
  * morning and recordings collected after class (lib/class-automation.ts).
  */
-type Status = { ready: boolean; connected: boolean; email?: string | null };
+type Status = { ready: boolean; connected: boolean; broken?: boolean; email?: string | null };
 type TestRun = { eventId: string; meetUrl: string | null; startedAt: string; recordingUrl?: string | null };
 const TEST_KEY = "ht_google_test";
 
@@ -93,6 +93,13 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
     <div className="mt-10 border-t border-border pt-5 text-sm">
       {!status.ready ? (
         <p className="text-ink-3">Automatic Meet links switch on once the Google keys are added.</p>
+      ) : status.broken ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/40 bg-warning-soft px-4 py-3">
+          <p className="text-ink">Google has disconnected (a password change or removed access). Reconnect it so classes keep getting Meet links.</p>
+          <Button size="sm" loading={busy === "connect"} onClick={() => void act("connect")}>
+            Reconnect Google
+          </Button>
+        </div>
       ) : !status.connected ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-ink-2">Connect Google once and every class gets its own Meet link at 1 pm.</p>

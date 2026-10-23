@@ -95,8 +95,9 @@ export default function DashboardPage() {
 
   const todo = [
     ...tests.open.map((t) => ({ key: t.id, href: `/test/${t.id}`, title: t.title, meta: `Test · closes ${formatRelative(t.closesAt, nowMs)}`, cta: "Start" })),
-    ...overdue.map((a) => ({ key: a.id, href: "/assignments", title: a.title, meta: `Assignment · overdue since ${formatWhen(a.dueAt)}`, cta: "Hand in" })),
-    ...dueSoon.map((a) => ({ key: a.id, href: "/assignments", title: a.title, meta: `Assignment · due ${formatWhen(a.dueAt)}`, cta: "Hand in" })),
+    // Straight to that assignment on Tasks, not the top of the list.
+    ...overdue.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Assignment · overdue since ${formatWhen(a.dueAt)}`, cta: "Hand in" })),
+    ...dueSoon.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Assignment · due ${formatWhen(a.dueAt)}`, cta: "Hand in" })),
   ];
 
   return (
@@ -124,7 +125,7 @@ export default function DashboardPage() {
           <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
             {todo.map((x) => (
               <li key={x.key}>
-                <Link href={x.href} className="flex items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-surface-2">
+                <Link href={x.href} className="flex items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-surface-2 active:bg-surface-2">
                   <span className="min-w-0">
                     <span className="block truncate font-semibold text-ink">{x.title}</span>
                     <span className="block text-sm text-ink-3">{x.meta}</span>

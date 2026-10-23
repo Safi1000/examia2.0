@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useDatabase } from "@/lib/data/store";
 import { useNow } from "@/hooks/useNow";
-import { studentById } from "@/lib/data/selectors";
+import { studentById, testById } from "@/lib/data/selectors";
 import { buildStudyPlan, EXAMS, type PlanWeek } from "@/lib/study-plan";
 import { TopicChip } from "@/components/student/TopicChip";
 import { Card, EmptyState, Icon } from "@/components/ui";
@@ -100,15 +100,21 @@ export default function PlanPage() {
 
         <p className="mt-5 text-sm font-semibold text-ink-2">To do</p>
         <ul className="mt-2 space-y-2.5">
-          {current.tests.map((t) => (
-            <li key={t.id} className="flex items-start gap-3 text-[15px] text-ink">
-              <Icon.Doc className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-              <Link href={`/test/${t.id}`} className="hover:text-brand">Test: {t.title}</Link>
-            </li>
-          ))}
+          {current.tests.map((t) => {
+            // Not open yet: Tests shows when it opens, rather than a waiting page.
+            const opensAt = testById(db, t.id)?.opensAt;
+            const open = !opensAt || nowMs >= +new Date(opensAt);
+            return (
+              <li key={t.id} className="flex items-start gap-3 text-[15px] text-ink">
+                <Icon.Doc className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                <Link href={open ? `/test/${t.id}` : "/tests"} className="hover:text-brand">Test: {t.title}</Link>
+              </li>
+            );
+          })}
           {PHASE[current.phase].tasks.map((task) => (
             <li key={task} className="flex items-start gap-3 text-[15px] text-ink">
-              <Icon.Check className="mt-0.5 h-4 w-4 shrink-0 text-ink-3" />
+              {/* An empty circle: a tick here made every task look done already. */}
+              <span aria-hidden className="mt-[3px] h-4 w-4 shrink-0 rounded-full border-[1.5px] border-ink-3" />
               {task}
             </li>
           ))}

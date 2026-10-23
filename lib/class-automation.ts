@@ -184,6 +184,31 @@ export async function syncCalendar(sb: SupabaseClient, schedule: Schedule, c: Da
   }
 }
 
+/**
+ * The weekly timetable changed: move or remove today's Calendar events that
+ * were already made, so the 10-minute alerts follow the new times.
+ */
+export async function syncCalendarDay(sb: SupabaseClient, schedule: Schedule, date: string) {
+  const token = await accessToken(sb);
+  if (!token) return;
+  setSchedule(schedule);
+  const db = await catalogue(sb);
+  const { data: rows } = await sb.from("class_links").select("class_id,subject_id,event_id,auto").eq("on_date", date).not("event_id", "is", null);
+  for (const row of rows ?? []) {
+    try {
+      const slot = allSlotsOn(db, date).find((s) => s.classId === row.class_id && s.subjectId === row.subject_id);
+      if (!slot || slot.cancelled) {
+        await deleteEvent(token, row.event_id as string);
+        if (row.auto) await sb.from("class_links").update({ meet_url: null, event_id: null }).eq("on_date", date).eq("class_id", row.class_id).eq("subject_id", row.subject_id);
+      } else {
+        await moveEvent(token, row.event_id as string, new Date(slot.startMs).toISOString(), new Date(slot.endMs).toISOString());
+      }
+    } catch (e) {
+      console.error("[classes] weekly sync", e);
+    }
+  }
+}
+
 // ---- Test run (Admin → Classes → "Make a test class") ----------------------
 // Lets Hamza try links and recordings before term, without touching students.
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Student } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { useAuth } from "@/lib/auth-context";
@@ -10,7 +10,9 @@ import { displayName } from "@/lib/display-name";
 import { cn } from "@/lib/cn";
 import { NavIcon } from "@/components/nav/NavIcons";
 import { NotifyStep } from "@/components/student/NotifyStep";
-import { addDays, pkDate, slotsForStudent, span } from "@/lib/timetable";
+import { addDays, getSchedule, pkDate, slotsForStudent, span } from "@/lib/timetable";
+import { useNow } from "@/hooks/useNow";
+import { useBackToClose } from "@/components/student/useBackToClose";
 
 /** The subjects a student takes: their own, else their cohort's, else all. */
 export function studentSubjects(db: Database, student: Student): string[] {
@@ -25,27 +27,57 @@ export function studentSubjects(db: Database, student: Student): string[] {
 /**
  * First sign-in: three quick choices that make the portal theirs (avatar,
  * target grades, weekly study goal). Every step can be skipped; all of it can
- * be changed later in Settings.
+ * be changed later in Settings. Nothing is chosen for them: only what they
+ * actually pick is saved.
  */
 export function Welcome({ db, student }: { db: Database; student: Student }) {
   const { profile, updateProfile } = useAuth();
+  const nowMs = useNow();
   const subjects = studentSubjects(db, student);
   const [step, setStep] = useState(0);
-  const [avatar, setAvatar] = useState(profile.avatar ?? AVATARS[0].id);
-  const [targets, setTargets] = useState<Record<string, Target>>(() => profile.targets ?? Object.fromEntries(subjects.map((s) => [s, "A" as Target])));
-  const [goal, setGoal] = useState<number>(profile.weeklyGoal ?? 5);
-  const first = displayName(student.username).split(" ")[0];
+  const [avatar, setAvatar] = useState<string | undefined>(profile.avatar);
+  const [targets, setTargets] = useState<Record<string, Target>>(() => profile.targets ?? {});
+  const [goal, setGoal] = useState<number | undefined>(profile.weeklyGoal);
+  const name = displayName(student.username);
+  const first = name.split(" ")[0];
+  const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+  const heading = useRef<HTMLHeadingElement>(null);
 
-  const finish = () => updateProfile({ avatar, targets, weeklyGoal: goal, onboarded: true });
-  // For the summary: their classes on the next class day.
+  const finish = () =>
+    updateProfile({
+      ...(avatar ? { avatar } : {}),
+      ...(Object.keys(targets).length ? { targets } : {}),
+      ...(goal ? { weeklyGoal: goal } : {}),
+      onboarded: true,
+    });
+
+  // The phone's Back button steps back through the welcome, and never skips
+  // it by leaving the page underneath.
+  useBackToClose(() => {
+    if (step > 0) setStep(step - 1);
+    return true;
+  });
+  // Each step's heading takes focus, so screen readers start at the top of it.
+  useEffect(() => {
+    heading.current?.focus();
+  }, [step]);
+
+  // For the summary: their classes on the next class day (still to come).
+  const today = pkDate(nowMs);
   const nextDay = (() => {
-    let d = pkDate(Date.now());
+    let d = today;
     for (let i = 0; i < 21; i++, d = addDays(d, 1)) {
       const sl = slotsForStudent(db, student, d);
-      if (sl.length) return sl;
+      if (sl.some((s) => s.endMs > nowMs)) return { date: d, slots: sl };
     }
-    return [];
+    return null;
   })();
+  const nextDayLabel = !nextDay
+    ? ""
+    : nextDay.date === today
+      ? "Today"
+      : `${today < getSchedule().termStarts ? "From " : ""}${new Date(`${nextDay.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}`;
+  const picked = subjects.filter((sub) => targets[sub]);
   const steps = [
     {
       title: `Welcome, ${first}.`,
@@ -155,21 +187,24 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
       body: (
         <div className="space-y-3">
           <div className="flex items-center gap-4 rounded-2xl border border-border bg-surface p-4">
-            <Avatar id={avatar} className="h-14 w-14" />
+            <Avatar id={avatar} initials={initials} className="h-14 w-14 text-lg" />
             <div>
-              <p className="font-semibold text-ink">{displayName(student.username)}</p>
-              <p className="text-sm text-ink-2">{goal} hours of study a week</p>
+              <p className="font-semibold text-ink">{name}</p>
+              {goal ? <p className="text-sm text-ink-2">{goal} hours of study a week</p> : null}
             </div>
           </div>
-          <div className="rounded-2xl border border-border bg-surface p-4 text-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-3">Aiming for</p>
-            <p className="mt-1.5 text-ink">{subjects.map((sub) => `${targets[sub] ?? "A"} in ${sub}`).join(" · ")}</p>
-          </div>
-          {nextDay.length > 0 && (
+          {picked.length > 0 && (
+            <div className="rounded-2xl border border-border bg-surface p-4 text-sm">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-3">Aiming for</p>
+              <p className="mt-1.5 text-ink">{picked.map((sub) => `${targets[sub]} in ${sub}`).join(" · ")}</p>
+            </div>
+          )}
+          {nextDay && (
             <div className="rounded-2xl border border-border bg-surface p-4 text-sm">
               <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-3">Your classes</p>
               <p className="mt-1.5 text-ink">
-                {nextDay.map((sl) => sl.subject).join(", ")}, {span(nextDay[0].start, nextDay[nextDay.length - 1].end)}
+                <span className="font-semibold">{nextDayLabel}:</span> {nextDay.slots.map((sl) => sl.subject).join(", ")},{" "}
+                {span(nextDay.slots[0].start, nextDay.slots[nextDay.slots.length - 1].end)}
               </p>
             </div>
           )}
@@ -189,13 +224,13 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
               <span key={i} className={cn("h-1.5 rounded-full transition-all", i === step ? "w-8 bg-brand" : i < step ? "w-4 bg-brand/50" : "w-4 bg-surface-2")} />
             ))}
           </div>
-          <button type="button" onClick={() => (step > 1 ? finish() : updateProfile({ onboarded: true }))} className="h-10 px-2 text-sm font-semibold text-ink-3 hover:text-ink">
+          <button type="button" onClick={finish} className="h-10 px-2 text-sm font-semibold text-ink-3 hover:text-ink">
             Skip
           </button>
         </div>
 
         <div key={step} className="animate-fade-up mt-12 flex-1">
-          <h1 id="welcome-title" className="text-[1.9rem] font-extrabold leading-tight tracking-[-0.02em] text-ink">
+          <h1 id="welcome-title" ref={heading} tabIndex={-1} className="text-[1.9rem] font-extrabold leading-tight tracking-[-0.02em] text-ink outline-none">
             {s.title}
           </h1>
           <p className="mt-2 text-base text-ink-2">{s.sub}</p>
@@ -211,7 +246,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
           <button
             type="button"
             onClick={() => (last ? finish() : setStep(step + 1))}
-            className="h-12 flex-1 rounded-full bg-brand text-base font-semibold text-on-brand transition hover:brightness-110"
+            className="h-12 flex-1 rounded-full bg-brand text-base font-semibold text-on-brand transition hover:brightness-110 active:scale-[0.98]"
           >
             {last ? "Open my portal" : step === 0 ? "Let's set it up" : "Next"}
           </button>

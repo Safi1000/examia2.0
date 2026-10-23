@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { Student } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useNow } from "@/hooks/useNow";
@@ -52,7 +52,10 @@ export default function ClassesPage() {
   const { links, joins, ready, save, reload } = useClassLinks(date, date, true);
 
   const [view, setView] = useState<"day" | "week">("day");
+  const weekDirty = useRef(false);
   const [openRow, setOpenRow] = useState<string | null>(null);
+  // Cancel / move / extra: tell the students in that class (bell note + phone).
+  const [tell, setTell] = useState(true);
   // Re-reads the timetable whenever it's saved or loaded.
   const schedule = useSchedule();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -83,10 +86,11 @@ export default function ClassesPage() {
 
   /** Change one class on this date only (cancel, move, extra), or undo that change. */
   async function changeDay(level: LevelKey, subject: SubjectKey, change: Omit<Exception, "date" | "level" | "subject"> | null, done: string) {
+    const notify = tell && date >= today;
     try {
-      await saveDayChange({ date, level, subject, change });
+      await saveDayChange({ date, level, subject, change, notify });
       setOpenRow(null);
-      toast(done, "success");
+      toast(notify ? `${done} Students in it have been told.` : done, "success");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Couldn't save. Try again.", "error");
     }
@@ -122,7 +126,11 @@ export default function ClassesPage() {
           <button
             key={v}
             type="button"
-            onClick={() => setView(v)}
+            onClick={() => {
+              if (v === "day" && weekDirty.current && !window.confirm("You have timetable changes that aren't saved. Leave them?")) return;
+              if (v === "day") weekDirty.current = false;
+              setView(v);
+            }}
             aria-pressed={view === v}
             className={`h-9 rounded-full px-4 text-sm font-semibold transition-colors ${view === v ? "bg-brand text-on-brand" : "text-ink-2 hover:text-ink"}`}
           >
@@ -132,7 +140,7 @@ export default function ClassesPage() {
       </div>
 
       {view === "week" ? (
-        <TimetableEditor />
+        <TimetableEditor onDirtyChange={(d) => (weekDirty.current = d)} />
       ) : (
         <>
           {hero && <StartCard slot={hero} url={linkFor(hero)?.meetUrl ?? null} nowMs={nowMs} />}
@@ -154,7 +162,7 @@ export default function ClassesPage() {
                 />
               </label>
               {date !== today ? (
-                <button type="button" onClick={() => setPicked(today)} className="text-xs font-semibold text-brand hover:underline">
+                <button type="button" onClick={() => setPicked(today)} className="mx-auto block text-xs font-semibold text-brand hover:underline">
                   Back to today
                 </button>
               ) : (
@@ -216,6 +224,12 @@ export default function ClassesPage() {
                       </div>
                       {isOpen && (
                         <div className="space-y-3 border-t border-border bg-surface-2/40 px-4 py-4 sm:px-5">
+                          {(s.cancelled || phase === "later") && date >= today && (
+                            <label className="flex items-center gap-2 text-xs text-ink-2">
+                              <input type="checkbox" checked={tell} onChange={(e) => setTell(e.target.checked)} className="h-4 w-4 accent-[var(--color-brand)]" />
+                              Tell the students in this class if I change it
+                            </label>
+                          )}
                           {s.cancelled ? (
                             <Button
                               size="sm"
@@ -236,7 +250,7 @@ export default function ClassesPage() {
                                       s.level,
                                       s.subject,
                                       s.extra ? { extra: true, cancelled: true, start: s.start, end: s.end } : { cancelled: true },
-                                      `${s.subject} cancelled for this day. Students won't see it.`,
+                                      `${s.subject} cancelled for this day.`,
                                     )
                                   }
                                   onMove={(start, end) =>

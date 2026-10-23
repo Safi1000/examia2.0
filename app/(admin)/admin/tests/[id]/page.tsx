@@ -68,10 +68,19 @@ export default function TestEditorPage() {
   const canSave = form.title.trim().length > 0;
   const canPublish = canSave && questions.length > 0;
 
-  function saveSettings() {
-    if (!form || !canSave) return;
-    if (!form.opensAt || !form.closesAt) return toast("Set both an opening and a closing time.", "error");
-    if (fromLocalInput(form.closesAt) <= fromLocalInput(form.opensAt)) return toast("The closing time must be after the opening time.", "error");
+  /** Saves the details; false (with the reason shown) if they can't be saved. */
+  function saveSettings(quiet = false, override?: { opensAt: string; closesAt: string }): boolean {
+    if (!form || !canSave) return false;
+    const opens = override?.opensAt ?? form.opensAt;
+    const closes = override?.closesAt ?? form.closesAt;
+    if (!opens || !closes) {
+      toast("Set both an opening and a closing time.", "error");
+      return false;
+    }
+    if (fromLocalInput(closes) <= fromLocalInput(opens)) {
+      toast("The closing time must be after the opening time.", "error");
+      return false;
+    }
     store.updateTest(id, {
       title: form.title.trim(),
       subject: form.subject || "General",
@@ -80,11 +89,33 @@ export default function TestEditorPage() {
       durationMinutes: Math.max(1, form.durationMinutes),
       uploadMinutes: Math.max(0, form.uploadMinutes),
       cohortId: form.cohortId || null,
-      opensAt: fromLocalInput(form.opensAt),
-      closesAt: fromLocalInput(form.closesAt),
+      opensAt: fromLocalInput(opens),
+      closesAt: fromLocalInput(closes),
       testCode: form.testCode.trim(),
     });
-    toast("Test saved.", "success");
+    if (!quiet) toast("Test saved.", "success");
+    return true;
+  }
+
+  /** Publish, never into a window that has already closed. */
+  function publish(now: number) {
+    if (!form) return;
+    let override: { opensAt: string; closesAt: string } | undefined;
+    if (form.closesAt && new Date(fromLocalInput(form.closesAt)).getTime() <= now) {
+      if (!window.confirm("This test's closing time has already passed, so students couldn't sit it. Publish it open from now for 7 days?")) return;
+      override = { opensAt: toLocalInput(new Date(now).toISOString()), closesAt: toLocalInput(new Date(now + 7 * 86_400_000).toISOString()) };
+      set("opensAt", override.opensAt);
+      set("closesAt", override.closesAt);
+    }
+    if (!saveSettings(true, override)) return;
+    store.setTestStatus(id, "active");
+    const opensMs = new Date(fromLocalInput(override?.opensAt ?? form.opensAt)).getTime();
+    toast(
+      opensMs > now
+        ? `Published. Students see it from ${new Date(opensMs).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}.`
+        : "Published. Students can see it now.",
+      "success",
+    );
   }
 
   function move(index: number, dir: -1 | 1) {
@@ -139,15 +170,11 @@ export default function TestEditorPage() {
                 {test.status === "closed" ? "Reopen for 1 day" : "+1 day"}
               </Button>
             )}
-            <Button variant={test.status === "draft" ? "secondary" : "primary"} onClick={saveSettings} disabled={!canSave}>Save</Button>
+            <Button variant={test.status === "draft" ? "secondary" : "primary"} onClick={() => saveSettings()} disabled={!canSave}>Save</Button>
             {test.status === "draft" && (
               <Button
                 disabled={!canPublish}
-                onClick={() => {
-                  saveSettings();
-                  store.setTestStatus(id, "active");
-                  toast("Published. Students can see it now.", "success");
-                }}
+                onClick={() => publish(Date.now())}
               >
                 Publish
               </Button>

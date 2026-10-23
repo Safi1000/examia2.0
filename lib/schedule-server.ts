@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { DEFAULT_SCHEDULE, cleanSchedule, type Schedule } from "@/lib/timetable";
 
 /**
@@ -8,15 +8,22 @@ import { DEFAULT_SCHEDULE, cleanSchedule, type Schedule } from "@/lib/timetable"
  */
 let cache: { at: number; value: Schedule } | null = null;
 
-async function adminUser(sb: SupabaseClient) {
+/**
+ * The admin account that holds the timetable and automation settings: the
+ * one that already has a timetable, else the first admin.
+ */
+export async function adminUser(sb: SupabaseClient) {
+  let first: User | null = null;
   for (let page = 1; page <= 10; page++) {
     const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 1000 });
     if (error) throw error;
-    const found = data.users.find((u) => (u.app_metadata as { role?: string })?.role === "admin" && (u.app_metadata as { schedule?: unknown }).schedule);
+    const admins = data.users.filter((u) => (u.app_metadata as { role?: string })?.role === "admin");
+    const found = admins.find((u) => (u.app_metadata as { schedule?: unknown }).schedule);
     if (found) return found;
+    first ??= admins[0] ?? null;
     if (data.users.length < 1000) break;
   }
-  return null;
+  return first;
 }
 
 export async function loadSchedule(sb: SupabaseClient, fresh = false): Promise<Schedule> {
@@ -32,12 +39,19 @@ export async function loadSchedule(sb: SupabaseClient, fresh = false): Promise<S
   }
 }
 
-export async function saveSchedule(sb: SupabaseClient, callerId: string, schedule: Schedule) {
-  // One home for the timetable: whichever admin already holds it, else the caller.
+/** Merge keys into the admin's server-only settings (timetable, automations). */
+export async function saveAdminMeta(sb: SupabaseClient, callerId: string | null, patch: Record<string, unknown>) {
   const adminId = (await adminUser(sb).catch(() => null))?.id ?? callerId;
+  if (!adminId) throw new Error("no admin");
   const { data, error } = await sb.auth.admin.getUserById(adminId);
   if (error || !data.user) throw error ?? new Error("no admin");
-  const { error: upErr } = await sb.auth.admin.updateUserById(adminId, { app_metadata: { ...data.user.app_metadata, schedule } });
+  const { error: upErr } = await sb.auth.admin.updateUserById(adminId, { app_metadata: { ...data.user.app_metadata, ...patch } });
   if (upErr) throw upErr;
+  return { ...data.user.app_metadata, ...patch } as Record<string, unknown>;
+}
+
+export async function saveSchedule(sb: SupabaseClient, callerId: string, schedule: Schedule) {
+  // One home for the timetable: whichever admin already holds it, else the caller.
+  await saveAdminMeta(sb, callerId, { schedule });
   cache = { at: Date.now(), value: schedule };
 }

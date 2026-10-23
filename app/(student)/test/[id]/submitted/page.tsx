@@ -23,7 +23,7 @@ export default function SubmittedPage() {
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center text-ink-2">
         Nothing to show here.{" "}
-        <Link href="/dashboard" className="font-semibold text-brand underline">Back to dashboard</Link>
+        <Link href="/dashboard" className="font-semibold text-brand underline">Back to Home</Link>
       </div>
     );
   }
@@ -66,7 +66,7 @@ export default function SubmittedPage() {
       </p>
 
       <Link href="/dashboard" className={buttonClasses({ fullWidth: true, className: "mt-4" })}>
-        Back to home
+        Back to Home
       </Link>
     </div>
   );

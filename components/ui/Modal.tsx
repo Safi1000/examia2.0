@@ -61,7 +61,7 @@ export function Modal({
       aria-modal="true"
       aria-label={title}
     >
-      <div className="absolute inset-0 bg-ink/40 backdrop-blur-[2px]" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden />
       <div
         ref={panelRef}
         tabIndex={-1}
@@ -79,7 +79,7 @@ export function Modal({
           <button
             onClick={onClose}
             aria-label="Close dialog"
-            className="-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink"
+            className="-mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M6 6l12 12M18 6 6 18" strokeLinecap="round" />

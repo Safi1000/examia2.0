@@ -3,6 +3,8 @@
  */
 import type { Database } from "@/lib/data/seed";
 import { awardedMarks } from "@/lib/scoring";
+import { gradeSubmission } from "@/lib/grading";
+import { archivedCohortIds } from "@/lib/data/selectors";
 
 export type EntityKey =
   | "cohorts"
@@ -85,4 +87,33 @@ export function toCsv(rows: Record<string, string | number>[]): string {
 export function exportFilename(slug: string, dateIso: string, ext: string): string {
   const date = dateIso.slice(0, 10); // YYYY-MM-DD
   return `${slug}-export-${date}.${ext}`;
+}
+
+/**
+ * One row per current student, one column per test (percent), plus their
+ * average: the sheet to open in Excel or Google Sheets. Blank = not sat or
+ * not marked yet.
+ */
+export function marksSheet(db: Database): Record<string, string | number>[] {
+  const off = archivedCohortIds(db);
+  const tests = db.tests
+    .filter((t) => t.status !== "draft" && !(t.cohortId && off.has(t.cohortId)))
+    .sort((a, b) => a.opensAt.localeCompare(b.opensAt));
+  const cohortName = (id: string) => db.cohorts.find((c) => c.id === id)?.name ?? "";
+  const label = (t: (typeof tests)[number]) => `${t.title} (${t.opensAt.slice(0, 10)}) %`;
+  return db.students
+    .filter((s) => !off.has(s.cohortId))
+    .sort((a, b) => cohortName(a.cohortId).localeCompare(cohortName(b.cohortId)) || a.username.localeCompare(b.username))
+    .map((s) => {
+      const row: Record<string, string | number> = { Student: s.username.charAt(0).toUpperCase() + s.username.slice(1), Cohort: cohortName(s.cohortId) };
+      const got: number[] = [];
+      for (const t of tests) {
+        const sub = db.submissions.find((x) => x.testId === t.id && x.studentId === s.id && x.status === "released");
+        const pct = sub ? Math.round(gradeSubmission(t, sub).percent) : null;
+        row[label(t)] = pct ?? "";
+        if (pct !== null) got.push(pct);
+      }
+      row["Average %"] = got.length ? Math.round(got.reduce((n, x) => n + x, 0) / got.length) : "";
+      return row;
+    });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useLockout } from "@/hooks/useLockout";
@@ -18,7 +18,7 @@ import {
 
 export default function StudentLoginPage() {
   const router = useRouter();
-  const { loginStudent } = useAuth();
+  const { loginStudent, session, initializing, loadFailed, retryLoad } = useAuth();
   const lock = useLockout("examia.lock.student");
 
   const [username, setUsername] = useState("");
@@ -28,6 +28,12 @@ export default function StudentLoginPage() {
 
   const canSubmit =
     username.trim().length > 0 && password.length > 0 && !lock.isLocked;
+
+  // Already signed in (a bookmark, the home-screen app, Back): straight in.
+  useEffect(() => {
+    if (initializing || !session) return;
+    router.replace(session.role === "admin" ? "/admin" : "/dashboard");
+  }, [session, initializing, router]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,7 +54,7 @@ export default function StudentLoginPage() {
     }
     if (ok) {
       lock.reset();
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } else {
       lock.registerFailure();
       setError("Wrong username or password.");
@@ -59,6 +65,11 @@ export default function StudentLoginPage() {
   const forgotLink = waTextLink(
     `Hi Hamza, I forgot my portal password. My username is ${username.trim() || "[your username]"}.`,
   );
+
+  // Checking for an earlier sign-in, or on the way in: no form to flash.
+  if ((initializing && !busy) || session) {
+    return <div className="flex min-h-dvh items-center justify-center text-sm text-ink-3">Opening your portal…</div>;
+  }
 
   return (
     <AuthShell
@@ -117,7 +128,20 @@ export default function StudentLoginPage() {
           />
         </div>
 
-        {error && !lock.isLocked && <AuthAlert tone="error">{error}</AuthAlert>}
+        {/* Signed in, but the portal didn't load (weak signal): no need to type it all again. */}
+        {loadFailed && !busy && (
+          <>
+            <AuthAlert tone="warning">Couldn&apos;t load your portal. Check your internet.</AuthAlert>
+            <button
+              type="button"
+              onClick={retryLoad}
+              className="mt-3 inline-flex min-h-11 items-center rounded-full border border-brand/40 px-5 text-sm font-semibold text-brand transition-colors hover:bg-brand/10 active:scale-[0.98]"
+            >
+              Try again
+            </button>
+          </>
+        )}
+        {error && !lock.isLocked && !loadFailed && <AuthAlert tone="error">{error}</AuthAlert>}
         {lock.isLocked && (
           <AuthAlert tone="warning">
             Too many wrong tries. Try again in{" "}

@@ -23,12 +23,13 @@ import { cn } from "@/lib/cn";
 import { displayName } from "@/lib/display-name";
 import { PortalAmbient } from "@/components/PortalAmbient";
 import { pageTitle, useDocumentTitle } from "@/hooks/usePageTitle";
+import { useRecoverFocus } from "@/components/student/focus-session";
 
 const TITLES: Record<string, string> = {
   "/dashboard": "Home",
   "/plan": "My plan",
   "/progress": "Progress",
-  "/assignments": "Assignments",
+  "/assignments": "Tasks",
   "/tests": "Tests",
   "/groundwork": "Groundwork",
   "/classes": "Classes",
@@ -39,19 +40,67 @@ const TITLES: Record<string, string> = {
 };
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
-  const { session, logout, initializing, profile } = useAuth();
+  const { session, logout, initializing, profile, loadFailed, retryLoad } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const db = useDatabase();
   const ready = useDataReady();
 
+  // Signed in but the portal didn't load (weak signal) is not signed out:
+  // stay here and offer Try again rather than sending them to /login.
   useEffect(() => {
-    if (!initializing && (!session || session.role !== "student")) router.replace("/login");
-  }, [session, initializing, router]);
+    if (!initializing && !loadFailed && (!session || session.role !== "student")) router.replace("/login");
+  }, [session, initializing, loadFailed, router]);
   // Tab title per page; the test runner sets its own (the countdown).
   useDocumentTitle(/^\/test\/[^/]+$/.test(pathname) ? null : pageTitle(pathname, TITLES, "Hamza Teaches"));
+  // Groundwork minutes from a session that was cut off (closed app, flat
+  // battery) are added once that session is clearly over.
+  useRecoverFocus(!initializing && session?.role === "student" && !!session.studentId);
 
-  if (initializing || !ready || !session || session.role !== "student" || !session.studentId) {
+  if (loadFailed) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
+        <p className="font-semibold text-ink">Couldn&apos;t load your portal.</p>
+        <p className="text-sm text-ink-2">Check your internet.</p>
+        <button
+          onClick={retryLoad}
+          className="mt-2 inline-flex h-11 items-center rounded-full bg-brand px-6 text-sm font-semibold text-on-brand active:scale-[0.98]"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+  if (initializing || !session || session.role !== "student") {
+    return <div className="flex min-h-dvh items-center justify-center text-ink-3">Loading…</div>;
+  }
+  // Signed in, but no student record behind the account yet: waiting would
+  // never end, so say so.
+  if (!session.studentId) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
+        <p className="font-semibold text-ink">Your account isn&apos;t set up yet.</p>
+        <p className="text-sm text-ink-2">
+          <a
+            href={waTextLink("Hi Hamza, I signed in to the portal but my account isn't set up yet.")}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-brand hover:underline"
+          >
+            Message Hamza
+          </a>{" "}
+          and they&apos;ll sort it out.
+        </p>
+        <button
+          onClick={() => { logout(); router.replace("/login"); }}
+          className="mt-2 inline-flex h-11 items-center rounded-full border border-border-strong px-6 text-sm font-semibold text-ink active:scale-[0.98]"
+        >
+          Sign out
+        </button>
+      </div>
+    );
+  }
+  if (!ready) {
     return <div className="flex min-h-dvh items-center justify-center text-ink-3">Loading…</div>;
   }
 
@@ -100,7 +149,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     { href: "/classes", label: "Classes", short: "Classes", Icon: NavIcon.Classes },
     { href: "/tests", label: "Tests", short: "Tests", Icon: NavIcon.Tests },
     { href: "/groundwork", label: "Groundwork", short: "Groundwork", Icon: NavIcon.Groundwork, feature: true },
-    { href: "/assignments", label: "Assignments", short: "Tasks", Icon: NavIcon.Tasks },
+    { href: "/assignments", label: "Tasks", short: "Tasks", Icon: NavIcon.Tasks },
     { href: "/notes", label: "Notes", short: "Notes", Icon: NavIcon.Notes },
     { href: "/progress", label: "Progress", short: "Progress", Icon: NavIcon.Progress },
   ];
@@ -191,7 +240,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                     href={l.href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex h-[52px] flex-col items-center justify-center gap-1 rounded-2xl text-[10px] font-semibold tracking-wide transition-colors duration-300",
+                      "flex h-[52px] flex-col items-center justify-center gap-1 rounded-2xl text-[10px] font-semibold tracking-wide transition-colors duration-300 active:scale-95",
                       active ? "bg-brand/[0.12] text-brand" : "text-ink-3",
                     )}
                   >
@@ -226,11 +275,13 @@ function AccountMenu({
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
-    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    // pointerdown, not mousedown: iPhone may not send a mouse event for a tap
+    // on a blank area, which left the menu stuck open.
+    const close = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", close);
+    document.addEventListener("pointerdown", close);
     document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", esc); };
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", esc); };
   }, [open]);
   const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 

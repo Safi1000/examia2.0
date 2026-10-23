@@ -27,7 +27,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   if (isPublicPath(pathname)) {
     return (
-      <div className="relative z-10 flex min-h-dvh flex-col">
+      <div data-site="public" className="relative z-10 flex min-h-dvh flex-col">
         <div className="flex-1">{children}</div>
       </div>
     );
@@ -57,11 +57,25 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Routes background persistence failures from the data seam to a toast. */
+/**
+ * Routes background persistence failures from the data seam to a toast.
+ * A weak signal can fail several saves at once: they become one plain
+ * message, and the same message isn't repeated within a few seconds.
+ */
 function StoreErrorBridge() {
   const { toast } = useToast();
   useEffect(() => {
-    getStore().setErrorReporter((msg) => toast(msg, "error"));
+    let last = "";
+    let lastAt = 0;
+    getStore().setErrorReporter((msg) => {
+      const offline = /fetch|network|timed? ?out|load failed|connection/i.test(msg) && !msg.startsWith("Some of the portal");
+      const text = offline ? "Couldn't save just now. Check your internet and try again." : msg;
+      const now = Date.now();
+      if (text === last && now - lastAt < 6000) return;
+      last = text;
+      lastAt = now;
+      toast(text, msg.startsWith("Some of the portal") ? "info" : "error");
+    });
   }, [toast]);
   return null;
 }

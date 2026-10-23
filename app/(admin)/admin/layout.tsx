@@ -1,7 +1,7 @@
 "use client";
 
 import { ScheduleGate } from "@/components/ScheduleGate";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useDataReady } from "@/lib/data/store";
@@ -51,11 +51,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     () => {
       logout();
       toast("Signed out after 30 minutes of inactivity.", "info");
-      router.replace("/login");
+      // Stay on the teacher sign-in, not the student one.
+      router.replace("/admin");
     },
     IDLE_MS,
     isAdmin,
   );
+
+  // Phone menu: Esc closes it, and the page behind doesn't scroll.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMobileOpen(false);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [mobileOpen]);
 
   if (initializing) {
     return <div className="flex min-h-dvh items-center justify-center text-ink-3">Loading…</div>;
@@ -79,7 +93,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Mobile overlay sidebar */}
         {mobileOpen && (
           <div className="fixed inset-0 z-50 md:hidden">
-            <div className="absolute inset-0 bg-ink/40" onClick={() => setMobileOpen(false)} aria-hidden />
+            <div className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} aria-hidden />
             <div className="absolute inset-y-0 left-0 w-72 max-w-[82%] animate-slide-in border-r border-border shadow-[var(--shadow-lg)]">
               <Sidebar onNavigate={() => setMobileOpen(false)} />
             </div>

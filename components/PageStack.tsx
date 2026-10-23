@@ -4,6 +4,7 @@ import { cld } from "@/lib/cld";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/ui";
+import { useBackToClose } from "@/components/student/useBackToClose";
 
 /**
  * Read-only viewer for attached pages.
@@ -31,7 +32,7 @@ export function PageStack({ urls, label }: { urls: string[]; label: string }) {
         aria-label={`Open ${label} full screen`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={cld(url, 1000)} decoding="async" alt={`${label} — page ${shown + 1}`} className="block w-full" />
+        <img src={cld(url, 1000)} loading="lazy" decoding="async" alt={`${label} — page ${shown + 1}`} className="block w-full" />
       </button>
       <figcaption className="flex flex-wrap items-center gap-2 border-t border-border px-3 py-2 text-xs text-ink-3">
         {urls.length > 1 && (
@@ -39,7 +40,7 @@ export function PageStack({ urls, label }: { urls: string[]; label: string }) {
             <button
               onClick={() => setPage(Math.max(0, shown - 1))}
               disabled={shown === 0}
-              className="h-8 rounded-md border border-border-strong px-2.5 text-ink-2 disabled:opacity-40"
+              className="h-11 min-w-11 rounded-md border border-border-strong px-2.5 text-base text-ink-2 disabled:opacity-40"
               aria-label="Previous page"
             >
               ‹
@@ -48,17 +49,17 @@ export function PageStack({ urls, label }: { urls: string[]; label: string }) {
             <button
               onClick={() => setPage(Math.min(urls.length - 1, shown + 1))}
               disabled={shown === urls.length - 1}
-              className="h-8 rounded-md border border-border-strong px-2.5 text-ink-2 disabled:opacity-40"
+              className="h-11 min-w-11 rounded-md border border-border-strong px-2.5 text-base text-ink-2 disabled:opacity-40"
               aria-label="Next page"
             >
               ›
             </button>
           </>
         )}
-        <button onClick={() => setOpen(true)} className="font-semibold text-brand hover:underline">
+        <button onClick={() => setOpen(true)} className="inline-flex min-h-11 items-center font-semibold text-brand hover:underline">
           Open full screen
         </button>
-        <a href={url} target="_blank" rel="noreferrer" className="ml-auto font-semibold text-brand hover:underline">
+        <a href={url} target="_blank" rel="noreferrer" className="ml-auto inline-flex min-h-11 items-center font-semibold text-brand hover:underline">
           Open in new tab
         </a>
       </figcaption>
@@ -87,6 +88,8 @@ function PageViewerModal({
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
+  // The phone's Back button closes the reader instead of leaving the page.
+  useBackToClose(onClose);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onCloseRef.current();
@@ -110,19 +113,19 @@ function PageViewerModal({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-paper" role="dialog" aria-modal="true" aria-label={label}>
-      <div className="flex shrink-0 items-center gap-2 border-b border-border bg-surface px-3 py-2 sm:px-4">
+      <div className="flex shrink-0 items-center gap-2 border-b border-border bg-surface px-3 py-1.5 sm:px-4">
         <span className="truncate text-sm font-semibold text-ink">{label}</span>
         {urls.length > 1 && (
           <div className="ml-auto flex shrink-0 items-center gap-1.5 text-sm text-ink-2">
-            <button onClick={() => goto(page - 1)} disabled={page === 0} className="h-9 rounded-md border border-border-strong px-2.5 disabled:opacity-40" aria-label="Previous page">‹</button>
+            <button onClick={() => goto(page - 1)} disabled={page === 0} className="h-11 min-w-11 rounded-md border border-border-strong px-2.5 disabled:opacity-40" aria-label="Previous page">‹</button>
             <span className="tabular">{page + 1} / {urls.length}</span>
-            <button onClick={() => goto(page + 1)} disabled={page === urls.length - 1} className="h-9 rounded-md border border-border-strong px-2.5 disabled:opacity-40" aria-label="Next page">›</button>
+            <button onClick={() => goto(page + 1)} disabled={page === urls.length - 1} className="h-11 min-w-11 rounded-md border border-border-strong px-2.5 disabled:opacity-40" aria-label="Next page">›</button>
           </div>
         )}
         <button
           onClick={onClose}
           aria-label="Close"
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink ${urls.length > 1 ? "" : "ml-auto"}`}
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink ${urls.length > 1 ? "" : "ml-auto"}`}
         >
           <Icon.Close className="h-5 w-5" />
         </button>

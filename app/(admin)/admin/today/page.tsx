@@ -13,9 +13,10 @@ import { GRADE_ORDER, gradeSubmission, type GradeLetter } from "@/lib/grading";
 import { performanceSnapshot, sameSubject } from "@/lib/performance";
 import { useStudentProfiles } from "@/lib/student-profiles";
 import { StartCard } from "@/components/admin/StartCard";
+import { HealthLine } from "@/components/admin/Automations";
 import { liveSlotsOn, pkDate, slotKey, useClassLinks, useSchedule } from "@/lib/classes";
 import { formatRelative } from "@/lib/time";
-import { createRetest, retestQuestions, weakTopics } from "@/lib/retest";
+import { createRetest, reachOf, retestQuestions, retestTarget, weakTopics } from "@/lib/retest";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Badge, Button, Card, Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
@@ -48,21 +49,22 @@ export default function TodayPage() {
   const { links: classLinks } = useClassLinks(todayPk, todayPk);
   useSchedule(); // re-render when the timetable loads or changes
   const heroClass = liveSlotsOn(db, todayPk).find((s) => nowMs < s.endMs && s.startMs - nowMs < 3 * 3_600_000);
-  const [checked, setChecked] = useState<Record<string, number>>(() => {
+  // "Checked" is saved with the reminder log, so it holds on the laptop and
+  // the tablet alike (older ticks made on this device still count).
+  const [localChecked] = useState<Record<string, number>>(() => {
     try {
       return typeof window === "undefined" ? {} : (JSON.parse(localStorage.getItem("ht_checked") ?? "{}") as Record<string, number>);
     } catch {
       return {};
     }
   });
+  const checked = useMemo(() => {
+    const m: Record<string, number> = { ...localChecked };
+    for (const r of db.remindersSent) if (r.kind === "checked") m[r.studentId] = Math.max(m[r.studentId] ?? 0, +new Date(r.sentAt));
+    return m;
+  }, [db.remindersSent, localChecked]);
   const [showAll, setShowAll] = useState(false);
-  const markChecked = (id: string) => {
-    const next = { ...checked, [id]: nowMs };
-    setChecked(next);
-    try {
-      localStorage.setItem("ht_checked", JSON.stringify(next));
-    } catch {}
-  };
+  const markChecked = (id: string) => store.markReminderSent(id, "checked", todayPk);
 
   // The heavy sums below follow the clock in 5-minute steps, not every 30 s tick.
   const tick = Math.floor(nowMs / 300_000) * 300_000;
@@ -151,7 +153,8 @@ export default function TodayPage() {
       toast("No questions on that topic yet. Add some to the question bank first.", "error");
       return;
     }
-    toast("Retest drafted. Check it, then press Publish.", "success");
+    const reach = reachOf(db, { cohortId, ...retestTarget(db, subject, topic) });
+    toast(`Retest drafted for ${reach === 1 ? "1 student" : `${reach} students`}. Check it, then press Publish.`, "success");
     router.push(`/admin/tests/${id}`);
   }
 
@@ -175,6 +178,9 @@ export default function TodayPage() {
           ) : undefined
         }
       />
+
+      {/* Only shows when something needs you: Google, the timer, a missing link or recording. */}
+      <HealthLine />
 
       {/* The class to start, from 3 hours before until it ends. */}
       {heroClass && <StartCard slot={heroClass} url={classLinks.find((l) => slotKey(l) === slotKey(heroClass))?.meetUrl ?? null} nowMs={nowMs} />}

@@ -111,6 +111,25 @@ const EMPTY: Database = {
 // ---------------------------------------------------------------------------
 type Row = Record<string, unknown>;
 
+/**
+ * Supabase sends at most 1,000 rows per request. Tables that keep growing
+ * (submissions, attendance, hand-ins) are read in pages, so nothing past row
+ * 1,000 silently goes missing a few weeks into term.
+ */
+const PAGE = 1000;
+async function allRows(
+  page: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message: string } | null }>,
+): Promise<{ data: Row[] | null; error: { message: string } | null }> {
+  const rows: Row[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const r = await page(from, from + PAGE - 1);
+    if (r.error) return { data: null, error: r.error };
+    const got = (r.data as Row[] | null) ?? [];
+    rows.push(...got);
+    if (got.length < PAGE) return { data: rows, error: null };
+  }
+}
+
 const mapCohort = (r: Row, classIds: string[] = [], subjectIds: string[] = []): Cohort => ({
   id: r.id as string,
   name: r.name as string,
@@ -374,6 +393,16 @@ class Store {
     this.report = fn;
   }
 
+  /**
+   * Writes still on their way to the database, and a count of all writes.
+   * A refresh that started before a write must not land after it and put the
+   * old value back (a mark or a toggle flicking back), so such a refresh is
+   * thrown away and quietly re-run.
+   */
+  private pendingWrites = 0;
+  private writeCount = 0;
+  private staleSkips = 0;
+
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -392,11 +421,16 @@ class Store {
   }
   /** Fire-and-forget a Supabase write; surface failures through the reporter. */
   private run(p: PromiseLike<{ error: { message: string } | null }>, label: string) {
+    this.pendingWrites++;
+    this.writeCount++;
     Promise.resolve(p)
       .then(({ error }) => {
         if (error) this.report(`${label}: ${error.message}`);
       })
-      .catch((e) => this.report(`${label}: ${String(e)}`));
+      .catch((e) => this.report(`${label}: ${String(e)}`))
+      .finally(() => {
+        this.pendingWrites--;
+      });
   }
 
   // ---- Lifecycle -------------------------------------------------------
@@ -506,14 +540,16 @@ class Store {
       return;
     }
     const sb = supabase();
-    // For a student these come back empty anyway (RLS); don't spend a round trip.
+    const writesBefore = this.writeCount;
+    // For a student these come back empty anyway (RLS) or are never shown on a
+    // student screen (attendance, reports): don't spend a round trip or data.
     const empty = Promise.resolve({ data: [] as Row[], error: null });
     const staffOnly = <T,>(q: () => T) => (this.audience === "student" ? empty : q());
     const [coh, stu, tst, sub, ann, bnk, keys, cls, subj, cCls, cSubj, sCls, sSubj, nts, nAssigns, asg, asgSubs, attD, attM, rep, rem, acts] = await Promise.all([
       sb.from("cohorts").select("*").order("created_at"),
-      sb.from("students").select("*").order("created_at"),
+      allRows((a, b) => sb.from("students").select("*").order("created_at").order("id").range(a, b)),
       sb.from("tests").select("*, questions(*)").order("created_at"),
-      sb.from("submissions").select("*, answers(*)"),
+      allRows((a, b) => sb.from("submissions").select("*, answers(*)").order("id").range(a, b)),
       sb.from("announcements").select("*").order("created_at", { ascending: false }),
       staffOnly(() => sb.from("question_bank").select("*").order("created_at")),
       staffOnly(() => sb.from("question_keys").select("*")), // admin-only: empty for students
@@ -521,16 +557,16 @@ class Store {
       sb.from("subjects").select("*").order("name"),
       sb.from("cohort_classes").select("*"),
       sb.from("cohort_subjects").select("*"),
-      sb.from("student_classes").select("*"),
-      sb.from("student_subjects").select("*"),
+      allRows((a, b) => sb.from("student_classes").select("*").order("student_id").order("class_id").range(a, b)),
+      allRows((a, b) => sb.from("student_subjects").select("*").order("student_id").order("subject_id").range(a, b)),
       sb.from("notes").select("*").order("created_at", { ascending: false }),
       sb.from("note_assignments").select("*"),
       sb.from("assignments").select("*").order("due_at", { ascending: false }),
-      sb.from("assignment_submissions").select("*"),
-      sb.from("attendance_days").select("*"),
-      sb.from("attendance_months").select("*"),
-      sb.from("reports").select("*").order("created_at", { ascending: false }),
-      staffOnly(() => sb.from("reminders_sent").select("*")),
+      allRows((a, b) => sb.from("assignment_submissions").select("*").order("id").range(a, b)),
+      staffOnly(() => allRows((a, b) => sb.from("attendance_days").select("*").order("id").range(a, b))),
+      staffOnly(() => allRows((a, b) => sb.from("attendance_months").select("*").order("id").range(a, b))),
+      staffOnly(() => allRows((a, b) => sb.from("reports").select("*").order("created_at", { ascending: false }).order("id").range(a, b))),
+      staffOnly(() => allRows((a, b) => sb.from("reminders_sent").select("*").order("id").range(a, b))),
       // Feed is capped: the bell only ever shows recent history.
       sb.from("activities").select("*").order("created_at", { ascending: false }).limit(100),
     ]);
@@ -549,9 +585,25 @@ class Store {
       ["activities", acts],
     ];
     const failed = labelled.filter(([, r]) => r.error);
-    for (const [name, r] of failed) {
-      this.report(`${initial ? "load" : "refresh"} ${name}: ${r.error!.message}`);
+    if (failed.length) {
+      console.error("[store]", failed.map(([name, r]) => `${initial ? "load" : "refresh"} ${name}: ${r.error!.message}`).join("; "));
+      // What's already on screen is kept, so a background refresh stays silent.
+      // A first load that partly failed says so once, calmly, and tries again.
+      if (initial || !this.ready) {
+        this.report("Some of the portal didn't load. Check your internet; it will try again in a moment.");
+        this.softRefresh(4000);
+      }
     }
+
+    // A save happened while this was loading: these rows may be older than it.
+    // Try again a little later; during a long run of saves (marking), give up
+    // after a few tries rather than re-reading everything over and over.
+    if (!initial && this.ready && (this.writeCount !== writesBefore || this.pendingWrites > 0) && this.staleSkips < 3) {
+      this.staleSkips++;
+      this.softRefresh(8000);
+      return;
+    }
+    this.staleSkips = 0;
 
     const prev = this.state;
     /** Use freshly fetched rows, or fall back to what we already had on error. */
@@ -958,6 +1010,13 @@ class Store {
   }
 
   async addStudent(input: Omit<Student, "id" | "createdAt">) {
+    if (DEMO) {
+      // Preview only: no real sign-in account, just the roster row.
+      const { tempPassword: _pw, ...rest } = input;
+      void _pw;
+      this.commit((d) => d.students.push({ ...rest, id: genId(), createdAt: new Date().toISOString() }));
+      return;
+    }
     const data = await this.callAdminUsers("addStudent", {
       action: "create",
       username: input.username,
@@ -1496,6 +1555,27 @@ class Store {
   }
   /** `marksAwarded: undefined` edits feedback only — it does NOT score a zero. */
   gradeAnswer(submissionId: string, questionId: string, marksAwarded: number | undefined, feedback?: string) {
+    // A question added after this paper was handed in has no answer row yet:
+    // create it, so the mark saves and the paper can still be released.
+    const sub = this.state.submissions.find((s) => s.id === submissionId);
+    const question = sub && !sub.answers.some((a) => a.questionId === questionId)
+      ? this.state.tests.find((t) => t.id === sub.testId)?.questions.find((q) => q.id === questionId)
+      : undefined;
+    if (question) {
+      this.commit((d) => {
+        d.submissions.find((s) => s.id === submissionId)?.answers.push({ questionId, type: question.type, marksAwarded, feedback });
+      });
+      this.run(
+        supabase()
+          .from("answers")
+          .upsert(
+            { submission_id: submissionId, question_id: questionId, type: question.type, marks_awarded: marksAwarded ?? null, feedback: feedback ?? null },
+            { onConflict: "submission_id,question_id" },
+          ),
+        "gradeAnswer",
+      );
+      return;
+    }
     this.commit((d) => {
       const ans = d.submissions.find((s) => s.id === submissionId)?.answers.find((a) => a.questionId === questionId);
       if (ans) {
@@ -1889,10 +1969,33 @@ class Store {
       console.error("[store] submitAssignment:", error.message);
       throw new Error("Not handed in. Check your internet and try again.");
     }
+    // Hamza's bell: who handed in what (re-handing in says so).
+    const assignment = this.state.assignments.find((a) => a.id === assignmentId);
+    const who = this.state.students.find((s) => s.id === studentId)?.username ?? "A student";
+    this.logActivity({
+      type: "test_submitted",
+      title: `${who} ${existing ? "re-handed in" : "handed in"} "${assignment?.title ?? "an assignment"}"`,
+      description: this.state.subjects.find((x) => x.id === assignment?.subjectId)?.name,
+      studentId,
+      link: "/admin/assignments",
+    });
   }
   /** Teacher's reply. Assignments carry no marks — feedback is the whole grade. */
   setAssignmentFeedback(submissionId: string, feedback: string) {
     const feedbackAt = new Date().toISOString();
+    const before = this.state.assignmentSubmissions.find((x) => x.id === submissionId);
+    if (before && feedback.trim() && feedback !== before.feedback) {
+      // The student's bell: Hamza replied (the reply itself is on Assignments).
+      const assignment = this.state.assignments.find((a) => a.id === before.assignmentId);
+      this.logActivity({
+        type: "submission_reviewed",
+        title: `Hamza replied on "${assignment?.title ?? "your assignment"}"`,
+        description: this.state.subjects.find((x) => x.id === assignment?.subjectId)?.name,
+        studentId: before.studentId,
+        link: "/assignments",
+        audience: "student",
+      });
+    }
     this.commit((d) => {
       const s = d.assignmentSubmissions.find((x) => x.id === submissionId);
       if (s) { s.feedback = feedback; s.feedbackAt = feedbackAt; }

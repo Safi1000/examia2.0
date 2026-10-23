@@ -59,14 +59,20 @@ export default function GradingPage() {
   const released = submission.status === "released";
   const grade = gradeSubmission(test, submission);
 
-  // The oldest other submission still waiting for a mark: where "next" goes.
-  // Archived work (switched-off cohorts) stays out of the marking queue.
+  // Where "next" goes: the oldest paper still waiting from this same test,
+  // then from any other. Archived work (switched-off cohorts) stays out.
   const off = archivedCohortIds(db);
   const queue = db.submissions.filter((s) => s.status === "submitted" && !isArchivedSubmission(db, s, off));
-  const nextId = queue
-    .filter((s) => s.id !== subId)
-    .sort((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""))[0]?.id;
+  const others = queue.filter((s) => s.id !== subId).sort((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""));
+  const nextId = (others.find((s) => s.testId === submission.testId) ?? others[0])?.id;
   const waiting = queue.length;
+  // Written / photo questions left blank and not yet scored: one tap gives them 0.
+  const blanks = test.questions.filter((q) => {
+    if (q.type === "mcq") return false;
+    const a = submission.answers.find((x) => x.questionId === q.id);
+    if (typeof a?.marksAwarded === "number") return false;
+    return !a || (q.type === "text" ? !a.text?.trim() : !(a.photoUrls?.length || a.photoDataUrl));
+  });
 
   const mcqs = test.questions.filter((q) => q.type === "mcq");
   const hideAuto = !showAuto && mcqs.length > 0 && mcqs.length < test.questions.length;
@@ -136,9 +142,21 @@ export default function GradingPage() {
           <p className="text-sm text-ink-2">Grade {grade.letter}</p>
         </div>
         {!fullyGraded && !released && (
-          <p className="w-full rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-warning">
-            Score every written and photo answer before releasing.
-          </p>
+          <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-warning">
+            <span>Score every written and photo answer before releasing.</span>
+            {blanks.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  for (const q of blanks) store.gradeAnswer(subId, q.id, 0);
+                  toast(`Gave 0 to ${blanks.length === 1 ? "1 blank answer" : `${blanks.length} blank answers`}.`, "success");
+                }}
+                className="h-9 rounded-full border border-warning/40 px-3 text-xs font-semibold text-ink hover:bg-warning/10"
+              >
+                0 for {blanks.length === 1 ? "the blank answer" : `the ${blanks.length} blank answers`}
+              </button>
+            )}
+          </div>
         )}
       </Card>
 
@@ -170,6 +188,18 @@ export default function GradingPage() {
           return <GradeCard key={`${subId}-${q.id}`} index={i} question={q} answer={a} submissionId={subId} writeEndMs={writeEndMs} />;
         })}
       </div>
+
+      {/* Always in reach at the bottom (no scrolling back up on the iPad). */}
+      {!released && (
+        <div className="sticky bottom-3 z-20 mt-6 flex items-center justify-between gap-3 rounded-full border border-border bg-surface/95 py-2 pl-5 pr-2 shadow-[var(--shadow-lg)]">
+          <span className="font-mono text-sm font-semibold text-ink">
+            {awarded}/{total} <span className="font-sans font-normal text-ink-3">· {grade.percent}%</span>
+          </span>
+          <Button disabled={!fullyGraded} onClick={() => release(!!nextId)}>
+            {nextId ? "Release & next" : "Release result"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -225,16 +255,17 @@ function GradeCard({
   // leaving the box): saving on every keystroke made typing lag.
   const [feedback, setFeedback] = useState(answer?.feedback ?? "");
   const feedbackRef = useRef(feedback);
+  // What was last saved: a pause, then leaving the box, must not save it twice.
+  const savedFeedback = useRef(feedback);
   const fbTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const marksRef = useRef(awarded);
-  useEffect(() => {
-    marksRef.current = awarded;
-  }, [awarded]);
   const flushFeedback = useCallback(() => {
     if (fbTimer.current) clearTimeout(fbTimer.current);
     fbTimer.current = null;
-    if ((answer?.feedback ?? "") !== feedbackRef.current) store.gradeAnswer(submissionId, question.id, marksRef.current, feedbackRef.current);
-  }, [answer?.feedback, store, submissionId, question.id]);
+    if (feedbackRef.current === savedFeedback.current) return;
+    savedFeedback.current = feedbackRef.current;
+    // Feedback only: never scores the answer by itself.
+    store.gradeAnswer(submissionId, question.id, undefined, feedbackRef.current);
+  }, [store, submissionId, question.id]);
   function typeFeedback(v: string) {
     setFeedback(v);
     feedbackRef.current = v;
@@ -245,8 +276,7 @@ function GradeCard({
 
   function setMarks(v: number) {
     const clamped = Math.max(0, Math.min(question.marks, v));
-    marksRef.current = clamped;
-    store.gradeAnswer(submissionId, question.id, clamped, feedbackRef.current);
+    store.gradeAnswer(submissionId, question.id, clamped);
   }
 
   return (

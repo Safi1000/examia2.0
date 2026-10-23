@@ -10,16 +10,21 @@ import { Spinner } from "@/components/ui";
  *
  * PDF.js comes from cdnjs, only when a PDF is opened, so the portal itself
  * carries none of its weight. If it can't load, `onFail` falls back.
+ *
+ * Long notes open as soon as page 1 is in: the other pages are laid out at
+ * page 1's size and fetched only when they come near the screen. Pages that
+ * scroll far away give their drawing memory back, which keeps iPhone Safari
+ * from running out of memory on a 60-page handout.
  */
 const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs";
 const WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
 const MIN = 0.5;
 const MAX = 4;
 
-type PdfDoc = { numPages: number; getPage: (n: number) => Promise<PdfPage> };
+type PdfDoc = { numPages: number; getPage: (n: number) => Promise<PdfPage>; destroy?: () => Promise<void> };
 type PdfPage = {
   getViewport: (o: { scale: number }) => { width: number; height: number };
-  render: (o: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }) => { promise: Promise<void> };
+  render: (o: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }) => { promise: Promise<void>; cancel: () => void };
 };
 
 const clamp = (z: number) => Math.min(MAX, Math.max(MIN, z));
@@ -27,6 +32,7 @@ const clamp = (z: number) => Math.min(MAX, Math.max(MIN, z));
 export function PdfView({ url, onFail }: { url: string; onFail: () => void }) {
   const box = useRef<HTMLDivElement>(null);
   const [doc, setDoc] = useState<PdfDoc | null>(null);
+  // Page sizes at scale 1. Until a page is fetched it borrows page 1's size.
   const [sizes, setSizes] = useState<Array<{ w: number; h: number }>>([]);
   const [zoom, setZoom] = useState(1);
   const [width, setWidth] = useState(0);
@@ -37,10 +43,12 @@ export function PdfView({ url, onFail }: { url: string; onFail: () => void }) {
   const [near, setNear] = useState<Set<number>>(() => new Set([0, 1]));
   const [page, setPage] = useState(1);
   const drawn = useRef(new Map<number, number>()); // page index -> zoom it was drawn at
+  const tasks = useRef(new Map<number, { cancel: () => void }>()); // drawings in progress
 
-  // Load PDF.js and the file.
+  // Load PDF.js, the file and page 1 (enough to show the reader).
   useEffect(() => {
     let alive = true;
+    let loaded: PdfDoc | null = null;
     void (async () => {
       try {
         const lib = (await import(/* webpackIgnore: true */ /* turbopackIgnore: true */ PDFJS)) as {
@@ -49,12 +57,10 @@ export function PdfView({ url, onFail }: { url: string; onFail: () => void }) {
         };
         lib.GlobalWorkerOptions.workerSrc = WORKER;
         const d = await lib.getDocument({ url }).promise;
-        const pages = await Promise.all(Array.from({ length: d.numPages }, (_, i) => d.getPage(i + 1)));
+        loaded = d;
+        const first = (await d.getPage(1)).getViewport({ scale: 1 });
         if (!alive) return;
-        setSizes(pages.map((p) => {
-          const v = p.getViewport({ scale: 1 });
-          return { w: v.width, h: v.height };
-        }));
+        setSizes(Array.from({ length: d.numPages }, () => ({ w: first.width, h: first.height })));
         setDoc(d);
       } catch (e) {
         console.error("[pdf] load", e);
@@ -63,8 +69,25 @@ export function PdfView({ url, onFail }: { url: string; onFail: () => void }) {
     })();
     return () => {
       alive = false;
+      void loaded?.destroy?.().catch(() => {});
     };
   }, [url, onFail]);
+
+  // Closing the reader: give every page's drawing memory back straight away.
+  useEffect(() => {
+    const list = canvases;
+    const running = tasks;
+    return () => {
+      running.current.forEach((t) => t.cancel());
+      running.current.clear();
+      list.current.forEach((c) => {
+        if (c) {
+          c.width = 0;
+          c.height = 0;
+        }
+      });
+    };
+  }, []);
 
   // Fit-to-width base size follows the window.
   useEffect(() => {
@@ -104,30 +127,62 @@ export function PdfView({ url, onFail }: { url: string; onFail: () => void }) {
     return () => io.disconnect();
   }, [doc, sizes.length]);
 
-  // Draw the nearby pages at the settled zoom; others are left blank.
+  // Draw the nearby pages at the settled zoom; release the ones that moved away.
   useEffect(() => {
     if (!doc || !width) return;
     let alive = true;
+    for (const i of new Set([...drawn.current.keys(), ...tasks.current.keys()])) {
+      if (near.has(i)) continue;
+      tasks.current.get(i)?.cancel();
+      tasks.current.delete(i);
+      drawn.current.delete(i);
+      const c = canvases.current[i];
+      if (c) {
+        c.width = 0;
+        c.height = 0;
+      }
+    }
     void (async () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       for (const i of [...near].sort((a, b) => a - b)) {
         if (!alive) return;
         if (drawn.current.get(i) === drawZoom * width) continue;
-        const pg = await doc.getPage(i + 1);
+        const pg = await doc.getPage(i + 1).catch(() => null);
+        if (!alive) return;
         const c = canvases.current[i];
-        if (!c || !alive) continue;
-        const fit = width / pg.getViewport({ scale: 1 }).width;
-        // Keep each canvas under ~16 MP so iPhones never run out of canvas memory.
-        let scale = fit * drawZoom * dpr;
+        if (!pg || !c) continue;
         const base = pg.getViewport({ scale: 1 });
-        const maxScale = Math.sqrt(16_000_000 / (base.width * base.height));
-        scale = Math.min(scale, maxScale);
+        // Now its real size is known: correct the borrowed one if it differs.
+        setSizes((prev) => {
+          const was = prev[i];
+          if (!was || (Math.abs(was.w - base.width) < 0.5 && Math.abs(was.h - base.height) < 0.5)) return prev;
+          const next = prev.slice();
+          next[i] = { w: base.width, h: base.height };
+          return next;
+        });
+        const fit = width / base.width;
+        // Keep each canvas under ~16 MP so iPhones never run out of canvas memory.
+        const scale = Math.min(fit * drawZoom * dpr, Math.sqrt(16_000_000 / (base.width * base.height)));
         const vp = pg.getViewport({ scale });
+        tasks.current.get(i)?.cancel();
         c.width = vp.width;
         c.height = vp.height;
         const ctx = c.getContext("2d");
-        if (ctx) await pg.render({ canvasContext: ctx, viewport: vp }).promise.catch(() => {});
-        drawn.current.set(i, drawZoom * width);
+        if (!ctx) continue;
+        let task: { promise: Promise<void>; cancel: () => void };
+        try {
+          task = pg.render({ canvasContext: ctx, viewport: vp });
+        } catch {
+          continue;
+        }
+        tasks.current.set(i, task);
+        const ok = await task.promise.then(
+          () => true,
+          () => false,
+        );
+        if (tasks.current.get(i) === task) tasks.current.delete(i);
+        // Released while drawing (scrolled away): it isn't drawn.
+        if (ok && c.width > 0) drawn.current.set(i, drawZoom * width);
       }
     })();
     return () => {

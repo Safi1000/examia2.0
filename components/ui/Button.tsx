@@ -21,7 +21,7 @@ const variantClass: Record<Variant, string> = {
     "bg-brand text-on-brand hover:brightness-110 active:brightness-95",
   secondary:
     "bg-transparent text-ink border border-border-strong hover:border-ink-3 hover:bg-surface-2 active:bg-surface-2",
-  ghost: "bg-transparent text-ink-2 hover:bg-surface-2 hover:text-ink",
+  ghost: "bg-transparent text-ink-2 hover:bg-surface-2 hover:text-ink active:bg-surface-2",
   danger: "bg-error text-on-brand hover:opacity-90 active:opacity-90",
 };
 

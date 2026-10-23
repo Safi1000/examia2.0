@@ -6,6 +6,7 @@ import type { Database } from "@/lib/data/seed";
 import { testById } from "@/lib/data/selectors";
 import { topicMastery } from "@/lib/scoring";
 import { waTextLink } from "@/lib/landing";
+import { displayName } from "@/lib/display-name";
 import { Card } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
@@ -80,6 +81,7 @@ export function StudyCoach({
   }
 
   if (!released.length) return null;
+  const first = displayName(student.username).split(" ")[0];
 
   return (
     <Card className="p-5">
@@ -131,12 +133,12 @@ export function StudyCoach({
                     </span>
                   )}
                   {note && (
-                    <Link href="/notes" className="rounded-md border border-border-strong px-3 py-1.5 font-semibold text-ink hover:border-brand">
+                    <Link href={`/notes?open=${note.id}`} className="rounded-md border border-border-strong px-3 py-1.5 font-semibold text-ink hover:border-brand">
                       Read: {note.title}
                     </Link>
                   )}
                   <a
-                    href={waTextLink(`Hi, I'm stuck on ${s.name} (${s.subject})${test ? ` from ${test.title}` : ""}. Can you help me with it?`)}
+                    href={waTextLink(`Hi Hamza, it's ${first}. I'm stuck on ${s.name} (${s.subject})${test ? ` from ${test.title}` : ""}. Can you help me with it?`)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="rounded-md px-3 py-1.5 font-semibold text-brand hover:underline"

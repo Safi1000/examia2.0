@@ -8,7 +8,7 @@ export function StartCard({ slot, url, nowMs }: { slot: DaySlot; url: string | n
   const live = nowMs >= slot.startMs;
   const mins = Math.max(1, Math.round((slot.startMs - nowMs) / 60_000));
   return (
-    <section className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-brand/30 bg-[linear-gradient(135deg,rgba(251,193,89,0.16),rgba(251,193,89,0.04))] p-5">
+    <section className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-brand/30 bg-linear-to-br from-brand/16 to-brand/4 p-5">
       <div>
         <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-brand">
           <span className="h-2 w-2 animate-low-pulse rounded-full bg-brand" />

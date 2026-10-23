@@ -11,6 +11,7 @@ import {
   entityCount,
   entityRows,
   exportFilename,
+  marksSheet,
   toCsv,
   TABULAR,
   ENTITY_LABEL,
@@ -65,9 +66,36 @@ export default function ExportPage() {
     toast(`Exported ${ENTITY_LABEL[key]} as CSV.`, "success");
   }
 
+  function downloadMarks() {
+    const csv = toCsv(marksSheet(db));
+    if (!csv) return toast("No students to export yet.", "info");
+    // The byte-order mark makes Excel read names in any script correctly.
+    download("\uFEFF" + csv, `${COMPANY_SLUG}-marks-${new Date().toISOString().slice(0, 10)}.csv`, "text/csv");
+    toast("Marks spreadsheet downloaded.", "success");
+  }
+
+  function downloadBackup() {
+    const payload = { exportedAt: new Date().toISOString(), organisation: COMPANY_SLUG, data: db };
+    download(JSON.stringify(payload), `${COMPANY_SLUG}-full-backup-${new Date().toISOString().slice(0, 10)}.json`, "application/json");
+    toast("Full backup downloaded. Keep it somewhere safe.", "success");
+  }
+
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader title="Data export" subtitle="Download a snapshot of your portal data." />
+
+      <Card className="mb-5 max-w-2xl p-5">
+        <h2 className="text-base font-semibold text-ink">Marks spreadsheet</h2>
+        <p className="mt-1 text-sm text-ink-2">Every current student, every released test as a percentage, and their average. Opens in Excel or Google Sheets.</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button onClick={downloadMarks}>
+            <Icon.Download className="h-4 w-4" /> Download marks
+          </Button>
+          <Button variant="secondary" onClick={downloadBackup}>
+            <Icon.Download className="h-4 w-4" /> Full backup (everything)
+          </Button>
+        </div>
+      </Card>
 
       <Card className="max-w-2xl p-5">
         <h2 className="text-base font-semibold text-ink">Choose entities</h2>

@@ -6,8 +6,25 @@ import { useNow } from "@/hooks/useNow";
 import { useDatabase } from "@/lib/data/store";
 import { studentById } from "@/lib/data/selectors";
 import { ClassNow } from "@/components/student/ClassNow";
-import { EmptyState, Icon } from "@/components/ui";
-import { useSchedule, LEVEL_LABEL, RECORDING_HOURS, getSchedule, addDays, isClassDay, pkDate, slotKey, slotsForStudent, span, useClassLinks } from "@/lib/classes";
+import { Badge, EmptyState, Icon } from "@/components/ui";
+import type { Student } from "@/types";
+import type { Database } from "@/lib/data/seed";
+import { useSchedule, LEVEL_LABEL, RECORDING_HOURS, getSchedule, addDays, isClassDay, pkDate, slotKey, slotsForStudent, slotsOn, span, useClassLinks } from "@/lib/classes";
+import { cn } from "@/lib/cn";
+
+/**
+ * The student's classes that were called off on a date. `slotsForStudent`
+ * leaves them out; the timetable shows them struck through instead, so nobody
+ * waits for a class that isn't on. Same level and subject rules as there.
+ */
+function cancelledFor(db: Database, student: Student, date: string) {
+  const cohort = db.cohorts.find((c) => c.id === student.cohortId);
+  const classes = student.classIds.length ? student.classIds : (cohort?.classIds ?? []);
+  const subjects = student.subjectIds.length ? student.subjectIds : (cohort?.subjectIds ?? []);
+  return slotsOn(db, date).filter((s) => s.cancelled && classes.includes(s.classId) && (!subjects.length || subjects.includes(s.subjectId)));
+}
+
+const dayName = (ymd: string) => new Date(`${ymd}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 
 /** The student's daily timetable and the recordings of past classes. */
 export default function ClassesPage() {
@@ -27,7 +44,9 @@ export default function ClassesPage() {
     for (let i = 0; i < 7 && !isClassDay(d); i++) d = addDays(d, 1);
     return d;
   }, [today, schedule]);
-  const slots = student ? slotsForStudent(db, student, day) : [];
+  const slots = student
+    ? [...slotsForStudent(db, student, day), ...cancelledFor(db, student, day)].sort((a, b) => a.startMs - b.startMs)
+    : [];
 
   const recordings = (() => {
     if (!student) return [];
@@ -56,16 +75,28 @@ export default function ClassesPage() {
       <ClassNow db={db} student={student} nowMs={nowMs} />
 
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-ink">Your timetable</h2>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-base font-semibold text-ink">Your timetable</h2>
+          <p className="text-sm font-semibold text-ink-2">{day === today ? "Today" : dayName(day)}</p>
+        </div>
         {slots.length ? (
           <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
             {slots.map((s) => (
               <li key={slotKey(s)} className="flex items-center justify-between gap-3 px-5 py-3.5">
-                <span>
-                  <span className="block font-semibold text-ink">{s.subject}</span>
+                <span className="min-w-0">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className={cn("font-semibold", s.cancelled ? "text-ink-3 line-through" : "text-ink")}>{s.subject}</span>
+                    {s.cancelled ? (
+                      <Badge className="px-2 text-[11px]">Cancelled</Badge>
+                    ) : s.extra ? (
+                      <Badge tone="brand" className="px-2 text-[11px]">Extra</Badge>
+                    ) : s.changed ? (
+                      <Badge tone="warning" className="px-2 text-[11px]">Moved</Badge>
+                    ) : null}
+                  </span>
                   <span className="block text-xs text-ink-3">{LEVEL_LABEL[s.level]}</span>
                 </span>
-                <span className="text-sm tabular-nums text-ink-2">
+                <span className={cn("shrink-0 text-sm tabular-nums", s.cancelled ? "text-ink-3 line-through" : "text-ink-2")}>
                   {span(s.start, s.end)}
                 </span>
               </li>

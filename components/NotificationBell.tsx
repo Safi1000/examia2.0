@@ -31,17 +31,18 @@ export function NotificationBell() {
   // them to /login.
   const allHref = session?.role === "admin" ? "/admin/notifications" : "/notifications";
 
-  // Close on outside click / Escape.
+  // Close on outside tap / Escape. pointerdown, not mousedown: iPhone may not
+  // send a mouse event for a tap on a blank area, which left the menu stuck open.
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => {
+    const onDown = (e: PointerEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", onDown);
+    document.addEventListener("pointerdown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {
-      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("pointerdown", onDown);
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
@@ -78,23 +79,26 @@ export function NotificationBell() {
       </button>
 
       {open && (
+        // Phones: pinned to the screen edges just under the header (the bell
+        // sits mid-header, so hanging the panel off it ran past the left edge).
+        // From sm up: hangs from the bell as before.
         <div
           role="menu"
-          className="absolute right-0 z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] animate-scale-in overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-lg)]"
+          className="fixed inset-x-4 top-[76px] z-50 animate-scale-in overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-lg)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[22rem]"
         >
-          <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+          <div className="flex items-center justify-between border-b border-border py-1 pl-4 pr-2">
             <p className="text-sm font-bold text-ink">Notifications</p>
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
-                className="text-xs font-semibold text-brand hover:underline"
+                className="flex min-h-10 items-center rounded-md px-2 text-xs font-semibold text-brand hover:underline"
               >
                 Mark all read
               </button>
             )}
           </div>
 
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-[min(24rem,calc(100dvh-14rem))] overflow-y-auto overscroll-contain">
             {preview.length === 0 ? (
               <p className="px-4 py-8 text-center text-sm text-ink-3">Nothing yet.</p>
             ) : (
@@ -115,7 +119,7 @@ export function NotificationBell() {
               onClick={() => { setOpen(false); router.push(allHref); }}
               className="flex w-full items-center justify-center gap-1.5 px-4 py-3 text-xs font-bold text-brand transition-colors hover:bg-surface-2"
             >
-              Show All Notifications &amp; Activity
+              Show all notifications
               <Icon.ChevronRight className="h-3.5 w-3.5" />
             </button>
 

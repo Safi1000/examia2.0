@@ -82,7 +82,7 @@ export default function GroundworkPage() {
           )}
           <div className="flex flex-wrap gap-2">
             {mission && (
-              <button type="button" onClick={() => setOpen({ mission })} className="inline-flex h-11 items-center gap-1.5 rounded-full bg-brand px-5 text-sm font-semibold text-on-brand">
+              <button type="button" onClick={() => setOpen({ mission })} className="inline-flex h-11 items-center gap-1.5 rounded-full bg-brand px-5 text-sm font-semibold text-on-brand active:scale-[0.98]">
                 Start mission <Icon.ChevronRight className="h-4 w-4" />
               </button>
             )}

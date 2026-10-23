@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Card, Icon } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { saveWeekly } from "@/components/ScheduleGate";
@@ -28,7 +28,7 @@ const field =
  * (subject and times). Changes apply from the next page load for students;
  * one-off changes for a single date live on the day view instead.
  */
-export function TimetableEditor() {
+export function TimetableEditor({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) {
   const { toast } = useToast();
   const saved = useSchedule();
   const [draft, setDraft] = useState<Schedule>(() => structuredClone(saved));
@@ -41,6 +41,14 @@ export function TimetableEditor() {
     setSeen(saved);
     if (!dirty) setDraft(structuredClone(saved));
   }
+  // Unsaved edits: the page asks before switching away, and so does the browser.
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty, onDirtyChange]);
 
   const setSlot = (i: number, patch: Partial<WeekSlot>) =>
     setDraft((d) => ({ ...d, slots: d.slots.map((s, j) => (j === i ? { ...s, ...patch } : s)) }));
@@ -51,13 +59,28 @@ export function TimetableEditor() {
       const [h, m] = start.split(":").map(Number);
       const endMin = Math.min(23 * 60 + 59, h * 60 + m + 40);
       const end = `${String(Math.floor(endMin / 60)).padStart(2, "0")}:${String(endMin % 60).padStart(2, "0")}`;
-      return { ...d, slots: [...d.slots, { level, subject: "Economics", start, end }] };
+      // The first subject this level doesn't have yet, so a new row isn't a quiet duplicate.
+      const used = new Set(d.slots.filter((s) => s.level === level).map((s) => s.subject));
+      const subject = SUBJECTS.find((x) => !used.has(x)) ?? "Economics";
+      return { ...d, slots: [...d.slots, { level, subject, start, end }] };
     });
 
   async function save() {
     const bad = draft.slots.find((s) => !(s.start < s.end));
     if (bad) return toast(`${LEVEL_LABEL[bad.level]} ${bad.subject}: the end time must be after the start.`, "error");
     if (!draft.days.length) return toast("Pick at least one class day.", "error");
+    // Same level on the same day: one class per subject (each has its own Meet
+    // link and register), and no two classes at the same time.
+    const daysOf = (x: WeekSlot) => x.days ?? draft.days;
+    for (const [i, a] of draft.slots.entries()) {
+      for (const b of draft.slots.slice(i + 1)) {
+        if (a.level !== b.level || !daysOf(a).some((d) => daysOf(b).includes(d))) continue;
+        if (a.subject === b.subject)
+          return toast(`${LEVEL_LABEL[a.level]} has ${a.subject} twice on the same day. Change one subject or remove it.`, "error");
+        if (a.start < b.end && b.start < a.end)
+          return toast(`${LEVEL_LABEL[a.level]}: ${a.subject} and ${b.subject} overlap (${timeLabel(a.start)} and ${timeLabel(b.start)}).`, "error");
+      }
+    }
     setBusy(true);
     try {
       setDraft(structuredClone(await saveWeekly(draft)));

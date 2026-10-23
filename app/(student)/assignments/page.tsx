@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Assignment } from "@/types";
 import { useAuth } from "@/lib/auth-context";
 import { useDatabase, useStore } from "@/lib/data/store";
@@ -25,26 +25,64 @@ export default function StudentAssignmentsPage() {
   // Upcoming first (soonest at the top), then past work, newest first.
   const nowMs = useNow();
   const due = (a: { dueAt: string }) => +new Date(a.dueAt);
+  const handedIn = (a: Assignment) => db.assignmentSubmissions.some((s) => s.assignmentId === a.id && s.studentId === studentId);
+  const past = db.assignments.filter((a) => due(a) < nowMs).sort((a, b) => due(b) - due(a));
   const assignments = [
     ...db.assignments.filter((a) => due(a) >= nowMs).sort((a, b) => due(a) - due(b)),
-    ...db.assignments.filter((a) => due(a) < nowMs).sort((a, b) => due(b) - due(a)),
+    ...past.filter((a) => !handedIn(a)),
   ];
+  // Handed in and past the deadline: folded away, so the list stays short
+  // as the weeks go by (and their worksheets don't load until opened).
+  const done = past.filter(handedIn);
+  const [doneOpen, setDoneOpen] = useState(() => {
+    try {
+      return done.some((a) => window.location.hash === `#a-${a.id}`);
+    } catch {
+      return false;
+    }
+  });
+
+  // Home's "Hand in" lands on that assignment (/assignments#a-<id>).
+  useEffect(() => {
+    const el = window.location.hash.startsWith("#a-") ? document.getElementById(window.location.hash.slice(1)) : null;
+    if (el) requestAnimationFrame(() => el.scrollIntoView({ block: "start" }));
+  }, []);
 
   if (!studentId) return null;
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="mb-1 font-display text-2xl font-bold text-ink">Assignments</h1>
+      <h1 className="mb-1 font-display text-2xl font-bold text-ink">Tasks</h1>
       <p className="mb-6 text-sm text-ink-3">Hand in your work as photos or a PDF.</p>
 
-      {assignments.length === 0 ? (
+      {assignments.length === 0 && done.length === 0 ? (
         <EmptyState icon={<Icon.Doc />} title="Nothing set right now" message="New assignments will appear here." />
+      ) : assignments.length === 0 ? (
+        <p className="text-sm text-ink-2">All handed in. Nothing to do right now.</p>
       ) : (
         <div className="space-y-4">
           {assignments.map((a) => (
             <AssignmentCard key={a.id} assignment={a} studentId={studentId} />
           ))}
         </div>
+      )}
+
+      {done.length > 0 && (
+        <details open={doneOpen} onToggle={(e) => setDoneOpen(e.currentTarget.open)} className="group mt-8">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
+            <span>
+              Done <span className="font-normal text-ink-3">· {done.length}</span>
+            </span>
+            <Icon.ChevronRight className="h-4 w-4 text-ink-3 transition-transform group-open:rotate-90" />
+          </summary>
+          {doneOpen && (
+            <div className="mt-4 space-y-4">
+              {done.map((a) => (
+                <AssignmentCard key={a.id} assignment={a} studentId={studentId} />
+              ))}
+            </div>
+          )}
+        </details>
       )}
     </main>
   );
@@ -57,6 +95,8 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+  // The next upload replaces the work instead of adding to it (one wrong photo).
+  const replacing = useRef(false);
 
   const mine = db.assignmentSubmissions.find(
     (s) => s.assignmentId === assignment.id && s.studentId === studentId,
@@ -78,7 +118,7 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
     }
   }
 
-  async function addFiles(files: File[]) {
+  async function addFiles(files: File[], replace = false) {
     const accepted = files.filter((f) => f.type.startsWith("image/") || f.type === "application/pdf");
     if (!accepted.length) {
       toast("Images or PDFs only, please.", "error");
@@ -100,8 +140,8 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
       const failed = results.length - results.filter((r) => r.status === "fulfilled").length;
       if (!pages.length) throw new Error("Nothing uploaded. Check your internet and try again.");
       if (failed) toast(failed === 1 ? "1 file didn't upload. Add it again." : `${failed} files didn't upload. Add them again.`, "error");
-      await store.submitAssignment(assignment.id, studentId, [...(mine?.fileUrls ?? []), ...pages]);
-      toast("Handed in.", "success");
+      await store.submitAssignment(assignment.id, studentId, [...(replace ? [] : (mine?.fileUrls ?? [])), ...pages]);
+      toast(replace ? "Replaced." : "Handed in.", "success");
     } catch (err) {
       toast(err instanceof Error ? err.message : "Upload failed. Try again.", "error");
     } finally {
@@ -111,7 +151,7 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
   }
 
   return (
-    <Card className="p-4">
+    <Card id={`a-${assignment.id}`} className="scroll-mt-24 p-4">
       <div className="flex flex-wrap items-center gap-2">
         {mine ? <Badge tone="success">Handed in</Badge> : <Badge tone={overdue ? "warning" : "neutral"}>{overdue ? "Overdue" : "To do"}</Badge>}
         {subjectName && <Badge tone="neutral">{subjectName}</Badge>}
@@ -130,7 +170,20 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
         <div className="mt-4">
           <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-3">Your work</p>
           <PageStack urls={mine.fileUrls} label="Your work" />
-          {/* Wrong photo? Take it out, until Hamza has replied. */}
+          {/* Wrong photo? Take it out (or swap the only one), until Hamza has replied. */}
+          {!mine.feedback && mine.fileUrls.length === 1 && (
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => {
+                replacing.current = true;
+                fileRef.current?.click();
+              }}
+              className="mt-2 inline-flex h-10 items-center gap-1.5 rounded-full border border-border-strong px-3 text-xs font-semibold text-ink-2 transition-colors hover:border-brand hover:text-ink disabled:opacity-40"
+            >
+              <Icon.Refresh className="h-3.5 w-3.5" /> Replace this photo
+            </button>
+          )}
           {!mine.feedback && mine.fileUrls.length > 1 && (
             <ul className="mt-2 flex flex-wrap gap-2" aria-label="Remove a page">
               {mine.fileUrls.map((url, i) => (
@@ -164,10 +217,21 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
           accept="image/*,application/pdf"
           multiple
           className="sr-only"
-          onChange={(e) => void addFiles(Array.from(e.target.files ?? []))}
+          onChange={(e) => {
+            const replace = replacing.current;
+            replacing.current = false;
+            void addFiles(Array.from(e.target.files ?? []), replace);
+          }}
           aria-label="Upload your work"
         />
-        <Button variant={mine ? "secondary" : "primary"} loading={uploading} onClick={() => fileRef.current?.click()}>
+        <Button
+          variant={mine ? "secondary" : "primary"}
+          loading={uploading}
+          onClick={() => {
+            replacing.current = false;
+            fileRef.current?.click();
+          }}
+        >
           <Icon.Camera className="h-4 w-4" /> {mine ? "Add more pages" : "Hand in work"}
         </Button>
         {uploading && (
@@ -179,7 +243,7 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
           </div>
         )}
         {mine?.feedback && <p className="mt-1.5 text-xs text-ink-3">Hamza has already replied. If you add pages, message Hamza so they see them.</p>}
-        {overdue && !mine && <p className="mt-1.5 text-xs text-ink-3">The deadline has passed — hand in as soon as you can.</p>}
+        {overdue && !mine && <p className="mt-1.5 text-xs text-ink-3">The deadline has passed.</p>}
       </div>
     </Card>
   );

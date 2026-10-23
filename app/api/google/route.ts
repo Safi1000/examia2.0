@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/admin-auth";
-import { authUrl, googleReady } from "@/lib/google";
+import { accessToken, authUrl, googleReady } from "@/lib/google";
 import { pushReady, serviceClient } from "@/lib/push-server";
 import { findTestRecording, makeTestClass, runClassAutomation } from "@/lib/class-automation";
 
@@ -22,8 +22,12 @@ const ready = () => googleReady() && pushReady();
 export async function GET(req: NextRequest) {
   if (!(await isAdminRequest(req))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   if (!ready()) return NextResponse.json({ ready: false, connected: false });
-  const { data } = await serviceClient().from("google_account").select("email").eq("id", 1).maybeSingle();
-  return NextResponse.json({ ready: true, connected: !!data, email: data?.email ?? null });
+  const sb = serviceClient();
+  const { data } = await sb.from("google_account").select("email").eq("id", 1).maybeSingle();
+  // Connected on paper isn't enough: try a real sign-in, so a lapsed
+  // connection (password change, access removed) shows before class time.
+  const broken = !!data && !(await accessToken(sb).catch(() => null));
+  return NextResponse.json({ ready: true, connected: !!data, broken, email: data?.email ?? null });
 }
 
 export async function POST(req: NextRequest) {

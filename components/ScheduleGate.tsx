@@ -85,4 +85,4 @@ export const saveWeekly = (s: Pick<Schedule, "termStarts" | "days" | "slots">) =
   send({ op: "weekly", termStarts: s.termStarts, days: s.days, slots: s.slots });
 
 /** Cancel, move or add a class on one date (or undo that with change: null). */
-export const saveDayChange = (c: DayChange) => send({ op: "day", ...c });
+export const saveDayChange = (c: DayChange & { notify?: boolean }) => send({ op: "day", ...c });

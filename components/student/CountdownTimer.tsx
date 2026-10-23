@@ -11,12 +11,16 @@ const stateStyle: Record<TimerState, string> = {
   critical: "border-error/50 bg-error-soft text-error",
 };
 
-/** Prominent mono countdown that bands color as time drains (pulses < 60s). */
+/**
+ * Prominent mono countdown that bands color as time drains (pulses < 60s).
+ * Not a live region: reading out the time every second drowns a screen
+ * reader. The runner's toasts already announce 5 minutes and 1 minute left.
+ */
 export function CountdownTimer({ remaining, state }: { remaining: number; state: TimerState }) {
   return (
     <div
       role="timer"
-      aria-live={state === "normal" ? "off" : "polite"}
+      aria-live="off"
       aria-label="Time remaining"
       className={cn(
         "inline-flex items-center gap-2 rounded-md border px-3 py-1.5 font-mono text-lg font-semibold tabular-nums",

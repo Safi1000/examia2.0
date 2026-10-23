@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAuth } from "@/lib/auth-context";
 import { studentById } from "@/lib/data/selectors";
@@ -35,7 +36,16 @@ function scopeLabel(
   return parts.join(" › ");
 }
 
+/** Suspense wrapper: `useSearchParams` (for `?open=<noteId>`) needs a boundary during prerender. */
 export default function StudentNotesPage() {
+  return (
+    <Suspense fallback={null}>
+      <StudentNotes />
+    </Suspense>
+  );
+}
+
+function StudentNotes() {
   const db = useDatabase();
   const store = useStore();
   const { session } = useAuth();
@@ -51,6 +61,26 @@ export default function StudentNotesPage() {
 
   const visitLogged = useRef(false);
   const [viewing, setViewing] = useState<{ id: string; title: string } | null>(null);
+  // `?open=<noteId>` (from "Read: …" and "Open the notes for it") opens that
+  // note in the reader straight away. Once closed, it stays closed.
+  const openId = useSearchParams().get("open");
+  const [closedLinked, setClosedLinked] = useState<string | null>(null);
+  // RLS already limits db.notes to what this student can open.
+  const linked = openId && openId !== closedLinked ? db.notes.find((n) => n.id === openId) : undefined;
+
+  // Opening a note from a link is still opening it, same as tapping Read.
+  const linkedLogged = useRef<string | null>(null);
+  useEffect(() => {
+    if (!linked || !studentId || linkedLogged.current === linked.id) return;
+    linkedLogged.current = linked.id;
+    store.logActivity({
+      type: "notes_downloaded",
+      title: `${username} opened "${linked.fileName}"`,
+      studentId,
+      noteId: linked.id,
+      link: "/admin/notes",
+    });
+  }, [linked, studentId, username, store]);
 
   useEffect(() => {
     if (visitLogged.current || !studentId) return;
@@ -91,6 +121,7 @@ export default function StudentNotesPage() {
 
   const accessibleNoteIds = new Set(accessibleAssignments.map((a) => a.noteId));
   const notes = db.notes.filter((n) => accessibleNoteIds.has(n.id));
+  const shown = viewing ?? (linked ? { id: linked.id, title: linked.title } : null);
 
   // Group notes by subject, then "General" for cohort-only
   const bySubject = new Map<string, typeof notes>();
@@ -175,8 +206,15 @@ export default function StudentNotesPage() {
           ))}
         </div>
       )}
-      {viewing && (
-        <NoteViewer noteId={viewing.id} title={viewing.title} onClose={() => setViewing(null)} />
+      {shown && (
+        <NoteViewer
+          noteId={shown.id}
+          title={shown.title}
+          onClose={() => {
+            setViewing(null);
+            setClosedLinked(openId);
+          }}
+        />
       )}
     </main>
   );

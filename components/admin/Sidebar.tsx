@@ -85,13 +85,13 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                       className={cn(
                         "group relative flex h-10 items-center gap-3 rounded-xl px-3 text-[13.5px] font-semibold transition-all duration-300",
                         active
-                          ? "bg-[linear-gradient(90deg,rgba(251,193,89,0.16),rgba(251,193,89,0.03))] text-ink shadow-[inset_0_0_0_1px_rgba(251,193,89,0.18)]"
+                          ? "bg-linear-to-r from-brand/16 to-brand/3 text-ink ring-1 ring-inset ring-brand/20"
                           : "text-ink-3 hover:bg-white/[0.035] hover:text-ink",
                       )}
                     >
                       <item.Icon active={active} className={cn("h-[18px] w-[18px]", active ? "text-brand" : "text-ink-3 group-hover:text-ink-2")} />
                       {item.label}
-                      {active && <span aria-hidden className="ml-auto h-1.5 w-1.5 rounded-full bg-brand shadow-[0_0_10px_rgba(251,193,89,0.9)]" />}
+                      {active && <span aria-hidden className="ml-auto h-1.5 w-1.5 rounded-full bg-brand shadow-[0_0_10px_var(--color-brand)]" />}
                     </Link>
                   </li>
                 );
@@ -133,7 +133,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* Who's signed in, and the way out. */}
       <div className="m-3 flex items-center gap-3 rounded-2xl border border-white/[0.07] bg-surface/60 p-2.5">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(145deg,#2c3034,#1c1f22)] text-xs font-bold text-brand shadow-[inset_0_0_0_1px_rgba(251,193,89,0.35)]">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(145deg,#2c3034,#1c1f22)] text-xs font-bold text-brand ring-1 ring-inset ring-brand/35">
           HS
         </span>
         <span className="min-w-0 flex-1">

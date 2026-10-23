@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { Icon, Spinner } from "@/components/ui";
 import { PdfView } from "@/components/PdfView";
+import { useBackToClose } from "@/components/student/useBackToClose";
 
 /**
  * Reads a note inside the portal.
@@ -32,8 +33,13 @@ export function NoteViewer({
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
+  // The phone's Back button closes the note instead of leaving the page.
+  useBackToClose(onClose);
+  const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Focus moves into the reader, so the keyboard and screen readers follow.
+    panel.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onCloseRef.current();
     };
@@ -76,13 +82,13 @@ export function NoteViewer({
   const isPdf = !!state && (state.fileType?.includes("pdf") || /\.pdf($|\?)/i.test(title));
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-paper" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-surface px-4 py-2.5">
+    <div ref={panel} tabIndex={-1} className="fixed inset-0 z-50 flex flex-col bg-paper outline-none" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-surface py-1.5 pl-4 pr-2">
         <span className="truncate text-sm font-semibold text-ink">{title}</span>
         <button
           onClick={onClose}
           aria-label="Close"
-          className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink"
+          className="ml-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink"
         >
           <Icon.Close className="h-5 w-5" />
         </button>

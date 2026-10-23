@@ -1,6 +1,9 @@
 "use client";
 
 import { useAuth } from "@/lib/auth-context";
+import { useDatabase } from "@/lib/data/store";
+import { studentById } from "@/lib/data/selectors";
+import { displayName } from "@/lib/display-name";
 import { LEVELS, STUDY_NAME, currentStats, levelFor, mondayOf } from "@/lib/focus";
 import { addDays, pkDate } from "@/lib/timetable";
 import { Avatar } from "@/components/student/Avatar";
@@ -13,7 +16,11 @@ const WEEKS = 12;
  * 12-week study calendar (darker = more minutes), and this week by subject.
  */
 export function StudyStats({ nowMs }: { nowMs: number }) {
-  const { profile } = useAuth();
+  const { profile, session } = useAuth();
+  const db = useDatabase();
+  const student = session?.studentId ? studentById(db, session.studentId) : null;
+  // No avatar picked yet: their initials, as in the header.
+  const initials = student ? displayName(student.username).split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "";
   const stats = currentStats(profile.focus, nowMs);
   const total = stats.totalMinutes ?? 0;
   const level = levelFor(total);
@@ -28,7 +35,7 @@ export function StudyStats({ nowMs }: { nowMs: number }) {
   return (
     <Card className="space-y-6 p-5">
       <div className="flex items-center gap-4">
-        <Avatar id={profile.avatar} initials="?" level={level.index} className="m-4 h-16 w-16" />
+        <Avatar id={profile.avatar} initials={initials} level={level.index} className="m-4 h-16 w-16 text-xl" />
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-3">{STUDY_NAME}</p>
           <p className="text-lg font-extrabold text-ink">

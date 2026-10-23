@@ -215,8 +215,44 @@ html:has(.landing) { scroll-behavior: smooth; }
   to { transform: rotate(360deg); }
 }
 
-/* ---- Base ---- */
-* { border-color: var(--color-border); }
+/* ---- Base ----
+   These defaults sit in Tailwind's base layer, so a class on an element
+   (a gold border, a heading size or colour) always wins in the portal.
+   The public site keeps its original look exactly: the same rules are
+   repeated unlayered under [data-site="public"] (with :where, so their
+   strength is exactly what it was), where they still apply. */
+@layer base {
+  * { border-color: var(--color-border); }
+  h1, h2, h3, h4, h5 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+    color: var(--color-ink);
+    text-wrap: balance;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}
+:where([data-site="public"]) * { border-color: var(--color-border); }
+:where([data-site="public"]) :is(h1, h2, h3, h4, h5) {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  color: var(--color-ink);
+  text-wrap: balance;
+}
+:where([data-site="public"]) :focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* No grey flash on every tap (Android); buttons draw their own pressed state. */
+* { -webkit-tap-highlight-color: transparent; }
 
 html { -webkit-text-size-adjust: 100%; }
 
@@ -231,24 +267,9 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-h1, h2, h3, h4, h5 {
-  font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: -0.025em;
-  line-height: 1.15;
-  color: var(--color-ink);
-  text-wrap: balance;
-}
-
 .font-mono, code, kbd, .tabular {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-}
-
-:focus-visible {
-  outline: 2px solid var(--color-brand);
-  outline-offset: 2px;
-  border-radius: var(--radius-xs);
 }
 
 /* Signature: exam-booklet ruled margin */

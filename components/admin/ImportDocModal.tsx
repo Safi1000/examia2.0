@@ -128,25 +128,42 @@ export function ImportDocModal({
       const token = data.session?.access_token;
       if (!token) throw new Error("Your session expired. Sign in again.");
 
-      const form = new FormData();
-      files.forEach((f) => form.append("files", f));
+      // The server takes at most about 4.5 MB per upload: a bigger file is
+      // turned away with a plain reason, and the rest go up in batches.
+      const LIMIT = 4.2 * 1024 * 1024;
+      const tooBig = files.filter((f) => f.size > LIMIT);
+      const batches: File[][] = [];
+      for (const f of files.filter((x) => x.size <= LIMIT)) {
+        const last = batches[batches.length - 1];
+        if (last && last.reduce((n, x) => n + x.size, 0) + f.size <= LIMIT) last.push(f);
+        else batches.push([f]);
+      }
+      const found: DraftQuestion[] = [];
+      const errors = tooBig.map((f) => `${f.name} is over 4 MB. Save it as a smaller PDF (or a Word file) and try again.`);
+      for (const batch of batches) {
+        const form = new FormData();
+        batch.forEach((f) => form.append("files", f));
+        const res = await fetch("/api/extract", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        });
+        const json = (await res.json().catch(() => ({
+          error: res.status === 413 ? "That file is too big to upload. Try a smaller PDF." : "The server didn't answer. Try again.",
+        }))) as {
+          questions?: DraftQuestion[];
+          errors?: string[];
+          error?: string;
+        };
+        if (!res.ok) throw new Error(json.error ?? "Extraction failed.");
+        found.push(...(json.questions ?? []));
+        errors.push(...(json.errors ?? []));
+      }
 
-      const res = await fetch("/api/extract", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-      const json = (await res.json()) as {
-        questions?: DraftQuestion[];
-        errors?: string[];
-        error?: string;
-      };
-      if (!res.ok) throw new Error(json.error ?? "Extraction failed.");
-
-      setDrafts((prev) => [...prev, ...(json.questions ?? [])]);
-      setProblems(json.errors ?? []);
-      if (!json.questions?.length) {
-        toast("No questions could be read from those files.", "error");
+      setDrafts((prev) => [...prev, ...found]);
+      setProblems(errors);
+      if (!found.length) {
+        toast(tooBig.length ? "That file is over 4 MB. Save it as a smaller PDF and try again." : "No questions could be read from those files.", "error");
       }
     } catch (e) {
       toast(e instanceof Error ? e.message : "Extraction failed.", "error");
