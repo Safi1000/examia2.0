@@ -30,6 +30,8 @@ export interface Profile {
   /** Target grade per subject name ("Accounting": "A"). */
   targets?: Record<string, Target>;
   weeklyGoal?: number;
+  /** False when they switched off the "class starts" phone reminder. */
+  notifyClasses?: boolean;
   /** Already asked once about notifications outside the welcome flow. */
   notifyAsked?: boolean;
   /** Finished (or skipped) the welcome flow. */

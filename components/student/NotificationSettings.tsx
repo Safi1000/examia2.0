@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import { Button, Card } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth-context";
 import { device, installed } from "@/lib/push-client";
 
 /**
  * "Phone notifications" card in Settings.
  *
- * Kept quiet on purpose (rules live in lib/push-server.ts): only results,
- * tests opening and assignments due; never twice; at most 3 a day;
+ * Kept quiet on purpose (rules live in lib/push-server.ts): only classes
+ * starting, results, tests opening and assignments due; never twice; at most 3 a day;
  * nothing between 10 pm and 8 am. Each kind can be switched off here.
  */
 
@@ -31,6 +32,7 @@ function keyBytes(base64: string) {
 
 export function NotificationSettings({ studentId }: { studentId: string }) {
   const { toast } = useToast();
+  const { profile, updateProfile } = useAuth();
   const [status, setStatus] = useState<"loading" | "unsupported" | "iphone" | "off" | "on" | "blocked" | "notReady">("loading");
   const [prefs, setPrefs] = useState<Prefs>({ results: true, tests: true, assignments: true });
   const [busy, setBusy] = useState(false);
@@ -148,6 +150,23 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
 
       {status === "on" && (
         <ul className="mt-4 divide-y divide-border">
+          {/* The class reminder's switch is kept on the student's profile. */}
+          <li className="flex items-center justify-between gap-4 py-3">
+            <span>
+              <span className="block text-sm font-semibold text-ink">Classes</span>
+              <span className="block text-xs text-ink-3">Just before your first class of the day</span>
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={profile.notifyClasses !== false}
+              aria-label="Classes notifications"
+              onClick={() => updateProfile({ notifyClasses: profile.notifyClasses === false })}
+              className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${profile.notifyClasses !== false ? "bg-brand" : "bg-surface-2 ring-1 ring-inset ring-border-strong"}`}
+            >
+              <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${profile.notifyClasses !== false ? "left-6" : "left-1"}`} />
+            </button>
+          </li>
           {KINDS.map((k) => (
             <li key={k.key} className="flex items-center justify-between gap-4 py-3">
               <span>

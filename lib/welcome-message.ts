@@ -20,7 +20,7 @@ export function welcomeMessage({ username, password }: { username: string; passw
     "*Your first two minutes*",
     "1. Sign in, then pick your avatar, your target grades and your weekly study goal.",
     "2. Add the portal to your home screen so it opens like an app. iPhone: Share, then Add to Home Screen. Android: ⋮, then Add to Home screen.",
-    "3. Turn on notifications, so you know the moment a result is out or a test opens.",
+    "3. Turn on notifications, so you get a nudge before class and the moment a result is out.",
     "",
     "*On class days*",
     "Open Home 10 minutes before class and tap the gold *Join* button. That's it.",

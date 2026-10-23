@@ -1,16 +1,20 @@
 import webpush from "web-push";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { clock, liveSlotsOn, pkDate, setSchedule } from "@/lib/timetable";
+import { loadSchedule } from "@/lib/schedule-server";
 
 /**
  * Phone notifications, server side. The rules that keep them quiet:
  *
- *  1. Only three kinds: results out, test opens in 30 min, assignment due
- *     within 24 h (not handed in).
+ *  1. Only four kinds: results out, test opens in 30 min, assignment due
+ *     within 24 h (not handed in), and their first class of the day starting
+ *     (one a day, sent in the 15 minutes before it starts).
  *  2. Never the same thing twice (notify_log is the memory).
  *  3. At most 3 a day per student (Pakistan day).
  *  4. Nothing between 10 pm and 8 am Pakistan time. Results released at night
  *     go out in the morning; reminders whose moment passed overnight are dropped.
- *  5. Each kind can be switched off by the student (notify_prefs).
+ *  5. Each kind can be switched off by the student (notify_prefs; the class
+ *     reminder's switch lives on their profile, so no database change).
  *  6. Several results at once arrive as one notification.
  *  7. Past students (switched-off cohorts) never get anything.
  */
@@ -44,7 +48,7 @@ const pkDayStart = (d = new Date()) => {
   return new Date(`${ymd}T00:00:00+05:00`).toISOString();
 };
 
-type Kind = "results" | "tests" | "assignments";
+type Kind = "results" | "tests" | "assignments" | "classes";
 interface Item {
   studentId: string;
   kind: Kind;
@@ -195,7 +199,7 @@ export async function runReminders(): Promise<{ sent: number; quiet?: boolean }>
   const done = new Set((handed ?? []).map((h) => `${h.student_id}|${h.test_id}`));
   const doneA = new Set((handedA ?? []).map((h) => `${h.student_id}|${h.assignment_id}`));
 
-  const items: Item[] = [...(await resultItems(sb))];
+  const items: Item[] = [...(await resultItems(sb)), ...(await classItems(sb, students, now))];
   for (const s of students) {
     for (const t of opening ?? []) {
       if (!covers(t, s) || done.has(`${s.id}|${t.id}`)) continue;
@@ -214,4 +218,76 @@ export async function notifyReleased(submissionIds: string[]): Promise<number> {
   if (!pushReady() || isQuietHours() || !submissionIds.length) return 0;
   const sb = serviceClient();
   return deliver(sb, await resultItems(sb, submissionIds));
+}
+
+/**
+ * "Your class starts soon": only each student's FIRST class of the day (the
+ * rest follow straight on), sent by the run in the 15 minutes before it.
+ * Cancelled classes are skipped; students who switched it off get nothing.
+ */
+async function classItems(sb: SupabaseClient, students: Reach[], now: number): Promise<Item[]> {
+  setSchedule(await loadSchedule(sb));
+  const today = pkDate(now);
+  const [{ data: classes }, { data: subjects }, { data: cc }, { data: cs }, { data: rows }] = await Promise.all([
+    sb.from("classes").select("id,name"),
+    sb.from("subjects").select("id,name"),
+    sb.from("cohort_classes").select("cohort_id,class_id"),
+    sb.from("cohort_subjects").select("cohort_id,subject_id"),
+    sb.from("students").select("id,user_id"),
+  ]);
+  const db = {
+    classes: (classes ?? []).map((c) => ({ id: c.id as string, name: c.name as string, createdAt: "" })),
+    subjects: (subjects ?? []).map((x) => ({ id: x.id as string, name: x.name as string, createdAt: "" })),
+  };
+  const slots = liveSlotsOn(db, today);
+  if (!slots.length) return [];
+  // Only bother (and only read profiles) when a class is about to start.
+  const soon = slots.some((sl) => sl.startMs - now > -3 * 60_000 && sl.startMs - now <= 16 * 60_000);
+  if (!soon) return [];
+
+  const off = await classOptOuts(sb, rows ?? []);
+  const cohortClasses = new Map<string, Set<string>>();
+  for (const r of cc ?? []) cohortClasses.set(r.cohort_id, (cohortClasses.get(r.cohort_id) ?? new Set()).add(r.class_id));
+  const cohortSubjects = new Map<string, Set<string>>();
+  for (const r of cs ?? []) cohortSubjects.set(r.cohort_id, (cohortSubjects.get(r.cohort_id) ?? new Set()).add(r.subject_id));
+
+  const items: Item[] = [];
+  for (const s of students) {
+    if (off.has(s.id)) continue;
+    // Their own level and subjects, else their cohort's (same rule as the portal).
+    const lv = s.classes.size ? s.classes : (cohortClasses.get(s.cohortId ?? "") ?? new Set<string>());
+    const sb2 = s.subjects.size ? s.subjects : (cohortSubjects.get(s.cohortId ?? "") ?? new Set<string>());
+    const mine = slots.filter((sl) => lv.has(sl.classId) && (!sb2.size || sb2.has(sl.subjectId)));
+    const first = mine[0];
+    if (!first) continue;
+    const lead = first.startMs - now;
+    if (lead <= -3 * 60_000 || lead > 16 * 60_000) continue;
+    items.push({
+      studentId: s.id,
+      kind: "classes",
+      refs: [`class:${today}`],
+      title: lead > 60_000 ? `Class at ${clock(first.start)}` : "Class is starting",
+      body: `${first.subject} is ${lead > 60_000 ? "about to start" : "starting now"}. Open the portal and tap Join.`,
+      url: "/dashboard",
+      tag: `class-${today}`,
+      priority: -1,
+    });
+  }
+  return items;
+}
+
+/** Students who switched the class reminder off (kept on their profile). */
+async function classOptOuts(sb: SupabaseClient, rows: Array<{ id: string; user_id: string | null }>) {
+  const byUser = new Map(rows.filter((r) => r.user_id).map((r) => [r.user_id as string, r.id]));
+  const out = new Set<string>();
+  for (let page = 1; page <= 10; page++) {
+    const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) break;
+    for (const u of data.users) {
+      const id = byUser.get(u.id);
+      if (id && (u.user_metadata as { profile?: { notifyClasses?: boolean } } | undefined)?.profile?.notifyClasses === false) out.add(id);
+    }
+    if (data.users.length < 1000) break;
+  }
+  return out;
 }
