@@ -19,6 +19,13 @@ export const metadata: Metadata = {
 
 const GROUPS: Array<{ title: string; tools: Array<{ href: string; name: string; what: string }> }> = [
   {
+    title: "Plan and track",
+    tools: [
+      { href: "/syllabus", name: "Syllabus checklists", what: "The full Cambridge syllabus for your subject. Mark what you know, see your weak topics." },
+      { href: "/tools/revision-planner", name: "Revision planner", what: "A week-by-week plan to your exam, weak topics first." },
+    ],
+  },
+  {
     title: "Grades",
     tools: [
       { href: "/tools/grade-predictor", name: "Grade predictor", what: "Enter your mock marks, see the grade Cambridge would have given." },

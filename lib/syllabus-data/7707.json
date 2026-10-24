@@ -1,0 +1,549 @@
+[
+ {
+  "num": "1",
+  "name": "The fundamentals of accounting",
+  "subs": [
+   {
+    "num": "1.1",
+    "name": "The purpose of accounting",
+    "parts": [
+     {
+      "num": "1.1",
+      "name": "The purpose of accounting",
+      "points": [
+       "the difference between book-keeping and accounting",
+       "the purposes of measuring business profit and loss",
+       "the role of accounting in providing information for monitoring progress and decision-making"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "1.2",
+    "name": "The accounting equation",
+    "parts": [
+     {
+      "num": "1.2",
+      "name": "The accounting equation",
+      "points": [
+       "assets, liabilities and owner’s equity",
+       "the accounting equation",
+       "how to apply the accounting equation"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "2",
+  "name": "Sources and recording of data",
+  "subs": [
+   {
+    "num": "2.1",
+    "name": "The double entry system of book-keeping",
+    "parts": [
+     {
+      "num": "2.1",
+      "name": "The double entry system of book-keeping",
+      "points": [
+       "the double entry system of book-keeping",
+       "how to prepare ledger accounts",
+       "how to post transactions to the ledger accounts",
+       "how to calculate ledger account balances and make transfers to financial statements",
+       "how to interpret ledger accounts and their balances",
+       "ledger accounts that may be presented using a three-column running balance format",
+       "the division of the ledger into the sales ledger, the purchases ledger and the nominal (general) ledger",
+       "how ledger accounts can be kept digitally"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "2.2",
+    "name": "Business documents",
+    "parts": [
+     {
+      "num": "2.2",
+      "name": "Business documents",
+      "points": [
+       "business documents: invoice, debit note, credit note, cheque counterfoil, paying-in slip, receipt, bank statement, statement of account",
+       "how these business documents are used as sources of information",
+       "these business documents being produced and recorded manually or digitally"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "2.3",
+    "name": "Books of prime entry",
+    "parts": [
+     {
+      "num": "2.3",
+      "name": "Books of prime entry",
+      "points": [
+       "how to process accounting data in the books of prime entry: cash book, petty cash book, sales journal, purchases journal, sales returns journal, purchases returns journal and the general journal",
+       "how to post the ledger entries from the books of prime entry",
+       "trade discount and cash discount and how these are treated",
+       "the dual function of the cash book as a book of prime entry and as a ledger account for bank and cash",
+       "how to record receipts and payments made by cash, cheques, debit and credit cards, online and bank transfers",
+       "the purpose of the imprest system of petty cash",
+       "how to apply the imprest system",
+       "the benefits and limitations of keeping cash at the business property",
+       "the benefits and limitations of using manual methods for the original entry of business transactions",
+       "the benefits and limitations of using digital methods for the original entry of business transactions"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "3",
+  "name": "Verification of accounting records",
+  "subs": [
+   {
+    "num": "3.1",
+    "name": "The trial balance",
+    "parts": [
+     {
+      "num": "3.1",
+      "name": "The trial balance",
+      "points": [
+       "the purposes and limitations of a trial balance",
+       "how to prepare a trial balance from a given list of balances and amend a trial balance which contains errors",
+       "the types of errors which do not affect the trial balance: commission, compensating, complete reversal, omission, original entry, principle"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "3.2",
+    "name": "Corrections of errors",
+    "parts": [
+     {
+      "num": "3.2",
+      "name": "Corrections of errors",
+      "points": [
+       "how to correct errors using journal entries",
+       "the use of a suspense account as a temporary measure to balance the trial balance",
+       "how to correct errors using a suspense account",
+       "how to adjust a profit or loss for an accounting period after the correction of errors",
+       "the effect of correction of errors on a statement of financial position"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "3.3",
+    "name": "Bank reconciliation",
+    "parts": [
+     {
+      "num": "3.3",
+      "name": "Bank reconciliation",
+      "points": [
+       "the use and purpose of a bank statement",
+       "how to update the cash book for bank charges, bank interest paid and received, correction of errors, credit transfers, direct debits, and standing orders",
+       "the purpose and preparation of a bank reconciliation statement to include bank errors, uncredited deposits and unpresented cheques",
+       "the impact of digital business transactions on the bank reconciliation process"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "3.4",
+    "name": "Control accounts",
+    "parts": [
+     {
+      "num": "3.4",
+      "name": "Control accounts",
+      "points": [
+       "the purposes of purchases ledger and sales ledger control accounts",
+       "the books of prime entry as sources of information for the control account entries",
+       "how to prepare purchases ledger and sales ledger control accounts to include credit purchases and sales, receipts and payments, cash discounts, returns, irrecoverable debts, dishonoured cheques, interest on overdue accounts, contra entries, refunds, opening and closing balances (debit and credit within each account)",
+       "the impact of digital recording of business transactions on the preparation and use of control accounts"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "4",
+  "name": "Accounting procedures",
+  "subs": [
+   {
+    "num": "4.1",
+    "name": "Capital and revenue expenditure and receipts",
+    "parts": [
+     {
+      "num": "4.1",
+      "name": "Capital and revenue expenditure and receipts",
+      "points": [
+       "the distinction between capital expenditure and revenue expenditure",
+       "how to account for capital expenditure and revenue expenditure",
+       "the distinction between capital receipts and revenue receipts",
+       "how to account for capital receipts and revenue receipts",
+       "how to identify and calculate the effect on profit of incorrect treatment",
+       "how to identify and calculate the effect on asset valuations of incorrect treatment"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "4.2",
+    "name": "Accounting for depreciation and disposal of non-current assets",
+    "parts": [
+     {
+      "num": "4.2",
+      "name": "Accounting for depreciation and disposal of non-current assets",
+      "points": [
+       "the meaning of depreciation",
+       "the need to account for depreciation",
+       "how to calculate depreciation using the straight-line, reducing balance and revaluation methods",
+       "the appropriate methods of depreciation that can be applied to different types of non-current assets",
+       "how to prepare journal entries and ledger accounts to record depreciation",
+       "how to prepare journal entries to record the purchase and sale of non-current assets",
+       "how to prepare ledger accounts to record the purchase and sale of non-current assets: non-current asset account, provision for depreciation account, and disposal of non-current asset account",
+       "how to calculate profit or loss on disposal of a non-current asset"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "4.3",
+    "name": "Other payables and other receivables",
+    "parts": [
+     {
+      "num": "4.3",
+      "name": "Other payables and other receivables",
+      "points": [
+       "the importance of matching costs and revenues",
+       "how to apply the matching / accruals concepts by using accruals and pre-payments",
+       "how to prepare journal entries and ledger accounts to record accrued and prepaid expenses",
+       "how to prepare journal entries and ledger accounts to record accrued and prepaid incomes"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "4.4",
+    "name": "Irrecoverable debts and allowance for irrecoverable debts",
+    "parts": [
+     {
+      "num": "4.4",
+      "name": "Irrecoverable debts and allowance for irrecoverable debts",
+      "points": [
+       "the meaning of irrecoverable debts and irrecoverable debts recovered",
+       "how to prepare journal entries and ledger accounts to record irrecoverable debts",
+       "how to prepare journal entries and ledger accounts to record irrecoverable debts recovered",
+       "the need for maintaining an allowance for irrecoverable debts",
+       "how to prepare journal entries and ledger accounts to record the creation of, and adjustments to, an allowance for irrecoverable debts"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "4.5",
+    "name": "Valuation of inventory",
+    "parts": [
+     {
+      "num": "4.5",
+      "name": "Valuation of inventory",
+      "points": [
+       "the valuation of inventory at the lower of cost and net realisable value",
+       "how to calculate the value of inventory",
+       "the effect of an incorrect valuation of inventory on gross profit, profit for the year, equity and asset valuation"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "5",
+  "name": "Preparation of financial statements",
+  "subs": [
+   {
+    "num": "5.1",
+    "name": "Sole traders",
+    "parts": [
+     {
+      "num": "5.1",
+      "name": "Sole traders",
+      "points": [
+       "the advantages and disadvantages of operating as a sole trader",
+       "how a sole trader can be a trading, service, manufacturing business or a combination of these",
+       "the importance of preparing statements of profit or loss and statements of financial position",
+       "how to prepare statements of profit or loss for trading, service, manufacturing businesses, or businesses which are a combination of these",
+       "the importance of producing statements of financial position to record assets and liabilities on a specified date",
+       "how to define the content of a statement of financial position: non-current assets, intangible assets, current assets, current liabilities, non-current liabilities and capital",
+       "the effect of a change in an account balance on other account balances in the financial statements",
+       "how to prepare statements of financial position for trading, service, manufacturing businesses, or businesses which are a combination of these",
+       "how to make adjustments for accumulated depreciation using the straight line, reducing balance and revaluation methods",
+       "how to make adjustments for accrued and prepaid expenses and accrued and prepaid income",
+       "how to make adjustments for irrecoverable debts and allowance for irrecoverable debts",
+       "how to make adjustments for drawings: goods and other assets taken by the owner, owner’s private expenses paid by the business"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "5.2",
+    "name": "Partnerships",
+    "parts": [
+     {
+      "num": "5.2",
+      "name": "Partnerships",
+      "points": [
+       "how a partnership can be a trading, service, manufacturing business or a combination of these",
+       "the advantages and disadvantages of forming a partnership",
+       "the importance and contents of a partnership agreement",
+       "the purpose of an appropriation account",
+       "how to prepare statements of profit or loss, appropriation accounts and statements of financial position",
+       "how to record interest on partners’ loans, interest on capital, interest on drawings, partners’ salaries and the division of the balance of profit or loss",
+       "how to make adjustments to financial statements as detailed in 5.1 (sole traders)",
+       "the uses of and differences between partners’ capital and current accounts",
+       "how to prepare partners’ capital and current accounts in ledger account form and as part of a statement of financial position"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "5.3",
+    "name": "Limited companies",
+    "parts": [
+     {
+      "num": "5.3",
+      "name": "Limited companies",
+      "points": [
+       "how a limited company can be a trading, service, manufacturing business or a combination of these",
+       "the advantages and disadvantages of operating as a limited company",
+       "the term ‘limited liability’",
+       "the term ‘equity’",
+       "the capital structure of a limited company comprising preference share capital, ordinary share capital, general reserve and retained earnings",
+       "the features of ordinary share capital and loan capital (debentures)",
+       "share capital: issued, called-up, and paid-up",
+       "how to prepare statements of profit or loss, statements of changes in equity and statements of financial position",
+       "how to make adjustments to financial statements as detailed in 5.1 (sole traders)"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "5.4",
+    "name": "Manufacturing accounts",
+    "parts": [
+     {
+      "num": "5.4",
+      "name": "Manufacturing accounts",
+      "points": [
+       "direct and indirect costs",
+       "direct material, direct labour, prime cost and factory overheads",
+       "how to make adjustments for work in progress",
+       "how to calculate factory cost of production",
+       "how to prepare manufacturing accounts, statements of profit or loss and statements of financial position",
+       "how to make adjustments to financial statements as detailed in 5.1 (sole traders)"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "5.5",
+    "name": "Clubs and societies",
+    "parts": [
+     {
+      "num": "5.5",
+      "name": "Clubs and societies",
+      "points": [
+       "receipts and payments accounts and income and expenditure accounts",
+       "how to prepare receipts and payments accounts",
+       "how to prepare accounts for revenue-generating activities, e.g. refreshments, subscriptions",
+       "how to prepare income and expenditure accounts and statements of financial position",
+       "how to make adjustments to financial statements as detailed in 5.1 (sole traders)",
+       "how to define and calculate the accumulated fund"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "5.6",
+    "name": "Incomplete records",
+    "parts": [
+     {
+      "num": "5.6",
+      "name": "Incomplete records",
+      "points": [
+       "why businesses keep different types of accounting records rather than using the full double entry system",
+       "the advantages and disadvantages of not maintaining a full set of accounting records",
+       "how to prepare opening and closing statements of affairs",
+       "how to calculate profit or loss for the year from changes in capital over time",
+       "how to calculate sales, purchases, gross profit, trade receivables and trade payables and other figures from incomplete information",
+       "how to prepare statements of profit or loss and statements of financial position from incomplete records",
+       "how to make adjustments to financial statements as detailed in 5.1 (sole traders)",
+       "how to apply the techniques of mark-up, margin and inventory turnover to arrive at missing figures"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "6",
+  "name": "Analysis and interpretation",
+  "subs": [
+   {
+    "num": "6.1",
+    "name": "Calculation and understanding of accounting ratios",
+    "parts": [
+     {
+      "num": "6.1",
+      "name": "Calculation and understanding of accounting ratios",
+      "points": [
+       "gross profit margin",
+       "mark-up",
+       "profit margin",
+       "return on capital employed (ROCE)",
+       "current (working capital) ratio",
+       "acid test (liquid) ratio",
+       "rate of inventory turnover (times)",
+       "inventory turnover (days)",
+       "trade receivables turnover (days)",
+       "trade payables turnover (days)"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "6.2",
+    "name": "Interpretation of accounting ratios",
+    "parts": [
+     {
+      "num": "6.2",
+      "name": "Interpretation of accounting ratios",
+      "points": [
+       "how to prepare and comment on statements showing comparison of results for different years",
+       "how to interpret the ratios calculated in 6.1",
+       "make suggestions and recommendations for improving profitability, liquidity and working capital",
+       "the gross profit margin and the profit margin as indicators of a business’s profitability",
+       "how gross profit for the year can be affected by the valuation of inventory, sales quantity and changes in selling and purchasing prices",
+       "how profit for the year can be affected by changes in gross profit, other income and expenses",
+       "the reasons for the difference between cash and profit"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "6.3",
+    "name": "Inter-business comparison",
+    "parts": [
+     {
+      "num": "6.3",
+      "name": "Inter-business comparison",
+      "points": [
+       "the factors that may affect the ratios of two businesses",
+       "the problems of inter-business comparison"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "6.4",
+    "name": "Interested parties",
+    "parts": [
+     {
+      "num": "6.4",
+      "name": "Interested parties",
+      "points": [
+       "owners",
+       "managers",
+       "employees",
+       "banks",
+       "investors and lenders",
+       "suppliers",
+       "customers",
+       "governments / tax authorities",
+       "club members",
+       "other interested parties, e.g. public and environmental bodies"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "6.5",
+    "name": "Limitations of accounting statements",
+    "parts": [
+     {
+      "num": "6.5",
+      "name": "Limitations of accounting statements",
+      "points": [
+       "historic cost",
+       "application of accounting policies",
+       "non-financial aspects for example, skill of the workforce, location of the business, economic climate"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "7",
+  "name": "Accounting concepts and modern practice",
+  "subs": [
+   {
+    "num": "7.1",
+    "name": "Accounting concepts",
+    "parts": [
+     {
+      "num": "7.1",
+      "name": "Accounting concepts",
+      "points": [
+       "business entity",
+       "consistency",
+       "duality",
+       "going concern",
+       "historic cost",
+       "matching / accruals",
+       "materiality",
+       "money measurement",
+       "prudence",
+       "realisation"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "7.2",
+    "name": "Ethical considerations",
+    "parts": [
+     {
+      "num": "7.2",
+      "name": "Ethical considerations",
+      "points": [
+       "the need for an ethical framework in accounting",
+       "the fundamental principles of: – integrity – objectivity – professional competence and due care – confidentiality – professional behaviour",
+       "the significance to stakeholders and society of applying an ethical framework"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "7.3",
+    "name": "Technology and sustainability",
+    "parts": [
+     {
+      "num": "7.3",
+      "name": "Technology and sustainability",
+      "points": [
+       "the use of digital applications for all or part of the accounting records",
+       "the need to store accounting data safely and sustainably",
+       "the risks associated with not storing accounting data safely and sustainably",
+       "the different types of storage systems: manual, data storage devices, cloud services, other digital services",
+       "the advantages and disadvantages of the different types of storage systems"
+      ]
+     }
+    ]
+   }
+  ]
+ }
+]

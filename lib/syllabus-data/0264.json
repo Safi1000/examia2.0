@@ -1,0 +1,794 @@
+[
+ {
+  "num": "1",
+  "name": "Understanding business activity",
+  "subs": [
+   {
+    "num": "1.1",
+    "name": "Business activity",
+    "parts": [
+     {
+      "num": "1.1.1",
+      "name": "The nature of business activity",
+      "points": [
+       "factors of production: land, labour, capital and enterprise",
+       "concept of adding value and how added value can be increased",
+       "concept of opportunity cost"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "1.2",
+    "name": "Economic sectors",
+    "parts": [
+     {
+      "num": "1.2.1",
+      "name": "Types of economic sector",
+      "points": [
+       "primary, secondary and tertiary sectors",
+       "private and public sectors"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "1.3",
+    "name": "Enterprise, business growth and size",
+    "parts": [
+     {
+      "num": "1.3.1",
+      "name": "Enterprise and entrepreneurship",
+      "points": [
+       "characteristics of successful entrepreneurs",
+       "purpose and key elements of a business plan: overview/summary, objectives, resources, market research, marketing, finance, people, operations",
+       "the importance of having a business plan",
+       "why governments support business start-ups",
+       "how governments support business start-ups, e.g. grants, advice, low-cost loans, training schemes"
+      ]
+     },
+     {
+      "num": "1.3.2",
+      "name": "The methods and problems of measuring business size",
+      "points": [
+       "methods of measuring business size, e.g. number of people employed, value of output/sales, volume of output/sales, capital employed (profit is not a method of measuring business size)",
+       "problems when measuring business size"
+      ]
+     },
+     {
+      "num": "1.3.3",
+      "name": "Why some businesses grow and others remain small",
+      "points": [
+       "why the owners of a business may want to grow the business",
+       "how and why businesses can grow internally, e.g. develop new products, develop new markets",
+       "how and why businesses can grow externally: mergers and takeovers, including horizontal integration, vertical integration",
+       "advantages and disadvantages of methods of growth",
+       "problems linked to business growth",
+       "why some businesses remain small"
+      ]
+     },
+     {
+      "num": "1.3.4",
+      "name": "Why some businesses succeed and others fail",
+      "points": [
+       "reasons why businesses succeed or fail, e.g. management skills, availability of finance, suitability of product, demand for products, changes in the economy, level of competition"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "1.4",
+    "name": "Types of business organisation",
+    "parts": [
+     {
+      "num": "1.4.1",
+      "name": "Different types of business organisation",
+      "points": [
+       "sole traders, partnerships, private limited companies and public limited companies",
+       "advantages and disadvantages of different types of business organisation",
+       "recommend and justify a suitable type of business organisation to owners/management for a given situation",
+       "different forms of business organisation: franchises, joint ventures, social enterprises",
+       "advantages and disadvantages of franchises for the franchisor and franchisee",
+       "advantages and disadvantages of joint ventures"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "1.5",
+    "name": "Business objectives and stakeholder objectives",
+    "parts": [
+     {
+      "num": "1.5.1",
+      "name": "Business objectives",
+      "points": [
+       "businesses can have several objectives, e.g. survival, growth, profit, market share",
+       "the importance of business objectives"
+      ]
+     },
+     {
+      "num": "1.5.2",
+      "name": "The role of stakeholder groups",
+      "points": [
+       "internal stakeholder groups: owners (sole traders, partnerships, shareholders), managers, employees",
+       "external stakeholder groups: customers, suppliers, lenders/banks, government, local community",
+       "objectives of different stakeholder groups",
+       "how these objectives may conflict with each other"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "2",
+  "name": "People in business",
+  "subs": [
+   {
+    "num": "2.1",
+    "name": "Human resource management (HRM)",
+    "parts": [
+     {
+      "num": "2.1.1",
+      "name": "Recruiting and selecting employees",
+      "points": [
+       "stages in the recruitment process: job descriptions, person specifications, job advertisements (including employment agencies and online recruitment)",
+       "selection methods, e.g. curriculum vitae (CV)/resumé, application forms, references, testing/assessment centres, interviews",
+       "advantages and disadvantages of internal and external recruitment",
+       "recommend and justify who to employ in a given situation"
+      ]
+     },
+     {
+      "num": "2.1.2",
+      "name": "Employment contracts and legal controls over employment issues",
+      "points": [
+       "the main contents of an employment contract: duties and responsibilities, working hours, holiday entitlement, sick pay",
+       "the benefits of employment contracts for employers and employees",
+       "legal controls over employment issues: unfair dismissal, discrimination, health and safety, legal minimum wage",
+       "effects of legal controls over employment issues on employers and employees"
+      ]
+     },
+     {
+      "num": "2.1.3",
+      "name": "Training",
+      "points": [
+       "importance of training to a business and to employees",
+       "types of training: induction training, on-the-job training and off-the-job training",
+       "advantages and disadvantages of the three types of training"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "2.2",
+    "name": "Organisation and management",
+    "parts": [
+     {
+      "num": "2.2.1",
+      "name": "Simple organisational structures",
+      "points": [
+       "the main functional areas of a business, e.g. operations, marketing, finance, human resources",
+       "simple hierarchical structures: tall and flat levels of hierarchy, long and short chains of command, wide and narrow spans of control",
+       "interpret simple organisational charts",
+       "different ways of flexible working, e.g. home working and flexible hours",
+       "advantages and disadvantages of part-time employees and full-time employees"
+      ]
+     },
+     {
+      "num": "2.2.2",
+      "name": "The functions of management",
+      "points": [
+       "planning, organising, coordinating, commanding and controlling",
+       "advantages and disadvantages of delegation"
+      ]
+     },
+     {
+      "num": "2.2.3",
+      "name": "Leadership styles",
+      "points": [
+       "the main leadership styles: autocratic, democratic and laissez-faire",
+       "advantages and disadvantages of the main leadership styles",
+       "recommend and justify an appropriate leadership style for a given situation"
+      ]
+     },
+     {
+      "num": "2.2.4",
+      "name": "Why reducing the size of the workforce may be necessary",
+      "points": [
+       "concept of downsizing",
+       "reasons for reducing the size of the workforce, e.g. automation, reduced demand for products, need to lower costs",
+       "concept of redundancy",
+       "recommend and justify which employee(s) to make redundant in a given situation"
+      ]
+     },
+     {
+      "num": "2.2.5",
+      "name": "The role of trade unions",
+      "points": [
+       "what a trade union is",
+       "benefits to employees of being a trade union member"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "2.3",
+    "name": "Methods of communication",
+    "parts": [
+     {
+      "num": "2.3.1",
+      "name": "Why communication is important",
+      "points": [
+       "why communication is important for a business",
+       "methods of communication, e.g. meetings (face-to-face or virtual), email, text messages, social media, phone calls (including mobile calls), letters, posters and noticeboards",
+       "advantages and disadvantages of different methods of communication",
+       "internal and external communication",
+       "recommend and justify which method of communication to use in a given situation"
+      ]
+     },
+     {
+      "num": "2.3.2",
+      "name": "Communication barriers",
+      "points": [
+       "examples of communication barriers",
+       "reasons for communication barriers",
+       "problems caused by communication barriers",
+       "how communication barriers can be reduced or removed"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "2.4",
+    "name": "Motivating employees",
+    "parts": [
+     {
+      "num": "2.4.1",
+      "name": "The importance of a well-motivated workforce",
+      "points": [
+       "why people work",
+       "the benefits of a well-motivated workforce: improved labour productivity, reduced absenteeism, lower labour turnover and greater willingness to accept change / new methods of working",
+       "main motivational theories: Maslow, Taylor, Herzberg"
+      ]
+     },
+     {
+      "num": "2.4.2",
+      "name": "Methods of motivation",
+      "points": [
+       "financial methods of motivation, e.g. time-based, piece-rate, salary, bonus, commission, profit sharing, fringe benefits",
+       "non-financial methods of motivation, e.g. job enrichment, job rotation, training, opportunities for promotion, praise, employee of the month",
+       "recommend and justify an appropriate method of motivation for a given situation"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "3",
+  "name": "Marketing",
+  "subs": [
+   {
+    "num": "3.1",
+    "name": "Marketing and the market",
+    "parts": [
+     {
+      "num": "3.1.1",
+      "name": "The role of marketing",
+      "points": [
+       "identifying customer needs",
+       "satisfying customer needs",
+       "maintaining customer loyalty",
+       "building customer relationships",
+       "anticipating changes in customer needs"
+      ]
+     },
+     {
+      "num": "3.1.2",
+      "name": "Understanding market changes",
+      "points": [
+       "why consumer spending patterns may change",
+       "why some markets are becoming more competitive",
+       "how businesses can respond to changing spending patterns and increased competition",
+       "calculate market share"
+      ]
+     },
+     {
+      "num": "3.1.3",
+      "name": "Mass markets and niche markets",
+      "points": [
+       "concepts of mass markets and niche markets",
+       "advantages and disadvantages of mass markets and niche markets"
+      ]
+     },
+     {
+      "num": "3.1.4",
+      "name": "Market segmentation",
+      "points": [
+       "how markets can be segmented according to: age, income, location, gender, lifestyle",
+       "advantages and disadvantages of market segmentation"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "3.2",
+    "name": "Market research",
+    "parts": [
+     {
+      "num": "3.2.1",
+      "name": "Methods of market research",
+      "points": [
+       "why businesses use market research",
+       "primary research methods, e.g. questionnaires or surveys, interviews, focus groups, observation",
+       "the concept of sampling and why it is useful to businesses",
+       "advantages and disadvantages of primary market research methods",
+       "secondary research methods, e.g. competitor websites, government sources, market reports, trade magazines",
+       "advantages and disadvantages of secondary market research methods",
+       "factors influencing the accuracy of market research data",
+       "analyse simple market research data"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "3.3",
+    "name": "Marketing mix",
+    "parts": [
+     {
+      "num": "3.3.1",
+      "name": "Product",
+      "points": [
+       "the importance of brand image",
+       "the role of packaging",
+       "advantages and disadvantages of developing new products",
+       "the main stages of the product life cycle: introduction, growth, maturity, decline",
+       "interpret a product life cycle diagram",
+       "extension strategies a business could use: new markets, new uses for a product, adapting the product or packaging, increased advertising / sales promotion",
+       "advantages and disadvantages of different extension strategies",
+       "recommend and justify an extension strategy to use in a given situation"
+      ]
+     },
+     {
+      "num": "3.3.2",
+      "name": "Price",
+      "points": [
+       "pricing methods: cost-plus, competitive, penetration, skimming, dynamic",
+       "advantages and disadvantages of different pricing methods",
+       "recommend and justify an appropriate pricing method for a given situation"
+      ]
+     },
+     {
+      "num": "3.3.3",
+      "name": "Place",
+      "points": [
+       "advantages and disadvantages of different distribution channels: direct to customers, through retailers, wholesalers, agents",
+       "recommend and justify an appropriate distribution channel for a given situation"
+      ]
+     },
+     {
+      "num": "3.3.4",
+      "name": "Promotion",
+      "points": [
+       "reasons for promotion",
+       "methods of sales promotion, e.g. vouchers, reward schemes, competitions, special offers / discounts",
+       "methods of advertising, e.g. social media, direct/targeted emails, leaflets, billboards",
+       "recommend and justify which method of sales promotion to use in a given situation",
+       "recommend and justify which method of advertising to use in a given situation"
+      ]
+     },
+     {
+      "num": "3.3.5",
+      "name": "Ecommerce",
+      "points": [
+       "examples of ecommerce, e.g. mobile phone / internet banking, online shopping, online ticketing",
+       "advantages and disadvantages of ecommerce for businesses",
+       "advantages and disadvantages of ecommerce for customers"
+      ]
+     },
+     {
+      "num": "3.3.6",
+      "name": "Marketing strategy",
+      "points": [
+       "importance of the different elements in the marketing mix",
+       "recommend and justify an appropriate marketing mix for a given situation"
+      ]
+     },
+     {
+      "num": "3.3.7",
+      "name": "Entering new markets in other countries as a method of growth",
+      "points": [
+       "advantages of entering new markets in other countries, e.g. increase sales, spread risk",
+       "disadvantages of entering new markets in other countries, e.g. cultural differences, lack of knowledge, legal requirements"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "3.4",
+    "name": "Legal controls",
+    "parts": [
+     {
+      "num": "3.4.1",
+      "name": "Legal controls related to marketing",
+      "points": [
+       "the purpose of legal controls to protect customers: misleading promotion, faulty goods",
+       "the effects of legal controls on marketing"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "4",
+  "name": "Operations management",
+  "subs": [
+   {
+    "num": "4.1",
+    "name": "Production of goods and services",
+    "parts": [
+     {
+      "num": "4.1.1",
+      "name": "Production processes",
+      "points": [
+       "calculate labour productivity",
+       "why efficiency is important for a business",
+       "how to increase efficiency, e.g. increasing automation and technology, improving labour skills",
+       "concept of lean production and how to achieve it: just-in-time (JIT) inventory control and Kaizen",
+       "advantages and disadvantages of lean production methods",
+       "why businesses hold inventory",
+       "factors affecting how much inventory businesses hold"
+      ]
+     },
+     {
+      "num": "4.1.2",
+      "name": "The main methods of production",
+      "points": [
+       "job, batch and flow production",
+       "advantages and disadvantages of job, batch and flow production",
+       "recommend and justify an appropriate production method for a given situation"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "4.2",
+    "name": "Technology and production of goods and services",
+    "parts": [
+     {
+      "num": "4.2.1",
+      "name": "The use of technology in the production of goods and services",
+      "points": [
+       "how technology is changing production methods through automation and mechanisation, e.g. Computer-Aided Manufacture (CAM) and 3D Printing",
+       "how technology is improving productivity in the service sector, e.g. contactless payments",
+       "advantages and disadvantages of changes in technology for businesses and employees"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "4.3",
+    "name": "Sustainable production of goods and services",
+    "parts": [
+     {
+      "num": "4.3.1",
+      "name": "Methods of sustainable production of goods and services",
+      "points": [
+       "how businesses can be more sustainable: using renewable energy, using fewer resources / less waste, reusing, recycling, developing environmentally friendly products, using environmentally friendly packaging",
+       "advantages and disadvantages of businesses becoming more sustainable"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "4.4",
+    "name": "Costs, scale of production and break-even analysis",
+    "parts": [
+     {
+      "num": "4.4.1",
+      "name": "Identify and classify costs",
+      "points": [
+       "classify and calculate costs using examples, e.g. fixed, variable, average and total",
+       "use cost data to help make simple decisions, e.g. which product to produce, whether to continue or stop production, what price to set, help choose suppliers"
+      ]
+     },
+     {
+      "num": "4.4.2",
+      "name": "Economies and diseconomies of scale",
+      "points": [
+       "concept of economies of scale: purchasing, marketing, financial, managerial, technical",
+       "concept of diseconomies of scale: poor communication, lack of commitment or loyalty from employees, weak coordination, lack of control"
+      ]
+     },
+     {
+      "num": "4.4.3",
+      "name": "Break-even analysis",
+      "points": [
+       "concept of break-even",
+       "complete or amend a simple break-even chart",
+       "interpret a break-even chart",
+       "calculate break-even output",
+       "define, calculate and interpret the margin of safety",
+       "use break-even analysis to help make decisions: effect of changes in price, changes in fixed costs, changes in variable cost per unit",
+       "limitations of break-even analysis"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "4.5",
+    "name": "Quality of goods and services",
+    "parts": [
+     {
+      "num": "4.5.1",
+      "name": "Why quality is important and how quality may be achieved",
+      "points": [
+       "what quality means and why it is important for businesses",
+       "concept of quality control",
+       "concept of quality assurance",
+       "advantages and disadvantages of quality control and quality assurance",
+       "recommend and justify whether to use quality control or quality assurance in a given situation"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "4.6",
+    "name": "Location decisions",
+    "parts": [
+     {
+      "num": "4.6.1",
+      "name": "Main factors which influence location decisions",
+      "points": [
+       "factors which influence the location decisions of a manufacturing business",
+       "factors which influence the location decisions of a service business",
+       "factors that a business could consider when deciding which country to locate its operations in",
+       "recommend and justify an appropriate location for a business in a given situation"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "5",
+  "name": "Financial information and decisions",
+  "subs": [
+   {
+    "num": "5.1",
+    "name": "Business finance",
+    "parts": [
+     {
+      "num": "5.1.1",
+      "name": "The need for business finance",
+      "points": [
+       "the main reasons why businesses need finance: start-up capital, capital for expansion/growth, replacing existing non-current assets, investing in new technology, working capital",
+       "short-term and long-term finance needs of a business",
+       "concept and importance of working capital"
+      ]
+     },
+     {
+      "num": "5.1.2",
+      "name": "The main sources of finance",
+      "points": [
+       "internal sources of finance: owners’ investment, retained profit, sale of unwanted assets, working capital",
+       "external sources of finance: share capital or issuing shares, venture capital, bank overdrafts, leasing, hire purchase, bank loans, trade credit, government grants, crowdfunding",
+       "advantages and disadvantages of internal and external sources of finance",
+       "the main factors to consider when selecting a source of finance: size of business, legal form of business, amount required, length of time, existing loans, cost, purpose",
+       "recommend and justify an appropriate source of finance for a given situation"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "5.2",
+    "name": "Cash flow forecast",
+    "parts": [
+     {
+      "num": "5.2.1",
+      "name": "The importance of cash and cash flow forecasts",
+      "points": [
+       "why cash is important to a business",
+       "what a cash flow forecast is and why it is important",
+       "main features of a cash flow forecast: cash inflow, cash outflow, net cash flow, opening balance, closing balance",
+       "amend or complete a simple cash flow forecast",
+       "interpret a simple cash flow forecast",
+       "how a short-term cash flow problem may be overcome: overdraft, delaying supplier payments, asking customers to pay more quickly, delay purchase of non-current assets"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "5.3",
+    "name": "Profit and loss",
+    "parts": [
+     {
+      "num": "5.3.1",
+      "name": "What is profit and why it is important",
+      "points": [
+       "what profit is",
+       "importance of profit to private sector businesses: reward for risk-taking, source of finance, measure of success, attract investors"
+      ]
+     },
+     {
+      "num": "5.3.2",
+      "name": "Statement of profit or loss",
+      "points": [
+       "main features of a statement of profit or loss: revenue, cost of sales, gross profit, expenses, profit",
+       "make simple calculations based on a statement of profit or loss: revenue, cost of sales, gross profit, expenses, profit",
+       "make decisions based on simple statements of profit or loss"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "5.4",
+    "name": "Statement of financial position",
+    "parts": [
+     {
+      "num": "5.4.1",
+      "name": "The main elements of a statement of financial position",
+      "points": [
+       "non-current assets, e.g. property (land and buildings), machinery",
+       "current assets, e.g. inventory, trade receivables, cash",
+       "non-current liabilities, e.g. bank loans",
+       "current liabilities, e.g. trade payables, overdraft",
+       "concept of capital employed",
+       "make simple calculations based on statements of financial position: total assets, total liabilities, working capital",
+       "make decisions based on simple statements of financial position"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "5.5",
+    "name": "Analysis of accounts",
+    "parts": [
+     {
+      "num": "5.5.1",
+      "name": "Profitability",
+      "points": [
+       "concept of profitability",
+       "calculate and interpret the following profitability ratios: – gross profit margin – profit margin – return on capital employed (ROCE)"
+      ]
+     },
+     {
+      "num": "5.5.2",
+      "name": "Liquidity",
+      "points": [
+       "concept of liquidity",
+       "calculate and interpret the following liquidity ratios: – current ratio – acid test ratio"
+      ]
+     },
+     {
+      "num": "5.5.3",
+      "name": "Users of accounts",
+      "points": [
+       "users of accounts and ratio analysis: internal, e.g. owners (sole traders, partnerships, shareholders), managers, employees",
+       "users of accounts and ratio analysis: external, e.g. suppliers, government, lenders/banks",
+       "how users of accounts may use financial information to help make decisions, e.g. whether to lend to or invest in a business",
+       "limitations of using accounts and ratio analysis"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "6",
+  "name": "External influences on business activity",
+  "subs": [
+   {
+    "num": "6.1",
+    "name": "Economic issues",
+    "parts": [
+     {
+      "num": "6.1.1",
+      "name": "Business cycle",
+      "points": [
+       "main stages of the business cycle: growth, boom, recession, slump",
+       "how each stage of the business cycle may affect a business",
+       "effects of changes in the levels of employment, inflation and economic growth on a business"
+      ]
+     },
+     {
+      "num": "6.1.2",
+      "name": "Effects of government policy",
+      "points": [
+       "effects of changes in taxes on business profit",
+       "effects of changes in taxes on people’s income",
+       "effects of changes in government spending",
+       "effects of changes in interest rates",
+       "how businesses may respond to changes in taxes and interest rates"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "6.2",
+    "name": "Business and the international economy",
+    "parts": [
+     {
+      "num": "6.2.1",
+      "name": "The importance of globalisation",
+      "points": [
+       "reasons for globalisation: improved transport links, technological change including communication, free trade agreements, newly industrialised countries",
+       "opportunities and threats of globalisation for businesses",
+       "import tariffs and import quotas",
+       "effects of import tariffs and import quotas on businesses"
+      ]
+     },
+     {
+      "num": "6.2.2",
+      "name": "Multinational companies (MNCs)",
+      "points": [
+       "advantages to a business of becoming an MNC",
+       "advantages for the country where an MNC is located, e.g. jobs, exports, increased choice, investment",
+       "disadvantages for the country where an MNC is located, e.g. increased competition, environmental damage, exploitation of natural resources, repatriation of profits"
+      ]
+     },
+     {
+      "num": "6.2.3",
+      "name": "External costs and benefits",
+      "points": [
+       "external costs and external benefits of business decisions"
+      ]
+     },
+     {
+      "num": "6.2.4",
+      "name": "Exchange rates",
+      "points": [
+       "appreciation and depreciation of an exchange rate",
+       "how changes in exchange rates can affect businesses which import and export products and services, e.g. price, costs, competitiveness"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "6.3",
+    "name": "Business and the environment",
+    "parts": [
+     {
+      "num": "6.3.1",
+      "name": "Environmental issues",
+      "points": [
+       "how business activity can negatively affect the environment, e.g. pollution, depletion of resources",
+       "why businesses may respond to environmental issues, e.g. improved reputation, increased sales",
+       "how businesses may respond to environmental issues",
+       "effects of legal controls over business activity affecting the environment: how, what and where to produce or sell, influence on costs"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "6.4",
+    "name": "Business and ethical issues",
+    "parts": [
+     {
+      "num": "6.4.1",
+      "name": "Ethical issues",
+      "points": [
+       "ethical issues which may affect businesses, e.g. child labour, paying fair wages to employees, paying fair prices to suppliers, using suppliers who do not damage the environment",
+       "how businesses may respond to ethical issues",
+       "advantages and disadvantages of a business being ethical"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "6.5",
+    "name": "Pressure groups",
+    "parts": [
+     {
+      "num": "6.5.1",
+      "name": "The role of pressure groups",
+      "points": [
+       "how pressure groups can influence business decisions"
+      ]
+     }
+    ]
+   }
+  ]
+ }
+]

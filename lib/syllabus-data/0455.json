@@ -1,0 +1,1125 @@
+[
+ {
+  "num": "1",
+  "name": "The basic economic problem",
+  "subs": [
+   {
+    "num": "1.1",
+    "name": "The nature of the basic economic problem",
+    "parts": [
+     {
+      "num": "1.1.1",
+      "name": "Finite resources and infinite wants",
+      "points": [
+       "definition of the basic economic problem",
+       "the concept of scarcity",
+       "examples of the basic economic problem in the context of: – consumers – workers – producers/firms – governments"
+      ]
+     },
+     {
+      "num": "1.1.2",
+      "name": "Resource allocation decisions The three basic economic questions which determine resource allocation:",
+      "points": [
+       "what to produce",
+       "how to produce",
+       "who to produce for"
+      ]
+     },
+     {
+      "num": "1.1.3",
+      "name": "Economic goods and free goods",
+      "points": [
+       "the difference between economic goods and free goods"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "1.2",
+    "name": "Factors of production",
+    "parts": [
+     {
+      "num": "1.2.1",
+      "name": "Factors of production and their rewards",
+      "points": [
+       "definitions of factors of production: land, labour, capital and enterprise",
+       "rewards to factors of production: rent, wages, interest and profit"
+      ]
+     },
+     {
+      "num": "1.2.2",
+      "name": "Quantity and quality of factors of production",
+      "points": [
+       "causes of changes in the quantity and quality of factors of production"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "1.3",
+    "name": "Opportunity cost",
+    "parts": [
+     {
+      "num": "1.3.1",
+      "name": "Opportunity cost",
+      "points": [
+       "definition of opportunity cost",
+       "examples of opportunity cost in different contexts"
+      ]
+     },
+     {
+      "num": "1.3.2",
+      "name": "The influence of opportunity cost on decision-making",
+      "points": [
+       "decisions made by consumers, workers, producers/firms and governments when allocating their resources"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "1.4",
+    "name": "Production possibility curve (PPC) diagrams",
+    "parts": [
+     {
+      "num": "1.4.1",
+      "name": "Production possibility curves (PPC)",
+      "points": [
+       "definition",
+       "drawing and interpretation of the PPC diagram"
+      ]
+     },
+     {
+      "num": "1.4.2",
+      "name": "Points under, on and beyond a PPC",
+      "points": [
+       "the significance of the location of different production points"
+      ]
+     },
+     {
+      "num": "1.4.3",
+      "name": "Movements along a PPC",
+      "points": [
+       "the significance of movements along a PPC and opportunity cost"
+      ]
+     },
+     {
+      "num": "1.4.4",
+      "name": "Shifts of a PPC",
+      "points": [
+       "causes and consequences of shifts of a PPC in terms of an economy’s growth"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "2",
+  "name": "The allocation of resources",
+  "subs": [
+   {
+    "num": "2.1",
+    "name": "The role of markets in allocating resources",
+    "parts": [
+     {
+      "num": "2.1.1",
+      "name": "How markets work",
+      "points": [
+       "definition of a market",
+       "examples of markets",
+       "roles of buyers and sellers"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "2.2",
+    "name": "Demand",
+    "parts": [
+     {
+      "num": "2.2.1",
+      "name": "Individual and market demand",
+      "points": [
+       "definition of demand",
+       "link between individual demand and market demand",
+       "drawing and interpretation of the demand diagram"
+      ]
+     },
+     {
+      "num": "2.2.2",
+      "name": "Movements along a demand curve",
+      "points": [
+       "causes of extensions and contractions in demand",
+       "diagrams that illustrate movements along a demand curve"
+      ]
+     },
+     {
+      "num": "2.2.3",
+      "name": "Shifts of a demand curve",
+      "points": [
+       "causes of decreases and increases in demand",
+       "diagrams that illustrate shifts of a demand curve"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "2.3",
+    "name": "Supply",
+    "parts": [
+     {
+      "num": "2.3.1",
+      "name": "Individual and market supply",
+      "points": [
+       "definition of supply",
+       "link between individual supply and market supply",
+       "drawing and interpretation of the supply diagram"
+      ]
+     },
+     {
+      "num": "2.3.2",
+      "name": "Movements along a supply curve",
+      "points": [
+       "causes of extensions and contractions in supply",
+       "diagrams that illustrate movements along a supply curve"
+      ]
+     },
+     {
+      "num": "2.3.3",
+      "name": "Shifts of a supply curve",
+      "points": [
+       "causes of decreases and increases in supply",
+       "diagrams that illustrate shifts of a supply curve"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "2.4",
+    "name": "Price determination",
+    "parts": [
+     {
+      "num": "2.4.1",
+      "name": "Price mechanism",
+      "points": [
+       "how the price mechanism provides answers to the basic resource allocation decisions of what, how and for whom to produce"
+      ]
+     },
+     {
+      "num": "2.4.2",
+      "name": "Market equilibrium",
+      "points": [
+       "equilibrium price and equilibrium quantity in a market: – definition of market equilibrium – interpretation of equilibrium using demand and supply schedules – drawing and interpretation of equilibrium using demand and supply curves"
+      ]
+     },
+     {
+      "num": "2.4.3",
+      "name": "Market disequilibrium",
+      "points": [
+       "disequilibrium prices and quantities: – definition of market disequilibrium – interpretation of disequilibrium using demand and supply schedules – drawing and interpretation of disequilibrium using demand and supply curves",
+       "shortages (demand exceeding supply) and surpluses (supply exceeding demand)"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "2.5",
+    "name": "Price changes",
+    "parts": [
+     {
+      "num": "2.5.1",
+      "name": "Causes of price changes",
+      "points": [
+       "how price changes are caused by changes in demand and supply"
+      ]
+     },
+     {
+      "num": "2.5.2",
+      "name": "Consequences of price changes",
+      "points": [
+       "effect of price changes on sales",
+       "use of demand and supply diagrams to illustrate the impact of changes in market conditions"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "2.6",
+    "name": "Price elasticity of demand (PED)",
+    "parts": [
+     {
+      "num": "2.6.1",
+      "name": "Definition of PED",
+      "points": []
+     },
+     {
+      "num": "2.6.2",
+      "name": "Calculation of PED",
+      "points": [
+       "calculation of PED using the formula",
+       "interpretation of the significance of the PED value: perfectly inelastic, inelastic, unitary, elastic, perfectly elastic",
+       "drawing and interpretation of demand curve diagrams to show different PED"
+      ]
+     },
+     {
+      "num": "2.6.3",
+      "name": "Determinants of PED",
+      "points": [
+       "main influences on whether demand is elastic or inelastic"
+      ]
+     },
+     {
+      "num": "2.6.4",
+      "name": "PED, consumer expenditure and firms’ revenue",
+      "points": [
+       "effect of price changes on the amount spent by consumers and revenue raised by firms, shown both in a diagram and as a calculation",
+       "relationship between PED and the amount spent by consumers and revenue raised by firms"
+      ]
+     },
+     {
+      "num": "2.6.5",
+      "name": "Significance of PED",
+      "points": [
+       "implications of PED for decision-making by consumers, workers, producers/firms and government"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "2.7",
+    "name": "Price elasticity of supply (PES)",
+    "parts": [
+     {
+      "num": "2.7.1",
+      "name": "Definition of PES",
+      "points": []
+     },
+     {
+      "num": "2.7.2",
+      "name": "Calculation of PES",
+      "points": [
+       "calculation of PES using the formula",
+       "interpretation of the significance of the PES value: perfectly inelastic, inelastic, unitary, elastic, perfectly elastic",
+       "drawing and interpretation of supply curve diagrams to show different PES"
+      ]
+     },
+     {
+      "num": "2.7.3",
+      "name": "Determinants of PES",
+      "points": [
+       "main influences on whether supply is elastic or inelastic"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "2.8",
+    "name": "Market economic system",
+    "parts": [
+     {
+      "num": "2.8.1",
+      "name": "Definition of the market economic system",
+      "points": []
+     },
+     {
+      "num": "2.8.2",
+      "name": "Arguments for and against the market economic system",
+      "points": [
+       "advantages of the market economic system",
+       "disadvantages of the market economic system"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "2.9",
+    "name": "Market failure",
+    "parts": [
+     {
+      "num": "2.9.1",
+      "name": "Definition of market failure",
+      "points": []
+     },
+     {
+      "num": "2.9.2",
+      "name": "Definitions of terms associated with market failure:",
+      "points": [
+       "public goods, merit goods, demerit goods, private benefits, external benefits, social benefits, private costs, external costs, social costs, monopoly"
+      ]
+     },
+     {
+      "num": "2.9.3",
+      "name": "Causes of market failure",
+      "points": [
+       "causes relating to public goods, merit goods, demerit goods, external costs and external benefits, abuse of monopoly power"
+      ]
+     },
+     {
+      "num": "2.9.4",
+      "name": "Consequences of market failure",
+      "points": [
+       "implications of misallocation of resources in relation to: – the over-consumption of demerit goods and goods with external costs – the under-consumption of merit goods and goods with external benefits – the non-provision of public goods – restricted supply causing higher prices under a monopoly"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "2.10",
+    "name": "Mixed economic system",
+    "parts": [
+     {
+      "num": "2.10.1",
+      "name": "Definition of the mixed economic system",
+      "points": []
+     },
+     {
+      "num": "2.10.2",
+      "name": "Arguments for and against the mixed economic system",
+      "points": [
+       "advantages of the mixed economic system",
+       "disadvantages of the mixed economic system"
+      ]
+     },
+     {
+      "num": "2.10.3",
+      "name": "Government intervention to address market failure",
+      "points": [
+       "definitions, drawing and interpretation of diagrams, advantages and disadvantages of: – maximum and minimum prices in product markets – indirect taxation – subsidies",
+       "definitions, advantages and disadvantages of: – regulation – privatisation – nationalisation – direct provision of goods and services – quotas, e.g. for the extraction of natural resources"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "3",
+  "name": "Microeconomic decision-makers",
+  "subs": [
+   {
+    "num": "3.1",
+    "name": "Money and banking",
+    "parts": [
+     {
+      "num": "3.1.1",
+      "name": "Money",
+      "points": [
+       "forms, functions and characteristics of money"
+      ]
+     },
+     {
+      "num": "3.1.2",
+      "name": "Banking",
+      "points": [
+       "role and importance of central banks",
+       "role and importance of commercial banks"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "3.2",
+    "name": "Households",
+    "parts": [
+     {
+      "num": "3.2.1",
+      "name": "Influences on households’ spending, saving and borrowing",
+      "points": [
+       "income",
+       "rate of interest",
+       "confidence",
+       "age",
+       "culture"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "3.3",
+    "name": "Workers",
+    "parts": [
+     {
+      "num": "3.3.1",
+      "name": "Factors affecting an individual’s choice of occupation",
+      "points": [
+       "wage and non-wage factors"
+      ]
+     },
+     {
+      "num": "3.3.2",
+      "name": "Wage determination",
+      "points": [
+       "influences of the demand for labour and the supply of labour",
+       "trade unions and their relative bargaining power",
+       "government policy, including national minimum wage (NMW)",
+       "drawing and interpretation of diagrams that illustrate the effects of: – changes in demand and supply in the labour market – national minimum wages"
+      ]
+     },
+     {
+      "num": "3.3.3",
+      "name": "Reasons for differences in wages",
+      "points": [
+       "reasons for differences: – demand for and supply of labour – relative bargaining strengths – discrimination, e.g. male/female – government policy",
+       "how these reasons influence the wages of workers, depending on: – level of skills of workers – economic sector workers operate in: primary/secondary/tertiary – discrimination between workers, e.g. male/female – whether the worker is working in the private sector or public sector"
+      ]
+     },
+     {
+      "num": "3.3.4",
+      "name": "Mobility of labour",
+      "points": [
+       "causes of changes in the occupational and geographical mobility of labour",
+       "consequences of changes in the occupational and geographical mobility of labour"
+      ]
+     },
+     {
+      "num": "3.3.5",
+      "name": "Division of labour",
+      "points": [
+       "definition of division of labour (worker specialisation)",
+       "advantages and disadvantages of division of labour"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "3.4",
+    "name": "Firms",
+    "parts": [
+     {
+      "num": "3.4.1",
+      "name": "Different types of firms",
+      "points": [
+       "primary/secondary/tertiary sector firms",
+       "private sector/public sector firms",
+       "advantages and disadvantages of small and large firms"
+      ]
+     },
+     {
+      "num": "3.4.2",
+      "name": "Mergers",
+      "points": [
+       "definitions, examples, advantages and disadvantages of different types of mergers: horizontal, vertical and conglomerate"
+      ]
+     },
+     {
+      "num": "3.4.3",
+      "name": "Economies and diseconomies of scale",
+      "points": [
+       "how internal and external economies and diseconomies of scale can affect a firm/industry as the scale of production changes",
+       "drawing and interpretation of average total cost (ATC) diagrams to illustrate economies and diseconomies of scale"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "3.5",
+    "name": "Firms and production",
+    "parts": [
+     {
+      "num": "3.5.1",
+      "name": "Demand for factors of production",
+      "points": [
+       "influences to include demand for the product, the price of different factors of production, their availability and their productivity"
+      ]
+     },
+     {
+      "num": "3.5.2",
+      "name": "Labour-intensive and capital-intensive production",
+      "points": [
+       "reasons for adopting the different forms of production",
+       "advantages and disadvantages of the different forms of production"
+      ]
+     },
+     {
+      "num": "3.5.3",
+      "name": "Production and productivity",
+      "points": [
+       "the difference between production and productivity",
+       "influences on production and productivity",
+       "effects of changes in investment on productivity"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "3.6",
+    "name": "Firms’ costs, revenue and objectives",
+    "parts": [
+     {
+      "num": "3.6.1",
+      "name": "Definitions of costs of production",
+      "points": [
+       "total cost (TC), average total cost (ATC), fixed cost (FC), average fixed cost (AFC), variable cost (VC), average variable cost (AVC)"
+      ]
+     },
+     {
+      "num": "3.6.2",
+      "name": "Calculation of costs of production",
+      "points": [
+       "calculation of TC, ATC, FC, AFC, VC and AVC",
+       "drawing and interpretation of diagrams that show how changes in output affect costs of production"
+      ]
+     },
+     {
+      "num": "3.6.3",
+      "name": "Definition of revenue",
+      "points": [
+       "definitions of total revenue (TR) and average revenue (AR)"
+      ]
+     },
+     {
+      "num": "3.6.4",
+      "name": "Calculation of revenue",
+      "points": [
+       "calculation of TR and AR",
+       "the influence of sales on revenue"
+      ]
+     },
+     {
+      "num": "3.6.5",
+      "name": "Objectives of firms",
+      "points": [
+       "survival, social welfare, profit maximisation and growth"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "3.7",
+    "name": "Types of markets",
+    "parts": [
+     {
+      "num": "3.7.1",
+      "name": "Competitive markets",
+      "points": [
+       "characteristics, advantages and disadvantages of competitive markets",
+       "effect of having a high number of firms on price, quality, choice, profit"
+      ]
+     },
+     {
+      "num": "3.7.2",
+      "name": "Monopoly markets",
+      "points": [
+       "characteristics, advantages and disadvantages of monopoly markets",
+       "effect of having only one firm on price, quality, choice, profit"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "4",
+  "name": "Government and the macroeconomy",
+  "subs": [
+   {
+    "num": "4.1",
+    "name": "Government macroeconomic intervention",
+    "parts": [
+     {
+      "num": "4.1.1",
+      "name": "Macroeconomic aims",
+      "points": [
+       "the macroeconomic aims of government: – economic growth – full employment/low unemployment – stable prices/low inflation – balance of payments stability – redistribution of income – environmental sustainability",
+       "reasons behind the choice of aims and the criteria that governments may set for meeting each aim",
+       "possible conflicts between macroeconomic aims: – full employment and stable prices – economic growth and environmental sustainability – full employment and balance of payments stability"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "4.2",
+    "name": "Fiscal policy",
+    "parts": [
+     {
+      "num": "4.2.1",
+      "name": "Government budget",
+      "points": [
+       "definitions of: – government budget – government budget deficit – government budget surplus",
+       "calculations of the size of a government budget deficit/surplus"
+      ]
+     },
+     {
+      "num": "4.2.2",
+      "name": "Reasons for government spending",
+      "points": [
+       "main areas of government spending and the reasons for and effects of spending in these areas"
+      ]
+     },
+     {
+      "num": "4.2.3",
+      "name": "Taxation",
+      "points": [
+       "reasons for taxation: raising revenue, discouraging consumption of demerit goods, reducing imports, redistributing income, influencing total demand, encouraging environmental sustainability",
+       "examples of the different classifications of tax: progressive, regressive, proportional; direct, indirect",
+       "impact of taxation on consumers, workers, producers/firms, the government and the economy"
+      ]
+     },
+     {
+      "num": "4.2.4",
+      "name": "Definition of fiscal policy",
+      "points": []
+     },
+     {
+      "num": "4.2.5",
+      "name": "Fiscal policy measures",
+      "points": [
+       "changes in: – taxes – government spending"
+      ]
+     },
+     {
+      "num": "4.2.6",
+      "name": "Effects of fiscal policy on government macroeconomic aims",
+      "points": [
+       "how fiscal policy measures may enable a government to achieve its macroeconomic aims"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "4.3",
+    "name": "Monetary policy",
+    "parts": [
+     {
+      "num": "4.3.1",
+      "name": "Definitions of money supply and monetary policy",
+      "points": []
+     },
+     {
+      "num": "4.3.2",
+      "name": "Monetary policy measures",
+      "points": [
+       "changes in: – interest rate – money supply – foreign exchange rate"
+      ]
+     },
+     {
+      "num": "4.3.3",
+      "name": "Effect of monetary policy on government macroeconomic aims",
+      "points": [
+       "how monetary policy measures may enable a government to achieve its macroeconomic aims"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "4.4",
+    "name": "Supply-side policy",
+    "parts": [
+     {
+      "num": "4.4.1",
+      "name": "Definition of supply-side policy",
+      "points": []
+     },
+     {
+      "num": "4.4.2",
+      "name": "Supply-side policy measures",
+      "points": [
+       "education and training",
+       "infrastructure spending",
+       "labour market reforms",
+       "lower direct taxes",
+       "deregulation",
+       "improving incentives to work and invest",
+       "privatisation"
+      ]
+     },
+     {
+      "num": "4.4.3",
+      "name": "Effects of supply-side policy measures on government macroeconomic aims",
+      "points": [
+       "how supply-side policy measures may enable a government to achieve its macroeconomic aims"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "4.5",
+    "name": "Economic growth",
+    "parts": [
+     {
+      "num": "4.5.1",
+      "name": "Definition of economic growth",
+      "points": []
+     },
+     {
+      "num": "4.5.2",
+      "name": "Measurement of economic growth",
+      "points": [
+       "real Gross Domestic Product (GDP)"
+      ]
+     },
+     {
+      "num": "4.5.3",
+      "name": "Causes and consequences of economic growth",
+      "points": [
+       "how economic growth may be caused by an increase in total demand, an increase in the quantity of resources or an increase in the quality of resources",
+       "advantages and disadvantages of economic growth"
+      ]
+     },
+     {
+      "num": "4.5.4",
+      "name": "Causes and consequences of recession",
+      "points": [
+       "definition of recession",
+       "how a recession may be caused by a decrease in total demand, a decrease in the quantity of resources or a decrease in the quality of resources",
+       "consequences of recession for consumers, workers, producers/firms and the government"
+      ]
+     },
+     {
+      "num": "4.5.5",
+      "name": "Policies to promote economic growth",
+      "points": [
+       "the range of policies available to promote economic growth and their effectiveness"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "4.6",
+    "name": "Employment and unemployment",
+    "parts": [
+     {
+      "num": "4.6.1",
+      "name": "Definitions of employment, unemployment and full employment",
+      "points": []
+     },
+     {
+      "num": "4.6.2",
+      "name": "Measurement of unemployment",
+      "points": [
+       "how unemployment is measured (labour force survey)",
+       "formula for the unemployment rate"
+      ]
+     },
+     {
+      "num": "4.6.3",
+      "name": "Causes/types of unemployment",
+      "points": [
+       "frictional unemployment",
+       "structural unemployment",
+       "cyclical unemployment",
+       "seasonal unemployment"
+      ]
+     },
+     {
+      "num": "4.6.4",
+      "name": "Consequences of unemployment",
+      "points": [
+       "consequences of unemployment for the individual, producers/firms, the government and the economy"
+      ]
+     },
+     {
+      "num": "4.6.5",
+      "name": "Policies to reduce unemployment",
+      "points": [
+       "the range of policies available to reduce unemployment and their effectiveness"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "4.7",
+    "name": "Inflation",
+    "parts": [
+     {
+      "num": "4.7.1",
+      "name": "Definitions of inflation and deflation",
+      "points": []
+     },
+     {
+      "num": "4.7.2",
+      "name": "Measurement of inflation",
+      "points": [
+       "measurement of inflation using the Consumer Prices Index (CPI)"
+      ]
+     },
+     {
+      "num": "4.7.3",
+      "name": "Causes of inflation",
+      "points": [
+       "demand-pull",
+       "cost-push"
+      ]
+     },
+     {
+      "num": "4.7.4",
+      "name": "Consequences of inflation",
+      "points": [
+       "how inflation affects savers, lenders and borrowers",
+       "consequences of inflation for consumers, workers, producers/firms and the economy"
+      ]
+     },
+     {
+      "num": "4.7.5",
+      "name": "Policies to control inflation",
+      "points": [
+       "the range of policies available to control inflation and their effectiveness"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "5",
+  "name": "Economic development",
+  "subs": [
+   {
+    "num": "5.1",
+    "name": "Living standards",
+    "parts": [
+     {
+      "num": "5.1.1",
+      "name": "Indicators of living standards",
+      "points": [
+       "real Gross Domestic Product (GDP) per head",
+       "Human Development Index (HDI) and its components",
+       "advantages and disadvantages of real GDP per head and HDI as indicators"
+      ]
+     },
+     {
+      "num": "5.1.2",
+      "name": "Comparing living standards and income distribution",
+      "points": [
+       "reasons for differences in living standards and income distribution within and between countries"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "5.2",
+    "name": "Poverty",
+    "parts": [
+     {
+      "num": "5.2.1",
+      "name": "Definitions of absolute and relative poverty",
+      "points": [
+       "difference between absolute poverty and relative poverty"
+      ]
+     },
+     {
+      "num": "5.2.2",
+      "name": "Causes of poverty",
+      "points": [
+       "unemployment",
+       "low wages",
+       "illness",
+       "age",
+       "environmental factors"
+      ]
+     },
+     {
+      "num": "5.2.3",
+      "name": "Policies to alleviate poverty and redistribute income",
+      "points": [
+       "promoting economic growth",
+       "improved education",
+       "improved healthcare provision",
+       "more generous state benefits",
+       "progressive taxation",
+       "national minimum wage (NMW)"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "5.3",
+    "name": "Population",
+    "parts": [
+     {
+      "num": "5.3.1",
+      "name": "Factors that affect population growth",
+      "points": [
+       "definitions of: – birth rate – death rate – net migration, immigration and emigration",
+       "how birth rates, death rates and net migration can vary between countries",
+       "reasons why birth rates, death rates and net migration rates can vary between countries"
+      ]
+     },
+     {
+      "num": "5.3.2",
+      "name": "The effects of changes in the size and structure of populations",
+      "points": [
+       "the concept of an optimum population",
+       "the effects of increases and decreases in population size and changes in the age and gender distribution of population"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "5.4",
+    "name": "Differences in economic development between countries",
+    "parts": [
+     {
+      "num": "5.4.1",
+      "name": "Causes and consequences of international differences",
+      "points": [
+       "differences in: – income – productivity – population growth – size of primary, secondary and tertiary sectors – saving and investment – education – healthcare – natural resources"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "6",
+  "name": "International trade and globalisation",
+  "subs": [
+   {
+    "num": "6.1",
+    "name": "Specialisation and free trade",
+    "parts": [
+     {
+      "num": "6.1.1",
+      "name": "Specialisation by country",
+      "points": [
+       "definition of specialisation by country",
+       "the basis for specialisation by country in terms of the best resource allocation and/or low-cost production",
+       "advantages and disadvantages of specialisation"
+      ]
+     },
+     {
+      "num": "6.1.2",
+      "name": "Free trade",
+      "points": [
+       "definition of free trade",
+       "advantages and disadvantages of free trade"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "6.2",
+    "name": "Globalisation and trade restrictions",
+    "parts": [
+     {
+      "num": "6.2.1",
+      "name": "Definition of globalisation",
+      "points": []
+     },
+     {
+      "num": "6.2.2",
+      "name": "Causes and consequences of changes in globalisation",
+      "points": [
+       "causes of changes in globalisation: – changes in trade restrictions – changes in transport costs – changes in communication costs – movement of multinational companies (MNCs)",
+       "effects of changes in globalisation on: – international trade – competition – the environment – migration – income distribution – economic development"
+      ]
+     },
+     {
+      "num": "6.2.3",
+      "name": "Role of multinational companies (MNCs)",
+      "points": [
+       "MNCs and their advantages and disadvantages to host countries and home countries"
+      ]
+     },
+     {
+      "num": "6.2.4",
+      "name": "Types of trade restrictions / methods of protection",
+      "points": [
+       "tariffs",
+       "import quotas",
+       "subsidies",
+       "embargoes"
+      ]
+     },
+     {
+      "num": "6.2.5",
+      "name": "Reasons for trade restrictions",
+      "points": [
+       "protect infant (sunrise) industries",
+       "protect declining (sunset) industries",
+       "protect strategic industries",
+       "avoid dumping",
+       "reduce a deficit on the current account of the balance of payments",
+       "raise tax revenue",
+       "restrict the import of demerit goods",
+       "promote environmental sustainability"
+      ]
+     },
+     {
+      "num": "6.2.6",
+      "name": "Consequences of trade restrictions",
+      "points": [
+       "impact of trade restrictions on the home country and its trading partners",
+       "advantages and disadvantages of restricting free trade"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "6.3",
+    "name": "Foreign exchange rates",
+    "parts": [
+     {
+      "num": "6.3.1",
+      "name": "Definition of foreign exchange rate",
+      "points": []
+     },
+     {
+      "num": "6.3.2",
+      "name": "Reasons for buying and selling foreign currencies",
+      "points": [
+       "trade in goods and services",
+       "speculation",
+       "government intervention in currency markets",
+       "payment of profit, interest and dividends between countries",
+       "workers’ remittances",
+       "investment in capital goods between countries"
+      ]
+     },
+     {
+      "num": "6.3.3",
+      "name": "Determination of foreign exchange rate in foreign exchange market",
+      "points": [
+       "definitions of floating exchange rate, appreciation and depreciation",
+       "the demand for and supply of a currency",
+       "the determination of the equilibrium foreign exchange rate",
+       "causes of foreign exchange rate fluctuations – changes in demand for exports and imports – changes in the interest rate – speculation"
+      ]
+     },
+     {
+      "num": "6.3.4",
+      "name": "Consequences of changes in foreign exchange rates",
+      "points": [
+       "effects of changes in foreign exchange rates on prices and demand for exports and imports"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "6.4",
+    "name": "Current account of the balance of payments",
+    "parts": [
+     {
+      "num": "6.4.1",
+      "name": "Structure of the current account of the balance of payments",
+      "points": [
+       "components of the current account of the balance of payments: – trade in goods – trade in services – primary income – secondary income",
+       "calculation of deficits and surpluses on the current account of the balance of payments and its component sections"
+      ]
+     },
+     {
+      "num": "6.4.2",
+      "name": "Causes of current account deficit and surplus",
+      "points": [
+       "reasons for current account deficits and surpluses"
+      ]
+     },
+     {
+      "num": "6.4.3",
+      "name": "Consequences of current account deficit and surplus",
+      "points": [
+       "impact on GDP, employment, inflation and foreign exchange rate"
+      ]
+     },
+     {
+      "num": "6.4.4",
+      "name": "Policies to achieve balance of payments stability",
+      "points": [
+       "the range of policies available to achieve balance of payments stability and their effectiveness"
+      ]
+     }
+    ]
+   }
+  ]
+ }
+]

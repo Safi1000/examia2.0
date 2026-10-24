@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { allArticles } from "@/lib/blog";
 import { CITY_PAGES } from "@/lib/city-pages";
+import { SYLLABI } from "@/lib/syllabus";
 import { GULF_CITY_PAGES } from "@/lib/gulf-pages";
 import { PAPERS, liveSyllabuses, paperSlug } from "@/lib/mcq-papers";
 import { PUBLIC_ROUTES, absolute } from "@/lib/seo";
@@ -20,6 +21,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly" as const,
       priority: 0.6,
     })),
+    ...SYLLABI.map((s) => ({ url: absolute(`/syllabus/${s.slug}`), changeFrequency: "monthly" as const, priority: 0.7 })),
     ...[...CITY_PAGES, ...GULF_CITY_PAGES].map((c) => ({
       url: absolute(`/online-classes/${c.slug}`),
       changeFrequency: "monthly" as const,

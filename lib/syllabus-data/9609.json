@@ -1,0 +1,1311 @@
+[
+ {
+  "num": "1",
+  "name": "Business and its environment (AS Level)",
+  "subs": [
+   {
+    "num": "1.1",
+    "name": "Enterprise",
+    "parts": [
+     {
+      "num": "1.1.1",
+      "name": "The nature of business activity",
+      "points": [
+       "the purpose of business activity",
+       "the factors of production needed for business activity: land, labour, capital and enterprise",
+       "the concept of adding value",
+       "the nature of economic activity, the problem of choice and opportunity cost",
+       "the dynamic business environment",
+       "why businesses succeed or fail",
+       "differences between local, national, international and multinational businesses"
+      ]
+     },
+     {
+      "num": "1.1.2",
+      "name": "The role of entrepreneurs and intrapreneurs",
+      "points": [
+       "the qualities entrepreneurs and intrapreneurs need for success",
+       "the role of entrepreneurship in creating and starting up a business",
+       "the role of intrapreneurship in the ongoing success of a business",
+       "barriers to entrepreneurship",
+       "business risk and uncertainty",
+       "the role of business enterprise in the development of a country"
+      ]
+     },
+     {
+      "num": "1.1.3",
+      "name": "Business plans",
+      "points": [
+       "the meaning and purpose of business plans",
+       "the key elements of business plans",
+       "the benefits and limitations of business plans"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "1.2",
+    "name": "Business structure",
+    "parts": [
+     {
+      "num": "1.2.1",
+      "name": "Economic sectors",
+      "points": [
+       "the primary, secondary, tertiary and quaternary sectors and businesses within those sectors",
+       "the public and private sectors and businesses within those sectors",
+       "the reasons for and consequences of the changing relative importance of these sectors"
+      ]
+     },
+     {
+      "num": "1.2.2",
+      "name": "Business ownership",
+      "points": [
+       "the main features of different types of business ownership: sole traders, partnerships, private limited companies, public limited companies, franchises, co-operatives, joint ventures and social enterprises",
+       "the appropriateness of different types of business ownership",
+       "the concepts of unlimited liability and limited liability and their importance",
+       "the advantages and disadvantages of changing from one type of business ownership to another"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "1.3",
+    "name": "Size of business",
+    "parts": [
+     {
+      "num": "1.3.1",
+      "name": "Measurements of business size",
+      "points": [
+       "the appropriateness of different methods of measuring the size of a business"
+      ]
+     },
+     {
+      "num": "1.3.2",
+      "name": "Significance of small businesses",
+      "points": [
+       "the advantages and disadvantages of being a small business",
+       "the strengths and weaknesses of family businesses",
+       "the importance of small businesses and their role in the economy",
+       "the role of small businesses as part of the industrial structure in some industries"
+      ]
+     },
+     {
+      "num": "1.3.3",
+      "name": "Business growth",
+      "points": [
+       "why and how a business might grow internally (organic growth)",
+       "the different types of external growth through merger and takeover: horizontal, vertical (backward and forward), conglomerate diversification, friendly merger, hostile takeover",
+       "the impact of a merger/takeover on stakeholders",
+       "why a merger/takeover may or may not achieve objectives",
+       "the importance of joint ventures and strategic alliances as methods of external growth"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "1.4",
+    "name": "Business objectives",
+    "parts": [
+     {
+      "num": "1.4.1",
+      "name": "Business objectives in the private sector and public sector",
+      "points": [
+       "the objectives of businesses – private sector, public sector, and social enterprises",
+       "the importance of business objectives",
+       "corporate social responsibility (CSR) and the triple bottom line – economic (financial), social and environmental objectives",
+       "the relationship between mission statement, aims, objectives, strategy and tactics"
+      ]
+     },
+     {
+      "num": "1.4.2",
+      "name": "Objectives and business decisions",
+      "points": [
+       "the different stages of business decision-making and the role of objectives in the stages of business decision-making",
+       "how objectives might change over time",
+       "the translation of objectives into targets and budgets",
+       "the need for communication of objectives and their likely impact on the workforce",
+       "SMART (specific, measurable, achievable, realistic, time-limited) objectives",
+       "how ethics may influence business objectives and activities"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "1.5",
+    "name": "Stakeholders in a business",
+    "parts": [
+     {
+      "num": "1.5.1",
+      "name": "Business stakeholders",
+      "points": [
+       "individuals or groups with an interest in the activities of a business",
+       "internal stakeholders and external stakeholders",
+       "the roles, rights and responsibilities of stakeholders"
+      ]
+     },
+     {
+      "num": "1.5.2",
+      "name": "The relative importance and infuence of stakeholders on business activities",
+      "points": [
+       "the impact of business decisions on stakeholders, and their reactions",
+       "the impact of stakeholder aims on business decisions",
+       "how and why a business needs to be accountable to its stakeholders",
+       "how conflict might arise from stakeholders having different aims and objectives",
+       "how changing business objectives might affect its stakeholders"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "2",
+  "name": "Human resource management (AS Level)",
+  "subs": [
+   {
+    "num": "2.1",
+    "name": "Human resource management (HRM)",
+    "parts": [
+     {
+      "num": "2.1.1",
+      "name": "Purpose and roles of HRM",
+      "points": [
+       "the role of HRM in meeting organisational objectives"
+      ]
+     },
+     {
+      "num": "2.1.2",
+      "name": "Workforce planning",
+      "points": [
+       "the reasons for and role of a workforce plan",
+       "measurement of labour turnover",
+       "the implications of high and low labour turnover for a business"
+      ]
+     },
+     {
+      "num": "2.1.3",
+      "name": "Recruitment and selection",
+      "points": [
+       "recruitment of employees: process (job descriptions and person specifications) and recruitment methods (job advertisements, employment agencies, online recruitment)",
+       "internal and external recruitment",
+       "selection methods: curriculum vitae, résumé, application forms, interviews, references, testing, assessment centres",
+       "employment contracts"
+      ]
+     },
+     {
+      "num": "2.1.4",
+      "name": "Redundancy and dismissal",
+      "points": [
+       "the difference between redundancy (voluntary and involuntary) and dismissal (fair, unfair)"
+      ]
+     },
+     {
+      "num": "2.1.5",
+      "name": "Morale and welfare",
+      "points": [
+       "the relationship between HRM, employee morale and welfare in a business including the concept of work-life balance",
+       "the impact of diversity and equality in the workplace on a business"
+      ]
+     },
+     {
+      "num": "2.1.6",
+      "name": "Training and development",
+      "points": [
+       "different types of training: induction, on-the-job, off-the-job",
+       "the impact of training and development on a business",
+       "employee development to encourage intrapreneurship",
+       "employee development to encourage multi-skilling and flexibility"
+      ]
+     },
+     {
+      "num": "2.1.7",
+      "name": "Management and workforce relations",
+      "points": [
+       "how cooperation between management and the workforce can be of benefit to both",
+       "the impact on employers and employees of trade union involvement in the workplace including their role in collective bargaining"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "2.2",
+    "name": "Motivation",
+    "parts": [
+     {
+      "num": "2.2.1",
+      "name": "Motivation as a tool of management and leadership",
+      "points": [
+       "the need to motivate employees to achieve the objectives of a business"
+      ]
+     },
+     {
+      "num": "2.2.2",
+      "name": "Human needs",
+      "points": [
+       "a simple explanation of human need",
+       "how human needs may or may not be satisfied at work"
+      ]
+     },
+     {
+      "num": "2.2.3",
+      "name": "Motivation theories",
+      "points": [
+       "the ideas of the main content theories (Taylor, Mayo, Maslow, Herzberg and McClelland) and process theory (Vroom)"
+      ]
+     },
+     {
+      "num": "2.2.4",
+      "name": "Motivation methods in practice: financial motivators, non-financial motivators",
+      "points": [
+       "the theories in practical situations",
+       "different payment methods: time based, salary, piece rates, commission, bonuses, profit sharing, performance-related pay, fringe benefits",
+       "different types of non-financial motivators: training, opportunities for promotion, development, status, job re-design, team working, empowerment, participation, job enrichment",
+       "ways in which employees can participate in the management and control of business activity"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "2.3",
+    "name": "Management",
+    "parts": [
+     {
+      "num": "2.3.1",
+      "name": "Management and managers",
+      "points": [
+       "traditional manager functions: planning, organising, directing, controlling",
+       "the role of managers: Fayol, Mintzberg",
+       "the contribution of managers to business performance",
+       "management styles: autocratic, democratic, laissez-faire, paternalistic",
+       "McGregor’s Theory X and Theory Y managers"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "3",
+  "name": "Marketing (AS Level)",
+  "subs": [
+   {
+    "num": "3.1",
+    "name": "The nature of marketing",
+    "parts": [
+     {
+      "num": "3.1.1",
+      "name": "The role of marketing and its relationship with other business activities",
+      "points": [
+       "marketing objectives",
+       "the link between marketing objectives and corporate objectives"
+      ]
+     },
+     {
+      "num": "3.1.2",
+      "name": "Demand and supply",
+      "points": [
+       "the factors influencing the demand for and supply of the products of a business",
+       "interactions between demand, supply and price"
+      ]
+     },
+     {
+      "num": "3.1.3",
+      "name": "Markets",
+      "points": [
+       "how markets may differ: consumer and industrial markets; local, national and international markets",
+       "the difference between product orientation and customer (market) orientation",
+       "measurement of market share and market growth",
+       "the implications of changes in market share and market growth"
+      ]
+     },
+     {
+      "num": "3.1.4",
+      "name": "Consumer and industrial marketing",
+      "points": [
+       "the classification of products",
+       "how marketing might differ for consumer products (B2C – business to consumer) and industrial products (B2B – business to business)"
+      ]
+     },
+     {
+      "num": "3.1.5",
+      "name": "Mass marketing and niche marketing",
+      "points": [
+       "the features of mass and niche markets",
+       "the advantages and disadvantages of mass marketing and niche marketing"
+      ]
+     },
+     {
+      "num": "3.1.6",
+      "name": "Market segmentation",
+      "points": [
+       "methods of market segmentation: geographic, demographic and psychographic",
+       "the advantages and disadvantages of market segmentation"
+      ]
+     },
+     {
+      "num": "3.1.7",
+      "name": "Customer relationship marketing (CRM)",
+      "points": [
+       "the aims of CRM",
+       "the costs and benefits of CRM"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "3.2",
+    "name": "Market research",
+    "parts": [
+     {
+      "num": "3.2.1",
+      "name": "The purposes of market research",
+      "points": [
+       "identification of main features of a market: size, growth, competitors",
+       "identification of customer and consumer characteristics, profiles, wants and needs"
+      ]
+     },
+     {
+      "num": "3.2.2",
+      "name": "Primary research and secondary research",
+      "points": [
+       "the distinction between primary research and secondary research, and the main features of each",
+       "usefulness of data collected using primary research methods",
+       "usefulness of data collected from secondary research sources"
+      ]
+     },
+     {
+      "num": "3.2.3",
+      "name": "Sampling",
+      "points": [
+       "the need for and limitations of sampling"
+      ]
+     },
+     {
+      "num": "3.2.4",
+      "name": "Market research data",
+      "points": [
+       "the reliability of the data collected",
+       "analysis of quantitative and qualitative data",
+       "interpretation of information presented in tables, charts and graphs"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "3.3",
+    "name": "The marketing mix",
+    "parts": [
+     {
+      "num": "3.3.1",
+      "name": "The elements of the marketing mix (the 4Ps)",
+      "points": [
+       "the 4Ps: Product, Price, Promotion, Place (distribution channels)"
+      ]
+     },
+     {
+      "num": "3.3.2",
+      "name": "Product",
+      "points": [
+       "the difference between goods and services",
+       "tangible and intangible attributes of products",
+       "the importance of product development",
+       "product differentiation and unique selling point (USP)"
+      ]
+     },
+     {
+      "num": "3.3.3",
+      "name": "Product portfolio analysis",
+      "points": [
+       "product life cycle and decisions about extension strategies",
+       "Boston Matrix analysis and its uses",
+       "impact of product portfolio analysis on marketing decisions"
+      ]
+     },
+     {
+      "num": "3.3.4",
+      "name": "Pricing methods",
+      "points": [
+       "objectives and usefulness of different pricing methods: competitive, penetration, skimming, price discrimination, dynamic, cost-based and psychological"
+      ]
+     },
+     {
+      "num": "3.3.5",
+      "name": "Promotion methods",
+      "points": [
+       "the objectives and usefulness of different promotion methods",
+       "advertising promotion",
+       "sales promotion",
+       "direct promotion",
+       "developments in digital promotion",
+       "the role of packaging in promotion",
+       "the role of branding in promotion"
+      ]
+     },
+     {
+      "num": "3.3.6",
+      "name": "Place (channels of distribution)",
+      "points": [
+       "the objectives and usefulness of different channels of distribution",
+       "digital and physical distribution"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "4",
+  "name": "Operations management (AS Level)",
+  "subs": [
+   {
+    "num": "4.1",
+    "name": "The nature of operations",
+    "parts": [
+     {
+      "num": "4.1.1",
+      "name": "The transformational process",
+      "points": [
+       "the use of factors of production: land, labour, capital and enterprise",
+       "the stages of the transformational process: inputs to outputs",
+       "the contribution of operations to added value"
+      ]
+     },
+     {
+      "num": "4.1.2",
+      "name": "Efficiency, effectiveness, productivity and sustainability",
+      "points": [
+       "the importance of efficiency, effectiveness, productivity and sustainability",
+       "measurement of labour productivity",
+       "the impact on a business of measures to improve sustainability of operations"
+      ]
+     },
+     {
+      "num": "4.1.3",
+      "name": "Capital intensive and labour intensive operations",
+      "points": [
+       "the benefits and limitations of capital intensive operations",
+       "the benefits and limitations of labour intensive operations"
+      ]
+     },
+     {
+      "num": "4.1.4",
+      "name": "Operations methods: job, batch, flow, mass customisation",
+      "points": [
+       "differences between methods – advantages and disadvantages of each method",
+       "the problems of changing from one method to another"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "4.2",
+    "name": "Inventory management",
+    "parts": [
+     {
+      "num": "4.2.1",
+      "name": "Managing inventory",
+      "points": [
+       "the purpose of inventory within a business (raw materials, work in progress, finished products)",
+       "the costs and benefits of holding inventory",
+       "buffer inventory, re-order level and lead time",
+       "interpretation of simple inventory control charts",
+       "the importance of Supply Chain Management"
+      ]
+     },
+     {
+      "num": "4.2.2",
+      "name": "Just in Time (JIT)",
+      "points": [
+       "the purpose of JIT and JIC (Just in Case) inventory management",
+       "the impact of adopting a JIT approach on a business"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "4.3",
+    "name": "Capacity utilisation and outsourcing",
+    "parts": [
+     {
+      "num": "4.3.1",
+      "name": "Significance and measurement of capacity utilisation",
+      "points": [
+       "the measurement of capacity utilisation",
+       "the impact of operating under or over maximum capacity on a business",
+       "methods of improving capacity utilisation"
+      ]
+     },
+     {
+      "num": "4.3.2",
+      "name": "Outsourcing",
+      "points": [
+       "the impact of outsourcing on a business"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "5",
+  "name": "Finance and accounting (AS Level)",
+  "subs": [
+   {
+    "num": "5.1",
+    "name": "Business finance",
+    "parts": [
+     {
+      "num": "5.1.1",
+      "name": "The need for business finance",
+      "points": [
+       "reasons why businesses need finance to start up, to grow and to survive",
+       "the distinction between short and long term need for finance",
+       "the difference between cash and profits",
+       "business failure as a consequence of lack of finance: bankruptcy, liquidation and administration"
+      ]
+     },
+     {
+      "num": "5.1.2",
+      "name": "Working capital",
+      "points": [
+       "the meaning and importance of working capital",
+       "managing trade receivables and trade payables",
+       "the distinction between capital expenditure and revenue expenditure"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "5.2",
+    "name": "Sources of finance",
+    "parts": [
+     {
+      "num": "5.2.1",
+      "name": "Business ownership and sources of finance",
+      "points": [
+       "the relationship between the form of business ownership and availability of sources of finance"
+      ]
+     },
+     {
+      "num": "5.2.2",
+      "name": "Internal and external sources of finance",
+      "points": [
+       "internal sources of finance: owners investment, retained earnings, sale of unwanted assets, sale and leaseback of non-current assets, working capital",
+       "external sources of finance: share capital, debentures, new partners, venture capital, bank overdrafts, leasing, hire purchase, bank loans, mortgages, debt factoring, trade credit, micro-finance, crowd funding and government grants"
+      ]
+     },
+     {
+      "num": "5.2.3",
+      "name": "Factors affecting the sources of finance",
+      "points": [
+       "the factors influencing the choice of sources of finance in a given situation: cost, flexibility, need to retain control, the use to which it is put, level of existing debt"
+      ]
+     },
+     {
+      "num": "5.2.4",
+      "name": "Selecting the source of finance",
+      "points": [
+       "the appropriateness of each possible source in a given situation"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "5.3",
+    "name": "Forecasting and managing cash flows",
+    "parts": [
+     {
+      "num": "5.3.1",
+      "name": "Cash flow forecasts",
+      "points": [
+       "the meaning and purpose of cash flow forecasts",
+       "the interpretation and amendment of simple cash flow forecasts: calculating opening and closing balances",
+       "different methods of improving cash flow"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "5.4",
+    "name": "Costs",
+    "parts": [
+     {
+      "num": "5.4.1",
+      "name": "Cost information",
+      "points": [
+       "the need for accurate cost information",
+       "different types of costs: fixed, variable, direct and indirect"
+      ]
+     },
+     {
+      "num": "5.4.2",
+      "name": "Approaches to costing: full, contribution",
+      "points": [
+       "the differences between full and contribution costing",
+       "the uses and limitations of the full costing method",
+       "the nature of the technique of contribution costing",
+       "the difference between contribution and profit",
+       "the limitations of contribution costing",
+       "situations in which contribution costing would be and would not be used"
+      ]
+     },
+     {
+      "num": "5.4.3",
+      "name": "Uses of cost information",
+      "points": [
+       "cost information for decision-making purposes, e.g. average, marginal, total costs",
+       "how costs can be used for pricing decisions",
+       "how costs can be used to monitor and improve business performance, including using cost information to calculate profits",
+       "contribution costing as a means to help make special order decisions"
+      ]
+     },
+     {
+      "num": "5.4.4",
+      "name": "Break-even analysis",
+      "points": [
+       "the meaning and importance of break-even analysis",
+       "calculation and interpretation of break-even level of output, contribution, margin of safety and level of profit (in numeric and graphic form)",
+       "the uses and limitations of break-even analysis"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "5.5",
+    "name": "Budgets",
+    "parts": [
+     {
+      "num": "5.5.1",
+      "name": "The meaning and purpose of budgets",
+      "points": [
+       "the measurement of performance",
+       "the benefits and drawbacks from the use of budgets",
+       "the meaning and use of incremental budgets, flexible budgets and zero budgeting",
+       "the uses of budgets for measuring performance, allocating resources, controlling and monitoring a business"
+      ]
+     },
+     {
+      "num": "5.5.2",
+      "name": "Variances",
+      "points": [
+       "the meaning of adverse variances and favourable variances",
+       "the calculation and interpretation of variances"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "6",
+  "name": "Business and its environment (A Level)",
+  "subs": [
+   {
+    "num": "6.1",
+    "name": "External influences on business activity",
+    "parts": [
+     {
+      "num": "6.1.1",
+      "name": "Political and legal",
+      "points": [
+       "the advantages and disadvantages of privatisation in a given situation",
+       "the advantages and disadvantages of nationalisation in a given situation",
+       "how a government might use the law to seek to control: employment practices, conditions of work (including health and safety), wage levels, marketing behaviour, competition, location decisions, particular goods and services",
+       "the impact of changes in political and legal factors on business and business decisions"
+      ]
+     },
+     {
+      "num": "6.1.2",
+      "name": "Economic",
+      "points": [
+       "how government might intervene to help businesses and encourage enterprise",
+       "how government might intervene to constrain business activity",
+       "how government might deal with market failure",
+       "the key macroeconomic objectives of governments: low unemployment, low inflation, economic growth",
+       "how macroeconomic objectives and performance of an economy can have an impact on business activity",
+       "government policies used to achieve macroeconomic objectives: monetary, fiscal, supply-side and exchange rate policies",
+       "the impact of changes in these government policies on business and business decisions"
+      ]
+     },
+     {
+      "num": "6.1.3",
+      "name": "Social and demographic",
+      "points": [
+       "the impact of and issues associated with corporate social responsibility (CSR), e.g. accounting practices, paying incentives for the award of contracts, social auditing",
+       "why businesses need to consider the needs of the community including pressure groups",
+       "demographic changes at a local, national and global level",
+       "the impact of social and demographic change on business and business decisions"
+      ]
+     },
+     {
+      "num": "6.1.4",
+      "name": "Technological",
+      "points": [
+       "the impact of technological change on business and business decisions"
+      ]
+     },
+     {
+      "num": "6.1.5",
+      "name": "Competitors and suppliers",
+      "points": [
+       "the impact of competitors and suppliers on business and business decisions"
+      ]
+     },
+     {
+      "num": "6.1.6",
+      "name": "International",
+      "points": [
+       "the importance of international trading links and their impact on business and business decisions",
+       "how international trade agreements might have an impact on businesses",
+       "the role of technology in international trade",
+       "the advantages and disadvantages that a multinational might bring to a country",
+       "relationships between multinationals and governments"
+      ]
+     },
+     {
+      "num": "6.1.7",
+      "name": "Environmental",
+      "points": [
+       "how physical environmental issues might influence business behaviour",
+       "how a business and its stakeholders may use an environmental audit",
+       "the impact of the growing importance of sustainability on business and business decisions"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "6.2",
+    "name": "Business strategy",
+    "parts": [
+     {
+      "num": "6.2.1",
+      "name": "Developing business strategy",
+      "points": [
+       "the meaning and purpose of business strategy",
+       "the meaning and purpose of strategic management: analysis, choice and implementation",
+       "approaches to develop business strategy, including: – blue ocean strategy – scenario planning – SWOT analysis – PEST analysis – Porter’s five forces – core competence framework – Ansoff matrix – force field analysis – decision trees"
+      ]
+     },
+     {
+      "num": "6.2.2",
+      "name": "Corporate planning and implementation",
+      "points": [
+       "the meaning and importance of corporate planning",
+       "the meaning of corporate culture and its impact on business decision-making",
+       "the meaning and importance of transformational leadership",
+       "the management and control of strategic change",
+       "the meaning and importance of contingency planning and crisis management"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "7",
+  "name": "Human resource management (A Level)",
+  "subs": [
+   {
+    "num": "7.1",
+    "name": "Organisational structure",
+    "parts": [
+     {
+      "num": "7.1.1",
+      "name": "The relationship between business objectives and organisational structure",
+      "points": [
+       "the purpose and attributes of an organisational structure such as flexibility, meeting the needs of the business, allowing for growth and development and encouraging intrapreneurship"
+      ]
+     },
+     {
+      "num": "7.1.2",
+      "name": "Types of structure: functional, hierarchical (flat and narrow), matrix",
+      "points": [
+       "the advantages and disadvantages of the different types of structure",
+       "why some organisations are structured by product and others by function or geographical area",
+       "the reasons and ways structures change e.g. due to growth or delayering",
+       "the features of a formal structure: levels of hierarchy, chain of command, span of control, responsibility, authority, delegation, accountability, centralised, decentralised"
+      ]
+     },
+     {
+      "num": "7.1.3",
+      "name": "Delegation and accountability",
+      "points": [
+       "the relationship between delegation and accountability",
+       "the processes of accountability in a business",
+       "the impact of delegation on a business"
+      ]
+     },
+     {
+      "num": "7.1.4",
+      "name": "Control, authority and trust",
+      "points": [
+       "the relationship between span of control and levels of hierarchy",
+       "the difference between authority and responsibility",
+       "the conflicts between control and trust that might arise when delegating"
+      ]
+     },
+     {
+      "num": "7.1.5",
+      "name": "Centralisation and decentralisation",
+      "points": [
+       "the impact of centralisation and decentralisation on a business"
+      ]
+     },
+     {
+      "num": "7.1.6",
+      "name": "Line and staff",
+      "points": [
+       "examples of and distinctions between line and staff functions and the conflicts between them"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "7.2",
+    "name": "Business communication",
+    "parts": [
+     {
+      "num": "7.2.1",
+      "name": "Purposes of communication",
+      "points": [
+       "situations in which communication is essential"
+      ]
+     },
+     {
+      "num": "7.2.2",
+      "name": "Methods of communication",
+      "points": [
+       "the standard methods of communication used in business: spoken, written, electronic, visual",
+       "the strengths and weaknesses of the different methods of communication"
+      ]
+     },
+     {
+      "num": "7.2.3",
+      "name": "Channels of communication",
+      "points": [
+       "how communication works within a business",
+       "the difference between one- and two-way communication; the difference between vertical and horizontal communication",
+       "problems associated with different channels of communication"
+      ]
+     },
+     {
+      "num": "7.2.4",
+      "name": "Barriers to communication",
+      "points": [
+       "barriers to communication and how to overcome them"
+      ]
+     },
+     {
+      "num": "7.2.5",
+      "name": "The role of management in facilitating communication",
+      "points": [
+       "the role of informal communications within a business",
+       "ways in which communication can influence the efficiency of a business",
+       "ways of improving communication in a given situation"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "7.3",
+    "name": "Leadership",
+    "parts": [
+     {
+      "num": "7.3.1",
+      "name": "Leadership",
+      "points": [
+       "the purpose of leadership",
+       "leadership roles in business (directors, managers, supervisors, worker representatives)",
+       "the qualities of a good leader"
+      ]
+     },
+     {
+      "num": "7.3.2",
+      "name": "Theories of leadership",
+      "points": [
+       "key leadership theories: trait, behavioural, contingency, power and influence and transformational"
+      ]
+     },
+     {
+      "num": "7.3.3",
+      "name": "Emotional intelligence/emotional quotient (EQ)",
+      "points": [
+       "Goleman’s four competencies of emotional intelligence: self-awareness, social awareness, self- management and social skills"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "7.4",
+    "name": "Human resource management (HRM) strategy",
+    "parts": [
+     {
+      "num": "7.4.1",
+      "name": "Approaches to human resource management (HRM)",
+      "points": [
+       "the difference between ‘hard’ and ‘soft’ HRM",
+       "flexible working contracts: advantages and disadvantages of temporary contracts or flexible contracts including zero hours contracts, part-time, full-time, annualised hours, flexi-time, home working, shift working, job sharing, compressed working hours, the gig economy",
+       "the measurement, causes and consequences of poor employee performance",
+       "strategies for improving employee performance",
+       "Management by Objectives (MBO) – implementation and usefulness",
+       "the changing role of Information Technology (IT) and Artificial Intelligence (AI) in HRM"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "8",
+  "name": "Marketing (A Level)",
+  "subs": [
+   {
+    "num": "8.1",
+    "name": "Marketing analysis",
+    "parts": [
+     {
+      "num": "8.1.1",
+      "name": "Elasticity",
+      "points": [
+       "the concept of elasticity of demand: price, income and promotional",
+       "calculation of price, income and promotional elasticity of demand",
+       "interpretation of elasticity results",
+       "the impact of elasticity measures on business decisions",
+       "the limitations of the concept of elasticity in its various forms"
+      ]
+     },
+     {
+      "num": "8.1.2",
+      "name": "Product development",
+      "points": [
+       "the process of product development",
+       "sources of new ideas for product development",
+       "the importance of Research and Development (R&D)"
+      ]
+     },
+     {
+      "num": "8.1.3",
+      "name": "Sales forecasting",
+      "points": [
+       "the need to forecast sales",
+       "time series analysis: calculation and use of four period centred moving average method to forecast sales",
+       "qualitative sales forecasting",
+       "the impact of sales forecasting on business decisions"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "8.2",
+    "name": "Marketing strategy",
+    "parts": [
+     {
+      "num": "8.2.1",
+      "name": "Planning the marketing strategy",
+      "points": [
+       "the contents of a marketing plan: objectives, resources, research, marketing mix",
+       "the benefits and limitations of marketing planning"
+      ]
+     },
+     {
+      "num": "8.2.2",
+      "name": "Approaches to marketing strategy",
+      "points": [
+       "the need for the marketing strategy to be consistent with the business, the product and the market",
+       "the need for and development of a coordinated marketing strategy",
+       "the development of marketing strategies that are focused towards achieving specific marketing objectives",
+       "the changing role of Information Technology (IT) and Artificial Intelligence (AI) in marketing"
+      ]
+     },
+     {
+      "num": "8.2.3",
+      "name": "Strategies for international marketing",
+      "points": [
+       "the implications for marketing of increased globalisation and economic collaboration",
+       "the importance of international marketing for a business",
+       "international markets – identification, selection and entry",
+       "whether a business in a given situation should develop an international market through pan-global marketing or maintain local differences",
+       "choosing a strategy, in a given situation, to develop a global market",
+       "the factors influencing the method of entry into international markets"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "9",
+  "name": "Operations management (A Level)",
+  "subs": [
+   {
+    "num": "9.1",
+    "name": "Location and scale",
+    "parts": [
+     {
+      "num": "9.1.1",
+      "name": "Location",
+      "points": [
+       "the factors that determine location and relocation",
+       "the differences between local, national and international location decisions",
+       "the reasons for and impact of offshoring and reshoring",
+       "the impact of globalisation on location and relocation decisions"
+      ]
+     },
+     {
+      "num": "9.1.2",
+      "name": "Scale of operations",
+      "points": [
+       "the factors that influence the scale of a business",
+       "causes and examples of internal and external economies and diseconomies of scale",
+       "the links between economies and diseconomies of scale and unit costs"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "9.2",
+    "name": "Quality management",
+    "parts": [
+     {
+      "num": "9.2.1",
+      "name": "Quality control and quality assurance",
+      "points": [
+       "quality in terms of meeting customer expectations",
+       "the importance of quality",
+       "the impact of methods of quality control on a business",
+       "the impact of methods of quality assurance on a business",
+       "the impact of Total Quality Management (TQM) on a business"
+      ]
+     },
+     {
+      "num": "9.2.2",
+      "name": "Benchmarking",
+      "points": [
+       "the importance of benchmarking in quality management"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "9.3",
+    "name": "Operations strategy",
+    "parts": [
+     {
+      "num": "9.3.1",
+      "name": "Operational decisions",
+      "points": [
+       "the influence of human, marketing and finance resource availability on operations decisions",
+       "the changing role of Information Technology (IT) and Artificial Intelligence (AI) in operations management"
+      ]
+     },
+     {
+      "num": "9.3.2",
+      "name": "Flexibility and innovation",
+      "points": [
+       "the need for flexibility with regard to volume, delivery time and specification",
+       "process innovation: changing current processes or adopting new ways of producing products or delivering services"
+      ]
+     },
+     {
+      "num": "9.3.3",
+      "name": "Enterprise resource planning (ERP)",
+      "points": [
+       "the main features of an ERP programme",
+       "how ERP can improve a business’ efficiency in relation to: inventory control, costing and pricing, capacity utilisation, responses to change, workforce flexibility, management information"
+      ]
+     },
+     {
+      "num": "9.3.4",
+      "name": "Lean production",
+      "points": [
+       "the aims and purposes of lean production",
+       "Kaizen, quality circles, simultaneous engineering, cell production, JIT manufacturing and waste management as operational strategies to achieve lean production",
+       "the limitations of operational strategies to achieve lean production",
+       "the links between lean production and inventory control, quality, employees roles, capacity management and efficiency"
+      ]
+     },
+     {
+      "num": "9.3.5",
+      "name": "Operations planning",
+      "points": [
+       "the need for planning operations",
+       "network diagrams as tools to plan operations",
+       "the main elements of a network diagram: activities, dummy activities, nodes",
+       "network diagrams as means of performing Critical Path Analysis (CPA), including identification of the minimum project duration and the critical path, calculation of total and free float, interpretation of the results of the analysis of a network, how minimum duration and floats might be used in project management",
+       "the benefits and limitations of CPA as a management tool"
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "num": "10",
+  "name": "Finance and accounting (A Level)",
+  "subs": [
+   {
+    "num": "10.1",
+    "name": "Financial statements",
+    "parts": [
+     {
+      "num": "10.1.1",
+      "name": "Statement of profit or loss",
+      "points": [
+       "the meaning and purpose of the statement of profit or loss",
+       "the contents of a statement of profit or loss: revenue, cost of sales, gross profit, expenses, profit from operations (operating profit), taxation, profit for the year, dividends, retained earnings",
+       "amendment of a statement of profit or loss",
+       "the impact on the statement of profit or loss of a given change"
+      ]
+     },
+     {
+      "num": "10.1.2",
+      "name": "Statement of financial position",
+      "points": [
+       "the meaning and purpose of statement of financial position",
+       "the contents of a statement of financial position including non-current assets, current assets, current liabilities, net current assets, net assets, non-current liabilities, reserves and equity",
+       "amendment of a statement of financial position",
+       "the relationships between items in the statement of profit or loss and the statement of financial position"
+      ]
+     },
+     {
+      "num": "10.1.3",
+      "name": "Inventory valuation",
+      "points": [
+       "the difficulties of valuing inventory",
+       "the net realisable value method"
+      ]
+     },
+     {
+      "num": "10.1.4",
+      "name": "Depreciation",
+      "points": [
+       "the role of depreciation in the accounts",
+       "the impact of depreciation (straight-line method only) on the statement of financial position and the statement of profit or loss"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "10.2",
+    "name": "Analysis of published accounts",
+    "parts": [
+     {
+      "num": "10.2.1",
+      "name": "Liquidity ratios",
+      "points": [
+       "the meaning and importance of liquidity",
+       "current ratio: calculation and interpretation",
+       "acid test ratio: calculation and interpretation",
+       "methods of improving liquidity"
+      ]
+     },
+     {
+      "num": "10.2.2",
+      "name": "Profitability ratios",
+      "points": [
+       "the meaning and importance of profitability",
+       "return on capital employed: calculation and interpretation",
+       "gross profit margin: calculation and interpretation",
+       "profit margin: calculation and interpretation",
+       "methods of improving profitability"
+      ]
+     },
+     {
+      "num": "10.2.3",
+      "name": "Financial efficiency ratios",
+      "points": [
+       "the meaning and importance of financial efficiency",
+       "rate of inventory turnover: calculation and interpretation",
+       "trade receivables turnover (days): calculation and interpretation",
+       "trade payables turnover (days): calculation and interpretation",
+       "methods of improving financial efficiency"
+      ]
+     },
+     {
+      "num": "10.2.4",
+      "name": "Gearing ratio",
+      "points": [
+       "the meaning and importance of gearing",
+       "gearing ratio: calculation and interpretation",
+       "methods of improving gearing"
+      ]
+     },
+     {
+      "num": "10.2.5",
+      "name": "Investment ratios",
+      "points": [
+       "the meaning and importance of return to investors",
+       "dividend yield: calculation and interpretation",
+       "dividend cover: calculation and interpretation",
+       "price/earnings ratio: calculation and interpretation",
+       "methods of improving investor return"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "10.3",
+    "name": "Investment appraisal",
+    "parts": [
+     {
+      "num": "10.3.1",
+      "name": "The concept of investment appraisal",
+      "points": [
+       "the need for investment appraisal"
+      ]
+     },
+     {
+      "num": "10.3.2",
+      "name": "Basic methods: payback, accounting rate of return (ARR)",
+      "points": [
+       "the meaning, calculation and interpretation of payback and ARR (ARR = (average profit / average investment) × 100)"
+      ]
+     },
+     {
+      "num": "10.3.3",
+      "name": "Discounted cash flow method: net present value (NPV)",
+      "points": [
+       "the meaning, calculation and interpretation of NPV"
+      ]
+     },
+     {
+      "num": "10.3.4",
+      "name": "Investment appraisal decisions",
+      "points": [
+       "quantitative results and their impact on investment decisions",
+       "qualitative factors and their impact on investment decisions",
+       "comparison of investment appraisal methods, including their limitations"
+      ]
+     }
+    ]
+   },
+   {
+    "num": "10.4",
+    "name": "Finance and accounting strategy",
+    "parts": [
+     {
+      "num": "10.4.1",
+      "name": "The use of accounting data to enable strategic decision-making",
+      "points": [
+       "the use of financial statements in developing strategies",
+       "the contents of an annual report and their usefulness to business and other stakeholders"
+      ]
+     },
+     {
+      "num": "10.4.2",
+      "name": "The use of accounting data and ratio analysis in strategic decision-making",
+      "points": [
+       "assessment of business performance over time and against competitors",
+       "the impact of accounting data including ratio results on business strategy",
+       "the impact of debt or equity decisions on ratio results",
+       "the impact of changes in dividend strategy on ratio results",
+       "the impact of business growth on ratio results",
+       "the impact of other business strategies on ratio results",
+       "the limitations of using published accounts and ratio analyses"
+      ]
+     }
+    ]
+   }
+  ]
+ }
+]
