@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { track } from "@/lib/landing";
-import { LETTERS, mark, type McqPaper } from "@/lib/mcq-papers";
+import { LETTERS, mark, questionLink, type McqPaper } from "@/lib/mcq-papers";
 
 const gold =
   "inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] transition-colors hover:bg-[#ffd07a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold disabled:opacity-50";
@@ -190,7 +190,10 @@ export function McqChecker({ paper, name, id }: { paper: McqPaper; name: string;
                 <ul className="mt-3 space-y-4 text-[15px] leading-relaxed text-body">
                   {review.map((w) => (
                     <li key={w.n}>
-                      <span className="font-semibold text-foreground">Question {w.n}:</span>{" "}
+                      <a href={questionLink(paper, w.n)} target="_blank" rel="noopener" className="font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 hover:text-gold">
+                        Question {w.n}
+                      </a>
+                      :{" "}
                       {w.given ? `you chose ${w.given}, the answer is ${w.correct}.` : `left blank, the answer is ${w.correct}.`}
                       {paper.notes?.[w.n] && <span className="mt-1 block text-muted-foreground">{paper.notes[w.n]}</span>}
                     </li>

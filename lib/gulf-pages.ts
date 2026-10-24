@@ -175,7 +175,7 @@ export const GULF_CITY_PAGES: GulfCityPage[] = [
     description:
       "Live online O Level, IGCSE, AS and A Level Accounting, Business and Economics classes for Riyadh students, 1:30 to 7:30 pm Saudi time. Free trial lesson.",
     intro:
-      "Saudi Arabia is two hours behind Pakistan, so classes run from 1:30 pm to 7:30 pm Riyadh time. Your school week and my timetable overlap on four days, not five, and it helps to see how.",
+      "Saudi Arabia is two hours behind Pakistan, so classes run from 1:30 pm to 7:30 pm Riyadh time. Your school week and my timetable share four days, not five.",
     local: [
       {
         title: "How the two weeks line up",
@@ -257,7 +257,7 @@ export const GULF_CITY_PAGES: GulfCityPage[] = [
     description:
       "Live online O Level, IGCSE, AS and A Level Accounting, Business and Economics classes for Doha students, 1:30 to 7:30 pm Qatar time. Free trial lesson.",
     intro:
-      "Qatar is two hours behind Pakistan, so classes run from 1:30 pm to 7:30 pm Doha time, Monday to Friday. If you are entering without a school, the British Council in Doha has its own process, set out below.",
+      "Qatar is two hours behind Pakistan, so classes run from 1:30 pm to 7:30 pm Doha time, Monday to Friday. Private candidates in Qatar register through the British Council, which has its own process here.",
     local: [
       {
         title: "School and class, side by side",

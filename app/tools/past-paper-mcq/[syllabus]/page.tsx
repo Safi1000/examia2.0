@@ -5,7 +5,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
 import { TopicPractice } from "@/components/tools/TopicPractice";
-import { liveSyllabuses, paperName, paperSlug, papersFor, syllabusBySlug, syllabusName, topicQuestions } from "@/lib/mcq-papers";
+import { liveSyllabuses, paperName, questionLink, paperSlug, papersFor, syllabusBySlug, syllabusName, topicQuestions } from "@/lib/mcq-papers";
 import { breadcrumbLd } from "@/lib/seo";
 
 export const dynamicParams = false;
@@ -38,7 +38,7 @@ export default async function McqSyllabusPage({ params }: Props) {
     topic,
     items: qs.map(({ paper, n }) => ({
       paper: paperName(s, paper),
-      questionPaper: paper.questionPaper,
+      questionPaper: questionLink(paper, n),
       n,
       correct: paper.answers[n - 1],
       note: paper.notes?.[n],

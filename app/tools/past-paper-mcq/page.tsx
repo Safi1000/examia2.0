@@ -44,7 +44,7 @@ export default function PastPaperMcqHub() {
             <li>Choose your syllabus and a paper. Each one links to the official question paper on the Cambridge website.</li>
             <li>Start the timer if you want exam conditions. It runs for the same time as the real paper.</li>
             <li>Shade your answers on the answer sheet, then mark it. Your answers are saved on your device as you go.</li>
-            <li>Or practise one topic at a time: the checker takes you through real past paper questions on that topic, one by one.</li>
+            <li>Or practise one topic at a time: the checker takes you through real past paper questions on that topic, one by one, and opens the official paper at each question.</li>
           </ol>
           <p className="mt-5 text-[15px] leading-relaxed text-muted-foreground">
             The questions belong to Cambridge, so they are never copied here. You work from the official paper, and the answers come from

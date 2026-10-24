@@ -83,7 +83,7 @@ export default function OnlineClassesGulf() {
         </h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
           I teach every class live from Rawalpindi. For a family in the Gulf, the real questions are practical: will the times fit around
-          school, and how do the exams work from where you live? This page answers both.
+          school, and how do the exams work from where you live?
         </p>
 
         <Section title="The times, in your time zone" intro={<p>Monday to Friday. You join the block for your level.</p>}>
@@ -178,7 +178,7 @@ export default function OnlineClassesGulf() {
         </Section>
 
         <p className="mt-12 text-sm leading-relaxed text-faint">
-          The school week and British Council facts on this page come from official sources, listed on each city page and guide.
+          School week and British Council facts come from official sources, listed on each city page and guide.
         </p>
       </div>
     </MarketingShell>

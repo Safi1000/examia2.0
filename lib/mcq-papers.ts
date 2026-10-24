@@ -9,8 +9,10 @@
  * Adding a paper: copy one entry in MCQ_PAPERS, set the links from the
  * syllabus's past papers page on cambridgeinternational.org, type the answer
  * key from the mark scheme as one string ("BDAC..."), and set `minutes` and
- * the question count from the paper's cover. `checkPapers()` rejects an entry
- * whose key does not match its question count.
+ * the question count from the paper's cover. Add `pages` (the PDF page each
+ * question is on) so every question opens the official paper in the right
+ * place. `checkPapers()` rejects an entry whose key, topics or pages do not
+ * match its question count.
  */
 import type { SubjectName } from "@/lib/landing";
 
@@ -63,6 +65,8 @@ export interface McqPaper {
   topics?: string[];
   /** Optional: Hamza's own explanation, by question number (1-based). Never Cambridge's wording. */
   notes?: Record<number, string>;
+  /** Optional: the PDF page each question starts on, same order as `answers`, so links open at that question. */
+  pages?: number[];
 }
 
 export const MCQ_PAPERS: McqPaper[] = [];
@@ -80,6 +84,7 @@ export function checkPapers(papers: McqPaper[]) {
       /^[ABCD]+$/.test(p.answers) &&
       p.minutes > 0 &&
       (!p.topics || p.topics.length === n) &&
+      (!p.pages || (p.pages.length === n && p.pages.every((x) => Number.isInteger(x) && x > 0))) &&
       Object.keys(p.notes ?? {}).every((k) => Number(k) >= 1 && Number(k) <= n);
     if (!ok && process.env.NODE_ENV !== "production") console.warn(`[mcq] skipped ${p.syllabus} ${p.session} ${p.variant}: data does not check out`);
     return ok;
@@ -93,6 +98,9 @@ export const papersFor = (slug: string) => PAPERS.filter((p) => p.syllabus === s
 export const paperFor = (syllabus: string, slug: string) => papersFor(syllabus).find((p) => paperSlug(p) === slug) ?? null;
 /** Syllabuses that have at least one paper; the only ones with live pages. */
 export const liveSyllabuses = () => MCQ_SYLLABUSES.filter((s) => papersFor(s.slug).length > 0);
+
+/** The official PDF, opened at the page question n is on when that page is known (#page works in most PDF viewers). */
+export const questionLink = (p: McqPaper, n: number) => (p.pages?.[n - 1] ? `${p.questionPaper}#page=${p.pages[n - 1]}` : p.questionPaper);
 
 export const syllabusName = (s: McqSyllabus) => `${s.level} ${s.subject} ${s.code}`;
 export const paperName = (s: McqSyllabus, p: McqPaper) => `${s.code}/${p.variant}, ${p.session}`;

@@ -32,6 +32,33 @@ Second pass (quality over quantity): every page now has one job, no copied parag
 6. Registered: `PUBLIC_ROUTES` in `lib/seo.ts` (hub, both guides), `app/sitemap.ts` (Gulf city pages), `app/llms.txt/route.ts`.
 7. A scan of every study page and article found no sentence of 70+ characters repeated across pages (only code and the one-line "confirm with the British Council" note).
 
+## Third pass (24 October 2026)
+
+**Reviewed and tightened:** the four earlier articles, the Gulf hub, the city data and both guides. Removed narrator lines ("this article", "below is", "look at what it does", "in other words") and repeated points within a page. Added depth:
+- 0450 justify article: timing per 12-mark part, a weak paragraph rebuilt into a strong one, a full recommendation.
+- 7115 article: one point taken through all four skills (table), and a month-by-month plan to June 2027.
+- Partnership article: a practice question with a worked answer (residual 21,600; 12,960 and 8,640).
+- 9708 MCQ article: tighter opening, no meta lines.
+
+**Five new articles** (date 2026-10-24), each a different job from the existing ones:
+1. `igcse-o-level-accounting-paper-1-mcq-tips.mdx`: 0452 and 7707 Paper 1 (35 questions, 1 h 15, 35 marks, 30% in 2026; 40 questions, 1 h 30, 40 marks from 2027), what to write before looking at the options, a question-type table, seven own questions with full answers.
+2. `igcse-economics-price-elasticity-of-demand.mdx`: formula, two worked examples (bus PED −0.4, cinema −1.2), revenue table ($2,000 to $2,250; $4,000 to $3,500), determinants, firms and taxes, a quick check (PED −2, revenue $8,000 to $9,000).
+3. `a-level-accounting-9706-statement-of-cash-flows.mdx`: full IAS 7 example. Both statements of financial position balance (2026: 350,000; 2025: 271,000). Operating 84,000, investing (108,000), financing 12,000, net (12,000), cash 30,000 to 18,000. PPE purchases 120,000 as the missing figure; tax paid 15,000.
+4. `a-level-business-9609-investment-appraisal.mdx`: two projects. Payback A 2 years 9 months, B 2 years 6 months. ARR A 25%, B 10% (average investment, per the June 2024 examiner report). NPV at 10% A 24,500, B 340. Recommendation with conditions. Quick check ARR 15%.
+5. `igcse-economics-market-failure.mdx`: private, external and social costs and benefits with numbers ($50 + $20 = $70), merit and demerit goods, public goods, policies, an 8-mark discuss plan, a quick check ($30 + $12 = $42). Links to the PED and Paper 2 articles instead of repeating them.
+
+**Verify these new facts:**
+- 0452 2026 Paper 1: 1 h 15, 35 marks, 35 questions, 30%, whole syllabus, may include calculations: https://www.cambridgeinternational.org/Images/697149-2026-syllabus.pdf
+- 0452 and 7707 from 2027: 1 h 30, 40 marks: specimen papers https://www.cambridgeinternational.org/Images/718796-2027-specimen-paper-1.pdf and https://www.cambridgeinternational.org/Images/718961-2027-specimen-paper-1.pdf
+- 7707 2026 Paper 1: same format; AO weighting 80% / 20% / 0%; calculators allowed: https://www.cambridgeinternational.org/Images/697340-2026-syllabus.pdf (the calculator rule was seen for 7707; confirm for 0452)
+- 9706: statement of cash flows is A Level content under IAS 7: https://www.cambridgeinternational.org/Images/697417-2026-2028-syllabus.pdf (search text was garbled about the section, so confirm)
+- 9609: investment appraisal is A Level topic 10.3; payback, ARR, NPV; ARR = average profit / average investment × 100: https://www.cambridgeinternational.org/Images/697371-2026-2028-syllabus.pdf ; June 2024 examiner report on the ARR error and average investment: https://www.cambridgeinternational.org/Images/566845-june-2024-examiner-report.pdf
+- 0455: topic 2.7 PED calculation, interpretation, total revenue and significance; market failure key terms: https://www.cambridgeinternational.org/Images/697154-2026-syllabus.pdf , https://www.cambridgeinternational.org/Images/596945-2023-2025-syllabus.pdf
+
+**MCQ checker:** added optional `pages` per paper, so each question link opens the official PDF at that question's page (`#page=N`). Topic practice and the "questions to look at again" list both use it.
+
+**Cambridge questions on the site:** Hamza asked to split the real Paper 1s into individual questions on the site. Not done. Cambridge's help centre says it does not grant permission to publish past paper questions, including multiple-choice questions, on any website: https://help.cambridgeinternational.org/hc/en-gb/articles/203544371-Can-I-reproduce-Cambridge-past-examination-papers-on-the-school-s-website-my-website . The checker links to Cambridge's own PDFs at the right page instead.
+
 ## Past paper MCQ checker (new, started 23 October 2026)
 
 Hamza asked for Paper 1 multiple-choice practice for Accounting and Economics, for every level, using real Cambridge past papers, with both a timed mock and topic practice, on the website and later in the portal.
@@ -59,6 +86,7 @@ Hamza asked for Paper 1 multiple-choice practice for Accounting and Economics, f
 ## Files created or changed
 
 - created `lib/gulf-pages.ts`, `app/online-classes/gulf/page.tsx`, `app/private-candidates/uae/page.tsx`, `app/private-candidates/saudi-arabia/page.tsx`, the four `.mdx` articles, `WORKBOARD.md`
+- created (third pass) `content/blog/igcse-o-level-accounting-paper-1-mcq-tips.mdx`, `igcse-economics-price-elasticity-of-demand.mdx`, `a-level-accounting-9706-statement-of-cash-flows.mdx`, `a-level-business-9609-investment-appraisal.mdx`, `igcse-economics-market-failure.mdx`
 - created `lib/mcq-papers.ts`, `components/tools/McqChecker.tsx`, `components/tools/TopicPractice.tsx`, `app/tools/past-paper-mcq/page.tsx`, `app/tools/past-paper-mcq/[syllabus]/page.tsx`, `app/tools/past-paper-mcq/[syllabus]/[paper]/page.tsx`
 - changed `app/online-classes/[city]/page.tsx` (adds a `GulfCity` view; Pakistan cities unchanged), `app/online-classes/page.tsx`, `app/sitemap.ts`, `lib/seo.ts`, `app/llms.txt/route.ts`
 

@@ -1,0 +1,141 @@
+export const meta = {
+  title: "Statement of cash flows, step by step, with a full worked example (A Level Accounting 9706)",
+  description:
+    "How to build an IAS 7 statement of cash flows from two statements of financial position and an income statement: the workings, the layout and the checks.",
+  subject: "Accounting",
+  level: "A2 Level",
+  code: "A Level 9706",
+  type: "Topic",
+  seoTitle: "Statement of Cash Flows Worked Example (A Level 9706)",
+  date: "2026-10-24",
+};
+
+A statement of cash flows explains one thing: why the bank balance at the end of the year is different from the bank balance at the start. Profit does not tell you that, because profit includes items that are not cash, such as depreciation, and leaves out cash that is not profit, such as a share issue. In the 9706 syllabus the statement of cash flows is A Level content, prepared under IAS 7, the standard the syllabus lists for it.
+
+The example is my own, and every figure in it reconciles to the closing cash.
+
+## The information
+
+**Kestrel plc: extracts for the year ended 31 March 2026**
+
+| Income statement | $ |
+|---|---|
+| Profit from operations | 84,000 |
+| Finance costs (debenture interest) | (6,000) |
+| Profit before tax | 78,000 |
+| Tax | (18,000) |
+| Profit for the year | 60,000 |
+
+| Statement of financial position at 31 March | 2026 | 2025 |
+|---|---|---|
+| | $ | $ |
+| Property, plant and equipment (net book value) | 279,000 | 200,000 |
+| Inventory | 32,000 | 25,000 |
+| Trade receivables | 21,000 | 16,000 |
+| Cash and cash equivalents | 18,000 | 30,000 |
+| Trade payables | 19,000 | 15,000 |
+| Tax payable | 15,000 | 12,000 |
+| 10% debentures | 40,000 | 60,000 |
+| Ordinary share capital | 130,000 | 100,000 |
+| Share premium | 30,000 | 10,000 |
+| Retained earnings | 116,000 | 74,000 |
+
+Additional information:
+
+- Depreciation for the year was $26,000.
+- Equipment with a net book value of $15,000 was sold for $12,000.
+- Dividends of $18,000 were paid during the year.
+- There was no interest owing at either year end.
+
+<BookingBox />
+
+## Step 1: the workings
+
+Do these first, on one side of the page. Each one finds a cash figure that is not given directly.
+
+**Purchases of property, plant and equipment.** Start with the opening balance, follow every movement, and the purchases are the missing figure:
+
+| | $ |
+|---|---|
+| Opening net book value | 200,000 |
+| Less disposals at net book value | (15,000) |
+| Less depreciation | (26,000) |
+| Add purchases (missing figure) | **120,000** |
+| Closing net book value | 279,000 |
+
+Check: 200,000 − 15,000 − 26,000 + 120,000 = 279,000.
+
+**Loss on disposal.** Sold for $12,000, net book value $15,000, so a loss of **$3,000**. It was charged in arriving at profit from operations, but no cash left the business, so it is added back.
+
+**Tax paid.** Opening liability + this year's charge − closing liability: $12,000 + $18,000 − $15,000 = **$15,000**.
+
+**Share issue.** Share capital rose by $30,000 and share premium by $20,000, so cash from the issue was **$50,000**.
+
+**Debenture repaid.** $60,000 − $40,000 = **$20,000**.
+
+**Retained earnings check.** $74,000 + $60,000 profit − $18,000 dividends = $116,000, which matches the closing figure.
+
+## Step 2: the statement
+
+**Kestrel plc: statement of cash flows for the year ended 31 March 2026**
+
+| | $ | $ |
+|---|---|---|
+| **Cash flows from operating activities** | | |
+| Profit from operations | 84,000 | |
+| Add depreciation | 26,000 | |
+| Add loss on disposal | 3,000 | |
+| Increase in inventory | (7,000) | |
+| Increase in trade receivables | (5,000) | |
+| Increase in trade payables | 4,000 | |
+| Cash generated from operations | 105,000 | |
+| Interest paid | (6,000) | |
+| Tax paid | (15,000) | |
+| **Net cash from operating activities** | | **84,000** |
+| **Cash flows from investing activities** | | |
+| Purchase of property, plant and equipment | (120,000) | |
+| Proceeds from sale of equipment | 12,000 | |
+| **Net cash used in investing activities** | | **(108,000)** |
+| **Cash flows from financing activities** | | |
+| Proceeds from issue of ordinary shares | 50,000 | |
+| Repayment of debentures | (20,000) | |
+| Dividends paid | (18,000) | |
+| **Net cash from financing activities** | | **12,000** |
+| **Net decrease in cash and cash equivalents** | | **(12,000)** |
+| Cash and cash equivalents at 1 April 2025 | | 30,000 |
+| Cash and cash equivalents at 31 March 2026 | | 18,000 |
+
+The final line matches the closing statement of financial position. If yours does not, the difference is the size of your mistake, which tells you where to look.
+
+## Step 3: why each adjustment goes the way it does
+
+| Item | Sign | Why |
+|---|---|---|
+| Depreciation | + | An expense in profit, but no cash paid |
+| Loss on disposal | + | Reduced profit, but no cash paid. A profit on disposal is taken off for the same reason |
+| More inventory | − | Cash went into goods still on the shelf |
+| More trade receivables | − | Sales made, but cash not yet received |
+| More trade payables | + | Purchases made, but cash not yet paid |
+
+Increases in current assets reduce cash. Increases in current liabilities increase it. If the balance had fallen instead, the sign flips.
+
+<Tip>
+Only the sale proceeds ($12,000) appear under investing activities. The loss ($3,000) belongs in operating activities as an add-back. Putting the net book value of $15,000 under investing, or the loss as well as the proceeds, counts the same disposal twice.
+</Tip>
+
+## Layout choices to know
+
+- **Interest and dividends paid.** IAS 7 allows interest paid and dividends paid to be shown under operating or financing activities, as long as the choice is used consistently. The layout above puts interest under operating and dividends under financing. Follow the presentation your mark schemes use.
+- **The starting figure.** Some layouts start from profit before tax and add back finance costs. The cash generated from operations comes out the same.
+
+## Where the marks go
+
+| Slip | What it does |
+|---|---|
+| Tax charge used instead of tax paid | Operating cash is $3,000 out |
+| Purchases of PPE taken as the change in net book value | Investing cash is wrong by the depreciation and disposals |
+| Share premium left out of the share issue | Financing cash is $20,000 out |
+| Working capital signs reversed | Operating cash is out by twice each movement |
+| Loss on disposal under investing | The disposal is counted twice |
+
+Sources: [Cambridge International AS and A Level Accounting 9706 syllabus for 2026 to 2028](https://www.cambridgeinternational.org/Images/697417-2026-2028-syllabus.pdf), [9706 specimen Paper 3 for 2023](https://www.cambridgeinternational.org/Images/736755-2023-specimen-paper-3.pdf).

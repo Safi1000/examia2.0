@@ -1,0 +1,112 @@
+export const meta = {
+  title: "Investment appraisal made simple: payback, ARR and NPV, with two projects compared (A Level Business 9609)",
+  description:
+    "Payback, ARR and net present value worked through for two projects, the ARR mistake the 2024 examiner report singled out, and how to write the recommendation.",
+  subject: "Business",
+  level: "A2 Level",
+  code: "A Level 9609",
+  type: "Topic",
+  seoTitle: "Investment Appraisal Worked Example: Payback, ARR, NPV (9609)",
+  date: "2026-10-24",
+};
+
+Investment appraisal questions give you numbers for a project and ask whether the business should go ahead. The calculations are the easy half. The marks that separate grades come from what you do next: comparing projects that look best on different measures, and bringing in what the numbers leave out. The example uses two projects that rank differently on different measures, because that is where the evaluation marks are.
+
+The 9609 syllabus covers payback, the accounting rate of return (ARR) and net present value (NPV), and gives ARR as average profit divided by average investment, multiplied by 100.
+
+## The two projects
+
+A bakery chain can afford one new production line. Each costs $100,000 and lasts four years.
+
+| Year | Line A net cash inflow | Line B net cash inflow |
+|---|---|---|
+| 1 | $30,000 | $50,000 |
+| 2 | $40,000 | $40,000 |
+| 3 | $40,000 | $20,000 |
+| 4 | $30,000, plus $20,000 from selling the machine | $10,000, no resale value |
+
+<BookingBox />
+
+## Payback
+
+Payback is how long it takes for the inflows to repay the cost. Track the cumulative cash flow until it turns positive.
+
+| Year | Line A cumulative | Line B cumulative |
+|---|---|---|
+| 0 | −$100,000 | −$100,000 |
+| 1 | −$70,000 | −$50,000 |
+| 2 | −$30,000 | −$10,000 |
+| 3 | +$10,000 | +$10,000 |
+
+Both pay back during year 3. To find the months, divide what is still owed at the start of the year by that year's inflow:
+
+- **Line A:** $30,000 ÷ $40,000 × 12 = 9 months, so **2 years 9 months**.
+- **Line B:** $10,000 ÷ $20,000 × 12 = 6 months, so **2 years 6 months**.
+
+Line B pays back sooner.
+
+## Accounting rate of return
+
+**ARR = average profit ÷ average investment × 100**
+
+**Line A**
+
+- Total inflows: $30,000 + $40,000 + $40,000 + $30,000 + $20,000 = $160,000.
+- Total profit: $160,000 − $100,000 = $60,000. Average profit: $60,000 ÷ 4 = **$15,000** a year.
+- Average investment: ($100,000 + $20,000) ÷ 2 = **$60,000**.
+- ARR: $15,000 ÷ $60,000 × 100 = **25%**.
+
+**Line B**
+
+- Total inflows: $120,000. Total profit: $20,000. Average profit: **$5,000** a year.
+- Average investment: ($100,000 + $0) ÷ 2 = **$50,000**.
+- ARR: $5,000 ÷ $50,000 × 100 = **10%**.
+
+<Tip>
+The June 2024 examiner report for 9609 says the most common ARR error was dividing by the capital cost instead of the average investment. Here, that would give Line A an ARR of 15% instead of 25%. Average investment is the initial cost plus the residual value, divided by two. Average profit comes from the actual cash flows, not the discounted ones.
+</Tip>
+
+## Net present value
+
+A dollar in four years is worth less than a dollar today, so NPV discounts each year's inflow back to today's value. The business uses a 10% discount rate. The discount factors at 10% are 0.909, 0.826, 0.751 and 0.683 for years 1 to 4.
+
+| Year | Factor | Line A inflow | Line A present value | Line B inflow | Line B present value |
+|---|---|---|---|---|---|
+| 1 | 0.909 | 30,000 | 27,270 | 50,000 | 45,450 |
+| 2 | 0.826 | 40,000 | 33,040 | 40,000 | 33,040 |
+| 3 | 0.751 | 40,000 | 30,040 | 20,000 | 15,020 |
+| 4 | 0.683 | 50,000 | 34,150 | 10,000 | 6,830 |
+| Total | | | 124,500 | | 100,340 |
+| Less cost | | | (100,000) | | (100,000) |
+| **NPV** | | | **24,500** | | **340** |
+
+Line A's year 4 figure includes the $20,000 resale value. Both NPVs are positive, so both lines earn more than 10%. Line B only just does.
+
+## Putting it together
+
+| | Line A | Line B | Better |
+|---|---|---|---|
+| Payback | 2 years 9 months | 2 years 6 months | B |
+| ARR | 25% | 10% | A |
+| NPV at 10% | $24,500 | $340 | A |
+
+On the numbers, Line A is the stronger project: much higher ARR and NPV, and its payback is only three months slower. Line B's only advantage is speed, because its cash comes early.
+
+## Writing the recommendation
+
+The numbers lead to a recommendation, but the top marks need you to test it against the case. Questions to ask:
+
+- **Is cash tight?** If the bakery is short of cash or has a loan due, Line B's faster payback, and its $50,000 in year 1, may matter more than Line A's higher return.
+- **How reliable are the forecasts?** Line A depends more on years 3 and 4, and later forecasts are less certain. Line A's $20,000 resale value is itself a forecast.
+- **What does the 10% rate assume?** If interest rates rise, the discount rate should rise and Line B's small NPV could turn negative.
+- **What do the numbers leave out?** Quality, staff training, how the line fits the brand, and what competitors are doing.
+
+A recommendation that works: "Line A should be chosen, because its NPV of $24,500 is far higher than Line B's $340, and its payback is only three months longer. This assumes the bakery can manage without the faster cash from Line B in year 1. If it has a loan repayment due within two years, Line B would be the safer choice despite its lower return."
+
+## Quick check
+
+A project costs $80,000, lasts 5 years and has no residual value. Total net cash inflows over the 5 years are $110,000. What is its ARR?
+
+**Answer.** Total profit: $110,000 − $80,000 = $30,000. Average profit: $30,000 ÷ 5 = $6,000. Average investment: ($80,000 + $0) ÷ 2 = $40,000. ARR = $6,000 ÷ $40,000 × 100 = **15%**.
+
+Sources: [Cambridge International AS and A Level Business 9609 syllabus for 2026 to 2028](https://www.cambridgeinternational.org/Images/697371-2026-2028-syllabus.pdf), [9609 syllabus for 2023 to 2025](https://www.cambridgeinternational.org/images/595459-2023-2025-syllabus.pdf), [9609 June 2024 examiner report](https://www.cambridgeinternational.org/Images/566845-june-2024-examiner-report.pdf).

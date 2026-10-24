@@ -53,8 +53,8 @@ export default function PrivateCandidatesSaudiArabia() {
           Sitting IGCSE or A Level as a private candidate in Saudi Arabia
         </h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
-          Updated 23 October 2026. The British Council in Saudi Arabia publishes less detail online than it does in the UAE or Pakistan. So
-          this guide is short: what it does say, and the questions to ask the office before you pay anything.
+          Updated 23 October 2026. The British Council in Saudi Arabia publishes less detail online than it does in the UAE or Pakistan. This
+          guide sticks to what it does say, and lists the questions to ask the office before you pay anything.
         </p>
 
         <Section title="Who handles your entry">
