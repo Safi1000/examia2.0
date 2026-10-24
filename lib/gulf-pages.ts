@@ -49,6 +49,7 @@ export function localDay(behindPk: number) {
 /** Official pages each Gulf fact comes from. Re-check them each session. */
 export const GULF_SOURCES = {
   khdaWeek: { label: "KHDA, 4.5 day week FAQs for Dubai private schools", href: "https://web.khda.gov.ae/en/Guides/Parents/Faq/4-5-day-week-FAQs-for-Dubai-private-schools" },
+  khdaFriday: { label: "Gulf News, KHDA early Friday finish from January 2026", href: "https://gulfnews.com/uae/education/dubais-khda-announces-early-friday-closure-for-schools-from-january-2026-1.500384365" },
   uaeWeek: { label: "UAE government portal, working hours in the public sector", href: "https://u.ae/en/information-and-services/jobs/Sector-of-employment/working-in-uae-government-sector/working-hours-in-the-public-sector" },
   bcUae: { label: "British Council UAE, Cambridge candidate information, October / November 2026", href: "https://www.britishcouncil.ae/sites/default/files/candidate_information_flyer_-_oct_nov_2026.pdf" },
   bcUaeCentres: { label: "British Council UAE, attached centres", href: "https://www.britishcouncil.ae/en/exam/igcse-school/choosing/find-british-council-attached-centre" },
@@ -62,6 +63,7 @@ export const GULF_SOURCES = {
   qaThursday: { label: "Qatar Ministry of Education, study plans from 2024 to 2025", href: "https://www.edu.gov.qa/en/News/Details/9271800" },
   bcQa: { label: "British Council Qatar, exam registration for private candidates", href: "https://www.britishcouncil.qa/en/exam/igcse-school/register/private-candidates" },
   bcQaDates: { label: "British Council Qatar, registration dates and deadlines", href: "https://www.britishcouncil.qa/en/exam/igcse-school/register/registration-dates-deadlines" },
+  bcQaFaq: { label: "British Council Qatar, school exams FAQs", href: "https://www.britishcouncil.qa/sites/default/files/faqs_schools_exams.pdf" },
 } as const;
 
 export type GulfSourceKey = keyof typeof GULF_SOURCES;
@@ -109,7 +111,7 @@ export const GULF_CITY_PAGES: GulfCityPage[] = [
       {
         title: "Friday is the easy day",
         body: [
-          "KHDA's rule for Dubai private schools is that Friday finishes by 12 pm at the latest, and Saturday and Sunday are the weekend. That leaves more than two hours between the end of school and the first class on a Friday, more than on any other day.",
+          "Since January 2026, KHDA requires Dubai private schools to finish by 11:30 am on Fridays, and Saturday and Sunday are the weekend. That leaves three hours between the end of school and the first class on a Friday, more than on any other day.",
           "Monday to Thursday depends on your school's own hours. If yours runs late, the recording of every class stays open for 24 hours.",
         ],
       },
@@ -128,7 +130,7 @@ export const GULF_CITY_PAGES: GulfCityPage[] = [
         a: "Yes, Sharjah is on UAE time. One thing to check: the Sharjah government's weekend is Friday to Sunday. If your school follows it, your Friday class falls on a day off, which makes it an easy one to attend.",
       },
     ],
-    sources: ["khdaWeek", "uaeWeek", "bcUae", "bcUaeCentres"],
+    sources: ["khdaWeek", "khdaFriday", "uaeWeek", "bcUae", "bcUaeCentres"],
     trial: { title: "After school. At home.", body: "Join one real class at your level, free, in UAE time, and see how it works before you decide." },
   },
   {
@@ -181,7 +183,6 @@ export const GULF_CITY_PAGES: GulfCityPage[] = [
         title: "How the two weeks line up",
         body: [
           "Saudi Arabia's official week is Sunday to Thursday, with Friday and Saturday off. My classes run Monday to Friday. So Sunday is a school day with no class, Monday to Thursday have both, and Friday's class falls on your weekend.",
-          "Riyadh's 2026 to 2027 school year started on Sunday 23 August 2026.",
         ],
       },
       {
@@ -204,7 +205,7 @@ export const GULF_CITY_PAGES: GulfCityPage[] = [
         a: "No. Classes run Monday to Friday Pakistan time, which is the same days in Saudi Arabia. Sunday is a school day for you without a class.",
       },
     ],
-    sources: ["saWeek", "saRiyadhYear", "bcSa", "bcSaRiyadh"],
+    sources: ["saWeek", "bcSa", "bcSaRiyadh"],
     trial: { title: "Four school days. One weekend class.", body: "Join one real class at your level, free, in Saudi time, and see how it fits your week before you decide." },
   },
   {
@@ -269,8 +270,8 @@ export const GULF_CITY_PAGES: GulfCityPage[] = [
       {
         title: "Entering without a school in Qatar",
         body: [
-          "The British Council registers private candidates through its online school exams system. You then pay in person, by cash or card, at its office on Al Sadd Street. In special cases, you can authorise someone else to hand in the application and pay for you.",
-          "Keep a copy of your Qatar ID, passport photos and the signed declaration ready. If you are under 18, you need a No Objection Letter from the Ministry of Education and Higher Education before you register.",
+          "The British Council registers private candidates through its online school exams system, using a valid Qatar ID. Its rules follow the Ministry of Education and Higher Education: candidates are generally expected to be 18 or over.",
+          "Keep a copy of your Qatar ID, passport photos and the signed declaration ready. If you are under 18, you need a No Objection Letter from the Ministry of Education and Higher Education before you register, and an application without it is not processed.",
           "Private candidates can take any subject except those with practical exams. Accounting, Business and Economics are written papers only, so all three are open to you.",
         ],
       },
@@ -281,7 +282,7 @@ export const GULF_CITY_PAGES: GulfCityPage[] = [
         a: "The British Council publishes dates for each session. For October / November 2026, regular registration ran from 13 July to 10 August 2026, with late registration at a penalty fee until 14 September 2026. Check its page for May / June 2027.",
       },
     ],
-    sources: ["qaWeek", "qaThursday", "bcQa", "bcQaDates"],
+    sources: ["qaWeek", "qaThursday", "bcQa", "bcQaDates", "bcQaFaq"],
     trial: { title: "Your time zone. My class.", body: "Join one real class at your level, free, in Qatar time, and see how it fits around school before you decide." },
   },
 ];

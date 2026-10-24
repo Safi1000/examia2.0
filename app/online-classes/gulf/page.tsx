@@ -45,7 +45,7 @@ const WEEKS: Array<{ where: string; href: string; week: ReactNode }> = [
   {
     where: "Dubai",
     href: "/online-classes/dubai",
-    week: "Private schools run Monday to Friday and finish by 12 pm on Fridays. All five classes fall on school days, and Friday leaves the most time before class.",
+    week: "Private schools run Monday to Friday and, since January 2026, finish by 11:30 am on Fridays. All five classes fall on school days, and Friday leaves the most time before class.",
   },
   {
     where: "Abu Dhabi",
