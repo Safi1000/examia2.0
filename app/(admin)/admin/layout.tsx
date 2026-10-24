@@ -28,6 +28,7 @@ const TITLES: Record<string, string> = {
   "/admin/notes": "Notes",
   "/admin/announcements": "Announcements",
   "/admin/roster": "Roster",
+  "/admin/leads": "Waitlist",
   "/admin/cohorts": "Cohorts",
   "/admin/attendance": "Attendance",
   "/admin/analytics": "Analytics",

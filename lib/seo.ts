@@ -23,6 +23,12 @@ export const PUBLIC_ROUTES: Array<{ path: string; priority: number }> = [
   // /guides is hidden until the PDF pack launches (noindex on the page).
   { path: "/blog", priority: 0.7 },
   { path: "/tools/grade-predictor", priority: 0.6 },
+  { path: "/tools", priority: 0.6 },
+  { path: "/tools/ratio-calculator", priority: 0.6 },
+  { path: "/tools/break-even-calculator", priority: 0.6 },
+  { path: "/tools/elasticity-calculator", priority: 0.6 },
+  { path: "/tools/depreciation-calculator", priority: 0.6 },
+  { path: "/tools/investment-appraisal-calculator", priority: 0.6 },
   // Study pages: indexed and in the sitemap, but kept off the landing page.
   { path: "/grade-thresholds", priority: 0.7 },
   { path: "/private-candidates/pakistan", priority: 0.6 },

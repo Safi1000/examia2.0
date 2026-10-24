@@ -75,6 +75,17 @@ export default function PrivacyPage() {
                 to me on WhatsApp.
               </p>
               <p>
+                <strong className="text-foreground">When you join the waitlist.</strong> The free tools pages let you
+                ask to hear about new tools, guides and courses. You give your first name, WhatsApp number, level,
+                subjects and what you want to hear about. It is stored privately, seen only by me, and used only to
+                message you about those things. Ask me on WhatsApp and I will delete it.
+              </p>
+              <p>
+                <strong className="text-foreground">When you use the free calculators.</strong> Your figures are worked
+                out on your own device and are not stored or sent anywhere, unless you choose to send them to me on
+                WhatsApp.
+              </p>
+              <p>
                 <strong className="text-foreground">When you study with me.</strong> I create a student portal
                 account for each enrolled student. It holds:
               </p>

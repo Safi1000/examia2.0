@@ -36,6 +36,7 @@ const GROUPS = [
     title: "Students",
     items: [
       { href: "/admin/roster", label: "Roster", Icon: NavIcon.Roster },
+      { href: "/admin/leads", label: "Waitlist", Icon: NavIcon.Inbox },
       { href: "/admin/cohorts", label: "Cohorts", Icon: NavIcon.Cohorts },
       { href: "/admin/attendance", label: "Attendance", Icon: NavIcon.Attendance },
     ],
