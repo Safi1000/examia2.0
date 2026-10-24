@@ -5,7 +5,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
 import { GULF_CITY_PAGES, GULF_ZONES, levelBlocks, shiftHours } from "@/lib/gulf-pages";
-import { breadcrumbLd, faqLd } from "@/lib/seo";
+import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 import { LEVEL_LABEL, span } from "@/lib/timetable";
 
 /**
@@ -19,7 +19,7 @@ const description =
   "Live online O Level, IGCSE, AS and A Level Accounting, Business and Economics classes for students in the UAE, Saudi Arabia, Qatar, Oman, Kuwait and Bahrain.";
 
 export const metadata: Metadata = {
-  title: `${title} | Hamza Teaches`,
+  title: fitTitle(title),
   description,
   alternates: { canonical: "/online-classes/gulf" },
   openGraph: { title, description, url: "/online-classes/gulf", type: "website", images: ["/opengraph-image"] },

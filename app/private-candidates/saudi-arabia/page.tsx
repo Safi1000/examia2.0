@@ -3,7 +3,7 @@ import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
-import { breadcrumbLd } from "@/lib/seo";
+import { breadcrumbLd, fitTitle } from "@/lib/seo";
 
 /**
  * Private candidates in Saudi Arabia. The British Council Saudi Arabia pages
@@ -18,7 +18,7 @@ const description =
 const UPDATED = "2026-10-23";
 
 export const metadata: Metadata = {
-  title: `${title} | Hamza Teaches`,
+  title: fitTitle(title),
   description,
   alternates: { canonical: "/private-candidates/saudi-arabia" },
   openGraph: { title, description, url: "/private-candidates/saudi-arabia", type: "article", images: ["/opengraph-image"] },

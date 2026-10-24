@@ -4,7 +4,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import { Crumbs, Section, Table, TrialBox } from "@/components/study/StudyBits";
 import { CITY_PAGES } from "@/lib/city-pages";
-import { breadcrumbLd, faqLd } from "@/lib/seo";
+import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 import { DEFAULT_SCHEDULE, LEVEL_LABEL, span, type LevelKey } from "@/lib/timetable";
 
 const title = "Online O Level and A Level Classes in Pakistan";
@@ -12,7 +12,7 @@ const description =
   "Live online classes for Cambridge O Level, IGCSE, AS and A Level Accounting, Business and Economics in Pakistan. Small groups, recorded lessons, free trial.";
 
 export const metadata: Metadata = {
-  title: `${title} | Hamza Teaches`,
+  title: fitTitle(title),
   description,
   alternates: { canonical: "/online-classes" },
   openGraph: { title, description, url: "/online-classes", type: "website", images: ["/opengraph-image"] },
@@ -26,7 +26,7 @@ const FAQ = [
   },
   {
     q: "Do you teach Cambridge or Edexcel?",
-    a: "Both. The Cambridge syllabuses are O Level 7707, 7115 and 2281, IGCSE 0452, 0450 and 0455, and AS and A Level 9706, 9609 and 9708. For Pearson Edexcel, send your specification on WhatsApp before the trial.",
+    a: "Both. The Cambridge syllabuses are O Level 7707, 7081 (formerly 7115) and 2281, IGCSE 0452, 0264 (formerly 0450) and 0455, and AS and A Level 9706, 9609 and 9708. For Pearson Edexcel, send your specification on WhatsApp before the trial.",
   },
   {
     q: "What happens in the free trial lesson?",

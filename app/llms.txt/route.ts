@@ -20,7 +20,7 @@ export async function GET() {
 Key facts:
 - Teacher: Hamza Sadaqat, ACCA Affiliate, who got straight A's in these same subjects and teaches every class personally. 100+ students taught over 4+ years.
 - Subjects: Accounting, Business Studies, Economics.
-- Syllabuses: Cambridge IGCSE Accounting 0452, Business Studies 0450, Economics 0455; Cambridge O Level Accounting 7707, Business Studies 7115, Economics 2281; Cambridge International AS & A Level Accounting 9706, Business 9609, Economics 9708.
+- Syllabuses: Cambridge IGCSE Accounting 0452, Business 0264 (replaces Business Studies 0450 from 2027 exams), Economics 0455; Cambridge O Level Accounting 7707, Business 7081 (replaces Business Studies 7115 from June 2027), Economics 2281; Cambridge International AS & A Level Accounting 9706, Business 9609, Economics 9708.
 - Format: live online classes in small groups, every class recorded, weekly tests marked by Hamza, and a personal student portal for notes, tests and marks.
 - Current session: preparing students for the May/June 2027 Cambridge exams.
 - Fees: shared privately on WhatsApp; they depend on level and number of subjects.

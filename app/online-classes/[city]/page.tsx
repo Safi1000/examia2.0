@@ -6,7 +6,7 @@ import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
 import { CITY_PAGES, cityPage } from "@/lib/city-pages";
 import { GULF_CITY_PAGES, GULF_SOURCES, GULF_ZONES, gulfCityPage, localDay, type GulfCityPage } from "@/lib/gulf-pages";
-import { breadcrumbLd, faqLd } from "@/lib/seo";
+import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 
 export const dynamicParams = false;
 export function generateStaticParams() {
@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const url = `/online-classes/${c.slug}`;
   const title = `O Level and A Level Classes in ${c.city}`;
   return {
-    title: `${title} | Hamza Teaches`,
+    title: fitTitle(title),
     description: c.description,
     alternates: { canonical: url },
     openGraph: { title, description: c.description, url, type: "website", images: ["/opengraph-image"] },

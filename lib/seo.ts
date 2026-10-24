@@ -15,6 +15,9 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.hamzat
 export const absolute = (path: string) => `${SITE_URL}${path === "/" ? "" : path}`;
 
 /** Every indexable page. Keep in sync with isPublicPath in lib/public-paths.ts. */
+/** Adds the brand to a page title only while the whole title fits Google's ~60 characters. */
+export const fitTitle = (t: string) => (t.length + 16 <= 62 ? `${t} | Hamza Teaches` : t);
+
 export const PUBLIC_ROUTES: Array<{ path: string; priority: number }> = [
   { path: "/", priority: 1 },
   // /guides is hidden until the PDF pack launches (noindex on the page).

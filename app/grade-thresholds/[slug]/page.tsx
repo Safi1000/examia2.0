@@ -5,8 +5,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { GradePredictor } from "@/components/landing/GradePredictor";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import { Crumbs, Section, Table, TrialBox } from "@/components/study/StudyBits";
-import { COMPANY_NAME } from "@/lib/config";
-import { breadcrumbLd, faqLd } from "@/lib/seo";
+import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 import {
   THRESHOLD_PAGES,
   averagePct,
@@ -32,11 +31,22 @@ const CHANGES_2027: Record<string, { note: string; href: string }> = {
     note: "From 2027, Paper 1 has 40 questions instead of 30, so use the percentage column as your target; the paper split below uses the 2026 papers.",
     href: "/blog/o-level-igcse-economics-paper-1-mcq-tips",
   },
+  "0450": {
+    note: "IGCSE Business Studies 0450 is replaced by IGCSE Business 0264 for 2027 exams. These are the last 0450 thresholds, and the best guide to 0264 until Cambridge publishes its first.",
+    href: "/blog/igcse-business-0450-justify-evaluate-questions",
+  },
+  "7115": {
+    note: "O Level Business Studies 7115 is replaced by O Level Business 7081 from June 2027. These are the last 7115 thresholds, and the best guide to 7081 until Cambridge publishes its first.",
+    href: "/blog/o-level-business-7115-syllabus-explained",
+  },
   "7707": {
     note: "From 2027, Paper 1 is out of 40, so use the percentage column as your target; the paper split below uses the 2026 papers.",
     href: "/blog/o-level-accounting-7707-syllabus-2027",
   },
 };
+
+/** Business syllabuses renamed for 2027 exams. */
+const NEW_CODES: Record<string, string> = { "0450": "0264", "7115": "7081" };
 
 export const dynamicParams = false;
 export function generateStaticParams() {
@@ -49,8 +59,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = thresholdPage((await params).slug);
   if (!p) return {};
   const latest = sessionsOf(p.syllabuses[0])[0];
-  const title = `${p.name} Grade Thresholds (${latest}) | ${COMPANY_NAME}`;
-  const description = `Official Cambridge ${p.name} grade thresholds for ${sessionsOf(p.syllabuses[0]).join(", ")}, every variant, with the marks you need for an A* or A in 2027.`;
+  const renamed = NEW_CODES[p.code];
+  const title = renamed
+    ? fitTitle(`${p.name} Grade Thresholds (now ${renamed})`)
+    : fitTitle(`${p.name} Grade Thresholds (${latest})`);
+  const description = `Official Cambridge ${p.name} grade thresholds, June 2024 to ${latest}, every variant, and the marks you need for an A* or A in 2027.`;
   const url = `/grade-thresholds/${p.slug}`;
   return {
     title,
@@ -118,7 +131,7 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
 
       <article className="mx-auto max-w-4xl px-5 pb-20 pt-14 md:pt-20">
         <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Grade thresholds", href: "/grade-thresholds" }, { name: p.name }]} />
-        <h1 className="mt-8 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{p.name} grade thresholds</h1>
+        <h1 className="mt-8 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{p.name} grade thresholds{NEW_CODES[p.code] ? ` (now ${NEW_CODES[p.code]})` : ""}</h1>
         <p className="mt-5 max-w-[64ch] text-lg leading-relaxed text-muted-foreground">
           The official Cambridge minimum marks for every grade, {sessionsOf(p.syllabuses[0]).join(", ")}, for every paper
           variant. Below them: the totals that would have been enough on every one of those papers, so you know what to aim for

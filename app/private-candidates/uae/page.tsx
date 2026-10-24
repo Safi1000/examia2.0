@@ -3,7 +3,7 @@ import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import { Crumbs, Section, Table, TrialBox } from "@/components/study/StudyBits";
-import { breadcrumbLd, faqLd } from "@/lib/seo";
+import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 
 /**
  * Private candidates in the UAE: how to enter Cambridge IGCSE and AS/A Level
@@ -17,7 +17,7 @@ const description =
 const UPDATED = "2026-10-23";
 
 export const metadata: Metadata = {
-  title: `${title} | Hamza Teaches`,
+  title: fitTitle(title),
   description,
   alternates: { canonical: "/private-candidates/uae" },
   openGraph: { title, description, url: "/private-candidates/uae", type: "article", images: ["/opengraph-image"] },

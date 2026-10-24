@@ -88,14 +88,14 @@ export const SUBJECT_PAGES: SubjectInfo[] = [
     subject: "Business",
     seoTitle: "Business Tuition: O Level, IGCSE and A Level | Hamza Teaches",
     seoDescription:
-      "Live small-group Business classes for O Level (7115), IGCSE (0450), AS and A2 (9609). Live online. Watch a free trial lesson first.",
+      "Live small-group Business classes for O Level (7081, was 7115), IGCSE (0264, was 0450), AS and A2 (9609). Live online. Free trial lesson.",
     h1: "Business tuition for O Level, IGCSE and A Level",
     intro:
       "How a firm actually reaches a decision, and how to build the argument the mark scheme rewards on the long case study questions.",
     levels: [
       {
         level: "O Level / IGCSE",
-        codes: "O Level 7115 · IGCSE 0450",
+        codes: "O Level 7081 / 7115 · IGCSE 0264 / 0450",
         title: "The foundations",
         body: "Business types, the marketing mix, and how a firm actually reaches a decision.",
         topics: [

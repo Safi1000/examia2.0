@@ -3,7 +3,7 @@ import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import { Crumbs, Section, Table, TrialBox } from "@/components/study/StudyBits";
-import { breadcrumbLd, faqLd } from "@/lib/seo";
+import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 
 /**
  * Private candidates in Pakistan: how to enter Cambridge O Level, IGCSE and
@@ -17,7 +17,7 @@ const description =
 const UPDATED = "2026-10-23";
 
 export const metadata: Metadata = {
-  title: `${title} | Hamza Teaches`,
+  title: fitTitle(title),
   description,
   alternates: { canonical: "/private-candidates/pakistan" },
   openGraph: { title, description, url: "/private-candidates/pakistan", type: "article", images: ["/opengraph-image"] },

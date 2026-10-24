@@ -6,7 +6,7 @@ import { ArticleCta } from "@/components/blog/ArticleCta";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { allArticles, articleSlugs, formatDate, getArticle } from "@/lib/blog";
 import { COMPANY_NAME } from "@/lib/config";
-import { absolute, breadcrumbLd, PERSON_ID } from "@/lib/seo";
+import { absolute, breadcrumbLd, PERSON_ID, fitTitle } from "@/lib/seo";
 
 export const dynamicParams = false;
 
@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!a) return {};
   const url = `/blog/${a.slug}`;
   return {
-    title: `${a.seoTitle ?? a.title} | ${COMPANY_NAME}`,
+    title: fitTitle(a.seoTitle ?? a.title),
     description: a.description,
     alternates: { canonical: url },
     openGraph: {

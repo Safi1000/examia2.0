@@ -4,15 +4,15 @@ import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import { Crumbs, Section } from "@/components/study/StudyBits";
 import { SESSIONS } from "@/lib/grade-thresholds";
-import { breadcrumbLd, faqLd } from "@/lib/seo";
+import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 import { THRESHOLD_PAGES, gradeShown, gradesOf, pct, sessionsOf, spread } from "@/lib/threshold-pages";
 
-const title = "Cambridge Grade Thresholds: O Level, IGCSE, A Level | Hamza Teaches";
+const title = "Cambridge Grade Thresholds: O Level, IGCSE, A Level";
 const description =
-  "Official Cambridge grade thresholds for O Level, IGCSE, AS and A Level Accounting, Business and Economics, June 2024 to June 2026, every variant, plus 2027 targets.";
+  "Official Cambridge grade thresholds for O Level, IGCSE and A Level Accounting, Business and Economics, June 2024 to June 2026, with 2027 targets.";
 
 export const metadata: Metadata = {
-  title,
+  title: fitTitle(title),
   description,
   alternates: { canonical: "/grade-thresholds" },
   openGraph: { title, description, url: "/grade-thresholds", type: "website", images: ["/opengraph-image"] },
@@ -70,6 +70,7 @@ export default function GradeThresholdsHub() {
                     >
                       <span className="text-lg font-semibold text-foreground">
                         {p.subject} {p.code}
+                        {p.code === "0450" ? " (now 0264)" : p.code === "7115" ? " (now 7081)" : ""}
                       </span>
                       {sp && (
                         <span className="mt-2 text-sm text-muted-foreground">

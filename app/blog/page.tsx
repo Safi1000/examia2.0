@@ -3,14 +3,14 @@ import { JsonLd } from "@/components/JsonLd";
 import { ArticleList } from "@/components/blog/ArticleList";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { allArticles, formatDate } from "@/lib/blog";
-import { breadcrumbLd } from "@/lib/seo";
+import { breadcrumbLd, fitTitle } from "@/lib/seo";
 
-const title = "The Exam Room: Accounting, Business and Economics Exam Tips | Hamza Teaches";
+const title = "The Exam Room: Accounting, Business and Economics Exam Tips";
 const description =
   "Explanations, exam technique and past paper walk-throughs for Cambridge and Edexcel O Level, IGCSE and A Level Accounting, Business and Economics.";
 
 export const metadata: Metadata = {
-  title,
+  title: fitTitle(title),
   description,
   alternates: { canonical: "/blog" },
   openGraph: { title, description, url: "/blog", type: "website", images: ["/opengraph-image"] },

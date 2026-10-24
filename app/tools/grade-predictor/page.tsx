@@ -3,14 +3,14 @@ import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
 import { GradePredictor } from "@/components/landing/GradePredictor";
 import { MarketingShell } from "@/components/landing/MarketingShell";
-import { breadcrumbLd, toolLd } from "@/lib/seo";
+import { breadcrumbLd, toolLd, fitTitle } from "@/lib/seo";
 
-const title = "Free Grade Predictor: O Level, IGCSE and A Level | Hamza Teaches";
+const title = "Free Grade Predictor: O Level, IGCSE and A Level";
 const description =
   "Free Cambridge grade predictor for O Level, IGCSE, AS and A Level Accounting, Business and Economics, using the official June 2026 and June 2025 grade thresholds.";
 
 export const metadata: Metadata = {
-  title,
+  title: fitTitle(title),
   description,
   alternates: { canonical: "/tools/grade-predictor" },
   openGraph: { title, description, url: "/tools/grade-predictor", type: "website", images: ["/opengraph-image"] },
