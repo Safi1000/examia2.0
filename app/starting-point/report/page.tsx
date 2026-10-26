@@ -6,6 +6,8 @@ import { Logo } from "@/components/Brand";
 import { SUBJECTS } from "@/lib/diagnostic/bank";
 import { LEVEL_SHORT, RATING_LABEL, type SectionSummary } from "@/lib/diagnostic/logic";
 import { PROFILE_TILES, ROADMAP } from "@/lib/diagnostic/roadmap";
+import { INCLUDED, PHASES, SESSION, TERMS, TERMS_NOTE } from "@/lib/diagnostic/session";
+import { LANDING } from "@/lib/landing";
 import { loadResults, saveNotes, type ResultRow } from "@/lib/diagnostic/results-client";
 import { emptyNotes, habits, startPoints, type ReportNotes } from "@/lib/diagnostic/student-report";
 
@@ -224,6 +226,81 @@ export default function StartingPointReport() {
           <span>hamzateaches.com</span>
         </footer>
       </section>
+
+      <section className="rp-sheet rp-sheet-2">
+        <header className="rp-head2">
+          <Logo className="h-9" />
+          <div className="rp-head2-text">
+            <p className="rp-kicker">{SESSION.name}</p>
+            <h2 className="rp-h2">Your session</h2>
+            <p className="rp-date">
+              Classes from {SESSION.starts} · {SESSION.exams} exams
+            </p>
+          </div>
+        </header>
+
+        <section className="rp-block">
+          <h2 className="rp-label">What you get</h2>
+          <div className="rp-included">
+            {INCLUDED.map((x) => (
+              <div key={x.title} className="rp-inc">
+                <p className="rp-inc-t">{x.title}</p>
+                <p className="rp-inc-d">{x.detail}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rp-block">
+          <h2 className="rp-label">Your route to an A*</h2>
+          <ol className="rp-phases">
+            {PHASES.map((ph, i) => (
+              <li key={ph.title} className="rp-phase">
+                <span className="rp-phase-n">{i + 1}</span>
+                <div>
+                  <p className="rp-phase-when">{ph.when}</p>
+                  <p className="rp-phase-t">{ph.title}</p>
+                  <p className="rp-phase-c">{ph.class}</p>
+                  <ul className="rp-phase-you">
+                    {ph.you.map((y) => (
+                      <li key={y}>
+                        <span className="rp-box" aria-hidden />
+                        {y}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="rp-block">
+          <h2 className="rp-label">Terms and policies</h2>
+          <div className="rp-terms">
+            {TERMS.map((t) => (
+              <div key={t.h}>
+                <p className="rp-term-h">{t.h}</p>
+                <p className="rp-term-b">{t.body}</p>
+              </div>
+            ))}
+          </div>
+          <p className="rp-terms-note">{TERMS_NOTE}</p>
+        </section>
+
+        <div className="rp-contact">
+          <p className="rp-contact-t">Questions about anything on these pages?</p>
+          <p className="rp-contact-d">
+            WhatsApp me on <b>+{LANDING.waNumber.replace(/^(\d{2})(\d{3})(\d{7})$/, "$1 $2 $3")}</b>. I answer myself.
+          </p>
+          <p className="rp-sign">Hamza</p>
+        </div>
+
+        <footer className="rp-foot">
+          <span>Hamza Teaches · Accounting, Business and Economics</span>
+          <span>hamzateaches.com</span>
+        </footer>
+      </section>
     </Frame>
   );
 }
@@ -327,17 +404,17 @@ const CSS = `
 .rp-btn-gold { background: var(--gold); border: 0; color: #1b1e21; }
 .rp-btn:focus-visible, .rp-input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .rp-missing { padding: 80px 20px; text-align: center; font-size: 15px; color: #5b6168; }
-.rp-desk { display: grid; justify-content: center; padding: 28px 16px 64px; }
+.rp-desk { display: grid; justify-content: center; gap: 24px; padding: 28px 16px 64px; }
 
 .rp-sheet { width: 210mm; height: 297mm; overflow: hidden; padding: 12mm 13mm 9mm; display: flex; flex-direction: column; box-shadow: 0 2px 24px rgba(0,0,0,.18);
   background-color: var(--gun);
   background-image: linear-gradient(rgba(251,193,89,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(251,193,89,.045) 1px, transparent 1px);
   background-size: 7mm 7mm; }
 .rp-sheet > * { flex-shrink: 0; }
-@media screen and (max-width: 860px) { .rp-sheet { width: 100%; height: auto; padding: 16px; } }
+@media screen and (max-width: 860px) { .rp-sheet { width: 100%; height: auto; padding: 16px; } .rp-included, .rp-phases, .rp-terms { grid-template-columns: 1fr; } }
 
 /* Header */
-.rp-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding-bottom: 5mm; border-bottom: 1px solid var(--line); }
+.rp-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
 .rp-kicker { margin-top: 5mm; font-size: 9.5px; font-weight: 800; letter-spacing: .24em; text-transform: uppercase; color: var(--gold); }
 .rp .rp-name { color: var(--ink); font-size: 32px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.02; margin-top: 1.5mm; }
 .rp-date { margin-top: 1.5mm; font-size: 11px; color: var(--muted); }
@@ -403,7 +480,7 @@ const CSS = `
 .rp .rp-bend { position: absolute; right: 0; width: 14mm; top: calc(var(--lab) + var(--dot) / 2); bottom: calc(var(--lab) + var(--dot) / 2); border: 2px dashed rgba(251,193,89,.7); border-left: 0; border-radius: 0 12mm 12mm 0; }
 
 /* Bottom half */
-.rp-split { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; margin-top: 5mm; padding-top: 5mm; border-top: 1px solid var(--line); }
+.rp-split { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; margin-top: 6mm; }
 .rp-ticks { list-style: none; margin: 0; padding: 0; display: grid; gap: 2.6mm; }
 .rp-ticks li { display: grid; grid-template-columns: 5mm 1fr; gap: 2.5mm; align-items: start; }
 .rp-ticks b { display: block; font-size: 12px; color: var(--ink); line-height: 1.25; }
@@ -412,7 +489,10 @@ const CSS = `
 .rp .rp-box { display: inline-block; width: 3.8mm; height: 3.8mm; border: 1.3px solid var(--gold); border-radius: 1mm; margin-top: .4mm; }
 .rp-tracker { width: 100%; border-collapse: collapse; }
 .rp-tracker th { font-size: 8.5px; font-weight: 800; letter-spacing: .1em; color: var(--faint); text-align: center; padding: 0 0 1.8mm; }
-.rp-tracker td { padding: 2.5mm 0; border-top: 1px solid var(--line); text-align: center; vertical-align: middle; }
+.rp-tracker { border-collapse: separate; border-spacing: 0 1.6mm; }
+.rp-tracker td { padding: 2.2mm 0; text-align: center; vertical-align: middle; background: rgba(255,255,255,.04); }
+.rp-tracker td:first-child { border-radius: 6px 0 0 6px; padding-left: 2.5mm !important; }
+.rp-tracker td:last-child { border-radius: 0 6px 6px 0; }
 .rp-tracker td:first-child { text-align: left; font-size: 11px; color: var(--ink); font-weight: 600; line-height: 1.3; padding-right: 3mm; width: 60%; }
 .rp-pledge { margin-top: 3.5mm; font-size: 11.5px; color: var(--ink); display: flex; align-items: flex-end; gap: 2mm; }
 .rp .rp-fill { display: inline-block; width: 13mm; border-bottom: 1.2px solid var(--gold); height: 4mm; }
@@ -424,7 +504,37 @@ const CSS = `
 .rp .rp-input::placeholder { color: var(--faint); }
 .rp-note-text { font-size: 12.5px; line-height: 1.5; color: var(--ink); }
 .rp-sign { margin-top: .5mm; font-family: var(--hand); font-size: 24px; color: var(--gold); line-height: 1; }
-.rp .rp-foot { margin-top: 4mm; padding-top: 3mm; border-top: 1px solid var(--line); display: flex; justify-content: space-between; font-size: 9.5px; color: var(--faint); }
+.rp .rp-foot { margin-top: 4mm; display: flex; justify-content: space-between; font-size: 9.5px; color: var(--faint); }
+
+/* Page 2: the session (larger type, blocks spread down the page) */
+.rp-sheet-2 { justify-content: space-between; }
+.rp-sheet-2 .rp-block { margin-top: 0; }
+.rp-head2 { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.rp-head2-text { text-align: right; }
+.rp .rp-h2 { color: var(--ink); font-size: 30px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; margin-top: 1.5mm; }
+.rp-included { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; }
+.rp-inc { background: rgba(255,255,255,.05); border-radius: 9px; padding: 3.6mm 3.8mm; }
+.rp-inc-t { font-size: 13px; font-weight: 800; color: var(--ink); }
+.rp-inc-d { margin-top: 1mm; font-size: 11px; line-height: 1.45; color: var(--body); }
+.rp-phases { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; }
+.rp-phase { position: relative; background: rgba(255,255,255,.05); border-radius: 10px; padding: 4mm 3.6mm; display: grid; gap: 2mm; align-content: start; }
+.rp .rp-phase-n { width: 8mm; height: 8mm; border-radius: 50%; border: 1.6px solid var(--gold); color: var(--gold); display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+.rp-phase:last-child .rp-phase-n { background: var(--gold); color: var(--gun); }
+.rp-phase-when { font-size: 9.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+.rp-phase-t { margin-top: .6mm; font-size: 14.5px; font-weight: 800; color: var(--ink); }
+.rp-phase-c { margin-top: 1mm; font-size: 11px; line-height: 1.45; color: var(--body); }
+.rp-phase-you { list-style: none; margin: 2.5mm 0 0; padding: 0; display: grid; gap: 2mm; }
+.rp-phase-you li { display: grid; grid-template-columns: 4.8mm 1fr; gap: 2mm; font-size: 11px; line-height: 1.35; color: var(--ink); font-weight: 600; }
+.rp-terms { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm 8mm; }
+.rp-term-h { font-size: 12px; font-weight: 800; color: var(--ink); }
+.rp-term-b { margin-top: .8mm; font-size: 10.6px; line-height: 1.5; color: var(--body); }
+.rp-terms-note { margin-top: 4mm; font-size: 10px; color: var(--faint); }
+.rp-contact { background: var(--gold-soft); border-radius: 10px; padding: 4mm 5mm; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1mm 6mm; }
+.rp-contact-t { font-size: 13px; font-weight: 800; color: var(--ink); }
+.rp-contact-d { grid-column: 1; font-size: 11.5px; color: var(--body); }
+.rp-contact-d b { color: var(--gold); }
+.rp-contact .rp-sign { grid-column: 2; grid-row: 1 / span 2; margin: 0; }
+.rp-sheet-2 .rp-foot { margin-top: 0; }
 
 .rp-print-only { display: none; }
 @page { size: A4; margin: 0; }
@@ -434,6 +544,7 @@ const CSS = `
   .rp-bar, .rp-screen-only, .rp-print-hide { display: none !important; }
   .rp-print-only { display: block; }
   .rp-desk { display: block; padding: 0; }
-  .rp-sheet { box-shadow: none; }
+  .rp-sheet { box-shadow: none; break-after: page; }
+  .rp-sheet-2 { break-after: auto; }
 }
 `;
