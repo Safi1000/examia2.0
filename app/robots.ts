@@ -24,6 +24,7 @@ export default function robots(): MetadataRoute.Robots {
         "/results/",
         "/board-lab",
         "/teach",
+        "/starting-point",
       ],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,

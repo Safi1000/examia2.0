@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { Button, Card, CardHeader, CardBody, Icon } from "@/components/ui";
 import { ThemeSettings } from "@/components/ThemeSettings";
 import { AutomationSettings } from "@/components/admin/Automations";
+import { StartingPointSwitch } from "@/components/admin/StartingPointSwitch";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useToast } from "@/components/toast";
 import { levelOf, subjectOf } from "@/lib/timetable";
@@ -13,6 +14,7 @@ export default function AdminSettingsPage() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-8 sm:px-8">
       <PageHeader title="Settings" subtitle="Automations, levels and look" />
+      <StartingPointSwitch />
       <AutomationSettings />
       <LevelsAndSubjects />
       <Card className="max-w-2xl">

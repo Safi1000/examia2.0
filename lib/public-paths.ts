@@ -3,7 +3,7 @@
  * hydration gate and render in the server HTML, which is what search engines
  * and link previews read. Keep in sync with app/sitemap.ts.
  */
-const PUBLIC_PREFIXES = ["/blog", "/guides", "/tools", "/privacy", "/terms", "/board-lab", "/grade-thresholds", "/online-classes", "/private-candidates", "/syllabus"];
+const PUBLIC_PREFIXES = ["/blog", "/guides", "/tools", "/privacy", "/terms", "/board-lab", "/grade-thresholds", "/online-classes", "/private-candidates", "/syllabus", "/starting-point"];
 export function isPublicPath(pathname: string | null): boolean {
   if (!pathname) return false;
   if (pathname === "/") return true;
