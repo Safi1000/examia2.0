@@ -7,6 +7,7 @@
  */
 import { BANK, CORE, PROFILE, type Mcq } from "@/lib/diagnostic/bank";
 import { EXPLAIN } from "@/lib/diagnostic/explain";
+import { DEFAULT_HABITS, HABIT } from "@/lib/diagnostic/roadmap";
 import { RATING_LABEL, type Answer, type ResultPayload, type SectionSummary, type Track } from "@/lib/diagnostic/logic";
 
 export const MEANING: Record<"lesson" | "as", Record<1 | 2 | 3, string>> = {
@@ -165,3 +166,17 @@ export interface ReportNotes {
 }
 export const emptyNotes = (): ReportNotes => ({ note: "", written: {} });
 export const GRADE: Record<"strong" | "partly" | "needs", string> = { strong: "Strong answer", partly: "Partly there", needs: "Needs work" };
+
+/** Up to four things to have clear before lesson one: the Step 1 questions, as skills. */
+export function startPoints(p: ResultPayload): Array<{ skill: string; where: string }> {
+  const clues = route(p).steps[0].clues ?? [];
+  const r = p.summary!;
+  const title = (sec: string) => (sec === "core" ? "Core skills" : (r.tracks.find((t) => t.sec === sec)?.title ?? ""));
+  return clues.map((x) => ({ skill: x.q.skill, where: title(x.sec) }));
+}
+
+/** Three habits for the tracker: the student's own weak spots first, then defaults. */
+export function habits(p: ResultPayload): string[] {
+  const own = (p.summary?.learner ?? []).map((n) => HABIT[n.code]).filter(Boolean);
+  return [...new Set([...own, ...DEFAULT_HABITS])].slice(0, 3);
+}

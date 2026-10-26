@@ -36,5 +36,6 @@ export function demoResults(): DemoRow[] {
     make("Example Student B", [{ sub: "Economics", level: "igcse" }], "start", 0.8, 23, "2026-11-02"),
     make("Example Student C", [{ sub: "Accounting", level: "as" }, { sub: "Accounting", level: "a2" }, { sub: "Economics", level: "a2" }], "start", 0.55, 37, "2026-11-02"),
     make("Example Student A", [{ sub: "Accounting", level: "as" }, { sub: "Business", level: "as" }], "end", 0.85, 41, "2027-04-20"),
+    make("Example Student D", (["Accounting", "Business", "Economics"] as const).flatMap((sub) => [{ sub, level: "as" as const }, { sub, level: "a2" as const }]), "start", 0.6, 53, "2026-11-02"),
   ];
 }

@@ -3,21 +3,20 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/Brand";
-import { BANK } from "@/lib/diagnostic/bank";
-import { RATING_LABEL, type SectionSummary } from "@/lib/diagnostic/logic";
-import { compare } from "@/lib/diagnostic/report";
-import { loadResults, nameKey, saveNotes, type ResultRow } from "@/lib/diagnostic/results-client";
-import { GRADE, emptyNotes, meaning, route, strengths, type ReportItem, type ReportNotes, type RouteStep } from "@/lib/diagnostic/student-report";
+import { SUBJECTS } from "@/lib/diagnostic/bank";
+import { LEVEL_SHORT } from "@/lib/diagnostic/logic";
+import { ROADMAP } from "@/lib/diagnostic/roadmap";
+import { loadResults, saveNotes, type ResultRow } from "@/lib/diagnostic/results-client";
+import { emptyNotes, habits, startPoints, type ReportNotes } from "@/lib/diagnostic/student-report";
 
 /**
- * A student's Starting Point Report, for Hamza to finish and send: three A4
- * sheets (cover and map, the route, written feedback and the rest to go
- * over). Hamza adds a note and written feedback on screen, then Save as PDF.
- * Opened from Admin → Starting points; only the teacher can load it.
+ * A student's Starting Point Report: one A4 page. The top half is the
+ * roadmap (each course in the order Hamza teaches it, from the syllabus);
+ * the bottom half is what to have clear before lesson one and a four week
+ * commitment the student signs. Hamza can add a short note, then Save as
+ * PDF. Opened from Admin → Starting points; only the teacher can load it.
  */
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
-/** Fewer extra questions when there are more written answers, to stay on three pages. */
-const restLimit = (tracks: number, comments: number, compared: boolean) => Math.max(2, 8 - 2 * (tracks - 1) - comments - (compared ? 4 : 0));
 
 export default function StartingPointReport() {
   const [rows, setRows] = useState<ResultRow[] | null>(null);
@@ -50,22 +49,26 @@ export default function StartingPointReport() {
   }
   const sum = r.summary;
   const end = r.kind === "end";
-  const before = end ? rows.find((x) => x.kind === "start" && nameKey(x.name) === nameKey(r.name)) : undefined;
-  // Overall results, plus only the areas that moved, so it stays on the page.
-  const changes = before ? compare(before, r).filter((c) => c.section !== "How they learn" && c.label !== "Certain but wrong" && (c.label === "Overall" || c.move !== 0)).slice(0, 10) : [];
-  const { steps, rest } = route(r);
-  const REST_LIMIT = restLimit(sum.tracks.length, Object.values(notes.written).filter((w) => w.comment?.trim()).length, changes.length > 0);
-  const good = strengths(r);
-  const first = r.name.trim().split(/\s+/)[0] || "there";
+  const points = startPoints(r);
+  const habitRows = habits(r);
+  // One road per subject: AS and A2 taken together run as one continuous road.
+  const roads: Road[] = SUBJECTS.flatMap((sub) => {
+    const ts = r.tracks.filter((t) => t.sub === sub);
+    if (!ts.length) return [];
+    const both = ts.length > 1;
+    const stops = ts.flatMap((t) => ROADMAP[t.level][t.sub].map((name, i) => ({ name, n: i + 1, a2: both && t.level === "a2", tag: both && i === 0 ? LEVEL_SHORT[t.level] : "" })));
+    const chips = ts.map((t) => {
+      const s = sum.tracks.find((x) => x.sec === `${t.level}-${t.sub}`)!;
+      return { label: both ? `${LEVEL_SHORT[t.level]}: ${s.readyLabel}` : s.readyLabel, ready: s.ready };
+    });
+    const title = both ? `${sub}, AS and A2` : sum.tracks.find((x) => x.sec === `${ts[0].level}-${sub}`)!.title;
+    return [{ key: sub, title, chips, stops }];
+  });
 
   async function save(next = notes) {
     setSaved("saving");
     setSaved((await saveNotes(r!.id, next)) ? "saved" : "failed");
   }
-  const setW = (sec: string, patch: Partial<ReportNotes["written"][string]>) => {
-    setNotes({ ...notes, written: { ...notes.written, [sec]: { ...notes.written[sec], ...patch } } });
-    setSaved("idle");
-  };
 
   return (
     <Frame
@@ -74,9 +77,9 @@ export default function StartingPointReport() {
           <Link href="/admin/starting-points" className="rp-back">
             ← Starting points
           </Link>
-          <span className="rp-status">{saved === "saving" ? "Saving…" : saved === "saved" ? "Notes saved" : saved === "failed" ? "Couldn't save. Try again." : "Add your note and feedback, then save as PDF."}</span>
+          <span className="rp-status">{saved === "saving" ? "Saving…" : saved === "saved" ? "Saved" : saved === "failed" ? "Couldn't save. Try again." : ""}</span>
           <button onClick={() => void save()} className="rp-btn rp-btn-out">
-            Save notes
+            Save note
           </button>
           <button
             onClick={async () => {
@@ -90,419 +93,274 @@ export default function StartingPointReport() {
         </>
       }
     >
-      {/* Sheet 1: cover, map, where you are */}
-      <Sheet compact={sum.tracks.length >= 3}>
-        <div className="rp-cover">
-          <div className="rp-cover-top">
-            <Logo className="h-14" />
-            <span className="rp-cover-date">{day(r.finishedAt ?? r.savedAt)}</span>
+      <section className={`rp-sheet rp-n${Math.min(roads.length, 4)} ${roads.some((x) => x.stops.length > 12) ? "rp-long" : ""}`}>
+        <header className="rp-head">
+          <Logo className="h-12" />
+          <div className="rp-head-text">
+            <p className="rp-kicker">{end ? "End of session report" : "Starting Point Report"}</p>
+            <h1 className="rp-name">{r.name || "Student"}</h1>
+            <p className="rp-date">{day(r.finishedAt ?? r.savedAt)}</p>
           </div>
-          <p className="rp-eyebrow rp-eyebrow-gold">{end ? "End of session report" : "Starting Point Report"}</p>
-          <h1 className="rp-name">{r.name || "Student"}</h1>
-          <p className="rp-cover-sub">{sum.tracks.map((t) => t.title).join("  ·  ")}</p>
-        </div>
+        </header>
 
-        <p className="rp-lede">
-          {first}, this is {end ? "where you finished the session, and what to keep working on before the exam." : "your starting point, and the route I want you to take from here."} Follow it step by step and tick each box as you go.
-        </p>
+        <section className="rp-block rp-roadmap">
+          <h2 className="rp-label">Your roadmap</h2>
+          <div className="rp-roads">
+            {roads.map((road) => (
+              <div key={road.key} className="rp-road">
+                <div className="rp-road-head">
+                  <p className="rp-road-title">{road.title}</p>
+                  {road.chips.map((c) => (
+                    <p key={c.label} className={`rp-chip rp-chip-${c.ready}`}>
+                      {c.label}
+                    </p>
+                  ))}
+                </div>
+                {roads.length === 1 ? <Snake road={road} end={end} /> : <Path road={road} end={end} />}
+              </div>
+            ))}
+          </div>
+        </section>
 
-        <Map steps={steps} />
+        <div className="rp-split">
+          <section className="rp-block">
+            <h2 className="rp-label">{end ? "Keep sharp before the exam" : "Before our first lesson"}</h2>
+            <ul className="rp-ticks">
+              {(points.length ? points : [{ skill: "Read the first topic in your notes", where: "Every subject" }]).map((x, i) => (
+                <li key={i}>
+                  <span className="rp-box" aria-hidden />
+                  <span>
+                    <b>{x.skill}</b>
+                    <em>{x.where}</em>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
 
-        <h2 className="rp-h2">{end ? "Where you are now" : "Where you are starting"}</h2>
-        <div className="rp-grid">
-          {sum.tracks.map((s) => {
-            const t = r.tracks.find((x) => `${x.level}-${x.sub}` === s.sec)!;
-            return <Standing key={s.sec} sum={s} line={meaning(s, t)} />;
-          })}
-          <Standing sum={sum.core} line="The numbers and reading every subject is built on." wide={sum.tracks.length % 2 === 1} />
-        </div>
-
-        {good.length > 0 && (
-          <p className="rp-good">
-            <span className="rp-good-label">Already strong</span>
-            {good.slice(0, 5).join(" · ")}
-          </p>
-        )}
-
-        <div className={`rp-note ${notes.note.trim() ? "" : "rp-print-hide"}`}>
-          <p className="rp-eyebrow">A note from me</p>
-          <Editable value={notes.note} placeholder="Your personal note to the student: what stood out, and what you will work on together. Written as you." rows={3} maxLength={450} onChange={(v) => (setNotes({ ...notes, note: v }), setSaved("idle"))} />
-          <p className="rp-sign">Hamza</p>
-        </div>
-      </Sheet>
-
-      {/* Sheet 2: the route */}
-      <Sheet>
-        <SheetHead kicker="Your route" title={end ? "What to work on next" : "How to start"} />
-        {steps.map((s) => (
-          <StepBlock key={s.key} s={s} />
-        ))}
-      </Sheet>
-
-      {/* Sheet 3: written answers, then and now, the rest to go over */}
-      <Sheet last>
-        <SheetHead kicker="Your answers" title="Written answers and the rest to go over" />
-
-        {changes.length > 0 && (
-          <section className="rp-section">
-            <h3 className="rp-h3">Then and now</h3>
-            <table className="rp-table">
+          <section className="rp-block">
+            <h2 className="rp-label">My four week commitment</h2>
+            <table className="rp-tracker">
               <thead>
                 <tr>
-                  <th>Subject</th>
-                  <th>Area</th>
-                  <th>Day one</th>
-                  <th>Now</th>
+                  <th />
+                  {[1, 2, 3, 4].map((w) => (
+                    <th key={w}>Week {w}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {changes.map((c, i) => (
-                  <tr key={i}>
-                    <td>{c.section}</td>
-                    <td>{c.label}</td>
-                    <td className="rp-muted">{c.from}</td>
-                    <td className={c.move > 0 ? "rp-up" : c.move < 0 ? "rp-down" : ""}>
-                      {c.to} {c.move > 0 ? "↑" : c.move < 0 ? "↓" : ""}
-                    </td>
+                {habitRows.map((h) => (
+                  <tr key={h}>
+                    <td>{h}</td>
+                    {[1, 2, 3, 4].map((w) => (
+                      <td key={w}>
+                        <span className="rp-box" aria-hidden />
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
             </table>
+            <p className="rp-pledge">
+              I will study <span className="rp-fill" /> hours a week outside class.
+            </p>
+            <p className="rp-pledge">
+              Signed <span className="rp-fill rp-fill-wide" />
+            </p>
           </section>
-        )}
+        </div>
 
-
-        <section className="rp-section">
-          <h3 className="rp-h3">Your written answers</h3>
-          <div className="rp-written">
-            {sum.tracks.map((s) => {
-              const t = r.tracks.find((x) => `${x.level}-${x.sub}` === s.sec)!;
-              const w = notes.written[s.sec] ?? {};
-              const text = (r.written[s.sec] ?? "").trim();
-              return (
-                <div key={s.sec} className="rp-card rp-avoid">
-                  <div className="rp-card-head">
-                    <span className="rp-eyebrow">{s.title}</span>
-                    {w.grade && <span className={`rp-grade rp-grade-${w.grade}`}>{GRADE[w.grade]}</span>}
-                  </div>
-                  <p className="rp-q">{BANK[t.level][t.sub].w}</p>
-                  <p className="rp-answer">{text ? (text.length > 320 ? `${text.slice(0, 320)}…` : text) : "No answer written."}</p>
-                  <div className="rp-screen-only rp-guide">
-                    <b>Mark guide: </b>
-                    {BANK[t.level][t.sub].ms}
-                  </div>
-                  <div className="rp-screen-only rp-chips">
-                    {(Object.keys(GRADE) as Array<keyof typeof GRADE>).map((g) => (
-                      <button key={g} onClick={() => setW(s.sec, { grade: w.grade === g ? undefined : g })} aria-pressed={w.grade === g} className={`rp-chip ${w.grade === g ? "rp-chip-on" : ""}`}>
-                        {GRADE[g]}
-                      </button>
-                    ))}
-                  </div>
-                  <Editable value={w.comment ?? ""} placeholder="Your feedback on this answer (optional)" rows={2} small onChange={(v) => setW(s.sec, { comment: v })} />
-                </div>
-              );
-            })}
-          </div>
+        <section className={`rp-note ${notes.note.trim() ? "" : "rp-print-hide"}`}>
+          <textarea
+            className="rp-input rp-screen-only"
+            value={notes.note}
+            maxLength={220}
+            rows={2}
+            placeholder="Optional: one or two lines from you to this student."
+            onChange={(e) => (setNotes({ ...notes, note: e.target.value }), setSaved("idle"))}
+          />
+          {notes.note.trim() && <p className="rp-note-text rp-print-only">{notes.note}</p>}
+          <p className="rp-sign">Hamza</p>
         </section>
 
-        {rest.length > 0 && (
-          <section className="rp-section">
-            <h3 className="rp-h3">Also go over</h3>
-            <p className="rp-small">The other questions you missed. Read the answer, then explain it out loud.</p>
-            <ol className="rp-rest">
-              {rest.slice(0, REST_LIMIT).map((x, i) => (
-                <li key={i} className="rp-avoid">
-                  <p className="rp-rest-q">{x.q.q}</p>
-                  <p className="rp-rest-a">
-                    <b>{x.q.o[x.q.a]}.</b> {x.explain}
-                  </p>
-                </li>
-              ))}
-            </ol>
-            {rest.length > REST_LIMIT && <p className="rp-small">Plus {rest.length - REST_LIMIT} more. I go through these with you in class.</p>}
-          </section>
-        )}
-
         <footer className="rp-foot">
-          <span>Hamza Teaches · Accounting, Business and Economics</span>
+          <span>Hamza Teaches</span>
           <span>hamzateaches.com</span>
         </footer>
-      </Sheet>
+      </section>
     </Frame>
   );
 }
 
-/* ------------------------------------------------------------------ */
+type Stop = { name: string; n: number; a2: boolean; tag: string };
+type Road = { key: string; title: string; chips: Array<{ label: string; ready: 1 | 2 | 3 }>; stops: Stop[] };
+
+function StopItem({ stop, up }: { stop: Stop; up: boolean }) {
+  return (
+    <li className={`rp-stop ${up ? "rp-up" : "rp-down"}`}>
+      <span className="rp-stop-text">
+        {stop.tag && <b className="rp-tag">{stop.tag}</b>}
+        {stop.name}
+      </span>
+      <span className={`rp-dot ${stop.a2 ? "rp-dot-a2" : ""}`}>{stop.n}</span>
+    </li>
+  );
+}
+
+function Ends({ which, end, up }: { which: "start" | "finish"; end: boolean; up: boolean }) {
+  return (
+    <li className={`rp-stop ${up ? "rp-up" : "rp-down"}`}>
+      <span className="rp-stop-text">{which === "start" ? (end ? "Day one" : "Today") : "Exam"}</span>
+      <span className={`rp-dot ${which === "start" ? "rp-dot-x" : "rp-dot-flag"}`}>{which === "start" ? "✕" : "★"}</span>
+    </li>
+  );
+}
+
+/** One straight road: today, every topic in order, the exam. */
+function Path({ road, end }: { road: Road; end: boolean }) {
+  return (
+    <ol className="rp-path" style={{ gridTemplateColumns: `repeat(${road.stops.length + 2}, 1fr)` }}>
+      <Ends which="start" end={end} up />
+      {road.stops.map((stop, i) => (
+        <StopItem key={`${stop.name}-${i}`} stop={stop} up={i % 2 === 1} />
+      ))}
+      <Ends which="finish" end={end} up={road.stops.length % 2 === 1} />
+    </ol>
+  );
+}
+
+/** One subject only: the road winds across two rows to fill the space. */
+function Snake({ road, end }: { road: Road; end: boolean }) {
+  const half = Math.ceil(road.stops.length / 2);
+  const cols = half + 1;
+  const top = road.stops.slice(0, half);
+  const bottom = road.stops.slice(half);
+  return (
+    <div className="rp-snake">
+      <ol className="rp-path" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, ["--cols" as string]: cols }}>
+        <Ends which="start" end={end} up />
+        {top.map((stop, i) => (
+          <StopItem key={`${stop.name}-${i}`} stop={stop} up />
+        ))}
+      </ol>
+      <span className="rp-bend" aria-hidden />
+      <ol className="rp-path rp-path-back" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, ["--cols" as string]: cols }}>
+        {bottom.map((stop, i) => (
+          <StopItem key={`${stop.name}-${i}`} stop={stop} up={false} />
+        ))}
+        <Ends which="finish" end={end} up={false} />
+      </ol>
+    </div>
+  );
+}
 
 function Frame({ children, bar }: { children: ReactNode; bar?: ReactNode }) {
   return (
     <div className="rp">
       {bar && <div className="rp-bar">{bar}</div>}
-      <div className="rp-sheets">{children}</div>
+      <div className="rp-desk">{children}</div>
       <style>{CSS}</style>
     </div>
   );
 }
 
-function Sheet({ children, last, compact }: { children: ReactNode; last?: boolean; compact?: boolean }) {
-  return <section className={`rp-sheet ${last ? "rp-sheet-last" : ""} ${compact ? "rp-compact" : ""}`}>{children}</section>;
-}
-
-function SheetHead({ kicker, title }: { kicker: string; title: string }) {
-  return (
-    <header className="rp-sheet-head">
-      <span className="rp-mini-logo">
-        <Logo className="h-6" />
-      </span>
-      <div>
-        <p className="rp-eyebrow">{kicker}</p>
-        <h2 className="rp-h1">{title}</h2>
-      </div>
-    </header>
-  );
-}
-
-/** The route at a glance: four stops joined by a path. */
-function Map({ steps }: { steps: RouteStep[] }) {
-  return (
-    <ol className="rp-map" aria-label="Your route">
-      {steps.map((s, i) => (
-        <li key={s.key} className="rp-stop">
-          <span className={`rp-pin ${i === 0 ? "rp-pin-x" : s.key === "check" ? "rp-pin-flag" : ""}`}>{i === 0 ? "✕" : s.key === "check" ? "★" : i + 1}</span>
-          <span className="rp-stop-label">{s.label}</span>
-          <span className="rp-stop-title">{s.title}</span>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function Pips({ r }: { r: 1 | 2 | 3 | null }) {
-  return (
-    <span className="rp-pips">
-      {r ? RATING_LABEL[r] : ""}
-      <span className="rp-pip-row">
-        {[1, 2, 3].map((n) => (
-          <span key={n} className={`rp-pip ${r && n <= r ? "rp-pip-on" : ""}`} />
-        ))}
-      </span>
-    </span>
-  );
-}
-
-function Standing({ sum, line, wide }: { sum: SectionSummary; line: string; wide?: boolean }) {
-  return (
-    <div className={`rp-card rp-avoid ${wide ? "rp-wide" : ""}`}>
-      <p className="rp-card-title">{sum.title}</p>
-      {sum.sec !== "core" && <p className="rp-verdict">{sum.readyLabel}</p>}
-      <p className="rp-line">{line}</p>
-      <div className="rp-areas">
-        {sum.areas.map((a) => (
-          <div key={a.area} className="rp-area">
-            <span>{a.name}</span>
-            <Pips r={a.r} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function StepBlock({ s }: { s: RouteStep }) {
-  return (
-    <section className={`rp-step rp-step-${s.key}`}>
-      <div className="rp-step-rail">
-        <span className={`rp-pin ${s.key === "start" ? "rp-pin-x" : s.key === "check" ? "rp-pin-flag" : ""}`}>{s.key === "start" ? "✕" : s.key === "check" ? "★" : s.label.slice(-1)}</span>
-      </div>
-      <div className="rp-step-body">
-        <p className="rp-eyebrow">{s.label}</p>
-        <h3 className="rp-h3">{s.title}</h3>
-        <p className="rp-step-intro">{s.intro}</p>
-        {s.clues && (
-          <ol className="rp-clues">
-            {s.clues.map((x, i) => (
-              <Clue key={i} x={x} />
-            ))}
-          </ol>
-        )}
-        {s.ticks && s.ticks.length > 0 && (
-          <ul className="rp-ticks">
-            {s.ticks.map((t, i) => (
-              <li key={i}>
-                <span className="rp-box" aria-hidden />
-                <span>{t}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function Clue({ x }: { x: ReportItem }) {
-  const theirs = x.a.c == null ? "No answer" : x.a.c === -1 ? "I don’t know" : x.q.o[x.a.c];
-  return (
-    <li className="rp-clue rp-avoid">
-      <span className="rp-box" aria-hidden />
-      <div>
-        {x.q.context && <p className="rp-ctx">{x.q.context}</p>}
-        <p className="rp-q">{x.q.q}</p>
-        <p className="rp-clue-meta">
-          You said: {theirs} <span className="rp-dot">·</span> Answer: <b>{x.q.o[x.q.a]}</b>
-        </p>
-        {x.explain && <p className="rp-clue-why">{x.explain}</p>}
-      </div>
-    </li>
-  );
-}
-
-/** A text box on screen; plain text on paper. */
-function Editable({ value, onChange, placeholder, rows, small, maxLength = 600 }: { value: string; onChange: (v: string) => void; placeholder: string; rows: number; small?: boolean; maxLength?: number }) {
-  return (
-    <>
-      <textarea value={value} maxLength={maxLength} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={rows} className={`rp-input rp-screen-only ${small ? "rp-input-small" : ""}`} />
-      {value.trim() ? <p className={`rp-print-only rp-written-text ${small ? "rp-small" : ""}`}>{value}</p> : null}
-    </>
-  );
-}
-
 const CSS = `
-/* Paper report: white A4 sheets in Hamza Teaches charcoal and gold. */
+/* One A4 page in Hamza Teaches charcoal and gold. */
 .rp {
-  --ink: #16191c; --body: #353b41; --muted: #6b7279; --line: #e6e8ea; --paper: #ffffff; --desk: #e9ebed;
-  --dark: #1b1e21; --gold: #fbc159; --gold-ink: #8a5a0c; --gold-tint: #fdf5e4; --up: #1f7a5c; --down: #b3412e;
+  --ink: #16191c; --body: #3a4046; --muted: #6b7279; --line: #e4e6e8; --desk: #e9ebed;
+  --dark: #1b1e21; --gold: #fbc159; --gold-ink: #8a5a0c; --gold-tint: #fdf5e4;
   --sans: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif; --hand: var(--font-caveat), cursive;
   background: var(--desk); color: var(--body); font-family: var(--sans); min-height: 100dvh;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
 .rp * { box-sizing: border-box; border-color: var(--line); }
-.rp h1, .rp h2, .rp h3 { color: var(--ink); font-family: var(--sans); margin: 0; text-wrap: balance; }
+.rp h1, .rp h2 { color: var(--ink); font-family: var(--sans); margin: 0; }
 .rp p { margin: 0; }
-.rp-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: rgba(255,255,255,.96); border-bottom: 1px solid var(--line); backdrop-filter: blur(8px); }
+.rp-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: rgba(255,255,255,.96); border-bottom: 1px solid var(--line); }
 .rp-back { font-size: 14px; font-weight: 500; color: var(--muted); text-decoration: none; }
-.rp-back:hover { color: var(--ink); }
 .rp-status { margin-left: auto; font-size: 13px; color: var(--muted); }
 .rp-btn { height: 40px; padding: 0 18px; border-radius: 999px; font: 600 14px var(--sans); cursor: pointer; }
 .rp .rp-btn-out { background: #fff; border: 1px solid #c9cdd1; color: var(--ink); }
 .rp-btn-gold { background: var(--gold); border: 0; color: var(--dark); }
-.rp-btn:focus-visible, .rp-chip:focus-visible, .rp-input:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 2px; }
+.rp-btn:focus-visible, .rp-input:focus-visible { outline: 2px solid var(--gold-ink); outline-offset: 2px; }
 .rp-missing { padding: 80px 20px; text-align: center; font-size: 15px; color: var(--muted); }
+.rp-desk { display: grid; justify-content: center; padding: 28px 16px 64px; }
 
-.rp-sheets { display: grid; justify-content: center; gap: 24px; padding: 28px 16px 64px; }
-.rp-sheet { width: 210mm; min-height: 297mm; background: var(--paper); padding: 16mm 16mm 14mm; box-shadow: 0 2px 24px rgba(0,0,0,.08); position: relative; display: flex; flex-direction: column; }
-@media screen and (max-width: 860px) { .rp-sheet { width: 100%; min-height: 0; padding: 20px; } .rp-cover { margin: -20px -20px 0 !important; padding: 20px !important; } }
+.rp-sheet { width: 210mm; height: 297mm; overflow: hidden; background: #fff; padding: 0 14mm 10mm; box-shadow: 0 2px 24px rgba(0,0,0,.08); display: flex; flex-direction: column; }
+@media screen and (max-width: 860px) { .rp-sheet { width: 100%; height: auto; padding: 0 16px 16px; } .rp-head { margin: 0 -16px !important; padding: 18px 16px !important; } }
 
-/* Cover */
-.rp-cover { margin: -16mm -16mm 0; padding: 12mm 16mm 11mm; background-color: var(--dark); color: #fff;
-  background-image: linear-gradient(rgba(251,193,89,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(251,193,89,.07) 1px, transparent 1px); background-size: 9mm 9mm; }
-.rp-cover-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7mm; }
-.rp-cover-date { font-size: 12px; color: #b0b6bb; }
-.rp .rp-name { color: #fff; font-size: 40px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.02; margin-top: 3mm; }
-.rp-cover-sub { margin-top: 3mm; font-size: 14px; color: #d6d9dc; }
-.rp-eyebrow { font-size: 10.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gold-ink); }
-.rp-eyebrow-gold { color: var(--gold); }
-.rp-lede { margin-top: 8mm; font-size: 15px; line-height: 1.55; color: var(--body); max-width: 150mm; }
+/* Header */
+.rp-head { margin: 0 -14mm; padding: 9mm 14mm 8mm; background-color: var(--dark); display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+  background-image: linear-gradient(rgba(251,193,89,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(251,193,89,.07) 1px, transparent 1px); background-size: 8mm 8mm; }
+.rp-head-text { text-align: right; }
+.rp-kicker { font-size: 10px; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--gold); }
+.rp .rp-name { color: #fff; font-size: 30px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; margin-top: 2mm; }
+.rp-date { margin-top: 1.5mm; font-size: 11.5px; color: #b0b6bb; }
 
-/* Map */
-.rp-map { list-style: none; margin: 7mm 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); position: relative; }
-.rp .rp-map::before { content: ""; position: absolute; left: 12.5%; right: 12.5%; top: 15px; border-top: 2px dashed var(--gold); }
-.rp-stop { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 3px; padding: 0 4px; }
-.rp .rp-pin { width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 2px solid var(--gold); color: var(--ink); display: grid; place-items: center; font-size: 13px; font-weight: 800; position: relative; z-index: 1; flex: none; }
-.rp .rp-pin-x { background: var(--dark); border-color: var(--dark); color: var(--gold); font-size: 14px; }
-.rp .rp-pin-flag { background: var(--gold); color: var(--dark); }
-.rp-stop-label { margin-top: 4px; font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--gold-ink); }
-.rp-stop-title { font-size: 13px; font-weight: 600; color: var(--ink); line-height: 1.25; }
+.rp-block { margin-top: 7mm; }
+.rp .rp-label { font-size: 10.5px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: var(--gold-ink); margin-bottom: 4mm; }
 
-/* Where you are */
-.rp .rp-h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin-top: 1.5mm; }
-.rp .rp-h2 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin: 9mm 0 4mm; }
-.rp .rp-h3 { font-size: 16px; font-weight: 800; letter-spacing: -0.015em; }
-.rp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
-.rp-wide { grid-column: 1 / -1; }
-/* Three or more subjects: tighter first page so it stays on one sheet. */
-.rp-compact .rp-cover { padding-top: 8mm; padding-bottom: 7mm; }
-.rp-compact .rp-cover-top { margin-bottom: 4mm; }
-.rp .rp-compact .rp-name { font-size: 34px; }
-.rp-compact .rp-pin { width: 28px; height: 28px; }
-.rp .rp-compact .rp-map::before { top: 13px; }
-.rp-compact .rp-line { display: none; }
-.rp-compact .rp-good { margin-top: 3mm; }
-.rp-compact .rp-lede { margin-top: 6mm; }
-.rp-compact .rp-map { margin-top: 5mm; }
-.rp .rp-compact .rp-h2 { margin: 6mm 0 3mm; }
-.rp .rp-compact .rp-card { padding: 3mm; }
-.rp-compact .rp-grid { gap: 3mm; }
-.rp-compact .rp-areas { margin-top: 2mm; gap: 1mm; }
-.rp-compact .rp-note { padding-top: 5mm; }
-@media screen and (max-width: 640px) { .rp-grid { grid-template-columns: 1fr; } .rp-map { grid-template-columns: repeat(2, 1fr); row-gap: 14px; } .rp .rp-map::before { display: none; } }
-.rp .rp-card { border: 1px solid var(--line); border-radius: 10px; padding: 4mm; background: #fff; }
-.rp-card-title { font-size: 14.5px; font-weight: 800; color: var(--ink); }
-.rp-verdict { margin-top: 1.5mm; display: inline-block; font-size: 11.5px; font-weight: 700; color: var(--gold-ink); background: var(--gold-tint); padding: 2px 8px; border-radius: 999px; }
-.rp-line { margin-top: 2mm; font-size: 12.5px; line-height: 1.45; color: var(--body); }
-.rp-areas { margin-top: 3mm; display: grid; gap: 1.5mm; }
-.rp-area { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--ink); }
-.rp-pips { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
-.rp-pip-row { display: inline-flex; gap: 2px; }
-.rp-pip { width: 14px; height: 5px; border-radius: 3px; background: var(--line); }
-.rp-pip-on { background: var(--gold); }
-.rp-good { margin-top: 5mm; font-size: 12.5px; line-height: 1.5; color: var(--body); }
-.rp-good-label { font-weight: 700; color: var(--ink); margin-right: 8px; }
-.rp-note { margin-top: auto; padding-top: 7mm; }
-.rp-note .rp-eyebrow { margin-bottom: 2mm; }
-.rp-sign { margin-top: 1mm; font-family: var(--hand); font-size: 26px; color: var(--gold-ink); line-height: 1; }
+/* Roadmap: the top half of the page. Row size shrinks as subjects are added. */
+.rp-sheet { --lab: 15mm; --dot: 10mm; --fs: 11px; --gap: 7mm; }
+.rp-n2 { --lab: 12.5mm; --dot: 9mm; --fs: 10.2px; --gap: 6mm; }
+.rp-n3 { --lab: 9.5mm; --dot: 7mm; --fs: 9px; --gap: 4.5mm; }
+.rp-n4 { --lab: 7.5mm; --dot: 6mm; --fs: 8.4px; --gap: 3mm; }
+/* One subject: a two row road that bends back on itself. */
+.rp-n1 { --lab: 13mm; --dot: 11mm; --fs: 12px; }
+.rp-snake { position: relative; display: grid; gap: 6mm; padding-right: 7mm; }
+.rp-path-back { direction: rtl; }
+.rp-path-back .rp-stop { direction: ltr; }
+.rp .rp-snake .rp-path::before { left: calc(50% / var(--cols)); right: 0; }
+.rp .rp-bend { position: absolute; right: 0; width: 14mm; top: calc(var(--lab) + var(--dot) / 2); bottom: calc(var(--lab) + var(--dot) / 2); border: 2px dashed var(--gold); border-left: 0; border-radius: 0 12mm 12mm 0; }
+/* AS and A2 on one road: many stops, so smaller labels and dots. */
+.rp-long { --fs: 8.2px; --dot: 6mm; --lab: 10.5mm; }
+.rp-long.rp-n3 { --lab: 9.5mm; }
+.rp .rp-dot-a2 { background: var(--gold-tint); }
+.rp-tag { display: block; margin-bottom: .3mm; font-size: 8px; font-weight: 800; letter-spacing: .12em; color: var(--gold-ink); }
+.rp-sheet > * { flex-shrink: 0; }
+.rp-roadmap { min-height: 128mm; display: flex; flex-direction: column; }
+.rp-roadmap .rp-roads { flex: 1; align-content: space-evenly; }
+.rp-roads { display: grid; gap: var(--gap); }
+.rp-road { display: grid; gap: 2.5mm; }
+.rp-road-head { display: flex; align-items: center; gap: 3mm; flex-wrap: wrap; }
+.rp-road-title { font-size: 14px; font-weight: 800; color: var(--ink); line-height: 1.2; }
+.rp-chip { display: inline-block; font-size: 9.5px; font-weight: 700; line-height: 1.3; padding: 2px 7px; border-radius: 6px; }
+.rp-chip-3 { background: #e5f3ec; color: #1f6b52; }
+.rp-chip-2 { background: var(--gold-tint); color: var(--gold-ink); }
+.rp-chip-1 { background: #f6e7e3; color: #9a3a29; }
+.rp-path { list-style: none; margin: 0; padding: 0; display: grid; position: relative; }
+.rp .rp-path::before { content: ""; position: absolute; left: 4%; right: 4%; top: 50%; border-top: 2px dashed var(--gold); }
+.rp-stop { position: relative; display: grid; grid-template-rows: var(--lab) var(--dot) var(--lab); justify-items: center; }
+/* Labels alternate above and below the line, so each may use two stops' width. */
+.rp-stop-text { font-size: var(--fs); line-height: 1.18; text-align: center; color: var(--body); width: 190%; justify-self: center; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.rp-up .rp-stop-text { grid-row: 1; align-self: end; padding-bottom: 1mm; }
+.rp-down .rp-stop-text { grid-row: 3; align-self: start; padding-top: 1mm; }
+.rp .rp-dot { grid-row: 2; align-self: center; z-index: 1; width: var(--dot); height: var(--dot); border-radius: 50%; background: #fff; border: 1.6px solid var(--gold); display: grid; place-items: center; font-size: calc(var(--fs) + 1px); font-weight: 800; color: var(--ink); }
+.rp .rp-dot-x { background: var(--dark); border-color: var(--dark); color: var(--gold); }
+.rp .rp-dot-flag { background: var(--gold); border-color: var(--gold); color: var(--dark); }
 
-/* Route */
-.rp .rp-sheet-head { display: flex; align-items: flex-end; justify-content: space-between; flex-direction: row-reverse; gap: 12px; padding-bottom: 4mm; border-bottom: 2px solid var(--gold); margin-bottom: 5mm; }
-.rp-mini-logo { background: var(--dark); border-radius: 8px; padding: 6px 10px; display: inline-flex; }
-.rp-step { display: grid; grid-template-columns: 34px 1fr; gap: 12px; position: relative; padding-bottom: 4.5mm; }
-.rp-step-rail { position: relative; display: flex; justify-content: center; }
-.rp .rp-step:not(.rp-step-check) .rp-step-rail::after { content: ""; position: absolute; top: 34px; bottom: -4.5mm; left: 50%; border-left: 2px dashed var(--gold); }
-.rp-step-intro { margin-top: 1mm; font-size: 13px; line-height: 1.5; color: var(--body); }
-.rp-clues { list-style: none; margin: 2.5mm 0 0; padding: 0; display: grid; gap: 2mm; }
-.rp .rp-clue { display: grid; grid-template-columns: 16px 1fr; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 2.4mm 3.2mm; }
-.rp-ctx { font-size: 11.5px; font-style: italic; color: var(--muted); margin-bottom: 1mm; line-height: 1.45; }
-.rp-q { font-size: 13px; font-weight: 600; color: var(--ink); line-height: 1.4; }
-.rp-clue-meta { margin-top: 1mm; font-size: 12px; color: var(--muted); }
-.rp-clue-meta b { color: var(--ink); }
-.rp-dot { margin: 0 4px; }
-.rp-clue-why { margin-top: .8mm; font-size: 11.8px; line-height: 1.45; color: var(--body); }
-.rp-ticks { list-style: none; margin: 2.5mm 0 0; padding: 0; display: grid; gap: 1.6mm; }
-.rp-ticks li { display: grid; grid-template-columns: 16px 1fr; gap: 10px; font-size: 13px; line-height: 1.45; color: var(--ink); }
-.rp .rp-box { width: 14px; height: 14px; border: 1.5px solid var(--ink); border-radius: 3px; margin-top: 2px; }
-.rp-step-check .rp-step-body { background: var(--gold-tint); border-radius: 10px; padding: 3.5mm 4mm; }
+/* Bottom half */
+.rp-split { display: grid; grid-template-columns: 1fr 1.25fr; gap: 9mm; margin-top: 4mm; padding-top: 2mm; border-top: 1px solid var(--line); }
+.rp-ticks { list-style: none; margin: 0; padding: 0; display: grid; gap: 3mm; }
+.rp-ticks li { display: grid; grid-template-columns: 5mm 1fr; gap: 3mm; align-items: start; }
+.rp-ticks b { display: block; font-size: 12.5px; color: var(--ink); line-height: 1.3; }
+.rp-ticks em { display: block; font-style: normal; font-size: 10.5px; color: var(--muted); margin-top: .5mm; }
+.rp .rp-box { display: inline-block; width: 4mm; height: 4mm; border: 1.4px solid var(--ink); border-radius: 1mm; margin-top: .4mm; }
+.rp-tracker { width: 100%; border-collapse: collapse; font-size: 11px; }
+.rp-tracker th { font-size: 9.5px; font-weight: 700; color: var(--muted); text-align: center; padding: 0 0 2mm; }
+.rp-tracker td { padding: 2.8mm 0; border-top: 1px solid var(--line); text-align: center; vertical-align: middle; }
+.rp-tracker td:first-child { text-align: left; color: var(--ink); font-weight: 600; line-height: 1.3; padding-right: 3mm; width: 52%; }
+.rp-pledge { margin-top: 4mm; font-size: 12px; color: var(--ink); display: flex; align-items: flex-end; gap: 2mm; }
+.rp .rp-fill { display: inline-block; width: 14mm; border-bottom: 1.2px solid var(--ink); height: 4mm; }
+.rp .rp-fill-wide { width: 50mm; }
 
-/* Sheet 3 */
-.rp-section { margin-bottom: 6mm; }
-.rp-section .rp-h3 { margin-bottom: 3mm; }
-.rp-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.rp-table th { text-align: left; font-weight: 700; color: var(--muted); padding: 1.5mm 2mm 1.5mm 0; border-bottom: 1px solid var(--line); }
-.rp-table td { padding: 1.5mm 2mm 1.5mm 0; border-bottom: 1px solid var(--line); color: var(--ink); }
-.rp .rp-muted { color: var(--muted); }
-.rp .rp-up { color: var(--up); font-weight: 700; }
-.rp .rp-down { color: var(--down); font-weight: 700; }
-.rp-written { display: grid; gap: 3mm; }
-.rp-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 1.5mm; }
-.rp-grade { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
-.rp-grade-strong { background: #e3f3ec; color: var(--up); }
-.rp-grade-partly { background: var(--gold-tint); color: var(--gold-ink); }
-.rp-grade-needs { background: #f8e6e2; color: var(--down); }
-.rp .rp-answer { margin-top: 2mm; font-size: 12.5px; line-height: 1.5; color: var(--body); white-space: pre-wrap; border-left: 2px solid var(--line); padding-left: 3mm; }
-.rp-guide { margin-top: 2mm; font-size: 12px; line-height: 1.5; color: #5b4a1f; background: var(--gold-tint); border-radius: 8px; padding: 2mm 3mm; }
-.rp-chips { margin-top: 2mm; display: flex; flex-wrap: wrap; gap: 6px; }
-.rp .rp-chip { height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid #c9cdd1; background: #fff; font: 500 12.5px var(--sans); color: var(--muted); cursor: pointer; }
-.rp .rp-chip-on { background: var(--dark); border-color: var(--dark); color: #fff; }
-.rp .rp-input { width: 100%; margin-top: 2mm; resize: vertical; border: 1px dashed #c9cdd1; border-radius: 8px; background: #fafbfb; padding: 8px 10px; font: 400 13.5px/1.5 var(--sans); color: var(--ink); }
-.rp .rp-input:focus { border-color: var(--gold-ink); outline: none; }
-.rp-input-small { font-size: 12.5px; }
-.rp-written-text { margin-top: 2mm; font-size: 13px; line-height: 1.55; color: var(--ink); white-space: pre-wrap; }
-.rp-small { font-size: 12px; line-height: 1.5; color: var(--muted); }
-.rp-rest { margin: 3mm 0 2mm; padding-left: 5mm; display: grid; gap: 2.5mm; }
-.rp-rest li::marker { color: var(--gold-ink); font-weight: 700; font-size: 12px; }
-.rp-rest-q { font-size: 12.5px; font-weight: 600; color: var(--ink); line-height: 1.4; }
-.rp-rest-a { margin-top: .5mm; font-size: 12px; line-height: 1.5; color: var(--body); }
-.rp-rest-a b { color: var(--ink); }
-.rp .rp-foot { margin-top: auto; padding-top: 4mm; border-top: 1px solid var(--line); display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+/* Note and footer */
+.rp-note { margin-top: auto; padding-top: 6mm; }
+.rp .rp-input { width: 100%; resize: vertical; border: 1px dashed #c9cdd1; border-radius: 8px; background: #fafbfb; padding: 8px 10px; font: 400 13px/1.5 var(--sans); color: var(--ink); }
+.rp-note-text { font-size: 13px; line-height: 1.5; color: var(--ink); }
+.rp-sign { margin-top: 1mm; font-family: var(--hand); font-size: 24px; color: var(--gold-ink); line-height: 1; }
+.rp .rp-foot { margin-top: 5mm; padding-top: 3mm; border-top: 1px solid var(--line); display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); }
 
 .rp-print-only { display: none; }
 @page { size: A4; margin: 0; }
@@ -511,9 +369,7 @@ const CSS = `
   .rp { background: #fff; }
   .rp-bar, .rp-screen-only, .rp-print-hide { display: none !important; }
   .rp-print-only { display: block; }
-  .rp-sheets { display: block; padding: 0; }
-  .rp-sheet { width: 210mm; min-height: 297mm; box-shadow: none; break-after: page; }
-  .rp-sheet-last { break-after: auto; }
-  .rp-avoid { break-inside: avoid; }
+  .rp-desk { display: block; padding: 0; }
+  .rp-sheet { box-shadow: none; }
 }
 `;
