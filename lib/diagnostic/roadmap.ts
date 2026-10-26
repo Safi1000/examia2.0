@@ -82,3 +82,11 @@ export const HABIT: Record<string, string> = {
 };
 
 export const DEFAULT_HABITS = ["Redo every question I get wrong", "Revise 20 minutes, four days a week", "Ask the same day when I am stuck"];
+
+/** What the student told me, in a few words, for the report's tiles. */
+export const PROFILE_TILES: Array<{ id: string; label: string; short: Record<string, string> }> = [
+  { id: "hours", label: "Weekly study", short: { lowhours: "Under 2 hrs a week", midhours: "2 to 4 hrs a week", goodhours: "5 to 10 hrs a week", highhours: "10+ hrs a week" } },
+  { id: "start", label: "Revision starts", short: { cram: "The night before", short: "2 or 3 days before", spaced: "A week ahead", norevise: "Not regularly yet" } },
+  { id: "timing", label: "Timed tests", short: { early: "Finishes early", tight: "Just finishes", runout: "Runs out of time", rush: "Rushes, slips up" } },
+  { id: "phone", label: "Phone", short: { phoneaway: "Another room", phonenear: "Nearby, on silent", phonehand: "In hand" } },
+];

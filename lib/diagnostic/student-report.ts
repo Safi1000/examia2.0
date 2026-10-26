@@ -168,11 +168,13 @@ export const emptyNotes = (): ReportNotes => ({ note: "", written: {} });
 export const GRADE: Record<"strong" | "partly" | "needs", string> = { strong: "Strong answer", partly: "Partly there", needs: "Needs work" };
 
 /** Up to four things to have clear before lesson one: the Step 1 questions, as skills. */
-export function startPoints(p: ResultPayload): Array<{ skill: string; where: string }> {
+export function startPoints(p: ResultPayload): Array<{ skill: string; where: string; idea: string }> {
   const clues = route(p).steps[0].clues ?? [];
   const r = p.summary!;
   const title = (sec: string) => (sec === "core" ? "Core skills" : (r.tracks.find((t) => t.sec === sec)?.title ?? ""));
-  return clues.map((x) => ({ skill: x.q.skill, where: title(x.sec) }));
+  // The key idea: the first sentence of the question's explanation.
+  const idea = (x: ReportItem) => (x.explain ?? "").split(/(?<=\.)\s/)[0];
+  return clues.map((x) => ({ skill: x.q.skill, where: title(x.sec), idea: idea(x) }));
 }
 
 /** Three habits for the tracker: the student's own weak spots first, then defaults. */
