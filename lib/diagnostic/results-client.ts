@@ -19,10 +19,20 @@ async function token() {
   return data.session?.access_token ?? "";
 }
 
+const DEMO_GONE = "ht_demo_deleted";
+function demoGone(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(DEMO_GONE) ?? "[]") as string[];
+  } catch {
+    return [];
+  }
+}
+
 export async function loadResults(): Promise<{ rows: ResultRow[]; error?: string }> {
   if (DEMO) {
+    const gone = new Set(demoGone());
     return {
-      rows: demoResults().map((r) => {
+      rows: demoResults().filter((r) => !gone.has(r.id)).map((r) => {
         let notes: ReportNotes | null = null;
         try {
           notes = JSON.parse(localStorage.getItem(demoKey(r.id)) ?? "null");
@@ -56,3 +66,31 @@ export async function saveNotes(id: string, notes: ReportNotes): Promise<boolean
 
 /** Day one and end of session belong to the same student when the names match. */
 export const nameKey = (name: string) => name.trim().toLowerCase().replace(/\s+/g, " ");
+
+/** Permanently remove one result (and Hamza's notes on it). */
+export async function deleteResult(id: string): Promise<boolean> {
+  if (DEMO) {
+    try {
+      localStorage.setItem(DEMO_GONE, JSON.stringify([...demoGone(), id]));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  const res = await fetch(`/api/diagnostic/results?id=${encodeURIComponent(id)}`, { method: "DELETE", headers: { Authorization: `Bearer ${await token()}` } });
+  return res.ok;
+}
+
+/** Link (or unlink) a result to a student account in the roster. */
+export function linkStudent(row: ResultRow, studentId: string | null): Promise<boolean> {
+  return saveNotes(row.id, { ...(row.notes ?? { note: "", written: {} }), studentId: studentId ?? undefined });
+}
+
+/**
+ * For a student's profile page: their results (newest first), once Hamza
+ * has linked them on Admin → Starting points.
+ */
+export async function resultsForStudent(studentId: string): Promise<ResultRow[]> {
+  const { rows } = await loadResults();
+  return rows.filter((r) => r.notes?.studentId === studentId);
+}

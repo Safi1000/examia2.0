@@ -92,3 +92,14 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => (b.savedAt > a.savedAt ? 1 : -1));
   return NextResponse.json({ results }, { headers: { "Cache-Control": "no-store" } });
 }
+
+/** DELETE (admin) ?id=…: remove one result and Hamza's notes for it. */
+export async function DELETE(req: NextRequest) {
+  if (!(await adminIdFromRequest(req))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!pushReady()) return NextResponse.json({ error: "not set up" }, { status: 503 });
+  const id = req.nextUrl.searchParams.get("id") ?? "";
+  if (!/^[0-9a-z-]{6,40}$/.test(id)) return NextResponse.json({ error: "bad request" }, { status: 400 });
+  const { error } = await serviceClient().storage.from(BUCKET).remove([`start/${id}.json`, `end/${id}.json`, `notes/${id}.json`]);
+  if (error) return NextResponse.json({ error: "Couldn't delete. Try again." }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}

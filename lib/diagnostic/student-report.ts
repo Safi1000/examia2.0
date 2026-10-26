@@ -163,6 +163,8 @@ export interface ReportNotes {
   /** Feedback on the written answer, by track id. */
   written: Record<string, { grade?: "strong" | "partly" | "needs"; comment?: string }>;
   sentAt?: string;
+  /** The roster student this result belongs to, once linked. */
+  studentId?: string;
 }
 export const emptyNotes = (): ReportNotes => ({ note: "", written: {} });
 export const GRADE: Record<"strong" | "partly" | "needs", string> = { strong: "Strong answer", partly: "Partly there", needs: "Needs work" };
