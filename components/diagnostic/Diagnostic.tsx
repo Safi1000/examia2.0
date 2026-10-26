@@ -9,7 +9,6 @@ import { BANK, CORE, PROFILE, SUBJECTS, type LevelKey, type Mcq, type SubjectKey
 import { EXPLAIN } from "@/lib/diagnostic/explain";
 import {
   LEVEL_SHORT,
-  RATING_LABEL,
   coreLevel,
   fresh,
   load,
@@ -22,13 +21,11 @@ import {
   sectionOf,
   sortTracks,
   trackId,
-  trackMinutes,
   trackOf,
   trackTitle,
   type Kind,
   type Screen,
   type Section,
-  type SectionSummary,
   type State,
   type Step,
   type Answer,
@@ -231,9 +228,9 @@ function Welcome({ S, go }: { S: State; go: Go }) {
 
       <ol className={`mt-10 ${card} divide-y divide-hairline`}>
         {[
-          ["How you learn", "How you study, revise and handle exams.", "About 3 minutes"],
-          ["Core skills", "The numbers and reading every subject is built on.", "About 6 minutes"],
-          ["Your subjects", "Whether you can follow lesson one, plus a short preview.", "10 to 13 minutes each"],
+          ["How you learn", "How you study, revise and handle exams.", "12 questions"],
+          ["Core skills", "The numbers and reading every subject is built on.", "8 or 9 questions"],
+          ["Your subjects", "Whether you can follow lesson one, plus a short preview.", "9 to 12 questions each, plus one written answer"],
         ].map(([t, d, m], i) => (
           <li key={t} className="flex items-start gap-4 px-5 py-5 sm:px-6">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border dg-bgoldsoft text-[14px] font-semibold text-gold">{i + 1}</span>
@@ -355,7 +352,7 @@ function About({ S, set, go }: { S: State; set: SetS; go: Go }) {
 
       {mins > 0 && (
         <p className="mt-6 text-[15px] text-muted-foreground">
-          About <span className="font-semibold text-foreground">{mins} minutes</span> in all. Your answers save on this device as you go, so you can stop and come back.
+          There is no time limit, so take your time. Your answers save on this device as you go.
         </p>
       )}
       <p className="mt-4 min-h-5 text-[14px] text-error-x" role="alert">
@@ -434,12 +431,12 @@ function Intro({ S, sec, onStart, back }: { S: State; sec: Section; onStart: () 
     eyebrow = "Part 1 of 3";
     title = "How you learn.";
     body = `${PROFILE.length} quick questions about how you study. There are no right answers. Pick what you actually do, not what you think you should do.`;
-    meta = "About 3 minutes";
+    meta = "No time limit.";
   } else if (sec === "core") {
     eyebrow = "Part 2 of 3";
     title = "Core skills.";
     body = "Numbers and reading: the skills Accounting, Business and Economics are all built on. After each answer, tell us how sure you are.";
-    meta = `${CORE[coreLevel(S.tracks)!].length} questions, about 6 minutes. A calculator is fine.`;
+    meta = `${CORE[coreLevel(S.tracks)!].length} questions. A calculator is fine.`;
   } else {
     const t = trackOf(S, sec)!;
     const k = S.tracks.findIndex((x) => trackId(x) === sec);
@@ -452,7 +449,7 @@ function Intro({ S, sec, onStart, back }: { S: State; sec: Section; onStart: () 
         : t.level === "as"
           ? `No A Level ${t.sub} needed yet. These questions check whether you can follow lesson one, using everyday thinking. The last three preview what you will learn first: guess freely, or choose “I don’t know”.`
           : `No ${t.sub} experience needed. These questions check whether you can follow lesson one, using everyday thinking. The last three preview what you will learn first: guess freely, or choose “I don’t know”.`;
-    meta = `${n} questions and one short written answer, about ${trackMinutes(t)} minutes.`;
+    meta = `${n} questions and one short written answer.`;
     icon = (
       <span className="mb-6 flex h-14 w-14 items-center justify-center rounded-[16px] bg-gold-tint text-gold">
         <SubjectIcon sub={t.sub} className="h-7 w-7" />
@@ -627,45 +624,6 @@ function Written({ S, sec, last, set, next, back }: { S: Saved; sec: string; las
 /* ------------------------------------------------------------------ */
 /* Results                                                               */
 /* ------------------------------------------------------------------ */
-function Meter({ r }: { r: 1 | 2 | 3 | null }) {
-  return (
-    <span className="flex items-center gap-3 whitespace-nowrap text-[14px] text-muted-foreground">
-      {r ? RATING_LABEL[r] : ""}
-      <span className="flex gap-1" aria-hidden>
-        {[1, 2, 3].map((n) => (
-          <span key={n} className={`h-1.5 w-5 rounded-full ${r && n <= r ? "bg-gold" : "bg-white/10"}`} />
-        ))}
-      </span>
-    </span>
-  );
-}
-
-function ResultCard({ sum, icon, note }: { sum: SectionSummary; icon?: ReactNode; note?: string }) {
-  return (
-    <section className={`${card} px-5 py-5 sm:px-6`}>
-      <div className="flex items-center gap-3">
-        {icon}
-        <h3 className="text-[20px] font-bold tracking-tight text-foreground">{sum.title}</h3>
-      </div>
-      {sum.sec !== "core" && (
-        <p className="mt-4 flex items-center gap-2 text-[16px] font-semibold text-foreground">
-          <span className={`h-2 w-2 rounded-full ${sum.ready === 3 ? "bg-gold" : sum.ready === 2 ? "bg-gold/60" : "bg-white/30"}`} aria-hidden />
-          {sum.readyLabel}
-        </p>
-      )}
-      <div className="mt-3 divide-y divide-hairline">
-        {sum.areas.map((ar) => (
-          <div key={ar.area} className="flex items-center justify-between gap-4 py-3">
-            <span className="text-[16px] text-body">{ar.name}</span>
-            <Meter r={ar.r} />
-          </div>
-        ))}
-      </div>
-      {note && <p className="mt-3 text-[15px] leading-relaxed text-faint">{note}</p>}
-    </section>
-  );
-}
-
 function Done({ S, set }: { S: Saved; set: SetS }) {
   const nm = S.name.trim().split(/\s+/)[0];
   const r = results(S);
@@ -691,76 +649,52 @@ function Done({ S, set }: { S: Saved; set: SetS }) {
   }, []);
 
   if (!r) return null;
-  const tips = r.learner.slice(0, 3);
   const end = S.kind === "end";
   return (
     <div>
-      <Eyebrow>{end ? "End of session check" : "Your starting point"}</Eyebrow>
+      <Eyebrow>{end ? "End of session check" : "Submitted"}</Eyebrow>
       <h1 className="mt-4 text-[42px] leading-[1.02] text-foreground md:text-[56px]">All done{nm ? `, ${nm}` : ""}.</h1>
       <p className="mt-5 max-w-[34em] text-[18px] leading-relaxed text-muted-foreground">
-        {end ? "Here is where you are now. Hamza will put it next to your day one results." : "Here is a first look at where you are starting from. Every rating is a starting point, not a verdict."}
+        Thank you for answering honestly. Here is a first look. Hamza will go through every answer and send you your full report.
       </p>
 
-      <div className="mt-10 grid gap-4">
+      <ul className={`mt-10 ${card} divide-y divide-hairline`}>
         {r.tracks.map((sum) => {
           const t = trackOf(S, sum.sec)!;
           return (
-            <ResultCard
-              key={sum.sec}
-              sum={sum}
-              icon={
-                <span className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-gold-tint text-gold">
-                  <SubjectIcon sub={t.sub} className="h-5 w-5" />
-                </span>
-              }
-              note={sum.prev ? "You already know some of what comes next. We will give you stretch work." : "The preview topics are new to you, which is completely fine. We will build them from the start."}
-            />
+            <li key={sum.sec} className="flex items-center gap-4 px-5 py-4 sm:px-6">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-gold-tint text-gold">
+                <SubjectIcon sub={t.sub} className="h-5 w-5" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[17px] font-semibold text-foreground">{sum.title}</span>
+                <span className="block text-[15px] text-muted-foreground">{sum.readyLabel}</span>
+              </span>
+            </li>
           );
         })}
-        <ResultCard sum={r.core} />
-      </div>
+      </ul>
 
-      <Review S={S} />
-
-      {tips.length > 0 && (
-        <section className="mt-12">
-          <h2 className="text-[26px] leading-tight text-foreground">How you learn. {tips.length === 1 ? "One thing" : `${tips.length === 2 ? "Two" : "Three"} things`} to try.</h2>
-          <ol className="mt-6 grid gap-4">
-            {tips.map((t, i) => (
-              <li key={t.id} className="flex items-start gap-4">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border dg-bgoldsoft text-[13px] font-semibold text-gold">{i + 1}</span>
-                <span className="text-[16px] leading-relaxed text-body">{t.student}</span>
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
-
-      <div className="mt-12 rounded-[20px] border border-hairline bg-band-c px-6 py-6">
+      <div className="mt-8 rounded-[20px] border border-hairline bg-band-c px-6 py-6">
         <p className="text-[17px] leading-relaxed text-body">
           {end ? (
             <>
-              Hamza will compare this with your starting point and send you the <span className="font-semibold text-gold">before and after</span> on WhatsApp.
+              Hamza will put this next to your day one results and send you your <span className="font-semibold text-gold">before and after</span>.
             </>
           ) : (
             <>
-              Hamza will mark your written answers and send your full <span className="font-semibold text-gold">Starting Point Report</span> and four-week plan on WhatsApp within 24 hours.
+              Your full <span className="font-semibold text-gold">Starting Point Report</span>, with what to work on first, comes from Hamza.
             </>
           )}
         </p>
         <p className="mt-4 text-[14px] text-faint" role="status">
-          {status === "saving" ? "Sending your answers to Hamza…" : status === "saved" ? "Your answers have reached Hamza." : "Your answers didn’t send. Check your connection."}
+          {status === "saving" ? "Sending your answers to Hamza…" : status === "saved" ? "Your answers have reached Hamza. You can close this page." : "Your answers didn’t send. Check your connection."}
         </p>
         {status === "failed" && (
-          <button className={`${btn} mt-4 print:hidden`} onClick={() => void send()}>
+          <button className={`${btn} mt-4`} onClick={() => void send()}>
             Try again
           </button>
         )}
-      </div>
-      <div className="mt-8 print:hidden">
-        <button className={ghost} onClick={() => window.print()}>
-          Save as PDF
-        </button>
       </div>
     </div>
   );
@@ -769,10 +703,11 @@ function Done({ S, set }: { S: Saved; set: SetS }) {
 type Item = { sec: string; title: string; i: number; q: Mcq; a: Answer };
 
 /**
- * What the student gets to keep: every question they missed, with the right
- * answer and why, then every answer on request. Shown only after the check.
+ * Every question a student missed, with the right answer and why, then
+ * every answer on request. For the PDF report Hamza sends (not shown on the
+ * finish screen).
  */
-function Review({ S }: { S: State }) {
+export function Review({ S }: { S: State }) {
   const secs = ["core", ...S.tracks.map(trackId)];
   const items: Item[] = secs.flatMap((sec) => questionsFor(S, sec).map((q, i) => ({ sec, title: sectionName(S, sec), i, q, a: S.ans[`${sec}:${i}`] ?? { c: null } })));
   const missed = items.filter((x) => x.q.area !== "P" && x.a.c !== x.q.a);
