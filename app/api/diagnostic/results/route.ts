@@ -72,6 +72,23 @@ export async function GET(req: NextRequest) {
       );
     }),
   );
-  const results = all.flat().filter(Boolean).sort((a, b) => (b!.savedAt > a!.savedAt ? 1 : -1));
+  // Hamza's report notes, saved beside each result (see /api/diagnostic/notes).
+  const { data: noteFiles } = await sb.storage.from(BUCKET).list("notes", { limit: 1000 });
+  const notes: Record<string, unknown> = {};
+  await Promise.all(
+    (noteFiles ?? [])
+      .filter((f) => f.name.endsWith(".json"))
+      .map(async (f) => {
+        const { data } = await sb.storage.from(BUCKET).download(`notes/${f.name}`);
+        try {
+          if (data) notes[f.name.replace(/\.json$/, "")] = JSON.parse(await data.text());
+        } catch {}
+      }),
+  );
+  const results = all
+    .flat()
+    .filter(Boolean)
+    .map((r) => ({ ...r!, notes: notes[r!.id] ?? null }))
+    .sort((a, b) => (b.savedAt > a.savedAt ? 1 : -1));
   return NextResponse.json({ results }, { headers: { "Cache-Control": "no-store" } });
 }

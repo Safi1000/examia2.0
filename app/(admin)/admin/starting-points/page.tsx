@@ -1,44 +1,45 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { useToast } from "@/components/toast";
 import { Button, Card } from "@/components/ui";
-import { DEMO } from "@/lib/demo";
-import type { ResultPayload } from "@/lib/diagnostic/logic";
 import { compare, reportText } from "@/lib/diagnostic/report";
-import { supabase } from "@/lib/supabase";
+import { loadResults, nameKey, type ResultRow } from "@/lib/diagnostic/results-client";
 
-type Row = ResultPayload & { id: string; savedAt: string };
-const keyOf = (name: string) => name.trim().toLowerCase().replace(/\s+/g, " ");
+type Row = ResultRow;
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const mins = (r: Row) => (r.startedAt && r.finishedAt ? Math.round((Date.parse(r.finishedAt) - Date.parse(r.startedAt)) / 60000) : null);
+const READY_DOT: Record<number, string> = { 3: "bg-success", 2: "bg-warning", 1: "bg-danger" };
 
 /**
  * Every Starting Point Check result, one row per student (matched by full
- * name). Open a student for their report; once they have taken the
- * end of session check too, the before and after shows side by side.
+ * name). Open a student's report to add your note and save it as a PDF;
+ * expand a row for the teacher notes and, once they have taken the end of
+ * session check, the before and after.
  */
 export default function StartingPointsPage() {
   const { toast } = useToast();
-  const [rows, setRows] = useState<Row[] | null>(DEMO ? [] : null);
+  const [rows, setRows] = useState<Row[] | null>(null);
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const [track, setTrack] = useState("");
 
   useEffect(() => {
-    if (DEMO) return;
-    void (async () => {
-      const { data } = await supabase().auth.getSession();
-      const res = await fetch("/api/diagnostic/results", { headers: { Authorization: `Bearer ${data.session?.access_token ?? ""}` } });
-      const j = (await res.json().catch(() => ({}))) as { results?: Row[]; error?: string };
-      if (!res.ok) toast(j.error ?? "Couldn't load the results.", "error");
-      setRows(j.results ?? []);
-    })();
+    const t = setTimeout(async () => {
+      const { rows: list, error } = await loadResults();
+      if (error) toast(error, "error");
+      setRows(list);
+    }, 0);
+    return () => clearTimeout(t);
   }, [toast]);
 
+  const tracks = useMemo(() => [...new Set((rows ?? []).flatMap((r) => r.summary?.tracks.map((t) => t.title) ?? []))].sort(), [rows]);
   const students = useMemo(() => {
     const by = new Map<string, { name: string; start?: Row; end?: Row; all: Row[] }>();
     for (const r of rows ?? []) {
-      const k = keyOf(r.name);
+      const k = nameKey(r.name);
       const s = by.get(k) ?? { name: r.name, all: [] };
       s.all.push(r);
       // Newest of each kind (rows arrive newest first).
@@ -46,15 +47,19 @@ export default function StartingPointsPage() {
       else s.start ??= r;
       by.set(k, s);
     }
-    return [...by.entries()].filter(([k]) => !q || k.includes(keyOf(q)));
-  }, [rows, q]);
+    return [...by.entries()]
+      .filter(([k]) => !q || k.includes(nameKey(q)))
+      .filter(([, s]) => !track || (s.end ?? s.start)?.summary?.tracks.some((t) => t.title === track))
+      .sort((a, b) => a[1].name.localeCompare(b[1].name));
+  }, [rows, q, track]);
 
   const copy = (text: string) => void navigator.clipboard?.writeText(text).then(() => toast("Copied.", "success"));
+  const made = students.filter(([, s]) => (s.end ?? s.start)?.notes?.sentAt).length;
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-8">
       <PageHeader title="Starting points" subtitle="Day one diagnostics, and the end of session check to compare against." />
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -62,7 +67,23 @@ export default function StartingPointsPage() {
           aria-label="Search by name"
           className="h-10 w-full max-w-xs rounded-full border border-border bg-surface px-4 text-sm text-ink outline-none focus:border-brand"
         />
+        {["", ...tracks].map((t) => (
+          <button
+            key={t || "all"}
+            type="button"
+            onClick={() => setTrack(t)}
+            aria-pressed={track === t}
+            className={`h-9 rounded-full px-4 text-sm font-semibold ${track === t ? "bg-brand text-on-brand" : "border border-border text-ink-2 hover:text-ink"}`}
+          >
+            {t || "Everyone"}
+          </button>
+        ))}
       </div>
+      {rows && rows.length > 0 && (
+        <p className="mb-4 text-xs text-ink-3">
+          {students.length} student{students.length === 1 ? "" : "s"} · reports made for {made}
+        </p>
+      )}
       {students.length > 1 && <ClassOverview results={students.map(([, s]) => s.start).filter((x): x is Row => !!x)} />}
       {rows === null ? (
         <p className="text-sm text-ink-3">Loading…</p>
@@ -72,23 +93,36 @@ export default function StartingPointsPage() {
         <Card className="overflow-hidden p-0">
           <ul className="divide-y divide-border">
             {students.map(([k, s]) => {
-              const latest = s.end ?? s.start!;
+              const latest = (s.end ?? s.start)!;
               const isOpen = openKey === k;
               const rowsCmp = s.start && s.end ? compare(s.start, s.end) : [];
+              const m = mins(latest);
               return (
                 <li key={k}>
-                  <button type="button" onClick={() => setOpenKey(isOpen ? null : k)} aria-expanded={isOpen} className="flex w-full flex-wrap items-center justify-between gap-3 px-5 py-3.5 text-left text-sm hover:bg-surface-2">
-                    <span className="min-w-0">
+                  <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 text-sm">
+                    <button type="button" onClick={() => setOpenKey(isOpen ? null : k)} aria-expanded={isOpen} className="min-w-0 flex-1 text-left">
                       <span className="block font-semibold text-ink">{s.name}</span>
-                      <span className="block text-xs text-ink-3">
-                        {latest.summary?.tracks.map((t) => `${t.title}: ${t.readyLabel}`).join(" · ")}
+                      <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-3">
+                        {latest.summary?.tracks.map((t) => (
+                          <span key={t.sec} className="inline-flex items-center gap-1.5">
+                            <span className={`h-2 w-2 rounded-full ${READY_DOT[t.ready]}`} aria-hidden />
+                            {t.title}: {t.readyLabel}
+                          </span>
+                        ))}
                       </span>
+                      <span className="mt-1 block text-xs text-ink-3">
+                        {s.start ? `Day one ${day(s.start.savedAt)}` : "No day one result"}
+                        {s.end ? ` · End ${day(s.end.savedAt)}` : ""}
+                        {m != null ? ` · took ${m} min` : ""}
+                        {latest.notes?.sentAt ? " · report made" : ""}
+                      </span>
+                    </button>
+                    <span className="flex shrink-0 gap-2">
+                      <Link href={`/starting-point/report?id=${latest.id}`} className="inline-flex h-9 items-center rounded-full bg-brand px-4 text-sm font-semibold text-on-brand hover:opacity-90">
+                        Open report
+                      </Link>
                     </span>
-                    <span className="shrink-0 text-xs text-ink-3">
-                      {s.start ? `Start ${day(s.start.savedAt)}` : "No start"}
-                      {s.end ? ` · End ${day(s.end.savedAt)}` : ""}
-                    </span>
-                  </button>
+                  </div>
                   {isOpen && (
                     <div className="space-y-5 border-t border-border bg-surface-2/40 px-5 py-5">
                       {rowsCmp.length > 0 && (
@@ -125,10 +159,15 @@ export default function StartingPointsPage() {
                         return (
                           <div key={r!.id}>
                             <div className="mb-2 flex items-center justify-between gap-3">
-                              <h3 className="text-sm font-bold text-ink">{r!.kind === "end" ? "End of session" : "Starting point"} report</h3>
-                              <Button size="sm" variant="ghost" onClick={() => copy(text)}>
-                                Copy
-                              </Button>
+                              <h3 className="text-sm font-bold text-ink">Teacher notes: {r!.kind === "end" ? "end of session" : "day one"}</h3>
+                              <span className="flex gap-2">
+                                <Link href={`/starting-point/report?id=${r!.id}`} className="inline-flex h-8 items-center rounded-full border border-border px-3 text-xs font-semibold text-ink-2 hover:text-ink">
+                                  Student report
+                                </Link>
+                                <Button size="sm" variant="ghost" onClick={() => copy(text)}>
+                                  Copy
+                                </Button>
+                              </span>
                             </div>
                             <pre className="max-h-[480px] overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-4 font-sans text-xs leading-relaxed text-ink-2">{text}</pre>
                           </div>
@@ -147,11 +186,6 @@ export default function StartingPointsPage() {
   );
 }
 
-/**
- * The whole class on day one: how many are ready per subject and level,
- * the mix-ups most students share (worth one lesson for everyone), and
- * the study habits that come up most.
- */
 function ClassOverview({ results }: { results: Row[] }) {
   if (!results.length) return null;
   const tally = <T,>(list: T[], key: (x: T) => string) => {

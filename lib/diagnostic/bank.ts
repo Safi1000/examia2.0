@@ -33,6 +33,8 @@ export interface Mcq {
 }
 export interface SubjectSet {
   w: string;
+  /** How to mark the written answer (for Hamza, never shown to students). */
+  ms: string;
   q: Mcq[];
 }
 export type LevelKey = "igcse" | "as" | "a2";
@@ -114,6 +116,15 @@ export const PROFILE: ProfileQ[] = [
     ],
   },
   {
+    id: "english",
+    q: "How easy is it for you to read long exam questions in English?",
+    o: [
+      { t: "Easy", code: "engeasy" },
+      { t: "Mostly fine, but some words slow me down", code: "engmid" },
+      { t: "Hard: I often need to read them twice", code: "enghard" },
+    ],
+  },
+  {
     id: "explain",
     q: "A question says “explain” and is worth 4 marks. What do you usually write?",
     o: [
@@ -137,7 +148,7 @@ export const PROFILE: ProfileQ[] = [
     q: "Outside class, how many hours a week do you usually study these subjects?",
     o: [
       { t: "Less than 2", code: "lowhours" },
-      { t: "2 to 5", code: "midhours" },
+      { t: "2 to 4", code: "midhours" },
       { t: "5 to 10", code: "goodhours" },
       { t: "More than 10", code: "highhours" },
     ],
@@ -193,6 +204,8 @@ export const TIPS: Record<string, { rank: number; student: string; teacher: stri
   rush: { rank: 2, student: "Slow down for the first read of each question, then underline what it asks. It saves marks.", teacher: "Rushes and makes careless errors: teach a checking routine." },
   skim: { rank: 2, student: "Read the question first, underline what it asks, then go to the passage for evidence.", teacher: "Skims case material: teach question first reading with evidence." },
   hardread: { rank: 1, student: "Long passages get easier with a method: question first, then underline, then one paragraph at a time.", teacher: "Finds long passages hard: possible reading load issue, scaffold case studies." },
+  points: { rank: 2, student: "Each point needs a reason and a result. One developed point beats three listed ones.", teacher: "Lists points without developing them: teach point, because, so." },
+  enghard: { rank: 1, student: "We will build a list of key exam words with you and practise reading questions together.", teacher: "English reading is a barrier: pre teach key terms, start with shorter texts." },
   oneline: { rank: 1, student: "“Explain” answers need a chain: the point, because, which leads to. We will practise this every week.", teacher: "Writes one line answers: teach point, because, so (chains of reasoning)." },
   unsure: { rank: 1, student: "You will learn exactly what each command word wants, with examples of full mark answers.", teacher: "Unsure what command words need: teach command words early." },
   anxious: { rank: 2, student: "Nerves drop with practice under real conditions. Short timed tasks often will make the exam feel familiar.", teacher: "High test anxiety: frequent low pressure timed practice, reassurance." },
@@ -213,7 +226,7 @@ export const CORE: Record<LevelKey, Mcq[]> = {
   igcse: [
     { q: "What is 25% of $360?", o: ["$90", "$25", "$36", "$9"], a: 0, skill: "Percentages", area: "N", why: { 1: "Writes the percentage as the answer", 2: "Finds 10% instead", 3: "Divides by 40" } },
     { q: "A jacket costs $80. Its price rises by 10%. What is the new price?", o: ["$81", "$90", "$88", "$8"], a: 2, skill: "Percentage increase", area: "N", why: { 0: "Adds 1 instead of 10%", 1: "Adds 10 dollars instead of 10%", 3: "Gives only the increase" } },
-    { q: "A shop had $150 in the till and paid out $210. What is its balance now?", o: ["$60", "$360", "Minus $60", "$0"], a: 2, skill: "Negative numbers", area: "N", why: { 0: "Ignores that the balance is negative", 1: "Adds instead of subtracting", 3: "Assumes a balance cannot go below zero" } },
+    { q: "A shop had $150 in its bank account and paid a bill of $210 from it. What is its bank balance now?", o: ["$60", "$360", "Minus $60", "$0"], a: 2, skill: "Negative numbers", area: "N", why: { 0: "Ignores that the balance is negative", 1: "Adds instead of subtracting", 3: "Assumes a balance cannot go below zero" } },
     { q: "Amir and Bina share $90 in the ratio 2:1. How much does Amir get?", o: ["$45", "$30", "$180", "$60"], a: 3, skill: "Ratios", area: "N", why: { 0: "Shares equally", 1: "Gives the smaller share", 2: "Multiplies instead of sharing" } },
     { q: "Sales rise from $400 to $500. What is the percentage increase?", o: ["20%", "25%", "100%", "125%"], a: 1, skill: "Percentage change", area: "N", why: { 0: "Divides by the new value", 2: "Treats the $100 rise as a percentage", 3: "Divides the new value by the old" } },
     { q: "Rana scores 60, 70 and 80 in three tests. What is her mean score?", o: ["210", "70", "60", "75"], a: 1, skill: "Averages", area: "N", why: { 0: "Gives the total, not the mean", 2: "Picks the lowest", 3: "Guesses between values" } },
@@ -229,13 +242,13 @@ export const CORE: Record<LevelKey, Mcq[]> = {
     {
       q: "What can you tell from this?",
       context: "Zara runs a small bakery. Last month the price of flour went up, so she raised the price of her cakes. Her regular customers kept buying, but fewer new customers came in.",
-      o: ["The bakery made a loss", "Higher costs led to higher prices", "Customers stopped buying cakes", "Flour became cheaper"],
+      o: ["The bakery made a loss", "Higher prices may have put off some new customers", "Customers stopped buying cakes", "Flour became cheaper"],
       a: 1,
       skill: "Reading for meaning",
       area: "L",
       why: { 0: "Concludes more than the text says", 2: "Misreads what happened to regular customers", 3: "Misreads the text" },
     },
-    { q: "Which of these is a fact rather than an opinion?", o: ["The cakes are the best in town", "The new shop is too expensive", "Sales rose by 10% last month", "Customers love the bakery"], a: 2, skill: "Fact and opinion", area: "L", why: { 0: "Treats a judgement as a fact", 1: "Treats a judgement as a fact", 3: "Treats a general claim as a fact" } },
+    { q: "Which of these is a fact rather than an opinion?", o: ["Selling 200 cakes a week is too few", "The new shop is too expensive", "Sales rose by 10% last month", "Customers love the bakery"], a: 2, skill: "Fact and opinion", area: "L", why: { 0: "Treats a judgement with a number in it as a fact", 1: "Treats a judgement as a fact", 3: "Treats a general claim as a fact" } },
   ],
   as: [
     { q: "A price falls from $50 to $40. What is the percentage change?", o: ["Minus 20%", "Minus 10%", "Minus 25%", "Plus 20%"], a: 0, skill: "Percentage change", area: "N", why: { 1: "Uses the $10 fall as the percentage", 2: "Divides by the new value", 3: "Ignores the direction of the change" } },
@@ -258,14 +271,14 @@ export const CORE: Record<LevelKey, Mcq[]> = {
   a2: [
     { q: "Nominal GDP grows by 9% and inflation is 4%. What is the approximate real growth?", o: ["13%", "5%", "2.25%", "36%"], a: 1, skill: "Real and nominal", area: "N", why: { 0: "Adds inflation instead of taking it away", 2: "Divides", 3: "Multiplies" } },
     { q: "With 2020 as the base year (100), a price index is 125 in 2025 and 130 in 2026. What is the percentage change from 2025 to 2026?", o: ["5%", "30%", "4%", "3.8%"], a: 2, skill: "Index numbers", area: "N", why: { 0: "Subtracts index points instead of finding a percentage", 1: "Measures from the base year", 3: "Divides by the later value" } },
-    { q: "A project costs $10,000 and returns $11,000 in one year. At a 10% discount rate, what is its net present value?", o: ["$0", "$1,000", "$100", "Minus $1,000"], a: 0, skill: "Discounting", area: "N", why: { 1: "Ignores discounting", 2: "Discounts only the profit", 3: "Gets the sign wrong" } },
-    { q: "You score 60% on a paper worth 30% of the grade and 80% on a paper worth 70%. What is your overall percentage?", o: ["70%", "72%", "140%", "74%"], a: 3, skill: "Weighted averages", area: "N", why: { 0: "Takes a simple average, ignoring the weights", 1: "Weights the papers the wrong way round", 2: "Adds the percentages" } },
+    { q: "A firm’s revenue is $200,000 and its profit is $30,000. What percentage of revenue is profit?", o: ["15%", "6.7%", "30%", "85%"], a: 0, skill: "Percentages and margins", area: "N", why: { 1: "Divides the wrong way round", 2: "Reads $30,000 as 30%", 3: "Gives the share that is costs" } },
+    { q: "You score 60% on a paper worth 30% of the grade and 80% on a paper worth 70%. What is your overall percentage?", o: ["70%", "66%", "140%", "74%"], a: 3, skill: "Weighted averages", area: "N", why: { 0: "Takes a simple average, ignoring the weights", 1: "Weights the papers the wrong way round", 2: "Adds the percentages" } },
     { q: "A firm’s costs are 40% wages, 35% materials and 25% other. Total costs are $80,000. How much are materials?", o: ["$35,000", "$28,000", "$32,000", "$20,000"], a: 1, skill: "Percentages of totals", area: "N", why: { 0: "Reads the percentage as dollars in thousands", 2: "Uses the wages share", 3: "Uses the other share" } },
     { q: "A firm’s sales rose by 20% last year, but its market share fell. Which must be true?", o: ["The firm lost customers", "The firm cut its prices", "The whole market grew by more than 20%", "Competitors made losses"], a: 2, skill: "Reasoning with data", area: "L", why: { 0: "Ignores that sales rose", 1: "Adds a cause that is not given", 3: "Adds a conclusion that is not given" } },
     {
       q: "Which is the strongest way to evaluate this claim?",
       context: "An article says: “Raising the minimum wage will reduce unemployment.”",
-      o: ["Agree, because workers will spend more", "Disagree, because firms always cut jobs", "Agree, because the government knows best", "It depends, for example on how large the rise is and how firms respond"],
+      o: ["Agree: workers will spend more", "Disagree: firms always cut jobs", "Agree: the government knows best", "It depends on the size of the rise"],
       a: 3,
       skill: "Evaluation",
       area: "L",
@@ -282,6 +295,7 @@ export const BANK: Record<LevelKey, Record<SubjectKey, SubjectSet>> = {
   igcse: {
     Accounting: {
       w: "In one month, a small shop sold goods for $5,000. Those goods had cost it $2,500. It also paid rent of $1,000 and electricity of $300. Did it make a profit or a loss, and how much? Show your working.",
+      ms: "Profit of $1,200 (5,000 - 2,500 - 1,000 - 300). Full credit: correct figure with working and the word profit. Partly there: right method with one slip, or gross profit of $2,500 only. Needs work: adds costs to sales, or no method.",
       q: [
         { q: "Sara lends Ahmed $50. Which statement is true?", o: ["Sara owes Ahmed $50", "Ahmed owes Sara $50", "Nobody owes anything", "They both owe $50"], a: 1, skill: "Owing and owed", area: "R", why: { 0: "Reverses who owes whom", 2: "Does not see that a loan creates a debt", 3: "Confused about the direction of a debt" } },
         { q: "A shop sells goods for $300 that cost it $200. What is the $100 difference called?", o: ["Revenue", "Capital", "Profit", "Cash"], a: 2, skill: "Profit", area: "B", why: { 0: "Confuses revenue with profit", 1: "Confuses capital with profit", 3: "Confuses cash with profit" } },
@@ -291,7 +305,8 @@ export const BANK: Record<LevelKey, Record<SubjectKey, SubjectSet>> = {
         { q: "Every transaction changes at least two things. A business pays $500 in cash for a computer. What changes?", o: ["Cash goes down and computers go up", "Cash goes up and computers go down", "Only cash goes down", "Profit goes down by $500"], a: 0, skill: "Two sides of a transaction", area: "R", why: { 1: "Gets both directions wrong", 2: "Sees only one side of the transaction", 3: "Treats buying an asset as an expense" } },
         { q: "A business pays $300 to a supplier it already owed. What changes?", o: ["Cash goes down and profit goes down", "Only cash goes down", "Cash goes down and the amount it owes goes down", "Cash goes up and the amount it owes goes down"], a: 2, skill: "Two sides of a transaction", area: "R", why: { 0: "Treats paying off a debt as an expense", 1: "Sees only one side of the transaction", 3: "Gets the direction of cash wrong" } },
         { q: "A business owns things worth $8,000 and owes $3,000. How much of the business belongs to the owner?", o: ["$11,000", "$5,000", "$3,000", "$8,000"], a: 1, skill: "What belongs to the owner", area: "N", why: { 0: "Adds what is owed instead of taking it away", 2: "Gives what is owed", 3: "Ignores what is owed" } },
-        { q: "A shop starts the day with $1,000 cash. It receives $400 from sales and pays $250 rent. How much cash does it have now?", o: ["$1,650", "$850", "$1,150", "$750"], a: 2, skill: "Keeping a running total", area: "N", why: { 0: "Adds the payment instead of subtracting it", 1: "Subtracts the receipt", 3: "Subtracts both" } },
+        { q: "A shop starts the day with $1,000 cash. It receives $400 from sales and pays $250 rent. How much cash does it have now?", o: ["$1,650", "$850", "$1,150", "$750"], a: 2, skill: "Keeping a running total", area: "N", why: { 0: "Adds the payment instead of subtracting it", 1: "Subtracts the receipt", 3: "Ignores the money received" } },
+        { q: "The owner takes $200 cash from the shop for personal use. What happens?", o: ["The shop’s expenses rise by $200", "Nothing changes, because the owner owns the shop", "The shop’s cash rises", "The shop’s cash falls and the owner’s capital falls"], a: 3, skill: "Drawings (owner and business are separate)", area: "R", why: { 0: "Treats the owner’s spending as a business expense", 1: "Does not separate the owner from the business", 2: "Gets the direction of cash wrong" } },
         { q: "In accounting, what is an expense?", o: ["Money the owner puts into the business", "A cost of running the business, such as rent", "Something the business owns", "Money from sales"], a: 1, skill: "Expenses", area: "P", why: { 0: "Confuses capital with expenses", 2: "Confuses assets with expenses", 3: "Confuses income with expenses" } },
         { q: "Which of these is a liability?", o: ["Inventory", "Cash", "Equipment", "A bank loan"], a: 3, skill: "Liabilities", area: "P", why: { 0: "Confuses assets with liabilities", 1: "Confuses assets with liabilities", 2: "Confuses assets with liabilities" } },
         { q: "Which is the accounting equation?", o: ["Assets = Capital + Liabilities", "Capital = Assets + Liabilities", "Assets = Liabilities minus Capital", "Profit = Assets minus Liabilities"], a: 0, skill: "Accounting equation", area: "P" },
@@ -299,13 +314,14 @@ export const BANK: Record<LevelKey, Record<SubjectKey, SubjectSet>> = {
     },
     Business: {
       w: "Think of a business you visit often, such as a shop, café or tuition centre. Name it, and give two reasons why customers choose it over others nearby.",
+      ms: "Names a real business and gives two different reasons customers choose it (for example price, quality, location, service). Strong: each reason is explained (why it matters to customers). Partly there: two reasons, not explained. Needs work: one reason or describes the business only.",
       q: [
-        { q: "Who buys goods from a business?", o: ["A supplier", "An employee", "A customer", "A competitor"], a: 2, skill: "Business words", area: "B", why: { 0: "Confuses suppliers with customers", 1: "Confuses staff with customers", 3: "Confuses competitors with customers" } },
+        { q: "A new business has just opened. What is usually its most important aim in the first year?", o: ["To become the biggest in the country", "To survive", "To pay the highest wages in town", "To lower its prices every month"], a: 1, skill: "Business objectives", area: "B", why: { 0: "Sets an unrealistic aim for a new business", 2: "Confuses a cost with an aim", 3: "Confuses a tactic with an aim" } },
         { q: "A farmer sells vegetables to a restaurant. To the restaurant, the farmer is a:", o: ["Supplier", "Customer", "Competitor", "Manager"], a: 0, skill: "Business words", area: "B", why: { 1: "Looks from the farmer’s side, not the restaurant’s", 2: "Confuses suppliers with competitors" } },
-        { q: "Shop A sells a phone for $410 with a one year warranty. Shop B sells it for $400 with no warranty. Why might a customer choose Shop A?", o: ["It is cheaper", "It sells more phones", "Customers always pick the higher price", "The warranty lowers the risk of paying for repairs"], a: 3, skill: "Judging value", area: "R", why: { 0: "Misreads the prices", 1: "Gives a reason that is not in the question", 2: "Uses an absolute rule instead of reasoning" } },
+        { q: "Shop A sells a phone for $410 with a one year warranty. Shop B sells it for $400 with no warranty. Why might a customer choose Shop A?", o: ["It is cheaper", "It sells more phones", "Shop A is closer to the customer’s home", "The warranty lowers the risk of paying for repairs"], a: 3, skill: "Judging value", area: "R", why: { 0: "Misreads the prices", 1: "Gives a reason that is not in the question", 2: "Adds a reason that is not in the question" } },
         { q: "A juice stall near a college sells twice as much in summer as in winter. What is the stall’s main challenge?", o: ["Its prices are too high", "Its sales change a lot with the seasons", "It has too many customers", "The college is too far away"], a: 1, skill: "Reading a situation", area: "R", why: { 0: "Gives a cause that is not in the question", 2: "Misreads the situation", 3: "Gives a cause that is not in the question" } },
-        { q: "A café wants more customers on weekday mornings. Which action is most likely to help?", o: ["Close on weekday mornings", "Raise prices in the morning", "Offer a breakfast deal for nearby office workers", "Stop advertising"], a: 2, skill: "Solving a problem", area: "R", why: { 0: "Works against the aim", 1: "Works against the aim", 3: "Works against the aim" } },
-        { q: "A pen costs a shop $3 and sells for $5. The shop sells 200 pens. How much does it make on the pens in total?", o: ["$1,000", "$1,600", "$600", "$400"], a: 3, skill: "Profit from sales", area: "N", why: { 0: "Gives revenue, not profit", 1: "Adds cost and price", 2: "Uses cost instead of profit per pen" } },
+        { q: "A café wants more customers on weekday mornings. Which action is most likely to help?", o: ["Cut prices on weekend evenings", "Paint the café a new colour", "Offer a breakfast deal to nearby offices", "Hire an extra cook for lunchtime"], a: 2, skill: "Solving a problem", area: "R", why: { 0: "Targets the wrong time", 1: "Does not give customers a reason to come", 3: "Targets the wrong time" } },
+        { q: "A pen costs a shop $3 and sells for $5. The shop sells 200 pens. How much profit does it make on the pens in total?", o: ["$1,000", "$1,600", "$600", "$400"], a: 3, skill: "Profit from sales", area: "N", why: { 0: "Gives revenue, not profit", 1: "Adds cost and price", 2: "Uses cost instead of profit per pen" } },
         { q: "What is a business owned and run by one person called?", o: ["A partnership", "A sole trader", "A company", "A franchise"], a: 1, skill: "Business ownership", area: "P" },
         { q: "Advertising is part of which department?", o: ["Marketing", "Finance", "Production", "Human resources"], a: 0, skill: "Business functions", area: "P" },
         { q: "Which of these is a fixed cost?", o: ["Raw materials", "Packaging for each order", "Rent", "Delivery charge per order"], a: 2, skill: "Costs", area: "P", why: { 0: "Confuses variable and fixed costs", 1: "Confuses variable and fixed costs", 3: "Confuses variable and fixed costs" } },
@@ -313,32 +329,34 @@ export const BANK: Record<LevelKey, Record<SubjectKey, SubjectSet>> = {
     },
     Economics: {
       w: "Prices of many everyday items have gone up over the last two years. Explain two ways this affects a family.",
+      ms: "Two separate effects on a family, for example less can be bought with the same income, savings fall, switching to cheaper goods, harder to pay rent or fees. Strong: each effect explained as a chain. Partly there: two effects listed. Needs work: one effect or restates the question.",
       q: [
         { q: "You have $10 and choose a movie ticket instead of a meal. What did you give up?", o: ["The meal", "The ticket", "$20", "Nothing"], a: 0, skill: "Choices and what is given up", area: "R", why: { 1: "Names what was chosen, not what was given up", 2: "Adds the costs", 3: "Does not see that every choice has a cost" } },
         { q: "Heavy rain destroys much of the mango crop. What is most likely to happen to the price of mangoes?", o: ["It falls", "It stays the same", "Mangoes become free", "It rises"], a: 3, skill: "Cause and effect", area: "R", why: { 0: "Reverses the effect of a shortage", 1: "Does not link supply to price" } },
-        { q: "Which is a need rather than a want?", o: ["A smartphone", "Clean water", "A holiday", "Designer shoes"], a: 1, skill: "Needs and wants", area: "B" },
+        { q: "Which is a need rather than a want?", o: ["A smartphone", "Clean water", "A holiday", "Designer shoes"], a: 1, skill: "Needs and wants", area: "B", why: { 0: "Treats something common as a need", 2: "Confuses a want with a need", 3: "Confuses a want with a need" } },
         { q: "A line on a graph slopes down from left to right. As the value on the horizontal axis increases, the value on the vertical axis:", o: ["Increases", "Stays the same", "Decreases", "Doubles"], a: 2, skill: "Reading graphs", area: "N", why: { 0: "Reads the graph the wrong way", 1: "Does not read the slope" } },
         { q: "A new factory opens in a town and hires 500 people. What is most likely to happen to spending in local shops?", o: ["It rises", "It falls", "It stays the same", "The shops close"], a: 0, skill: "Chains of effects", area: "R", why: { 1: "Reverses the effect of more income", 2: "Does not follow the chain from jobs to spending" } },
-        { q: "Why can’t a country produce everything its people want?", o: ["Because people are lazy", "Because prices are too high", "Because taxes are too high", "Because resources such as land, workers and machines are limited"], a: 3, skill: "Scarcity", area: "B" },
-        { q: "What is economics mainly the study of?", o: ["Running a business", "How people use scarce resources to meet their wants", "The stock market", "Money only"], a: 1, skill: "Scarcity", area: "P" },
-        { q: "What does demand mean in economics?", o: ["The amount produced", "Everything people want", "The amount people are willing and able to buy at a given price", "The price of a good"], a: 2, skill: "Demand", area: "P", why: { 1: "Confuses wants with demand" } },
-        { q: "Which of these is usually provided by the government?", o: ["Street lighting", "Clothes", "A bakery", "Mobile phones"], a: 0, skill: "Role of government", area: "P" },
+        { q: "A town has land for either a hospital or a park, but not both. This shows that:", o: ["The town council is wasteful", "Parks are more important than hospitals", "Land has no cost", "Resources are limited, so choices must be made"], a: 3, skill: "Scarcity and choice", area: "B", why: { 0: "Blames people instead of scarcity", 1: "Gives an opinion, not the economic idea", 2: "Does not see that land has a cost" } },
+        { q: "What is economics mainly the study of?", o: ["Running a business", "How people use scarce resources", "The stock market", "Money and banks only"], a: 1, skill: "Scarcity", area: "P", why: { 0: "Confuses economics with business", 2: "Thinks economics is only about finance", 3: "Thinks economics is only about finance" } },
+        { q: "What does demand mean in economics?", o: ["What firms produce", "What people would like to buy", "What people are willing and able to buy", "The price of a good"], a: 2, skill: "Demand", area: "P", why: { 0: "Confuses demand with supply", 1: "Confuses wants with demand", 3: "Confuses demand with price" } },
+        { q: "Which of these is usually provided by the government?", o: ["Street lighting", "Clothes", "A bakery", "Mobile phones"], a: 0, skill: "Role of government", area: "P", why: { 1: "Does not see why some goods are left to firms", 2: "Does not see why some goods are left to firms", 3: "Does not see why some goods are left to firms" } },
       ],
     },
   },
   as: {
     Accounting: {
       w: "Ayesha starts a business with $10,000 in the bank. She buys furniture for $3,000 by bank transfer and goods for resale worth $2,000 on credit. List what the business owns and what it owes after these transactions, and work out how much of the business belongs to Ayesha.",
+      ms: "Owns: furniture $3,000, goods (inventory) $2,000, bank $7,000, total $12,000. Owes: supplier $2,000. Belongs to Ayesha: $10,000. Strong: all three correct with labels. Partly there: lists are right but the owner figure is missing or wrong. Needs work: mixes owns and owes.",
       q: [
         { q: "A business buys a machine for $20,000 that will be used for 5 years. Why might it not count the whole $20,000 as a cost this year?", o: ["Because it paid in cash", "Because the machine will help earn income for 5 years", "Because machines are not taxed", "Because it might sell the machine tomorrow"], a: 1, skill: "Matching costs to years", area: "R", why: { 0: "Links cost to how it was paid", 3: "Ignores the expected use" } },
         { q: "A business sells goods on credit in December. The customer pays in January. In which month did the sale happen?", o: ["January", "Both months", "December", "Neither month"], a: 2, skill: "When a sale counts", area: "R", why: { 0: "Thinks a sale counts only when cash arrives", 1: "Double counts the sale" } },
-        { q: "A business has assets of $80,000 and owes $30,000. How much of the business belongs to the owner?", o: ["$50,000", "$110,000", "$30,000", "$80,000"], a: 0, skill: "What belongs to the owner", area: "N", why: { 1: "Adds what is owed instead of taking it away", 2: "Gives what is owed", 3: "Ignores what is owed" } },
+        { q: "A shop sells goods for $400 to a customer who will pay next month. What does the shop have now?", o: ["$400 more cash", "A $400 debt to the customer", "$400 owed to it by the customer", "Nothing until the customer pays"], a: 2, skill: "Credit sales", area: "R", why: { 0: "Thinks a sale always brings cash", 1: "Reverses who owes whom", 3: "Thinks a sale counts only when cash arrives" } },
         { q: "Which of these increases a business’s profit for the year?", o: ["The owner putting in more money", "Taking out a bank loan", "Buying new equipment", "Selling goods for more than they cost"], a: 3, skill: "What profit is", area: "B", why: { 0: "Treats the owner’s money as profit", 1: "Treats a loan as income", 2: "Treats buying an asset as profit" } },
-        { q: "Revenue is $120,000, the goods sold cost $70,000, and other expenses are $30,000. What is the profit?", o: ["$50,000", "$20,000", "$90,000", "$100,000"], a: 1, skill: "Working out profit", area: "N", why: { 0: "Stops at gross profit", 2: "Adds instead of subtracting", 3: "Subtracts only the expenses" } },
-        { q: "The owner puts $25,000 of personal savings into the business. To the business, this money is:", o: ["Income for the year", "Capital: an amount it owes the owner", "Profit", "A current asset only"], a: 1, skill: "The business and its owner are separate", area: "B", why: { 0: "Treats the owner’s money as income", 2: "Treats the owner’s money as profit", 3: "Sees only one side: the cash, not where it came from" } },
+        { q: "Revenue is $120,000, the goods sold cost $70,000, and other expenses are $30,000. What is the profit?", o: ["$50,000", "$20,000", "$90,000", "$100,000"], a: 1, skill: "Working out profit", area: "N", why: { 0: "Stops at gross profit", 2: "Subtracts only the other expenses", 3: "Gives total costs, not profit" } },
+        { q: "The owner puts $25,000 of personal savings into the business. To the business, this money is:", o: ["Income for the year", "An amount the business owes the owner", "Profit", "A current asset only"], a: 1, skill: "The business and its owner are separate", area: "B", why: { 0: "Treats the owner’s money as income", 2: "Treats the owner’s money as profit", 3: "Sees only one side: the cash, not where it came from" } },
         { q: "Which of these is a liability of a business?", o: ["Money customers owe the business", "Inventory", "The owner’s own car", "A loan the business must repay"], a: 3, skill: "Assets and liabilities", area: "B", why: { 0: "Confuses money owed to the business with money it owes", 1: "Confuses assets with liabilities", 2: "Does not separate the owner from the business" } },
         { q: "A business pays $3,000 to a supplier it already owed. Which two things change?", o: ["Cash falls and expenses rise", "Cash falls and the amount owed to the supplier falls", "Cash falls and profit falls", "Only cash falls"], a: 1, skill: "Two sides of every transaction", area: "R", why: { 0: "Treats paying off a debt as an expense", 2: "Treats paying off a debt as a cost", 3: "Sees only one side of the transaction" } },
-        { q: "A customer who owes $2,000 goes out of business and will never pay. What should the business do?", o: ["Add it to sales", "Keep the $2,000 as something it owns", "Treat the $2,000 as a loss", "Ask the bank to pay it"], a: 2, skill: "Debts that won’t be paid", area: "R", why: { 0: "Confuses a loss with income", 1: "Keeps an asset that has no value" } },
+        { q: "A customer who owes $2,000 goes out of business and will never pay. What should the business do?", o: ["Add it to sales", "Keep the $2,000 as something it owns", "Treat the $2,000 as a loss", "Count it as an expense next year"], a: 2, skill: "Debts that won’t be paid", area: "R", why: { 0: "Confuses a loss with income", 1: "Keeps an asset that has no value", 3: "Gets the timing of the loss wrong" } },
         { q: "An increase in an asset is recorded on which side of its account?", o: ["Debit", "Credit", "Either side", "Neither side"], a: 0, skill: "Double entry", area: "P" },
         { q: "Goods are bought on credit from Zain. What is the double entry?", o: ["Debit Zain, credit Purchases", "Debit Purchases, credit Cash", "Debit Inventory, credit Sales", "Debit Purchases, credit Zain"], a: 3, skill: "Double entry", area: "P" },
         { q: "Rent still owing at the year end is shown as:", o: ["A current asset", "A current liability", "Income", "A non current asset"], a: 1, skill: "Accruals", area: "P" },
@@ -346,8 +364,9 @@ export const BANK: Record<LevelKey, Record<SubjectKey, SubjectSet>> = {
     },
     Business: {
       w: "A popular café in your city wants to open a second branch. Explain two ways it could pay for this, and one risk of each.",
+      ms: "Two ways to pay, for example retained profit, bank loan, new partner or investor, leasing, each with one fitting risk (interest and repayments, loss of control, using up cash reserves). Strong: both sources with a specific risk each. Partly there: sources named, risks vague. Needs work: one source or no risks.",
       q: [
-        { q: "A small bakery sells out by noon every day. Why might it raise its prices slightly?", o: ["To attract more customers", "Because its costs fell", "Demand is higher than it can supply, so it can charge more without losing many customers", "To lower its quality"], a: 2, skill: "Demand and price", area: "R", why: { 0: "Thinks higher prices attract customers", 1: "Gives a reason that points the other way" } },
+        { q: "A small bakery sells out by noon every day. Why might it raise its prices slightly?", o: ["To attract more customers", "Because its costs fell", "Demand is higher than it can supply", "To lower its quality"], a: 2, skill: "Demand and price", area: "R", why: { 0: "Thinks higher prices attract customers", 1: "Gives a reason that points the other way" } },
         { q: "A business can afford either a new oven or a new baker, but not both. What is the cost of choosing the oven?", o: ["The baker it could have hired", "The price of the oven only", "Nothing, because it chose the oven", "Its total costs"], a: 0, skill: "Opportunity cost", area: "R", why: { 1: "Sees only the money cost", 2: "Does not see that choices have a cost" } },
         { q: "A firm sells 400 items at $25 each. What is its revenue?", o: ["$425", "$1,600", "$100,000", "$10,000"], a: 3, skill: "Revenue", area: "N", why: { 0: "Adds instead of multiplying", 1: "Divides", 2: "Misplaces zeros" } },
         { q: "A firm’s sales are $3 million in a market worth $20 million. What is its market share?", o: ["6.7%", "15%", "30%", "1.5%"], a: 1, skill: "Market share", area: "N", why: { 0: "Divides the wrong way round", 2: "Doubles the answer", 3: "Misplaces the decimal" } },
@@ -359,12 +378,13 @@ export const BANK: Record<LevelKey, Record<SubjectKey, SubjectSet>> = {
       ],
     },
     Economics: {
-      w: "Floods destroy part of the tomato crop. Explain what happens to the price and the quantity of tomatoes sold, and who is affected.",
+      w: "The government sets a minimum wage above the current wage. Explain one benefit and one problem for workers.",
+      ms: "Benefit: higher pay for workers who keep their jobs, better living standards. Problem: firms may cut jobs or hours because labour costs more, or may raise prices. Strong: both explained as cause and effect. Partly there: both named. Needs work: one side only.",
       q: [
         { q: "Floods destroy part of the wheat harvest. What happens to the price and the amount of wheat sold?", o: ["Price rises, amount sold rises", "Price falls, amount sold falls", "Both stay the same", "Price rises, amount sold falls"], a: 3, skill: "Supply shocks", area: "R", why: { 0: "Moves price and quantity together", 1: "Reverses the price effect" } },
         { q: "The price of coffee rises sharply. What is likely to happen to the demand for tea?", o: ["It rises", "It falls", "It stays the same", "Tea becomes dearer to make"], a: 0, skill: "Related goods", area: "R", why: { 1: "Treats tea as going with coffee, not instead of it", 3: "Confuses demand with costs" } },
         { q: "The price of a good rises by 10% and the amount bought falls by 20%. What happens to spending on it?", o: ["It rises", "It stays the same", "It falls", "It cannot be known"], a: 2, skill: "Price, quantity and spending", area: "N", why: { 0: "Looks only at the price rise", 1: "Thinks the changes cancel out", 3: "Does not see it can be worked out" } },
-        { q: "Why might a government tax cigarettes?", o: ["To make cigarettes cheaper", "To help tobacco firms", "To cut smoking, which harms smokers and others, and raise money", "To increase smoking"], a: 2, skill: "Why governments step in", area: "B" },
+        { q: "Why might a government tax cigarettes?", o: ["To raise money only", "To protect tobacco farmers", "To cut smoking and raise money", "To make smokers buy cheaper brands"], a: 2, skill: "Why governments step in", area: "B", why: { 0: "Misses the aim of cutting harm", 1: "Reverses the effect on producers", 3: "Misreads the aim of the tax" } },
         { q: "Prices rise by 6% in a year while wages rise by 3%. What happens to what workers can buy?", o: ["It falls", "It rises", "It stays the same", "It doubles"], a: 0, skill: "Real income", area: "R", why: { 1: "Looks at the wage rise only", 2: "Does not compare the two rises" } },
         { q: "A good’s price falls from $20 to $18. What is the percentage change?", o: ["Minus 2%", "Minus 11.1%", "Minus 20%", "Minus 10%"], a: 3, skill: "Percentage change", area: "N", why: { 0: "Uses the $2 fall as the percentage", 1: "Divides by the new value", 2: "Misplaces the decimal" } },
         { q: "What does a point inside a production possibility curve show?", o: ["Some resources are unemployed", "The output is impossible", "Maximum efficiency", "Economic growth"], a: 0, skill: "Production possibility curve", area: "P" },
@@ -376,30 +396,33 @@ export const BANK: Record<LevelKey, Record<SubjectKey, SubjectSet>> = {
   a2: {
     Accounting: {
       w: "Calculate the closing balance of the sales ledger control account. Opening balance $18,000; credit sales $90,000; cash received from credit customers $85,000; discounts allowed $1,000; irrecoverable debts written off $500. Show your working.",
+      ms: "Closing balance $21,500 (18,000 + 90,000 - 85,000 - 1,000 - 500). Strong: correct figure with the debit and credit sides shown. Partly there: right method with one item on the wrong side. Needs work: treats receipts or discounts as increases.",
       q: [
         { q: "What does the prudence concept require?", o: ["Profits are shared equally", "Losses are recognised when foreseen; gains only when realised", "Assets are always shown at selling price", "Expenses are recorded when paid"], a: 1, skill: "Accounting concepts", area: "B", why: { 2: "Confuses prudence with selling price valuation", 3: "Confuses accruals with cash accounting" } },
         { q: "Rent paid during the year was $11,000 and $1,000 is still owing at the year end. What is the rent expense for the year?", o: ["$10,000", "$11,000", "$12,000", "$1,000"], a: 2, skill: "Accruals", area: "N", why: { 0: "Subtracts the accrual instead of adding it", 1: "Uses cash paid, not the expense", 3: "Gives only the accrual" } },
         { q: "A machine costs $50,000 and is depreciated at 20% a year on the reducing balance. What is the charge in year 2?", o: ["$10,000", "$20,000", "$40,000", "$8,000"], a: 3, skill: "Depreciation", area: "N", why: { 0: "Uses straight line instead of reducing balance", 1: "Charges 40% in year 2", 2: "Gives the carrying amount, not the charge" } },
-        { q: "Inventory is valued at the lower of:", o: ["Cost and net realisable value", "Cost and selling price", "Net realisable value and replacement cost", "Cost and market value"], a: 0, skill: "Inventory valuation", area: "B", why: { 1: "Confuses net realisable value with selling price" } },
+        { q: "Inventory is valued at the lower of:", o: ["Cost and net realisable value", "Cost and selling price", "Net realisable value and replacement cost", "Cost and replacement cost"], a: 0, skill: "Inventory valuation", area: "B", why: { 1: "Confuses net realisable value with selling price" } },
         { q: "Which error causes a balance in the suspense account?", o: ["An error of omission", "An error of principle", "A debit entry that does not equal its credit entry", "A complete reversal of entries"], a: 2, skill: "Correction of errors", area: "B", why: { 0: "Does not see that omission keeps the trial balance equal", 1: "Does not see that principle errors keep it equal", 3: "Does not see that reversals keep it equal" } },
         { q: "The allowance for irrecoverable debts is 5% of trade receivables of $40,000. Last year’s allowance was $1,500. How much is charged to the income statement this year?", o: ["$2,000", "$500", "$1,500", "$3,500"], a: 1, skill: "Irrecoverable debts", area: "N", why: { 0: "Charges the whole allowance, not the change", 2: "Uses last year’s figure", 3: "Adds the two allowances" } },
         { q: "Selling price is $50, variable cost is $30 a unit and fixed costs are $40,000. What is the break even output?", o: ["800 units", "1,333 units", "500 units", "2,000 units"], a: 3, skill: "Break even", area: "N", why: { 0: "Divides by the selling price", 1: "Divides by the variable cost" } },
         { q: "Under marginal costing, closing inventory is valued at:", o: ["Full production cost", "Variable production cost only", "Selling price", "Fixed cost only"], a: 1, skill: "Marginal and absorption costing", area: "B", why: { 0: "Confuses marginal with absorption costing" } },
         { q: "Current assets are $60,000, including inventory of $20,000. Current liabilities are $40,000. What is the liquid (acid test) ratio?", o: ["1.5 : 1", "2 : 1", "1 : 1", "0.5 : 1"], a: 2, skill: "Liquidity ratios", area: "N", why: { 0: "Gives the current ratio, keeping inventory in" } },
-        { q: "Goodwill arises when:", o: ["A business is bought for more than the fair value of its net assets", "A business makes a profit", "Assets are revalued downwards", "Customers are loyal"], a: 0, skill: "Goodwill", area: "P" },
+        { q: "Which of these is capital expenditure?", o: ["Paying the van driver’s wages", "Buying a delivery van", "Fuel for the van", "Repairing a broken van mirror"], a: 1, skill: "Capital and revenue expenditure", area: "B", why: { 0: "Confuses running costs with buying an asset", 2: "Confuses running costs with buying an asset", 3: "Treats a repair as an improvement" } },
+        { q: "Purchased goodwill is recorded when:", o: ["A business is bought for more than the fair value of its net assets", "A business makes a profit", "Assets are revalued downwards", "Customers are loyal"], a: 0, skill: "Goodwill", area: "P" },
         { q: "A project costs $100,000 and brings in $40,000 of net cash each year. What is the payback period?", o: ["4 years", "2 years", "3 years", "2 years 6 months"], a: 3, skill: "Investment appraisal", area: "P" },
       ],
     },
     Business: {
       w: "A textile firm is thinking of moving from batch production to flow production. Analyse one advantage and one disadvantage of this change.",
+      ms: "Advantage: lower unit costs, faster output, less labour per unit. Disadvantage: high set up cost, less flexibility for different designs, repetitive work lowers motivation. Strong: each point developed with a result for the firm. Partly there: points named. Needs work: confuses batch with flow.",
       q: [
         { q: "Price is $50 and variable cost is $30 a unit. What is the contribution per unit?", o: ["$80", "$30", "$20", "$50"], a: 2, skill: "Contribution", area: "N", why: { 0: "Adds instead of subtracting" } },
         { q: "12 employees left during a year in which the average workforce was 80. What is labour turnover?", o: ["15%", "12%", "6.7%", "8%"], a: 0, skill: "HR measures", area: "N", why: { 1: "Gives the number, not the rate", 2: "Divides the wrong way round" } },
-        { q: "A product’s price elasticity of demand is minus 0.4. If its price rises, revenue will:", o: ["Fall", "Stay the same", "Rise", "Be impossible to predict"], a: 2, skill: "Elasticity and revenue", area: "B", why: { 0: "Assumes a price rise always lowers revenue", 3: "Does not use the elasticity value" } },
-        { q: "Which is a benefit of just in time inventory control?", o: ["Protection against supply delays", "Bulk buying discounts", "A large buffer stock", "Lower inventory holding costs"], a: 3, skill: "Inventory control", area: "B", why: { 0: "Confuses JIT with holding buffer stock", 1: "Confuses JIT with bulk buying", 2: "Confuses JIT with buffer stock" } },
+        { q: "Which of these is an internal source of finance?", o: ["A bank loan", "Trade credit from suppliers", "Retained profit", "A bank overdraft"], a: 2, skill: "Sources of finance", area: "B", why: { 0: "Thinks borrowing comes from inside the business", 1: "Confuses supplier credit with the firm’s own funds", 3: "Thinks borrowing comes from inside the business" } },
+        { q: "Which is a benefit of just in time inventory control?", o: ["Protection against supply delays", "Bulk buying discounts", "A large buffer stock", "Lower inventory holding costs"], a: 3, skill: "Inventory control", area: "B", why: { 0: "Confuses JIT with holding buffer stock", 1: "Confuses JIT with bulk buying", 2: "Thinks JIT means holding more stock" } },
         { q: "According to Herzberg, which is a motivator rather than a hygiene factor?", o: ["Salary", "Recognition for achievement", "Working conditions", "Company policy"], a: 1, skill: "Motivation theory", area: "B", why: { 0: "Confuses hygiene factors with motivators", 2: "Confuses hygiene factors with motivators", 3: "Confuses hygiene factors with motivators" } },
-        { q: "Which leadership style best suits an emergency that needs quick decisions?", o: ["Autocratic", "Laissez faire", "Democratic", "Consultative"], a: 0, skill: "Leadership", area: "R", why: { 1: "Does not match style to situation", 2: "Does not see that consulting takes time" } },
-        { q: "Opening cash is $5,000, receipts are $12,000 and payments are $14,500. What is the closing cash balance?", o: ["$7,500", "Minus $2,500", "$31,500", "$2,500"], a: 3, skill: "Cash flow forecasts", area: "N", why: { 0: "Leaves out the opening balance", 1: "Leaves out the opening balance and gets a deficit", 2: "Adds everything" } },
+        { q: "Which management style best suits an emergency that needs quick decisions?", o: ["Autocratic", "Laissez faire", "Democratic", "Paternalistic"], a: 0, skill: "Management styles", area: "R", why: { 1: "Does not match style to situation", 2: "Does not see that consulting takes time" } },
+        { q: "Opening cash is $5,000, receipts are $12,000 and payments are $14,500. What is the closing cash balance?", o: ["$7,500", "Minus $2,500", "$31,500", "$2,500"], a: 3, skill: "Cash flow forecasts", area: "N", why: { 0: "Adds the net outflow instead of subtracting it", 1: "Leaves out the opening balance", 2: "Adds everything" } },
         { q: "In the product life cycle, which stage usually has the highest sales?", o: ["Introduction", "Growth", "Maturity", "Decline"], a: 2, skill: "Product life cycle", area: "B", why: { 1: "Confuses the fastest growth with the highest sales" } },
         { q: "20 workers produce 1,000 units a day. What is labour productivity?", o: ["50 units per worker per day", "20,000 units", "0.02 units per worker", "1,020 units"], a: 0, skill: "Labour productivity", area: "N", why: { 1: "Multiplies instead of dividing", 2: "Divides the wrong way round", 3: "Adds instead of dividing" } },
         { q: "Which part of a SWOT analysis looks at the external environment?", o: ["Strengths and weaknesses", "Opportunities and threats", "Strengths and threats", "Weaknesses and opportunities"], a: 1, skill: "Strategic analysis", area: "P" },
@@ -408,6 +431,7 @@ export const BANK: Record<LevelKey, Record<SubjectKey, SubjectSet>> = {
     },
     Economics: {
       w: "The government gives a subsidy to producers of wheat flour. Explain why the price consumers pay may not fall by the full amount of the subsidy.",
+      ms: "The subsidy shifts supply right, but how much the price falls depends on elasticity: some of the subsidy goes to producers as higher revenue per unit. Strong: diagram idea or elasticity named, with incidence explained. Partly there: says producers keep some. Needs work: says price falls by the full subsidy.",
       q: [
         { q: "Two goods have a positive cross elasticity of demand. They are:", o: ["Complements", "Substitutes", "Inferior goods", "Normal goods"], a: 1, skill: "Cross elasticity", area: "B", why: { 0: "Reverses the sign rule for complements and substitutes" } },
         { q: "A good has a negative income elasticity of demand. It is:", o: ["A luxury", "A necessity", "An inferior good", "A normal good"], a: 2, skill: "Income elasticity", area: "B", why: { 1: "Confuses a necessity (low positive) with an inferior good" } },
@@ -418,6 +442,7 @@ export const BANK: Record<LevelKey, Record<SubjectKey, SubjectSet>> = {
         { q: "A country’s currency appreciates. What happens to its exports?", o: ["They become cheaper abroad", "They become more expensive abroad", "They are unaffected", "They become free of tariffs"], a: 1, skill: "Exchange rates", area: "B", why: { 0: "Reverses the effect of appreciation" } },
         { q: "Which of these shifts aggregate demand to the right?", o: ["A rise in government spending", "A rise in interest rates", "A rise in income tax", "A fall in exports"], a: 0, skill: "Aggregate demand", area: "B", why: { 1: "Reverses the effect of interest rates", 2: "Reverses the effect of tax", 3: "Reverses the effect of exports" } },
         { q: "Which is a supply side policy?", o: ["Raising interest rates", "Increasing benefit payments", "Training schemes to improve workers’ skills", "Devaluing the currency"], a: 2, skill: "Supply side policy", area: "B", why: { 0: "Confuses monetary with supply side policy", 1: "Confuses demand side with supply side policy", 3: "Confuses exchange rate with supply side policy" } },
+        { q: "Which is most likely to cause demand pull inflation?", o: ["Rising prices of imported oil", "Higher labour productivity", "Rising consumer spending when the economy is near full capacity", "A rise in interest rates"], a: 2, skill: "Inflation", area: "B", why: { 0: "Confuses cost push with demand pull", 1: "Thinks higher productivity raises prices", 3: "Reverses the effect of interest rates" } },
         { q: "Allocative efficiency is achieved where:", o: ["Average cost is lowest", "Price equals marginal cost", "Profit is highest", "Revenue is highest"], a: 1, skill: "Efficiency", area: "P" },
         { q: "In the long run, a firm in perfect competition makes:", o: ["Supernormal profit", "A loss", "Normal profit", "Monopoly profit"], a: 2, skill: "Market structures", area: "P" },
       ],

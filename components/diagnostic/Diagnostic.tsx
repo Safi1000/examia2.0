@@ -5,8 +5,7 @@ import Link from "next/link";
 import { Logo } from "@/components/Brand";
 import { Backdrop } from "@/components/landing/Backdrop";
 import { Footer } from "@/components/landing/Footer";
-import { BANK, CORE, PROFILE, SUBJECTS, type LevelKey, type Mcq, type SubjectKey } from "@/lib/diagnostic/bank";
-import { EXPLAIN } from "@/lib/diagnostic/explain";
+import { BANK, CORE, PROFILE, SUBJECTS, type LevelKey, type SubjectKey } from "@/lib/diagnostic/bank";
 import {
   LEVEL_SHORT,
   coreLevel,
@@ -28,7 +27,6 @@ import {
   type Section,
   type State,
   type Step,
-  type Answer,
   type Sure,
 } from "@/lib/diagnostic/logic";
 import { submitResult } from "@/lib/diagnostic/submit";
@@ -96,7 +94,7 @@ export function Diagnostic({ open, kind }: { open: boolean; kind: Kind }) {
       <Frame>
         <Eyebrow>Starting Point Check</Eyebrow>
         <h1 className="mt-4 text-[40px] leading-[1.04] text-foreground md:text-[52px]">Closed for now.</h1>
-        <p className="mt-5 max-w-[34em] text-[17px] leading-relaxed text-muted-foreground">It opens during your first class with Hamza. Use the same link again then.</p>
+        <p className="mt-5 max-w-[34em] text-[17px] leading-relaxed text-muted-foreground">{kind === "end" ? "It opens in your last class of the session. Use the same link again then." : "It opens during your first class with Hamza. Use the same link again then."}</p>
       </Frame>
     );
   }
@@ -609,6 +607,7 @@ function Written({ S, sec, last, set, next, back }: { S: Saved; sec: string; las
         id="w"
         value={S.written[sec] ?? ""}
         onChange={(e) => set({ ...S, written: { ...S.written, [sec]: e.target.value } })}
+        placeholder="Write what you think. A rough answer is better than a blank one."
         className="mt-2 min-h-[200px] w-full resize-y rounded-[16px] border border-hairline-strong bg-card px-4 py-3.5 text-[17px] leading-relaxed text-foreground outline-none transition-colors dg-fgold"
       />
       <Actions>
@@ -700,86 +699,3 @@ function Done({ S, set }: { S: Saved; set: SetS }) {
   );
 }
 
-type Item = { sec: string; title: string; i: number; q: Mcq; a: Answer };
-
-/**
- * Every question a student missed, with the right answer and why, then
- * every answer on request. For the PDF report Hamza sends (not shown on the
- * finish screen).
- */
-export function Review({ S }: { S: State }) {
-  const secs = ["core", ...S.tracks.map(trackId)];
-  const items: Item[] = secs.flatMap((sec) => questionsFor(S, sec).map((q, i) => ({ sec, title: sectionName(S, sec), i, q, a: S.ans[`${sec}:${i}`] ?? { c: null } })));
-  const missed = items.filter((x) => x.q.area !== "P" && x.a.c !== x.q.a);
-  const groups = (list: Item[]) => secs.map((sec) => ({ sec, list: list.filter((x) => x.sec === sec) })).filter((g) => g.list.length);
-
-  return (
-    <>
-      <section className="mt-12">
-        <h2 className="text-[26px] leading-tight text-foreground">{missed.length ? "Go over these first." : "Nothing to go over."}</h2>
-        <p className="mt-3 text-[16px] leading-relaxed text-muted-foreground">
-          {missed.length
-            ? `${missed.length === 1 ? "One question" : `${missed.length} questions`} to understand before lesson one. Read the answer, then try to explain it in your own words.`
-            : "You got every main question right. The preview questions below show what comes next."}
-        </p>
-        {groups(missed).map((g) => (
-          <div key={g.sec} className="mt-8">
-            <Eyebrow>{g.list[0].title}</Eyebrow>
-            <ol className="mt-4 grid gap-3">
-              {g.list.map((x) => (
-                <ReviewItem key={`${x.sec}:${x.i}`} x={x} />
-              ))}
-            </ol>
-          </div>
-        ))}
-      </section>
-
-      <details className="group mt-10">
-        <summary className={`flex cursor-pointer list-none items-center justify-between gap-4 rounded-[16px] border border-hairline bg-card px-5 py-4 text-[16px] font-semibold text-foreground print:hidden [&::-webkit-details-marker]:hidden ${ring}`}>
-          See every answer
-          <span aria-hidden className="text-faint transition-transform group-open:rotate-45">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M7 1v12M1 7h12" />
-            </svg>
-          </span>
-        </summary>
-        {groups(items).map((g) => (
-          <div key={g.sec} className="mt-8">
-            <Eyebrow>{g.list[0].title}</Eyebrow>
-            <ol className="mt-4 grid gap-3">
-              {g.list.map((x) => (
-                <ReviewItem key={`${x.sec}:${x.i}`} x={x} />
-              ))}
-            </ol>
-          </div>
-        ))}
-      </details>
-    </>
-  );
-}
-
-function ReviewItem({ x }: { x: Item }) {
-  const ok = x.a.c === x.q.a;
-  const theirs = x.a.c == null ? "No answer" : x.a.c === -1 ? "I don’t know" : x.q.o[x.a.c];
-  return (
-    <li className={`${card} break-inside-avoid px-5 py-4`}>
-      {x.q.context && <p className="mb-2 text-[14px] leading-relaxed text-faint">{x.q.context}</p>}
-      <p className="text-[16px] font-semibold leading-snug text-foreground">
-        {x.q.q}
-        {x.q.area === "P" && <span className="ml-2 align-middle text-[12px] font-medium text-gold">Preview</span>}
-      </p>
-      <div className="mt-3 grid gap-1 text-[15px]">
-        {!ok && (
-          <p className="text-muted-foreground">
-            You chose: <span className="text-body">{theirs}</span>
-          </p>
-        )}
-        <p className="text-muted-foreground">
-          {ok ? "You got it: " : "Answer: "}
-          <span className="font-semibold text-gold">{x.q.o[x.q.a]}</span>
-        </p>
-      </div>
-      {EXPLAIN[x.q.q] && <p className="mt-2 text-[15px] leading-relaxed text-body">{EXPLAIN[x.q.q]}</p>}
-    </li>
-  );
-}
