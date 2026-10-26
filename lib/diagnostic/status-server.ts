@@ -1,22 +1,30 @@
 /**
- * Whether the Starting Point Check is open. Hamza switches it on for the
- * first class and off afterwards (Settings → Starting Point Check). Stored
- * on the admin account like the timetable, so no database change. Server only.
+ * Whether the Starting Point Check is open, and which check it is: "start"
+ * (day one) or "end" (the same check at the end of the session, to compare).
+ * Hamza switches it in Settings → Starting Point Check. Stored on the admin
+ * account like the timetable, so no database change. Server only.
  */
+import type { Kind } from "@/lib/diagnostic/logic";
 import { adminUser, saveAdminMeta } from "@/lib/schedule-server";
 import { pushReady, serviceClient } from "@/lib/push-server";
 
-export async function diagnosticOpen(): Promise<boolean> {
+export interface DiagnosticStatus {
+  open: boolean;
+  kind: Kind;
+}
+
+export async function diagnosticStatus(): Promise<DiagnosticStatus> {
   // Local preview without server keys: always open, for testing.
-  if (!pushReady()) return true;
+  if (!pushReady()) return { open: true, kind: "start" };
   try {
     const u = await adminUser(serviceClient());
-    return !!(u?.app_metadata as { diagnostic?: { open?: boolean } } | undefined)?.diagnostic?.open;
+    const d = (u?.app_metadata as { diagnostic?: { open?: boolean; kind?: Kind } } | undefined)?.diagnostic;
+    return { open: !!d?.open, kind: d?.kind === "end" ? "end" : "start" };
   } catch {
-    return false;
+    return { open: false, kind: "start" };
   }
 }
 
-export async function setDiagnosticOpen(callerId: string, open: boolean) {
-  await saveAdminMeta(serviceClient(), callerId, { diagnostic: { open, changedAt: new Date().toISOString() } });
+export async function setDiagnosticStatus(callerId: string, status: DiagnosticStatus) {
+  await saveAdminMeta(serviceClient(), callerId, { diagnostic: { ...status, changedAt: new Date().toISOString() } });
 }

@@ -1,20 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import s from "@/components/diagnostic/diagnostic.module.css";
-import { BANK, CORE, LEVELS, PROFILE, SUBJECTS, type LevelKey, type SubjectKey } from "@/lib/diagnostic/bank";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { Logo } from "@/components/Brand";
+import { Backdrop } from "@/components/landing/Backdrop";
+import { Footer } from "@/components/landing/Footer";
+import { BANK, CORE, PROFILE, SUBJECTS, type LevelKey, type SubjectKey } from "@/lib/diagnostic/bank";
 import {
-  PART_TITLE,
+  LEVEL_SHORT,
   RATING_LABEL,
+  coreLevel,
   fresh,
   load,
-  mcqFor,
   minutes,
   payload,
+  questionsFor,
   results,
   save,
   screens,
   sectionOf,
+  sortTracks,
+  trackId,
+  trackMinutes,
+  trackOf,
+  trackTitle,
+  type Kind,
   type Screen,
   type Section,
   type SectionSummary,
@@ -25,19 +35,28 @@ import {
 import { submitResult } from "@/lib/diagnostic/submit";
 
 /**
- * The Blueprint Starting Point Check, in three parts: how you learn, core
- * skills, then each subject. Questions live in lib/diagnostic/bank.ts.
- * Progress is kept on the device, so a dropped connection resumes;
- * #reset on the address clears it.
+ * The Starting Point Check, in the site's own look: how you learn, core
+ * skills, then each subject at each level. Questions live in
+ * lib/diagnostic/bank.ts. Progress is kept on the device, so a dropped
+ * connection resumes; #reset on the address clears it.
  */
-export function Diagnostic({ open }: { open: boolean }) {
-  const [S, setS] = useState<State | null>(null);
+type Saved = State & { saved?: boolean };
+
+const ring = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
+const btn = `inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-7 text-[16px] font-semibold text-[#1b1e21] transition-[background-color,transform,opacity] hover:bg-[#ffd07a] active:scale-[0.97] disabled:pointer-events-none disabled:opacity-35 ${ring}`;
+const ghost = `inline-flex min-h-12 items-center justify-center rounded-full border border-hairline-strong px-6 text-[16px] font-medium text-body transition-colors dg-hgold hover:text-foreground ${ring}`;
+const card = "rounded-[20px] border border-hairline bg-card";
+
+export function Diagnostic({ open, kind }: { open: boolean; kind: Kind }) {
+  const [S, setS] = useState<Saved | null>(null);
 
   useEffect(() => {
     const id = setTimeout(() => {
-      let st = load() ?? fresh();
-      if (window.location.hash === "#reset" || (st.step === "test" && !st.level)) {
-        st = fresh();
+      let st: Saved = load() ?? fresh(kind);
+      // A finished day-one check is replaced when the end-of-session check opens.
+      const stale = st.step === "done" && st.kind !== kind;
+      if (window.location.hash === "#reset" || stale || (st.step === "test" && !st.tracks.length)) {
+        st = fresh(kind);
         save(st);
         history.replaceState(null, "", window.location.pathname);
       }
@@ -46,7 +65,7 @@ export function Diagnostic({ open }: { open: boolean }) {
     // #reset typed onto the address while the page is already open.
     const onHash = () => {
       if (window.location.hash !== "#reset") return;
-      const st = fresh();
+      const st = fresh(kind);
       save(st);
       history.replaceState(null, "", window.location.pathname);
       setS(st);
@@ -57,148 +76,179 @@ export function Diagnostic({ open }: { open: boolean }) {
       clearTimeout(id);
       window.removeEventListener("hashchange", onHash);
     };
-  }, []);
+  }, [kind]);
 
-  if (!S) return <div className={s.root} />;
-
-  const set = (next: State, top = false) => {
+  const set = (next: Saved, top = false) => {
     save(next);
     setS(next);
     if (top) window.scrollTo(0, 0);
   };
-  const go = (step: Step, patch: Partial<State> = {}) => set({ ...S, ...patch, step }, true);
+
+  if (!S) return <Frame />;
+
+  const go = (step: Step, patch: Partial<Saved> = {}) => set({ ...S, ...patch, step }, true);
   const started = S.step !== "welcome" || !!S.startedAt;
-  const list = S.level ? screens(S.level, S.subjects) : [];
+  const list = screens(S);
   const screen = S.step === "test" ? list[S.pos] : undefined;
 
   // Closed between sessions: only someone already part-way through can carry on.
   if (!open && !started) {
     return (
-      <div className={s.root}>
-        <Header S={S} list={list} />
-        <main className={s.main}>
-          <div className={s.screen}>
-            <p className={s.eyebrow}>Starting Point Check</p>
-            <h1 className={s.big}>This check is closed right now.</h1>
-            <p className={s.lead}>It opens during your first class with Hamza. Use the same link again then.</p>
-          </div>
-        </main>
-      </div>
+      <Frame>
+        <Eyebrow>Starting Point Check</Eyebrow>
+        <h1 className="mt-4 text-[40px] leading-[1.04] text-foreground md:text-[52px]">Closed for now.</h1>
+        <p className="mt-5 max-w-[34em] text-[17px] leading-relaxed text-muted-foreground">It opens during your first class with Hamza. Use the same link again then.</p>
+      </Frame>
     );
   }
 
   return (
-    <div className={s.root}>
-      <Header S={S} list={list} />
-      <main className={s.main} aria-live="polite">
-        <div className={s.screen} key={`${S.step}-${S.pos}`}>
-          {S.step === "about" ? (
-            <AboutScreen S={S} set={set} go={go} />
-          ) : S.step === "test" && screen ? (
+    <Frame label={screen ? sectionName(S, sectionOf(screen)) : S.step === "done" ? "Complete" : undefined} footer={S.step !== "test"}>
+      <div key={`${S.step}-${S.pos}`} className="dg-in">
+        {S.step === "about" ? (
+          <About S={S} set={set} go={go} />
+        ) : S.step === "test" && screen ? (
+          <>
+            <Progress S={S} list={list} />
             <TestScreen S={S} list={list} screen={screen} set={set} go={go} />
-          ) : S.step === "done" ? (
-            <Done S={S} />
-          ) : (
-            <Welcome S={S} go={go} />
-          )}
+          </>
+        ) : S.step === "done" ? (
+          <Done S={S} set={set} />
+        ) : (
+          <Welcome S={S} go={go} />
+        )}
+      </div>
+    </Frame>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Frame: the site's glass header, backdrop and footer                  */
+/* ------------------------------------------------------------------ */
+function Frame({ children, label, footer = true }: { children?: ReactNode; label?: string; footer?: boolean }) {
+  return (
+    <div className="landing relative isolate min-h-dvh">
+      <Backdrop />
+      <header className="sticky top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-4">
+        <div className="glass-bar mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 rounded-full pl-5 pr-5 sm:h-[72px] sm:pl-7 sm:pr-7">
+          <Link href="/" className={`flex shrink-0 items-center rounded-lg ${ring}`} aria-label="Hamza Teaches home">
+            <Logo className="h-10 sm:h-12" />
+          </Link>
+          <span className="min-w-0 truncate text-[14px] font-medium text-muted-foreground">{label ?? "Starting Point Check"}</span>
         </div>
+      </header>
+      <main id="main" className="mx-auto max-w-2xl px-5 pb-28 pt-10 md:pt-16" aria-live="polite">
+        {children}
       </main>
+      {footer && <Footer />}
+      <style>{`
+        .dg-in { animation: dg-in .6s cubic-bezier(.16,1,.3,1) both; }
+        @keyframes dg-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+        @media (prefers-reduced-motion: reduce) { .dg-in { animation: none; } }
+        /* Public pages pin every border to one colour (globals.css), above
+           Tailwind's border classes; these gold edges need to beat that. */
+        .landing .dg-bgold { border-color: #fbc159; }
+        .landing .dg-bgoldsoft { border-color: rgba(251,193,89,.3); }
+        .landing .dg-blgold { border-left-color: #fbc159; }
+        .landing .dg-hgold:hover { border-color: rgba(251,193,89,.3); }
+        .landing .dg-fgold:focus { border-color: #fbc159; }
+      `}</style>
     </div>
   );
 }
 
-// Short labels so five bars fit on a phone.
-const SEC_LABEL = (sec: Section) => (sec === "profile" ? "You" : sec === "core" ? "Core" : sec === "Accounting" ? "Accounts" : sec);
+function Eyebrow({ children }: { children: ReactNode }) {
+  return <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gold">{children}</p>;
+}
 
-function Header({ S, list }: { S: State; list: Screen[] }) {
-  const inTest = S.step === "test" && list.length > 0;
-  const cur = inTest ? sectionOf(list[S.pos]) : null;
-  // One bar per section, filled by how far through it the student is.
-  const secs: Section[] = ["profile", "core", ...S.subjects];
+/** Thin line icons, one per subject. */
+function SubjectIcon({ sub, className = "h-6 w-6" }: { sub: SubjectKey; className?: string }) {
+  const p = { fill: "none", stroke: "currentColor", strokeWidth: 1.6, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   return (
-    <header className={s.header}>
-      <div className={s.bar}>
-        <div className={s.mark} aria-hidden="true" />
-        <div className={s.brand}>The Blueprint</div>
-        <div className={s.where}>
-          {inTest && cur ? (cur === "profile" || cur === "core" ? PART_TITLE[cur] : cur) : S.step === "done" ? "Complete" : "Starting Point Check"}
-        </div>
-      </div>
-      {inTest && (
-        <div className={s.ruler} aria-hidden="true">
-          {secs.map((sec) => {
-            const idx = list.map((x, i) => [x, i] as const).filter(([x]) => sectionOf(x) === sec && x.kind !== "intro");
-            const done = idx.filter(([, i]) => i < S.pos).length;
-            const pct = idx.length ? Math.round((done / idx.length) * 100) : 0;
-            return (
-              <div key={sec} className={`${s.seg} ${sec === cur ? s.segOn : ""}`}>
-                <span>{SEC_LABEL(sec)}</span>
-                <div className={s.track}>
-                  <div className={s.fill} style={{ width: `${pct}%` }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
+    <svg viewBox="0 0 24 24" className={className} aria-hidden>
+      {sub === "Accounting" ? (
+        <>
+          <rect x="4" y="3" width="16" height="18" rx="2.5" {...p} />
+          <path d="M12 3v18M7.5 8h2M7.5 12h2M14.5 8h2M14.5 12h2M7.5 16h9" {...p} />
+        </>
+      ) : sub === "Business" ? (
+        <>
+          <rect x="3" y="7" width="18" height="13" rx="2.5" {...p} />
+          <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3 12.5h18M11 12.5v2h2v-2" {...p} />
+        </>
+      ) : (
+        <>
+          <path d="M4 20h16" {...p} />
+          <path d="M4 16l5-5 4 3 7-8" {...p} />
+          <path d="M15 6h5v5" {...p} />
+        </>
       )}
-    </header>
+    </svg>
   );
 }
 
-type Go = (step: Step, patch?: Partial<State>) => void;
-type SetS = (next: State, top?: boolean) => void;
+function sectionName(S: State, sec: Section) {
+  if (sec === "profile") return "How you learn";
+  if (sec === "core") return "Core skills";
+  const t = trackOf(S, sec);
+  return t ? trackTitle(t) : "";
+}
+
+/* ------------------------------------------------------------------ */
+/* Welcome and the form                                                 */
+/* ------------------------------------------------------------------ */
+type Go = (step: Step, patch?: Partial<Saved>) => void;
+type SetS = (next: Saved, top?: boolean) => void;
 
 function Welcome({ S, go }: { S: State; go: Go }) {
   const resume = !!S.startedAt && S.step === "welcome";
-  const per = S.level === "a2" ? 13 : 11;
+  const end = S.kind === "end";
   return (
     <div>
-      <p className={s.eyebrow}>Starting Point Check</p>
-      <h1 className={s.hero}>Let’s find your starting point.</h1>
-      <p className={s.lead}>Before we teach you anything, we want to know how you learn, what you already know, and where the gaps are. Answer honestly and your classes start exactly where you are.</p>
-      <ol className={s.parts}>
-        <li>
-          <span className={s.num}>1</span>
-          <div>
-            <b>How you learn</b>
-            <span>How you study, revise and handle exams. About 3 minutes.</span>
-          </div>
-        </li>
-        <li>
-          <span className={s.num}>2</span>
-          <div>
-            <b>Core skills</b>
-            <span>The numbers and reading every subject is built on. About 6 minutes.</span>
-          </div>
-        </li>
-        <li>
-          <span className={s.num}>3</span>
-          <div>
-            <b>Your subjects</b>
-            <span>What you can already reason through, plus a short preview. About {per} minutes each.</span>
-          </div>
-        </li>
+      <Eyebrow>{end ? "End of session check" : "Starting Point Check"}</Eyebrow>
+      <h1 className="mt-4 text-[42px] leading-[1.02] text-foreground md:text-[60px]">{end ? "See how far you’ve come." : "Let’s find your starting point."}</h1>
+      <p className="mt-6 max-w-[34em] text-[18px] leading-relaxed text-muted-foreground">
+        {end
+          ? "The same check you took on day one. Answer the way you would today, and Hamza will compare the two."
+          : "Before we teach you anything, we want to know how you learn, what you already know, and where the gaps are. Answer honestly and your classes start exactly where you are."}
+      </p>
+
+      <ol className={`mt-10 ${card} divide-y divide-hairline`}>
+        {[
+          ["How you learn", "How you study, revise and handle exams.", "About 3 minutes"],
+          ["Core skills", "The numbers and reading every subject is built on.", "About 6 minutes"],
+          ["Your subjects", "Whether you can follow lesson one, plus a short preview.", "10 to 13 minutes each"],
+        ].map(([t, d, m], i) => (
+          <li key={t} className="flex items-start gap-4 px-5 py-5 sm:px-6">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border dg-bgoldsoft text-[14px] font-semibold text-gold">{i + 1}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[17px] font-semibold text-foreground">{t}</span>
+              <span className="mt-0.5 block text-[15px] leading-snug text-muted-foreground">{d}</span>
+              <span className="mt-1.5 block text-[13px] text-faint">{m}</span>
+            </span>
+          </li>
+        ))}
       </ol>
-      <ul className={s.notes}>
-        <li>
-          <b>Not a test for marks.</b>
-          <span>Nobody passes or fails. It only shows us what to teach first.</span>
-        </li>
-        <li>
-          <b>Closed book.</b>
-          <span>No Google, no AI, no help. A calculator, pen and paper are fine. Your own guess tells us more than someone else’s right answer.</span>
-        </li>
-        <li>
-          <b>“I don’t know” is a good answer.</b>
-          <span>It is more useful to us than a wild guess.</span>
-        </li>
+
+      <ul className="mt-10 grid gap-5">
+        {[
+          ["Not a test for marks.", "Nobody passes or fails. It only shows what to teach first."],
+          ["Closed book.", "No Google, no AI, no help. A calculator, pen and paper are fine. Your own guess tells us more than someone else’s right answer."],
+          ["“I don’t know” is a good answer.", "It is more useful to us than a wild guess."],
+        ].map(([b, d]) => (
+          <li key={b} className="border-l-2 dg-bgoldsoft pl-4">
+            <span className="block text-[16px] font-semibold text-foreground">{b}</span>
+            <span className="block text-[15px] leading-relaxed text-muted-foreground">{d}</span>
+          </li>
+        ))}
       </ul>
-      <div className={s.actions}>
-        <button className={s.btn} onClick={() => go(resume ? "test" : "about")}>
+
+      <div className="mt-10 flex flex-wrap items-center gap-4">
+        <button className={btn} onClick={() => go(resume ? "test" : "about")}>
           {resume ? "Continue where you left off" : "Start"}
         </button>
         {resume && (
-          <button className={s.link} onClick={() => go("about", fresh())}>
+          <button className={`text-[15px] text-muted-foreground underline underline-offset-4 hover:text-foreground ${ring}`} onClick={() => go("about", fresh(S.kind))}>
             Start again
           </button>
         )}
@@ -207,73 +257,99 @@ function Welcome({ S, go }: { S: State; go: Go }) {
   );
 }
 
-function AboutScreen({ S, set, go }: { S: State; set: SetS; go: Go }) {
+function About({ S, set, go }: { S: State; set: SetS; go: Go }) {
   const [err, setErr] = useState("");
-  const [level0] = useState(S.level);
-  const mins = minutes(S.level, S.subjects);
+  const [before] = useState(() => S.tracks.map(trackId).join());
+  const mins = minutes(S.tracks);
+  const has = (sub: SubjectKey, l: LevelKey) => S.tracks.some((t) => t.sub === sub && t.level === l);
+
+  function toggle(sub: SubjectKey, l: LevelKey) {
+    let ts = S.tracks.filter((t) => !(t.sub === sub && t.level === l));
+    if (!has(sub, l)) {
+      // O Level/IGCSE and A Level don't mix in one subject; AS and A2 can.
+      ts = ts.filter((t) => t.sub !== sub || (l !== "igcse" && t.level !== "igcse"));
+      ts.push({ sub, level: l });
+    }
+    set({ ...S, tracks: sortTracks(ts) });
+  }
 
   function start() {
     const miss: string[] = [];
     if (!S.name.trim()) miss.push("your full name");
-    if (!S.level) miss.push("your level");
-    if (!S.subjects.length) miss.push("at least one subject");
-    if (miss.length) return setErr(`Add ${miss.join(", ")} to continue.`);
-    // A different level means different questions: earlier answers no longer apply.
-    const reset = level0 && level0 !== S.level ? { ans: {}, written: {} } : {};
-    go("test", { pos: 0, startedAt: S.startedAt ?? new Date().toISOString(), ...reset });
+    if (!S.tracks.length) miss.push("at least one subject and level");
+    if (miss.length) return setErr(`Add ${miss.join(" and ")} to continue.`);
+    // Different subjects or levels mean different questions: start the sections again.
+    const changed = before && before !== S.tracks.map(trackId).join();
+    go("test", { pos: changed ? 0 : S.pos, startedAt: S.startedAt ?? new Date().toISOString(), ...(changed ? { ans: {}, written: {} } : {}) });
   }
 
   return (
     <div>
-      <p className={s.eyebrow}>Before we begin</p>
-      <h1 className={s.big}>First, the basics.</h1>
-      <div className={s.field}>
-        <label htmlFor="f-name">Full name</label>
-        <input id="f-name" className={s.input} type="text" value={S.name} autoComplete="name" onChange={(e) => set({ ...S, name: e.target.value })} />
+      <Eyebrow>Before we begin</Eyebrow>
+      <h1 className="mt-4 text-[38px] leading-[1.04] text-foreground md:text-[48px]">First, the basics.</h1>
+
+      <div className="mt-10">
+        <label htmlFor="f-name" className="block text-[15px] font-semibold text-foreground">
+          Full name
+        </label>
+        <input
+          id="f-name"
+          type="text"
+          autoComplete="name"
+          value={S.name}
+          onChange={(e) => set({ ...S, name: e.target.value })}
+          className="mt-2 h-14 w-full rounded-[16px] border border-hairline-strong bg-card px-4 text-[17px] text-foreground outline-none transition-colors placeholder:text-faint dg-fgold"
+        />
       </div>
-      <div className={s.field}>
-        <span className={s.lab}>Your level</span>
-        <div className={s.cards} role="group" aria-label="Your level">
-          {(Object.keys(LEVELS) as LevelKey[]).map((k) => (
-            <button key={k} type="button" className={s.card} aria-pressed={S.level === k} onClick={() => set({ ...S, level: k })}>
-              <b>{LEVELS[k]}</b>
-              <small>{k === "igcse" ? "Starting from scratch" : k === "as" ? "First year of A Level" : "Second year, after AS"}</small>
-            </button>
-          ))}
-        </div>
+
+      <div className="mt-10">
+        <p className="text-[15px] font-semibold text-foreground">Your subjects and levels</p>
+        <p className="mt-1 text-[14px] text-faint">Pick a level for each subject you take with Hamza. Taking AS and A2 together? Pick both.</p>
+        <ul className={`mt-4 ${card} divide-y divide-hairline`}>
+          {SUBJECTS.map((sub) => {
+            const on = S.tracks.some((t) => t.sub === sub);
+            return (
+              <li key={sub} className="px-5 py-4 sm:px-6">
+                <div className="flex items-center gap-3">
+                  <span className={`flex h-10 w-10 items-center justify-center rounded-[12px] ${on ? "bg-gold-tint text-gold" : "bg-white/5 text-muted-foreground"}`}>
+                    <SubjectIcon sub={sub} className="h-5 w-5" />
+                  </span>
+                  <span className="text-[17px] font-semibold text-foreground">{sub}</span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label={`${sub} level`}>
+                  {(["igcse", "as", "a2"] as const).map((l) => (
+                    <button
+                      key={l}
+                      type="button"
+                      aria-pressed={has(sub, l)}
+                      onClick={() => toggle(sub, l)}
+                      className={`min-h-11 rounded-full border px-4 text-[15px] font-medium transition-colors ${ring} ${
+                        has(sub, l) ? "dg-bgold bg-gold-tint text-foreground" : "border-hairline-strong text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {LEVEL_SHORT[l]}
+                    </button>
+                  ))}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       </div>
-      <div className={s.field}>
-        <span className={s.lab}>
-          Your subjects with Hamza <small>Choose any</small>
-        </span>
-        <div className={s.cards} role="group" aria-label="Your subjects">
-          {SUBJECTS.map((sub) => (
-            <button
-              key={sub}
-              type="button"
-              className={s.card}
-              aria-pressed={S.subjects.includes(sub)}
-              onClick={() => set({ ...S, subjects: S.subjects.includes(sub) ? S.subjects.filter((x) => x !== sub) : SUBJECTS.filter((x) => x === sub || S.subjects.includes(x)) })}
-            >
-              <b>{sub}</b>
-              <span className={s.tickbox} aria-hidden="true" />
-            </button>
-          ))}
-        </div>
-      </div>
+
       {mins > 0 && (
-        <p className={s.time}>
-          About <b>{mins} minutes</b> in all. Your answers save on this device as you go, so you can stop and come back.
+        <p className="mt-6 text-[15px] text-muted-foreground">
+          About <span className="font-semibold text-foreground">{mins} minutes</span> in all. Your answers save on this device as you go, so you can stop and come back.
         </p>
       )}
-      <p className={s.err} role="alert">
+      <p className="mt-4 min-h-5 text-[14px] text-error-x" role="alert">
         {err}
       </p>
-      <div className={s.actions}>
-        <button className={s.btn} onClick={start}>
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <button className={btn} onClick={start}>
           Begin
         </button>
-        <button className={`${s.btn} ${s.ghost}`} onClick={() => go("welcome")}>
+        <button className={ghost} onClick={() => go("welcome")}>
           Back
         </button>
       </div>
@@ -281,126 +357,161 @@ function AboutScreen({ S, set, go }: { S: State; set: SetS; go: Go }) {
   );
 }
 
-function TestScreen({ S, list, screen, set, go }: { S: State; list: Screen[]; screen: Screen; set: SetS; go: Go }) {
-  const at = (pos: number) => go(pos < 0 ? "about" : "test", { pos: Math.max(0, pos) });
-  const back = (
-    <button className={`${s.btn} ${s.ghost}`} onClick={() => at(S.pos - 1)}>
-      Back
-    </button>
-  );
-
-  function next() {
-    if (S.pos < list.length - 1) return at(S.pos + 1);
-    const finished: State = { ...S, finishedAt: new Date().toISOString() };
-    void submitResult(payload(finished));
-    set({ ...finished, step: "done" }, true);
-  }
-
-  if (screen.kind === "intro") return <Intro S={S} sec={screen.sec} onStart={next} back={back} />;
-  if (screen.kind === "profile") return <ProfileQuestion S={S} i={screen.i} set={set} next={next} back={back} />;
-  if (screen.kind === "written") return <Written S={S} sub={screen.sec} last={S.pos === list.length - 1} set={set} next={next} back={back} />;
-  return <Mcq S={S} sec={screen.sec} i={screen.i} set={set} next={next} back={back} />;
-}
-
-function Intro({ S, sec, onStart, back }: { S: State; sec: Section; onStart: () => void; back: React.ReactNode }) {
-  const level = S.level!;
-  if (sec === "profile") {
-    return (
-      <div>
-        <p className={s.eyebrow}>Part 1 of 3</p>
-        <h1 className={s.big}>How you learn.</h1>
-        <p className={s.lead}>{PROFILE.length} quick questions about how you study. There are no right answers. Pick what you actually do, not what you think you should do.</p>
-        <p className={s.time}>About 3 minutes.</p>
-        <div className={s.actions}>
-          <button className={s.btn} onClick={onStart}>
-            Begin Part 1
-          </button>
-          {back}
-        </div>
-      </div>
-    );
-  }
-  if (sec === "core") {
-    return (
-      <div>
-        <p className={s.eyebrow}>Part 2 of 3</p>
-        <h1 className={s.big}>Core skills.</h1>
-        <p className={s.lead}>Numbers and reading: the skills Accounting, Business and Economics are all built on. After each answer, tell us how sure you are. “Guessed” is an honest and useful answer.</p>
-        <p className={s.time}>{CORE[level].length} questions, about 6 minutes. A calculator is fine.</p>
-        <div className={s.actions}>
-          <button className={s.btn} onClick={onStart}>
-            Begin Part 2
-          </button>
-          {back}
-        </div>
-      </div>
-    );
-  }
-  const n = BANK[level][sec].q.length;
-  const k = S.subjects.indexOf(sec);
+/* ------------------------------------------------------------------ */
+/* The test                                                              */
+/* ------------------------------------------------------------------ */
+function Progress({ S, list }: { S: State; list: Screen[] }) {
+  const secs: Section[] = ["profile", "core", ...S.tracks.map(trackId)];
+  const cur = sectionOf(list[S.pos]);
   return (
-    <div>
-      <p className={s.eyebrow}>Part 3 of 3{S.subjects.length > 1 ? `, subject ${k + 1} of ${S.subjects.length}` : ""}</p>
-      <h1 className={s.big}>{sec}.</h1>
-      <p className={s.lead}>
-        {level === "a2"
-          ? `These questions check the AS ${sec} that A2 builds on. The last two are a preview of A2 topics: guess freely, or choose “I don’t know”.`
-          : `No ${sec} experience needed. These questions test the everyday thinking ${sec} builds on. The last three are a preview of what you will learn first: guess freely, or choose “I don’t know”.`}
-      </p>
-      <p className={s.time}>
-        {n} questions and one short written answer, about {level === "a2" ? 13 : 11} minutes.
-      </p>
-      <div className={s.actions}>
-        <button className={s.btn} onClick={onStart}>
-          Begin {sec}
-        </button>
-        {back}
-      </div>
+    <div className="mb-10 flex gap-1.5" aria-hidden>
+      {secs.map((sec) => {
+        const idx = list.map((x, i) => [x, i] as const).filter(([x]) => sectionOf(x) === sec && x.kind !== "intro");
+        const done = idx.filter(([, i]) => i < S.pos).length;
+        const pct = idx.length ? (done / idx.length) * 100 : 0;
+        return (
+          <div key={sec} className={`h-1 flex-1 overflow-hidden rounded-full ${sec === cur ? "bg-white/20" : "bg-white/10"}`}>
+            <div className="h-full rounded-full bg-gold transition-[width] duration-500 ease-out" style={{ width: `${pct}%` }} />
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function ProfileQuestion({ S, i, set, next, back }: { S: State; i: number; set: SetS; next: () => void; back: React.ReactNode }) {
+function TestScreen({ S, list, screen, set, go }: { S: Saved; list: Screen[]; screen: Screen; set: SetS; go: Go }) {
+  const at = (pos: number) => go(pos < 0 ? "about" : "test", { pos: Math.max(0, pos) });
+  const back = (
+    <button className={ghost} onClick={() => at(S.pos - 1)}>
+      Back
+    </button>
+  );
+  function next() {
+    if (S.pos < list.length - 1) return at(S.pos + 1);
+    set({ ...S, finishedAt: new Date().toISOString(), step: "done", saved: false }, true);
+  }
+  if (screen.kind === "intro") return <Intro S={S} sec={screen.sec} onStart={next} back={back} />;
+  if (screen.kind === "profile") return <ProfileQuestion S={S} i={screen.i} set={set} next={next} back={back} />;
+  if (screen.kind === "written") return <Written S={S} sec={screen.sec} last={S.pos === list.length - 1} set={set} next={next} back={back} />;
+  return <Mcq S={S} sec={screen.sec} i={screen.i} set={set} next={next} back={back} />;
+}
+
+function Actions({ children, dock }: { children: ReactNode; dock?: boolean }) {
+  return (
+    <div
+      className={`mt-10 flex flex-wrap items-center gap-3 ${
+        dock ? "max-sm:sticky max-sm:bottom-0 max-sm:-mx-5 max-sm:mt-8 max-sm:flex-nowrap max-sm:bg-gradient-to-t max-sm:from-band-a max-sm:from-70% max-sm:to-transparent max-sm:px-5 max-sm:pb-[max(16px,env(safe-area-inset-bottom))] max-sm:pt-6 max-sm:[&>*:first-child]:flex-1" : ""
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Intro({ S, sec, onStart, back }: { S: State; sec: Section; onStart: () => void; back: ReactNode }) {
+  let eyebrow = "";
+  let title = "";
+  let body = "";
+  let meta = "";
+  let icon: ReactNode = null;
+  if (sec === "profile") {
+    eyebrow = "Part 1 of 3";
+    title = "How you learn.";
+    body = `${PROFILE.length} quick questions about how you study. There are no right answers. Pick what you actually do, not what you think you should do.`;
+    meta = "About 3 minutes";
+  } else if (sec === "core") {
+    eyebrow = "Part 2 of 3";
+    title = "Core skills.";
+    body = "Numbers and reading: the skills Accounting, Business and Economics are all built on. After each answer, tell us how sure you are. “Guessed” is an honest and useful answer.";
+    meta = `${CORE[coreLevel(S.tracks)!].length} questions, about 6 minutes. A calculator is fine.`;
+  } else {
+    const t = trackOf(S, sec)!;
+    const k = S.tracks.findIndex((x) => trackId(x) === sec);
+    const n = questionsFor(S, sec).length;
+    eyebrow = `Part 3 of 3${S.tracks.length > 1 ? `, subject ${k + 1} of ${S.tracks.length}` : ""}`;
+    title = `${t.sub}, ${LEVEL_SHORT[t.level]}.`;
+    body =
+      t.level === "a2"
+        ? `These questions check the AS ${t.sub} that A2 builds on. The last two are a preview of A2 topics: guess freely, or choose “I don’t know”.`
+        : t.level === "as"
+          ? `No A Level ${t.sub} needed yet. These questions check whether you can follow lesson one, using everyday thinking. The last three preview what you will learn first: guess freely, or choose “I don’t know”.`
+          : `No ${t.sub} experience needed. These questions check whether you can follow lesson one, using everyday thinking. The last three preview what you will learn first: guess freely, or choose “I don’t know”.`;
+    meta = `${n} questions and one short written answer, about ${trackMinutes(t)} minutes.`;
+    icon = (
+      <span className="mb-6 flex h-14 w-14 items-center justify-center rounded-[16px] bg-gold-tint text-gold">
+        <SubjectIcon sub={t.sub} className="h-7 w-7" />
+      </span>
+    );
+  }
+  return (
+    <div>
+      {icon}
+      <Eyebrow>{eyebrow}</Eyebrow>
+      <h1 className="mt-4 text-[38px] leading-[1.04] text-foreground md:text-[52px]">{title}</h1>
+      <p className="mt-5 max-w-[34em] text-[18px] leading-relaxed text-muted-foreground">{body}</p>
+      <p className="mt-5 text-[15px] text-faint">{meta}</p>
+      <Actions>
+        <button className={btn} onClick={onStart}>
+          Begin
+        </button>
+        {back}
+      </Actions>
+    </div>
+  );
+}
+
+function QHead({ left, right }: { left: string; right: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4">
+      <Eyebrow>{left}</Eyebrow>
+      <span className="shrink-0 text-[14px] tabular-nums text-faint">{right}</span>
+    </div>
+  );
+}
+
+const optCls = (on: boolean) =>
+  `flex w-full items-center gap-4 rounded-[16px] border px-4 py-4 text-left text-[17px] leading-snug transition-colors ${ring} ${
+    on ? "dg-bgold bg-gold-tint text-foreground" : "border-hairline bg-card text-body hover:border-hairline-strong"
+  }`;
+
+function ProfileQuestion({ S, i, set, next, back }: { S: Saved; i: number; set: SetS; next: () => void; back: ReactNode }) {
   const p = PROFILE[i];
   const chosen = S.profile[p.id];
   function pick(k: number) {
     const picked = { ...S, profile: { ...S.profile, [p.id]: k } };
     set(picked);
     // A short pause so the choice is seen, then on to the next question.
-    setTimeout(() => {
-      const nextPos = picked.pos + 1;
-      set({ ...picked, pos: nextPos }, true);
-    }, 220);
+    setTimeout(() => set({ ...picked, pos: picked.pos + 1 }, true), 240);
   }
   return (
     <div>
-      <p className={s.qmeta}>
-        How you learn <span className={s.count}>{i + 1} of {PROFILE.length}</span>
-      </p>
-      <h2 className={s.qtitle}>{p.q}</h2>
-      <div className={s.opts} role="group" aria-label="Answers">
+      <QHead left="How you learn" right={`${i + 1} of ${PROFILE.length}`} />
+      <h2 className="mt-4 text-[26px] font-bold leading-[1.2] tracking-tight text-foreground md:text-[30px]">{p.q}</h2>
+      <div className="mt-8 grid gap-2.5" role="group" aria-label="Answers">
         {p.o.map((o, k) => (
-          <button key={k} className={s.opt} aria-pressed={chosen === k} onClick={() => pick(k)}>
-            <span className={s.radio} aria-hidden="true" />
+          <button key={k} className={optCls(chosen === k)} aria-pressed={chosen === k} onClick={() => pick(k)}>
+            <span className={`relative h-5 w-5 shrink-0 rounded-full border ${chosen === k ? "dg-bgold" : "border-hairline-strong"}`}>
+              {chosen === k && <span className="absolute inset-[4px] rounded-full bg-gold" />}
+            </span>
             <span>{o.t}</span>
           </button>
         ))}
       </div>
-      <div className={s.actions}>
+      <Actions>
         {chosen != null && (
-          <button className={s.btn} onClick={next}>
+          <button className={btn} onClick={next}>
             Next
           </button>
         )}
         {back}
-      </div>
+      </Actions>
     </div>
   );
 }
 
-function Mcq({ S, sec, i, set, next, back }: { S: State; sec: "core" | SubjectKey; i: number; set: SetS; next: () => void; back: React.ReactNode }) {
-  const q = mcqFor(S.level!, sec, i);
-  const total = sec === "core" ? CORE[S.level!].length : BANK[S.level!][sec].q.length;
+function Mcq({ S, sec, i, set, next, back }: { S: Saved; sec: string; i: number; set: SetS; next: () => void; back: ReactNode }) {
+  const list = questionsFor(S, sec);
+  const q = list[i];
   const key = `${sec}:${i}`;
   const a = S.ans[key] ?? { c: null };
   const ready = a.c === -1 || (a.c != null && !!a.s);
@@ -409,31 +520,38 @@ function Mcq({ S, sec, i, set, next, back }: { S: State; sec: "core" | SubjectKe
 
   return (
     <div>
-      <p className={s.qmeta}>
-        {sec === "core" ? "Core skills" : sec}{" "}
-        <span className={s.count}>
-          {i + 1} of {total}
-        </span>
-      </p>
-      {q.area === "P" && <span className={s.preview}>Preview question. Guess freely.</span>}
-      {q.context && <div className={s.context}>{q.context}</div>}
-      <h2 className={s.qtitle}>{q.q}</h2>
-      <div className={s.opts} role="group" aria-label="Answers">
+      <QHead left={sectionName(S, sec)} right={`${i + 1} of ${list.length}`} />
+      {q.area === "P" && <span className="mt-4 inline-block rounded-full bg-gold-tint px-3 py-1 text-[13px] font-medium text-gold">Preview question. Guess freely.</span>}
+      {q.context && <div className={`mt-5 ${card} border-l-2 dg-blgold px-5 py-4 text-[16px] leading-relaxed text-body`}>{q.context}</div>}
+      <h2 className="mt-5 text-[24px] font-bold leading-[1.22] tracking-tight text-foreground md:text-[28px]">{q.q}</h2>
+      <div className="mt-7 grid gap-2.5" role="group" aria-label="Answers">
         {q.o.map((o, k) => (
-          <button key={k} className={s.opt} aria-pressed={a.c === k} onClick={() => pick(k)}>
-            <span className={s.k}>{"ABCD"[k]}</span>
+          <button key={k} className={optCls(a.c === k)} aria-pressed={a.c === k} onClick={() => pick(k)}>
+            <span
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[14px] font-semibold ${
+                a.c === k ? "bg-gold text-[#1b1e21]" : "border border-hairline-strong text-faint"
+              }`}
+            >
+              {"ABCD"[k]}
+            </span>
             <span>{o}</span>
           </button>
         ))}
-        <button className={`${s.opt} ${s.idk}`} aria-pressed={a.c === -1} onClick={() => pick(-1)}>
-          <span className={s.k}>?</span>
+        <button
+          className={`flex w-full items-center gap-4 rounded-[16px] border border-dashed px-4 py-4 text-left text-[17px] transition-colors ${ring} ${
+            a.c === -1 ? "dg-bgold bg-gold-tint text-foreground" : "border-hairline-strong text-muted-foreground hover:text-foreground"
+          }`}
+          aria-pressed={a.c === -1}
+          onClick={() => pick(-1)}
+        >
+          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[14px] font-semibold ${a.c === -1 ? "bg-gold text-[#1b1e21]" : "border border-hairline-strong text-faint"}`}>?</span>
           <span>I don’t know</span>
         </button>
       </div>
       {a.c != null && a.c !== -1 && (
-        <div className={s.sure}>
-          <span className={s.lab}>How sure are you?</span>
-          <div className={s.seg3} role="group" aria-label="How sure are you?">
+        <div className="mt-8">
+          <p className="text-[15px] font-semibold text-foreground">How sure are you?</p>
+          <div className="mt-3 grid grid-cols-3 gap-1 rounded-full bg-white/[0.06] p-1" role="group" aria-label="How sure are you?">
             {(
               [
                 ["g", "Guessed"],
@@ -441,114 +559,192 @@ function Mcq({ S, sec, i, set, next, back }: { S: State; sec: "core" | SubjectKe
                 ["c", "Certain"],
               ] as const
             ).map(([v, l]) => (
-              <button key={v} aria-pressed={a.s === v} onClick={() => sure(v)}>
+              <button
+                key={v}
+                aria-pressed={a.s === v}
+                onClick={() => sure(v)}
+                className={`min-h-11 rounded-full text-[15px] font-medium transition-colors ${ring} ${a.s === v ? "bg-gold text-[#1b1e21]" : "text-muted-foreground hover:text-foreground"}`}
+              >
                 {l}
               </button>
             ))}
           </div>
         </div>
       )}
-      <div className={`${s.actions} ${s.dock}`}>
-        <button className={s.btn} disabled={!ready} onClick={next}>
+      <Actions dock>
+        <button className={btn} disabled={!ready} onClick={next}>
           Next
         </button>
         {back}
-      </div>
+      </Actions>
     </div>
   );
 }
 
-function Written({ S, sub, last, set, next, back }: { S: State; sub: SubjectKey; last: boolean; set: SetS; next: () => void; back: React.ReactNode }) {
+function Written({ S, sec, last, set, next, back }: { S: Saved; sec: string; last: boolean; set: SetS; next: () => void; back: ReactNode }) {
+  const t = trackOf(S, sec)!;
+  const prompt = BANK[t.level][t.sub].w;
   return (
     <div>
-      <p className={s.qmeta}>
-        {sub} <span className={s.count}>Written answer</span>
-      </p>
-      <h2 className={s.qtitle}>{BANK[S.level!][sub].w}</h2>
-      <p className={s.hint}>Write it the way you would in an exam. A few lines is enough. Hamza marks this one personally.</p>
-      <div className={s.field}>
-        <label htmlFor="w">Your answer</label>
-        <textarea id="w" className={s.input} style={{ minHeight: 190 }} value={S.written[sub] ?? ""} onChange={(e) => set({ ...S, written: { ...S.written, [sub]: e.target.value } })} />
-      </div>
-      <div className={s.actions}>
-        <button className={s.btn} onClick={next}>
-          {last ? "Finish the check" : `Finish ${sub}`}
+      <QHead left={trackTitle(t)} right="Written answer" />
+      <h2 className="mt-4 text-[24px] font-bold leading-[1.22] tracking-tight text-foreground md:text-[28px]">{prompt}</h2>
+      <p className="mt-4 text-[15px] leading-relaxed text-faint">Write it the way you would in an exam. A few lines is enough. Hamza marks this one personally.</p>
+      <label htmlFor="w" className="mt-8 block text-[15px] font-semibold text-foreground">
+        Your answer
+      </label>
+      <textarea
+        id="w"
+        value={S.written[sec] ?? ""}
+        onChange={(e) => set({ ...S, written: { ...S.written, [sec]: e.target.value } })}
+        className="mt-2 min-h-[200px] w-full resize-y rounded-[16px] border border-hairline-strong bg-card px-4 py-3.5 text-[17px] leading-relaxed text-foreground outline-none transition-colors dg-fgold"
+      />
+      <Actions>
+        <button className={btn} onClick={next}>
+          {last ? "Finish the check" : "Next"}
         </button>
         {back}
-      </div>
+      </Actions>
     </div>
   );
 }
 
-function Rating({ r }: { r: 1 | 2 | 3 | null }) {
+/* ------------------------------------------------------------------ */
+/* Results                                                               */
+/* ------------------------------------------------------------------ */
+function Meter({ r }: { r: 1 | 2 | 3 | null }) {
   return (
-    <span className={s.rating}>
+    <span className="flex items-center gap-3 whitespace-nowrap text-[14px] text-muted-foreground">
       {r ? RATING_LABEL[r] : ""}
-      <span className={s.meter} aria-hidden="true">
+      <span className="flex gap-1" aria-hidden>
         {[1, 2, 3].map((n) => (
-          <span key={n} className={`${s.pip} ${r && n <= r ? s.pipOn : ""}`} />
+          <span key={n} className={`h-1.5 w-5 rounded-full ${r && n <= r ? "bg-gold" : "bg-white/10"}`} />
         ))}
       </span>
     </span>
   );
 }
 
-function Block({ sum, title, note }: { sum: SectionSummary; title: string; note?: string }) {
+function ResultCard({ sum, icon, note }: { sum: SectionSummary; icon?: ReactNode; note?: string }) {
   return (
-    <section className={s.subj}>
-      <h3>{title}</h3>
-      {sum.areas.map((ar) => (
-        <div key={ar.area} className={s.row}>
-          <span className={s.name}>{ar.name}</span>
-          <Rating r={ar.r} />
-        </div>
-      ))}
-      {note && <p className={s.small}>{note}</p>}
+    <section className={`${card} px-5 py-5 sm:px-6`}>
+      <div className="flex items-center gap-3">
+        {icon}
+        <h3 className="text-[20px] font-bold tracking-tight text-foreground">{sum.title}</h3>
+      </div>
+      {sum.sec !== "core" && (
+        <p className="mt-4 flex items-center gap-2 text-[16px] font-semibold text-foreground">
+          <span className={`h-2 w-2 rounded-full ${sum.ready === 3 ? "bg-gold" : sum.ready === 2 ? "bg-gold/60" : "bg-white/30"}`} aria-hidden />
+          {sum.readyLabel}
+        </p>
+      )}
+      <div className="mt-3 divide-y divide-hairline">
+        {sum.areas.map((ar) => (
+          <div key={ar.area} className="flex items-center justify-between gap-4 py-3">
+            <span className="text-[16px] text-body">{ar.name}</span>
+            <Meter r={ar.r} />
+          </div>
+        ))}
+      </div>
+      {note && <p className="mt-3 text-[15px] leading-relaxed text-faint">{note}</p>}
     </section>
   );
 }
 
-function Done({ S }: { S: State }) {
+function Done({ S, set }: { S: Saved; set: SetS }) {
   const nm = S.name.trim().split(/\s+/)[0];
   const r = results(S);
+  const [status, setStatus] = useState<"saving" | "saved" | "failed">(S.saved ? "saved" : "saving");
+  const sent = useRef(false);
+
+  async function send() {
+    setStatus("saving");
+    const ok = await submitResult(payload(S));
+    setStatus(ok ? "saved" : "failed");
+    if (ok) set({ ...S, saved: true });
+  }
+  useEffect(() => {
+    if (S.saved) return;
+    const id = setTimeout(() => {
+      if (sent.current) return;
+      sent.current = true;
+      void send();
+    }, 0);
+    return () => clearTimeout(id);
+    // Sends once when the results first show.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (!r) return null;
   const tips = r.learner.slice(0, 3);
-  const firm = [r.core, ...r.subjects].reduce((n, x) => n + x.cal.certainWrong, 0);
+  const firm = [r.core, ...r.tracks].reduce((n, x) => n + x.cal.certainWrong, 0);
+  const end = S.kind === "end";
   return (
     <div>
-      <p className={s.eyebrow}>Complete</p>
-      <h1 className={s.big}>All done{nm ? `, ${nm}` : ""}.</h1>
-      <p className={s.lead}>Here is a first look at where you are starting from. Every rating here is a starting point, not a verdict.</p>
+      <Eyebrow>{end ? "End of session check" : "Your starting point"}</Eyebrow>
+      <h1 className="mt-4 text-[42px] leading-[1.02] text-foreground md:text-[56px]">All done{nm ? `, ${nm}` : ""}.</h1>
+      <p className="mt-5 max-w-[34em] text-[18px] leading-relaxed text-muted-foreground">
+        {end ? "Here is where you are now. Hamza will put it next to your day one results." : "Here is a first look at where you are starting from. Every rating is a starting point, not a verdict."}
+      </p>
 
-      <Block sum={r.core} title="Core skills" />
-      {r.subjects.map((sum) => (
-        <Block
-          key={sum.sec}
-          sum={sum}
-          title={sum.sec}
-          note={sum.prev ? "You already know some of what comes next. We will give you stretch work." : "The preview topics are new to you, which is completely fine. We will build them from the start."}
-        />
-      ))}
+      <div className="mt-10 grid gap-4">
+        {r.tracks.map((sum) => {
+          const t = trackOf(S, sum.sec)!;
+          return (
+            <ResultCard
+              key={sum.sec}
+              sum={sum}
+              icon={
+                <span className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-gold-tint text-gold">
+                  <SubjectIcon sub={t.sub} className="h-5 w-5" />
+                </span>
+              }
+              note={sum.prev ? "You already know some of what comes next. We will give you stretch work." : "The preview topics are new to you, which is completely fine. We will build them from the start."}
+            />
+          );
+        })}
+        <ResultCard sum={r.core} />
+      </div>
 
       {firm > 0 && (
-        <p className={s.firm}>
+        <p className="mt-6 rounded-[20px] border dg-bgoldsoft bg-gold-tint px-5 py-4 text-[16px] leading-relaxed text-body">
           You were certain about {firm === 1 ? "one answer" : `${firm} answers`} that {firm === 1 ? "was" : "were"} not right. That is normal, and it is the first thing we will fix: a confident mix-up is the hardest kind to spot on your own.
         </p>
       )}
 
       {tips.length > 0 && (
-        <section className={s.tips}>
-          <h3>How you learn: {tips.length === 1 ? "one thing" : `${tips.length === 2 ? "two" : "three"} things`} to try</h3>
-          <ol>
-            {tips.map((t) => (
-              <li key={t.id}>{t.student}</li>
+        <section className="mt-12">
+          <h2 className="text-[26px] leading-tight text-foreground">How you learn. {tips.length === 1 ? "One thing" : `${tips.length === 2 ? "Two" : "Three"} things`} to try.</h2>
+          <ol className="mt-6 grid gap-4">
+            {tips.map((t, i) => (
+              <li key={t.id} className="flex items-start gap-4">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border dg-bgoldsoft text-[13px] font-semibold text-gold">{i + 1}</span>
+                <span className="text-[16px] leading-relaxed text-body">{t.student}</span>
+              </li>
             ))}
           </ol>
         </section>
       )}
 
-      <div className={s.callout}>
-        Hamza will mark your written answers and send your full <b>Starting Point Report</b> and four-week plan on WhatsApp within 24 hours.
+      <div className="mt-12 rounded-[20px] border border-hairline bg-band-c px-6 py-6">
+        <p className="text-[17px] leading-relaxed text-body">
+          {end ? (
+            <>
+              Hamza will compare this with your starting point and send you the <span className="font-semibold text-gold">before and after</span> on WhatsApp.
+            </>
+          ) : (
+            <>
+              Hamza will mark your written answers and send your full <span className="font-semibold text-gold">Starting Point Report</span> and four-week plan on WhatsApp within 24 hours.
+            </>
+          )}
+        </p>
+        <p className="mt-4 text-[14px] text-faint" role="status">
+          {status === "saving" ? "Sending your answers to Hamza…" : status === "saved" ? "Your answers have reached Hamza." : "Your answers didn’t send. Check your connection."}
+        </p>
+        {status === "failed" && (
+          <button className={`${btn} mt-4`} onClick={() => void send()}>
+            Try again
+          </button>
+        )}
       </div>
     </div>
   );
