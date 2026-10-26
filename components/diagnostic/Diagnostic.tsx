@@ -52,7 +52,7 @@ export function Diagnostic({ open, kind }: { open: boolean; kind: Kind }) {
   useEffect(() => {
     const id = setTimeout(() => {
       let st: Saved = load() ?? fresh(kind);
-      // A finished day-one check is replaced when the end-of-session check opens.
+      // A finished day one check is replaced when the end of session check opens.
       const stale = st.step === "done" && st.kind !== kind;
       if (window.location.hash === "#reset" || stale || (st.step === "test" && !st.tracks.length)) {
         st = fresh(kind);
@@ -90,7 +90,7 @@ export function Diagnostic({ open, kind }: { open: boolean; kind: Kind }) {
   const list = screens(S);
   const screen = S.step === "test" ? list[S.pos] : undefined;
 
-  // Closed between sessions: only someone already part-way through can carry on.
+  // Closed between sessions: only someone already partway through can carry on.
   if (!open && !started) {
     return (
       <Frame>

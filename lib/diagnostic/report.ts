@@ -20,7 +20,7 @@ export function reportText(p: ResultPayload): string {
   }
 
   out.push("", "READINESS");
-  for (const sum of r.tracks) out.push(`- ${sum.title}: ${sum.readyLabel}.`);
+  for (const sum of r.tracks) out.push(`• ${sum.title}: ${sum.readyLabel}.`);
 
   out.push("", "RATINGS");
   for (const sum of all) {
@@ -31,17 +31,17 @@ export function reportText(p: ResultPayload): string {
 
   const firm = all.flatMap((x) => x.gaps.filter((g) => g.sure === "c").map((g) => ({ ...g, title: x.title })));
   out.push("", "FIX FIRST (wrong while certain: firm misconceptions)");
-  out.push(...(firm.length ? firm.map((g) => `- ${g.title}, ${g.skill}${g.why ? `: ${g.why}` : ""}`) : ["- None."]));
+  out.push(...(firm.length ? firm.map((g) => `• ${g.title}, ${g.skill}${g.why ? `: ${g.why}` : ""}`) : ["• None."]));
 
   const other = all.flatMap((x) => x.gaps.filter((g) => g.sure !== "c").map((g) => ({ ...g, title: x.title })));
   out.push("", "OTHER GAPS");
-  out.push(...(other.length ? other.map((g) => `- ${g.title}, ${g.skill}${g.idk ? " (didn't know)" : g.why ? `: ${g.why}` : ""}${g.sure === "g" ? " (guessed)" : ""}`) : ["- None."]));
+  out.push(...(other.length ? other.map((g) => `• ${g.title}, ${g.skill}${g.idk ? " (didn't know)" : g.why ? `: ${g.why}` : ""}${g.sure === "g" ? " (guessed)" : ""}`) : ["• None."]));
 
   out.push("", "HOW THEY LEARN");
-  for (const v of Object.values(p.profile)) out.push(`- ${v.question} ${v.answer}`);
+  for (const v of Object.values(p.profile)) out.push(`• ${v.question} ${v.answer}`);
   if (r.learner.length) {
     out.push("", "WHAT TO DO ABOUT IT");
-    out.push(...r.learner.map((n) => `- ${n.teacher}`));
+    out.push(...r.learner.map((n) => `• ${n.teacher}`));
   }
 
   // A first four weeks: core first if weak, then the weakest areas per track.
@@ -56,7 +56,7 @@ export function reportText(p: ResultPayload): string {
   }
   const top = r.learner[0];
   if (top) plan.push(`Study habit to set from week 1: ${top.teacher}`);
-  out.push(...plan.map((x) => `- ${x}`));
+  out.push(...plan.map((x) => `• ${x}`));
 
   out.push("", "WRITTEN ANSWERS (mark these)");
   for (const t of r.tracks) out.push(`${t.title}: ${(p.written[t.sec] ?? "").trim() || "(left blank)"}`);

@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 
 /**
  * Settings: open the Starting Point Check for the first class, close it
- * after, and switch it to the end-of-session check when the session ends.
+ * after, and switch it to the end of session check when the session ends.
  */
 export function StartingPointSwitch() {
   const { toast } = useToast();
@@ -75,7 +75,7 @@ export function StartingPointSwitch() {
               type="button"
               disabled={!st || busy}
               aria-pressed={st?.kind === k}
-              onClick={() => st?.kind !== k && void change({ kind: k }, k === "end" ? "Switched to the end-of-session check." : "Switched to the day-one check.")}
+              onClick={() => st?.kind !== k && void change({ kind: k }, k === "end" ? "Switched to the end of session check." : "Switched to the day one check.")}
               className={`h-9 rounded-full px-4 text-sm font-semibold ${st?.kind === k ? "bg-brand text-on-brand" : "border border-border text-ink-2 hover:text-ink"}`}
             >
               {l}
@@ -95,7 +95,7 @@ export function StartingPointSwitch() {
             onClick={() =>
               void change(
                 { open: !st?.open },
-                st?.open ? "Closed. Anyone already part-way through can still finish." : "Open. Students with the link can start now (allow up to 20 seconds).",
+                st?.open ? "Closed. Anyone already partway through can still finish." : "Open. Students with the link can start now (allow up to 20 seconds).",
               )
             }
           >

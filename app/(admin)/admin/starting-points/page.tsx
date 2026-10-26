@@ -16,7 +16,7 @@ const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "n
 /**
  * Every Starting Point Check result, one row per student (matched by full
  * name). Open a student for their report; once they have taken the
- * end-of-session check too, the before and after shows side by side.
+ * end of session check too, the before and after shows side by side.
  */
 export default function StartingPointsPage() {
   const { toast } = useToast();
@@ -53,7 +53,7 @@ export default function StartingPointsPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-8">
-      <PageHeader title="Starting points" subtitle="Day-one diagnostics, and the end-of-session check to compare against." />
+      <PageHeader title="Starting points" subtitle="Day one diagnostics, and the end of session check to compare against." />
       <div className="mb-4">
         <input
           value={q}
@@ -182,7 +182,7 @@ function ClassOverview({ results }: { results: Row[] }) {
         ))}
       </div>
       <div>
-        <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-3">Most common mix-ups</h3>
+        <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-3">Most common mix ups</h3>
         <ul className="space-y-1 text-xs text-ink-2">
           {tally(gaps, (g) => g)
             .slice(0, 8)
