@@ -94,7 +94,7 @@ export function Diagnostic({ open, kind }: { open: boolean; kind: Kind }) {
       <Frame>
         <Eyebrow>Starting Point Check</Eyebrow>
         <h1 className="mt-4 text-[40px] leading-[1.04] text-foreground md:text-[52px]">Closed for now.</h1>
-        <p className="mt-5 max-w-[34em] text-[17px] leading-relaxed text-muted-foreground">{kind === "end" ? "It opens in your last class of the session. Use the same link again then." : "It opens during your first class with Hamza. Use the same link again then."}</p>
+        <p className="mt-5 max-w-[34em] text-[17px] leading-relaxed text-muted-foreground">{kind === "end" ? "It opens in our last class of the session. Use the same link again then." : "It opens during our first class. Use the same link again then."}</p>
       </Frame>
     );
   }
@@ -220,8 +220,8 @@ function Welcome({ S, go }: { S: State; go: Go }) {
       <h1 className="mt-4 text-[42px] leading-[1.02] text-foreground md:text-[60px]">{end ? "See how far you’ve come." : "Let’s find your starting point."}</h1>
       <p className="mt-6 max-w-[34em] text-[18px] leading-relaxed text-muted-foreground">
         {end
-          ? "The same check you took on day one. Answer the way you would today, and Hamza will compare the two."
-          : "Before we teach you anything, we want to know how you learn, what you already know, and where the gaps are. Answer honestly and your classes start exactly where you are."}
+          ? "The same check you took on day one. Answer the way you would today, and I will compare the two."
+          : "Before I teach you anything, I want to know how you learn, what you already know, and where the gaps are. Answer honestly and your classes start exactly where you are."}
       </p>
 
       <ol className={`mt-10 ${card} divide-y divide-hairline`}>
@@ -244,8 +244,8 @@ function Welcome({ S, go }: { S: State; go: Go }) {
       <ul className="mt-10 grid gap-5">
         {[
           ["Not a test for marks.", "Nobody passes or fails. It only shows what to teach first."],
-          ["Closed book.", "No Google, no AI, no help. A calculator, pen and paper are fine. Your own guess tells us more than someone else’s right answer."],
-          ["“I don’t know” is a good answer.", "It is more useful to us than a wild guess."],
+          ["Closed book.", "No Google, no AI, no help. A calculator, pen and paper are fine. Your own guess tells me more than someone else’s right answer."],
+          ["“I don’t know” is a good answer.", "It tells me more than a wild guess."],
         ].map(([b, d]) => (
           <li key={b} className="border-l-2 dg-bgoldsoft pl-4">
             <span className="block text-[16px] font-semibold text-foreground">{b}</span>
@@ -296,7 +296,7 @@ function About({ S, set, go }: { S: State; set: SetS; go: Go }) {
 
   return (
     <div>
-      <Eyebrow>Before we begin</Eyebrow>
+      <Eyebrow>Before you begin</Eyebrow>
       <h1 className="mt-4 text-[38px] leading-[1.04] text-foreground md:text-[48px]">First, the basics.</h1>
 
       <div className="mt-10">
@@ -315,7 +315,7 @@ function About({ S, set, go }: { S: State; set: SetS; go: Go }) {
 
       <div className="mt-10">
         <p className="text-[15px] font-semibold text-foreground">Your subjects and levels</p>
-        <p className="mt-1 text-[14px] text-faint">Pick a level for each subject you take with Hamza. Taking AS and A2 together? Pick both.</p>
+        <p className="mt-1 text-[14px] text-faint">Pick a level for each subject you take with me. Taking AS and A2 together? Pick both.</p>
         <ul className={`mt-4 ${card} divide-y divide-hairline`}>
           {SUBJECTS.map((sub) => {
             const on = S.tracks.some((t) => t.sub === sub);
@@ -433,7 +433,7 @@ function Intro({ S, sec, onStart, back }: { S: State; sec: Section; onStart: () 
   } else if (sec === "core") {
     eyebrow = "Part 2 of 3";
     title = "Core skills.";
-    body = "Numbers and reading: the skills Accounting, Business and Economics are all built on. After each answer, tell us how sure you are.";
+    body = "Numbers and reading: the skills Accounting, Business and Economics are all built on. After each answer, tell me how sure you are.";
     meta = `${CORE[coreLevel(S.tracks)!].length} questions. A calculator is fine.`;
   } else {
     const t = trackOf(S, sec)!;
@@ -599,7 +599,7 @@ function Written({ S, sec, last, set, next, back }: { S: Saved; sec: string; las
     <div>
       <QHead left={trackTitle(t)} right="Written answer" />
       <h2 className="mt-4 text-[24px] font-bold leading-[1.22] tracking-tight text-foreground md:text-[28px]">{prompt}</h2>
-      <p className="mt-4 text-[15px] leading-relaxed text-faint">Write it the way you would in an exam. A few lines is enough. Hamza marks this one personally.</p>
+      <p className="mt-4 text-[15px] leading-relaxed text-faint">Write it the way you would in an exam. A few lines is enough. I mark this one myself.</p>
       <label htmlFor="w" className="mt-8 block text-[15px] font-semibold text-foreground">
         Your answer
       </label>
@@ -654,7 +654,7 @@ function Done({ S, set }: { S: Saved; set: SetS }) {
       <Eyebrow>{end ? "End of session check" : "Submitted"}</Eyebrow>
       <h1 className="mt-4 text-[42px] leading-[1.02] text-foreground md:text-[56px]">All done{nm ? `, ${nm}` : ""}.</h1>
       <p className="mt-5 max-w-[34em] text-[18px] leading-relaxed text-muted-foreground">
-        Thank you for answering honestly. Here is a first look. Hamza will go through every answer and send you your full report.
+        Thank you for answering honestly. Here is a first look. I will go through every answer and send you your full report.
       </p>
 
       <ul className={`mt-10 ${card} divide-y divide-hairline`}>
@@ -678,16 +678,16 @@ function Done({ S, set }: { S: Saved; set: SetS }) {
         <p className="text-[17px] leading-relaxed text-body">
           {end ? (
             <>
-              Hamza will put this next to your day one results and send you your <span className="font-semibold text-gold">before and after</span>.
+              I will put this next to your day one results and send you your <span className="font-semibold text-gold">before and after</span>.
             </>
           ) : (
             <>
-              Your full <span className="font-semibold text-gold">Starting Point Report</span>, with what to work on first, comes from Hamza.
+              Your full <span className="font-semibold text-gold">Starting Point Report</span>, with exactly where to start, comes from me.
             </>
           )}
         </p>
         <p className="mt-4 text-[14px] text-faint" role="status">
-          {status === "saving" ? "Sending your answers to Hamza…" : status === "saved" ? "Your answers have reached Hamza. You can close this page." : "Your answers didn’t send. Check your connection."}
+          {status === "saving" ? "Sending your answers…" : status === "saved" ? "Sent. You can close this page." : "Your answers didn’t send. Check your connection."}
         </p>
         {status === "failed" && (
           <button className={`${btn} mt-4`} onClick={() => void send()}>
