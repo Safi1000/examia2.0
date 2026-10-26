@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Logo } from "@/components/Brand";
 import { Backdrop } from "@/components/landing/Backdrop";
 import { Footer } from "@/components/landing/Footer";
-import { BANK, CORE, PROFILE, SUBJECTS, type LevelKey, type SubjectKey } from "@/lib/diagnostic/bank";
+import { BANK, CORE, PROFILE, SUBJECTS, type LevelKey, type Mcq, type SubjectKey } from "@/lib/diagnostic/bank";
+import { EXPLAIN } from "@/lib/diagnostic/explain";
 import {
   LEVEL_SHORT,
   RATING_LABEL,
@@ -30,6 +31,7 @@ import {
   type SectionSummary,
   type State,
   type Step,
+  type Answer,
   type Sure,
 } from "@/lib/diagnostic/logic";
 import { submitResult } from "@/lib/diagnostic/submit";
@@ -128,8 +130,10 @@ export function Diagnostic({ open, kind }: { open: boolean; kind: Kind }) {
 function Frame({ children, label, footer = true }: { children?: ReactNode; label?: string; footer?: boolean }) {
   return (
     <div className="landing relative isolate min-h-dvh">
-      <Backdrop />
-      <header className="sticky top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-4">
+      <div className="print:hidden">
+        <Backdrop />
+      </div>
+      <header className="print:hidden sticky top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-4">
         <div className="glass-bar mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 rounded-full pl-5 pr-5 sm:h-[72px] sm:pl-7 sm:pr-7">
           <Link href="/" className={`flex shrink-0 items-center rounded-lg ${ring}`} aria-label="Hamza Teaches home">
             <Logo className="h-10 sm:h-12" />
@@ -140,7 +144,11 @@ function Frame({ children, label, footer = true }: { children?: ReactNode; label
       <main id="main" className="mx-auto max-w-2xl px-5 pb-28 pt-10 md:pt-16" aria-live="polite">
         {children}
       </main>
-      {footer && <Footer />}
+      {footer && (
+        <div className="print:hidden">
+          <Footer />
+        </div>
+      )}
       <style>{`
         .dg-in { animation: dg-in .6s cubic-bezier(.16,1,.3,1) both; }
         @keyframes dg-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
@@ -152,6 +160,14 @@ function Frame({ children, label, footer = true }: { children?: ReactNode; label
         .landing .dg-blgold { border-left-color: #fbc159; }
         .landing .dg-hgold:hover { border-color: rgba(251,193,89,.3); }
         .landing .dg-fgold:focus { border-color: #fbc159; }
+        /* Save as PDF: dark ink on white paper. */
+        @media print {
+          .landing { background: #fff !important; }
+          .landing * { color: #1b1e21 !important; background: transparent !important; border-color: #d9d9d9 !important; box-shadow: none !important; }
+          .landing .text-gold { color: #8a5a0c !important; }
+          .landing main { padding-top: 0 !important; }
+          .dg-in { animation: none !important; }
+        }
       `}</style>
     </div>
   );
@@ -422,7 +438,7 @@ function Intro({ S, sec, onStart, back }: { S: State; sec: Section; onStart: () 
   } else if (sec === "core") {
     eyebrow = "Part 2 of 3";
     title = "Core skills.";
-    body = "Numbers and reading: the skills Accounting, Business and Economics are all built on. After each answer, tell us how sure you are. “Guessed” is an honest and useful answer.";
+    body = "Numbers and reading: the skills Accounting, Business and Economics are all built on. After each answer, tell us how sure you are.";
     meta = `${CORE[coreLevel(S.tracks)!].length} questions, about 6 minutes. A calculator is fine.`;
   } else {
     const t = trackOf(S, sec)!;
@@ -676,7 +692,6 @@ function Done({ S, set }: { S: Saved; set: SetS }) {
 
   if (!r) return null;
   const tips = r.learner.slice(0, 3);
-  const firm = [r.core, ...r.tracks].reduce((n, x) => n + x.cal.certainWrong, 0);
   const end = S.kind === "end";
   return (
     <div>
@@ -705,11 +720,7 @@ function Done({ S, set }: { S: Saved; set: SetS }) {
         <ResultCard sum={r.core} />
       </div>
 
-      {firm > 0 && (
-        <p className="mt-6 rounded-[20px] border dg-bgoldsoft bg-gold-tint px-5 py-4 text-[16px] leading-relaxed text-body">
-          You were certain about {firm === 1 ? "one answer" : `${firm} answers`} that {firm === 1 ? "was" : "were"} not right. That is normal, and it is the first thing we will fix: a confident mix-up is the hardest kind to spot on your own.
-        </p>
-      )}
+      <Review S={S} />
 
       {tips.length > 0 && (
         <section className="mt-12">
@@ -741,11 +752,99 @@ function Done({ S, set }: { S: Saved; set: SetS }) {
           {status === "saving" ? "Sending your answers to Hamza…" : status === "saved" ? "Your answers have reached Hamza." : "Your answers didn’t send. Check your connection."}
         </p>
         {status === "failed" && (
-          <button className={`${btn} mt-4`} onClick={() => void send()}>
+          <button className={`${btn} mt-4 print:hidden`} onClick={() => void send()}>
             Try again
           </button>
         )}
       </div>
+      <div className="mt-8 print:hidden">
+        <button className={ghost} onClick={() => window.print()}>
+          Save as PDF
+        </button>
+      </div>
     </div>
+  );
+}
+
+type Item = { sec: string; title: string; i: number; q: Mcq; a: Answer };
+
+/**
+ * What the student gets to keep: every question they missed, with the right
+ * answer and why, then every answer on request. Shown only after the check.
+ */
+function Review({ S }: { S: State }) {
+  const secs = ["core", ...S.tracks.map(trackId)];
+  const items: Item[] = secs.flatMap((sec) => questionsFor(S, sec).map((q, i) => ({ sec, title: sectionName(S, sec), i, q, a: S.ans[`${sec}:${i}`] ?? { c: null } })));
+  const missed = items.filter((x) => x.q.area !== "P" && x.a.c !== x.q.a);
+  const groups = (list: Item[]) => secs.map((sec) => ({ sec, list: list.filter((x) => x.sec === sec) })).filter((g) => g.list.length);
+
+  return (
+    <>
+      <section className="mt-12">
+        <h2 className="text-[26px] leading-tight text-foreground">{missed.length ? "Go over these first." : "Nothing to go over."}</h2>
+        <p className="mt-3 text-[16px] leading-relaxed text-muted-foreground">
+          {missed.length
+            ? `${missed.length === 1 ? "One question" : `${missed.length} questions`} to understand before lesson one. Read the answer, then try to explain it in your own words.`
+            : "You got every main question right. The preview questions below show what comes next."}
+        </p>
+        {groups(missed).map((g) => (
+          <div key={g.sec} className="mt-8">
+            <Eyebrow>{g.list[0].title}</Eyebrow>
+            <ol className="mt-4 grid gap-3">
+              {g.list.map((x) => (
+                <ReviewItem key={`${x.sec}:${x.i}`} x={x} />
+              ))}
+            </ol>
+          </div>
+        ))}
+      </section>
+
+      <details className="group mt-10">
+        <summary className={`flex cursor-pointer list-none items-center justify-between gap-4 rounded-[16px] border border-hairline bg-card px-5 py-4 text-[16px] font-semibold text-foreground print:hidden [&::-webkit-details-marker]:hidden ${ring}`}>
+          See every answer
+          <span aria-hidden className="text-faint transition-transform group-open:rotate-45">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M7 1v12M1 7h12" />
+            </svg>
+          </span>
+        </summary>
+        {groups(items).map((g) => (
+          <div key={g.sec} className="mt-8">
+            <Eyebrow>{g.list[0].title}</Eyebrow>
+            <ol className="mt-4 grid gap-3">
+              {g.list.map((x) => (
+                <ReviewItem key={`${x.sec}:${x.i}`} x={x} />
+              ))}
+            </ol>
+          </div>
+        ))}
+      </details>
+    </>
+  );
+}
+
+function ReviewItem({ x }: { x: Item }) {
+  const ok = x.a.c === x.q.a;
+  const theirs = x.a.c == null ? "No answer" : x.a.c === -1 ? "I don’t know" : x.q.o[x.a.c];
+  return (
+    <li className={`${card} break-inside-avoid px-5 py-4`}>
+      {x.q.context && <p className="mb-2 text-[14px] leading-relaxed text-faint">{x.q.context}</p>}
+      <p className="text-[16px] font-semibold leading-snug text-foreground">
+        {x.q.q}
+        {x.q.area === "P" && <span className="ml-2 align-middle text-[12px] font-medium text-gold">Preview</span>}
+      </p>
+      <div className="mt-3 grid gap-1 text-[15px]">
+        {!ok && (
+          <p className="text-muted-foreground">
+            You chose: <span className="text-body">{theirs}</span>
+          </p>
+        )}
+        <p className="text-muted-foreground">
+          {ok ? "You got it: " : "Answer: "}
+          <span className="font-semibold text-gold">{x.q.o[x.q.a]}</span>
+        </p>
+      </div>
+      {EXPLAIN[x.q.q] && <p className="mt-2 text-[15px] leading-relaxed text-body">{EXPLAIN[x.q.q]}</p>}
+    </li>
   );
 }

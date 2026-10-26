@@ -63,6 +63,7 @@ export default function StartingPointsPage() {
           className="h-10 w-full max-w-xs rounded-full border border-border bg-surface px-4 text-sm text-ink outline-none focus:border-brand"
         />
       </div>
+      {students.length > 1 && <ClassOverview results={students.map(([, s]) => s.start).filter((x): x is Row => !!x)} />}
       {rows === null ? (
         <p className="text-sm text-ink-3">Loading…</p>
       ) : students.length === 0 ? (
@@ -143,5 +144,67 @@ export default function StartingPointsPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+/**
+ * The whole class on day one: how many are ready per subject and level,
+ * the mix-ups most students share (worth one lesson for everyone), and
+ * the study habits that come up most.
+ */
+function ClassOverview({ results }: { results: Row[] }) {
+  if (!results.length) return null;
+  const tally = <T,>(list: T[], key: (x: T) => string) => {
+    const m = new Map<string, number>();
+    for (const x of list) m.set(key(x), (m.get(key(x)) ?? 0) + 1);
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  };
+  const tracks = results.flatMap((r) => r.summary?.tracks ?? []);
+  const byTrack = [...new Set(tracks.map((t) => t.title))].map((title) => {
+    const ts = tracks.filter((t) => t.title === title);
+    return { title, n: ts.length, ready: [3, 2, 1].map((k) => ts.filter((t) => t.ready === k).length) };
+  });
+  // One count per student per mix-up, so a student who repeats it counts once.
+  const gaps = results.flatMap((r) => {
+    const all = [r.summary?.core, ...(r.summary?.tracks ?? [])].filter(Boolean);
+    return [...new Set(all.flatMap((s) => s!.gaps.filter((g) => !g.idk).map((g) => `${s!.title} · ${g.skill}${g.why ? `: ${g.why}` : ""}`)))];
+  });
+  const habits = results.flatMap((r) => (r.summary?.learner ?? []).map((n) => n.teacher));
+  return (
+    <Card className="mb-6 space-y-5 p-5">
+      <h2 className="text-sm font-bold text-ink">Class on day one ({results.length} students)</h2>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {byTrack.map((t) => (
+          <div key={t.title} className="rounded-lg bg-surface-2 px-4 py-3 text-xs text-ink-2">
+            <span className="block text-sm font-semibold text-ink">{t.title}</span>
+            Ready {t.ready[0]} · With support {t.ready[1]} · Groundwork first {t.ready[2]}
+          </div>
+        ))}
+      </div>
+      <div>
+        <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-3">Most common mix-ups</h3>
+        <ul className="space-y-1 text-xs text-ink-2">
+          {tally(gaps, (g) => g)
+            .slice(0, 8)
+            .map(([g, n]) => (
+              <li key={g}>
+                <span className="font-semibold text-ink">{n}</span> {g}
+              </li>
+            ))}
+        </ul>
+      </div>
+      <div>
+        <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-3">Most common study habits to fix</h3>
+        <ul className="space-y-1 text-xs text-ink-2">
+          {tally(habits, (h) => h)
+            .slice(0, 6)
+            .map(([h, n]) => (
+              <li key={h}>
+                <span className="font-semibold text-ink">{n}</span> {h}
+              </li>
+            ))}
+        </ul>
+      </div>
+    </Card>
   );
 }
