@@ -196,8 +196,6 @@ export default function TodayPage() {
         ))}
       </div>
 
-      <SlippingCard db={db} profiles={profiles} nowMs={nowMs} cohortId={cohortId} />
-
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         {/* To mark */}
         <Card id="to-mark" className="scroll-mt-24 p-5">
@@ -366,6 +364,7 @@ export default function TodayPage() {
           )}
         </Card>
       </div>
+      <SlippingCard db={db} profiles={profiles} nowMs={nowMs} cohortId={cohortId} />
     </div>
   );
 }

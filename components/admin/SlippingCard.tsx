@@ -5,7 +5,7 @@ import type { Database } from "@/lib/data/seed";
 import type { Profile } from "@/lib/profile";
 import { archivedCohortIds } from "@/lib/data/selectors";
 import { displayName } from "@/lib/display-name";
-import { addDays, pkDate } from "@/lib/timetable";
+import { addDays, getSchedule, pkDate } from "@/lib/timetable";
 import { Card } from "@/components/ui";
 
 /**
@@ -14,13 +14,17 @@ import { Card } from "@/components/ui";
  */
 export function SlippingCard({ db, profiles, nowMs, cohortId }: { db: Database; profiles: Record<string, Profile>; nowMs: number; cohortId: string | null }) {
   const today = pkDate(nowMs);
+  // Nothing to flag before term; "never studied" only counts from week two.
+  const term = getSchedule().termStarts;
+  if (today < term) return null;
+  const neverCounts = today >= addDays(term, 7);
   const off = archivedCohortIds(db);
   const lastStudy = (p?: Profile) => Object.entries(p?.focus?.days ?? {}).filter(([, m]) => m > 0).map(([d]) => d).sort().pop() ?? null;
   const cutoff = addDays(today, -5);
   const list = db.students
     .filter((s) => !off.has(s.cohortId) && (cohortId === null || s.cohortId === cohortId))
     .map((s) => ({ s, last: lastStudy(profiles[s.id]) }))
-    .filter((x) => !x.last || x.last < cutoff)
+    .filter((x) => (x.last ? x.last < cutoff : neverCounts))
     .sort((a, b) => (a.last ?? "").localeCompare(b.last ?? ""));
   if (!list.length) return null;
   const ago = (d: string) => Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${d}T12:00:00Z`)) / 864e5);
