@@ -60,6 +60,15 @@ export default function ClassesPage() {
       .sort((a, b) => b.closesAt - a.closesAt);
   })();
 
+  // My classes that ended in the last 3 hours with no recording yet: Meet takes
+  // 30 to 60 minutes to save one, so say it is coming rather than show nothing.
+  const pending = student
+    ? slotsForStudent(db, student, today)
+        .filter((s) => nowMs >= s.endMs && nowMs < s.endMs + 3 * 3_600_000)
+        .filter((s) => !links.some((l) => slotKey(l) === slotKey(s) && l.recordingUrl))
+        .reverse()
+    : [];
+
   if (!student) return null;
 
   return (
@@ -112,6 +121,19 @@ export default function ClassesPage() {
           <h2 className="text-base font-semibold text-ink">Recordings</h2>
           <p className="mt-0.5 text-sm text-ink-3">Watch within {RECORDING_HOURS} hours of class. After that they close.</p>
         </div>
+        {pending.length > 0 && (
+          <ul className="space-y-2">
+            {pending.map((p) => (
+              <li key={slotKey(p)} className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-border bg-surface/50 px-5 py-3.5">
+                <span>
+                  <span className="block font-semibold text-ink">{p.subject}</span>
+                  <span className="block text-xs text-ink-3">Today, {span(p.start, p.end)}</span>
+                </span>
+                <span className="text-xs font-medium text-ink-3">Recording on its way, usually within an hour</span>
+              </li>
+            ))}
+          </ul>
+        )}
         {recordings.length ? (
           <ul className="space-y-2">
             {recordings.map((r) => (
@@ -137,7 +159,7 @@ export default function ClassesPage() {
               </li>
             ))}
           </ul>
-        ) : (
+        ) : pending.length ? null : (
           <EmptyState
             icon={<Icon.Doc />}
             title="No recordings right now"
