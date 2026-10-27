@@ -22,7 +22,7 @@ const GROUPS: Array<{ title: string; tools: Array<{ href: string; name: string; 
     title: "Plan and track",
     tools: [
       { href: "/syllabus", name: "Syllabus checklists", what: "The full Cambridge syllabus for your subject. Mark what you know, see your weak topics." },
-      { href: "/tools/revision-planner", name: "Revision planner", what: "A week-by-week plan to your exam, weak topics first." },
+      { href: "/tools/revision-planner", name: "Revision planner", what: "A plan for each week up to your exam, weak topics first." },
     ],
   },
   {

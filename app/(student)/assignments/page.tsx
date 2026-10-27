@@ -205,7 +205,7 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
 
       {mine?.feedback && (
         <div className="mt-3 rounded-md border border-info/30 bg-info-soft/60 px-3 py-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-info">Teacher feedback</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-info">From Hamza</p>
           <p className="mt-0.5 whitespace-pre-wrap text-sm text-ink">{mine.feedback}</p>
         </div>
       )}

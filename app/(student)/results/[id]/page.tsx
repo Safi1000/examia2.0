@@ -27,7 +27,7 @@ export default function ResultsPage() {
   const submission = student && test ? submissionFor(db, student.id, test.id) : null;
 
   if (!student || !test) {
-    return <PendingShell title="Result unavailable" message="We couldn't find this test for your account." />;
+    return <PendingShell title="Result unavailable" message="I can't find this test on your account." />;
   }
   if (!submission || submission.status !== "released") {
     return (
@@ -81,7 +81,7 @@ export default function ResultsPage() {
         <div className="mt-5 flex flex-wrap gap-x-5 gap-y-1 border-t border-border pt-4 text-sm text-ink-2">
           <span className="inline-flex items-center gap-1.5">
             <Icon.Check className="h-4 w-4 text-ink-3" />
-            Submitted {submission.submittedAt ? formatTimestamp(submission.submittedAt) : "—"}
+            Submitted {submission.submittedAt ? formatTimestamp(submission.submittedAt) : "not yet"}
           </span>
           <span className="inline-flex items-center gap-1.5">
             <Icon.Clock className="h-4 w-4 text-ink-3" />
@@ -204,7 +204,7 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
 
       {answer?.feedback && (
         <div className="mt-3 rounded-md border border-info/30 bg-info-soft/60 px-3 py-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-info">Teacher feedback</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-info">From Hamza</p>
           <p className="mt-0.5 whitespace-pre-wrap text-sm text-ink">{answer.feedback}</p>
         </div>
       )}

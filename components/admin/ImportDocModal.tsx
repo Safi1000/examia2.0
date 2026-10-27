@@ -265,7 +265,7 @@ export function ImportDocModal({
             <span className="text-sm font-semibold">
               {busy ? "Reading documents…" : "Choose files or drag them here"}
             </span>
-            <span className="text-xs text-ink-3">PDF, DOC, DOCX, PNG, JPG, JPEG, WEBP — several at once</span>
+            <span className="text-xs text-ink-3">PDF, DOC, DOCX, PNG, JPG, JPEG, WEBP, several at once</span>
           </button>
         </div>
 
@@ -360,7 +360,7 @@ export function ImportDocModal({
 
                       {d.type === "mcq" && (
                         <div className="space-y-1.5">
-                          <Label>Options — select the correct one</Label>
+                          <Label>Options: select the correct one</Label>
                           {d.options.map((opt, oi) => (
                             <div key={oi} className="flex items-center gap-2">
                               <input

@@ -177,7 +177,7 @@ function StudentDetail() {
     if (!notesConfigured()) {
       // Nowhere to host it: fall back to the file itself.
       saveBlob(built.blob, built.fileName);
-      toast("Uploads are not configured — the report was saved instead.", "info");
+      toast("Uploads aren't set up, so the report was saved instead.", "info");
       return null;
     }
 
@@ -195,7 +195,7 @@ function StudentDetail() {
 
   function reportMessage() {
     const month = reportMonth || data?.months[data.months.length - 1] || "";
-    return `${student!.username}'s report — ${month ? formatMonthLabel(month) : "all results"} (${COMPANY_NAME})`;
+    return `${student!.username}'s report, ${month ? formatMonthLabel(month) : "all results"} (${COMPANY_NAME})`;
   }
 
   return (
@@ -217,7 +217,7 @@ function StudentDetail() {
                 target="_blank"
                 rel="noreferrer"
                 className={buttonClasses({ variant: "secondary", size: "sm" })}
-                title={`Chat with ${student.username} — ${student.phone}`}
+                title={`Chat with ${student.username}: ${student.phone}`}
               >
                 <Icon.Users className="h-4 w-4" /> Student
               </a>
@@ -228,7 +228,7 @@ function StudentDetail() {
                 target="_blank"
                 rel="noreferrer"
                 className={buttonClasses({ variant: "secondary", size: "sm" })}
-                title={`Chat with the parent — ${student.whatsapp}`}
+                title={`Chat with the parent: ${student.whatsapp}`}
               >
                 <Icon.Users className="h-4 w-4" /> Parent
               </a>
@@ -256,7 +256,7 @@ function StudentDetail() {
         <Stat label="Average" value={`${data.avg}%`} />
         <Stat
           label="Attendance"
-          value={data.attendance != null ? `${data.attendance}%` : "—"}
+          value={data.attendance != null ? `${data.attendance}%` : "None yet"}
         />
       </div>
 
@@ -290,8 +290,8 @@ function StudentDetail() {
             return (
               <Card key={s.id} className="flex items-center justify-between gap-3 p-3.5">
                 <div className="min-w-0">
-                  <p className="truncate font-semibold text-ink">{test?.title ?? "—"}</p>
-                  <p className="text-sm text-ink-2">{s.submittedAt ? formatTimestamp(s.submittedAt) : "—"}</p>
+                  <p className="truncate font-semibold text-ink">{test?.title ?? "Deleted test"}</p>
+                  <p className="text-sm text-ink-2">{s.submittedAt ? formatTimestamp(s.submittedAt) : "Not submitted"}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   {s.status === "released" && grade ? (
@@ -401,7 +401,7 @@ function TheirPortal({ profile }: { profile: Profile }) {
       <p className="text-sm text-ink-2">
         Groundwork: <span className="font-semibold text-ink">{Math.round(focus.weekMinutes / 6) / 10} h</span> this week
         {profile.weeklyGoal ? ` of ${profile.weeklyGoal} h` : ""}
-        {focus.streak > 1 ? ` · ${focus.streak}-day streak` : ""}
+        {focus.streak > 1 ? ` · ${focus.streak} day streak` : ""}
       </p>
     </Card>
   );

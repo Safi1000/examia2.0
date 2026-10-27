@@ -142,7 +142,7 @@ export const GULF_CITY_PAGES: GulfCityPage[] = [
     description:
       "Live online O Level, IGCSE, AS and A Level Accounting, Business and Economics classes for Abu Dhabi students, in UAE time, with every class recorded.",
     intro:
-      "Abu Dhabi is one hour behind Pakistan, so the classes run from 2:30 pm to 8:30 pm your time, Monday to Friday. Each level has its own two-hour block, and you only join yours.",
+      "Abu Dhabi is one hour behind Pakistan, so the classes run from 2:30 pm to 8:30 pm your time, Monday to Friday. Each level has its own two hour block, and you only join yours.",
     local: [
       {
         title: "Weekends stay free",

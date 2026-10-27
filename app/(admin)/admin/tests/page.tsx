@@ -212,7 +212,7 @@ export default function AdminTestsPage() {
                   ) : (
                     <Stat
                       label={stats.pendingCount > 0 ? "Awaiting" : "Average"}
-                      value={stats.pendingCount > 0 ? `${stats.pendingCount} to mark` : "—"}
+                      value={stats.pendingCount > 0 ? `${stats.pendingCount} to mark` : "All marked"}
                     />
                   )}
                   <Stat label="Completion" value={`${stats.completionPercent}%`} />

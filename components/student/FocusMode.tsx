@@ -93,14 +93,25 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
   // Tick, keep the screen awake while timing, and stop sound on the way out.
   useEffect(() => {
     if (phase !== "focus" && phase !== "rest") return;
-    const t = setInterval(() => setNow(Date.now()), 250);
+    const t = setInterval(() => setNow(Date.now()), 1000);
     let lock: { release: () => Promise<void> } | null = null;
-    (navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> } }).wakeLock
-      ?.request("screen")
-      .then((l) => (lock = l))
-      .catch(() => {});
+    const ask = () =>
+      (navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> } }).wakeLock
+        ?.request("screen")
+        .then((l) => (lock = l))
+        .catch(() => {});
+    void ask();
+    // The phone drops the lock when they switch away; ask again on return.
+    const back = () => {
+      if (document.visibilityState === "visible") {
+        setNow(Date.now());
+        void ask();
+      }
+    };
+    document.addEventListener("visibilitychange", back);
     return () => {
       clearInterval(t);
+      document.removeEventListener("visibilitychange", back);
       void lock?.release().catch(() => {});
     };
   }, [phase]);

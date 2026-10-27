@@ -183,7 +183,7 @@ function SubmissionDetails({ submissionId }: { submissionId: string }) {
     submission.status === "released"
       ? { label: "Result released", tone: "info" as const }
       : submission.autoSubmitted
-        ? { label: "Auto-submitted (time up)", tone: "warning" as const }
+        ? { label: "Handed in when time ran out", tone: "warning" as const }
         : { label: "Submitted successfully", tone: "success" as const };
 
   // submittedAt is only absent while a paper is still in progress.
@@ -201,9 +201,9 @@ function SubmissionDetails({ submissionId }: { submissionId: string }) {
 
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3.5 px-3.5 py-3">
         <Field label="Student" value={student?.username ?? "Unknown student"} />
-        <Field label="Cohort" value={cohort?.name ?? "—"} />
-        <Field label="Subject" value={test?.subject ?? "—"} />
-        <Field label="Test" value={test?.title ?? "—"} />
+        <Field label="Cohort" value={cohort?.name ?? "None"} />
+        <Field label="Subject" value={test?.subject ?? "None"} />
+        <Field label="Test" value={test?.title ?? "None"} />
         {student?.email && <Field label="Email" value={student.email} />}
         {at ? <WhenField label="Submitted" iso={at} /> : <Field label="Submitted" value="In progress" />}
       </dl>

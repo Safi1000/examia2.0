@@ -18,11 +18,16 @@ export default function LeadsPage() {
   useEffect(() => {
     if (DEMO) return;
     void (async () => {
-      const { data } = await supabase().auth.getSession();
-      const res = await fetch("/api/leads", { headers: { Authorization: `Bearer ${data.session?.access_token ?? ""}` } });
-      const j = (await res.json().catch(() => ({}))) as { leads?: Lead[]; error?: string };
-      if (!res.ok) toast(j.error ?? "Couldn't load the waitlist.", "error");
-      setLeads(j.leads ?? []);
+      try {
+        const { data } = await supabase().auth.getSession();
+        const res = await fetch("/api/leads", { headers: { Authorization: `Bearer ${data.session?.access_token ?? ""}` } });
+        const j = (await res.json().catch(() => ({}))) as { leads?: Lead[]; error?: string };
+        if (!res.ok) toast(j.error ?? "Couldn't load the waitlist.", "error");
+        setLeads(j.leads ?? []);
+      } catch {
+        toast("Couldn't load the waitlist. Check your connection.", "error");
+        setLeads([]);
+      }
     })();
   }, [toast]);
 

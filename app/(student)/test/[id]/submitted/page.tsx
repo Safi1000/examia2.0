@@ -47,14 +47,14 @@ export default function SubmittedPage() {
           <span className="font-mono font-semibold text-ink">{answered} / {test.questions.length}</span>
         </Row>
         <Row label="Submitted at">
-          <span className="text-ink">{submission.submittedAt ? formatTimestamp(submission.submittedAt) : "—"}</span>
+          <span className="text-ink">{submission.submittedAt ? formatTimestamp(submission.submittedAt) : "Not yet"}</span>
         </Row>
         <Row label="Time taken">
           <span className="font-mono text-ink">{formatDuration(submission.durationSeconds ?? 0)}</span>
         </Row>
         <Row label="Submission">
           {submission.autoSubmitted ? (
-            <Badge tone="warning">Time&apos;s up. Auto-submitted.</Badge>
+            <Badge tone="warning">Time ran out, so I handed it in for you.</Badge>
           ) : (
             <Badge tone="success">Submitted</Badge>
           )}

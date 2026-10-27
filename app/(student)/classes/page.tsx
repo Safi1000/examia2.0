@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useNow } from "@/hooks/useNow";
 import { useDatabase } from "@/lib/data/store";
@@ -40,11 +39,10 @@ export default function ClassesPage() {
   const schedule = useSchedule(); // re-render when the timetable loads or changes
 
   // The timetable is the same every class day, so show one (the next) day's slots.
-  const day = useMemo(() => {
-    let d = today < schedule.termStarts ? schedule.termStarts : today;
-    for (let i = 0; i < 7 && !isClassDay(d); i++) d = addDays(d, 1);
-    return d;
-  }, [today, schedule]);
+  // Once today's last class has ended, tomorrow's is what matters.
+  const doneToday = !!student && slotsForStudent(db, student, today).length > 0 && slotsForStudent(db, student, today).every((s) => s.endMs <= nowMs);
+  let day = today < schedule.termStarts ? schedule.termStarts : doneToday ? addDays(today, 1) : today;
+  for (let i = 0; i < 7 && !isClassDay(day); i++) day = addDays(day, 1);
   const slots = student
     ? [...slotsForStudent(db, student, day), ...cancelledFor(db, student, day)].sort((a, b) => a.startMs - b.startMs)
     : [];

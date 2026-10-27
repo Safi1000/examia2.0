@@ -28,6 +28,14 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     track("book_open", { from: args.from });
   }, []);
 
+  // A direct link (?book=1 or #book), for an Instagram bio, ad or WhatsApp status.
+  useEffect(() => {
+    const u = new URL(window.location.href);
+    if (u.searchParams.get("book") !== "1" && u.hash !== "#book") return;
+    const id = setTimeout(() => open({ from: "link" }), 0);
+    return () => clearTimeout(id);
+  }, [open]);
+
   const close = useCallback(() => {
     setState(null);
     setTimeout(() => triggerRef.current?.focus(), 0);

@@ -105,7 +105,7 @@ export function AdminLogin() {
         )}
 
         <SubmitButton busy={busy} disabled={!canSubmit}>
-          Unlock
+          Sign in
         </SubmitButton>
       </form>
     </AuthShell>

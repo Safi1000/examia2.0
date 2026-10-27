@@ -50,7 +50,7 @@ function TeacherArt() {
       </div>
       <div className="flex flex-col items-start gap-1.5">
         <span className="rounded-full bg-gold px-3 py-1 text-[12px] font-bold text-[#1b1e21] shadow-[0_8px_20px_-8px_rgba(251,193,89,0.7)]">
-          Straight A&apos;s
+          Straight As
         </span>
         <span className="rounded-full border border-gold-border bg-gold-tint px-3 py-1 text-[11px] font-bold tracking-wide text-gold">
           ACCA
@@ -135,7 +135,7 @@ export function TrustBar() {
       <div className="mx-auto grid max-w-6xl grid-cols-2 gap-3 px-5 md:grid-cols-3 md:gap-5">
         <Card
           label="Your teacher"
-          title="Straight A's in the subjects I teach"
+          title="Straight As in the subjects I teach"
           text="I sat these same exams. I teach every class myself, and only these three subjects."
           art={<TeacherArt />}
           zoom={0.56}
@@ -150,7 +150,7 @@ export function TrustBar() {
         <Card
           label="How I teach"
           title="Why first, then the method"
-          text="Every topic starts with why it exists, then the method, then real past-paper questions."
+          text="Every topic starts with why it exists, then the method, then real past paper questions."
           art={<WhyArt />}
           zoom={0.8}
           className="col-span-2 md:col-span-1"

@@ -26,7 +26,7 @@ const LEVEL_CARDS: Record<SubjectName, LevelCard[]> = {
   Accounting: [
     { level: "O Level / IGCSE", label: "O Level / IGCSE", title: "The foundations", body: "Start from zero. Double entry, the trial balance and final accounts." },
     { level: "AS Level", label: "AS Level", title: "Building up", body: "Partnerships, companies, and the ratios that come up every year." },
-    { level: "A2 Level", label: "A2 Level", title: "The hard marks", body: "Manufacturing accounts, investment appraisal and the big-mark questions." },
+    { level: "A2 Level", label: "A2 Level", title: "The hard marks", body: "Manufacturing accounts, investment appraisal and the questions worth the most marks." },
   ],
   Business: [
     { level: "O Level / IGCSE", label: "O Level / IGCSE", title: "The foundations", body: "Types of business, the marketing mix, and how firms make decisions." },
@@ -305,7 +305,6 @@ export function MeetHamza() {
               src="/hamza.jpg"
               alt="Hamza, online O Level and A Level Accounting, Business and Economics tutor"
               fill
-              priority
               sizes="(max-width: 768px) 90vw, 384px"
               className="object-cover object-top"
             />
@@ -331,7 +330,7 @@ export function MeetHamza() {
 
           <dl className="mt-8 grid grid-cols-3 gap-3 sm:gap-4">
             {[
-              { k: "In these subjects", v: "Straight A's" },
+              { k: "In these subjects", v: "Straight As" },
               { k: "Students taught", v: "100+" },
               { k: "Years teaching", v: "4+" },
             ].map((s) => (
@@ -339,7 +338,7 @@ export function MeetHamza() {
                 <dt className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-faint sm:text-[11px] sm:tracking-[0.2em]">
                   {s.k}
                 </dt>
-                <dd className={`text-lg font-bold leading-tight sm:text-2xl ${s.v === "Straight A's" ? "text-gold" : "text-foreground"}`}>{s.v}</dd>
+                <dd className={`text-lg font-bold leading-tight sm:text-2xl ${s.v === "Straight As" ? "text-gold" : "text-foreground"}`}>{s.v}</dd>
               </div>
             ))}
           </dl>

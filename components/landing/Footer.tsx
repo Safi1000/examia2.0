@@ -13,6 +13,16 @@ const LINKS: Array<{ label: string; href: string; external?: boolean }> = [
   { label: "Grade predictor", href: "/tools/grade-predictor" },
 ];
 
+// A quieter second row, so the free pages get found from every page.
+const MORE: Array<{ label: string; href: string }> = [
+  { label: "Free tools", href: "/tools" },
+  { label: "Syllabus checklists", href: "/syllabus" },
+  { label: "Grade thresholds", href: "/grade-thresholds" },
+  { label: "Online classes", href: "/online-classes" },
+  { label: "Gulf", href: "/online-classes/gulf" },
+  { label: "Private candidates", href: "/private-candidates/pakistan" },
+];
+
 /**
  * Centred to sit under the closing call to action. Only what appears nowhere
  * else: WhatsApp has the floating button and Login is in the header, so
@@ -43,11 +53,23 @@ export function Footer() {
               </li>
             ))}
           </ul>
+          <ul className="mt-2 flex flex-wrap items-center justify-center gap-x-5">
+            {MORE.map((l) => (
+              <li key={l.label}>
+                <Link href={l.href} className={`${linkCls} text-sm text-faint`}>
+                  {l.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </nav>
         <div className="mt-8 flex w-full flex-col items-center justify-between gap-3 border-t border-hairline pb-16 pt-6 text-sm text-faint sm:flex-row sm:pb-2 sm:pr-20">
           <p>© {year} {LANDING.brand}</p>
           <Link href="/privacy" className="transition-colors hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
             Privacy policy
+          </Link>
+          <Link href="/terms" className="transition-colors hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+            Terms
           </Link>
         </div>
       </div>

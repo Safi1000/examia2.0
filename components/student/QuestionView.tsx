@@ -40,7 +40,7 @@ function QuestionViewInner({
       <div className="flex flex-wrap items-center gap-2">
         {question.topic.trim() && <Badge tone="neutral">{question.topic}</Badge>}
         <Pill>{question.marks} {question.marks === 1 ? "mark" : "marks"}</Pill>
-        <span className="text-xs uppercase tracking-wide text-ink-3">{question.type}</span>
+        <span className="text-xs uppercase tracking-wide text-ink-3">{TYPE_LABEL[question.type] ?? question.type}</span>
       </div>
       {!paperHidden && question.prompt.trim() && (
         <p className="mt-3 whitespace-pre-wrap text-lg font-semibold leading-snug text-ink">{question.prompt}</p>
@@ -126,7 +126,7 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
     }
     const room = MAX_PHOTOS - urls.length;
     if (room <= 0) {
-      toast(`That's the limit — ${MAX_PHOTOS} pages.`, "error");
+      toast(`That's the limit: ${MAX_PHOTOS} pages.`, "error");
       return;
     }
     const batch = accepted.slice(0, room);
@@ -247,7 +247,7 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
             <span className="text-xs text-ink-3">
               {urls.length
                 ? `${urls.length} of ${MAX_PHOTOS} pages added`
-                : "Your handwritten working, please — photos or a PDF."}
+                : "Your handwritten working, please: photos or a PDF."}
             </span>
           </button>
         </div>
@@ -255,3 +255,5 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
     </div>
   );
 }
+
+const TYPE_LABEL: Record<string, string> = { mcq: "Choice", text: "Written", photo: "Photo", MCQ: "Choice", TEXT: "Written", PHOTO: "Photo" };

@@ -35,7 +35,7 @@ const splineMono = Spline_Sans_Mono({
 export const metadata: Metadata = {
   // Resolves relative share-image and canonical URLs to the live domain.
   metadataBase: new URL(SITE_URL),
-  title: `${COMPANY_NAME} — Exam & Cohort Portal`,
+  title: `${COMPANY_NAME} · Student portal`,
   description: "A calm, mobile-first exam and cohort-management portal.",
   // Tab and home-screen icons come from app/icon.svg and app/apple-icon.tsx.
 };

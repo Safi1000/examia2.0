@@ -57,7 +57,7 @@ export default function AttendancePage() {
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader
         title="Attendance"
-        subtitle={mode === "daily" ? "Everyone starts present — tap a name to change it" : "One percentage per student"}
+        subtitle={mode === "daily" ? "Everyone starts present. Tap Late or Absent to change it" : "One percentage per student"}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -177,10 +177,10 @@ export default function AttendancePage() {
                   const v = e.target.value.trim();
                   // Only a real change becomes a typed figure; tabbing past leaves it live.
                   if (v === "" || Number(v) === value) return;
-                  store.setMonthlyAttendance(s.id, month, Number(v));
+                  store.setMonthlyAttendance(s.id, month, Math.max(0, Math.min(100, Math.round(Number(v)))));
                   onSaved();
                 }}
-                placeholder="—"
+                placeholder="%"
                 aria-label={`${s.username} attendance percent`}
                 className="h-10 w-24 rounded-md border border-border-strong bg-surface px-3 text-center font-mono text-sm font-semibold text-ink"
               />

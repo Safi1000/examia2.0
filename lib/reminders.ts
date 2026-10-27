@@ -64,7 +64,7 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
         student,
         ref: test.id,
         label: `${student.username} did not sit "${test.title}"`,
-        message: `Assalam o Alaikum. ${student.username} has not submitted "${test.title}" (${test.subject}), which has now closed. Please ask them to catch up. — ${COMPANY_NAME}`,
+        message: `Assalam o Alaikum. ${student.username} has not submitted "${test.title}" (${test.subject}), which has now closed. Please ask them to catch up. ${COMPANY_NAME}`,
       });
     }
   }
@@ -81,7 +81,7 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
       student,
       ref: last?.date ?? String(streak),
       label: `${student.username} has been absent ${streak} classes in a row`,
-      message: `Assalam o Alaikum. ${student.username} has missed ${streak} classes in a row. Is everything alright? — ${COMPANY_NAME}`,
+      message: `Assalam o Alaikum. ${student.username} has missed ${streak} classes in a row. Is everything alright? ${COMPANY_NAME}`,
     });
   }
 
@@ -102,7 +102,7 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
       student,
       ref: `${lastMonth}-01`,
       label: `${monthName(lastMonth)} report for ${student.username}`,
-      message: `Assalam o Alaikum. Here is ${student.username}'s progress report for ${monthName(lastMonth)}. — ${COMPANY_NAME}`,
+      message: `Assalam o Alaikum. Here is ${student.username}'s progress report for ${monthName(lastMonth)}. ${COMPANY_NAME}`,
     });
   }
 

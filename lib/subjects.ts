@@ -35,7 +35,7 @@ export const SUBJECT_PAGES: SubjectInfo[] = [
     subject: "Accounting",
     seoTitle: "Accounting Tuition: O Level, IGCSE and A Level | Hamza Teaches",
     seoDescription:
-      "Live small-group Accounting classes for O Level (7707), IGCSE (0452), AS and A2 (9706). Live online. Watch a free trial lesson first.",
+      "Live small group Accounting classes for O Level (7707), IGCSE (0452), AS and A2 (9706). Live online. Watch a free trial lesson first.",
     h1: "Accounting tuition for O Level, IGCSE and A Level",
     intro:
       "From double entry to investment appraisal, taught in the order the examiner expects, with past paper practice every week.",
@@ -88,7 +88,7 @@ export const SUBJECT_PAGES: SubjectInfo[] = [
     subject: "Business",
     seoTitle: "Business Tuition: O Level, IGCSE and A Level | Hamza Teaches",
     seoDescription:
-      "Live small-group Business classes for O Level (7081, was 7115), IGCSE (0264, was 0450), AS and A2 (9609). Live online. Free trial lesson.",
+      "Live small group Business classes for O Level (7081, was 7115), IGCSE (0264, was 0450), AS and A2 (9609). Live online. Free trial lesson.",
     h1: "Business tuition for O Level, IGCSE and A Level",
     intro:
       "How a firm actually reaches a decision, and how to build the argument the mark scheme rewards on the long case study questions.",
@@ -140,7 +140,7 @@ export const SUBJECT_PAGES: SubjectInfo[] = [
     subject: "Economics",
     seoTitle: "Economics Tuition: O Level, IGCSE and A Level | Hamza Teaches",
     seoDescription:
-      "Live small-group Economics classes for O Level (2281), IGCSE (0455), AS and A2 (9708). Live online. Watch a free trial lesson first.",
+      "Live small group Economics classes for O Level (2281), IGCSE (0455), AS and A2 (9708). Live online. Watch a free trial lesson first.",
     h1: "Economics tuition for O Level, IGCSE and A Level",
     intro:
       "Diagrams you can draw under pressure, and evaluation answers that pick a side and back it up.",

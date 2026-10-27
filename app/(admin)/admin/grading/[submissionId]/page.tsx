@@ -108,8 +108,8 @@ export default function GradingPage() {
           released ? (
             <>
               <Badge tone="success">Released</Badge>
-              <Button variant="secondary" onClick={() => { store.unreleaseSubmission(subId); toast("Re-opened for grading.", "info"); }}>
-                <Icon.Refresh className="h-4 w-4" /> Re-grade
+              <Button variant="secondary" onClick={() => { if (!window.confirm("Take this result back to mark again? The student won't see it until you release it again.")) return; store.unreleaseSubmission(subId); toast("Opened for marking again.", "info"); }}>
+                <Icon.Refresh className="h-4 w-4" /> Mark again
               </Button>
               {nextId && (
                 <Button onClick={() => router.push(`/admin/grading/${nextId}`)}>Next to mark →</Button>
@@ -163,7 +163,7 @@ export default function GradingPage() {
       {mcqs.length > 0 && mcqs.length < test.questions.length && (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-surface px-4 py-3 text-sm text-ink-2">
           <span>
-            {mcqs.length} multiple-choice {mcqs.length === 1 ? "question" : "questions"} marked automatically:{" "}
+            {mcqs.length} multiple choice {mcqs.length === 1 ? "question" : "questions"} marked automatically:{" "}
             <span className="font-mono font-semibold text-ink">{mcqAwarded}/{mcqTotal}</span>
           </span>
           <button
@@ -287,7 +287,7 @@ function GradeCard({
           <Badge tone="neutral" className="uppercase">{question.type}</Badge>
           <Badge tone="brand">{question.topic}</Badge>
           <Pill>{question.marks}m</Pill>
-          {locked && <span className="inline-flex items-center gap-1 text-xs text-ink-3"><Icon.Lock className="h-3 w-3" /> auto-graded</span>}
+          {locked && <span className="inline-flex items-center gap-1 text-xs text-ink-3"><Icon.Lock className="h-3 w-3" /> marked automatically</span>}
         </div>
       </div>
       <p className="mt-2 font-semibold text-ink">{question.prompt}</p>

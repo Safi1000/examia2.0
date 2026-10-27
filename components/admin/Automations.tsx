@@ -99,9 +99,9 @@ const SWITCHES: Array<{ key: keyof Settings; label: string; detail: string }> = 
   },
   {
     key: "autoRelease",
-    label: "Release multiple-choice results",
+    label: "Release multiple choice results",
     detail:
-      "When a test with only multiple-choice questions closes, its results are released and students get the usual notification. Tests with written or photo answers still wait for you.",
+      "When a test with only multiple choice questions closes, its results are released and students get the usual notification. Tests with written or photo answers still wait for you.",
   },
 ];
 

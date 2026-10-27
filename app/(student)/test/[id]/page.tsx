@@ -429,7 +429,8 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
 
   // Already submitted, or not open → bounce out.
   useEffect(() => {
-    if (existing) router.replace(existing.status === "released" ? `/results/${id}` : "/dashboard");
+    // Just handed in here: doSubmit is already taking them to the Done screen.
+    if (existing && !submittedRef.current) router.replace(existing.status === "released" ? `/results/${id}` : "/dashboard");
   }, [existing, id, router]);
 
   if (!student || !test || !visible) {
@@ -467,7 +468,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
         />
       );
     }
-    return <RunnerNotice title="Test closed" message="You missed the window." />;
+    return <RunnerNotice title="Test closed" message="This one has closed. If something went wrong, message me." />;
   }
 
   // A saved place past the end (a question was removed mid-attempt) lands on the last one.
@@ -607,7 +608,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
             </Button>
           ) : (
             <Button onClick={() => setIndex(Math.min(test.questions.length - 1, at + 1))}>
-              Save &amp; Next <Icon.ChevronRight className="h-4 w-4" />
+              Next <Icon.ChevronRight className="h-4 w-4" />
             </Button>
           )}
           </>

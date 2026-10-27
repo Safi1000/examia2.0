@@ -237,7 +237,7 @@ export default function NotesPage() {
                           // plainly — "No assignments yet" read like a detail.
                           <Badge tone="warning">
                             <Icon.Warn className="h-3.5 w-3.5" />
-                            Not visible to students — assign it
+                            Not visible to students. Assign it
                           </Badge>
                         )}
                         {assignments.map((a) => (
@@ -300,7 +300,7 @@ export default function NotesPage() {
             label="Title"
             value={uploadTitle}
             onChange={(e) => setUploadTitle(e.target.value)}
-            placeholder="e.g. Chapter 3 – Supply & Demand"
+            placeholder="e.g. Chapter 3, Supply and Demand"
             required
             autoFocus
           />

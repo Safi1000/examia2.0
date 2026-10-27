@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import type { Question } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
@@ -45,6 +45,18 @@ export default function TestEditorPage() {
         }
       : null,
   );
+
+  // Unsaved settings: the browser asks before the tab is closed or reloaded.
+  const savedForm = test
+    ? JSON.stringify({ title: test.title, subject: test.subject, subjectId: test.subjectId ?? "", classId: test.classId ?? "", durationMinutes: test.durationMinutes, uploadMinutes: test.uploadMinutes, cohortId: test.cohortId ?? "", opensAt: toLocalInput(test.opensAt), closesAt: toLocalInput(test.closesAt), testCode: test.testCode })
+    : "";
+  const dirty = !!form && JSON.stringify(form) !== savedForm;
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
 
   const [qModalOpen, setQModalOpen] = useState(false);
   const [editingQ, setEditingQ] = useState<Question | null>(null);

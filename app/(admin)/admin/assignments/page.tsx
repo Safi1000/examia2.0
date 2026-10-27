@@ -188,7 +188,7 @@ export default function AdminAssignmentsPage() {
       >
         {form && (
           <div className="space-y-4">
-            <Input label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Week 5 — Partnership accounts" required />
+            <Input label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Week 5, Partnership accounts" required />
             <Textarea label="Instructions (optional)" value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })} placeholder="What the students have to do…" />
 
             <div>

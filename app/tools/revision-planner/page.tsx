@@ -42,7 +42,7 @@ export default async function RevisionPlannerPage({ searchParams }: Props) {
       slug="revision-planner"
       name="Revision planner"
       h1="Revision planner"
-      intro="Your subjects, your first exam date and your weak topics turned into a week-by-week plan, using every subtopic of the real Cambridge syllabus."
+      intro="Your subjects, your first exam date and your weak topics turned into a plan for each week, using every subtopic of the real Cambridge syllabus."
       subject="Economics"
       level="O Level / IGCSE"
       faq={FAQ}

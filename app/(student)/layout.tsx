@@ -89,7 +89,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           >
             Message Hamza
           </a>{" "}
-          and they&apos;ll sort it out.
+          and I&apos;ll sort it out.
         </p>
         <button
           onClick={() => { logout(); router.replace("/login"); }}
@@ -155,7 +155,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   ];
   // Phones: five tabs. "Work" holds Tests, Tasks and Notes behind a switch.
   const WORK = ["/tests", "/assignments", "/notes"];
-  const isWork = WORK.includes(pathname) || pathname.startsWith("/results");
+  const isWork = WORK.includes(pathname) || pathname.startsWith("/results") || /^\/test\/[^/]+\/submitted$/.test(pathname);
   const phoneLinks = [
     links[0],
     links[1],

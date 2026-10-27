@@ -176,7 +176,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
     },
     {
       title: "Stay on top of things.",
-      sub: "A quiet note when your class is starting, your result is out, a test is about to open or work is due tomorrow. Never at night, at most 2 a day.",
+      sub: "A quiet note when your class is starting, your result is out, a test is about to open or work is due tomorrow. Never at night, and only a few.",
       body: (
         <NotifyStep />
       ),

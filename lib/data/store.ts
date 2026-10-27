@@ -1143,7 +1143,7 @@ class Store {
 
     this.logActivity({
       type: "test_created",
-      title: `Test created — "${t.title}"`,
+      title: `Test created: "${t.title}"`,
       description: [t.subject, this.cohortName(t.cohortId)].filter(Boolean).join(" • "),
       testId,
       link: `/admin/tests/${testId}`,
@@ -1247,7 +1247,7 @@ class Store {
       type: "test_updated",
       title: patch.status
         ? `"${updated.title}" marked ${patch.status}`
-        : `Test updated — "${updated.title}"`,
+        : `Test updated: "${updated.title}"`,
       description: [updated.subject, this.cohortName(updated.cohortId)].filter(Boolean).join(" • "),
       testId: id,
       link: `/admin/tests/${id}`,
@@ -1295,7 +1295,7 @@ class Store {
     // test itself, and the notification has to outlive what it reports.
     this.logActivity({
       type: "test_deleted",
-      title: `Test deleted — "${title ?? "Untitled"}"`,
+      title: `Test deleted: "${title ?? "Untitled"}"`,
       description: [test?.subject, this.cohortName(test?.cohortId)].filter(Boolean).join(" • "),
     });
     // Only tell the cohort about a test they could actually see.
@@ -2046,7 +2046,7 @@ class Store {
     }
     this.logActivity({
       type: "notes_uploaded",
-      title: `Notes uploaded — "${title}"`,
+      title: `Notes uploaded: "${title}"`,
       description: "Not visible to students until it is assigned.",
       noteId: id,
       link: "/admin/notes",
@@ -2061,7 +2061,7 @@ class Store {
     });
     this.run(supabase().from("notes").delete().eq("id", id), "deleteNote");
     // No noteId: the FK would cascade this entry away with the note itself.
-    this.logActivity({ type: "notes_deleted", title: `Notes deleted — "${title ?? "Untitled"}"` });
+    this.logActivity({ type: "notes_deleted", title: `Notes deleted: "${title ?? "Untitled"}"` });
   }
   /** Rolls the optimistic row back if the insert fails, so an assignment can
    *  never appear attached to a note without existing in the database. */
@@ -2084,7 +2084,7 @@ class Store {
       .join(" › ");
     this.logActivity({
       type: "notes_assigned",
-      title: `Notes assigned — "${note?.title ?? "Untitled"}"`,
+      title: `Notes assigned: "${note?.title ?? "Untitled"}"`,
       description: scope,
       noteId,
       link: "/admin/notes",

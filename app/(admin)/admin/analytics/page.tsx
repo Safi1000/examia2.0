@@ -434,10 +434,10 @@ function ClassView({
                     ) : pending > 0 ? (
                       <span className="text-warning">{pending} to mark</span>
                     ) : (
-                      <span className="text-ink-3">—</span>
+                      <span className="text-ink-3">None</span>
                     )}
                   </Td>
-                  <Td>{top ? <Badge tone={gradeRole(top)}>{top}</Badge> : <span className="text-ink-3">—</span>}</Td>
+                  <Td>{top ? <Badge tone={gradeRole(top)}>{top}</Badge> : <span className="text-ink-3">None</span>}</Td>
                 </tr>
               ))}
             </tbody>

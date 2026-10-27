@@ -248,11 +248,11 @@ export async function runReminders(): Promise<{ sent: number; quiet?: boolean }>
   for (const s of students) {
     for (const t of opening ?? []) {
       if (!covers(t, s) || done.has(`${s.id}|${t.id}`)) continue;
-      items.push({ studentId: s.id, kind: "tests", refs: [`open:${t.id}`], ...testOpensCopy(`${s.id}${t.id}`, t.title, pkTime(t.opens_at)), url: "/tests", tag: `test-${t.id}`, priority: 2 });
+      items.push({ studentId: s.id, kind: "tests", refs: [`open:${t.id}`], ...testOpensCopy(`${s.id}${t.id}`, t.title, pkTime(t.opens_at)), url: `/test/${t.id}`, tag: `test-${t.id}`, priority: 2 });
     }
     for (const a of due ?? []) {
       if (!covers(a, s, true) || doneA.has(`${s.id}|${a.id}`)) continue;
-      items.push({ studentId: s.id, kind: "assignments", refs: [`due:${a.id}`], ...assignmentCopy(`${s.id}${a.id}`, a.title, new Date(a.due_at).toLocaleString("en-GB", { timeZone: TZ, weekday: "short", hour: "numeric", minute: "2-digit", hour12: true })), url: "/assignments", tag: `asg-${a.id}`, priority: 3 });
+      items.push({ studentId: s.id, kind: "assignments", refs: [`due:${a.id}`], ...assignmentCopy(`${s.id}${a.id}`, a.title, new Date(a.due_at).toLocaleString("en-GB", { timeZone: TZ, weekday: "short", hour: "numeric", minute: "2-digit", hour12: true }), pkDate(new Date(a.due_at).getTime()) === pkDate(now)), url: `/assignments#a-${a.id}`, tag: `asg-${a.id}`, priority: 3 });
     }
   }
   return { sent: await deliver(sb, items) };

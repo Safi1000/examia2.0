@@ -194,7 +194,7 @@ export function QuestionModal({
 
         {type === "mcq" && (
           <div>
-            <Label>Options — select the correct one</Label>
+            <Label>Options: select the correct one</Label>
             <div className="space-y-2">
               {options.map((opt, i) => (
                 <div

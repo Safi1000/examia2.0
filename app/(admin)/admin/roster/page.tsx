@@ -109,7 +109,7 @@ export default function RosterPage() {
       db.students
         .filter((s) => (view === "archive") === off.has(s.cohortId))
         .filter((s) => (cohortId ? s.cohortId === cohortId : true))
-        .filter((s) => (search.trim() ? (s.username + (s.email ?? "")).toLowerCase().includes(search.toLowerCase()) : true))
+        .filter((s) => (search.trim() ? `${s.username} ${s.email ?? ""} ${s.phone ?? ""} ${s.whatsapp ?? ""}`.toLowerCase().includes(search.trim().toLowerCase()) : true))
         .sort((a, b) => a.username.localeCompare(b.username)),
     [db.students, cohortId, search, view, off],
   );
@@ -332,7 +332,7 @@ export default function RosterPage() {
                     <p className="truncate font-bold capitalize text-ink">{s.username}</p>
                     <p className="flex items-center gap-1.5 text-sm text-ink-2">
                       {cohort && <CohortDot color={cohort.color} />}
-                      <span className="truncate">{cohort?.name ?? "—"}</span>
+                      <span className="truncate">{cohort?.name ?? "No cohort"}</span>
                       <span className="text-ink-3">· {released} results</span>
                     </p>
                     {(classNames.length > 0 || subjectNames.length > 0) && (
@@ -355,7 +355,7 @@ export default function RosterPage() {
                       rel="noreferrer"
                       className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink"
                       aria-label={`WhatsApp ${s.username}`}
-                      title={`Chat with ${s.username} — ${s.phone}`}
+                      title={`Chat with ${s.username}: ${s.phone}`}
                     >
                       <Icon.Users className="h-4 w-4" />
                     </a>
@@ -409,7 +409,7 @@ export default function RosterPage() {
               onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
               onBlur={(e) => setForm({ ...form, whatsapp: e.target.value.trim() ? normalizePhone(e.target.value) : "" })}
               placeholder="+923001234567"
-              hint="Country code required — reports go here."
+              hint="Country code required. Reports go here."
             />
             <Input
               label="Student's number"
@@ -431,7 +431,7 @@ export default function RosterPage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={form.photoUrl} alt="" className="h-full w-full object-cover" />
                 ) : (
-                  form.username.slice(0, 2) || "—"
+                  form.username.slice(0, 2) || "?"
                 )}
               </span>
               <input

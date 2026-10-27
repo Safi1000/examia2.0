@@ -423,7 +423,7 @@ function DayActions({ slot, onCancel, onMove }: { slot: DaySlot; onCancel: () =>
       <button type="button" className={`${small} text-ink-3 hover:bg-surface-2 hover:text-ink`} onClick={() => setMoving(true)}>
         Change time
       </button>
-      <button type="button" className={`${small} text-ink-3 hover:bg-surface-2 hover:text-error`} onClick={onCancel}>
+      <button type="button" className={`${small} text-ink-3 hover:bg-surface-2 hover:text-error`} onClick={() => { if (window.confirm(`Cancel ${slot.subject} for this day? Students in it will be told.`)) onCancel(); }}>
         Cancel class
       </button>
     </span>

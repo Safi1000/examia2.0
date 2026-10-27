@@ -32,7 +32,7 @@ export function PageStack({ urls, label }: { urls: string[]; label: string }) {
         aria-label={`Open ${label} full screen`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={cld(url, 1000)} loading="lazy" decoding="async" alt={`${label} — page ${shown + 1}`} className="block w-full" />
+        <img src={cld(url, 1000)} loading="lazy" decoding="async" alt={`${label}, page ${shown + 1}`} className="block w-full" />
       </button>
       <figcaption className="flex flex-wrap items-center gap-2 border-t border-border px-3 py-2 text-xs text-ink-3">
         {urls.length > 1 && (
@@ -144,7 +144,7 @@ function PageViewerModal({
                   src={cld(u, 1800)}
                   loading={i === startAt ? "eager" : "lazy"}
                   decoding="async"
-                  alt={`${label} — page ${i + 1}`}
+                  alt={`${label}, page ${i + 1}`}
                   className="block w-full"
                   onLoad={i === startAt ? (e) => e.currentTarget.scrollIntoView({ block: "start" }) : undefined}
                 />

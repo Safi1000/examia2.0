@@ -178,16 +178,16 @@ export default function SubmissionsPage() {
                           label={`Select ${student?.username ?? "submission"}`}
                         />
                       </Td>
-                      <Td className="font-semibold capitalize">{student?.username ?? "—"}</Td>
+                      <Td className="font-semibold capitalize">{student?.username ?? "Removed student"}</Td>
                       <Td className="min-w-[10rem] text-ink-2">{test.title}<span className="block text-xs text-ink-3">{test.subject}</span></Td>
-                      <Td className="hidden lg:table-cell">{cohort ? <span className="inline-flex items-center gap-1.5 text-ink-2"><CohortDot color={cohort.color} />{cohort.name}</span> : "—"}</Td>
+                      <Td className="hidden lg:table-cell">{cohort ? <span className="inline-flex items-center gap-1.5 text-ink-2"><CohortDot color={cohort.color} />{cohort.name}</span> : "No cohort"}</Td>
                       <Td>
                         {sub.status === "released" ? <Badge tone="success">Released</Badge> : <Badge tone="warning">Awaiting</Badge>}
                         {sub.autoSubmitted && <span className="ml-1 text-xs text-ink-3">auto</span>}
                         {sub.late && <span className="ml-1 text-xs font-semibold text-error">late</span>}
                       </Td>
-                      <Td className="font-mono">{sub.status === "released" ? `${grade.percent}% · ${grade.letter}` : <span className="text-ink-3">—</span>}</Td>
-                      <Td className="hidden whitespace-nowrap text-ink-2 md:table-cell">{sub.submittedAt ? formatTimestamp(sub.submittedAt) : "—"}</Td>
+                      <Td className="font-mono">{sub.status === "released" ? `${grade.percent}% · ${grade.letter}` : <span className="text-ink-3">Not yet</span>}</Td>
+                      <Td className="hidden whitespace-nowrap text-ink-2 md:table-cell">{sub.submittedAt ? formatTimestamp(sub.submittedAt) : "Not yet"}</Td>
                       <Td>
                         <div className="flex items-center gap-1.5">
                           <Link href={`/admin/grading/${sub.id}`} className={buttonClasses({ variant: "secondary", size: "sm" })}>
@@ -226,7 +226,7 @@ export default function SubmissionsPage() {
           </>
         }
       >
-        <p className="text-sm text-ink-2">All questions are auto-graded multiple choice, so results can be released in one click.</p>
+        <p className="text-sm text-ink-2">Every question is multiple choice and marked automatically, so results can be released in one click.</p>
       </Modal>
 
       <Modal

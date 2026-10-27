@@ -37,7 +37,7 @@ export function NotifyNudge() {
   return (
     <div className="fixed inset-x-3 bottom-24 z-40 mx-auto max-w-md animate-fade-up rounded-2xl border border-border bg-[#1d2023]/95 p-4 shadow-[0_24px_48px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl md:bottom-6">
       <p className="font-semibold text-ink">Turn on notifications?</p>
-      <p className="mt-1 text-sm text-ink-2">Class starting, results, a test about to open, work due tomorrow. Never at night, at most 2 a day.</p>
+      <p className="mt-1 text-sm text-ink-2">Class starting, results, a test about to open, work due tomorrow. Never at night, and only a few.</p>
       <div className="mt-3 flex gap-2">
         <button
           type="button"

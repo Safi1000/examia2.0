@@ -81,11 +81,11 @@ export function StudentReport({
         <section className="sr-stats">
           <div className="sr-stat">
             <div className="sr-stat-label">GRADE THIS MONTH</div>
-            <div className="sr-stat-value gold huge">{grade ?? "—"}</div>
+            <div className="sr-stat-value gold huge">{grade ?? "None yet"}</div>
           </div>
           <div className="sr-stat">
             <div className="sr-stat-label">AVERAGE</div>
-            <div className="sr-stat-value">{averagePct != null ? `${averagePct}%` : "—"}</div>
+            <div className="sr-stat-value">{averagePct != null ? `${averagePct}%` : "None yet"}</div>
             <div className="sr-stat-sub">
               {deltaPct != null
                 ? `${deltaPct > 0 ? "+" : ""}${deltaPct}% vs last month`

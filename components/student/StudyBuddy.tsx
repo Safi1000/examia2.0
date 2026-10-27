@@ -124,7 +124,7 @@ export function StudyBuddy({ db, student, nowMs, mission: given }: { db: Databas
             </p>
             <p className="text-xs text-ink-3">
               {level.name}
-              {stats.streak > 1 && <span className="text-brand"> · {stats.streak}-day streak</span>}
+              {stats.streak > 1 && <span className="text-brand"> · {stats.streak} day streak</span>}
             </p>
           </div>
           <button

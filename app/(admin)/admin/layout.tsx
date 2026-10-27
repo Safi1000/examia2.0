@@ -16,7 +16,8 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { PortalAmbient } from "@/components/PortalAmbient";
 import { pageTitle, useDocumentTitle } from "@/hooks/usePageTitle";
 
-const IDLE_MS = 30 * 60 * 1000; // 30-minute idle session timeout
+// Long enough to teach a block of back-to-back classes in Meet without being signed out.
+const IDLE_MS = 3 * 60 * 60 * 1000;
 
 const TITLES: Record<string, string> = {
   "/admin/today": "Today",

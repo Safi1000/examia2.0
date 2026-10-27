@@ -166,7 +166,7 @@ export default function PrivateCandidatesPakistan() {
           />
           <p className="mt-5 text-[17px] leading-relaxed text-body">
             The hard part on your own is not finding past papers. It is knowing why an answer you thought was right only got half the marks.
-            Accounting formats, Business evaluation and Economics analysis are where self-study students lose the most, because nobody marks
+            Accounting formats, Business evaluation and Economics analysis are where students studying alone lose the most, because nobody marks
             their written answers.
           </p>
           <p className="mt-4 text-[17px] leading-relaxed text-body">
@@ -185,7 +185,7 @@ export default function PrivateCandidatesPakistan() {
         <TrialBox
           from="private-candidates:pakistan"
           title="No school. Still not alone."
-          body="Live small-group classes online for O Level, IGCSE, AS and A Level Accounting, Business and Economics, with weekly tests I mark myself. Private candidates are welcome. Start with one free lesson."
+          body="Live small group classes online for O Level, IGCSE, AS and A Level Accounting, Business and Economics, with weekly tests I mark myself. Private candidates are welcome. Start with one free lesson."
         />
 
         <Section title="Questions private candidates ask">

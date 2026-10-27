@@ -77,7 +77,7 @@ export function StudyStats({ nowMs }: { nowMs: number }) {
           ))}
         </div>
         <p className="mt-2 text-xs text-ink-3">
-          {stats.streak > 1 ? `${stats.streak}-day streak. ` : ""}Each square is a day; brighter means more study.
+          {stats.streak > 1 ? `${stats.streak} day streak. ` : ""}Each square is a day; brighter means more study.
         </p>
       </div>
 

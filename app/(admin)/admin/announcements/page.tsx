@@ -8,11 +8,14 @@ import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Button, Textarea, Select, Checkbox, Badge, CohortTag, Modal, EmptyState, Icon } from "@/components/ui";
 import { formatDate } from "@/lib/time";
+import { useAdminFilter } from "@/lib/admin-filter";
 
 const MAX = 250;
 
 export default function AnnouncementsPage() {
   const db = useDatabase();
+  // A new notice starts on the cohort picked in the sidebar.
+  const { cohortId: viewing } = useAdminFilter();
   const store = useStore();
   const { toast } = useToast();
 
@@ -22,7 +25,7 @@ export default function AnnouncementsPage() {
   const [cohortId, setCohortId] = useState("");
   const [deleting, setDeleting] = useState<Announcement | null>(null);
 
-  function openNew() { setEditing("new"); setBody(""); setPinned(false); setCohortId(""); }
+  function openNew() { setEditing("new"); setBody(""); setPinned(false); setCohortId(viewing ?? ""); }
   function openEdit(a: Announcement) { setEditing(a); setBody(a.body); setPinned(a.pinned); setCohortId(a.cohortId ?? ""); }
   function save() {
     const text = body.trim().slice(0, MAX);
@@ -103,7 +106,7 @@ export default function AnnouncementsPage() {
           </div>
           <Select label="Audience" value={cohortId} onChange={(e) => setCohortId(e.target.value)}>
             <option value="">All cohorts</option>
-            {db.cohorts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {db.cohorts.filter((c) => c.active || c.id === cohortId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
           <Checkbox checked={pinned} onChange={setPinned} label="Pin to the top (always visible, not dismissible)" />
         </div>

@@ -81,7 +81,7 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
       const { error } = await supabase().rpc("claim_push_device", { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth });
       if (error) throw error;
       setStatus("on");
-      toast("Notifications on. We'll keep them few.", "success");
+      toast("Notifications on. I'll keep them few.", "success");
     } catch {
       toast("Couldn't turn notifications on. Try again in a moment.", "error");
     } finally {
@@ -99,6 +99,8 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
         await sub.unsubscribe();
       }
       setStatus("off");
+    } catch {
+      toast("Couldn’t turn them off. Try again.", "error");
     } finally {
       setBusy(false);
     }
@@ -120,7 +122,7 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-ink">Phone notifications</h2>
-          <p className="mt-1 text-sm text-ink-3">Only what matters, never at night, at most 2 a day.</p>
+          <p className="mt-1 text-sm text-ink-3">Only what matters, never at night. At most 2 a day, plus class reminders.</p>
         </div>
         {status === "on" && (
           <Button variant="secondary" size="sm" loading={busy} onClick={() => void turnOff()}>
@@ -167,11 +169,11 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
               <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${profile.notifyClasses !== false ? "left-6" : "left-1"}`} />
             </button>
           </li>
-          {/* Groundwork study times and missed class recordings: also on the profile. */}
+          {/* Groundwork study times and class recordings: also on the profile. */}
           {(
             [
               ["notifyStudy", "Study times", "At your Groundwork study time, if you haven't studied yet that day"],
-              ["notifyRecordings", "Missed class recordings", "A few hours before the recording of a class you missed closes"],
+              ["notifyRecordings", "Class recordings", "A few hours before one closes"],
             ] as const
           ).map(([key, label, hint]) => (
             <li key={key} className="flex items-center justify-between gap-4 py-3">

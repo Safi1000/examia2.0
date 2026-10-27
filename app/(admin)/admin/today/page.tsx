@@ -163,7 +163,7 @@ export default function TodayPage() {
     { label: "To mark", value: data.toMark.length, href: "#to-mark" },
     { label: "Closing in 48 hours", value: data.closing.length, href: "#closing" },
     { label: "Students to check on", value: data.attention.length, href: "#attention" },
-    { label: "Average, last 30 days", value: data.avg30 === null ? "–" : `${data.avg30}%`, href: "/admin/analytics" },
+    { label: "Average, last 30 days", value: data.avg30 === null ? "None yet" : `${data.avg30}%`, href: "/admin/analytics" },
   ];
 
   return (

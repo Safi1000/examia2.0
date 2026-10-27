@@ -86,7 +86,7 @@ function ScoreRing({ data }: { data: ReportData }) {
           ) : null}
         </Svg>
         <View style={{ position: "absolute", top: 0, left: 0, width: size, height: size, alignItems: "center", justifyContent: "center" }}>
-          <Text style={{ fontSize: 26, fontWeight: 800, color: INK, lineHeight: 1 }}>{v == null ? "–" : `${Math.round(v)}%`}</Text>
+          <Text style={{ fontSize: 26, fontWeight: 800, color: INK, lineHeight: 1 }}>{v == null ? "None" : `${Math.round(v)}%`}</Text>
           <Text style={{ fontSize: 5.8, letterSpacing: 1.4, color: MUTED, marginTop: 3, fontWeight: 600 }}>AVERAGE</Text>
         </View>
       </View>
@@ -124,7 +124,7 @@ function Attendance({ a }: { a: ReportData["attendance"] }) {
           {a && pct > 0 ? <Path d={arc(cx, cy, r, -90, -90 + pct * 1.8)} stroke={pct >= 85 ? GOLD : BAD} strokeWidth={7} fill="none" strokeLinecap="round" /> : null}
         </Svg>
         <Text style={{ position: "absolute", left: 0, top: 26, width: w, textAlign: "center", fontSize: 16, fontWeight: 800, color: a ? INK : MUTED }}>
-          {a ? `${Math.round(a.percent)}%` : "–"}
+          {a ? `${Math.round(a.percent)}%` : "None"}
         </Text>
       </View>
       <Text style={{ fontSize: 6.6, color: MUTED, marginTop: 4, width: w, textAlign: "center" }}>
@@ -183,7 +183,7 @@ function Grade({ grade }: { grade: ReportData["grade"] }) {
   return (
     <View style={{ flex: 1 }}>
       <Text style={s.label}>Indicative grade</Text>
-      <Text style={{ fontSize: 30, fontWeight: 800, color: GOLD, marginTop: 6, lineHeight: 1 }}>{grade ?? "–"}</Text>
+      <Text style={{ fontSize: 30, fontWeight: 800, color: GOLD, marginTop: 6, lineHeight: 1 }}>{grade ?? "None yet"}</Text>
       <View style={{ flexDirection: "row", marginTop: 9 }}>
         {GRADES.map((g) => (
           <View key={g} style={{ alignItems: "center", width: 21 }}>

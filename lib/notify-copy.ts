@@ -36,7 +36,7 @@ export function studyCopy(seed: string, label: string): Copy {
 /** A missed class's recording, closing within a few hours. One a day at most. */
 export function recordingCopy(seed: string, subject: string, day: string, closes: string): Copy {
   return pick(seed, [
-    { title: `Missed ${subject}?`, body: `${day}’s recording is up till ${closes}.` },
+    { title: `${subject} recording is up`, body: `${day}’s class, till ${closes}.` },
     { title: `${subject} recording 🎬`, body: `Gone at ${closes}. Worth 40 minutes, promise.` },
   ]);
 }
@@ -50,7 +50,12 @@ export function testOpensCopy(seed: string, test: string, time: string): Copy {
 }
 
 /** An assignment due within a day. */
-export function assignmentCopy(seed: string, title: string, when: string): Copy {
+export function assignmentCopy(seed: string, title: string, when: string, today = false): Copy {
+  if (today)
+    return pick(seed, [
+      { title: "Due today ⏳", body: `${title}, ${when}. A photo of your working does it.` },
+      { title: `${title} is due today`, body: "Still time. A photo of your working does it." },
+    ]);
   return pick(seed, [
     { title: "Due tomorrow ⏳", body: `${title}, ${when}. A photo of your working does it.` },
     { title: `${title} is due tomorrow`, body: "Do it today, thank yourself tomorrow." },

@@ -21,7 +21,7 @@ export function BulkBar({
 }) {
   if (count === 0) return null;
   return (
-    <div className="sticky top-2 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-brand/40 bg-brand-soft/70 px-3 py-2 backdrop-blur">
+    <div className="sticky top-[4.5rem] z-20 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-brand/40 bg-brand-soft/70 px-3 py-2 backdrop-blur">
       <span className="text-sm font-semibold text-ink">
         {count} {noun}
         {count === 1 ? "" : "s"} selected

@@ -129,9 +129,9 @@ export function RemindersPanel() {
       {running && (
         <div className="flex flex-wrap items-center gap-3 border-b border-border bg-brand-soft/40 px-4 py-3">
           <span className="text-sm font-semibold text-ink">
-            {running.student.username} — report {(runIndex ?? 0) + 1} of {reportRun.length}. Sent?
+            {running.student.username}: report {(runIndex ?? 0) + 1} of {reportRun.length}. Sent?
           </span>
-          <Button size="sm" onClick={() => void nextInRun(true)}>Sent — next</Button>
+          <Button size="sm" onClick={() => void nextInRun(true)}>Sent, next</Button>
           <Button size="sm" variant="secondary" onClick={() => void nextInRun(false)}>Skip</Button>
           <Button size="sm" variant="ghost" onClick={() => setRunIndex(null)}>Stop</Button>
         </div>

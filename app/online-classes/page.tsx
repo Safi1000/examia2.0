@@ -58,7 +58,7 @@ export default function OnlineClassesPakistan() {
           Online O Level and A Level classes in Accounting, Business and Economics
         </h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
-          Live small-group classes for Cambridge O Level, IGCSE, AS and A Level students across Pakistan. Every lesson is recorded, and
+          Live small group classes for Cambridge O Level, IGCSE, AS and A Level students across Pakistan. Every lesson is recorded, and
           every weekly test is made and marked by me, with feedback on the exact mistakes that cost you marks.
         </p>
 
