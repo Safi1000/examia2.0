@@ -13,9 +13,7 @@ import {
   drawGrid,
   drawImages,
   drawStroke,
-  FORMS,
   fitView,
-  type FormId,
   hitStroke,
   imageAt,
   imageSize,
@@ -23,9 +21,13 @@ import {
   lineAngle,
   newId,
   packStroke,
+  lineDir,
   recogniseShape,
+  settleStroke,
   smoothPoint,
   steadyFor,
+  straightOf,
+  tAccountOf,
   snapLine,
   toWorld,
   visibleView,
@@ -57,10 +59,11 @@ const ERASER_PX = 14;
 const PAN_GAIN = 1.15;
 const HANDLE_PX = 22;
 
-type Tool = "pen" | "line" | "eraser" | "move" | "form";
+type Tool = "pen" | "line" | "eraser" | "move";
 type Action =
   | { type: "add"; s: Stroke }
   | { type: "erase"; s: Stroke[] }
+  | { type: "replace"; before: Stroke[]; after: Stroke[] }
   | { type: "clear"; s: Stroke[]; m: BoardImage[] }
   | { type: "img-add"; m: BoardImage[] }
   | { type: "img-del"; m: BoardImage }
@@ -188,11 +191,6 @@ const I = {
       <path d="M13.8 7l3.2 3.2" />
     </>,
   ),
-  form: svg(
-    <>
-      <path d="M4 7h16M12 7v12M4 4.5h3M17 4.5h3" />
-    </>,
-  ),
   line: svg(
     <>
       <path d="M5 19L19 5" />
@@ -276,9 +274,8 @@ export function TeacherBoard({ room }: { room: string }) {
 
   const [tool, setTool] = useState<Tool>("pen");
   const [color, setColor] = useState(COLORS[0].value);
-  // Which accounting layout the Formats tool places, and whether its menu is open.
-  const [form, setForm] = useState<FormId>("t");
-  const [formsOpen, setFormsOpen] = useState(false);
+  // Recent straight lines, so a bar then an upright (or the other way) becomes a T account.
+  const recentLines = useRef<Array<{ id: string; ends: [Pt, Pt]; dir: "h" | "v"; at: number }>>([]);
   // The pen's real last position: smoothing trails it, so a stroke ends here.
   const lastRaw = useRef<Pt | null>(null);
   const [size, setSize] = useState(SIZES[0].value);
@@ -421,6 +418,7 @@ export function TeacherBoard({ room }: { room: string }) {
     if (!a) return;
     if (a.type === "add") strokes.current = strokes.current.filter((s) => s.id !== a.s.id);
     else if (a.type === "erase") strokes.current = [...strokes.current, ...a.s];
+    else if (a.type === "replace") strokes.current = [...strokes.current.filter(removeIds(a.after)), ...a.before];
     else if (a.type === "clear") {
       strokes.current = [...strokes.current, ...a.s];
       images.current = [...images.current, ...a.m];
@@ -435,6 +433,7 @@ export function TeacherBoard({ room }: { room: string }) {
     if (!a) return;
     if (a.type === "add") strokes.current = [...strokes.current, a.s];
     else if (a.type === "erase") strokes.current = strokes.current.filter(removeIds(a.s));
+    else if (a.type === "replace") strokes.current = [...strokes.current.filter(removeIds(a.before)), ...a.after];
     else if (a.type === "clear") {
       strokes.current = [];
       images.current = [];
@@ -499,8 +498,11 @@ export function TeacherBoard({ room }: { room: string }) {
       images.current = [...images.current, ...placed];
       commit({ type: "img-add", m: placed });
       for (const m of placed) if (!m.url.startsWith("blob:")) send({ t: "img", m });
+      // Ready to place: the first picture is selected with the Move tool on.
+      setTool("move");
+      select(placed[0].id);
       requestDraw();
-      if (placed.length > 1) flash(`${placed.length} pages added. Scroll down for the rest.`);
+      flash(placed.length > 1 ? `${placed.length} pages added. Drag to move, gold dot to resize.` : "Drag to move, gold dot to resize. Pen to write on it.");
     } catch (err) {
       flash(err instanceof Error ? err.message : "That file couldn't be added.");
     } finally {
@@ -628,6 +630,24 @@ export function TeacherBoard({ room }: { room: string }) {
     send(fullBoard());
   };
 
+  /** Pick up a picture under (sx, sy): its gold dot resizes, the rest moves it. */
+  const grabImage = (id: number, sx: number, sy: number, byFinger: boolean) => {
+    const [wx, wy] = toWorld(cam.current, sx, sy);
+    const sel = images.current.find((m) => m.id === selectedRef.current);
+    const reach = byFinger ? HANDLE_PX * 1.8 : HANDLE_PX;
+    if (sel && Math.hypot((sel.x + sel.w - wx) * cam.current.z, (sel.y + sel.h - wy) * cam.current.z) <= reach) {
+      gesture.current = { mode: "resize", id, erased: [], straightened: false, img: { before: { ...sel }, ox: 0, oy: 0 } };
+      return true;
+    }
+    const hit = imageAt(images.current, wx, wy);
+    // A finger off every picture pans as usual (and keeps the selection).
+    if (!hit && byFinger) return false;
+    select(hit?.id ?? null);
+    if (hit) gesture.current = { mode: "drag", id, erased: [], straightened: false, img: { before: { ...hit }, ox: wx - hit.x, oy: wy - hit.y } };
+    requestDraw();
+    return !!hit;
+  };
+
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const [sx, sy] = local(e);
     const isPen = e.pointerType === "pen";
@@ -646,6 +666,11 @@ export function TeacherBoard({ room }: { room: string }) {
     if (isTouch) {
       if (pens.current.active || Date.now() - pens.current.lastAt < PALM_LOCK_MS) return;
       if (e.width > PALM_SIZE_PX || e.height > PALM_SIZE_PX) return; // a resting hand, not a fingertip
+      // Move tool: one finger on a picture moves it, on its gold dot resizes it.
+      if (tool === "move" && touches.current.size === 0 && !gesture.current.mode && grabImage(e.pointerId, sx, sy, true)) {
+        capture(canvasRef.current, e.pointerId);
+        return;
+      }
       if (!fingerDraws || pens.current.seen) {
         touches.current.set(e.pointerId, { x: sx, y: sy, t: performance.now() });
         if (touches.current.size === 2) {
@@ -678,15 +703,7 @@ export function TeacherBoard({ room }: { room: string }) {
     }
 
     if (tool === "move") {
-      const sel = images.current.find((m) => m.id === selectedRef.current);
-      if (sel && Math.hypot((sel.x + sel.w - wx) * cam.current.z, (sel.y + sel.h - wy) * cam.current.z) <= HANDLE_PX) {
-        gesture.current = { mode: "resize", id: e.pointerId, erased: [], straightened: false, img: { before: { ...sel }, ox: 0, oy: 0 } };
-        return;
-      }
-      const hit = imageAt(images.current, wx, wy);
-      select(hit?.id ?? null);
-      if (hit) gesture.current = { mode: "drag", id: e.pointerId, erased: [], straightened: false, img: { before: { ...hit }, ox: wx - hit.x, oy: wy - hit.y } };
-      requestDraw();
+      grabImage(e.pointerId, sx, sy, false);
       return;
     }
 
@@ -695,10 +712,7 @@ export function TeacherBoard({ room }: { room: string }) {
     const w = size / cam.current.z;
     // White ink would vanish on a white page: on a picture it writes in charcoal.
     const ink = color === COLORS[0].value && imageAt(images.current, wx, wy) ? "#1B1E21" : color;
-    if (tool === "form") {
-      current.current = { id: newId(), kind: "form", form, color: ink, size: w, pts: [p, p] };
-      gesture.current = { mode: "box", id: e.pointerId, erased: [], straightened: false };
-    } else if (tool === "line") {
+    if (tool === "line") {
       current.current = { id: newId(), kind: "line", color: ink, size: w, pts: [p, p] };
       gesture.current = { mode: "line", id: e.pointerId, erased: [], straightened: true };
     } else {
@@ -816,6 +830,70 @@ export function TeacherBoard({ room }: { room: string }) {
     sendLive();
   };
 
+  /**
+   * After a stroke lands: a clear T (a bar and an upright, in either order)
+   * becomes a clean T account; a big hand-drawn box or circle becomes a clean
+   * one; a long, clearly straight line straightens. Undo brings the hand
+   * version back. Small strokes (writing) are never touched.
+   */
+  const recognise = (s: Stroke) => {
+    const z = cam.current.z;
+    const now = Date.now();
+    recentLines.current = recentLines.current.filter((l) => now - l.at < 15000 && strokes.current.some((x) => x.id === l.id));
+    const ends: [Pt, Pt] | null = s.kind === "line" ? [s.pts[0], s.pts[1]] : s.kind === "ink" ? straightOf(s.pts) : null;
+    const len = ends ? Math.hypot(ends[1][0] - ends[0][0], ends[1][1] - ends[0][1]) * z : 0;
+    const dir = ends && len >= 40 ? lineDir(ends[0], ends[1]) : null;
+
+    const swap = (before: Stroke[], after: Stroke, note?: string) => {
+      strokes.current = [...strokes.current.filter(removeIds(before)), after];
+      commit({ type: "replace", before, after: [after] });
+      recentLines.current = recentLines.current.filter((l) => !before.some((b) => b.id === l.id));
+      applySet();
+      try {
+        navigator.vibrate?.(10);
+      } catch {}
+      if (note) flash(note);
+    };
+
+    if (ends && dir) {
+      for (let i = recentLines.current.length - 1; i >= 0; i--) {
+        const o = recentLines.current[i];
+        if (o.dir === dir) continue;
+        const t = dir === "v" ? tAccountOf(o.ends, ends) : tAccountOf(ends, o.ends);
+        const other = strokes.current.find((x) => x.id === o.id);
+        if (!t || !other) continue;
+        swap([other, s], { id: newId(), kind: "form", form: "t", color: other.color, size: Math.max(other.size, s.size), pts: [t.a, t.b] }, "T account");
+        return;
+      }
+      recentLines.current.push({ id: s.id, ends, dir, at: now });
+    }
+
+    if (s.kind !== "ink") return;
+    const big = (() => {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const p of s.pts) {
+        x0 = Math.min(x0, p[0]);
+        y0 = Math.min(y0, p[1]);
+        x1 = Math.max(x1, p[0]);
+        y1 = Math.max(y1, p[1]);
+      }
+      return (x1 - x0) * z >= 90 && (y1 - y0) * z >= 60;
+    })();
+    const shape = big ? recogniseShape(s.pts, 0.032) : null;
+    if (shape) {
+      swap([s], { id: newId(), kind: shape.kind, color: s.color, size: s.size, pts: [shape.a, shape.b] });
+      return;
+    }
+    // Long and clearly straight: tidy it into a ruled line (underlines, totals).
+    const tidy = straightOf(s.pts, 0.03);
+    if (tidy && len >= 80) {
+      const line: Stroke = { id: s.id + "l", kind: "line", color: s.color, size: s.size, pts: [tidy[0], snapLine(tidy[0], tidy[1])] };
+      swap([s], line);
+      // Still counts towards a T, under its new id.
+      if (dir) recentLines.current.push({ id: line.id, ends: [line.pts[0], line.pts[1]], dir, at: now });
+    }
+  };
+
   const endGesture = (e: React.PointerEvent<HTMLCanvasElement>, cancelled = false) => {
     logPen(e, cancelled ? "cancel" : "up");
     if (e.pointerType === "pen") {
@@ -864,20 +942,13 @@ export function TeacherBoard({ room }: { room: string }) {
         if (Math.hypot(raw[0] - last[0], raw[1] - last[1]) > 0.2) s.pts.push([raw[0], raw[1], last[2]]);
       }
       lastRaw.current = null;
-      if (s.kind === "form") {
-        // A tap places a ready sized layout; a small drag is treated as a tap.
-        const [a, b] = s.pts;
-        if (Math.abs(b[0] - a[0]) * cam.current.z < 60 || Math.abs(b[1] - a[1]) * cam.current.z < 40) {
-          const wide = s.form === "cash3" || s.form === "running" ? 640 : s.form === "t" ? 380 : 520;
-          s.pts = [a, [a[0] + wide / cam.current.z, a[1] + (s.form === "t" ? 260 : 300) / cam.current.z, 0.5]];
-        }
-        setTool("pen");
-      }
+      if (s.kind === "ink") s.pts = settleStroke(s.pts, s.size);
       const tooShort = s.kind === "line" && Math.hypot(s.pts[1][0] - s.pts[0][0], s.pts[1][1] - s.pts[0][1]) * cam.current.z < 3;
       if (!cancelled && !tooShort) {
         strokes.current = [...strokes.current, s];
         commit({ type: "add", s });
         send({ t: "add", s: packStroke(s) });
+        recognise(s);
       } else {
         send(fullBoard());
       }
@@ -896,7 +967,6 @@ export function TeacherBoard({ room }: { room: string }) {
 
   const pickTool = (t: Tool) => {
     setTool(t);
-    setFormsOpen(false);
     if (t !== "move") select(null);
     if (t !== "eraser") setEraserAt(null);
     requestDraw();
@@ -1055,7 +1125,7 @@ export function TeacherBoard({ room }: { room: string }) {
 
       {/* Picture actions, when one is selected */}
       {selectedId && tool === "move" && (
-        <div className="absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-[#FBC159]/30 bg-[#1c1f22]/90 p-1.5 pl-4 backdrop-blur-xl">
+        <div className="absolute left-1/2 top-20 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-[#FBC159]/30 bg-[#1c1f22]/90 p-1.5 pl-4 backdrop-blur-xl">
           <span className="text-xs font-semibold text-[#b9bec3]">Drag to move · gold dot to resize</span>
           <button type="button" onClick={deleteSelected} className="flex h-9 items-center gap-1.5 rounded-xl bg-[#F07A6A]/15 px-3 text-xs font-bold text-[#F07A6A] [&_svg]:h-4 [&_svg]:w-4">
             {I.trash}
@@ -1066,30 +1136,8 @@ export function TeacherBoard({ room }: { room: string }) {
 
       {/* Main toolbar */}
       <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-[22px] border border-white/[0.08] bg-[#1c1f22]/85 p-1.5 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl">
-        <ToolButton label="Pen (P). Hold still at the end to snap a line, box or circle" active={tool === "pen"} onClick={() => pickTool("pen")}>{I.pen}</ToolButton>
+        <ToolButton label="Pen (P). Draw a T for a T account; hold still at the end to snap a line, box or circle" active={tool === "pen"} onClick={() => pickTool("pen")}>{I.pen}</ToolButton>
         <ToolButton label="Straight line (L)" active={tool === "line"} onClick={() => pickTool("line")}>{I.line}</ToolButton>
-        <div className="relative">
-          <ToolButton label="Formats: T account, cash book, journal" active={tool === "form" || formsOpen} onClick={() => setFormsOpen((o) => !o)}>{I.form}</ToolButton>
-          {formsOpen && (
-            <div className="absolute bottom-14 left-1/2 w-60 -translate-x-1/2 rounded-2xl border border-white/[0.08] bg-[#1c1f22]/95 p-1.5 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.8)] backdrop-blur-xl">
-              {FORMS.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => {
-                    setForm(f.id);
-                    setFormsOpen(false);
-                    pickTool("form");
-                    flash(`${f.name}: drag to place it, or tap`);
-                  }}
-                  className={`flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold transition-colors ${tool === "form" && form === f.id ? "bg-[#FBC159]/15 text-[#FBC159]" : "text-[#e8e5df] hover:bg-white/[0.06]"}`}
-                >
-                  {f.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
         <ToolButton label="Eraser (E), or hold the pen's side button" active={tool === "eraser"} onClick={() => pickTool("eraser")}>{I.eraser}</ToolButton>
         <ToolButton label="Move pictures (V)" active={tool === "move"} onClick={() => pickTool("move")}>{I.move}</ToolButton>
         <ToolButton label="Insert a picture or PDF" disabled={!!busy} onClick={() => fileRef.current?.click()}>

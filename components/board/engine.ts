@@ -38,9 +38,7 @@ export interface View {
 export const COLORS = [
   { name: "White", value: "#F3F1EC" },
   { name: "Gold", value: "#FBC159" },
-  { name: "Red", value: "#F07A6A" },
-  { name: "Green", value: "#7FD1A6" },
-  { name: "Blue", value: "#7DB7F5" },
+  { name: "Sky blue", value: "#8FD0F5" },
 ];
 
 export const SIZES = [
@@ -107,7 +105,78 @@ export function smoothPoint(prev: Pt | undefined, raw: Pt, amount = 0.45): Pt {
  * careful writing (where the hand shakes) gets more, fast strokes get less so
  * they never lag behind the pen.
  */
-export const steadyFor = (stepPx: number) => (stepPx < 1.5 ? 0.6 : stepPx < 4 ? 0.48 : stepPx < 9 ? 0.36 : 0.25);
+export const steadyFor = (stepPx: number) => (stepPx < 1.5 ? 0.66 : stepPx < 4 ? 0.56 : stepPx < 9 ? 0.44 : 0.32);
+
+/**
+ * When the pen lifts, the stroke settles into its final, smoother line: points
+ * crowded closer than a fraction of the nib are dropped, then the path is
+ * eased twice. Ends stay exactly where they were, so letters still join up.
+ */
+export function settleStroke(pts: Pt[], size: number): Pt[] {
+  if (pts.length < 5) return pts;
+  const gap = size * 0.3;
+  const kept: Pt[] = [pts[0]];
+  for (let i = 1; i < pts.length - 1; i++) {
+    const k = kept[kept.length - 1];
+    if (Math.hypot(pts[i][0] - k[0], pts[i][1] - k[1]) >= gap) kept.push(pts[i]);
+  }
+  kept.push(pts[pts.length - 1]);
+  let out = kept;
+  for (let pass = 0; pass < 2; pass++) {
+    out = out.map((p, i) => {
+      if (i === 0 || i === out.length - 1) return p;
+      const a = out[i - 1];
+      const b = out[i + 1];
+      return [(a[0] + p[0] * 2 + b[0]) / 4, (a[1] + p[1] * 2 + b[1]) / 4, (a[2] + p[2] * 2 + b[2]) / 4] as Pt;
+    });
+  }
+  return out;
+}
+
+/** A stroke that is really a straight line: its two ends, else null. */
+export function straightOf(pts: Pt[], tolerance = 0.06): [Pt, Pt] | null {
+  if (pts.length < 2) return null;
+  const a = pts[0];
+  const b = pts[pts.length - 1];
+  const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  if (L < 1) return null;
+  let path = 0;
+  let dev = 0;
+  for (let i = 1; i < pts.length; i++) {
+    path += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    dev = Math.max(dev, distToSeg(pts[i][0], pts[i][1], a, b));
+  }
+  if (dev > L * tolerance || path > L * 1.18) return null;
+  return [a, b];
+}
+
+/** Roughly flat (h) or upright (v), or neither, for a line's two ends. */
+export function lineDir(a: Pt, b: Pt): "h" | "v" | null {
+  const deg = Math.abs((Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.PI) % 180;
+  const d = deg > 90 ? 180 - deg : deg;
+  return d <= 18 ? "h" : d >= 72 ? "v" : null;
+}
+
+/**
+ * A flat line and an upright line that together make a T account: the upright
+ * starts at (or near) the flat line, somewhere in its middle part, and runs
+ * down. Returns the T's box (top edge = the flat line), else null.
+ */
+export function tAccountOf(h: [Pt, Pt], v: [Pt, Pt]): { a: Pt; b: Pt } | null {
+  const hx0 = Math.min(h[0][0], h[1][0]);
+  const hx1 = Math.max(h[0][0], h[1][0]);
+  const hy = (h[0][1] + h[1][1]) / 2;
+  const Lh = hx1 - hx0;
+  const top = v[0][1] < v[1][1] ? v[0] : v[1];
+  const bottom = v[0][1] < v[1][1] ? v[1] : v[0];
+  const vx = (top[0] + bottom[0]) / 2;
+  const Lv = bottom[1] - top[1];
+  if (Lh < 1 || Lv < Lh * 0.25) return null;
+  if (vx < hx0 + Lh * 0.2 || vx > hx1 - Lh * 0.2) return null; // not in the middle part
+  if (Math.abs(top[1] - hy) > Math.max(Lv * 0.2, Lh * 0.12)) return null; // doesn't start at the bar
+  if (bottom[1] <= hy) return null;
+  return { a: [hx0, hy, 0.5], b: [hx1, bottom[1], 0.5] };
+}
 
 /** Pen pressure to width factor: light touch stays readable, pressing thickens. */
 const widthAt = (size: number, p: number) => size * (0.3 + 1.05 * Math.pow(Math.min(1, Math.max(0, p)), 0.8));
@@ -282,10 +351,10 @@ export function shapeParts(s: Stroke): { segs: Seg[]; labels: Label[]; font: num
   if (s.kind !== "form") return { segs, labels, font };
   const top = y + font * 1.9; // the ruled line under the headings
   if (s.form === "t" || !s.form) {
-    const tf = Math.max(6, Math.min(h * 0.09, w * 0.07, 30));
-    const ty = y + Math.min(h * 0.2, tf * 2.4);
-    segs.push([x, ty, x + w, ty], [x + w / 2, ty, x + w / 2, y + h]);
-    labels.push({ text: "Dr", x: x, y: ty - tf * 0.45, w: w * 0.2, align: "left" }, { text: "Cr", x: x + w - tf * 1.4, y: ty - tf * 0.45, w: w * 0.2, align: "left" });
+    // The bar is the box's top edge; Dr and Cr sit just above its two ends.
+    const tf = Math.max(6, Math.min(w * 0.055, 26));
+    segs.push([x, y, x + w, y], [x + w / 2, y, x + w / 2, y + h]);
+    labels.push({ text: "Dr", x: x, y: y - tf * 0.45, w: w * 0.2, align: "left" }, { text: "Cr", x: x + w - tf * 1.3, y: y - tf * 0.45, w: w * 0.2, align: "left" });
     return { segs, labels, font: tf };
   }
   const L = SIDES[s.form];
@@ -342,7 +411,7 @@ function drawShape(ctx: CanvasRenderingContext2D, s: Stroke) {
  * Hand-drawn closed loop to a clean box or oval, if it is close to one.
  * Returns null when the stroke isn't a clear shape (it then stays as ink).
  */
-export function recogniseShape(pts: Pt[]): { kind: "rect" | "ellipse"; a: Pt; b: Pt } | null {
+export function recogniseShape(pts: Pt[], strict = 0.045): { kind: "rect" | "ellipse"; a: Pt; b: Pt } | null {
   if (pts.length < 8) return null;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const p of pts) {
@@ -369,7 +438,7 @@ export function recogniseShape(pts: Pt[]): { kind: "rect" | "ellipse"; a: Pt; b:
   er /= pts.length * diag;
   ee /= pts.length * diag;
   const best = er <= ee ? "rect" : "ellipse";
-  if (Math.min(er, ee) > 0.045) return null;
+  if (Math.min(er, ee) > strict) return null;
   return { kind: best, a: [x0, y0, 0.5], b: [x1, y1, 0.5] };
 }
 
