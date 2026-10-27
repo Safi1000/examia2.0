@@ -146,8 +146,45 @@ export interface Scene {
   hills: [string, string, string];
   glow: string;
   stars?: boolean;
+  /** Photo scenes: file name in public/wallpapers ("x.jpg" wide, "x-m.jpg" tall). */
+  photo?: string;
+  /** Photographer and photo page, for the credit (Unsplash licence). */
+  by?: string;
+  link?: string;
+  /** Light photos get a stronger shade so white text stays readable. */
+  light?: boolean;
 }
-export const SCENES: Scene[] = [
+
+/**
+ * Photo wallpapers, from Unsplash (free licence, no fee; credited anyway).
+ * `sky` is the photo's main colours, shown while it loads.
+ */
+const P = (id: string, name: string, photo: string, by: string, slug: string, sky: string, light = false): Scene => ({
+  id,
+  name,
+  photo,
+  by,
+  link: `https://unsplash.com/photos/${slug}?utm_source=hamza_teaches&utm_medium=referral`,
+  sky,
+  hills: ["#000", "#000", "#000"],
+  glow: "rgba(251,193,89,.35)",
+  light,
+});
+export const PHOTO_SCENES: Scene[] = [
+  P("milky-way", "Milky Way", "milky-way", "Nathan Anderson", "milky-way-over-mountain-landscape-at-night-L95xDkSSuWw", "linear-gradient(180deg,#0b1020,#1d2440 60%,#3a2c3a)"),
+  P("aurora-trees", "Northern lights", "aurora-trees", "Vincent Guth", "silhouette-of-trees-near-aurora-borealis-at-night-62V7ntlKgL8", "linear-gradient(180deg,#120c2a,#1d6b52 60%,#0a0f12)"),
+  P("aurora-peaks", "Aurora peaks", "aurora-peaks", "Lightscape", "northern-lights-over-snow-capped-mountian-LtnPejWDSAY", "linear-gradient(180deg,#0d1430,#2b3a6b 55%,#1a2234)"),
+  P("pastel-peaks", "Pastel peaks", "pastel-peaks", "Alessio Soggetti", "mountains-covered-with-fogs-gdE-5Oui1Y0", "linear-gradient(180deg,#dfe7ee,#a9b8c6 60%,#7d8ea0)", true),
+  P("green-mist", "Green mist", "green-mist", "Tobias Tullius", "green-leafed-trees-covered-by-fog-during-daytime-PXXtq6bp6cs", "linear-gradient(180deg,#c9d0c8,#7f8f7c 55%,#2f3d2c)", true),
+  P("lake-fog", "Lake in the fog", "lake-fog", "Dana Luig", "a-body-of-water-surrounded-by-trees-and-fog-AbR69d3Xn6g", "linear-gradient(180deg,#b9bcc0,#6d7471 55%,#2a302e)", true),
+  P("blue-ranges", "Blue ranges", "blue-ranges", "Alessio Soggetti", "view-of-mountain-PdGBci-4jR8", "linear-gradient(180deg,#b9cde6,#5f7fae 55%,#1f3561)", true),
+  P("mountain-lake", "Mountain lake", "mountain-lake", "Katelyn G", "a-body-of-water-with-mountains-in-the-background-mgQt89wjeuM", "linear-gradient(180deg,#6f86ad,#a99aa8 50%,#3c4b6b)"),
+  P("pink-sea", "Pink sea", "pink-sea", "Clark Gu", "a-large-body-of-water-sitting-under-a-pink-sky-sbNlS7dWqKE", "linear-gradient(180deg,#e9d6db,#a9b6c8 55%,#56708e)", true),
+  P("fog-forest", "Forest fog", "fog-forest", "Thomas Griesbeck", "evergreen-trees-in-dense-mountain-fog-BS-Uxe8wU5Y", "linear-gradient(180deg,#9aa1a6,#565d61 55%,#1e2326)"),
+  P("desert-dusk", "Desert dusk", "desert-dusk", "Vlad D", "a-desert-landscape-with-mountains-in-the-distance-Ag9cWC8-eY8", "linear-gradient(180deg,#e7955e,#c46b4e 50%,#5a3a37)"),
+  P("above-the-fog", "Above the fog", "above-the-fog", "Andreas Slotosch", "castle-ruins-on-a-hill-above-the-fog-at-sunrise-CEX9Y1gZQjg", "linear-gradient(180deg,#f2c27b,#9a8e89 50%,#3b3f49)"),
+];
+const DRAWN: Scene[] = [
   { id: "gold-hour", name: "Gold hour", sky: "linear-gradient(180deg,#1c2a3a 0%,#4b4a5c 38%,#c9895a 72%,#f2c27b 100%)", hills: ["#6b5a63", "#3d3a48", "#1e2029"], glow: "rgba(251,193,89,.55)" },
   { id: "night-shift", name: "Night shift", sky: "linear-gradient(180deg,#05070f 0%,#0d1630 55%,#1c2a4a 100%)", hills: ["#1b2640", "#121a2e", "#080c17"], glow: "rgba(120,160,255,.25)", stars: true },
   { id: "monsoon", name: "Monsoon", sky: "linear-gradient(180deg,#3d4b57 0%,#68798a 50%,#9aa9b4 100%)", hills: ["#5c6b77", "#3f4b55", "#252e35"], glow: "rgba(255,255,255,.25)" },
@@ -157,13 +194,16 @@ export const SCENES: Scene[] = [
   { id: "margalla", name: "Margalla", sky: "linear-gradient(180deg,#d9e4dc 0%,#a9c2b4 45%,#6f9384 100%)", hills: ["#5e8170", "#3c5a4c", "#22362d"], glow: "rgba(255,255,240,.45)" },
   { id: "gunmetal", name: "Gunmetal", sky: "radial-gradient(80% 60% at 70% 30%,rgba(251,193,89,.28),transparent 60%),linear-gradient(180deg,#1b2226 0%,#2a3439 60%,#323e44 100%)", hills: ["#3a474e", "#2a3439", "#1b2226"], glow: "rgba(251,193,89,.4)" },
 ];
+/** Every scene: the photos first, then the drawn ones. */
+export const SCENES: Scene[] = [...PHOTO_SCENES, ...DRAWN];
+
 /** Scenes that suit each part of the day; a different one each day within it. */
 const BY_TIME: Array<[number, string[]]> = [
-  [5, ["night-shift", "aurora"]],
-  [11, ["margalla", "sea-glass"]],
-  [16, ["monsoon", "sea-glass", "gunmetal"]],
-  [19, ["gold-hour", "desert-dusk"]],
-  [24, ["night-shift", "aurora", "gunmetal"]],
+  [5, ["milky-way", "aurora-trees", "aurora-peaks"]],
+  [11, ["pastel-peaks", "green-mist", "lake-fog", "blue-ranges"]],
+  [16, ["mountain-lake", "pink-sea", "fog-forest"]],
+  [19, ["desert-dusk", "above-the-fog"]],
+  [24, ["milky-way", "aurora-trees", "aurora-peaks"]],
 ];
 export function sceneFor(id: string | undefined, nowMs: number): Scene {
   const chosen = SCENES.find((s) => s.id === id);

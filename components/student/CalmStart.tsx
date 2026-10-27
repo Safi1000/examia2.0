@@ -34,7 +34,7 @@ export function CalmStart({ name, nowMs, onStart, missionLabel, onMission }: { n
   };
 
   return (
-    <section className="calm relative isolate flex min-h-[68dvh] flex-col overflow-hidden rounded-[28px] text-white shadow-[0_30px_80px_-30px_rgba(0,0,0,.6)]" style={{ background: scene.sky }}>
+    <section key={scene.id} className="calm relative isolate flex min-h-[74dvh] flex-col overflow-hidden rounded-[28px] text-white shadow-[0_30px_80px_-30px_rgba(0,0,0,.6)]" style={{ background: scene.sky }}>
       <Sky scene={scene} />
 
       <div className="relative z-10 flex items-center justify-between px-5 pt-5 sm:px-7 sm:pt-6">
@@ -49,7 +49,7 @@ export function CalmStart({ name, nowMs, onStart, missionLabel, onMission }: { n
         </button>
       </div>
 
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 py-8 text-center">
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 py-8 text-center [text-shadow:0_1px_14px_rgba(0,0,0,.35)]">
         <p className="calm-time font-extralight tabular-nums leading-none tracking-[-0.04em] text-white drop-shadow-[0_2px_24px_rgba(0,0,0,.25)]">
           {time}
           <span className="ml-1 align-top text-[0.22em] font-medium tracking-normal text-white/80">{ampm}</span>
@@ -112,25 +112,56 @@ export function CalmStart({ name, nowMs, onStart, missionLabel, onMission }: { n
         </div>
       </div>
 
-      <figure className="relative z-10 mx-auto max-w-lg px-6 pb-6 text-center">
+      <figure className="relative z-10 mx-auto max-w-lg px-6 pb-7 text-center [text-shadow:0_1px_10px_rgba(0,0,0,.45)]">
         <blockquote className="text-sm leading-relaxed text-white/90 [text-wrap:balance]">“{quote.q}”</blockquote>
         <figcaption className="mt-1 text-xs text-white/65">{quote.by}</figcaption>
       </figure>
 
+      {scene.photo && scene.by && (
+        <a
+          href={scene.link}
+          target="_blank"
+          rel="noreferrer"
+          className="absolute bottom-2 right-3 z-10 text-[10px] text-white/55 transition hover:text-white"
+        >
+          Photo: {scene.by} / Unsplash
+        </a>
+      )}
+
       <style>{`
+        .calm-photo { animation: calm-in 1.2s ease-out both; }
+        @keyframes calm-in { from { opacity: 0; transform: scale(1.04); } to { opacity: 1; transform: none; } }
         .calm-time { font-size: clamp(4.5rem, 20vw, 7.5rem); }
         .calm-drift { animation: calm-drift 40s ease-in-out infinite alternate; }
         .calm-twinkle { animation: calm-twinkle 4s ease-in-out infinite alternate; }
         @keyframes calm-drift { from { transform: translate3d(-4%, 0, 0); } to { transform: translate3d(4%, -2%, 0); } }
         @keyframes calm-twinkle { from { opacity: .35; } to { opacity: 1; } }
-        @media (prefers-reduced-motion: reduce) { .calm-drift, .calm-twinkle { animation: none; } }
+        @media (prefers-reduced-motion: reduce) { .calm-drift, .calm-twinkle, .calm-photo { animation: none; } }
       `}</style>
     </section>
   );
 }
 
-/** Stars, glow and three hill lines, drawn as SVG. */
+/** Stars, glow and three hill lines, drawn as SVG; or the photo, with a shade for the text. */
 function Sky({ scene }: { scene: Scene }) {
+  if (scene.photo) {
+    return (
+      <div className="pointer-events-none absolute inset-0 -z-0" aria-hidden>
+        <picture>
+          <source media="(min-width: 768px)" srcSet={`/wallpapers/${scene.photo}.jpg`} />
+          <img src={`/wallpapers/${scene.photo}-m.jpg`} alt="" className="calm-photo absolute inset-0 h-full w-full object-cover" decoding="async" fetchPriority="high" />
+        </picture>
+        <div
+          className="absolute inset-0"
+          style={{
+            background: scene.light
+              ? "linear-gradient(180deg,rgba(0,0,0,.42),rgba(0,0,0,.18) 30%,rgba(0,0,0,.22) 60%,rgba(0,0,0,.6))"
+              : "linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,.05) 30%,rgba(0,0,0,.1) 60%,rgba(0,0,0,.55))",
+          }}
+        />
+      </div>
+    );
+  }
   const hill = (base: number, amp: number, phase: number) => {
     let d = `M0 100 L0 ${base}`;
     for (let x = 0; x <= 100; x += 2) d += ` L${x} ${(base + Math.sin(x / 9 + phase) * amp + Math.sin(x / 3.3 + phase * 2) * amp * 0.25).toFixed(2)}`;

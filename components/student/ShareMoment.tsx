@@ -72,6 +72,22 @@ export async function drawMoment(m: Moment): Promise<Blob> {
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, W, H);
 
+  // A photo scene: the tall wallpaper, cover-cropped, instead of drawn hills.
+  let photoDone = false;
+  if (scene.photo) {
+    try {
+      const img = await loadImage(`/wallpapers/${scene.photo}-m.jpg`);
+      const k = Math.max(W / img.width, H / img.height);
+      ctx.drawImage(img, (W - img.width * k) / 2, (H - img.height * k) / 2, img.width * k, img.height * k);
+      const shade = ctx.createLinearGradient(0, 0, 0, H);
+      shade.addColorStop(0, "rgba(0,0,0,.55)");
+      shade.addColorStop(0.45, "rgba(0,0,0,.15)");
+      shade.addColorStop(1, "rgba(0,0,0,.65)");
+      ctx.fillStyle = shade;
+      ctx.fillRect(0, 0, W, H);
+      photoDone = true;
+    } catch {}
+  }
   // Hills.
   const hill = (base: number, amp: number, col: string, phase: number) => {
     ctx.beginPath();
@@ -82,9 +98,11 @@ export async function drawMoment(m: Moment): Promise<Blob> {
     ctx.fillStyle = col;
     ctx.fill();
   };
-  hill(H * 0.66, 60, scene.hills[0], 1);
-  hill(H * 0.74, 50, scene.hills[1], 2.4);
-  hill(H * 0.83, 40, scene.hills[2], 4);
+  if (!photoDone) {
+    hill(H * 0.66, 60, scene.hills[0], 1);
+    hill(H * 0.74, 50, scene.hills[1], 2.4);
+    hill(H * 0.83, 40, scene.hills[2], 4);
+  }
 
   // Card text.
   ctx.fillStyle = "rgba(0,0,0,.18)";
@@ -110,6 +128,11 @@ export async function drawMoment(m: Moment): Promise<Blob> {
   ctx.fillStyle = "rgba(255,255,255,.7)";
   ctx.font = `500 34px ${font}`;
   ctx.fillText(`Studying with Hamza Teaches · ${SITE}`, 96, H - 240);
+  if (photoDone && scene.by) {
+    ctx.fillStyle = "rgba(255,255,255,.5)";
+    ctx.font = `400 24px ${font}`;
+    ctx.fillText(`Photo: ${scene.by} / Unsplash`, 96, H - 120);
+  }
   try {
     const img = await loadImage(logo.src);
     const w = 360;
