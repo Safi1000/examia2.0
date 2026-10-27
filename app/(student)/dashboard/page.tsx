@@ -114,9 +114,6 @@ export default function DashboardPage() {
 
       <ClassNow db={db} student={student} nowMs={nowMs} />
 
-      {/* Hamza's notices sit high, where students actually see them. */}
-      <AnnouncementsPanel student={student} />
-
       {todo.length > 0 && (
         <section className="animate-fade-up space-y-2.5">
           <h2 className="flex items-center gap-2 text-base font-semibold text-ink">
@@ -140,12 +137,15 @@ export default function DashboardPage() {
         </section>
       )}
 
+      {/* Hamza's notices: high up, but one line each so the day's work stays in view. */}
+      <AnnouncementsPanel student={student} />
+
+      <StudyBuddy db={db} student={student} nowMs={nowMs} mission={mission} />
+
       <div className="grid gap-4 sm:grid-cols-2">
         <PerformanceCard perf={perf} targets={profile.targets} />
         <PlanCard week={week} daysLeft={plan.daysLeft} />
       </div>
-
-      <StudyBuddy db={db} student={student} nowMs={nowMs} mission={mission} />
 
     </div>
   );

@@ -144,7 +144,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const inRunner = /^\/test\/[^/]+$/.test(pathname);
 
   const links = [
-    // `short` is the phone dock label, where six items share 375px.
+    // Desktop shows them all; phones use phoneLinks (five tabs) below.
     { href: "/dashboard", label: "Home", short: "Home", Icon: NavIcon.Home },
     { href: "/classes", label: "Classes", short: "Classes", Icon: NavIcon.Classes },
     { href: "/tests", label: "Tests", short: "Tests", Icon: NavIcon.Tests },
@@ -152,6 +152,16 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     { href: "/assignments", label: "Tasks", short: "Tasks", Icon: NavIcon.Tasks },
     { href: "/notes", label: "Notes", short: "Notes", Icon: NavIcon.Notes },
     { href: "/progress", label: "Progress", short: "Progress", Icon: NavIcon.Progress },
+  ];
+  // Phones: five tabs. "Work" holds Tests, Tasks and Notes behind a switch.
+  const WORK = ["/tests", "/assignments", "/notes"];
+  const isWork = WORK.includes(pathname) || pathname.startsWith("/results");
+  const phoneLinks = [
+    links[0],
+    links[1],
+    links[3],
+    { href: "/tests", label: "Work", short: "Work", Icon: NavIcon.Tests, work: true },
+    links[6],
   ];
   // Results belong to Tests; the full plan opens from Home.
   const isActive = (href: string) =>
@@ -202,6 +212,30 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           </div>
         </header>
       )}
+      {!inRunner && isWork && (
+        <nav aria-label="Work" className="mx-auto max-w-3xl px-4 pt-5 sm:px-6 md:hidden">
+          <ul className="grid grid-cols-3 gap-1 rounded-full border border-border bg-surface p-1">
+            {[
+              ["/tests", "Tests"],
+              ["/assignments", "Tasks"],
+              ["/notes", "Notes"],
+            ].map(([href, label]) => {
+              const on = pathname === href || (href === "/tests" && pathname.startsWith("/results"));
+              return (
+                <li key={href}>
+                  <Link
+                    href={href}
+                    aria-current={on ? "page" : undefined}
+                    className={cn("flex h-10 items-center justify-center rounded-full text-sm font-semibold transition-colors", on ? "bg-brand text-on-brand" : "text-ink-2")}
+                  >
+                    {label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      )}
       <ScheduleGate>{children}</ScheduleGate>
       {!inRunner && !profile.onboarded && createPortal(<Welcome db={db} student={student} />, document.body)}
       {!inRunner && <NotifyNudge />}
@@ -214,9 +248,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           className="fixed inset-x-3 bottom-3 z-30 md:hidden"
           style={{ marginBottom: "env(safe-area-inset-bottom)" }}
         >
-          <ul className="grid grid-cols-7 rounded-[22px] border border-white/[0.08] bg-[#1d2023]/[0.97] p-1.5 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.05)]">
-            {links.map((l) => {
-              const active = isActive(l.href);
+          <ul className="grid grid-cols-5 rounded-[22px] border border-white/[0.08] bg-[#1d2023]/[0.97] p-1.5 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.05)]">
+            {phoneLinks.map((l) => {
+              const active = "work" in l ? isWork : isActive(l.href);
               // Groundwork sits in the middle as a raised gold button (no room for its full name).
               if ("feature" in l && l.feature)
                 return (
