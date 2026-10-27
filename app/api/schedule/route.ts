@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { classChangeCopy } from "@/lib/notify-copy";
 import { adminIdFromRequest } from "@/lib/admin-auth";
 import { notifyClassChange, pushReady, serviceClient } from "@/lib/push-server";
 import {
@@ -77,13 +78,12 @@ async function tellStudents(sb: ReturnType<typeof serviceClient>, c: DayChange) 
       ? "today"
       : new Date(`${c.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi", weekday: "long", day: "numeric", month: "short" });
   const name = `${LEVEL_LABEL[c.level]} ${c.subject}`;
-  const [title, body] = !c.change
-    ? ["Class back on", `${name} ${day} is back at its usual time.`]
-    : c.change.cancelled
-      ? ["Class cancelled", `${name} ${day} is cancelled.`]
-      : c.change.extra
-        ? ["Extra class", `Extra ${name} class ${day} at ${clock(c.change.start ?? "")}.`]
-        : ["Class time changed", `${name} ${day} is now at ${clock(c.change.start ?? "")}.`];
+  const { title, body } = classChangeCopy(
+    !c.change ? "back" : c.change.cancelled ? "cancelled" : c.change.extra ? "extra" : "moved",
+    name,
+    day,
+    clock(c.change?.start ?? ""),
+  );
   await sb.from("activities").insert(
     who.map((student_id) => ({ type: "announcement_posted", title, description: body, student_id, link: "/classes", audience: "student" })),
   );

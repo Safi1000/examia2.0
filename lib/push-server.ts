@@ -2,6 +2,7 @@ import webpush from "web-push";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { clock, liveSlotsOn, pkDate, setSchedule } from "@/lib/timetable";
 import { loadSchedule } from "@/lib/schedule-server";
+import { assignmentCopy, classCopy, recordingCopy, resultCopy, studyCopy, testOpensCopy } from "@/lib/notify-copy";
 
 /**
  * Phone notifications, server side. The rules that keep them quiet:
@@ -188,8 +189,7 @@ async function resultItems(sb: SupabaseClient, onlyIds?: string[]): Promise<Item
     studentId,
     kind: "results" as const,
     refs: list.map((s) => s.id as string),
-    title: list.length === 1 ? "Your result is out" : `${list.length} results are out`,
-    body: list.length === 1 ? `${title.get(list[0].test_id) ?? "Your test"} has been marked.` : "Hamza has marked your tests. Tap to see your marks.",
+    ...resultCopy(list.map((r) => r.id ?? r.test_id).join(","), list.length, title.get(list[0].test_id)),
     url: list.length === 1 ? `/results/${list[0].test_id}` : "/progress",
     tag: "results",
     priority: 0,
@@ -230,11 +230,11 @@ export async function runReminders(): Promise<{ sent: number; quiet?: boolean }>
   for (const s of students) {
     for (const t of opening ?? []) {
       if (!covers(t, s) || done.has(`${s.id}|${t.id}`)) continue;
-      items.push({ studentId: s.id, kind: "tests", refs: [`open:${t.id}`], title: "Test opens soon", body: `${t.title} opens at ${pkTime(t.opens_at)}.`, url: "/tests", tag: `test-${t.id}`, priority: 2 });
+      items.push({ studentId: s.id, kind: "tests", refs: [`open:${t.id}`], ...testOpensCopy(`${s.id}${t.id}`, t.title, pkTime(t.opens_at)), url: "/tests", tag: `test-${t.id}`, priority: 2 });
     }
     for (const a of due ?? []) {
       if (!covers(a, s, true) || doneA.has(`${s.id}|${a.id}`)) continue;
-      items.push({ studentId: s.id, kind: "assignments", refs: [`due:${a.id}`], title: "Assignment due tomorrow", body: `${a.title} is due ${new Date(a.due_at).toLocaleString("en-GB", { timeZone: TZ, weekday: "short", hour: "numeric", minute: "2-digit", hour12: true })}.`, url: "/assignments", tag: `asg-${a.id}`, priority: 3 });
+      items.push({ studentId: s.id, kind: "assignments", refs: [`due:${a.id}`], ...assignmentCopy(`${s.id}${a.id}`, a.title, new Date(a.due_at).toLocaleString("en-GB", { timeZone: TZ, weekday: "short", hour: "numeric", minute: "2-digit", hour12: true })), url: "/assignments", tag: `asg-${a.id}`, priority: 3 });
     }
   }
   return { sent: await deliver(sb, items) };
@@ -293,8 +293,7 @@ async function classItems(sb: SupabaseClient, students: Reach[], now: number): P
       studentId: s.id,
       kind: "classes",
       refs: [`class:${today}`],
-      title: lead > 60_000 ? `Class at ${clock(first.start)}` : "Class is starting",
-      body: lead > 6 * 60_000 ? `${first.subject} starts at ${clock(first.start)}. The Join button opens 5 minutes before.` : `${first.subject} is ${lead > 60_000 ? "about to start" : "starting now"}. Open the portal and tap Join.`,
+      ...classCopy(`${s.id}${today}`, first.subject, clock(first.start), lead > 6 * 60_000 ? "soon" : lead > 60_000 ? "open" : "now"),
       url: "/dashboard",
       tag: `class-${today}`,
       priority: -1,
@@ -361,8 +360,7 @@ function studyItems(students: Reach[], profiles: Map<string, StudentProfile>, no
         studentId: s.id,
         kind: "study",
         refs: [`study:${ymd}:${sl.time}`],
-        title: "Study time",
-        body: `Your ${label} Groundwork session is coming up. Open the portal and press Start.`,
+        ...studyCopy(`${s.id}${ymd}${sl.time}`, label),
         url: "/groundwork",
         tag: `study-${ymd}-${sl.time}`,
         priority: 4,
@@ -414,8 +412,12 @@ async function recordingItems(sb: SupabaseClient, students: Reach[], profiles: M
         studentId: s.id,
         kind: "recordings",
         refs: [`rec:${key}`],
-        title: "Recording closes soon",
-        body: `You missed ${slot.subject} on ${new Date(`${l.on_date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long" })}. The recording closes at ${new Date(closes).toLocaleTimeString("en-GB", { timeZone: TZ, hour: "numeric", minute: "2-digit", hour12: true })}.`,
+        ...recordingCopy(
+          `${s.id}${key}`,
+          slot.subject,
+          new Date(`${l.on_date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long" }),
+          new Date(closes).toLocaleTimeString("en-GB", { timeZone: TZ, hour: "numeric", minute: "2-digit", hour12: true }),
+        ),
         url: "/classes",
         tag: `rec-${key}`,
         priority: 1,
