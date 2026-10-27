@@ -10,7 +10,7 @@ import { formatRelative } from "@/lib/time";
 import { useSchedule, JOIN_EARLY_MIN, addDays, clock, span, joinClass, pkDate, slotKey, slotsForStudent, useClassLinks, type DaySlot } from "@/lib/classes";
 
 /**
- * Home-screen class card. Quiet unless a class is close: from 10 minutes
+ * Home-screen class card. Quiet unless a class is close: from 5 minutes
  * before the start it turns gold with a Join button (once Hamza has pasted the
  * link). Tapping Join marks the student present. With back-to-back classes the
  * running class and the next one show together, each with its own button.
@@ -43,7 +43,7 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
 
   if (ready === false) return null;
 
-  // Back-to-back classes (3:30, 4:10, 4:50): from 10 minutes before the next
+  // Back-to-back classes (3:30, 4:10, 4:50): from 5 minutes before the next
   // class, show both. The class still running stays first (so a student who
   // drops out can rejoin), and the next one sits under it with its own Join.
   const open = slots.filter((s) => nowMs >= s.startMs - JOIN_EARLY_MIN * 6e4 && nowMs < s.endMs);

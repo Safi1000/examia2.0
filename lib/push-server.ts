@@ -287,7 +287,7 @@ async function classItems(sb: SupabaseClient, students: Reach[], now: number): P
       kind: "classes",
       refs: [`class:${today}`],
       title: lead > 60_000 ? `Class at ${clock(first.start)}` : "Class is starting",
-      body: `${first.subject} is ${lead > 60_000 ? "about to start" : "starting now"}. Open the portal and tap Join.`,
+      body: lead > 6 * 60_000 ? `${first.subject} starts at ${clock(first.start)}. The Join button opens 5 minutes before.` : `${first.subject} is ${lead > 60_000 ? "about to start" : "starting now"}. Open the portal and tap Join.`,
       url: "/dashboard",
       tag: `class-${today}`,
       priority: -1,

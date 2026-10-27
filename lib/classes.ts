@@ -10,7 +10,7 @@ export * from "@/lib/timetable";
 /**
  * Live classes. The weekly timetable is fixed and lives in lib/timetable.ts (change a time
  * here, no database needed). Each day Hamza pastes a Meet link per class in
- * Admin → Classes; students see a Join button from 10 minutes before the start.
+ * Admin → Classes; students see a Join button from 5 minutes before the start.
  * Join taps fill attendance automatically (see join_class() in the migration).
  */
 

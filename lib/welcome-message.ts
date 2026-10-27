@@ -23,7 +23,7 @@ export function welcomeMessage({ username, password }: { username: string; passw
     "3. Turn on notifications, so you get a nudge before class and the moment a result is out.",
     "",
     "*On class days*",
-    "Open Home 10 minutes before class and tap the gold *Join* button. That's it.",
+    "Open Home 5 minutes before class and tap the gold *Join* button. That's it.",
     "",
     "You can change your password anytime in Settings. Stuck on anything? Message me here.",
     "",
