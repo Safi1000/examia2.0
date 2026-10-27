@@ -48,7 +48,7 @@ const pkDayStart = (d = new Date()) => {
   return new Date(`${ymd}T00:00:00+05:00`).toISOString();
 };
 
-type Kind = "results" | "tests" | "assignments" | "classes";
+type Kind = "results" | "tests" | "assignments" | "classes" | "study";
 interface Item {
   studentId: string;
   kind: Kind;
@@ -219,7 +219,7 @@ export async function runReminders(): Promise<{ sent: number; quiet?: boolean }>
   const done = new Set((handed ?? []).map((h) => `${h.student_id}|${h.test_id}`));
   const doneA = new Set((handedA ?? []).map((h) => `${h.student_id}|${h.assignment_id}`));
 
-  const items: Item[] = [...(await resultItems(sb)), ...(await classItems(sb, students, now))];
+  const items: Item[] = [...(await resultItems(sb)), ...(await classItems(sb, students, now)), ...(await studyItems(sb, students, now))];
   for (const s of students) {
     for (const t of opening ?? []) {
       if (!covers(t, s) || done.has(`${s.id}|${t.id}`)) continue;
@@ -310,4 +310,45 @@ async function classOptOuts(sb: SupabaseClient, rows: Array<{ id: string; user_i
     if (data.users.length < 1000) break;
   }
   return out;
+}
+
+/**
+ * Groundwork study times: a reminder in the 15 minutes before each slot a
+ * student planned (saved on their profile as studySlots), once per slot.
+ */
+async function studyItems(sb: SupabaseClient, students: Reach[], now: number): Promise<Item[]> {
+  if (!students.length) return [];
+  const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(now);
+  const weekday = new Date(`${ymd}T12:00:00+05:00`).getUTCDay();
+  const { data: rows } = await sb.from("students").select("id,user_id").in("id", students.map((s) => s.id));
+  const byUser = new Map((rows ?? []).filter((r) => r.user_id).map((r) => [r.user_id as string, r.id as string]));
+  const items: Item[] = [];
+  for (let page = 1; page <= 10; page++) {
+    const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) break;
+    for (const u of data.users) {
+      const id = byUser.get(u.id);
+      const slots = (u.user_metadata as { profile?: { studySlots?: Array<{ day: number; time: string }> } } | undefined)?.profile?.studySlots;
+      if (!id || !Array.isArray(slots)) continue;
+      for (const sl of slots) {
+        if (sl?.day !== weekday || !/^\d{2}:\d{2}$/.test(sl.time ?? "")) continue;
+        const at = Date.parse(`${ymd}T${sl.time}:00+05:00`);
+        if (now <= at - 14 * 60_000 || now > at + 60_000) continue;
+        const [h, m] = sl.time.split(":").map(Number);
+        const label = `${((h + 11) % 12) + 1}${m ? `:${String(m).padStart(2, "0")}` : ""} ${h < 12 ? "am" : "pm"}`;
+        items.push({
+          studentId: id,
+          kind: "study",
+          refs: [`study:${ymd}:${sl.time}`],
+          title: "Study time",
+          body: `Your ${label} Groundwork session is coming up. Open the portal and press Start.`,
+          url: "/groundwork",
+          tag: `study-${ymd}-${sl.time}`,
+          priority: 4,
+        });
+      }
+    }
+    if (data.users.length < 1000) break;
+  }
+  return items;
 }

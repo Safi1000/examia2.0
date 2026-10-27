@@ -15,6 +15,9 @@ import { formatDate } from "@/lib/time";
 import { studentSubjects } from "@/components/student/Welcome";
 import { EmptyState, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
+import { ShareMoment } from "@/components/student/ShareMoment";
+import { displayName } from "@/lib/display-name";
+import { sceneFor } from "@/lib/groundwork";
 import type { Mission } from "@/components/student/FocusMode";
 
 const FocusMode = dynamic(() => import("@/components/student/FocusMode"), { ssr: false });
@@ -89,6 +92,14 @@ export default function ProgressPage() {
                 <p className={cn("mt-3 text-sm font-semibold", snap.delta > 0 ? "text-success" : "text-warning")}>
                   {snap.delta > 0 ? "▲ Up" : "▼ Down"} {Math.abs(Math.round(snap.delta))}% on the tests before
                 </p>
+              )}
+              {(snap.grade === "A*" || snap.grade === "A") && snap.marked >= 3 && (
+                <div className="mt-4">
+                  <ShareMoment
+                    label="Share my grade"
+                    moment={{ kicker: "Working at", big: `${snap.grade} grade`, sub: `${Math.round(snap.recent)}% across my last ${Math.min(5, snap.marked)} tests`, name: displayName(student.username).split(" ")[0], scene: sceneFor(profile.scene, nowMs) }}
+                  />
+                </div>
               )}
             </div>
             <div className="rounded-lg border border-border bg-surface p-5">

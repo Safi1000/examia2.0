@@ -70,3 +70,16 @@ export function performanceSnapshot(db: Database, student: Student): Snapshot | 
       .map((m) => ({ subject: m.subject, name: m.name, percent: Math.round(m.percent) })),
   };
 }
+
+/** Every topic under 70% in the student's marked tests: the Groundwork review queue. */
+export function weakTopics(db: Database, student: Student): Array<{ subject: string; topic: string }> {
+  const released = submissionsForStudent(db, student.id).filter((s) => s.status === "released");
+  const tests = released.flatMap((s) => {
+    const t = testById(db, s.testId);
+    return t ? [t] : [];
+  });
+  if (!tests.length) return [];
+  return topicMastery(tests, released)
+    .filter((m) => m.available > 0 && m.percent < 70)
+    .map((m) => ({ subject: m.subject, topic: m.name }));
+}

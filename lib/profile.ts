@@ -37,6 +37,18 @@ export interface Profile {
   /** Finished (or skipped) the welcome flow. */
   onboarded?: boolean;
   focus?: FocusStats;
+  /** Groundwork: planned study times, with a reminder at each. */
+  studySlots?: Array<{ day: number; time: string }>;
+  /** Groundwork: study days a week to aim for (the weekly streak). */
+  daysTarget?: number;
+  /** Groundwork: the review queue, by topic key. */
+  reviews?: Record<string, { step: number; due: string }>;
+  /** Groundwork: today's one thing, from the start screen. */
+  today?: { date: string; text: string; done?: boolean };
+  /** Groundwork: the chosen scene (blank = a new one each day). */
+  scene?: string;
+  /** Monday of the last week the student reviewed on Sunday. */
+  weekReviewed?: string;
 }
 
 /** Portal avatars (public/avatars/*.webp), cut from Hamza's illustrated set. */

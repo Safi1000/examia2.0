@@ -44,6 +44,7 @@ export const Icon = {
   Bell: (p: P) => <Base {...p}><path d="M18 8a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7M13.7 19a2 2 0 0 1-3.4 0" /></Base>,
   Chart: (p: P) => <Base {...p}><path d="M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-6" /></Base>,
   Download: (p: P) => <Base {...p}><path d="M12 4v10m0 0 4-4m-4 4-4-4M5 19h14" /></Base>,
+  Share: (p: P) => <Base {...p}><path d="M12 15V3m0 0L8 7m4-4 4 4M7 11H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-1" /></Base>,
   Layers: (p: P) => <Base {...p}><path d="m12 4 8 4-8 4-8-4 8-4ZM4 12l8 4 8-4M4 16l8 4 8-4" /></Base>,
   Inbox: (p: P) => <Base {...p}><path d="M4 13h4l1 3h6l1-3h4M4 13l2-8h12l2 8v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-5Z" /></Base>,
   Flag: (p: P) => <Base {...p}><path d="M5 21V4M5 4h11l-2 4 2 4H5" /></Base>,

@@ -13,6 +13,7 @@ import { GRADE_ORDER, gradeSubmission, type GradeLetter } from "@/lib/grading";
 import { performanceSnapshot, sameSubject } from "@/lib/performance";
 import { useStudentProfiles } from "@/lib/student-profiles";
 import { StartCard } from "@/components/admin/StartCard";
+import { SlippingCard } from "@/components/admin/SlippingCard";
 import { HealthLine } from "@/components/admin/Automations";
 import { liveSlotsOn, pkDate, slotKey, useClassLinks, useSchedule } from "@/lib/classes";
 import { formatRelative } from "@/lib/time";
@@ -194,6 +195,8 @@ export default function TodayPage() {
           </a>
         ))}
       </div>
+
+      <SlippingCard db={db} profiles={profiles} nowMs={nowMs} cohortId={cohortId} />
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         {/* To mark */}
