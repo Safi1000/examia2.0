@@ -127,6 +127,10 @@ export function settleStroke(pts: Pt[], size: number): Pt[] {
       if (i === 0 || i === out.length - 1) return p;
       const a = out[i - 1];
       const b = out[i + 1];
+      // A real corner (the top of a 7, the point of a 4) stays sharp.
+      const ux = p[0] - a[0], uy = p[1] - a[1], vx = b[0] - p[0], vy = b[1] - p[1];
+      const cos = (ux * vx + uy * vy) / ((Math.hypot(ux, uy) * Math.hypot(vx, vy)) || 1);
+      if (cos < 0.5) return p;
       return [(a[0] + p[0] * 2 + b[0]) / 4, (a[1] + p[1] * 2 + b[1]) / 4, (a[2] + p[2] * 2 + b[2]) / 4] as Pt;
     });
   }
@@ -134,8 +138,11 @@ export function settleStroke(pts: Pt[], size: number): Pt[] {
 }
 
 /** A stroke that is really a straight line: its two ends, else null. */
-export function straightOf(pts: Pt[], tolerance = 0.06): [Pt, Pt] | null {
-  if (pts.length < 2) return null;
+export function straightOf(all: Pt[], tolerance = 0.06): [Pt, Pt] | null {
+  if (all.length < 2) return null;
+  // Ignore a little hook or flick where the pen lands and lifts.
+  const cut = all.length >= 12 ? Math.floor(all.length * 0.08) : 0;
+  const pts = cut ? all.slice(cut, all.length - cut) : all;
   const a = pts[0];
   const b = pts[pts.length - 1];
   const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
@@ -172,8 +179,8 @@ export function tAccountOf(h: [Pt, Pt], v: [Pt, Pt]): { a: Pt; b: Pt } | null {
   const vx = (top[0] + bottom[0]) / 2;
   const Lv = bottom[1] - top[1];
   if (Lh < 1 || Lv < Lh * 0.25) return null;
-  if (vx < hx0 + Lh * 0.2 || vx > hx1 - Lh * 0.2) return null; // not in the middle part
-  if (Math.abs(top[1] - hy) > Math.max(Lv * 0.2, Lh * 0.12)) return null; // doesn't start at the bar
+  if (vx < hx0 + Lh * 0.3 || vx > hx1 - Lh * 0.3) return null; // not in the middle part
+  if (Math.abs(top[1] - hy) > Math.max(Lv * 0.15, Lh * 0.1)) return null; // doesn't start at the bar
   if (bottom[1] <= hy) return null;
   return { a: [hx0, hy, 0.5], b: [hx1, bottom[1], 0.5] };
 }
@@ -244,13 +251,49 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
     drawShape(ctx, s);
     return;
   }
-  if (pts.length === 1) {
+  // A tap (full stop, decimal point, the dot on an i): a round dot, never an empty outline.
+  const tiny = s.size * 0.5;
+  if (pts.length === 1 || pts.every((p) => Math.abs(p[0] - pts[0][0]) <= tiny && Math.abs(p[1] - pts[0][1]) <= tiny)) {
+    let x = 0, y = 0, pr = 0;
+    for (const p of pts) {
+      x += p[0];
+      y += p[1];
+      pr = Math.max(pr, p[2]);
+    }
     ctx.beginPath();
-    ctx.arc(pts[0][0], pts[0][1], widthAt(s.size, pts[0][2]) / 2, 0, Math.PI * 2);
+    ctx.arc(x / pts.length, y / pts.length, Math.max(widthAt(s.size, pr) / 2, s.size * 0.42), 0, Math.PI * 2);
     ctx.fill();
     return;
   }
-  ctx.fill(new Path2D(inkPath(pts, s.size)));
+  ctx.fill(inkShape(s));
+}
+
+/** A stroke's world box (kept per stroke), to skip what is off screen. */
+const boxes = new WeakMap<Stroke, { pts: Pt[]; n: number; b: View }>();
+export function strokeBox(s: Stroke): View {
+  const hit = boxes.get(s);
+  if (hit && hit.pts === s.pts && hit.n === s.pts.length) return hit.b;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of s.pts) {
+    x0 = Math.min(x0, p[0]);
+    y0 = Math.min(y0, p[1]);
+    x1 = Math.max(x1, p[0]);
+    y1 = Math.max(y1, p[1]);
+  }
+  const pad = s.size * 2 + (s.kind === "form" ? 40 : 0); // room for the nib and a form's labels
+  const b = { x: x0 - pad, y: y0 - pad, w: x1 - x0 + pad * 2, h: y1 - y0 + pad * 2 };
+  boxes.set(s, { pts: s.pts, n: s.pts.length, b });
+  return b;
+}
+
+/** Finished ink never changes, so its outline is worked out once and kept. */
+const shapes = new WeakMap<Stroke, { pts: Pt[]; n: number; size: number; p: Path2D }>();
+function inkShape(s: Stroke): Path2D {
+  const hit = shapes.get(s);
+  if (hit && hit.pts === s.pts && hit.n === s.pts.length && hit.size === s.size) return hit.p;
+  const p = new Path2D(inkPath(s.pts, s.size));
+  shapes.set(s, { pts: s.pts, n: s.pts.length, size: s.size, p });
+  return p;
 }
 
 /**
@@ -261,13 +304,18 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
 export function inkPath(pts: Pt[], size: number): string {
   const n = pts.length;
   const widths: number[] = [];
+  // Distance along the stroke, so the taper is the same length on short marks and long ones.
+  const along: number[] = [0];
+  for (let i = 1; i < n; i++) along.push(along[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const total = along[n - 1];
+  const reach = Math.min(size * 3, total / 3) || 1;
   for (let i = 0; i < n; i++) {
     const a = pts[Math.max(0, i - 1)];
     const b = pts[Math.min(n - 1, i + 1)];
     const speed = Math.hypot(b[0] - a[0], b[1] - a[1]) / 2 / Math.max(0.5, size);
     const fast = Math.max(0.78, 1 - Math.max(0, speed - 1.2) * 0.05);
-    const taperIn = Math.min(1, 0.55 + (i / 6) * 0.45);
-    const taperOut = Math.min(1, 0.45 + ((n - 1 - i) / 6) * 0.55);
+    const taperIn = Math.min(1, 0.6 + (along[i] / reach) * 0.4);
+    const taperOut = Math.min(1, 0.5 + ((total - along[i]) / reach) * 0.5);
     widths.push((widthAt(size, pts[i][2]) / 2) * fast * Math.min(taperIn, taperOut));
   }
   // Even out width changes so pressure never looks lumpy.
@@ -303,9 +351,9 @@ export function inkPath(pts: Pt[], size: number): string {
   return (
     `M${f(left[0][0])} ${f(left[0][1])}` +
     edge(left) +
-    `A${f(rEnd)} ${f(rEnd)} 0 0 1 ${f(right[n - 1][0])} ${f(right[n - 1][1])}` +
+    `A${f(rEnd)} ${f(rEnd)} 0 0 0 ${f(right[n - 1][0])} ${f(right[n - 1][1])}` +
     edge(back) +
-    `A${f(rStart)} ${f(rStart)} 0 0 1 ${f(left[0][0])} ${f(left[0][1])}Z`
+    `A${f(rStart)} ${f(rStart)} 0 0 0 ${f(left[0][0])} ${f(left[0][1])}Z`
   );
 }
 
@@ -560,9 +608,9 @@ export function inkOutlinePath(xs: number[], ps: number[], size: number): string
   const rStart = W(0);
   let d = `M${f(left[0][0])} ${f(left[0][1])}`;
   for (let i = 1; i < n; i++) d += `L${f(left[i][0])} ${f(left[i][1])}`;
-  d += `A${f(rEnd)} ${f(rEnd)} 0 0 1 ${f(right[n - 1][0])} ${f(right[n - 1][1])}`;
+  d += `A${f(rEnd)} ${f(rEnd)} 0 0 0 ${f(right[n - 1][0])} ${f(right[n - 1][1])}`;
   for (let i = n - 2; i >= 0; i--) d += `L${f(right[i][0])} ${f(right[i][1])}`;
-  d += `A${f(rStart)} ${f(rStart)} 0 0 1 ${f(left[0][0])} ${f(left[0][1])}Z`;
+  d += `A${f(rStart)} ${f(rStart)} 0 0 0 ${f(left[0][0])} ${f(left[0][1])}Z`;
   return d;
 }
 

@@ -27,6 +27,7 @@ import {
   smoothPoint,
   steadyFor,
   straightOf,
+  strokeBox,
   tAccountOf,
   snapLine,
   toWorld,
@@ -154,7 +155,13 @@ function paint(
   ctx.translate(-cam.x, -cam.y);
   drawGrid(ctx, cam, w, h);
   drawImages(ctx, images, onImage);
-  for (const s of strokes) drawStroke(ctx, s);
+  // Only what is on screen gets drawn, so a full board stays smooth.
+  const vx = cam.x, vy = cam.y, vw = w / cam.z, vh = h / cam.z;
+  for (const s of strokes) {
+    const b = strokeBox(s);
+    if (b.x > vx + vw || b.y > vy + vh || b.x + b.w < vx || b.y + b.h < vy) continue;
+    drawStroke(ctx, s);
+  }
   for (const s of extra) if (s) drawStroke(ctx, s);
   if (selected) {
     const px = 1 / cam.z;
@@ -391,9 +398,11 @@ export function TeacherBoard({ room }: { room: string }) {
     shareView();
   }, [requestDraw, shareView]);
 
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flash = (msg: string) => {
     setNotice(msg);
-    setTimeout(() => setNotice(null), 2600);
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setNotice(null), 2600);
   };
 
   // ---- history
@@ -498,11 +507,10 @@ export function TeacherBoard({ room }: { room: string }) {
       images.current = [...images.current, ...placed];
       commit({ type: "img-add", m: placed });
       for (const m of placed) if (!m.url.startsWith("blob:")) send({ t: "img", m });
-      // Ready to place: the first picture is selected with the Move tool on.
-      setTool("move");
+      // Ready to place: the first picture is selected. A finger moves it, the pen still writes.
       select(placed[0].id);
       requestDraw();
-      flash(placed.length > 1 ? `${placed.length} pages added. Drag to move, gold dot to resize.` : "Drag to move, gold dot to resize. Pen to write on it.");
+      flash(placed.length > 1 ? `${placed.length} pages added. Drag with a finger to move.` : "Drag with a finger to move. Gold dot resizes.");
     } catch (err) {
       flash(err instanceof Error ? err.message : "That file couldn't be added.");
     } finally {
@@ -516,8 +524,12 @@ export function TeacherBoard({ room }: { room: string }) {
   const touches = useRef(new Map<number, { x: number; y: number; t: number }>());
   const pinch = useRef<{ d: number; cx: number; cy: number } | null>(null);
   const tap2 = useRef<{ at: number; moved: number } | null>(null);
+  // One finger tap (no drag): selects the picture under it, or clears the selection.
+  const tap1 = useRef<{ id: number; x: number; y: number; at: number } | null>(null);
   const glide = useRef<{ vx: number; vy: number; raf: number } | null>(null);
   const velocity = useRef({ vx: 0, vy: 0 });
+  // How far this finger pan has travelled, and when it last moved: a tap or a stop never glides.
+  const panTrip = useRef({ dist: 0, at: 0 });
   const gesture = useRef<{
     mode: "draw" | "line" | "box" | "erase" | "pan" | "drag" | "resize" | null;
     id: number;
@@ -571,6 +583,8 @@ export function TeacherBoard({ room }: { room: string }) {
     hold.current.timer = setTimeout(() => {
       const s = current.current;
       if (!s || s.kind !== "ink" || gesture.current.mode !== "draw" || hold.current.path < MIN_HOLD_PATH_PX) return;
+      // Snap from where the pen tip really is, not where the smoothing had got to.
+      if (lastRaw.current) s.pts = [...s.pts, lastRaw.current];
       // A closed loop becomes a clean box or oval; anything else a straight line.
       const shape = recogniseShape(s.pts);
       if (shape) {
@@ -631,7 +645,7 @@ export function TeacherBoard({ room }: { room: string }) {
   };
 
   /** Pick up a picture under (sx, sy): its gold dot resizes, the rest moves it. */
-  const grabImage = (id: number, sx: number, sy: number, byFinger: boolean) => {
+  const grabImage = (id: number, sx: number, sy: number, byFinger: boolean, selectedOnly = false) => {
     const [wx, wy] = toWorld(cam.current, sx, sy);
     const sel = images.current.find((m) => m.id === selectedRef.current);
     const reach = byFinger ? HANDLE_PX * 1.8 : HANDLE_PX;
@@ -639,7 +653,8 @@ export function TeacherBoard({ room }: { room: string }) {
       gesture.current = { mode: "resize", id, erased: [], straightened: false, img: { before: { ...sel }, ox: 0, oy: 0 } };
       return true;
     }
-    const hit = imageAt(images.current, wx, wy);
+    const under = imageAt(images.current, wx, wy);
+    const hit = selectedOnly && under?.id !== selectedRef.current ? undefined : under;
     // A finger off every picture pans as usual (and keeps the selection).
     if (!hit && byFinger) return false;
     select(hit?.id ?? null);
@@ -666,13 +681,16 @@ export function TeacherBoard({ room }: { room: string }) {
     if (isTouch) {
       if (pens.current.active || Date.now() - pens.current.lastAt < PALM_LOCK_MS) return;
       if (e.width > PALM_SIZE_PX || e.height > PALM_SIZE_PX) return; // a resting hand, not a fingertip
-      // Move tool: one finger on a picture moves it, on its gold dot resizes it.
-      if (tool === "move" && touches.current.size === 0 && !gesture.current.mode && grabImage(e.pointerId, sx, sy, true)) {
+      // One finger on the selected picture (or any picture with Move on) moves it; its gold dot resizes it.
+      if ((tool === "move" || selectedRef.current) && touches.current.size === 0 && !gesture.current.mode && grabImage(e.pointerId, sx, sy, true, tool !== "move")) {
         capture(canvasRef.current, e.pointerId);
         return;
       }
+      tap1.current = touches.current.size === 0 ? { id: e.pointerId, x: sx, y: sy, at: performance.now() } : null;
       if (!fingerDraws || pens.current.seen) {
         touches.current.set(e.pointerId, { x: sx, y: sy, t: performance.now() });
+        velocity.current = { vx: 0, vy: 0 };
+        panTrip.current = { dist: 0, at: performance.now() };
         if (touches.current.size === 2) {
           const [p1, p2] = [...touches.current.values()];
           pinch.current = { d: Math.hypot(p1.x - p2.x, p1.y - p2.y), cx: (p1.x + p2.x) / 2, cy: (p1.y + p2.y) / 2 };
@@ -690,6 +708,16 @@ export function TeacherBoard({ room }: { room: string }) {
       return;
     }
     if (isMouse && e.button !== 0 && e.button !== 2) return;
+    // The pen always wins: a finger moving a picture lets go, and the move is kept.
+    if (isPen && (gesture.current.mode === "drag" || gesture.current.mode === "resize") && gesture.current.img) {
+      const before = gesture.current.img.before;
+      const after = images.current.find((m) => m.id === before.id);
+      if (after && (after.x !== before.x || after.y !== before.y || after.w !== before.w)) {
+        commit({ type: "img-edit", before, after });
+        if (!after.url.startsWith("blob:")) send({ t: "img", m: after });
+      }
+      gesture.current = { mode: null, id: -1, erased: [], straightened: false };
+    }
     if (gesture.current.mode) return;
 
     capture(canvasRef.current, e.pointerId);
@@ -742,8 +770,9 @@ export function TeacherBoard({ room }: { room: string }) {
         const dx = (sx - prev.x) * PAN_GAIN;
         const dy = (sy - prev.y) * PAN_GAIN;
         cam.current = { ...cam.current, x: cam.current.x - dx / cam.current.z, y: cam.current.y - dy / cam.current.z };
-        const dt = Math.max(1, now - prev.t);
+        const dt = Math.max(8, now - prev.t);
         velocity.current = { vx: dx / dt, vy: dy / dt };
+        panTrip.current = { dist: panTrip.current.dist + Math.hypot(dx, dy), at: now };
       } else if (touches.current.size === 2 && pinch.current) {
         const [p1, p2] = [...touches.current.values()];
         const d = Math.hypot(p1.x - p2.x, p1.y - p2.y);
@@ -839,16 +868,27 @@ export function TeacherBoard({ room }: { room: string }) {
   const recognise = (s: Stroke) => {
     const z = cam.current.z;
     const now = Date.now();
-    recentLines.current = recentLines.current.filter((l) => now - l.at < 15000 && strokes.current.some((x) => x.id === l.id));
+    // Only the stroke drawn just before, a few seconds ago, can pair up into a T.
+    const prev = strokes.current[strokes.current.length - 2];
+    recentLines.current = recentLines.current.filter((l) => now - l.at < 6000 && l.id === prev?.id);
     const ends: [Pt, Pt] | null = s.kind === "line" ? [s.pts[0], s.pts[1]] : s.kind === "ink" ? straightOf(s.pts) : null;
     const len = ends ? Math.hypot(ends[1][0] - ends[0][0], ends[1][1] - ends[0][1]) * z : 0;
     const dir = ends && len >= 40 ? lineDir(ends[0], ends[1]) : null;
 
     const swap = (before: Stroke[], after: Stroke, note?: string) => {
       strokes.current = [...strokes.current.filter(removeIds(before)), after];
-      commit({ type: "replace", before, after: [after] });
+      const top = undoStack.current[undoStack.current.length - 1];
+      if (before.length === 1 && top?.type === "add" && top.s.id === before[0].id) {
+        // One stroke tidied: it is still one step, so one undo removes it.
+        undoStack.current[undoStack.current.length - 1] = { type: "add", s: after };
+        persist();
+        syncMeta();
+      } else commit({ type: "replace", before, after: [after] });
       recentLines.current = recentLines.current.filter((l) => !before.some((b) => b.id === l.id));
-      applySet();
+      // Small messages, not the whole board, so the laptop keeps up on a full board.
+      send({ t: "del", ids: before.map((b) => b.id) });
+      send({ t: "add", s: packStroke(after) });
+      requestDraw();
       try {
         navigator.vibrate?.(10);
       } catch {}
@@ -861,7 +901,8 @@ export function TeacherBoard({ room }: { room: string }) {
         if (o.dir === dir) continue;
         const t = dir === "v" ? tAccountOf(o.ends, ends) : tAccountOf(ends, o.ends);
         const other = strokes.current.find((x) => x.id === o.id);
-        if (!t || !other) continue;
+        // T account size only, so a capital T in a heading stays handwriting.
+        if (!t || !other || (t.b[0] - t.a[0]) * z < 150 || (t.b[1] - t.a[1]) * z < 90) continue;
         swap([other, s], { id: newId(), kind: "form", form: "t", color: other.color, size: Math.max(other.size, s.size), pts: [t.a, t.b] }, "T account");
         return;
       }
@@ -880,14 +921,23 @@ export function TeacherBoard({ room }: { room: string }) {
       return (x1 - x0) * z >= 90 && (y1 - y0) * z >= 60;
     })();
     const shape = big ? recogniseShape(s.pts, 0.032) : null;
-    if (shape) {
+    // Circling or boxing an answer keeps the hand drawn loop: only an empty loop snaps.
+    const empty = (sh: NonNullable<typeof shape>) =>
+      !strokes.current.some((o) => {
+        if (o.id === s.id) return false;
+        const b = strokeBox(o);
+        const cx = b.x + b.w / 2;
+        const cy = b.y + b.h / 2;
+        return cx > sh.a[0] && cx < sh.b[0] && cy > sh.a[1] && cy < sh.b[1];
+      }) && !images.current.some((m) => m.x < sh.b[0] && m.x + m.w > sh.a[0] && m.y < sh.b[1] && m.y + m.h > sh.a[1]);
+    if (shape && empty(shape)) {
       swap([s], { id: newId(), kind: shape.kind, color: s.color, size: s.size, pts: [shape.a, shape.b] });
       return;
     }
-    // Long and clearly straight: tidy it into a ruled line (underlines, totals).
+    // Long and clearly straight: tidy it into a ruled line (underlines, totals), at its own angle.
     const tidy = straightOf(s.pts, 0.03);
-    if (tidy && len >= 80) {
-      const line: Stroke = { id: s.id + "l", kind: "line", color: s.color, size: s.size, pts: [tidy[0], snapLine(tidy[0], tidy[1])] };
+    if (tidy && len >= 120) {
+      const line: Stroke = { id: s.id + "l", kind: "line", color: s.color, size: s.size, pts: [s.pts[0], s.pts[s.pts.length - 1]] };
       swap([s], line);
       // Still counts towards a T, under its new id.
       if (dir) recentLines.current.push({ id: line.id, ends: [line.pts[0], line.pts[1]], dir, at: now });
@@ -902,6 +952,16 @@ export function TeacherBoard({ room }: { room: string }) {
     }
     if (touches.current.has(e.pointerId)) {
       const wasSingle = touches.current.size === 1;
+      const t1 = tap1.current;
+      tap1.current = null;
+      if (t1 && t1.id === e.pointerId && !cancelled && performance.now() - t1.at < 300) {
+        const [ex, ey] = local(e);
+        if (Math.hypot(ex - t1.x, ey - t1.y) < 10) {
+          const [wx, wy] = toWorld(cam.current, ex, ey);
+          select(imageAt(images.current, wx, wy)?.id ?? null);
+          requestDraw();
+        }
+      }
       touches.current.delete(e.pointerId);
       if (touches.current.size < 2) pinch.current = null;
       // Two-finger tap (both down and up quickly, barely moving) = undo.
@@ -914,7 +974,8 @@ export function TeacherBoard({ room }: { room: string }) {
           return;
         }
       }
-      if (wasSingle && !cancelled && !tap2.current) startGlide(velocity.current.vx, velocity.current.vy);
+      const flicked = panTrip.current.dist > 24 && performance.now() - panTrip.current.at < 80;
+      if (wasSingle && !cancelled && !tap2.current && flicked) startGlide(velocity.current.vx, velocity.current.vy);
       if (gesture.current.mode === "pan" && gesture.current.id === e.pointerId) gesture.current = { mode: null, id: -1, erased: [], straightened: false };
       return;
     }
@@ -1042,6 +1103,7 @@ export function TeacherBoard({ room }: { room: string }) {
         onPointerMove={onPointerMove}
         onPointerUp={(e) => endGesture(e)}
         onPointerCancel={(e) => endGesture(e, true)}
+        onLostPointerCapture={(e) => gesture.current.id === e.pointerId && gesture.current.mode && endGesture(e)}
         onPointerLeave={() => tool !== "eraser" && gesture.current.mode !== "erase" && setEraserAt(null)}
         onWheel={onWheel}
         onContextMenu={(e) => e.preventDefault()}
@@ -1124,9 +1186,9 @@ export function TeacherBoard({ room }: { room: string }) {
       </div>
 
       {/* Picture actions, when one is selected */}
-      {selectedId && tool === "move" && (
+      {selectedId && (
         <div className="absolute left-1/2 top-20 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-[#FBC159]/30 bg-[#1c1f22]/90 p-1.5 pl-4 backdrop-blur-xl">
-          <span className="text-xs font-semibold text-[#b9bec3]">Drag to move · gold dot to resize</span>
+          <span className="text-xs font-semibold text-[#b9bec3]">Finger drags it · gold dot resizes</span>
           <button type="button" onClick={deleteSelected} className="flex h-9 items-center gap-1.5 rounded-xl bg-[#F07A6A]/15 px-3 text-xs font-bold text-[#F07A6A] [&_svg]:h-4 [&_svg]:w-4">
             {I.trash}
             Remove
