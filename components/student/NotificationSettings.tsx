@@ -10,9 +10,9 @@ import { device, installed } from "@/lib/push-client";
 /**
  * "Phone notifications" card in Settings.
  *
- * Kept quiet on purpose (rules live in lib/push-server.ts): only classes
- * starting, results, tests opening and assignments due; never twice; at most 3 a day;
- * nothing between 10 pm and 8 am. Each kind can be switched off here.
+ * Kept quiet on purpose (rules live in lib/push-server.ts): never twice, at
+ * most 2 a day, 2 hours apart unless a class or test is starting, nothing
+ * between 10 pm and 8 am. Each kind can be switched off here.
  */
 
 const VAPID = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
@@ -120,7 +120,7 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-ink">Phone notifications</h2>
-          <p className="mt-1 text-sm text-ink-3">Only what matters, never at night, at most 3 a day.</p>
+          <p className="mt-1 text-sm text-ink-3">Only what matters, never at night, at most 2 a day.</p>
         </div>
         {status === "on" && (
           <Button variant="secondary" size="sm" loading={busy} onClick={() => void turnOff()}>
@@ -167,6 +167,30 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
               <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${profile.notifyClasses !== false ? "left-6" : "left-1"}`} />
             </button>
           </li>
+          {/* Groundwork study times and missed class recordings: also on the profile. */}
+          {(
+            [
+              ["notifyStudy", "Study times", "At your Groundwork study time, if you haven't studied yet that day"],
+              ["notifyRecordings", "Missed class recordings", "A few hours before the recording of a class you missed closes"],
+            ] as const
+          ).map(([key, label, hint]) => (
+            <li key={key} className="flex items-center justify-between gap-4 py-3">
+              <span>
+                <span className="block text-sm font-semibold text-ink">{label}</span>
+                <span className="block text-xs text-ink-3">{hint}</span>
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={profile[key] !== false}
+                aria-label={`${label} notifications`}
+                onClick={() => updateProfile({ [key]: profile[key] === false })}
+                className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${profile[key] !== false ? "bg-brand" : "bg-surface-2 ring-1 ring-inset ring-border-strong"}`}
+              >
+                <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${profile[key] !== false ? "left-6" : "left-1"}`} />
+              </button>
+            </li>
+          ))}
           {KINDS.map((k) => (
             <li key={k.key} className="flex items-center justify-between gap-4 py-3">
               <span>

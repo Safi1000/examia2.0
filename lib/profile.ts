@@ -49,6 +49,9 @@ export interface Profile {
   scene?: string;
   /** Monday of the last week the student reviewed on Sunday. */
   weekReviewed?: string;
+  /** False when they switched off study time or missed recording reminders. */
+  notifyStudy?: boolean;
+  notifyRecordings?: boolean;
   /** Class recordings opened, by slot key (date|class|subject), newest last. */
   watched?: string[];
 }

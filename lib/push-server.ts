@@ -20,7 +20,10 @@ import { assignmentCopy, classCopy, recordingCopy, resultCopy, studyCopy, testOp
  *  7. Past students (switched-off cohorts) never get anything.
  */
 
-const DAILY_CAP = 3;
+const DAILY_CAP = 2;
+/** Calm rules: at most one per run, and two hours between anything that isn't time critical. */
+const GAP_MS = 2 * 3_600_000;
+const URGENT: Kind[] = ["classes", "tests"];
 const TZ = "Asia/Karachi";
 
 export function pushReady(): boolean {
@@ -91,8 +94,17 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
   for (const s of (subs ?? []) as Sub[]) subsBy.set(s.student_id, [...(subsBy.get(s.student_id) ?? []), s]);
   const prefBy = new Map((prefs ?? []).map((p) => [p.student_id as string, p as Record<Kind, boolean>]));
   const sent = new Set((log ?? []).map((l) => `${l.student_id}|${l.kind}|${l.ref}`));
-  const todayCount = new Map<string, number>();
-  for (const l of log ?? []) todayCount.set(l.student_id as string, (todayCount.get(l.student_id as string) ?? 0) + 1);
+  // Count sends, not refs: one grouped notification can log several refs at once.
+  const sends = new Map<string, Set<string>>();
+  const lastSent = new Map<string, number>();
+  for (const l of log ?? []) {
+    const id = l.student_id as string;
+    sends.set(id, (sends.get(id) ?? new Set()).add(String(l.sent_at).slice(0, 16)));
+    lastSent.set(id, Math.max(lastSent.get(id) ?? 0, Date.parse(l.sent_at as string)));
+  }
+  const todayCount = new Map([...sends].map(([id, set]) => [id, set.size]));
+  const thisRun = new Set<string>();
+  const nowMs = Date.now();
 
   let count = 0;
   for (const it of items.sort((a, b) => a.priority - b.priority)) {
@@ -102,6 +114,8 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
     const fresh = it.refs.filter((r) => !sent.has(`${it.studentId}|${it.kind}|${r}`));
     if (!fresh.length) continue;
     if ((todayCount.get(it.studentId) ?? 0) >= DAILY_CAP) continue;
+    if (thisRun.has(it.studentId)) continue;
+    if (!URGENT.includes(it.kind) && nowMs - (lastSent.get(it.studentId) ?? 0) < GAP_MS) continue;
 
     // Remember first, so a retry can never double-send. Only rows this insert
     // actually added come back: if every one was already logged, it was sent before.
@@ -112,6 +126,8 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
     fresh.forEach((r) => sent.add(`${it.studentId}|${it.kind}|${r}`));
     if (error || !added?.length) continue;
     todayCount.set(it.studentId, (todayCount.get(it.studentId) ?? 0) + 1);
+    thisRun.add(it.studentId);
+    lastSent.set(it.studentId, nowMs);
 
     const payload = JSON.stringify({ title: it.title, body: it.body, url: it.url, tag: it.tag });
     for (const d of devices) {
@@ -318,7 +334,7 @@ async function classOptOuts(sb: SupabaseClient, rows: Array<{ id: string; user_i
   return out;
 }
 
-type StudentProfile = { studySlots?: Array<{ day: number; time: string }>; watched?: string[] };
+type StudentProfile = { studySlots?: Array<{ day: number; time: string }>; watched?: string[]; focus?: { days?: Record<string, number> }; notifyStudy?: boolean; notifyRecordings?: boolean };
 
 /** Each student's saved profile, by student id (one pass over the accounts). */
 async function studentProfiles(sb: SupabaseClient, ids: string[]): Promise<Map<string, StudentProfile>> {
@@ -348,8 +364,10 @@ function studyItems(students: Reach[], profiles: Map<string, StudentProfile>, no
   const weekday = new Date(`${ymd}T12:00:00+05:00`).getUTCDay();
   const items: Item[] = [];
   for (const s of students) {
-    const slots = profiles.get(s.id)?.studySlots;
-    if (!Array.isArray(slots)) continue;
+    const p = profiles.get(s.id);
+    const slots = p?.studySlots;
+    // Switched off, or already studied today: nothing to remind.
+    if (!Array.isArray(slots) || p?.notifyStudy === false || (p?.focus?.days?.[ymd] ?? 0) > 0) continue;
     for (const sl of slots) {
       if (sl?.day !== weekday || !/^\d{2}:\d{2}$/.test(sl.time ?? "")) continue;
       const at = Date.parse(`${ymd}T${sl.time}:00+05:00`);
@@ -359,12 +377,14 @@ function studyItems(students: Reach[], profiles: Map<string, StudentProfile>, no
       items.push({
         studentId: s.id,
         kind: "study",
-        refs: [`study:${ymd}:${sl.time}`],
+        // One a day at most, whatever the number of slots.
+        refs: [`study:${ymd}`],
         ...studyCopy(`${s.id}${ymd}${sl.time}`, label),
         url: "/groundwork",
         tag: `study-${ymd}-${sl.time}`,
         priority: 4,
       });
+      break;
     }
   }
   return items;
@@ -407,7 +427,14 @@ async function recordingItems(sb: SupabaseClient, students: Reach[], profiles: M
       const lv = s.classes.size ? s.classes : (cohortClasses.get(s.cohortId ?? "") ?? new Set<string>());
       const sbj = s.subjects.size ? s.subjects : (cohortSubjects.get(s.cohortId ?? "") ?? new Set<string>());
       if (!lv.has(l.class_id as string) || (sbj.size && !sbj.has(l.subject_id as string))) continue;
+      if (profiles.get(s.id)?.notifyRecordings === false) continue;
       if (joined.has(`${s.id}|${key}`) || profiles.get(s.id)?.watched?.includes(key)) continue;
+      // One recording reminder per student: the first closing; any others ride along in its refs.
+      const existing = items.find((x) => x.studentId === s.id);
+      if (existing) {
+        existing.refs.push(`rec:${key}`);
+        continue;
+      }
       items.push({
         studentId: s.id,
         kind: "recordings",
