@@ -11,11 +11,14 @@ export type Pt = [number, number, number];
 
 export interface Stroke {
   id: string;
-  kind: "ink" | "line";
+  /** rect, ellipse and form keep two corners in pts. */
+  kind: "ink" | "line" | "rect" | "ellipse" | "form";
   color: string;
   /** Base width in world units. */
   size: number;
   pts: Pt[];
+  /** For kind "form": which accounting layout (see FORMS). */
+  form?: FormId;
 }
 
 export interface Camera {
@@ -96,11 +99,18 @@ export function lineAngle(a: Pt, b: Pt): number {
 /** Light smoothing on incoming pen points: steadies the line without lag. */
 export function smoothPoint(prev: Pt | undefined, raw: Pt, amount = 0.45): Pt {
   if (!prev) return raw;
-  return [prev[0] + (raw[0] - prev[0]) * (1 - amount), prev[1] + (raw[1] - prev[1]) * (1 - amount), prev[2] + (raw[2] - prev[2]) * 0.5];
+  return [prev[0] + (raw[0] - prev[0]) * (1 - amount), prev[1] + (raw[1] - prev[1]) * (1 - amount), prev[2] + (raw[2] - prev[2]) * 0.35];
 }
 
+/**
+ * How much to steady a pen point, from how far it moved on screen: slow,
+ * careful writing (where the hand shakes) gets more, fast strokes get less so
+ * they never lag behind the pen.
+ */
+export const steadyFor = (stepPx: number) => (stepPx < 1.5 ? 0.6 : stepPx < 4 ? 0.48 : stepPx < 9 ? 0.36 : 0.25);
+
 /** Pen pressure to width factor: light touch stays readable, pressing thickens. */
-const widthAt = (size: number, p: number) => size * (0.38 + 0.9 * Math.pow(Math.min(1, Math.max(0, p)), 0.75));
+const widthAt = (size: number, p: number) => size * (0.3 + 1.05 * Math.pow(Math.min(1, Math.max(0, p)), 0.8));
 
 /** Distance from point to segment. */
 function distToSeg(px: number, py: number, a: Pt, b: Pt): number {
@@ -115,6 +125,17 @@ function distToSeg(px: number, py: number, a: Pt, b: Pt): number {
 /** Does a circle (world units) touch this stroke? Used by the eraser. */
 export function hitStroke(s: Stroke, x: number, y: number, r: number): boolean {
   const reach = r + s.size;
+  if (s.kind === "ellipse") {
+    const { x: bx, y: by, w, h } = box(s);
+    const rx = Math.max(0.5, w / 2);
+    const ry = Math.max(0.5, h / 2);
+    const k = Math.hypot((x - bx - rx) / rx, (y - by - ry) / ry);
+    return Math.abs(k - 1) * Math.min(rx, ry) <= reach;
+  }
+  if (s.kind === "rect" || s.kind === "form") {
+    // Only the ruled lines count, so rubbing out a figure inside never removes the layout.
+    return shapeParts(s).segs.some(([x0, y0, x1, y1]) => distToSeg(x, y, [x0, y0, 0], [x1, y1, 0]) <= reach);
+  }
   if (s.pts.length === 1) return Math.hypot(x - s.pts[0][0], y - s.pts[0][1]) <= reach;
   for (let i = 1; i < s.pts.length; i++) if (distToSeg(x, y, s.pts[i - 1], s.pts[i]) <= reach) return true;
   return false;
@@ -150,35 +171,206 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
     ctx.stroke();
     return;
   }
+  if (s.kind === "rect" || s.kind === "ellipse" || s.kind === "form") {
+    drawShape(ctx, s);
+    return;
+  }
   if (pts.length === 1) {
     ctx.beginPath();
     ctx.arc(pts[0][0], pts[0][1], widthAt(s.size, pts[0][2]) / 2, 0, Math.PI * 2);
     ctx.fill();
     return;
   }
-  // Pressure ink: short curved segments through the midpoints, each with its
-  // own width, overlapping round caps so the line reads as one smooth stroke.
-  let mx = pts[0][0];
-  let my = pts[0][1];
-  for (let i = 1; i < pts.length; i++) {
-    const a = pts[i - 1];
-    const b = pts[i];
-    const nx = (a[0] + b[0]) / 2;
-    const ny = (a[1] + b[1]) / 2;
-    ctx.lineWidth = widthAt(s.size, (a[2] + b[2]) / 2);
-    ctx.beginPath();
-    ctx.moveTo(mx, my);
-    ctx.quadraticCurveTo(a[0], a[1], nx, ny);
-    ctx.stroke();
-    mx = nx;
-    my = ny;
+  ctx.fill(new Path2D(inkPath(pts, s.size)));
+}
+
+/**
+ * Pressure ink as one filled shape, like a real pen nib: the outline follows
+ * pressure, thins a little on fast strokes, and tapers gently at both ends.
+ * Edges are curved through midpoints, so there are no beads or corners.
+ */
+export function inkPath(pts: Pt[], size: number): string {
+  const n = pts.length;
+  const widths: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = pts[Math.max(0, i - 1)];
+    const b = pts[Math.min(n - 1, i + 1)];
+    const speed = Math.hypot(b[0] - a[0], b[1] - a[1]) / 2 / Math.max(0.5, size);
+    const fast = Math.max(0.78, 1 - Math.max(0, speed - 1.2) * 0.05);
+    const taperIn = Math.min(1, 0.55 + (i / 6) * 0.45);
+    const taperOut = Math.min(1, 0.45 + ((n - 1 - i) / 6) * 0.55);
+    widths.push((widthAt(size, pts[i][2]) / 2) * fast * Math.min(taperIn, taperOut));
   }
-  const last = pts[pts.length - 1];
-  ctx.lineWidth = widthAt(s.size, last[2]);
+  // Even out width changes so pressure never looks lumpy.
+  for (let i = 1; i < n - 1; i++) widths[i] = (widths[i - 1] + widths[i] * 2 + widths[i + 1]) / 4;
+  const left: Array<[number, number]> = [];
+  const right: Array<[number, number]> = [];
+  for (let i = 0; i < n; i++) {
+    const a = pts[Math.max(0, i - 1)];
+    const b = pts[Math.min(n - 1, i + 1)];
+    let tx = b[0] - a[0];
+    let ty = b[1] - a[1];
+    const l = Math.hypot(tx, ty) || 1;
+    tx /= l;
+    ty /= l;
+    const r = widths[i];
+    left.push([pts[i][0] - ty * r, pts[i][1] + tx * r]);
+    right.push([pts[i][0] + ty * r, pts[i][1] - tx * r]);
+  }
+  const f = (v: number) => Math.round(v * 100) / 100;
+  const edge = (side: Array<[number, number]>) => {
+    let d = "";
+    for (let i = 1; i < side.length - 1; i++) {
+      const mx = (side[i][0] + side[i + 1][0]) / 2;
+      const my = (side[i][1] + side[i + 1][1]) / 2;
+      d += `Q${f(side[i][0])} ${f(side[i][1])} ${f(mx)} ${f(my)}`;
+    }
+    const last = side[side.length - 1];
+    return d + `L${f(last[0])} ${f(last[1])}`;
+  };
+  const rEnd = Math.max(0.01, widths[n - 1]);
+  const rStart = Math.max(0.01, widths[0]);
+  const back = [...right].reverse();
+  return (
+    `M${f(left[0][0])} ${f(left[0][1])}` +
+    edge(left) +
+    `A${f(rEnd)} ${f(rEnd)} 0 0 1 ${f(right[n - 1][0])} ${f(right[n - 1][1])}` +
+    edge(back) +
+    `A${f(rStart)} ${f(rStart)} 0 0 1 ${f(left[0][0])} ${f(left[0][1])}Z`
+  );
+}
+
+// ---------------------------------------------------------------- shapes and formats
+
+/** Accounting layouts Hamza can drop on the board, drawn to fit the box that is dragged out. */
+export const FORMS = [
+  { id: "t", name: "T account" },
+  { id: "ledger", name: "Ledger account" },
+  { id: "cash3", name: "Three column cash book" },
+  { id: "journal", name: "Journal" },
+  { id: "running", name: "Running balance" },
+  { id: "trial", name: "Trial balance" },
+  { id: "statement", name: "Statement (two money columns)" },
+] as const;
+export type FormId = (typeof FORMS)[number]["id"];
+
+type Seg = [number, number, number, number];
+type Label = { text: string; x: number; y: number; w: number; align: "left" | "center" };
+
+/** Column edges (as fractions of a width) and their headings, per layout. */
+const SIDES: Record<Exclude<FormId, "t">, { cols: number[]; heads: string[]; twoSided?: boolean }> = {
+  ledger: { cols: [0, 0.22, 0.72, 1], heads: ["Date", "Details", "$"], twoSided: true },
+  cash3: { cols: [0, 0.15, 0.47, 0.64, 0.82, 1], heads: ["Date", "Details", "Disc", "Cash", "Bank"], twoSided: true },
+  journal: { cols: [0, 0.14, 0.62, 0.81, 1], heads: ["Date", "Details", "Dr $", "Cr $"] },
+  running: { cols: [0, 0.13, 0.49, 0.66, 0.83, 1], heads: ["Date", "Details", "Dr $", "Cr $", "Balance $"] },
+  trial: { cols: [0, 0.6, 0.8, 1], heads: ["Account", "Dr $", "Cr $"] },
+  statement: { cols: [0, 0.64, 0.82, 1], heads: ["", "$", "$"] },
+};
+
+const box = (s: Stroke) => {
+  const [a, b] = [s.pts[0], s.pts[s.pts.length - 1]];
+  return { x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]), w: Math.abs(b[0] - a[0]), h: Math.abs(b[1] - a[1]) };
+};
+
+/** The ruled lines and headings of a box shape, in world units. */
+export function shapeParts(s: Stroke): { segs: Seg[]; labels: Label[]; font: number } {
+  const { x, y, w, h } = box(s);
+  const segs: Seg[] = [];
+  const labels: Label[] = [];
+  const font = Math.max(6, Math.min(h * 0.06, w * 0.032, 28));
+  if (s.kind === "rect") return { segs: [[x, y, x + w, y], [x + w, y, x + w, y + h], [x + w, y + h, x, y + h], [x, y + h, x, y]], labels, font };
+  if (s.kind !== "form") return { segs, labels, font };
+  const top = y + font * 1.9; // the ruled line under the headings
+  if (s.form === "t" || !s.form) {
+    const tf = Math.max(6, Math.min(h * 0.09, w * 0.07, 30));
+    const ty = y + Math.min(h * 0.2, tf * 2.4);
+    segs.push([x, ty, x + w, ty], [x + w / 2, ty, x + w / 2, y + h]);
+    labels.push({ text: "Dr", x: x, y: ty - tf * 0.45, w: w * 0.2, align: "left" }, { text: "Cr", x: x + w - tf * 1.4, y: ty - tf * 0.45, w: w * 0.2, align: "left" });
+    return { segs, labels, font: tf };
+  }
+  const L = SIDES[s.form];
+  const sides = L.twoSided ? [[x, w / 2], [x + w / 2, w / 2]] : [[x, w]];
+  if (L.twoSided) {
+    labels.push({ text: "Dr", x, y: y - font * 0.5, w: w * 0.1, align: "left" }, { text: "Cr", x: x + w - font * 1.4, y: y - font * 0.5, w: w * 0.1, align: "left" });
+  }
+  segs.push([x, y, x + w, y], [x, top, x + w, top]);
+  for (const [sx, sw] of sides) {
+    L.cols.forEach((c, i) => {
+      // Outer edges only on single sided layouts; inner rules always.
+      if ((i === 0 || i === L.cols.length - 1) && !(L.twoSided && i === L.cols.length - 1 && sx === x)) return;
+      segs.push([sx + c * sw, y, sx + c * sw, y + h]);
+    });
+    L.heads.forEach((t, i) => {
+      if (!t) return;
+      const c0 = sx + L.cols[i] * sw;
+      const cw = (L.cols[i + 1] - L.cols[i]) * sw;
+      labels.push({ text: t, x: c0 + cw / 2, y: y + font * 1.35, w: cw - font * 0.4, align: "center" });
+    });
+  }
+  return { segs, labels, font };
+}
+
+function drawShape(ctx: CanvasRenderingContext2D, s: Stroke) {
+  ctx.lineWidth = s.size * 0.9;
+  if (s.kind === "ellipse") {
+    const { x, y, w, h } = box(s);
+    ctx.beginPath();
+    ctx.ellipse(x + w / 2, y + h / 2, Math.max(0.5, w / 2), Math.max(0.5, h / 2), 0, 0, Math.PI * 2);
+    ctx.stroke();
+    return;
+  }
+  const { segs, labels, font } = shapeParts(s);
   ctx.beginPath();
-  ctx.moveTo(mx, my);
-  ctx.lineTo(last[0], last[1]);
+  for (const [x0, y0, x1, y1] of segs) {
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+  }
   ctx.stroke();
+  if (!labels.length) return;
+  ctx.save();
+  ctx.globalAlpha = 0.72;
+  ctx.font = `600 ${font}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.textBaseline = "alphabetic";
+  for (const l of labels) {
+    ctx.textAlign = l.align;
+    ctx.fillText(l.text, l.x, l.y, Math.max(1, l.w));
+  }
+  ctx.restore();
+}
+
+/**
+ * Hand-drawn closed loop to a clean box or oval, if it is close to one.
+ * Returns null when the stroke isn't a clear shape (it then stays as ink).
+ */
+export function recogniseShape(pts: Pt[]): { kind: "rect" | "ellipse"; a: Pt; b: Pt } | null {
+  if (pts.length < 8) return null;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of pts) {
+    x0 = Math.min(x0, p[0]);
+    y0 = Math.min(y0, p[1]);
+    x1 = Math.max(x1, p[0]);
+    y1 = Math.max(y1, p[1]);
+  }
+  const w = x1 - x0;
+  const h = y1 - y0;
+  const diag = Math.hypot(w, h);
+  if (w < diag * 0.12 || h < diag * 0.12) return null; // a line, not a loop
+  const [s0, e0] = [pts[0], pts[pts.length - 1]];
+  if (Math.hypot(e0[0] - s0[0], e0[1] - s0[1]) > diag * 0.22) return null; // not closed
+  const cx = x0 + w / 2;
+  const cy = y0 + h / 2;
+  let er = 0;
+  let ee = 0;
+  for (const p of pts) {
+    er += Math.min(Math.abs(p[0] - x0), Math.abs(p[0] - x1), Math.abs(p[1] - y0), Math.abs(p[1] - y1));
+    const ang = Math.atan2((p[1] - cy) / (h / 2), (p[0] - cx) / (w / 2));
+    ee += Math.hypot(p[0] - (cx + Math.cos(ang) * (w / 2)), p[1] - (cy + Math.sin(ang) * (h / 2)));
+  }
+  er /= pts.length * diag;
+  ee /= pts.length * diag;
+  const best = er <= ee ? "rect" : "ellipse";
+  if (Math.min(er, ee) > 0.045) return null;
+  return { kind: best, a: [x0, y0, 0.5], b: [x1, y1, 0.5] };
 }
 
 /** Subtle dot grid behind the ink, so the board feels like paper, not a void. */

@@ -13,7 +13,9 @@ import {
   drawGrid,
   drawImages,
   drawStroke,
+  FORMS,
   fitView,
+  type FormId,
   hitStroke,
   imageAt,
   imageSize,
@@ -21,7 +23,9 @@ import {
   lineAngle,
   newId,
   packStroke,
+  recogniseShape,
   smoothPoint,
+  steadyFor,
   snapLine,
   toWorld,
   visibleView,
@@ -53,7 +57,7 @@ const ERASER_PX = 14;
 const PAN_GAIN = 1.15;
 const HANDLE_PX = 22;
 
-type Tool = "pen" | "line" | "eraser" | "move";
+type Tool = "pen" | "line" | "eraser" | "move" | "form";
 type Action =
   | { type: "add"; s: Stroke }
   | { type: "erase"; s: Stroke[] }
@@ -184,6 +188,11 @@ const I = {
       <path d="M13.8 7l3.2 3.2" />
     </>,
   ),
+  form: svg(
+    <>
+      <path d="M4 7h16M12 7v12M4 4.5h3M17 4.5h3" />
+    </>,
+  ),
   line: svg(
     <>
       <path d="M5 19L19 5" />
@@ -267,6 +276,11 @@ export function TeacherBoard({ room }: { room: string }) {
 
   const [tool, setTool] = useState<Tool>("pen");
   const [color, setColor] = useState(COLORS[0].value);
+  // Which accounting layout the Formats tool places, and whether its menu is open.
+  const [form, setForm] = useState<FormId>("t");
+  const [formsOpen, setFormsOpen] = useState(false);
+  // The pen's real last position: smoothing trails it, so a stroke ends here.
+  const lastRaw = useRef<Pt | null>(null);
   const [size, setSize] = useState(SIZES[0].value);
   const [fingerDraws, setFingerDraws] = useState(false);
   const [viewers, setViewers] = useState(0);
@@ -503,7 +517,7 @@ export function TeacherBoard({ room }: { room: string }) {
   const glide = useRef<{ vx: number; vy: number; raf: number } | null>(null);
   const velocity = useRef({ vx: 0, vy: 0 });
   const gesture = useRef<{
-    mode: "draw" | "line" | "erase" | "pan" | "drag" | "resize" | null;
+    mode: "draw" | "line" | "box" | "erase" | "pan" | "drag" | "resize" | null;
     id: number;
     erased: Stroke[];
     straightened: boolean;
@@ -555,6 +569,19 @@ export function TeacherBoard({ room }: { room: string }) {
     hold.current.timer = setTimeout(() => {
       const s = current.current;
       if (!s || s.kind !== "ink" || gesture.current.mode !== "draw" || hold.current.path < MIN_HOLD_PATH_PX) return;
+      // A closed loop becomes a clean box or oval; anything else a straight line.
+      const shape = recogniseShape(s.pts);
+      if (shape) {
+        s.kind = shape.kind;
+        s.pts = [shape.a, shape.b];
+        gesture.current.straightened = true;
+        try {
+          navigator.vibrate?.(10);
+        } catch {}
+        requestDraw();
+        sendLive();
+        return;
+      }
       const a = s.pts[0];
       const b = snapLine(a, s.pts[s.pts.length - 1]);
       s.kind = "line";
@@ -668,11 +695,15 @@ export function TeacherBoard({ room }: { room: string }) {
     const w = size / cam.current.z;
     // White ink would vanish on a white page: on a picture it writes in charcoal.
     const ink = color === COLORS[0].value && imageAt(images.current, wx, wy) ? "#1B1E21" : color;
-    if (tool === "line") {
+    if (tool === "form") {
+      current.current = { id: newId(), kind: "form", form, color: ink, size: w, pts: [p, p] };
+      gesture.current = { mode: "box", id: e.pointerId, erased: [], straightened: false };
+    } else if (tool === "line") {
       current.current = { id: newId(), kind: "line", color: ink, size: w, pts: [p, p] };
       gesture.current = { mode: "line", id: e.pointerId, erased: [], straightened: true };
     } else {
       current.current = { id: newId(), kind: "ink", color: ink, size: w, pts: [p] };
+      lastRaw.current = p;
       gesture.current = { mode: "draw", id: e.pointerId, erased: [], straightened: false };
       hold.current.path = 0;
       armHold(sx, sy);
@@ -754,6 +785,14 @@ export function TeacherBoard({ room }: { room: string }) {
     const s = current.current;
     if (!s) return;
 
+    if (g.mode === "box") {
+      s.pts = [s.pts[0], [wx, wy, 0.5]];
+      requestDraw();
+      sendLive();
+      return;
+    }
+    // A snapped box or oval stays put until the pen lifts.
+    if (s.kind === "rect" || s.kind === "ellipse") return;
     if (g.mode === "line" || (g.mode === "draw" && g.straightened)) {
       const a = s.pts[0];
       const b = snapLine(a, [wx, wy, 0.5]);
@@ -765,7 +804,8 @@ export function TeacherBoard({ room }: { room: string }) {
         const [px, py] = toWorld(cam.current, x, y);
         const pr = e.pointerType === "pen" ? ev.pressure || 0.5 : 0.5;
         const last = s.pts[s.pts.length - 1];
-        const next = smoothPoint(last, [px, py, pr]);
+        lastRaw.current = [px, py, pr];
+        const next = smoothPoint(last, [px, py, pr], steadyFor(Math.hypot(px - last[0], py - last[1]) * cam.current.z));
         hold.current.path += Math.hypot(next[0] - last[0], next[1] - last[1]) * cam.current.z;
         s.pts.push(next);
       }
@@ -814,9 +854,25 @@ export function TeacherBoard({ room }: { room: string }) {
         commit({ type: "img-edit", before, after });
         if (!after.url.startsWith("blob:")) send({ t: "img", m: after });
       }
-    } else if ((g.mode === "draw" || g.mode === "line") && current.current) {
+    } else if ((g.mode === "draw" || g.mode === "line" || g.mode === "box") && current.current) {
       const s = current.current;
       current.current = null;
+      // Ink ends where the pen lifted, not where the smoothing had got to.
+      const raw = lastRaw.current;
+      if (s.kind === "ink" && raw && s.pts.length > 1) {
+        const last = s.pts[s.pts.length - 1];
+        if (Math.hypot(raw[0] - last[0], raw[1] - last[1]) > 0.2) s.pts.push([raw[0], raw[1], last[2]]);
+      }
+      lastRaw.current = null;
+      if (s.kind === "form") {
+        // A tap places a ready sized layout; a small drag is treated as a tap.
+        const [a, b] = s.pts;
+        if (Math.abs(b[0] - a[0]) * cam.current.z < 60 || Math.abs(b[1] - a[1]) * cam.current.z < 40) {
+          const wide = s.form === "cash3" || s.form === "running" ? 640 : s.form === "t" ? 380 : 520;
+          s.pts = [a, [a[0] + wide / cam.current.z, a[1] + (s.form === "t" ? 260 : 300) / cam.current.z, 0.5]];
+        }
+        setTool("pen");
+      }
       const tooShort = s.kind === "line" && Math.hypot(s.pts[1][0] - s.pts[0][0], s.pts[1][1] - s.pts[0][1]) * cam.current.z < 3;
       if (!cancelled && !tooShort) {
         strokes.current = [...strokes.current, s];
@@ -840,6 +896,7 @@ export function TeacherBoard({ room }: { room: string }) {
 
   const pickTool = (t: Tool) => {
     setTool(t);
+    setFormsOpen(false);
     if (t !== "move") select(null);
     if (t !== "eraser") setEraserAt(null);
     requestDraw();
@@ -1009,8 +1066,30 @@ export function TeacherBoard({ room }: { room: string }) {
 
       {/* Main toolbar */}
       <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-[22px] border border-white/[0.08] bg-[#1c1f22]/85 p-1.5 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl">
-        <ToolButton label="Pen (P)" active={tool === "pen"} onClick={() => pickTool("pen")}>{I.pen}</ToolButton>
+        <ToolButton label="Pen (P). Hold still at the end to snap a line, box or circle" active={tool === "pen"} onClick={() => pickTool("pen")}>{I.pen}</ToolButton>
         <ToolButton label="Straight line (L)" active={tool === "line"} onClick={() => pickTool("line")}>{I.line}</ToolButton>
+        <div className="relative">
+          <ToolButton label="Formats: T account, cash book, journal" active={tool === "form" || formsOpen} onClick={() => setFormsOpen((o) => !o)}>{I.form}</ToolButton>
+          {formsOpen && (
+            <div className="absolute bottom-14 left-1/2 w-60 -translate-x-1/2 rounded-2xl border border-white/[0.08] bg-[#1c1f22]/95 p-1.5 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+              {FORMS.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => {
+                    setForm(f.id);
+                    setFormsOpen(false);
+                    pickTool("form");
+                    flash(`${f.name}: drag to place it, or tap`);
+                  }}
+                  className={`flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold transition-colors ${tool === "form" && form === f.id ? "bg-[#FBC159]/15 text-[#FBC159]" : "text-[#e8e5df] hover:bg-white/[0.06]"}`}
+                >
+                  {f.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <ToolButton label="Eraser (E), or hold the pen's side button" active={tool === "eraser"} onClick={() => pickTool("eraser")}>{I.eraser}</ToolButton>
         <ToolButton label="Move pictures (V)" active={tool === "move"} onClick={() => pickTool("move")}>{I.move}</ToolButton>
         <ToolButton label="Insert a picture or PDF" disabled={!!busy} onClick={() => fileRef.current?.click()}>
