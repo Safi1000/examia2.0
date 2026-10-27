@@ -154,7 +154,7 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
           <li className="flex items-center justify-between gap-4 py-3">
             <span>
               <span className="block text-sm font-semibold text-ink">Classes</span>
-              <span className="block text-xs text-ink-3">Just before your first class of the day</span>
+              <span className="block text-xs text-ink-3">When a class starts</span>
             </span>
             <button
               type="button"

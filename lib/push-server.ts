@@ -1,6 +1,6 @@
 import webpush from "web-push";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { clock, liveSlotsOn, pkDate, setSchedule } from "@/lib/timetable";
+import { liveSlotsOn, pkDate, setSchedule } from "@/lib/timetable";
 import { loadSchedule } from "@/lib/schedule-server";
 import { assignmentCopy, classCopy, recordingCopy, resultCopy, studyCopy, testOpensCopy } from "@/lib/notify-copy";
 
@@ -99,6 +99,8 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
   const lastSent = new Map<string, number>();
   for (const l of log ?? []) {
     const id = l.student_id as string;
+    // Class reminders don't use up the day's allowance: every class matters.
+    if (l.kind === "classes") continue;
     sends.set(id, (sends.get(id) ?? new Set()).add(String(l.sent_at).slice(0, 16)));
     lastSent.set(id, Math.max(lastSent.get(id) ?? 0, Date.parse(l.sent_at as string)));
   }
@@ -113,7 +115,7 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
     if (prefBy.get(it.studentId)?.[it.kind] === false) continue;
     const fresh = it.refs.filter((r) => !sent.has(`${it.studentId}|${it.kind}|${r}`));
     if (!fresh.length) continue;
-    if ((todayCount.get(it.studentId) ?? 0) >= DAILY_CAP) continue;
+    if (it.kind !== "classes" && (todayCount.get(it.studentId) ?? 0) >= DAILY_CAP) continue;
     if (thisRun.has(it.studentId)) continue;
     if (!URGENT.includes(it.kind) && nowMs - (lastSent.get(it.studentId) ?? 0) < GAP_MS) continue;
 
@@ -125,7 +127,7 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
       .select("ref");
     fresh.forEach((r) => sent.add(`${it.studentId}|${it.kind}|${r}`));
     if (error || !added?.length) continue;
-    todayCount.set(it.studentId, (todayCount.get(it.studentId) ?? 0) + 1);
+    if (it.kind !== "classes") todayCount.set(it.studentId, (todayCount.get(it.studentId) ?? 0) + 1);
     thisRun.add(it.studentId);
     lastSent.set(it.studentId, nowMs);
 
@@ -268,7 +270,15 @@ export async function notifyReleased(submissionIds: string[]): Promise<number> {
  * rest follow straight on), sent by the run in the 15 minutes before it.
  * Cancelled classes are skipped; students who switched it off get nothing.
  */
-async function classItems(sb: SupabaseClient, students: Reach[], now: number): Promise<Item[]> {
+/**
+ * Class reminders, only for students who haven't joined: from one minute
+ * after each class starts (every class they're in, not just the first),
+ * while the class is young. Nobody gets a reminder before class, and anyone
+ * who tapped Join on time never hears from us.
+ * `windowMin` is how late a reminder still makes sense: short for the
+ * every-minute check, longer for the 15-minute job (a fallback).
+ */
+async function classItems(sb: SupabaseClient, students: Reach[], now: number, windowMin = 15): Promise<Item[]> {
   setSchedule(await loadSchedule(sb));
   const today = pkDate(now);
   const [{ data: classes }, { data: subjects }, { data: cc }, { data: cs }, { data: rows }] = await Promise.all([
@@ -282,13 +292,15 @@ async function classItems(sb: SupabaseClient, students: Reach[], now: number): P
     classes: (classes ?? []).map((c) => ({ id: c.id as string, name: c.name as string, createdAt: "" })),
     subjects: (subjects ?? []).map((x) => ({ id: x.id as string, name: x.name as string, createdAt: "" })),
   };
-  const slots = liveSlotsOn(db, today);
-  if (!slots.length) return [];
-  // Only bother (and only read profiles) when a class is about to start.
-  const soon = slots.some((sl) => sl.startMs - now > -3 * 60_000 && sl.startMs - now <= 16 * 60_000);
-  if (!soon) return [];
+  // Classes that started between 1 and windowMin minutes ago.
+  const started = liveSlotsOn(db, today).filter((sl) => now - sl.startMs >= 60_000 && now - sl.startMs <= windowMin * 60_000 && now < sl.endMs);
+  if (!started.length) return [];
 
-  const off = await classOptOuts(sb, rows ?? []);
+  const [off, { data: joins }] = await Promise.all([
+    classOptOuts(sb, rows ?? []),
+    sb.from("class_joins").select("student_id,class_id,subject_id").eq("on_date", today),
+  ]);
+  const joined = new Set((joins ?? []).map((j) => `${j.student_id}|${j.class_id}|${j.subject_id}`));
   const cohortClasses = new Map<string, Set<string>>();
   for (const r of cc ?? []) cohortClasses.set(r.cohort_id, (cohortClasses.get(r.cohort_id) ?? new Set()).add(r.class_id));
   const cohortSubjects = new Map<string, Set<string>>();
@@ -300,22 +312,32 @@ async function classItems(sb: SupabaseClient, students: Reach[], now: number): P
     // Their own level and subjects, else their cohort's (same rule as the portal).
     const lv = s.classes.size ? s.classes : (cohortClasses.get(s.cohortId ?? "") ?? new Set<string>());
     const sb2 = s.subjects.size ? s.subjects : (cohortSubjects.get(s.cohortId ?? "") ?? new Set<string>());
-    const mine = slots.filter((sl) => lv.has(sl.classId) && (!sb2.size || sb2.has(sl.subjectId)));
-    const first = mine[0];
-    if (!first) continue;
-    const lead = first.startMs - now;
-    if (lead <= -3 * 60_000 || lead > 16 * 60_000) continue;
-    items.push({
-      studentId: s.id,
-      kind: "classes",
-      refs: [`class:${today}`],
-      ...classCopy(`${s.id}${today}`, first.subject, clock(first.start), lead > 6 * 60_000 ? "soon" : lead > 60_000 ? "open" : "now"),
-      url: "/dashboard",
-      tag: `class-${today}`,
-      priority: -1,
-    });
+    for (const sl of started) {
+      if (!lv.has(sl.classId) || (sb2.size && !sb2.has(sl.subjectId))) continue;
+      if (joined.has(`${s.id}|${sl.classId}|${sl.subjectId}`)) continue;
+      const key = `${today}|${sl.classId}|${sl.subjectId}`;
+      items.push({
+        studentId: s.id,
+        kind: "classes",
+        refs: [`start:${key}`],
+        ...classCopy(`${s.id}${key}`, sl.subject, Math.max(1, Math.round((now - sl.startMs) / 60_000))),
+        url: "/dashboard",
+        tag: `class-${key}`,
+        priority: -1,
+      });
+    }
   }
   return items;
+}
+
+/** The every-minute check during class hours: class reminders only. */
+export async function runClassReminders(): Promise<{ sent: number; quiet?: boolean }> {
+  if (!pushReady()) return { sent: 0 };
+  if (isQuietHours()) return { sent: 0, quiet: true };
+  const sb = serviceClient();
+  const students = await reachableStudents(sb);
+  if (!students.length) return { sent: 0 };
+  return { sent: await deliver(sb, await classItems(sb, students, Date.now(), 4)) };
 }
 
 /** Students who switched the class reminder off (kept on their profile). */
