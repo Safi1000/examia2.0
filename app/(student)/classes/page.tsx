@@ -28,7 +28,8 @@ const dayName = (ymd: string) => new Date(`${ymd}T12:00:00+05:00`).toLocaleDateS
 
 /** The student's daily timetable and the recordings of past classes. */
 export default function ClassesPage() {
-  const { session } = useAuth();
+  const { session, profile, updateProfile } = useAuth();
+  const watched = new Set(profile.watched ?? []);
   const db = useDatabase();
   const nowMs = useNow();
   const student = session?.studentId ? studentById(db, session.studentId) : null;
@@ -142,7 +143,11 @@ export default function ClassesPage() {
                   href={r.recordingUrl!}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface px-5 py-3.5 transition-colors hover:border-border-strong"
+                  onClick={() => updateProfile((p) => ({ watched: [...(p.watched ?? []).filter((k) => k !== slotKey(r)), slotKey(r)].slice(-60) }))}
+                  className={cn(
+                    "flex items-center justify-between gap-3 rounded-lg border bg-surface px-5 py-3.5 transition-colors hover:border-border-strong",
+                    !watched.has(slotKey(r)) && r.closesAt - nowMs < 6 * 3_600_000 ? "border-warning/50" : "border-border",
+                  )}
                 >
                   <span>
                     <span className="block font-semibold text-ink">{r.subject}</span>
@@ -152,9 +157,20 @@ export default function ClassesPage() {
                       {new Date(r.closesAt).toLocaleString("en-GB", { timeZone: "Asia/Karachi", weekday: "short", hour: "numeric", minute: "2-digit", hour12: true })}
                     </span>
                   </span>
-                  <span className="inline-flex items-center gap-1 text-sm font-semibold text-brand">
-                    Watch <Icon.ChevronRight className="h-4 w-4" />
-                  </span>
+                  {watched.has(slotKey(r)) ? (
+                    <span className="inline-flex items-center gap-1 text-sm font-semibold text-success">
+                      <Icon.Check className="h-4 w-4" /> Watched
+                    </span>
+                  ) : (
+                    <span className="flex flex-col items-end">
+                      <span className="inline-flex items-center gap-1 text-sm font-semibold text-brand">
+                        Watch <Icon.ChevronRight className="h-4 w-4" />
+                      </span>
+                      {r.closesAt - nowMs < 6 * 3_600_000 && (
+                        <span className="text-[11px] font-semibold text-warning">Closes in {Math.max(1, Math.round((r.closesAt - nowMs) / 3_600_000))} h</span>
+                      )}
+                    </span>
+                  )}
                 </a>
               </li>
             ))}

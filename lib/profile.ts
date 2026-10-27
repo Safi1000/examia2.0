@@ -49,6 +49,8 @@ export interface Profile {
   scene?: string;
   /** Monday of the last week the student reviewed on Sunday. */
   weekReviewed?: string;
+  /** Class recordings opened, by slot key (date|class|subject), newest last. */
+  watched?: string[];
 }
 
 /** Portal avatars (public/avatars/*.webp), cut from Hamza's illustrated set. */

@@ -80,7 +80,20 @@ export default function ProgressPage() {
           {/* 1. Where am I? */}
           <section className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-lg border border-brand/30 bg-[linear-gradient(135deg,rgba(251,193,89,0.14),rgba(251,193,89,0.03))] p-5 sm:col-span-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-brand">Working at</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-brand">{snap.marked >= 3 ? "On track for" : "Your grade"}</p>
+              {snap.marked < 3 ? (
+                <div className="mt-2">
+                  <div className="flex gap-1.5" aria-hidden>
+                    {[0, 1, 2].map((i) => (
+                      <span key={i} className={cn("h-2 w-10 rounded-full", i < snap.marked ? "bg-brand" : "bg-surface-2")} />
+                    ))}
+                  </div>
+                  <p className="mt-3 text-lg font-semibold text-ink">
+                    {snap.marked} of 3 tests marked
+                  </p>
+                  <p className="text-sm text-ink-3">Your grade shows after three, so one test can’t decide it.</p>
+                </div>
+              ) : (
               <div className="mt-2 flex items-end gap-4">
                 <span className="text-6xl font-extrabold leading-none tracking-tight text-brand">{snap.grade}</span>
                 <div className="pb-1">
@@ -88,6 +101,7 @@ export default function ProgressPage() {
                   <p className="text-xs text-ink-3">average of your last {Math.min(5, snap.marked)} tests</p>
                 </div>
               </div>
+              )}
               {snap.delta != null && Math.abs(snap.delta) >= 1 && (
                 <p className={cn("mt-3 text-sm font-semibold", snap.delta > 0 ? "text-success" : "text-warning")}>
                   {snap.delta > 0 ? "▲ Up" : "▼ Down"} {Math.abs(Math.round(snap.delta))}% on the tests before

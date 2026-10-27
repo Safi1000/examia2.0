@@ -48,7 +48,7 @@ const pkDayStart = (d = new Date()) => {
   return new Date(`${ymd}T00:00:00+05:00`).toISOString();
 };
 
-type Kind = "results" | "tests" | "assignments" | "classes" | "study";
+type Kind = "results" | "tests" | "assignments" | "classes" | "study" | "recordings";
 interface Item {
   studentId: string;
   kind: Kind;
@@ -219,7 +219,14 @@ export async function runReminders(): Promise<{ sent: number; quiet?: boolean }>
   const done = new Set((handed ?? []).map((h) => `${h.student_id}|${h.test_id}`));
   const doneA = new Set((handedA ?? []).map((h) => `${h.student_id}|${h.assignment_id}`));
 
-  const items: Item[] = [...(await resultItems(sb)), ...(await classItems(sb, students, now)), ...(await studyItems(sb, students, now))];
+  // Student profiles (study times, recordings watched), read once for this run.
+  const profiles = await studentProfiles(sb, students.map((s) => s.id));
+  const items: Item[] = [
+    ...(await resultItems(sb)),
+    ...(await classItems(sb, students, now)),
+    ...studyItems(students, profiles, now),
+    ...(await recordingItems(sb, students, profiles, now)),
+  ];
   for (const s of students) {
     for (const t of opening ?? []) {
       if (!covers(t, s) || done.has(`${s.id}|${t.id}`)) continue;
@@ -312,43 +319,108 @@ async function classOptOuts(sb: SupabaseClient, rows: Array<{ id: string; user_i
   return out;
 }
 
-/**
- * Groundwork study times: a reminder in the 15 minutes before each slot a
- * student planned (saved on their profile as studySlots), once per slot.
- */
-async function studyItems(sb: SupabaseClient, students: Reach[], now: number): Promise<Item[]> {
-  if (!students.length) return [];
-  const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(now);
-  const weekday = new Date(`${ymd}T12:00:00+05:00`).getUTCDay();
-  const { data: rows } = await sb.from("students").select("id,user_id").in("id", students.map((s) => s.id));
+type StudentProfile = { studySlots?: Array<{ day: number; time: string }>; watched?: string[] };
+
+/** Each student's saved profile, by student id (one pass over the accounts). */
+async function studentProfiles(sb: SupabaseClient, ids: string[]): Promise<Map<string, StudentProfile>> {
+  const out = new Map<string, StudentProfile>();
+  if (!ids.length) return out;
+  const { data: rows } = await sb.from("students").select("id,user_id").in("id", ids);
   const byUser = new Map((rows ?? []).filter((r) => r.user_id).map((r) => [r.user_id as string, r.id as string]));
-  const items: Item[] = [];
   for (let page = 1; page <= 10; page++) {
     const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 1000 });
     if (error) break;
     for (const u of data.users) {
       const id = byUser.get(u.id);
-      const slots = (u.user_metadata as { profile?: { studySlots?: Array<{ day: number; time: string }> } } | undefined)?.profile?.studySlots;
-      if (!id || !Array.isArray(slots)) continue;
-      for (const sl of slots) {
-        if (sl?.day !== weekday || !/^\d{2}:\d{2}$/.test(sl.time ?? "")) continue;
-        const at = Date.parse(`${ymd}T${sl.time}:00+05:00`);
-        if (now <= at - 14 * 60_000 || now > at + 60_000) continue;
-        const [h, m] = sl.time.split(":").map(Number);
-        const label = `${((h + 11) % 12) + 1}${m ? `:${String(m).padStart(2, "0")}` : ""} ${h < 12 ? "am" : "pm"}`;
-        items.push({
-          studentId: id,
-          kind: "study",
-          refs: [`study:${ymd}:${sl.time}`],
-          title: "Study time",
-          body: `Your ${label} Groundwork session is coming up. Open the portal and press Start.`,
-          url: "/groundwork",
-          tag: `study-${ymd}-${sl.time}`,
-          priority: 4,
-        });
-      }
+      const p = (u.user_metadata as { profile?: StudentProfile } | undefined)?.profile;
+      if (id && p) out.set(id, p);
     }
     if (data.users.length < 1000) break;
+  }
+  return out;
+}
+
+/**
+ * Groundwork study times: a reminder in the 15 minutes before each slot a
+ * student planned (saved on their profile as studySlots), once per slot.
+ */
+function studyItems(students: Reach[], profiles: Map<string, StudentProfile>, now: number): Item[] {
+  const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(now);
+  const weekday = new Date(`${ymd}T12:00:00+05:00`).getUTCDay();
+  const items: Item[] = [];
+  for (const s of students) {
+    const slots = profiles.get(s.id)?.studySlots;
+    if (!Array.isArray(slots)) continue;
+    for (const sl of slots) {
+      if (sl?.day !== weekday || !/^\d{2}:\d{2}$/.test(sl.time ?? "")) continue;
+      const at = Date.parse(`${ymd}T${sl.time}:00+05:00`);
+      if (now <= at - 14 * 60_000 || now > at + 60_000) continue;
+      const [h, m] = sl.time.split(":").map(Number);
+      const label = `${((h + 11) % 12) + 1}${m ? `:${String(m).padStart(2, "0")}` : ""} ${h < 12 ? "am" : "pm"}`;
+      items.push({
+        studentId: s.id,
+        kind: "study",
+        refs: [`study:${ymd}:${sl.time}`],
+        title: "Study time",
+        body: `Your ${label} Groundwork session is coming up. Open the portal and press Start.`,
+        url: "/groundwork",
+        tag: `study-${ymd}-${sl.time}`,
+        priority: 4,
+      });
+    }
+  }
+  return items;
+}
+
+/**
+ * A class recording closing within 5 hours, for students in that class who
+ * didn't join it and haven't opened the recording yet. Once per recording.
+ */
+async function recordingItems(sb: SupabaseClient, students: Reach[], profiles: Map<string, StudentProfile>, now: number): Promise<Item[]> {
+  const today = pkDate(now);
+  const yesterday = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(now - 864e5);
+  const [{ data: links }, { data: classes }, { data: subjects }, { data: joins }, { data: cc }, { data: cs }] = await Promise.all([
+    sb.from("class_links").select("on_date,class_id,subject_id,recording_url").in("on_date", [yesterday, today]).not("recording_url", "is", null),
+    sb.from("classes").select("id,name"),
+    sb.from("subjects").select("id,name"),
+    sb.from("class_joins").select("student_id,on_date,class_id,subject_id").in("on_date", [yesterday, today]),
+    sb.from("cohort_classes").select("cohort_id,class_id"),
+    sb.from("cohort_subjects").select("cohort_id,subject_id"),
+  ]);
+  // Their own level and subjects, else their cohort's (same rule as the portal).
+  const cohortClasses = new Map<string, Set<string>>();
+  for (const r of cc ?? []) cohortClasses.set(r.cohort_id, (cohortClasses.get(r.cohort_id) ?? new Set()).add(r.class_id));
+  const cohortSubjects = new Map<string, Set<string>>();
+  for (const r of cs ?? []) cohortSubjects.set(r.cohort_id, (cohortSubjects.get(r.cohort_id) ?? new Set()).add(r.subject_id));
+  if (!links?.length) return [];
+  const db = {
+    classes: (classes ?? []).map((c) => ({ id: c.id as string, name: c.name as string, createdAt: "" })),
+    subjects: (subjects ?? []).map((x) => ({ id: x.id as string, name: x.name as string, createdAt: "" })),
+  };
+  const joined = new Set((joins ?? []).map((j) => `${j.student_id}|${j.on_date}|${j.class_id}|${j.subject_id}`));
+  const items: Item[] = [];
+  for (const l of links) {
+    const slot = liveSlotsOn(db, l.on_date as string).find((x) => x.classId === l.class_id && x.subjectId === l.subject_id);
+    if (!slot) continue;
+    const closes = slot.endMs + 24 * 3_600_000;
+    if (closes <= now || closes - now > 5 * 3_600_000) continue;
+    const key = `${l.on_date}|${l.class_id}|${l.subject_id}`;
+    for (const s of students) {
+      const lv = s.classes.size ? s.classes : (cohortClasses.get(s.cohortId ?? "") ?? new Set<string>());
+      const sbj = s.subjects.size ? s.subjects : (cohortSubjects.get(s.cohortId ?? "") ?? new Set<string>());
+      if (!lv.has(l.class_id as string) || (sbj.size && !sbj.has(l.subject_id as string))) continue;
+      if (joined.has(`${s.id}|${key}`) || profiles.get(s.id)?.watched?.includes(key)) continue;
+      items.push({
+        studentId: s.id,
+        kind: "recordings",
+        refs: [`rec:${key}`],
+        title: "Recording closes soon",
+        body: `You missed ${slot.subject} on ${new Date(`${l.on_date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long" })}. The recording closes at ${new Date(closes).toLocaleTimeString("en-GB", { timeZone: TZ, hour: "numeric", minute: "2-digit", hour12: true })}.`,
+        url: "/classes",
+        tag: `rec-${key}`,
+        priority: 1,
+      });
+    }
   }
   return items;
 }

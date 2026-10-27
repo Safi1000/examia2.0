@@ -164,8 +164,10 @@ function PerformanceCard({ perf, targets }: { perf: Snapshot | null; targets?: P
       className="animate-fade-up flex flex-col rounded-lg border border-border bg-surface p-5 transition-colors hover:border-border-strong"
     >
       <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-3">Your performance</p>
-      {!perf ? (
-        <p className="mt-3 flex-1 text-sm text-ink-2">Your grade and weak topics show here after your first marked test.</p>
+      {!perf || perf.marked < 3 ? (
+        <p className="mt-3 flex-1 text-sm text-ink-2">
+          {perf ? `${perf.marked} of 3 tests marked. ` : ""}Your grade shows here after three marked tests.
+        </p>
       ) : (
         <div className="mt-3 flex-1">
           <div className="flex items-end justify-between gap-3">
