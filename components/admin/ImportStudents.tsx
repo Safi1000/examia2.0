@@ -52,6 +52,10 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
   const [updateExisting, setUpdateExisting] = useState(true);
   const [busy, setBusy] = useState<{ done: number; of: number } | null>(null);
   const [made, setMade] = useState<Made[]>([]);
+  // A password per sheet row, made once when the sheet is read, so the preview shows the real login.
+  const [passwords, setPasswords] = useState<string[]>([]);
+  // Which row's WhatsApp message is shown in the preview.
+  const [peek, setPeek] = useState<number | null>(null);
 
   const cohort = db.cohorts.find((c) => c.id === cohortId);
   // The cohort's own levels and subjects, or every one when it has none linked.
@@ -65,6 +69,8 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
     setFileName(name);
     setHeader(d.header);
     setCols(d.cols);
+    setPasswords(r.map(() => newPassword()));
+    setPeek(null);
   };
   async function pickFile(f: File | undefined) {
     if (!f) return;
@@ -87,6 +93,7 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
   const changed = (p: (typeof plan)[number]) =>
     !!p.existing && (p.existing.classIds.join() !== p.classIds.join() || p.existing.subjectIds.join() !== p.subjectIds.join());
   const realUpdates = updates.filter(changed);
+  const shown = fresh.find((p) => p.line === peek) ?? fresh[0];
   const problems = plan.filter((p) => p.problem);
   const needLevel = !!cols && cols.level === -1;
   const needSubjects = !!cols && cols.subjects === -1 && !cols.subjectCols.length;
@@ -104,7 +111,7 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
     let done = 0;
     // One at a time: each account is a separate sign-in to create.
     for (const p of fresh) {
-      const password = newPassword();
+      const password = passwords[p.line - 1] ?? newPassword();
       try {
         await store.addStudent({ username: p.username, phone: p.phone, whatsapp: p.parent, cohortId, tempPassword: password, classIds: p.classIds, subjectIds: p.subjectIds });
         ok.push({ username: p.username, password, phone: p.phone, parent: p.parent });
@@ -321,7 +328,7 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
               <thead className="sticky top-0 bg-surface-2 text-xs uppercase tracking-wide text-ink-3">
                 <tr>
                   <th className="px-3 py-2">Row</th>
-                  <th className="px-3 py-2">Username</th>
+                  <th className="px-3 py-2">Login</th>
                   <th className="px-3 py-2">Level</th>
                   <th className="px-3 py-2">Subjects</th>
                   <th className="px-3 py-2">Numbers</th>
@@ -329,12 +336,17 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
               </thead>
               <tbody className="divide-y divide-border">
                 {plan.map((p) => (
-                  <tr key={p.line} className={p.problem ? "bg-warning-soft/50" : ""}>
+                  <tr
+                    key={p.line}
+                    onClick={() => !p.problem && !p.existing && setPeek(p.line)}
+                    className={cn(p.problem && "bg-warning-soft/50", !p.problem && !p.existing && "cursor-pointer hover:bg-surface-2", shown?.line === p.line && "bg-brand-soft")}
+                  >
                     <td className="px-3 py-2 text-ink-3">{p.line}</td>
                     <td className="px-3 py-2">
                       <span className="font-mono font-semibold text-ink">{p.username || "(none)"}</span>
+                      {!p.problem && !p.existing && <span className="block font-mono text-xs text-ink-2">Password: {passwords[p.line - 1]}</span>}
                       {p.problem && <span className="block text-xs font-semibold text-warning">{p.problem}. Skipped.</span>}
-                      {!p.problem && p.existing && <span className="block text-xs text-ink-3">{changed(p) ? "Already here: level or subjects change" : "Already here, nothing changes"}</span>}
+                      {!p.problem && p.existing && <span className="block text-xs text-ink-3">{changed(p) ? "Already here, keeps their login. Level or subjects change" : "Already here, nothing changes"}</span>}
                       {!p.problem && p.note && <span className="block text-xs text-ink-3">{p.note}</span>}
                     </td>
                     <td className="px-3 py-2 text-ink-2">{name(p.classIds, db.classes) || "?"}</td>
@@ -348,6 +360,28 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
               </tbody>
             </table>
           </div>
+          {shown && (
+            <div className="rounded-lg border border-border p-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="text-sm font-semibold text-ink">What {shown.username} gets on WhatsApp</p>
+                <p className="text-xs text-ink-3">Tap another row to see theirs</p>
+              </div>
+              <p className="mt-1 text-xs text-ink-3">
+                {shown.phone || shown.parent
+                  ? `Goes to ${[shown.phone && `the student (${shown.phone})`, shown.parent && `the parent (${shown.parent})`].filter(Boolean).join(" and ")}. `
+                  : "No number in the sheet, so you copy it and send it yourself. "}
+                Nothing is sent on its own: after importing, one tap each opens WhatsApp with this typed in, and you press send.
+              </p>
+              <div className="mt-3 rounded-xl bg-[#0b141a] p-3">
+                <p className="ml-auto max-w-[34rem] whitespace-pre-wrap rounded-lg rounded-tr-none bg-[#005c4b] px-3 py-2 text-[13px] leading-relaxed text-[#e9edef]">
+                  {/* *bold* the way WhatsApp shows it */}
+                  {welcomeMessage({ username: shown.username, password: passwords[shown.line - 1] ?? "" })
+                    .split(/(\*[^*\n]+\*)/)
+                    .map((part, i) => (part.startsWith("*") && part.endsWith("*") ? <strong key={i}>{part.slice(1, -1)}</strong> : part))}
+                </p>
+              </div>
+            </div>
+          )}
           {!!problems.length && <p className="text-xs text-ink-3">Fix those rows in your sheet and import it again: students already added are recognised, not added twice.</p>}
         </div>
       )}
