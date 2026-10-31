@@ -150,13 +150,36 @@ export const usernameFrom = (text: string) =>
     .replace(/\s+/g, ".")
     .slice(0, 30);
 
+/** Joining words in names ("Fatima tul Zahra"), never used on their own. */
+const LINKS = new Set(["tul", "ul", "us", "un", "bin", "binte", "bint", "e", "al", "ud", "ur"]);
+
+/**
+ * A short username from a full name, easy to type at sign in: first and
+ * last name ("Syed Muhammad Abbas Kazmi" → syed.kazmi). Two words or fewer
+ * stay as they are.
+ */
+export function usernameFromName(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= 2) return usernameFrom(name);
+  const real = words.filter((w) => !LINKS.has(w.toLowerCase()));
+  return usernameFrom(`${real[0] ?? words[0]} ${real[real.length - 1] ?? words[words.length - 1]}`);
+}
+
 const YES = (v: string) => !!v.trim() && !/^(no|n|0|false|-|x no|none|nil)$/i.test(v.trim());
 
 export function planRows(
   rows: Rows,
   header: number,
   cols: Columns,
-  ctx: { classes: ClassItem[]; subjects: SubjectItem[]; students: Student[]; defaultClassIds: string[]; defaultSubjectIds: string[] },
+  ctx: {
+    classes: ClassItem[];
+    subjects: SubjectItem[];
+    students: Student[];
+    defaultClassIds: string[];
+    defaultSubjectIds: string[];
+    /** Usernames typed in on the check screen, by sheet row. */
+    renamed?: Record<number, string>;
+  },
 ): PlannedRow[] {
   const taken = new Set(ctx.students.map((s) => s.username.toLowerCase()));
   const seen = new Set<string>();
@@ -167,7 +190,8 @@ export function planRows(
     const line = idx + 1;
     const phone = fixPhone(cell(r, cols.phone));
     const parent = fixPhone(cell(r, cols.parent));
-    const given = usernameFrom(cell(r, cols.username) || cell(r, cols.name));
+    const typed = ctx.renamed?.[line];
+    const given = typed !== undefined ? usernameFrom(typed) : cell(r, cols.username) ? usernameFrom(cell(r, cols.username)) : usernameFromName(cell(r, cols.name));
     if (!given && !phone) return; // a blank or notes row
     const row: PlannedRow = { line, username: given, phone, parent, classIds: [], subjectIds: [] };
 
@@ -188,9 +212,9 @@ export function planRows(
     if (!sv && !cols.subjectCols.length) row.subjectIds = ctx.defaultSubjectIds;
     row.subjectIds = [...new Set(row.subjectIds)];
 
-    // Same person already in the portal (same number, or same username and no clash).
+    // Same person already in the portal (same student number, or same username and no clash). A parent number is never used: siblings share one.
     const same =
-      (phone && ctx.students.find((s) => s.phone === phone || s.whatsapp === phone)) ||
+      (phone && ctx.students.find((s) => s.phone === phone)) ||
       ctx.students.find((s) => s.username.toLowerCase() === given && (!phone || !s.phone || s.phone === phone));
     if (same) {
       row.existing = same;

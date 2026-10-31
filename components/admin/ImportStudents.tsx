@@ -6,7 +6,7 @@ import { useToast } from "@/components/toast";
 import { waDigits } from "@/lib/phone";
 import { welcomeMessage } from "@/lib/welcome-message";
 import { parseDelimited, readSheetFile, type Rows } from "@/lib/sheet";
-import { detectColumns, planRows, type Columns, type Field } from "@/lib/import-students";
+import { detectColumns, planRows, usernameFrom, type Columns, type Field } from "@/lib/import-students";
 import { Button, Modal, Select, Label } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
@@ -56,6 +56,8 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
   const [passwords, setPasswords] = useState<string[]>([]);
   // Which row's WhatsApp message is shown in the preview.
   const [peek, setPeek] = useState<number | null>(null);
+  // Usernames changed on the check screen, by sheet row.
+  const [renamed, setRenamed] = useState<Record<number, string>>({});
 
   const cohort = db.cohorts.find((c) => c.id === cohortId);
   // The cohort's own levels and subjects, or every one when it has none linked.
@@ -71,6 +73,7 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
     setCols(d.cols);
     setPasswords(r.map(() => newPassword()));
     setPeek(null);
+    setRenamed({});
   };
   async function pickFile(f: File | undefined) {
     if (!f) return;
@@ -84,9 +87,9 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
   const plan = useMemo(
     () =>
       rows && cols
-        ? planRows(rows, header, cols, { classes: levels, subjects, students: db.students, defaultClassIds: defClasses, defaultSubjectIds: defSubjects })
+        ? planRows(rows, header, cols, { classes: levels, subjects, students: db.students, defaultClassIds: defClasses, defaultSubjectIds: defSubjects, renamed })
         : [],
-    [rows, cols, header, levels, subjects, db.students, defClasses, defSubjects],
+    [rows, cols, header, levels, subjects, db.students, defClasses, defSubjects, renamed],
   );
   const fresh = plan.filter((p) => !p.problem && !p.existing);
   const updates = plan.filter((p) => !p.problem && p.existing && updateExisting);
@@ -328,7 +331,7 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
               <thead className="sticky top-0 bg-surface-2 text-xs uppercase tracking-wide text-ink-3">
                 <tr>
                   <th className="px-3 py-2">Row</th>
-                  <th className="px-3 py-2">Login</th>
+                  <th className="px-3 py-2">Login (tap to change)</th>
                   <th className="px-3 py-2">Level</th>
                   <th className="px-3 py-2">Subjects</th>
                   <th className="px-3 py-2">Numbers</th>
@@ -343,7 +346,22 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
                   >
                     <td className="px-3 py-2 text-ink-3">{p.line}</td>
                     <td className="px-3 py-2">
-                      <span className="font-mono font-semibold text-ink">{p.username || "(none)"}</span>
+                      {p.existing || (p.problem && !renamed[p.line]) ? (
+                        <span className="font-mono font-semibold text-ink">{p.username || "(none)"}</span>
+                      ) : (
+                        <input
+                          value={renamed[p.line] ?? p.username}
+                          onChange={(e) => setRenamed({ ...renamed, [p.line]: e.target.value })}
+                          onClick={(e) => e.stopPropagation()}
+                          onFocus={() => setPeek(p.line)}
+                          onBlur={(e) => renamed[p.line] !== undefined && setRenamed({ ...renamed, [p.line]: usernameFrom(e.target.value) })}
+                          aria-label={`Username for row ${p.line}`}
+                          maxLength={30}
+                          spellCheck={false}
+                          autoCapitalize="none"
+                          className="w-full min-w-36 rounded-md border border-transparent bg-transparent px-1.5 py-0.5 -mx-1.5 font-mono font-semibold text-ink hover:border-border focus:border-brand focus:outline-none"
+                        />
+                      )}
                       {!p.problem && !p.existing && <span className="block font-mono text-xs text-ink-2">Password: {passwords[p.line - 1]}</span>}
                       {p.problem && <span className="block text-xs font-semibold text-warning">{p.problem}. Skipped.</span>}
                       {!p.problem && p.existing && <span className="block text-xs text-ink-3">{changed(p) ? "Already here, keeps their login. Level or subjects change" : "Already here, nothing changes"}</span>}
