@@ -17,7 +17,7 @@ import { Card, Button, Input, Select, Label, CohortDot, Modal, EmptyState, Icon 
 import { cn } from "@/lib/cn";
 import { cld } from "@/lib/cld";
 import { LoginDetails } from "@/components/admin/LoginDetails";
-import { BulkAddStudents } from "@/components/admin/BulkAddStudents";
+import { ImportStudents } from "@/components/admin/ImportStudents";
 
 function genPassword() {
   const words = ["maple", "river", "amber", "delta", "lunar", "cedar", "north", "ochre"];
@@ -206,7 +206,7 @@ export default function RosterPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
-      {bulk && <BulkAddStudents open onClose={() => setBulk(false)} defaultCohort={cohortId ?? db.cohorts.find((c) => c.active)?.id ?? ""} />}
+      {bulk && <ImportStudents open onClose={() => setBulk(false)} defaultCohort={cohortId ?? db.cohorts.find((c) => c.active)?.id ?? ""} />}
       {sent && (
         <LoginDetails open kind="welcome" onClose={() => setSent(null)} username={sent.username} password={sent.password} phone={sent.phone} parent={sent.parent} />
       )}
@@ -215,7 +215,7 @@ export default function RosterPage() {
         subtitle={`${students.length} students`}
         actions={
           <>
-            <Button variant="secondary" onClick={() => setBulk(true)} disabled={db.cohorts.length === 0}>Add many</Button>
+            <Button variant="secondary" onClick={() => setBulk(true)} disabled={db.cohorts.length === 0}>Import students</Button>
             <Button onClick={openNew} disabled={db.cohorts.length === 0}><Icon.Plus className="h-4 w-4" /> Add student</Button>
           </>
         }
