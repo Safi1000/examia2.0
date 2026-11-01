@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useNow } from "@/hooks/useNow";
 import { useDatabase } from "@/lib/data/store";
-import { studentById, submissionFor, testsForStudent } from "@/lib/data/selectors";
+import { assignmentsForStudent, studentById, submissionFor, testsForStudent } from "@/lib/data/selectors";
 import { AnnouncementsPanel } from "@/components/student/AnnouncementsPanel";
 import { ClassNow } from "@/components/student/ClassNow";
 import { TopicChip } from "@/components/student/TopicChip";
@@ -64,14 +64,15 @@ export default function DashboardPage() {
   if (!student || !heavy.plan) return null;
 
   // Assignments due in the next 3 days that aren't handed in yet.
-  const dueSoon = db.assignments
+  const mine = assignmentsForStudent(db, student);
+  const dueSoon = mine
     .filter((a) => {
       const due = +new Date(a.dueAt);
       return due > nowMs && due - nowMs < 3 * 86_400_000 && !db.assignmentSubmissions.some((x) => x.assignmentId === a.id && x.studentId === student.id);
     })
     .sort((a, b) => +new Date(a.dueAt) - +new Date(b.dueAt));
   // Missed deadlines from the last two weeks stay on the list until handed in.
-  const overdue = db.assignments
+  const overdue = mine
     .filter((a) => {
       const due = +new Date(a.dueAt);
       return due <= nowMs && nowMs - due < 14 * 86_400_000 && !db.assignmentSubmissions.some((x) => x.assignmentId === a.id && x.studentId === student.id);

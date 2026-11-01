@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Assignment } from "@/types";
 import { useAuth } from "@/lib/auth-context";
 import { useDatabase, useStore } from "@/lib/data/store";
+import { assignmentsForStudent } from "@/lib/data/selectors";
 import { uploadAsImages } from "@/lib/cloudinary";
 import { useToast } from "@/components/toast";
 import { PageStack } from "@/components/PageStack";
@@ -26,9 +27,11 @@ export default function StudentAssignmentsPage() {
   const nowMs = useNow();
   const due = (a: { dueAt: string }) => +new Date(a.dueAt);
   const handedIn = (a: Assignment) => db.assignmentSubmissions.some((s) => s.assignmentId === a.id && s.studentId === studentId);
-  const past = db.assignments.filter((a) => due(a) < nowMs).sort((a, b) => due(b) - due(a));
+  const me = studentId ? db.students.find((s) => s.id === studentId) : undefined;
+  const mine = me ? assignmentsForStudent(db, me) : db.assignments;
+  const past = mine.filter((a) => due(a) < nowMs).sort((a, b) => due(b) - due(a));
   const assignments = [
-    ...db.assignments.filter((a) => due(a) >= nowMs).sort((a, b) => due(a) - due(b)),
+    ...mine.filter((a) => due(a) >= nowMs).sort((a, b) => due(a) - due(b)),
     ...past.filter((a) => !handedIn(a)),
   ];
   // Handed in and past the deadline: folded away, so the list stays short

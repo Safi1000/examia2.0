@@ -3,7 +3,7 @@
 import { useAuth } from "@/lib/auth-context";
 import { useNow } from "@/hooks/useNow";
 import { useDatabase } from "@/lib/data/store";
-import { studentById } from "@/lib/data/selectors";
+import { joinedMs, studentById } from "@/lib/data/selectors";
 import { ClassNow } from "@/components/student/ClassNow";
 import { Badge, EmptyState, Icon } from "@/components/ui";
 import type { Student } from "@/types";
@@ -52,7 +52,11 @@ export default function ClassesPage() {
     // Each of my classes, and when its recording closes (24 h after it ends).
     const closes = new Map<string, number>();
     for (let d = from; d <= today; d = addDays(d, 1))
-      for (const s of slotsForStudent(db, student, d)) closes.set(slotKey(s), s.endMs + RECORDING_HOURS * 3_600_000);
+      for (const s of slotsForStudent(db, student, d)) {
+        // Only classes from after they joined.
+        if (s.endMs < joinedMs(student)) continue;
+        closes.set(slotKey(s), s.endMs + RECORDING_HOURS * 3_600_000);
+      }
     return links
       .filter((l) => l.recordingUrl && nowMs < (closes.get(slotKey(l)) ?? 0))
       .map((l) => ({ ...l, closesAt: closes.get(slotKey(l))!, subject: db.subjects.find((s) => s.id === l.subjectId)?.name ?? "Class" }))

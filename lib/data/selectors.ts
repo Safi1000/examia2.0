@@ -57,19 +57,45 @@ export const testCoversStudent = (test: Test, student: Student) =>
   (test.classId === null || student.classIds.includes(test.classId)) &&
   (test.subjectId === null || student.subjectIds.includes(test.subjectId));
 
-/** Students the test is assigned to — the denominator for completion. */
+/** Students the test is assigned to — the denominator for completion (not those who joined after it closed). */
 export const eligibleStudents = (db: Database, test: Test) =>
-  db.students.filter((s) => testCoversStudent(test, s));
+  db.students.filter(
+    (s) => testCoversStudent(test, s) && (+new Date(test.closesAt) > joinedMs(s) || db.submissions.some((x) => x.testId === test.id && x.studentId === s.id)),
+  );
 
-/** Tests a student can see: cohort + class + subject match, never drafts. */
+/**
+ * When a student's account was made. Their portal starts here: anything that
+ * was already over before they joined (closed tests, past deadlines, old
+ * notices and notifications) belongs to someone else's history, not theirs.
+ */
+export const joinedMs = (s: Student) => +new Date(s.createdAt) || 0;
+/** Notices from the few days before joining still count (a welcome note, the session plan). */
+const NOTICE_GRACE_MS = 3 * 86_400_000;
+
+/** Tests a student can see: cohort + class + subject match, never drafts, nothing that closed before they joined (unless they sat it). */
 export function testsForStudent(db: Database, student: Student): Test[] {
-  return db.tests.filter((t) => t.status !== "draft" && testCoversStudent(t, student));
+  const since = joinedMs(student);
+  return db.tests.filter(
+    (t) =>
+      t.status !== "draft" &&
+      testCoversStudent(t, student) &&
+      (+new Date(t.closesAt) > since || db.submissions.some((s) => s.testId === t.id && s.studentId === student.id)),
+  );
 }
 
-/** Announcements visible to a student (cohort-scoped); pinned always shown. */
+/** Announcements visible to a student (cohort-scoped), from shortly before they joined onwards. */
 export function announcementsForStudent(db: Database, student: Student): Announcement[] {
+  const since = joinedMs(student) - NOTICE_GRACE_MS;
   return db.announcements.filter(
-    (a) => a.cohortId === null || a.cohortId === student.cohortId,
+    (a) => (a.cohortId === null || a.cohortId === student.cohortId) && +new Date(a.createdAt) >= since,
+  );
+}
+
+/** Work a student is set: nothing whose deadline had passed before they joined (unless they handed it in). */
+export function assignmentsForStudent(db: Database, student: Student) {
+  const since = joinedMs(student);
+  return db.assignments.filter(
+    (a) => +new Date(a.dueAt) > since || db.assignmentSubmissions.some((s) => s.assignmentId === a.id && s.studentId === student.id),
   );
 }
 

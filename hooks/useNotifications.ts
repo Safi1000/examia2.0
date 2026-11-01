@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAuth } from "@/lib/auth-context";
-import { submissionFor, testById } from "@/lib/data/selectors";
+import { joinedMs, studentById, submissionFor, testById } from "@/lib/data/selectors";
 import { resolveActivityLink } from "@/lib/notifications";
 import type { Activity } from "@/types";
 
@@ -39,12 +39,13 @@ export function useNotifications() {
 
   // Cleared entries are hidden from THIS user only — the row itself lives on for
   // everyone else the notification was addressed to.
+  // A student only sees what happened since their account was made.
+  const me = session?.studentId ? studentById(db, session.studentId) : null;
+  const since = me ? joinedMs(me) : 0;
   const activities = useMemo(
     () =>
-      userId
-        ? db.activities.filter((a) => !a.clearedBy.includes(userId))
-        : db.activities, // already newest-first from the store
-    [db.activities, userId],
+      db.activities.filter((a) => (!userId || !a.clearedBy.includes(userId)) && (!since || +new Date(a.createdAt) >= since)), // already newest-first from the store
+    [db.activities, userId, since],
   );
 
   const isUnread = useCallback(
