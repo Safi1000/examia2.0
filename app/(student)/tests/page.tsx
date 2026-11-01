@@ -50,7 +50,7 @@ export default function TestsPage() {
         </p>
       </header>
 
-      {empty && <EmptyState icon={<Icon.Doc />} title="No tests yet" message="Tests Hamza sets for you will appear here." />}
+      {empty && <EmptyState icon={<Icon.Doc />} title="No tests yet" message="Tests I set for you will appear here." />}
 
       {groups.open.length > 0 && (
         <Section title="Open now" live>

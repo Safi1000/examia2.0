@@ -74,7 +74,7 @@ export default function ProgressPage() {
       <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink">My progress</h1>
 
       {!snap ? (
-        <EmptyState icon={<Icon.Chart />} title="Your progress starts with your first marked test" message="Once Hamza releases a result, your grade, subjects and topics show up here." />
+        <EmptyState icon={<Icon.Chart />} title="Your progress starts with your first marked test" message="Once I release a result, your grade, subjects and topics show up here." />
       ) : (
         <>
           {/* 1. Where am I? */}

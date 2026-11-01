@@ -24,6 +24,8 @@ export interface PlannedRow {
   problem?: string;
   /** Worth a look, but fine to add. */
   note?: string;
+  /** For spotting the same student twice in one sheet. */
+  nameKey?: string;
 }
 
 const low = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -103,11 +105,15 @@ export function detectColumns(rows: Rows, subjects: SubjectItem[]): { header: nu
           score++;
         }
       };
-      if (/parent|father|mother|guardian|family/.test(t)) take("parent");
-      else if (/user ?name|login/.test(t)) take("username");
+      const isNumber = /phone|mobile|whats ?app|contact|number|cell|no$/.test(t) && !/name|serial|roll|^s ?no$|^sr/.test(t);
+      // Columns that are never ours: serial numbers, roll numbers, IDs, fees, dates.
+      if (/^(s ?no|sr|serial|roll|id|student id|reg|fee|fees|paid|amount|date|email|e mail)\b/.test(t)) return;
+      if (/parent|father|mother|guardian|family/.test(t)) {
+        if (isNumber || /^parents?$/.test(t)) take("parent"); // "Father Name" is not a number
+      } else if (/user ?name|login/.test(t)) take("username");
       else if (/subject/.test(t)) take("subjects");
       else if (/level|class|grade|year|batch|session/.test(t)) take("level");
-      else if (/phone|mobile|whats ?app|contact|number|cell/.test(t)) take("phone");
+      else if (isNumber) take("phone");
       else if (/name|student/.test(t)) take("name");
       else {
         const sid = matchSubject(t, subjects);
@@ -133,7 +139,8 @@ export function detectColumns(rows: Rows, subjects: SubjectItem[]): { header: nu
 /** A Pakistan number written 0300…, 92300… or +92 300… becomes +923001234567. */
 export function fixPhone(raw: string): string | undefined {
   if (!raw.trim()) return undefined;
-  let p = normalizePhone(raw);
+  let p = normalizePhone(raw.replace(/\(0\)/g, ""));
+  if (/^\+920\d{10}$/.test(p)) p = `+92${p.slice(4)}`; // +92 0300… written with the 0
   if (/^0[3]\d{9}$/.test(p)) p = `+92${p.slice(1)}`;
   else if (/^92\d{10}$/.test(p)) p = `+${p}`;
   else if (/^00\d+$/.test(p)) p = `+${p.slice(2)}`;
@@ -193,6 +200,8 @@ export function planRows(
     const typed = ctx.renamed?.[line];
     const given = typed !== undefined ? usernameFrom(typed) : cell(r, cols.username) ? usernameFrom(cell(r, cols.username)) : usernameFromName(cell(r, cols.name));
     if (!given && !phone) return; // a blank or notes row
+    // Excel turned the number into 9.23E+11: the digits are gone, so say how to fix it.
+    const sci = [cell(r, cols.phone), cell(r, cols.parent)].some((v) => /\d[.,]\d*e\+?\d+/i.test(v));
     const row: PlannedRow = { line, username: given, phone, parent, classIds: [], subjectIds: [] };
 
     // Level and subjects: from the sheet, else the defaults picked on screen.
@@ -212,10 +221,20 @@ export function planRows(
     if (!sv && !cols.subjectCols.length) row.subjectIds = ctx.defaultSubjectIds;
     row.subjectIds = [...new Set(row.subjectIds)];
 
-    // Same person already in the portal (same student number, or same username and no clash). A parent number is never used: siblings share one.
+    // The same student twice in the sheet: once is enough.
+    const nameKey = low(cell(r, cols.name) || given);
+    const twin = out.find((o) => o.nameKey === nameKey && o.phone === phone);
+    if (twin) {
+      out.push({ ...row, nameKey, problem: `Same as row ${twin.line}` });
+      return;
+    }
+    // Same person already in the portal: same username, or the only student with that number
+    // (a shared family number is never enough on its own, so siblings stay apart).
+    const byPhone = phone ? ctx.students.filter((s) => s.phone === phone) : [];
+    const sharedInSheet = phone && rows.some((o, j) => j !== idx && j > header && fixPhone(cell(o, cols.phone)) === phone);
     const same =
-      (phone && ctx.students.find((s) => s.phone === phone)) ||
-      ctx.students.find((s) => s.username.toLowerCase() === given && (!phone || !s.phone || s.phone === phone));
+      ctx.students.find((s) => s.username.toLowerCase() === given && (!phone || !s.phone || s.phone === phone)) ||
+      (byPhone.length === 1 && !sharedInSheet ? byPhone[0] : undefined);
     if (same) {
       row.existing = same;
       row.username = same.username;
@@ -233,11 +252,12 @@ export function planRows(
         seen.add(u);
       }
     }
-    if (!row.problem && phone && !isValidPhone(phone)) row.problem = "Student number needs the country code (+971…)";
-    if (!row.problem && parent && !isValidPhone(parent)) row.problem = "Parent number needs the country code (+971…)";
+    if (!row.problem && sci) row.problem = "Excel changed the number to 9.2E+11. Save the sheet as .xlsx and try again";
+    if (!row.problem && phone && !isValidPhone(phone)) row.problem = "Student number needs the country code (+92 300…)";
+    if (!row.problem && parent && !isValidPhone(parent)) row.problem = "Parent number needs the country code (+92 300…)";
     if (!row.problem && ctx.classes.length && !row.classIds.length) row.problem = "No level";
     if (!row.problem && ctx.subjects.length && !row.subjectIds.length) row.problem = "No subjects";
-    out.push(row);
+    out.push({ ...row, nameKey });
   });
   return out;
 }

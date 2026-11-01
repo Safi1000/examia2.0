@@ -27,12 +27,17 @@ export default function AnnouncementsPage() {
 
   function openNew() { setEditing("new"); setBody(""); setPinned(false); setCohortId(viewing ?? ""); }
   function openEdit(a: Announcement) { setEditing(a); setBody(a.body); setPinned(a.pinned); setCohortId(a.cohortId ?? ""); }
-  function save() {
+  async function save() {
     const text = body.trim().slice(0, MAX);
     if (!text) return;
     if (editing === "new") {
-      store.addAnnouncement({ body: text, pinned, cohortId: cohortId || null });
-      toast("Announcement posted.", "success");
+      try {
+        await store.addAnnouncement({ body: text, pinned, cohortId: cohortId || null });
+        toast("Announcement posted.", "success");
+      } catch (e) {
+        toast(e instanceof Error ? e.message : "Couldn't post the announcement. Try again.", "error");
+        return;
+      }
     } else if (editing) {
       store.updateAnnouncement(editing.id, { body: text, pinned, cohortId: cohortId || null });
       toast("Announcement updated.", "success");

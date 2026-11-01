@@ -109,6 +109,9 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
   const nowMs = Date.now();
 
   let count = 0;
+  // Sends are queued and go out together at the end, 10 at a time, so 50
+  // students at class start take a couple of seconds, not one after another.
+  const queue: Array<() => Promise<void>> = [];
   for (const it of items.sort((a, b) => a.priority - b.priority)) {
     const devices = subsBy.get(it.studentId);
     if (!devices?.length) continue;
@@ -132,17 +135,19 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
     lastSent.set(it.studentId, nowMs);
 
     const payload = JSON.stringify({ title: it.title, body: it.body, url: it.url, tag: it.tag });
-    for (const d of devices) {
-      try {
-        await webpush.sendNotification({ endpoint: d.endpoint, keys: { p256dh: d.p256dh, auth: d.auth } }, payload, { TTL: 60 * 60 * 6 });
-      } catch (e) {
-        // The phone unsubscribed or the browser data was cleared: forget the device.
-        const code = (e as { statusCode?: number }).statusCode;
-        if (code === 404 || code === 410) await sb.from("push_subscriptions").delete().eq("id", d.id);
-      }
-    }
+    for (const d of devices)
+      queue.push(async () => {
+        try {
+          await webpush.sendNotification({ endpoint: d.endpoint, keys: { p256dh: d.p256dh, auth: d.auth } }, payload, { TTL: 60 * 60 * 6 });
+        } catch (e) {
+          // The phone unsubscribed or the browser data was cleared: forget the device.
+          const code = (e as { statusCode?: number }).statusCode;
+          if (code === 404 || code === 410) await sb.from("push_subscriptions").delete().eq("id", d.id);
+        }
+      });
     count++;
   }
+  for (let i = 0; i < queue.length; i += 10) await Promise.allSettled(queue.slice(i, i + 10).map((job) => job()));
   return count;
 }
 
@@ -241,7 +246,8 @@ export async function runReminders(): Promise<{ sent: number; quiet?: boolean }>
   const profiles = await studentProfiles(sb, students.map((s) => s.id));
   const items: Item[] = [
     ...(await resultItems(sb)),
-    ...(await classItems(sb, students, now)),
+    // Runs every 15 minutes, so look 20 minutes back: every class start is caught once (the log stops repeats).
+    ...(await classItems(sb, students, now, 20)),
     ...studyItems(students, profiles, now),
     ...(await recordingItems(sb, students, profiles, now)),
   ];
@@ -251,7 +257,7 @@ export async function runReminders(): Promise<{ sent: number; quiet?: boolean }>
       items.push({ studentId: s.id, kind: "tests", refs: [`open:${t.id}`], ...testOpensCopy(`${s.id}${t.id}`, t.title, pkTime(t.opens_at)), url: `/test/${t.id}`, tag: `test-${t.id}`, priority: 2 });
     }
     for (const a of due ?? []) {
-      if (!covers(a, s, true) || doneA.has(`${s.id}|${a.id}`)) continue;
+      if (!covers(a, s, false) || doneA.has(`${s.id}|${a.id}`)) continue;
       items.push({ studentId: s.id, kind: "assignments", refs: [`due:${a.id}`], ...assignmentCopy(`${s.id}${a.id}`, a.title, new Date(a.due_at).toLocaleString("en-GB", { timeZone: TZ, weekday: "short", hour: "numeric", minute: "2-digit", hour12: true }), pkDate(new Date(a.due_at).getTime()) === pkDate(now)), url: `/assignments#a-${a.id}`, tag: `asg-${a.id}`, priority: 3 });
     }
   }

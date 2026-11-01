@@ -26,10 +26,11 @@ export function useNotifications() {
   // read_by holds auth.uid()s, which the session owns — not the student row id.
   useEffect(() => {
     let active = true;
+    // The saved session already knows who this is: no extra trip to the server.
     void supabase()
-      .auth.getUser()
+      .auth.getSession()
       .then(({ data }) => {
-        if (active) setUserId(data.user?.id ?? null);
+        if (active) setUserId(data.session?.user.id ?? null);
       });
     return () => { active = false; };
   }, []);

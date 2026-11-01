@@ -7,7 +7,7 @@ import type { Student } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { Icon } from "@/components/ui";
 import { formatRelative } from "@/lib/time";
-import { useSchedule, JOIN_EARLY_MIN, addDays, clock, span, joinClass, pkDate, slotKey, slotsForStudent, useClassLinks, type DaySlot } from "@/lib/classes";
+import { useSchedule, JOIN_EARLY_MIN, addDays, clockHere, span, joinClass, pkDate, slotKey, slotsForStudent, useClassLinks, type DaySlot } from "@/lib/classes";
 
 /**
  * Home-screen class card. Quiet unless a class is close: from 5 minutes
@@ -41,7 +41,8 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
     };
   }, [joining]);
 
-  if (ready === false) return null;
+  // The class links couldn't be read (weak signal): still show the timetable, and say why Join is missing.
+  const offline = ready === false;
 
   // Back-to-back classes (3:30, 4:10, 4:50): from 5 minutes before the next
   // class, show both. The class still running stays first (so a student who
@@ -65,8 +66,8 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
         <span className="text-sm text-ink-2">
           Next class: <span className="font-semibold text-ink">{next.subject}</span>{" "}
           {next.date === today
-            ? `at ${clock(next.start)}`
-            : `${new Date(`${next.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}, ${clock(next.start)}`}
+            ? `at ${clockHere(next.date, next.start)}`
+            : `${new Date(`${next.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}, ${clockHere(next.date, next.start)}`}
         </span>
         <Icon.ChevronRight className="h-4 w-4 text-ink-3" />
       </Link>
@@ -112,13 +113,13 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
             {joining === slotKey(current) ? "Joining…" : <>{started && after ? "Rejoin" : "Join class"} <Icon.ChevronRight className="h-4 w-4" /></>}
           </a>
         ) : (
-          <p className="max-w-[16rem] text-sm text-ink-2">The Join button appears here when Hamza opens the class.</p>
+          <p className="max-w-[16rem] text-sm text-ink-2">{offline ? "No connection right now. Join shows up here when you're back online." : "The Join button appears here when I open the class."}</p>
         )}
       </div>
       {after && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand/25 bg-surface/60 px-4 py-3">
           <p className="text-sm text-ink-2">
-            <span className="font-semibold text-ink">Next: {after.subject}</span> at {clock(after.start)}
+            <span className="font-semibold text-ink">Next: {after.subject}</span> at {clockHere(after.date, after.start)}
             <span className="text-ink-3"> · starts {formatRelative(new Date(after.startMs).toISOString(), nowMs)}</span>
           </p>
           {urlFor(after) ? (
@@ -134,7 +135,7 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
               {joining === slotKey(after) ? "Joining…" : <>Join {after.subject} <Icon.ChevronRight className="h-4 w-4" /></>}
             </a>
           ) : (
-            <span className="text-xs text-ink-3">Join appears when Hamza opens it.</span>
+            <span className="text-xs text-ink-3">{offline ? "Join shows up when you're back online." : "Join appears when I open it."}</span>
           )}
         </div>
       )}

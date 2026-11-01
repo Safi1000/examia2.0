@@ -10,6 +10,7 @@ import { detectColumns, planRows, usernameFrom, type Columns, type Field } from 
 import { Button, Modal, Select, Label } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import { newPassword } from "@/lib/password";
 
 /**
  * Term start: bring a whole spreadsheet of students in at once. Upload Excel
@@ -31,11 +32,6 @@ const FIELDS: Array<[Field, string]> = [
   ["subjects", "Subjects"],
 ];
 
-function newPassword() {
-  const words = ["maple", "river", "amber", "delta", "lunar", "cedar", "north", "ochre"];
-  return `${words[Math.floor(Math.random() * words.length)]}${Math.floor(100 + Math.random() * 900)}`;
-}
-
 export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean; onClose: () => void; defaultCohort: string }) {
   const db = useDatabase();
   const store = useStore();
@@ -52,6 +48,10 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
   const [updateExisting, setUpdateExisting] = useState(true);
   const [busy, setBusy] = useState<{ done: number; of: number } | null>(null);
   const [made, setMade] = useState<Made[]>([]);
+  // Rows that couldn't be saved, and why, kept on screen (not only in a toast).
+  const [failedRows, setFailedRows] = useState<Array<{ line: number; username: string; why: string }>>([]);
+  // The heading row that was found, so unticking and ticking "headings" restores it.
+  const [foundHeader, setFoundHeader] = useState(0);
   // A password per sheet row, made once when the sheet is read, so the preview shows the real login.
   const [passwords, setPasswords] = useState<string[]>([]);
   // Which row's WhatsApp message is shown in the preview.
@@ -70,6 +70,8 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
     setRows(r);
     setFileName(name);
     setHeader(d.header);
+    setFoundHeader(Math.max(0, d.header));
+    setFailedRows([]);
     setCols(d.cols);
     setPasswords(r.map(() => newPassword()));
     setPeek(null);
@@ -93,8 +95,9 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
   );
   const fresh = plan.filter((p) => !p.problem && !p.existing);
   const updates = plan.filter((p) => !p.problem && p.existing && updateExisting);
+  const moves = (p: (typeof plan)[number]) => !!p.existing && !!cohortId && p.existing.cohortId !== cohortId;
   const changed = (p: (typeof plan)[number]) =>
-    !!p.existing && (p.existing.classIds.join() !== p.classIds.join() || p.existing.subjectIds.join() !== p.subjectIds.join());
+    !!p.existing && (moves(p) || p.existing.classIds.join() !== p.classIds.join() || p.existing.subjectIds.join() !== p.subjectIds.join());
   const realUpdates = updates.filter(changed);
   const shown = fresh.find((p) => p.line === peek) ?? fresh[0];
   const problems = plan.filter((p) => p.problem);
@@ -110,7 +113,7 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
     if (!todo) return;
     setBusy({ done: 0, of: todo });
     const ok: Made[] = [];
-    const failed: number[] = [];
+    const failed: Array<{ line: number; username: string; why: string }> = [];
     let done = 0;
     // One at a time: each account is a separate sign-in to create.
     for (const p of fresh) {
@@ -118,27 +121,39 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
       try {
         await store.addStudent({ username: p.username, phone: p.phone, whatsapp: p.parent, cohortId, tempPassword: password, classIds: p.classIds, subjectIds: p.subjectIds });
         ok.push({ username: p.username, password, phone: p.phone, parent: p.parent });
-      } catch {
-        failed.push(p.line);
+      } catch (e) {
+        failed.push({ line: p.line, username: p.username, why: e instanceof Error ? e.message : "Couldn't be saved" });
       }
       setBusy({ done: ++done, of: todo });
     }
     let updated = 0;
     for (const p of realUpdates) {
-      // Only their level and subjects change, so no sign-in details are touched.
-      store.setStudentClasses(p.existing!.id, p.classIds);
-      store.setStudentSubjects(p.existing!.id, p.subjectIds);
-      updated++;
+      try {
+        // A returning student moves into this session's cohort (login and password unchanged).
+        if (moves(p)) await store.updateStudent(p.existing!.id, { cohortId, classIds: p.classIds, subjectIds: p.subjectIds });
+        else {
+          // Only their level and subjects change, so no sign-in details are touched.
+          await store.setStudentClasses(p.existing!.id, p.classIds);
+          await store.setStudentSubjects(p.existing!.id, p.subjectIds);
+        }
+        updated++;
+      } catch (e) {
+        failed.push({ line: p.line, username: p.username, why: e instanceof Error ? e.message : "Couldn't be saved" });
+      }
       setBusy({ done: ++done, of: todo });
     }
     setBusy(null);
-    setMade(ok);
-    if (failed.length) toast(`Rows ${failed.join(", ")} couldn't be saved. Try them again.`, "error");
-    toast([ok.length && `${ok.length} added`, updated && `${updated} updated`].filter(Boolean).join(", ") + ".", "success");
-    if (!ok.length) close(true);
+    setFailedRows(failed);
+    const summary = [ok.length && `${ok.length} added`, updated && `${updated} updated`].filter(Boolean).join(", ");
+    if (summary) toast(`${summary}.`, "success");
+    if (failed.length) toast(`${failed.length} couldn't be saved. They're listed on screen.`, "error");
+    if (ok.length) setMade(ok);
+    else if (!failed.length) close(true); // only updates, all fine
   }
 
   function close(force = false) {
+    // Never while saving: the passwords would be lost with the window.
+    if (busy) return;
     if (!force && made.some((m) => !m.sent) && !window.confirm("Some login messages haven't been sent. Passwords aren't kept after this closes (you can use Reset password later). Close anyway?")) return;
     setMade([]);
     setRows(null);
@@ -188,6 +203,18 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
         )
       }
     >
+      {failedRows.length > 0 && (
+        <div className="mb-4 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+          <p className="font-semibold">{failedRows.length} couldn&apos;t be saved. Try them again in a minute:</p>
+          <ul className="mt-1 space-y-0.5 text-xs">
+            {failedRows.map((f) => (
+              <li key={f.line}>
+                Row {f.line}, <span className="font-mono">{f.username}</span>: {f.why}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {made.length ? (
         <ul className="divide-y divide-border">
           {made.map((m) => (
@@ -266,7 +293,7 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
       ) : (
         <div className="space-y-5">
           {/* What each column was read as; change any that's wrong. */}
-          <details className="rounded-lg border border-border px-3 py-2" open={!cols || cols.name + cols.username === -2}>
+          <details className="rounded-lg border border-border px-3 py-2" open={!cols || cols.name + cols.username === -2 || (plan.length > 0 && problems.length / plan.length > 0.2)}>
             <summary className="cursor-pointer text-sm font-semibold text-ink">Columns</summary>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               {FIELDS.map(([f, label]) => (
@@ -283,7 +310,7 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
             </div>
             {!!cols?.subjectCols.length && <p className="mt-2 text-xs text-ink-3">Ticked subject columns: {cols.subjectCols.map((s) => `${headings[s.col]} (${name([s.subjectId], db.subjects)})`).join(", ")}</p>}
             <label className="mt-3 flex items-center gap-2 text-sm text-ink-2">
-              <input type="checkbox" checked={header >= 0} onChange={(e) => setHeader(e.target.checked ? 0 : -1)} />
+              <input type="checkbox" checked={header >= 0} onChange={(e) => setHeader(e.target.checked ? foundHeader : -1)} />
               First row is headings
             </label>
           </details>
@@ -359,12 +386,12 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
                           maxLength={30}
                           spellCheck={false}
                           autoCapitalize="none"
-                          className="w-full min-w-36 rounded-md border border-transparent bg-transparent px-1.5 py-0.5 -mx-1.5 font-mono font-semibold text-ink hover:border-border focus:border-brand focus:outline-none"
+                          className="w-full min-w-36 rounded-md border border-border bg-surface-2/50 px-1.5 py-0.5 -mx-1.5 font-mono font-semibold text-ink hover:border-border-strong focus:border-brand focus:outline-none"
                         />
                       )}
                       {!p.problem && !p.existing && <span className="block font-mono text-xs text-ink-2">Password: {passwords[p.line - 1]}</span>}
                       {p.problem && <span className="block text-xs font-semibold text-warning">{p.problem}. Skipped.</span>}
-                      {!p.problem && p.existing && <span className="block text-xs text-ink-3">{changed(p) ? "Already here, keeps their login. Level or subjects change" : "Already here, nothing changes"}</span>}
+                      {!p.problem && p.existing && <span className="block text-xs text-ink-3">{moves(p) ? `Already here, keeps their login. Moves to ${db.cohorts.find((c) => c.id === cohortId)?.name ?? "this cohort"}` : changed(p) ? "Already here, keeps their login. Level or subjects change" : "Already here, nothing changes"}</span>}
                       {!p.problem && p.note && <span className="block text-xs text-ink-3">{p.note}</span>}
                     </td>
                     <td className="px-3 py-2 text-ink-2">{name(p.classIds, db.classes) || "?"}</td>

@@ -75,7 +75,7 @@ export default function StudentLoginPage() {
     <AuthShell
       kicker="Private · Students only"
       title="Student sign in"
-      greeting="Welcome back."
+      greeting="Welcome."
       onSecret={() => router.push("/admin")}
       footer={
         <>

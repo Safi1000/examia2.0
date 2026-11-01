@@ -22,6 +22,23 @@ export type BoardMsg =
   | { t: "hello" } // a viewer asking for the full board
   | { t: "rev"; n: number; last: string }; // teacher's heartbeat: item count + newest stroke, so viewers can self-check
 
+/**
+ * The room for the "Student link": worked out from the private room, never the
+ * other way round, so having the link doesn't let anyone into Hamza's room.
+ */
+export function viewerRoom(room: string): string {
+  let h1 = 0xdeadbeef ^ room.length;
+  let h2 = 0x41c6ce57 ^ room.length;
+  for (let i = 0; i < room.length; i++) {
+    const c = room.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761);
+    h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return `v-${(h2 >>> 0).toString(16).padStart(8, "0")}${(h1 >>> 0).toString(16).padStart(8, "0")}`;
+}
+
 export interface BoardLink {
   send: (m: BoardMsg) => void;
   close: () => void;

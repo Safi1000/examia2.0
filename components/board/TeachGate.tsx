@@ -26,7 +26,18 @@ export function TeachGate({ children }: { children: React.ReactNode }) {
       if (DEMO) return alive && setRoom("demo-teacher");
       const { data } = await supabase().auth.getUser();
       const id = data.user?.id.replace(/-/g, "") ?? "";
-      if (alive && id) setRoom(`t-${id.slice(0, 20)}`);
+      if (!id) return;
+      // A random key kept on Hamza's own account (students can't read it), made
+      // once, so the room can't be worked out from anything students can see.
+      let key = (data.user?.user_metadata as { boardKey?: string } | undefined)?.boardKey;
+      if (!key) {
+        const b = new Uint8Array(12);
+        crypto.getRandomValues(b);
+        key = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+        await supabase().auth.updateUser({ data: { boardKey: key } });
+      }
+      // Before the dot: the name the tablet saves its board under (unchanged). After: the private key.
+      if (alive) setRoom(`t-${id.slice(0, 20)}.${key}`);
     })();
     return () => {
       alive = false;

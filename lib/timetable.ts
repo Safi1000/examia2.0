@@ -162,6 +162,16 @@ export const timeLabel = (hhmm: string) => {
 };
 /** "15:30" → "3:30 PM". */
 export const clock = (hhmm: string) => `${timeLabel(hhmm)} ${Number(hhmm.slice(0, 2)) < 12 ? "AM" : "PM"}`;
+/** True on a phone set to another time zone (the Gulf): times then need saying both ways. */
+const awayFromPakistan = (ms: number) =>
+  typeof window !== "undefined" && Intl.DateTimeFormat().resolvedOptions().timeZone !== "Asia/Karachi" && new Date(ms).getTimezoneOffset() !== -300;
+const localClock = (ms: number) => new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+/** A class time as the student should read it: "3:30 PM", or in Dubai "2:30 PM your time (3:30 PM Pakistan)". */
+export const clockHere = (ymd: string, hhmm: string) =>
+  awayFromPakistan(at(ymd, hhmm)) ? `${localClock(at(ymd, hhmm))} your time (${clock(hhmm)} Pakistan)` : clock(hhmm);
+/** A class range the same way: "3:30 to 5:30 PM", or "2:30 PM to 4:30 PM your time (3:30 to 5:30 PM Pakistan)". */
+export const spanHere = (ymd: string, a: string, b: string) =>
+  awayFromPakistan(at(ymd, a)) ? `${localClock(at(ymd, a))} to ${localClock(at(ymd, b))} your time (${span(a, b)} Pakistan)` : span(a, b);
 /** "3:30 to 4:10 PM", or "11:30 AM to 12:10 PM" when it crosses noon. */
 export const span = (a: string, b: string) =>
   clock(a).slice(-2) === clock(b).slice(-2) ? `${timeLabel(a)} to ${clock(b)}` : `${clock(a)} to ${clock(b)}`;

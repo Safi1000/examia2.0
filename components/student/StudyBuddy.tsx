@@ -41,7 +41,7 @@ export function useTopThree(): TopThree | null {
     if (DEMO) return;
     try {
       const c = JSON.parse(sessionStorage.getItem(TOP_KEY) ?? "null") as { at: number } | null;
-      if (c && Date.now() - c.at < 5 * 60_000) return;
+      if (c && Date.now() - c.at < 30 * 60_000) return;
     } catch {}
     let alive = true;
     void (async () => {

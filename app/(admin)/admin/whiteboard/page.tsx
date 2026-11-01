@@ -20,9 +20,9 @@ export default function WhiteboardPage() {
     {
       n: "2",
       title: "On your laptop",
-      body: "Open the screen-share view, then in Meet choose Present → A tab (or window) → this one. It follows the tablet by itself.",
+      body: "Open the screen sharing view, then in Meet choose Present → A tab (or window) → this one. It follows the tablet by itself.",
       href: "/teach/present",
-      cta: "Open screen-share view",
+      cta: "Open screen sharing view",
     },
   ];
   return (

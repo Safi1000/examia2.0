@@ -6,6 +6,8 @@ import { levelFor } from "@/lib/focus";
 import { Welcome } from "@/components/student/Welcome";
 import { NotifyNudge } from "@/components/student/NotifyNudge";
 import { ScheduleGate } from "@/components/ScheduleGate";
+import { useNow } from "@/hooks/useNow";
+import { pkDate, slotsForStudent, useSchedule } from "@/lib/classes";
 import { waTextLink } from "@/lib/landing";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -237,7 +239,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         </nav>
       )}
       <ScheduleGate>{children}</ScheduleGate>
-      {!inRunner && !profile.onboarded && createPortal(<Welcome db={db} student={student} />, document.body)}
+      {!inRunner && !profile.onboarded && <WelcomeWhenFree db={db} student={student} />}
       {!inRunner && <NotifyNudge />}
 
       {/* Phones: a floating dock at the thumb. */}
@@ -371,4 +373,15 @@ function AccountMenu({
       )}
     </div>
   );
+}
+
+/**
+ * The first-run welcome, but never over a class: from 10 minutes before a
+ * class until it ends, the Join button stays in reach and the welcome waits.
+ */
+function WelcomeWhenFree({ db, student }: { db: Parameters<typeof Welcome>[0]["db"]; student: NonNullable<ReturnType<typeof studentById>> }) {
+  const nowMs = useNow();
+  useSchedule(); // re-check when the timetable arrives
+  const busy = slotsForStudent(db, student, pkDate(nowMs)).some((s) => nowMs >= s.startMs - 10 * 60_000 && nowMs < s.endMs);
+  return busy ? null : createPortal(<Welcome db={db} student={student} />, document.body);
 }

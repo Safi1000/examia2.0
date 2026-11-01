@@ -99,14 +99,17 @@ export function testWindow(opensAt: string, closesAt: string, nowMs: number): Te
   return "open";
 }
 
-/** ISO -> value for <input type="datetime-local"> (local clock, no seconds). */
+/**
+ * ISO -> value for <input type="datetime-local">, always in Pakistan time (no
+ * seconds), so test times are the same whichever device or country Hamza is on.
+ */
 export function toLocalInput(iso: string): string {
-  const d = new Date(iso);
+  const d = new Date(+new Date(iso) + 5 * 3_600_000); // Pakistan is UTC+5, no daylight saving
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 }
 
-/** Value from <input type="datetime-local"> -> ISO. */
+/** Value from <input type="datetime-local"> (Pakistan time) -> ISO. */
 export function fromLocalInput(v: string): string {
-  return new Date(v).toISOString();
+  return new Date(`${v.slice(0, 16)}:00+05:00`).toISOString();
 }

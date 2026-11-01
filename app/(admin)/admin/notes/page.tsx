@@ -35,8 +35,12 @@ function AssignmentBadge({ assignment, db, onDelete }: {
   return (
     <span className="flex items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2 py-1 text-xs text-ink-2">
       {parts.join(" › ")}
-      <button onClick={onDelete} className="text-ink-3 hover:text-error" aria-label="Remove assignment">
-        <Icon.Close className="h-3 w-3" />
+      <button
+        onClick={() => window.confirm(`Stop showing this note to ${parts.join(", ")}?`) && onDelete()}
+        className="-my-1 -mr-1.5 flex h-8 w-8 items-center justify-center rounded text-ink-3 hover:bg-surface hover:text-error"
+        aria-label={`Stop showing to ${parts.join(", ")}`}
+      >
+        <Icon.Close className="h-3.5 w-3.5" />
       </button>
     </span>
   );
@@ -51,6 +55,7 @@ export default function NotesPage() {
   const [viewing, setViewing] = useState<{ id: string; title: string } | null>(null);
   // Bulk assign: tick notes, pick a scope, assign them all in one go.
   const [picked, setPicked] = useState<string[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkCohort, setBulkCohort] = useState("");
   const [bulkClass, setBulkClass] = useState("");
   const [bulkSubject, setBulkSubject] = useState("");
@@ -120,16 +125,17 @@ export default function NotesPage() {
   async function handleUpload() {
     if (!uploadTitle.trim()) return setUploadError("Give the note a title.");
     if (!uploadFile) return setUploadError("Choose a file.");
-    // Picked a cohort but didn't press "Add"? Use that choice instead of erroring.
-    const assigned =
-      pendingAssignments.length || !aCohortId ? pendingAssignments : [{ cohortId: aCohortId, classId: aClassId || null, subjectId: aSubjectId || null }];
+    // A choice picked but not added with "Add" still counts (as well as the ones already in the list).
+    const pick = aCohortId ? { cohortId: aCohortId, classId: aClassId || null, subjectId: aSubjectId || null } : null;
+    const inList = pick && pendingAssignments.some((a) => a.cohortId === pick.cohortId && a.classId === pick.classId && a.subjectId === pick.subjectId);
+    const assigned = pick && !inList ? [...pendingAssignments, pick] : pendingAssignments;
     // A note reaches students ONLY through an assignment. Uploading without one
     // produces a note the teacher can see and no student ever can — which is
     // indistinguishable, from the teacher's side, from notes being broken.
     if (assigned.length === 0) {
       return setUploadError("Choose who can see it (at least a cohort), so students can find it.");
     }
-    if (!notesConfigured()) return setUploadError("Note uploads aren't set up yet. Ask your developer to check the Cloudinary settings.");
+    if (!notesConfigured()) return setUploadError("Note uploads aren't set up yet. Ask your developer to check the file storage settings.");
 
     setUploading(true);
     setUploadError(null);
@@ -190,13 +196,28 @@ export default function NotesPage() {
         </Select>
         <Button
           size="sm"
-          disabled={!bulkCohort}
+          disabled={!bulkCohort || bulkBusy}
+          loading={bulkBusy}
           onClick={() => {
             void (async () => {
+              setBulkBusy(true);
+              let ok = 0;
+              let failed = 0;
               for (const id of picked) {
-                await store.addNoteAssignment(id, bulkCohort, bulkClass || null, bulkSubject || null);
+                // Already shown to that group: skip, never a duplicate.
+                const has = db.noteAssignments.some((a) => a.noteId === id && a.cohortId === bulkCohort && a.classId === (bulkClass || null) && a.subjectId === (bulkSubject || null));
+                if (has) continue;
+                try {
+                  await store.addNoteAssignment(id, bulkCohort, bulkClass || null, bulkSubject || null);
+                  ok++;
+                } catch {
+                  failed++;
+                }
               }
-              toast(`${picked.length} notes assigned.`, "success");
+              setBulkBusy(false);
+              if (ok) toast(`${ok} note${ok === 1 ? "" : "s"} assigned.`, "success");
+              if (failed) toast(`${failed} couldn't be assigned. Try them again.`, "error");
+              if (!ok && !failed) toast("Those notes were already shown to that group.", "success");
               setPicked([]);
             })();
           }}
@@ -432,7 +453,7 @@ export default function NotesPage() {
           </>
         }
       >
-        <p className="text-sm text-ink-2">This cannot be undone. The file will remain on Cloudinary but will no longer be accessible through the app.</p>
+        <p className="text-sm text-ink-2">This can&apos;t be undone. Students won&apos;t see it any more.</p>
       </Modal>
       {viewing && (
         <NoteViewer noteId={viewing.id} title={viewing.title} onClose={() => setViewing(null)} />

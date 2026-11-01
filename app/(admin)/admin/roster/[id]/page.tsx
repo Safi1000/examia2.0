@@ -27,6 +27,7 @@ import { gradeSubmission } from "@/lib/grading";
 import { topicMastery } from "@/lib/scoring";
 import { buildStudentReport } from "@/lib/report-build";
 import { formatTimestamp } from "@/lib/time";
+import { newPassword } from "@/lib/password";
 
 function monthOf(iso: string | null | undefined) {
   return iso ? iso.slice(0, 7) : "";
@@ -405,14 +406,6 @@ function TheirPortal({ profile }: { profile: Profile }) {
       </p>
     </Card>
   );
-}
-
-/** Same style as the roster's generated passwords: an easy word plus 3 digits (8+ characters). */
-function newPassword() {
-  const words = ["maple", "river", "amber", "delta", "lunar", "cedar", "north", "ochre", "coral", "atlas"];
-  const pick = new Uint32Array(2);
-  crypto.getRandomValues(pick);
-  return `${words[pick[0] % words.length]}${100 + (pick[1] % 900)}`;
 }
 
 /**

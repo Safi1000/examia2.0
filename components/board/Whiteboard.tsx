@@ -34,7 +34,7 @@ import {
   visibleView,
   zoomAt,
 } from "@/components/board/engine";
-import { connectBoard, type BoardLink, type BoardMsg } from "@/components/board/sync";
+import { connectBoard, viewerRoom, type BoardLink, type BoardMsg } from "@/components/board/sync";
 import { cloudinaryConfigured, uploadImage, uploadPdfPages } from "@/lib/cloudinary";
 
 /**
@@ -288,6 +288,7 @@ export function TeacherBoard({ room }: { room: string }) {
   const [size, setSize] = useState(SIZES[0].value);
   const [fingerDraws, setFingerDraws] = useState(false);
   const [viewers, setViewers] = useState(0);
+  const peers = useRef({ own: 0, link: 0 });
   const [angle, setAngle] = useState<{ x: number; y: number; deg: number } | null>(null);
   const [eraserAt, setEraserAt] = useState<{ x: number; y: number } | null>(null);
   const [zoom, setZoom] = useState(100);
@@ -327,7 +328,8 @@ export function TeacherBoard({ room }: { room: string }) {
   );
 
   // ---- persistence + live link
-  const storeKey = `ht-board-${room}`;
+  // Saved under the room's first part, so a board drawn before the private key existed is still here.
+  const storeKey = `ht-board-${room.split(".")[0]}`;
   const save = useRef<ReturnType<typeof setTimeout> | null>(null);
   const persist = useCallback(() => {
     if (save.current) clearTimeout(save.current);
@@ -340,7 +342,13 @@ export function TeacherBoard({ room }: { room: string }) {
     }, 400);
   }, [storeKey]);
 
-  const send = useCallback((m: BoardMsg) => link.current?.send(m), []);
+  // Everything goes to the private room (the laptop) and the student link's room.
+  // Only the private room is listened to for anything but "send me the board".
+  const viewLink = useRef<BoardLink | null>(null);
+  const send = useCallback((m: BoardMsg) => {
+    link.current?.send(m);
+    viewLink.current?.send(m);
+  }, []);
   const fullBoard = useCallback(
     (): BoardMsg => ({ t: "set", strokes: strokes.current.map(packStroke), images: images.current.filter((m) => !m.url.startsWith("blob:")) }),
     [],
@@ -379,8 +387,28 @@ export function TeacherBoard({ room }: { room: string }) {
           if (w && h) send({ t: "view", v: visibleView(cam.current, w, h) });
         }
       },
-      (n) => setViewers(n),
+      (n) => {
+        peers.current.own = n;
+        setViewers(peers.current.own + peers.current.link);
+      },
     );
+    // The student link's room: it can only ask for the board, never change it.
+    viewLink.current = room.includes(".")
+      ? connectBoard(
+          viewerRoom(room),
+          "teacher",
+          (m) => {
+            if (m.t !== "hello") return;
+            viewLink.current?.send(fullBoard());
+            const { w, h } = screen.current;
+            if (w && h) viewLink.current?.send({ t: "view", v: visibleView(cam.current, w, h) });
+          },
+          (n) => {
+            peers.current.link = n;
+            setViewers(peers.current.own + peers.current.link);
+          },
+        )
+      : null;
     // Heartbeat: viewers compare it with what they have and ask again if behind.
     const beat = setInterval(() => {
       send({ t: "rev", n: strokes.current.length + images.current.length, last: strokes.current[strokes.current.length - 1]?.id ?? "" });
@@ -389,6 +417,7 @@ export function TeacherBoard({ room }: { room: string }) {
       clearTimeout(t);
       clearInterval(beat);
       link.current?.close();
+      viewLink.current?.close();
     };
   }, [room, storeKey, requestDraw, send, screen, fullBoard]);
 
@@ -1076,7 +1105,7 @@ export function TeacherBoard({ room }: { room: string }) {
     refresh();
   };
 
-  const viewerUrl = typeof window !== "undefined" ? `${window.location.origin}/board-lab/view?room=${room}` : "";
+  const viewerUrl = typeof window !== "undefined" ? `${window.location.origin}/board-lab/view?room=${room.includes(".") ? viewerRoom(room) : room}` : "";
   const copyLink = async (present = false) => {
     // Inside the portal the laptop just opens /teach/present (it pairs by sign-in).
     const inPortal = window.location.pathname.startsWith("/teach");

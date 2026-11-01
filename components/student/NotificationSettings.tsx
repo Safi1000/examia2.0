@@ -19,7 +19,7 @@ const VAPID = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 
 type Prefs = { results: boolean; tests: boolean; assignments: boolean };
 const KINDS: Array<{ key: keyof Prefs; label: string; hint: string }> = [
-  { key: "results", label: "Results", hint: "When Hamza releases your marks" },
+  { key: "results", label: "Results", hint: "When I release your marks" },
   { key: "tests", label: "Tests", hint: "30 minutes before a test opens" },
   { key: "assignments", label: "Assignments", hint: "The day before it's due, if you haven't handed it in" },
 ];

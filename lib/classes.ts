@@ -90,7 +90,8 @@ export function useClassLinks(from: string, to: string, withJoins = false, poll 
     // Initial fetch plus a gentle refresh; the effect owns the subscription.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
-    const t = poll ? setInterval(() => void load(), 60_000) : undefined;
+    // Every 20 s, so Join shows up soon after the link is made (no reloading needed).
+    const t = poll ? setInterval(() => void load(), 20_000) : undefined;
     const onVis = () => document.visibilityState === "visible" && void load();
     document.addEventListener("visibilitychange", onVis);
     return () => {

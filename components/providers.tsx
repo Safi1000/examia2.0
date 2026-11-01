@@ -69,7 +69,10 @@ function StoreErrorBridge() {
     let lastAt = 0;
     getStore().setErrorReporter((msg) => {
       const offline = /fetch|network|timed? ?out|load failed|connection/i.test(msg) && !msg.startsWith("Some of the portal");
-      const text = offline ? "Couldn't save just now. Check your internet and try again." : msg;
+      // Technical messages ("addNoteAssignment: duplicate key…") become a plain sentence.
+      const technical = /^[a-z][A-Za-z]+: /.test(msg);
+      const text = offline ? "Couldn't save just now. Check your internet and try again." : technical ? "Something didn't save. Try again, and if it keeps happening, reload the page." : msg;
+      if (technical) console.error("[store]", msg); // the detail stays available for a developer
       const now = Date.now();
       if (text === last && now - lastAt < 6000) return;
       last = text;

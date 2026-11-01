@@ -84,7 +84,8 @@ export default function GradingPage() {
   const name = student.username.charAt(0).toUpperCase() + student.username.slice(1);
 
   function release(goNext: boolean) {
-    store.releaseSubmission(subId);
+    // Refused while the test is still open (the store says why).
+    if (!store.releaseSubmission(subId)) return;
     toast(`${name}'s result released.`, "success");
     if (goNext && nextId) router.push(`/admin/grading/${nextId}`);
   }

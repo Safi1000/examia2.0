@@ -324,7 +324,7 @@ function Header({ total }: { total: number }) {
   return (
     <div className="mb-5">
       <h1 className="font-display text-2xl font-bold text-ink">Notes</h1>
-      <p className="mt-1 text-sm text-ink-3">{total ? `${total} from class, newest first. Tap one to read it.` : "Class notes and handouts from Hamza."}</p>
+      <p className="mt-1 text-sm text-ink-3">{total ? `${total} from class, newest first. Tap one to read it.` : "Class notes and handouts from me."}</p>
     </div>
   );
 }

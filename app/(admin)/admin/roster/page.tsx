@@ -18,12 +18,10 @@ import { cn } from "@/lib/cn";
 import { cld } from "@/lib/cld";
 import { LoginDetails } from "@/components/admin/LoginDetails";
 import { ImportStudents } from "@/components/admin/ImportStudents";
+import { newPassword } from "@/lib/password";
+import { fixPhone } from "@/lib/import-students";
 
-function genPassword() {
-  const words = ["maple", "river", "amber", "delta", "lunar", "cedar", "north", "ochre"];
-  const w = words[Math.floor(Math.random() * words.length)];
-  return `${w}${Math.floor(100 + Math.random() * 900)}`;
-}
+const genPassword = newPassword;
 
 function ChipToggle({
   items,
@@ -116,10 +114,11 @@ export default function RosterPage() {
 
   // Classes/subjects available for the selected cohort in the form
   const selectedCohort = db.cohorts.find((c) => c.id === form.cohortId);
-  const availableClasses = selectedCohort
+  // The cohort's own levels and subjects, or every one when it has none linked (same as Import).
+  const availableClasses = selectedCohort?.classIds.length
     ? db.classes.filter((c) => selectedCohort.classIds.includes(c.id))
     : db.classes;
-  const availableSubjects = selectedCohort
+  const availableSubjects = selectedCohort?.subjectIds.length
     ? db.subjects.filter((s) => selectedCohort.subjectIds.includes(s.id))
     : db.subjects;
 
@@ -163,11 +162,12 @@ export default function RosterPage() {
       return setError("Usernames: 3 to 30 letters or numbers, no spaces (dots and dashes are fine).");
     }
 
-    const whatsapp = form.whatsapp.trim() ? normalizePhone(form.whatsapp) : "";
+    // 0300 1234567 and 92300… are tidied into +92300…, same as Import.
+    const whatsapp = form.whatsapp.trim() ? (fixPhone(form.whatsapp) ?? "") : "";
     if (whatsapp && !isValidPhone(whatsapp)) {
       return setError("Parent's WhatsApp must include the country code, e.g. +923001234567.");
     }
-    const phone = form.phone.trim() ? normalizePhone(form.phone) : "";
+    const phone = form.phone.trim() ? (fixPhone(form.phone) ?? "") : "";
     if (phone && !isValidPhone(phone)) {
       return setError("Student's number must include the country code, e.g. +923001234567.");
     }
@@ -225,8 +225,8 @@ export default function RosterPage() {
       />
 
       <BulkBar count={picked.length} noun="student" onClear={() => setPicked([])}>
-        <Select value={bulkClass} onChange={(e) => setBulkClass(e.target.value)} className="h-9 w-auto min-w-36" aria-label="Move to class">
-          <option value="">Move to class…</option>
+        <Select value={bulkClass} onChange={(e) => setBulkClass(e.target.value)} className="h-9 w-auto min-w-36" aria-label="Set level to">
+          <option value="">Set level to… (replaces their level)</option>
           {db.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select>
         <Select value={bulkCohort} onChange={(e) => setBulkCohort(e.target.value)} className="h-9 w-auto min-w-36" aria-label="Move to cohort">
@@ -243,7 +243,7 @@ export default function RosterPage() {
                 const st = db.students.find((x) => x.id === id);
                 if (!st) return;
                 // Moving class replaces the class list; the cohort is a straight swap.
-                if (bulkClass) store.setStudentClasses(id, [bulkClass]);
+                if (bulkClass) await store.setStudentClasses(id, [bulkClass]);
                 if (bulkCohort) await store.updateStudent(id, { cohortId: bulkCohort, username: st.username });
               }),
             );
@@ -498,7 +498,7 @@ export default function RosterPage() {
             </div>
             <p className="mt-1.5 text-xs text-ink-3">
               {editing === "new"
-                ? "Share this with the student for their first sign-in."
+                ? "Share this with the student for the first time they sign in."
                 : "Leave blank and their password stays the same. Changing the username or numbers never changes it."}
             </p>
           </div>
@@ -514,7 +514,23 @@ export default function RosterPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setDeleting(null)}>Cancel</Button>
-            <Button variant="danger" onClick={() => { if (deleting) store.deleteStudent(deleting.id); setDeleting(null); toast("Student deleted.", "success"); }}>Delete</Button>
+            <Button
+              variant="danger"
+              onClick={async () => {
+                if (!deleting) return;
+                const who = deleting;
+                setDeleting(null);
+                // Say "deleted" only once the server has done it.
+                try {
+                  await store.deleteStudent(who.id);
+                  toast(`${who.username} deleted.`, "success");
+                } catch {
+                  toast(`Couldn't delete ${who.username}. Try again.`, "error");
+                }
+              }}
+            >
+              Delete
+            </Button>
           </>
         }
       >

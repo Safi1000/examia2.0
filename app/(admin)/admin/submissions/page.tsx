@@ -127,13 +127,13 @@ export default function SubmissionsPage() {
             const ready = rows.filter(
               (r) => picked.includes(r.sub.id) && r.sub.status === "submitted" && isFullyGraded(r.test, r.sub),
             );
-            ready.forEach((r) => store.releaseSubmission(r.sub.id));
-            const skipped = picked.length - ready.length;
+            const out = ready.filter((r) => store.releaseSubmission(r.sub.id));
+            const skipped = picked.length - out.length;
             toast(
-              ready.length
-                ? `${ready.length} result${ready.length === 1 ? "" : "s"} released.${skipped ? ` ${skipped} skipped: not fully marked or already released.` : ""}`
-                : "Nothing released: the ticked papers aren't fully marked yet, or are already released.",
-              ready.length ? "success" : "info",
+              out.length
+                ? `${out.length} result${out.length === 1 ? "" : "s"} released.${skipped ? ` ${skipped} skipped: not fully marked, already released, or the test is still open.` : ""}`
+                : "Nothing released: the ticked papers aren't fully marked yet, are already released, or the test is still open.",
+              out.length ? "success" : "info",
             );
             setPicked([]);
           }}
@@ -222,7 +222,15 @@ export default function SubmissionsPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setBulkOpen(false)}>Cancel</Button>
-            <Button onClick={() => { releasable.forEach((r) => store.releaseSubmission(r.sub.id)); setBulkOpen(false); toast("Results released.", "success"); }}>Release all</Button>
+            <Button
+              onClick={() => {
+                const out = releasable.filter((r) => store.releaseSubmission(r.sub.id)).length;
+                setBulkOpen(false);
+                if (out) toast(`${out} result${out === 1 ? "" : "s"} released.`, "success");
+              }}
+            >
+              Release all
+            </Button>
           </>
         }
       >

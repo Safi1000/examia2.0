@@ -23,6 +23,7 @@ const caveat = Caveat({
   weight: ["700"],
   variable: "--font-caveat",
   display: "swap",
+  preload: false, // only the Groundwork timer uses it
 });
 
 const splineMono = Spline_Sans_Mono({
@@ -30,6 +31,7 @@ const splineMono = Spline_Sans_Mono({
   weight: ["400", "500", "600"],
   variable: "--font-spline-mono",
   display: "swap",
+  preload: false, // only timers and results use it
 });
 
 export const metadata: Metadata = {

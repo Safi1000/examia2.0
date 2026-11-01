@@ -115,7 +115,7 @@ export default function ClassesPage() {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-ink-3">Your timetable shows here once Hamza adds your level and subjects.</p>
+          <p className="text-sm text-ink-3">Your timetable shows here once I add your level and subjects.</p>
         )}
       </section>
 

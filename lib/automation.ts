@@ -143,6 +143,7 @@ async function autoRelease(sb: SupabaseClient, now: number) {
       .update({ status: "released", released_at: releasedAt })
       .eq("test_id", t.id)
       .eq("status", "submitted")
+      .eq("late", false) // handed in after closing: Hamza looks at those first
       .select("id,student_id");
     if (error || !rows?.length) continue;
     released += rows.length;

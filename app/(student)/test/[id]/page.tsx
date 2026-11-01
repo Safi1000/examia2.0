@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import type { Answer, Test } from "@/types";
+import type { Answer, Student, Test } from "@/types";
+import type { Database } from "@/lib/data/seed";
 import { useAuth } from "@/lib/auth-context";
 import { useDatabase, useStore } from "@/lib/data/store";
-import { studentById, testById, submissionFor } from "@/lib/data/selectors";
+import { studentById, testById, submissionFor, testsForStudent } from "@/lib/data/selectors";
 import { useCountdown } from "@/hooks/useCountdown";
 import { useNow } from "@/hooks/useNow";
 import { useDraftAutosave, loadDraft, clearDraft } from "@/hooks/useDraftAutosave";
@@ -33,9 +34,9 @@ function isAnswered(a: Answer): boolean {
  */
 type Boot = { startedAt: string; answers: Answer[] | null; index: number; at: number };
 
-/** Published, and for this student's cohort (or everyone). */
-function visibleTo(test: Test, cohortId: string | undefined) {
-  return test.status !== "draft" && (test.cohortId === null || test.cohortId === cohortId);
+/** Published and meant for this student: their cohort, level and subject, and not over before they joined. */
+function visibleTo(db: Database, test: Test, student: Student | null | undefined) {
+  return !!student && testsForStudent(db, student).some((t) => t.id === test.id);
 }
 
 /**
@@ -144,7 +145,7 @@ export default function TestRunnerPage() {
     setAttempt((a) => a + 1);
   }
 
-  const visible = !!t && visibleTo(t, student?.cohortId);
+  const visible = !!t && visibleTo(db, t, student);
   // Never mount the runner before the test opens.
   if (t && !open) {
     if (!student || !visible) return <RunnerNotice title="Test unavailable" message="This test isn't open to you. It may have been moved or removed. Check Tests for what's open." />;
@@ -256,7 +257,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
 
   const student = session?.studentId ? studentById(db, session.studentId) : null;
   const test = testById(db, id);
-  const visible = test && visibleTo(test, student?.cohortId);
+  const visible = test && visibleTo(db, test, student);
   const existing = student && test ? submissionFor(db, student.id, test.id) : null;
   const window = test ? testWindow(test.opensAt, test.closesAt, nowMs) : "closed";
 
@@ -420,12 +421,13 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
 
   // Final-five and final-minute warnings (announced once each).
   useEffect(() => {
-    if (state !== prevState.current) {
+    // Only while they're actually sitting it (not on a "test unavailable" screen).
+    if (state !== prevState.current && test && visible && !existing) {
       if (state === "warning") toast(uploading ? "5 minutes left to upload." : "5 minutes left. Wrap it up.", "info");
       if (state === "critical") toast("Last 60 seconds.", "error");
       prevState.current = state;
     }
-  }, [state, toast, uploading]);
+  }, [state, toast, uploading, test, visible, existing]);
 
   // Already submitted, or not open → bounce out.
   useEffect(() => {
@@ -451,7 +453,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
           message={
             submitting
               ? "Keep this page open until you see Done."
-              : "Your answers are saved on this phone but haven't reached Hamza. Hand them in now."
+              : "Your answers are saved on this phone but haven't reached me yet. Hand them in now."
           }
           action={
             <>

@@ -467,10 +467,12 @@ class Store {
    */
   softRefresh(delayMs = 2500) {
     if (this.softTimer) return;
+    // Students' phones spread out over 15 s, so one new test doesn't send 50 full reloads in the same second.
+    const spread = this.audience === "student" ? Math.random() * 15_000 : 0;
     this.softTimer = setTimeout(() => {
       this.softTimer = null;
       void this.refresh();
-    }, delayMs);
+    }, delayMs + spread);
   }
   private softTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -918,28 +920,56 @@ class Store {
       const s = d.students.find((x) => x.id === studentId);
       if (s) s.classIds = classIds;
     });
+    return this.syncLinks("student_classes", "class_id", studentId, before, classIds, (ids) =>
+      this.commit((d) => {
+        const s = d.students.find((x) => x.id === studentId);
+        if (s) s.classIds = ids;
+      }),
+    );
+  }
+
+  /**
+   * Saves a student's levels or subjects: adds the new ones first, then removes
+   * the dropped ones, so a failure halfway never leaves them with none. On an
+   * error the screen goes back to what was saved, and Hamza is told in plain words.
+   */
+  private async syncLinks(table: "student_classes" | "student_subjects", col: "class_id" | "subject_id", studentId: string, before: string[], after: string[], undo: (ids: string[]) => void) {
+    if (DEMO) return;
     const sb = supabase();
-    void (async () => {
-      await sb.from("student_classes").delete().eq("student_id", studentId);
-      if (classIds.length) {
-        const { error } = await sb.from("student_classes").insert(classIds.map((cid) => ({ student_id: studentId, class_id: cid })));
-        if (error) this.report(`setStudentClasses: ${error.message}`);
+    const add = after.filter((x) => !before.includes(x));
+    const drop = before.filter((x) => !after.includes(x));
+    const what = table === "student_classes" ? "level" : "subjects";
+    const who = this.state.students.find((x) => x.id === studentId)?.username ?? "this student";
+    this.pendingWrites++;
+    try {
+      if (add.length) {
+        const { error } = await sb.from(table).upsert(add.map((id) => ({ student_id: studentId, [col]: id })), { onConflict: `student_id,${col}`, ignoreDuplicates: true });
+        if (error) throw error;
       }
-    })();
+      if (drop.length) {
+        const { error } = await sb.from(table).delete().eq("student_id", studentId).in(col, drop);
+        if (error) throw error;
+      }
+    } catch {
+      undo(before);
+      this.report(`Couldn't save ${who}'s ${what}. Try again.`);
+      throw new Error(`Couldn't save ${who}'s ${what}.`);
+    } finally {
+      this.pendingWrites--;
+    }
   }
   setStudentSubjects(studentId: string, subjectIds: string[]) {
+    const before = this.state.students.find((x) => x.id === studentId)?.subjectIds ?? [];
     this.commit((d) => {
       const s = d.students.find((x) => x.id === studentId);
       if (s) s.subjectIds = subjectIds;
     });
-    const sb = supabase();
-    void (async () => {
-      await sb.from("student_subjects").delete().eq("student_id", studentId);
-      if (subjectIds.length) {
-        const { error } = await sb.from("student_subjects").insert(subjectIds.map((sid) => ({ student_id: studentId, subject_id: sid })));
-        if (error) this.report(`setStudentSubjects: ${error.message}`);
-      }
-    })();
+    return this.syncLinks("student_subjects", "subject_id", studentId, before, subjectIds, (ids) =>
+      this.commit((d) => {
+        const s = d.students.find((x) => x.id === studentId);
+        if (s) s.subjectIds = ids;
+      }),
+    );
   }
 
   // ---- Students (privileged: via the admin-users edge function) --------
@@ -1024,7 +1054,8 @@ class Store {
       cohortId: input.cohortId,
       password: input.tempPassword,
     });
-    const student = mapStudent(data.student as Row, input.classIds, input.subjectIds);
+    // Starts with none: the two saves below add the levels and subjects (and show them as they land).
+    const student = mapStudent(data.student as Row, [], []);
     student.whatsapp = input.whatsapp;
     student.phone = input.phone;
     student.photoUrl = input.photoUrl;
@@ -1034,22 +1065,36 @@ class Store {
       phone: input.phone ?? "",
       photoUrl: input.photoUrl ?? "",
     });
-    if (input.classIds.length) this.setStudentClasses(student.id, input.classIds);
-    if (input.subjectIds.length) this.setStudentSubjects(student.id, input.subjectIds);
+    if (input.classIds.length) await this.setStudentClasses(student.id, input.classIds);
+    if (input.subjectIds.length) await this.setStudentSubjects(student.id, input.subjectIds);
   }
-  updateStudent(id: string, patch: Partial<Omit<Student, "id" | "createdAt">>): Promise<Row> {
+  /**
+   * Saves a student. The sign in details (username, cohort, a new password) go
+   * to the server first; only once that worked does the screen change, so a
+   * failed rename never looks saved. Levels and subjects follow, each safely.
+   */
+  async updateStudent(id: string, patch: Partial<Omit<Student, "id" | "createdAt">>): Promise<Row> {
+    const s = this.state.students.find((x) => x.id === id);
+    const done = DEMO
+      ? ({} as Row)
+      : await this.callAdminUsers("updateStudent", {
+          action: "update",
+          studentId: id,
+          username: patch.username ?? s?.username,
+          email: patch.email,
+          cohortId: patch.cohortId ?? s?.cohortId,
+          password: patch.tempPassword || undefined,
+        });
     this.commit((d) => {
-      const s = d.students.find((x) => x.id === id);
+      const st = d.students.find((x) => x.id === id);
       // Only the fields passed in change (a password reset must not blank the numbers).
-      if (s) Object.assign(s, {
-        username: patch.username ?? s.username,
-        email: "email" in patch ? patch.email : s.email,
-        whatsapp: "whatsapp" in patch ? patch.whatsapp : s.whatsapp,
-        phone: "phone" in patch ? patch.phone : s.phone,
-        photoUrl: "photoUrl" in patch ? patch.photoUrl : s.photoUrl,
-        cohortId: patch.cohortId ?? s.cohortId,
-        classIds: patch.classIds ?? s.classIds,
-        subjectIds: patch.subjectIds ?? s.subjectIds,
+      if (st) Object.assign(st, {
+        username: patch.username ?? st.username,
+        email: "email" in patch ? patch.email : st.email,
+        whatsapp: "whatsapp" in patch ? patch.whatsapp : st.whatsapp,
+        phone: "phone" in patch ? patch.phone : st.phone,
+        photoUrl: "photoUrl" in patch ? patch.photoUrl : st.photoUrl,
+        cohortId: patch.cohortId ?? st.cohortId,
       });
     });
     this.setStudentProfile(id, {
@@ -1057,29 +1102,24 @@ class Store {
       ...(patch.phone !== undefined ? { phone: patch.phone } : {}),
       ...(patch.photoUrl !== undefined ? { photoUrl: patch.photoUrl } : {}),
     });
-    const s = this.state.students.find((x) => x.id === id);
-    const done = this.callAdminUsers("updateStudent", {
-      action: "update",
-      studentId: id,
-      username: patch.username ?? s?.username,
-      email: patch.email,
-      cohortId: patch.cohortId ?? s?.cohortId,
-      password: patch.tempPassword || undefined,
-    });
-    if (patch.classIds !== undefined) this.setStudentClasses(id, patch.classIds);
-    if (patch.subjectIds !== undefined) this.setStudentSubjects(id, patch.subjectIds);
+    if (patch.classIds !== undefined) await this.setStudentClasses(id, patch.classIds);
+    if (patch.subjectIds !== undefined) await this.setStudentSubjects(id, patch.subjectIds);
     return done;
   }
-  deleteStudent(id: string) {
+  /** Deletes the student and their sign in; resolves once the server has done it (throws if not). */
+  async deleteStudent(id: string) {
+    if (DEMO) {
+      this.commit((d) => {
+        d.students = d.students.filter((s) => s.id !== id);
+        d.submissions = d.submissions.filter((s) => s.studentId !== id);
+      });
+      return;
+    }
+    await this.callAdminUsers("deleteStudent", { action: "delete", studentId: id });
     this.commit((d) => {
       d.students = d.students.filter((s) => s.id !== id);
       d.submissions = d.submissions.filter((s) => s.studentId !== id);
     });
-    supabase()
-      .functions.invoke("admin-users", { body: { action: "delete", studentId: id } })
-      .then(({ data, error }) => {
-        if (error || (data as Row)?.error) this.report(`deleteStudent: ${error?.message ?? (data as Row)?.error}`);
-      });
   }
 
   // ---- Tests + questions ----------------------------------------------
@@ -1609,9 +1649,22 @@ class Store {
       "saveAnnotations",
     );
   }
-  releaseSubmission(submissionId: string) {
+  /**
+   * Results show the right answers, so none goes out while the test is still
+   * open: a student who finished early could pass them on. Returns false (and
+   * says why) when it's too soon.
+   */
+  private stillOpen(testId: string | undefined): boolean {
+    const t = testId ? this.state.tests.find((x) => x.id === testId) : undefined;
+    if (!t || Date.now() >= +new Date(t.closesAt)) return false;
+    const at = new Date(t.closesAt).toLocaleString("en-GB", { timeZone: "Asia/Karachi", weekday: "short", hour: "numeric", minute: "2-digit", hour12: true });
+    this.report(`"${t.title}" is still open until ${at}. Release results after it closes, so nobody still sitting it sees the answers.`);
+    return true;
+  }
+  releaseSubmission(submissionId: string): boolean {
     const releasedAt = new Date().toISOString();
     const sub = this.state.submissions.find((s) => s.id === submissionId);
+    if (this.stillOpen(sub?.testId)) return false;
     this.commit((d) => {
       const s = d.submissions.find((x) => x.id === submissionId);
       if (s) { s.status = "released"; s.releasedAt = releasedAt; }
@@ -1625,6 +1678,7 @@ class Store {
       this.announceResult(sub.studentId, sub.testId, submissionId);
     }
     this.queueResultPush(submissionId);
+    return true;
   }
   // Phone notification for released results. Batched for a moment so
   // "Release all" sends one notification per student, not one per paper.
@@ -1651,7 +1705,8 @@ class Store {
       }
     }, 2000);
   }
-  bulkReleaseForTest(testId: string) {
+  bulkReleaseForTest(testId: string): boolean {
+    if (this.stillOpen(testId)) return false;
     const releasedAt = new Date().toISOString();
     // Captured before the commit flips them to "released" — afterwards there is
     // no way to tell which submissions this call actually released.
@@ -1674,6 +1729,7 @@ class Store {
     released.forEach((s) => this.announceResult(s.studentId, testId, s.id));
     // Phone notification too (batched into one per student, quiet rules apply).
     released.forEach((s) => this.queueResultPush(s.id));
+    return true;
   }
   /** Tell one student their result for a test is now available. */
   private announceResult(studentId: string, testId: string, submissionId: string) {
@@ -1705,21 +1761,26 @@ class Store {
   }
 
   // ---- Announcements ---------------------------------------------------
-  addAnnouncement(input: Omit<Announcement, "id" | "createdAt" | "dismissedBy">) {
+  async addAnnouncement(input: Omit<Announcement, "id" | "createdAt" | "dismissedBy">) {
     const id = genId();
     const createdAt = new Date().toISOString();
     this.commit((d) => d.announcements.unshift({ ...input, id, createdAt, dismissedBy: [] }));
-    this.run(
-      supabase().from("announcements").insert({
-        id,
-        body: input.body,
-        pinned: input.pinned,
-        cohort_id: input.cohortId,
-        created_at: createdAt,
-        dismissed_by: [],
-      }),
-      "addAnnouncement",
-    );
+    if (DEMO) return;
+    // Students are told only once it's really saved; if it fails, it comes off the screen again.
+    const { error } = await supabase().from("announcements").insert({
+      id,
+      body: input.body,
+      pinned: input.pinned,
+      cohort_id: input.cohortId,
+      created_at: createdAt,
+      dismissed_by: [],
+    });
+    if (error) {
+      this.commit((d) => {
+        d.announcements = d.announcements.filter((a) => a.id !== id);
+      });
+      throw new Error("Couldn't post the announcement. Try again.");
+    }
     // Same cohort scoping the announcement itself uses (null = every cohort),
     // so the notification reaches exactly its readers.
     this.logActivity({

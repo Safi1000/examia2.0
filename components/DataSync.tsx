@@ -10,7 +10,7 @@ import { getStore } from "@/lib/data/store";
  */
 const MIN_INTERVAL_MS = 2 * 60_000;
 /** Students' phones: live updates already bring new tests and results, so re-read less (data, battery). */
-const STUDENT_INTERVAL_MS = 5 * 60_000;
+const STUDENT_INTERVAL_MS = 15 * 60_000;
 
 /**
  * Keeps the in-memory cache honest.
@@ -39,7 +39,9 @@ export function DataSync() {
       const now = Date.now();
       if (now - lastRun.current < gap) return;
       lastRun.current = now;
-      void getStore().refresh();
+      // Everyone comes back from Meet in the same minute: students spread out over 20 s.
+      if (session.role === "student") setTimeout(() => void getStore().refresh(), Math.random() * 20_000);
+      else void getStore().refresh();
     };
 
     window.addEventListener("focus", maybeRefresh);

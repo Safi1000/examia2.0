@@ -245,6 +245,7 @@ export default function ClassesPage() {
                               {phase === "later" && (
                                 <DayActions
                                   slot={s}
+                                  tell={tell}
                                   onCancel={() =>
                                     void changeDay(
                                       s.level,
@@ -261,7 +262,7 @@ export default function ClassesPage() {
                               <LinkField
                                 key={`m-${key}-${link?.meetUrl ?? ""}`}
                                 label="Meet link"
-                                placeholder="Made automatically, or paste your own"
+                                placeholder="Paste the Meet link (made for you if Google is connected)"
                                 initial={link?.meetUrl ?? ""}
                                 disabled={ready === false}
                                 onSave={(v) => store([s], "meetUrl", v)}
@@ -400,7 +401,7 @@ function LinkField({
 }
 
 /** "Cancel this day" / "Change time" for one class on one date. */
-function DayActions({ slot, onCancel, onMove }: { slot: DaySlot; onCancel: () => void; onMove: (start: string, end: string) => void }) {
+function DayActions({ slot, tell, onCancel, onMove }: { slot: DaySlot; tell: boolean; onCancel: () => void; onMove: (start: string, end: string) => void }) {
   const [moving, setMoving] = useState(false);
   const [start, setStart] = useState(slot.start);
   const [end, setEnd] = useState(slot.end);
@@ -423,7 +424,7 @@ function DayActions({ slot, onCancel, onMove }: { slot: DaySlot; onCancel: () =>
       <button type="button" className={`${small} text-ink-3 hover:bg-surface-2 hover:text-ink`} onClick={() => setMoving(true)}>
         Change time
       </button>
-      <button type="button" className={`${small} text-ink-3 hover:bg-surface-2 hover:text-error`} onClick={() => { if (window.confirm(`Cancel ${slot.subject} for this day? Students in it will be told.`)) onCancel(); }}>
+      <button type="button" className={`${small} text-ink-3 hover:bg-surface-2 hover:text-error`} onClick={() => { if (window.confirm(`Cancel ${slot.subject} for this day?${tell ? " Students in it will be told." : " Students won't get a message (the box is unticked)."}`)) onCancel(); }}>
         Cancel class
       </button>
     </span>

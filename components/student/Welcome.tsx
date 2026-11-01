@@ -10,7 +10,7 @@ import { displayName } from "@/lib/display-name";
 import { cn } from "@/lib/cn";
 import { NavIcon } from "@/components/nav/NavIcons";
 import { NotifyStep } from "@/components/student/NotifyStep";
-import { addDays, getSchedule, pkDate, slotsForStudent, span } from "@/lib/timetable";
+import { addDays, getSchedule, pkDate, slotsForStudent, spanHere } from "@/lib/timetable";
 import { useNow } from "@/hooks/useNow";
 import { useBackToClose } from "@/components/student/useBackToClose";
 
@@ -204,7 +204,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
               <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-3">Your classes</p>
               <p className="mt-1.5 text-ink">
                 <span className="font-semibold">{nextDayLabel}:</span> {nextDay.slots.map((sl) => sl.subject).join(", ")},{" "}
-                {span(nextDay.slots[0].start, nextDay.slots[nextDay.slots.length - 1].end)}
+                {spanHere(nextDay.date, nextDay.slots[0].start, nextDay.slots[nextDay.slots.length - 1].end)}
               </p>
             </div>
           )}
