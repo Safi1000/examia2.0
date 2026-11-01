@@ -102,7 +102,7 @@ export function createSeed(now: number = Date.now()): Database {
 
   // ---- Students ----------------------------------------------------------
   const students: Student[] = [
-    { id: "st_amelia", username: "amelia", email: "amelia@meridian.edu", cohortId: "co_autumn", classIds: ["cl_as"], subjectIds: [], tempPassword: "study123", createdAt: iso(-80 * DAY) },
+    { id: "st_amelia", username: "amelia", email: "amelia@meridian.edu", cohortId: "co_autumn", classIds: ["cl_as"], subjectIds: ["sj_acc", "sj_bus", "sj_eco"], tempPassword: "study123", createdAt: iso(-80 * DAY) },
     { id: "st_noah", username: "noah", cohortId: "co_autumn", classIds: [], subjectIds: [], tempPassword: "noah2026", createdAt: iso(-80 * DAY) },
     { id: "st_priya", username: "priya", email: "priya@meridian.edu", cohortId: "co_autumn", classIds: [], subjectIds: [], tempPassword: "priya2026", createdAt: iso(-79 * DAY) },
     { id: "st_liam", username: "liam", cohortId: "co_autumn", classIds: [], subjectIds: [], tempPassword: "liam2026", createdAt: iso(-78 * DAY) },
@@ -413,8 +413,25 @@ export function createSeed(now: number = Date.now()): Database {
       { id: "sj_bus", name: "Business Studies", createdAt: iso(-90 * DAY) },
       { id: "sj_eco", name: "Economics", createdAt: iso(-90 * DAY) },
     ],
-    notes: [],
-    noteAssignments: [],
+    // Preview only: a handful of notes across three subjects, so Notes has something to show.
+    notes: [
+      { id: "nt_1", title: "Depreciation: straight line and reducing balance", fileUrl: "/demo/note.pdf", fileType: "application/pdf", fileName: "depreciation.pdf", createdAt: iso(-1 * DAY) },
+      { id: "nt_2", title: "Bank reconciliation worked example", fileUrl: "/demo/note.pdf", fileType: "application/pdf", fileName: "bank-rec.pdf", createdAt: iso(-6 * DAY) },
+      { id: "nt_3", title: "Ratio analysis formula sheet", fileUrl: "/demo/note.pdf", fileType: "application/pdf", fileName: "ratios.pdf", createdAt: iso(-12 * DAY) },
+      { id: "nt_4", title: "Partnership appropriation account", fileUrl: "/demo/note.pdf", fileType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", fileName: "partnership.pptx", createdAt: iso(-15 * DAY) },
+      { id: "nt_5", title: "Incomplete records practice set", fileUrl: "/demo/note.pdf", fileType: "application/pdf", fileName: "incomplete.pdf", createdAt: iso(-20 * DAY) },
+      { id: "nt_6", title: "Marketing mix: the 4Ps with examples", fileUrl: "/demo/note.pdf", fileType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", fileName: "4ps.docx", createdAt: iso(-2 * DAY) },
+      { id: "nt_7", title: "Break even analysis", fileUrl: "/demo/note.pdf", fileType: "application/pdf", fileName: "break-even.pdf", createdAt: iso(-9 * DAY) },
+      { id: "nt_8", title: "Price elasticity of demand diagrams", fileUrl: "/demo/note.pdf", fileType: "image/png", fileName: "ped.png", createdAt: iso(-3 * DAY) },
+      { id: "nt_9", title: "Market failure summary", fileUrl: "/demo/note.pdf", fileType: "application/pdf", fileName: "market-failure.pdf", createdAt: iso(-18 * DAY) },
+      { id: "nt_10", title: "Blueprint session plan and exam dates", fileUrl: "/demo/note.pdf", fileType: "application/pdf", fileName: "session-plan.pdf", createdAt: iso(-25 * DAY) },
+    ],
+    noteAssignments: [
+      ...["nt_1", "nt_2", "nt_3", "nt_4", "nt_5"].map((noteId, i) => ({ id: `na_a${i}`, noteId, cohortId: "co_autumn", classId: null, subjectId: "sj_acc", createdAt: iso(-DAY) })),
+      ...["nt_6", "nt_7"].map((noteId, i) => ({ id: `na_b${i}`, noteId, cohortId: "co_autumn", classId: null, subjectId: "sj_bus", createdAt: iso(-DAY) })),
+      ...["nt_8", "nt_9"].map((noteId, i) => ({ id: `na_e${i}`, noteId, cohortId: "co_autumn", classId: null, subjectId: "sj_eco", createdAt: iso(-DAY) })),
+      { id: "na_g0", noteId: "nt_10", cohortId: "co_autumn", classId: null, subjectId: null, createdAt: iso(-DAY) },
+    ],
     adminPassword: "admin2026",
   };
 }

@@ -32,6 +32,18 @@ export function welcomeMessage({ username, password }: { username: string; passw
   ].join("\n");
 }
 
+/** Their username changed; the password didn't, so it isn't sent again. */
+export function usernameMessage({ username }: { username: string; password?: string }) {
+  const first = displayName(username).split(" ")[0];
+  return [
+    `Hi ${first}, a quick update on your portal login.`,
+    "",
+    `Your username is now: *${username}*`,
+    "Your password stays the same.",
+    "Sign in: www.hamzateaches.com/login",
+  ].join("\n");
+}
+
 /** Shorter message for a password reset. */
 export function resetMessage({ username, password }: { username: string; password: string }) {
   const first = displayName(username).split(" ")[0];

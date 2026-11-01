@@ -73,7 +73,7 @@ export default function RosterPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // The just-added student's login, for the ready-made welcome message.
-  const [sent, setSent] = useState<{ username: string; password: string; phone?: string; parent?: string } | null>(null);
+  const [sent, setSent] = useState<{ username: string; password: string; phone?: string; parent?: string; kind?: "welcome" | "reset" | "username" } | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [bulk, setBulk] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
@@ -143,7 +143,7 @@ export default function RosterPage() {
   }
   function openEdit(s: Student) {
     setEditing(s);
-    setForm({ username: s.username, email: s.email ?? "", whatsapp: s.whatsapp ?? "", phone: s.phone ?? "", photoUrl: s.photoUrl ?? "", cohortId: s.cohortId, tempPassword: s.tempPassword ?? "", classIds: [...s.classIds], subjectIds: [...s.subjectIds] });
+    setForm({ username: s.username, email: s.email ?? "", whatsapp: s.whatsapp ?? "", phone: s.phone ?? "", photoUrl: s.photoUrl ?? "", cohortId: s.cohortId, tempPassword: "", classIds: [...s.classIds], subjectIds: [...s.subjectIds] });
     setError(null);
   }
   async function save() {
@@ -194,7 +194,10 @@ export default function RosterPage() {
         setSent({ username: fields.username, password: fields.tempPassword, phone: fields.phone, parent: fields.whatsapp });
       } else if (editing) {
         await store.updateStudent(editing.id, fields);
-        toast("Student updated.", "success");
+        // A new password: send it. Only a new username: send just that, the password stays.
+        if (fields.tempPassword) setSent({ username: fields.username, password: fields.tempPassword, phone: fields.phone, parent: fields.whatsapp, kind: "reset" });
+        else if (editing.username !== fields.username) setSent({ username: fields.username, password: "", phone: fields.phone, parent: fields.whatsapp, kind: "username" });
+        else toast("Student updated. Their login hasn't changed.", "success");
       }
       setEditing(null);
     } catch (err) {
@@ -208,7 +211,7 @@ export default function RosterPage() {
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       {bulk && <ImportStudents open onClose={() => setBulk(false)} defaultCohort={cohortId ?? db.cohorts.find((c) => c.active)?.id ?? ""} />}
       {sent && (
-        <LoginDetails open kind="welcome" onClose={() => setSent(null)} username={sent.username} password={sent.password} phone={sent.phone} parent={sent.parent} />
+        <LoginDetails open kind={sent.kind ?? "welcome"} onClose={() => setSent(null)} username={sent.username} password={sent.password} phone={sent.phone} parent={sent.parent} />
       )}
       <PageHeader
         title="Roster"
@@ -487,7 +490,7 @@ export default function RosterPage() {
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-ink-2">
-              {editing === "new" ? "Temporary password" : "Reset password (optional)"}
+              {editing === "new" ? "Temporary password" : "New password (only if they need one)"}
             </label>
             <div className="flex gap-2">
               <Input value={form.tempPassword} onChange={(e) => setForm({ ...form, tempPassword: e.target.value })} className="flex-1" aria-label="Temporary password" />
@@ -496,7 +499,7 @@ export default function RosterPage() {
             <p className="mt-1.5 text-xs text-ink-3">
               {editing === "new"
                 ? "Share this with the student for their first sign-in."
-                : "Leave blank to keep the student's current password."}
+                : "Leave blank and their password stays the same. Changing the username or numbers never changes it."}
             </p>
           </div>
           {error && <p className="rounded-md border border-error/30 bg-error-soft px-3 py-2 text-sm font-medium text-error">{error}</p>}

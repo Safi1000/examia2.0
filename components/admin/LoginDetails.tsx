@@ -5,7 +5,7 @@ import { Button, Modal } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 import { useToast } from "@/components/toast";
 import { waDigits } from "@/lib/phone";
-import { resetMessage, welcomeMessage } from "@/lib/welcome-message";
+import { resetMessage, usernameMessage, welcomeMessage } from "@/lib/welcome-message";
 
 /**
  * "Send login details": the ready-made WhatsApp message with the student's
@@ -23,14 +23,14 @@ export function LoginDetails({
 }: {
   open: boolean;
   onClose: () => void;
-  kind: "welcome" | "reset";
+  kind: "welcome" | "reset" | "username";
   username: string;
   password: string;
   phone?: string;
   parent?: string;
 }) {
   const { toast } = useToast();
-  const initial = (kind === "welcome" ? welcomeMessage : resetMessage)({ username, password });
+  const initial = (kind === "welcome" ? welcomeMessage : kind === "username" ? usernameMessage : resetMessage)({ username, password });
   const [text, setText] = useState(initial);
   const [seen, setSeen] = useState(initial);
   // A new student or password: start from the fresh template.
@@ -44,8 +44,14 @@ export function LoginDetails({
     <Modal
       open={open}
       onClose={onClose}
-      title={kind === "welcome" ? "Send their login details" : "New password"}
-      description={kind === "welcome" ? "Student added. Here's a ready message: edit anything, then send." : "Their old password no longer works. Send them this."}
+      title={kind === "welcome" ? "Send their login details" : kind === "username" ? "Send their new username" : "New password"}
+      description={
+        kind === "welcome"
+          ? "Student added. Here's a ready message: edit anything, then send."
+          : kind === "username"
+            ? "Their password hasn't changed, so this only tells them the new username."
+            : "Their old password no longer works. Send them this."
+      }
       footer={
         <>
           <Button
@@ -70,7 +76,7 @@ export function LoginDetails({
       }
     >
       <p className="mb-3 rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-center font-mono text-lg font-bold tracking-wide text-ink">
-        {username} · {password}
+        {kind === "username" ? username : `${username} · ${password}`}
       </p>
       <textarea
         value={text}
