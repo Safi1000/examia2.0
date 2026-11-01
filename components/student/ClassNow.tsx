@@ -67,7 +67,9 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
           Next class: <span className="font-semibold text-ink">{next.subject}</span>{" "}
           {next.date === today
             ? `at ${clockHere(next.date, next.start)}`
-            : `${new Date(`${next.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}, ${clockHere(next.date, next.start)}`}
+            : next.date === addDays(today, 1)
+              ? `tomorrow at ${clockHere(next.date, next.start)}`
+              : `${new Date(`${next.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Karachi" })}, ${clockHere(next.date, next.start)}`}
         </span>
         <Icon.ChevronRight className="h-4 w-4 text-ink-3" />
       </Link>

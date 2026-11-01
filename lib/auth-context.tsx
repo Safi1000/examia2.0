@@ -177,7 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase().auth.signInWithPassword({ email, password });
       if (error || !data.user) return false;
       if ((data.user.app_metadata as Record<string, unknown>)?.role !== "admin") {
-        await supabase().auth.signOut();
+        await supabase().auth.signOut({ scope: "local" });
         return false;
       }
       await establish(data.user);
@@ -198,7 +198,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await sub.unsubscribe();
         }
       } catch {}
-      await supabase().auth.signOut();
+      // This device only: the same account stays signed in on their other phone or laptop.
+      await supabase().auth.signOut({ scope: "local" });
     })(); // onAuthStateChange clears session + cache
     currentUserId.current = null;
     getStore().reset();

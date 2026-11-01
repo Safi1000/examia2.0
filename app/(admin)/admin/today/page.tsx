@@ -15,7 +15,7 @@ import { useStudentProfiles } from "@/lib/student-profiles";
 import { StartCard } from "@/components/admin/StartCard";
 import { SlippingCard } from "@/components/admin/SlippingCard";
 import { HealthLine } from "@/components/admin/Automations";
-import { liveSlotsOn, pkDate, slotKey, useClassLinks, useSchedule } from "@/lib/classes";
+import { addDays, clock, LEVEL_LABEL, liveSlotsOn, pkDate, slotKey, useClassLinks, useSchedule } from "@/lib/classes";
 import { formatRelative } from "@/lib/time";
 import { createRetest, reachOf, retestQuestions, retestTarget, weakTopics } from "@/lib/retest";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -50,6 +50,21 @@ export default function TodayPage() {
   const { links: classLinks } = useClassLinks(todayPk, todayPk);
   useSchedule(); // re-render when the timetable loads or changes
   const heroClass = liveSlotsOn(db, todayPk).find((s) => nowMs < s.endMs && s.startMs - nowMs < 3 * 3_600_000);
+  // Before the start card shows: when (and which level) the next class is, up to a week ahead.
+  const nextClass = heroClass
+    ? undefined
+    : Array.from({ length: 8 }, (_, i) => liveSlotsOn(db, addDays(todayPk, i)))
+        .flat()
+        .find((s) => s.startMs > nowMs);
+  const nextLabel = nextClass
+    ? `${LEVEL_LABEL[nextClass.level]}, ${
+        nextClass.date === todayPk
+          ? "today"
+          : nextClass.date === addDays(todayPk, 1)
+            ? "tomorrow"
+            : new Date(`${nextClass.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short", timeZone: "Asia/Karachi" })
+      } at ${clock(nextClass.start)}`
+    : null;
   // "Checked" is saved with the reminder log, so it holds on the laptop and
   // the tablet alike (older ticks made on this device still count).
   const [localChecked] = useState<Record<string, number>>(() => {
@@ -185,6 +200,14 @@ export default function TodayPage() {
 
       {/* The class to start, from 3 hours before until it ends. */}
       {heroClass && <StartCard slot={heroClass} url={classLinks.find((l) => slotKey(l) === slotKey(heroClass))?.meetUrl ?? null} nowMs={nowMs} />}
+      {nextLabel && (
+        <Link href="/admin/classes" className="mb-6 flex items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3 text-[15px] text-ink-2 transition-colors hover:border-border-strong">
+          <span>
+            Next class: <span className="font-semibold text-ink">{nextLabel}</span>
+          </span>
+          <span className="text-sm text-ink-3">Classes →</span>
+        </Link>
+      )}
 
       {/* At a glance */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
