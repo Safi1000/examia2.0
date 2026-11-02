@@ -27,6 +27,7 @@ function make(name: string, tracks: Track[], kind: Kind, skill: number, seed: nu
   for (const t of tracks) s.written[`${t.level}-${t.sub}`] = "Profit is sales minus the cost of the goods and the expenses, so 5,000 - 2,500 - 1,000 - 300 = 1,200 profit.";
   s.startedAt = `${day}T10:05:00.000Z`;
   s.finishedAt = `${day}T10:${String(30 + Math.floor(r() * 25)).padStart(2, "0")}:00.000Z`;
+  if (seed === 23 || seed === 53) s.group = "class";
   return { ...payload(s), id: `demo-${seed}`, savedAt: s.finishedAt };
 }
 

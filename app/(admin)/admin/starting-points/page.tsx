@@ -31,6 +31,7 @@ export default function StartingPointsPage() {
   const [confirm, setConfirm] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [track, setTrack] = useState("");
+  const [where, setWhere] = useState<"" | "online" | "class">("");
 
   async function reload() {
     const { rows: list, error } = await loadResults();
@@ -63,13 +64,40 @@ export default function StartingPointsPage() {
     return [...by.values()]
       .filter((g) => !q || nameKey(g.name).includes(nameKey(q)) || nameKey(studentName(g.studentId) ?? "").includes(nameKey(q)))
       .filter((g) => !track || (g.end ?? g.start)?.summary?.tracks.some((t) => t.title === track))
+      .filter((g) => !where || ((g.end ?? g.start)?.group ?? "online") === where)
       .sort((a, b) => a.name.localeCompare(b.name));
     // studentName reads roster, which is in the deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, q, track, roster]);
+  }, [rows, q, track, where, roster]);
+  const anyInClass = (rows ?? []).some((r) => r.group === "class");
 
   const copy = (text: string) => void navigator.clipboard?.writeText(text).then(() => toast("Copied.", "success"));
   const made = groups.filter((g) => (g.end ?? g.start)?.notes?.sentAt).length;
+
+  /** One line per student per subject and level, for a spreadsheet: who, where, readiness and the gaps. */
+  function download() {
+    const head = ["Name", "Taken", "Check", "Date", "Minutes", "Subject and level", "Readiness", "Main gaps", "Habits to work on"];
+    const lines = groups.flatMap((g) =>
+      g.all.flatMap((r) =>
+        (r.summary?.tracks ?? []).map((t) => [
+          r.name,
+          r.group === "class" ? "In class" : "Online",
+          r.kind === "end" ? "End of session" : "Day one",
+          r.savedAt.slice(0, 10),
+          mins(r) ?? "",
+          t.title,
+          t.readyLabel,
+          t.gaps.map((x) => x.skill).join(" / "),
+          (r.summary?.learner ?? []).map((l) => HABIT[l.code] ?? l.answer).join(" / "),
+        ]),
+      ),
+    );
+    const text = "\uFEFF" + [head, ...lines].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: "text/csv" }));
+    a.download = `starting-points-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+  }
 
   async function remove(ids: string[], label: string) {
     setConfirm(null);
@@ -95,6 +123,24 @@ export default function StartingPointsPage() {
           aria-label="Search by name"
           className="h-10 w-full max-w-xs rounded-full border border-border bg-surface px-4 text-sm text-ink outline-none focus:border-brand"
         />
+        {anyInClass &&
+          (
+            [
+              ["", "All students"],
+              ["online", "Online"],
+              ["class", "In class"],
+            ] as const
+          ).map(([k, l]) => (
+            <button
+              key={k || "all-where"}
+              type="button"
+              onClick={() => setWhere(k)}
+              aria-pressed={where === k}
+              className={`h-9 rounded-full px-4 text-sm font-semibold ${where === k ? "bg-ink text-surface" : "border border-border text-ink-2 hover:text-ink"}`}
+            >
+              {l}
+            </button>
+          ))}
         {["", ...tracks].map((t) => (
           <button
             key={t || "all"}
@@ -108,15 +154,22 @@ export default function StartingPointsPage() {
         ))}
       </div>
       {rows && rows.length > 0 && (
-        <p className="mb-4 text-xs text-ink-3">
-          {groups.length} student{groups.length === 1 ? "" : "s"} · reports made for {made} · linked to profiles {groups.filter((g) => g.studentId).length}
-        </p>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-ink-3">
+            {groups.length} student{groups.length === 1 ? "" : "s"} · reports made for {made} · linked to profiles {groups.filter((g) => g.studentId).length}
+          </p>
+          {groups.length > 0 && (
+            <Button size="sm" variant="secondary" onClick={download}>
+              Download spreadsheet
+            </Button>
+          )}
+        </div>
       )}
       {groups.length > 0 && <ClassOverview results={groups.map((g) => g.start).filter((x): x is Row => !!x)} />}
       {rows === null ? (
         <p className="text-sm text-ink-3">Loading…</p>
       ) : groups.length === 0 ? (
-        <Card className="p-6 text-sm text-ink-2">No results yet. They appear here when students finish the check (Settings → Starting Point Check).</Card>
+        <Card className="p-6 text-sm text-ink-2">No results yet. They appear here when students finish the check. Open it and share the links in Settings → Starting Point Check.</Card>
       ) : (
         <Card className="overflow-hidden p-0">
           <ul className="divide-y divide-border">
@@ -132,6 +185,7 @@ export default function StartingPointsPage() {
                       <span className="block font-semibold text-ink">
                         {g.name}
                         {g.studentId && <span className="ml-2 rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-ink-2">@{studentName(g.studentId) ?? "linked"}</span>}
+                        {latest.group === "class" && <span className="ml-2 rounded-full bg-brand/15 px-2 py-0.5 text-xs font-semibold text-brand">In class</span>}
                       </span>
                       <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-3">
                         {latest.summary?.tracks.map((t) => (

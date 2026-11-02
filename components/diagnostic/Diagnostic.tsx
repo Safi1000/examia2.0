@@ -22,6 +22,7 @@ import {
   trackId,
   trackOf,
   trackTitle,
+  type Group,
   type Kind,
   type Screen,
   type Section,
@@ -44,7 +45,7 @@ const btn = `inline-flex min-h-12 items-center justify-center rounded-full bg-go
 const ghost = `inline-flex min-h-12 items-center justify-center rounded-full border border-hairline-strong px-6 text-[16px] font-medium text-body transition-colors dg-hgold hover:text-foreground ${ring}`;
 const card = "rounded-[20px] border border-hairline bg-card";
 
-export function Diagnostic({ open, kind }: { open: boolean; kind: Kind }) {
+export function Diagnostic({ open, kind, group }: { open: boolean; kind: Kind; group?: Group }) {
   const [S, setS] = useState<Saved | null>(null);
 
   useEffect(() => {
@@ -56,6 +57,12 @@ export function Diagnostic({ open, kind }: { open: boolean; kind: Kind }) {
         st = fresh(kind);
         save(st);
         history.replaceState(null, "", window.location.pathname);
+      }
+      // Which link they used (the classroom link, or the online one) is kept with their result.
+      const from = group ?? new URLSearchParams(window.location.search).get("from");
+      if ((from === "class" || from === "online") && st.group !== from) {
+        st = { ...st, group: from };
+        save(st);
       }
       setS(st);
     }, 0);
@@ -73,7 +80,7 @@ export function Diagnostic({ open, kind }: { open: boolean; kind: Kind }) {
       clearTimeout(id);
       window.removeEventListener("hashchange", onHash);
     };
-  }, [kind]);
+  }, [kind, group]);
 
   const set = (next: Saved, top = false) => {
     save(next);

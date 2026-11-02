@@ -15,6 +15,7 @@ import { useStudentProfiles } from "@/lib/student-profiles";
 import { StartCard } from "@/components/admin/StartCard";
 import { SlippingCard } from "@/components/admin/SlippingCard";
 import { HealthLine } from "@/components/admin/Automations";
+import { NotifyCoverage } from "@/components/admin/NotifyCoverage";
 import { addDays, clock, LEVEL_LABEL, liveSlotsOn, pkDate, slotKey, useClassLinks, useSchedule } from "@/lib/classes";
 import { formatRelative } from "@/lib/time";
 import { createRetest, reachOf, retestQuestions, retestTarget, weakTopics } from "@/lib/retest";
@@ -197,6 +198,8 @@ export default function TodayPage() {
 
       {/* Only shows when something needs you: Google, the timer, a missing link or recording. */}
       <HealthLine />
+
+      <NotifyCoverage />
 
       {/* The class to start, from 3 hours before until it ends. */}
       {heroClass && <StartCard slot={heroClass} url={classLinks.find((l) => slotKey(l) === slotKey(heroClass))?.meetUrl ?? null} nowMs={nowMs} />}

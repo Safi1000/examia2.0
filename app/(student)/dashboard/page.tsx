@@ -8,6 +8,7 @@ import { useDatabase } from "@/lib/data/store";
 import { assignmentsForStudent, studentById, submissionFor, testsForStudent } from "@/lib/data/selectors";
 import { AnnouncementsPanel } from "@/components/student/AnnouncementsPanel";
 import { ClassNow } from "@/components/student/ClassNow";
+import { NotifyCard } from "@/components/student/NotifyCard";
 import { TopicChip } from "@/components/student/TopicChip";
 import { Icon } from "@/components/ui";
 import { formatRelative, formatWhen, testWindow } from "@/lib/time";
@@ -114,6 +115,7 @@ export default function DashboardPage() {
       </header>
 
       <ClassNow db={db} student={student} nowMs={nowMs} />
+      <NotifyCard />
 
       {todo.length > 0 && (
         <section className="animate-fade-up space-y-2.5">

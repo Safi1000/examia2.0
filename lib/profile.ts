@@ -34,6 +34,9 @@ export interface Profile {
   notifyClasses?: boolean;
   /** Already asked once about notifications outside the welcome flow. */
   notifyAsked?: boolean;
+  /** When the pop-up ask was last shown, and how many times (it comes back a few times, calmly). */
+  notifyAskedAt?: number;
+  notifyAskCount?: number;
   /** Finished (or skipped) the welcome flow. */
   onboarded?: boolean;
   focus?: FocusStats;

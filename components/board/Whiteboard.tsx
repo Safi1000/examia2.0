@@ -10,6 +10,11 @@ import {
   type Stroke,
   type View,
   boundsOf,
+  getTheme,
+  inkOf,
+  setTheme,
+  THEMES,
+  type ThemeId,
   drawGrid,
   drawImages,
   drawStroke,
@@ -36,7 +41,7 @@ import {
   visibleView,
   zoomAt,
 } from "@/components/board/engine";
-import { connectBoard, viewerRoom, type BoardLink, type BoardMsg } from "@/components/board/sync";
+import { boardDigest, connectBoard, Ledger, viewerRoom, type BoardLink, type BoardMsg } from "@/components/board/sync";
 import { cloudinaryConfigured, uploadImage, uploadPdfPages } from "@/lib/cloudinary";
 
 /**
@@ -56,7 +61,6 @@ import { cloudinaryConfigured, uploadImage, uploadPdfPages } from "@/lib/cloudin
  * Viewer: the same board, live, read-only, following Hamza's screen.
  */
 
-const BG = "#141618";
 const HOLD_MS = 480;
 const HOLD_STILL_PX = 4;
 const MIN_HOLD_PATH_PX = 28;
@@ -154,7 +158,8 @@ function paint(
   onImage: () => void,
   selected?: BoardImage | null,
 ) {
-  ctx.fillStyle = BG;
+  const look = getTheme();
+  ctx.fillStyle = look.bg;
   ctx.fillRect(0, 0, w, h);
   ctx.save();
   ctx.scale(cam.z, cam.z);
@@ -171,18 +176,18 @@ function paint(
   for (const s of extra) if (s) drawStroke(ctx, s);
   if (selected) {
     const px = 1 / cam.z;
-    ctx.strokeStyle = "#FBC159";
+    ctx.strokeStyle = look.accent;
     ctx.lineWidth = 2 * px;
     ctx.setLineDash([6 * px, 5 * px]);
     ctx.strokeRect(selected.x, selected.y, selected.w, selected.h);
     ctx.setLineDash([]);
     // Resize handle, bottom-right.
     const r = (HANDLE_PX / 2) * px;
-    ctx.fillStyle = "#FBC159";
+    ctx.fillStyle = look.accent;
     ctx.beginPath();
     ctx.arc(selected.x + selected.w, selected.y + selected.h, r, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = BG;
+    ctx.fillStyle = look.bg;
     ctx.beginPath();
     ctx.arc(selected.x + selected.w, selected.y + selected.h, r * 0.42, 0, Math.PI * 2);
     ctx.fill();
@@ -285,6 +290,49 @@ function ToolButton({ active, label, onClick, disabled, children }: { active?: b
 
 const Divider = () => <span className="mx-1 h-7 w-px bg-white/10" aria-hidden />;
 
+// ---------------------------------------------------------------- sync helpers
+
+/** Numbers a change before it goes out (see Ledger), and remembers it here too. */
+function stampMsg(ledger: Ledger, m: BoardMsg): BoardMsg {
+  switch (m.t) {
+    case "add": {
+      const q = ledger.stamp();
+      ledger.mark([m.s.id], q);
+      return { ...m, q };
+    }
+    case "del":
+    case "imgdel": {
+      const q = ledger.stamp();
+      ledger.mark(m.ids, q);
+      return { ...m, q };
+    }
+    case "img": {
+      const q = ledger.stamp();
+      ledger.mark([m.m.id], q);
+      return { ...m, q };
+    }
+    case "clear": {
+      const q = ledger.stamp();
+      ledger.reset(q);
+      return { ...m, q };
+    }
+    case "set":
+      return { ...m, q: ledger.stamp() };
+    case "batch":
+      return { t: "batch", ms: m.ms.map((x) => stampMsg(ledger, x)) };
+    default:
+      return m;
+  }
+}
+
+const savedLook = (): ThemeId => {
+  try {
+    return localStorage.getItem("ht-board-look") === "night" ? "night" : "paper";
+  } catch {
+    return "paper";
+  }
+};
+
 // ---------------------------------------------------------------- teacher
 
 /** `lead`: the tablet. The laptop (lead false) is a full board too, but its view follows the tablet. */
@@ -308,6 +356,15 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const [viewers, setViewers] = useState(0);
   // The other device (laptop or tablet) on the private room.
   const [partner, setPartner] = useState(false);
+  // Light (paper) or dark (night) board: shared with the other device and students.
+  const [look, setLookState] = useState<ThemeId>(savedLook);
+  const lookRef = useRef<ThemeId>(look);
+  const setLook = (v: ThemeId) => {
+    lookRef.current = v;
+    setLookState(v);
+  };
+  const [ledger] = useState(() => new Ledger(lead ? 1 : 0));
+  const remoteLiveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [toolsHidden, setToolsHidden] = useState(false);
   // Typing: where the text box sits on screen, and what is in it.
   const [typing, setTyping] = useState<{ x: number; y: number; px: number; color: string } | null>(null);
@@ -373,25 +430,39 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   // Everything goes to the private room (the laptop) and the student link's room.
   // Only the private room is listened to for anything but "send me the board".
   const viewLink = useRef<BoardLink | null>(null);
-  const send = useCallback((m: BoardMsg) => {
-    link.current?.send(m);
-    viewLink.current?.send(m);
-  }, []);
+  const send = useCallback(
+    (m: BoardMsg) => {
+      const out = stampMsg(ledger, m);
+      link.current?.send(out);
+      // Students get finished strokes only (no live preview or pan updates here): a class of
+      // them watching would otherwise be hundreds of messages a second.
+      if (out.t !== "live" && out.t !== "view") viewLink.current?.send(out);
+    },
+    [ledger],
+  );
   const fullBoard = useCallback(
     (): BoardMsg => ({ t: "set", strokes: strokes.current.map(packStroke), images: images.current.filter((m) => !m.url.startsWith("blob:")) }),
     [],
   );
   const sendView = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sendViewStudents = useRef<ReturnType<typeof setTimeout> | null>(null);
   // `screen` is a stable ref from useCanvas; the compiler just can't see that.
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const shareView = useCallback(() => {
-    if (!lead || sendView.current) return;
-    sendView.current = setTimeout(() => {
-      sendView.current = null;
-      const { w, h } = screen.current;
-      if (w && h) send({ t: "view", v: visibleView(cam.current, w, h) });
-    }, 33); // ~30 position updates a second; the laptop glides between them
-  }, [send, screen, lead]);
+    if (!lead) return;
+    if (!sendView.current)
+      sendView.current = setTimeout(() => {
+        sendView.current = null;
+        const { w, h } = screen.current;
+        if (w && h) link.current?.send({ t: "view", v: visibleView(cam.current, w, h) });
+      }, 40); // ~25 position updates a second to the laptop, which glides between them
+    if (!sendViewStudents.current)
+      sendViewStudents.current = setTimeout(() => {
+        sendViewStudents.current = null;
+        const { w, h } = screen.current;
+        if (w && h) viewLink.current?.send({ t: "view", v: visibleView(cam.current, w, h) });
+      }, 250); // students glide too, with far fewer messages
+  }, [screen, lead]);
 
   // ---- the other device: everything it does lands here too
   const gotBoard = useRef(false);
@@ -440,7 +511,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           "teacher",
           (m) => {
             if (m.t !== "hello") return;
-            viewLink.current?.send(fullBoard());
+            // Answer the student who asked, on their own channel.
+            viewLink.current?.send(stampMsg(ledger, fullBoard()));
+            viewLink.current?.send({ t: "theme", v: lookRef.current });
             const { w, h } = screen.current;
             if (w && h) viewLink.current?.send({ t: "view", v: visibleView(cam.current, w, h) });
           },
@@ -450,11 +523,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           },
         )
       : null;
-    // Heartbeat (tablet only): viewers and the laptop compare it with what they have and ask again if behind.
+    // Heartbeat (tablet only): the laptop and students compare it with what they have and fetch the board again if behind.
     const beat = lead
       ? setInterval(() => {
-          send({ t: "rev", n: strokes.current.length + images.current.length, last: strokes.current[strokes.current.length - 1]?.id ?? "" });
-        }, 3000)
+          const shared = images.current.filter((m) => !m.url.startsWith("blob:"));
+          send({ t: "rev", n: strokes.current.length + shared.length, last: strokes.current[strokes.current.length - 1]?.id ?? "", d: boardDigest(strokes.current, shared) });
+        }, 2000)
       : undefined;
     return () => {
       clearTimeout(t);
@@ -463,7 +537,21 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       link.current?.close();
       viewLink.current?.close();
     };
-  }, [room, storeKey, requestDraw, send, screen, fullBoard, lead]);
+  }, [room, storeKey, requestDraw, send, screen, fullBoard, lead, ledger]);
+
+  // The light or dark look: remembered on this device, and shared with the other device and students.
+  useEffect(() => {
+    setTheme(look);
+    requestDraw();
+    try {
+      localStorage.setItem("ht-board-look", look);
+    } catch {}
+  }, [look, requestDraw]);
+  const switchLook = () => {
+    const next: ThemeId = look === "paper" ? "night" : "paper";
+    setLook(next);
+    send({ t: "theme", v: next });
+  };
 
   // Keeps the text box on its words while the board pans or zooms.
   const placeTyping = useCallback(() => {
@@ -541,13 +629,16 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const applyChange = (beforeS: Stroke[], beforeI: BoardImage[]) => {
     const nowS = new Set(strokes.current.map((x) => x.id));
     const oldS = new Set(beforeS.map((x) => x.id));
+    const ms: BoardMsg[] = [];
     const gone = beforeS.filter((x) => !nowS.has(x.id)).map((x) => x.id);
-    if (gone.length) send({ t: "del", ids: gone });
-    for (const x of strokes.current) if (!oldS.has(x.id)) send({ t: "add", s: packStroke(x) });
+    if (gone.length) ms.push({ t: "del", ids: gone });
+    for (const x of strokes.current) if (!oldS.has(x.id)) ms.push({ t: "add", s: packStroke(x) });
     const nowI = new Map(images.current.map((m) => [m.id, m]));
     const goneI = beforeI.filter((m) => !nowI.has(m.id)).map((m) => m.id);
-    if (goneI.length) send({ t: "imgdel", ids: goneI });
-    for (const m of images.current) if (!beforeI.includes(m) && !m.url.startsWith("blob:")) send({ t: "img", m });
+    if (goneI.length) ms.push({ t: "imgdel", ids: goneI });
+    for (const m of images.current) if (!beforeI.includes(m) && !m.url.startsWith("blob:")) ms.push({ t: "img", m });
+    // One message, so the other device applies the whole undo together or not at all.
+    if (ms.length) send({ t: "batch", ms });
     if (selectedRef.current && !nowI.has(selectedRef.current)) select(null);
     persist();
     requestDraw();
@@ -610,16 +701,22 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     requestDraw();
   };
 
-  // Messages from the other device (and "send me the board" from viewers).
+  // Messages from the other device. Every change is checked against the ledger first, so one that
+  // arrives late, twice or out of order can never undo something newer.
   useEffect(() => {
     onRemote.current = (m: BoardMsg) => {
       switch (m.t) {
         case "hello": {
-          send(fullBoard());
+          // The other device asked for the board: answer it on this channel only.
+          link.current?.send(stampMsg(ledger, fullBoard()));
+          link.current?.send({ t: "theme", v: lookRef.current });
           const { w, h } = screen.current;
-          if (lead && w && h) send({ t: "view", v: visibleView(cam.current, w, h) });
+          if (lead && w && h) link.current?.send({ t: "view", v: visibleView(cam.current, w, h) });
           return;
         }
+        case "theme":
+          setLook(m.v);
+          return;
         case "view":
           // Only the laptop follows; a tablet pan always brings the laptop back to it.
           if (!lead) {
@@ -629,10 +726,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           return;
         case "rev": {
           if (lead) return;
-          const n = strokes.current.length + images.current.length;
-          const last = strokes.current[strokes.current.length - 1]?.id ?? "";
+          const shared = images.current.filter((x) => !x.url.startsWith("blob:"));
+          const same =
+            m.d !== undefined
+              ? boardDigest(strokes.current, shared) === m.d
+              : strokes.current.length + shared.length === m.n && (strokes.current[strokes.current.length - 1]?.id ?? "") === m.last;
           // Behind twice in a row (not just a stroke in flight): take the tablet's board.
-          revMiss.current = n !== m.n || last !== m.last ? revMiss.current + 1 : 0;
+          revMiss.current = same ? 0 : revMiss.current + 1;
           if (revMiss.current >= 2) {
             revMiss.current = 0;
             resync.current = "rev";
@@ -640,56 +740,80 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           }
           return;
         }
-        case "live":
+        case "live": {
+          if (ledger.known(m.s.id)) return; // the final stroke already came: this preview is stale
           remoteLive.current = m.s;
+          if (remoteLiveTimer.current) clearTimeout(remoteLiveTimer.current);
+          // A preview that stops coming (pen lifted, message lost) never stays on screen.
+          remoteLiveTimer.current = setTimeout(() => {
+            remoteLive.current = null;
+            requestDraw();
+          }, 2500);
           requestDraw();
           return;
+        }
         case "add":
+          if (!ledger.fresh(m.s.id, m.q)) return;
           strokes.current = [...strokes.current.filter((x) => x.id !== m.s.id), m.s];
           if (remoteLive.current?.id === m.s.id) remoteLive.current = null;
           break;
         case "del": {
-          const ids = new Set(m.ids);
+          const ids = new Set(m.ids.filter((id) => ledger.fresh(id, m.q)));
+          if (!ids.size) return;
           strokes.current = strokes.current.filter((x) => !ids.has(x.id));
           if (remoteLive.current && ids.has(remoteLive.current.id)) remoteLive.current = null;
           break;
         }
         case "img":
+          if (!ledger.fresh(m.m.id, m.q)) return;
           images.current = [...images.current.filter((x) => x.id !== m.m.id), m.m];
           break;
         case "imgdel": {
-          const ids = new Set(m.ids);
+          const ids = new Set(m.ids.filter((id) => ledger.fresh(id, m.q)));
+          if (!ids.size) return;
           images.current = images.current.filter((x) => !ids.has(x.id));
           if (selectedRef.current && ids.has(selectedRef.current)) select(null);
           break;
         }
         case "clear":
+          if (m.q !== undefined) {
+            if (!ledger.fresh("*clear", m.q)) return;
+            ledger.reset(m.q);
+          }
           strokes.current = [];
           images.current = [];
           remoteLive.current = null;
           select(null);
           break;
         case "set": {
+          ledger.hear(m.q);
+          const first = !gotBoard.current;
           gotBoard.current = true;
           const theirs = m.strokes;
           const theirImgs = m.images ?? [];
-          if (resync.current === "rev") {
+          if (!first || resync.current === "rev") {
+            // Catching up after being away or behind: the other device's board is the truth.
             resync.current = "join";
             strokes.current = theirs;
             images.current = theirImgs;
+            remoteLive.current = null;
+            if (m.q !== undefined) ledger.reset(m.q);
+            if (selectedRef.current && !theirImgs.some((x) => x.id === selectedRef.current)) select(null);
             break;
           }
-          // Joining: keep both devices' work, and send back what the other one hasn't got.
+          // First meeting: keep both devices' work, and send back what the other one hasn't got.
           const hasS = new Set(theirs.map((x) => x.id));
           const hasI = new Set(theirImgs.map((x) => x.id));
           const mineS = strokes.current.filter((x) => !hasS.has(x.id));
           const mineI = images.current.filter((x) => !hasI.has(x.id) && !x.url.startsWith("blob:"));
           strokes.current = [...theirs, ...mineS];
           images.current = [...theirImgs, ...mineI];
-          for (const x of mineS) link.current?.send({ t: "add", s: packStroke(x) });
-          for (const x of mineI) link.current?.send({ t: "img", m: x });
+          for (const x of mineS) send({ t: "add", s: packStroke(x) });
+          for (const x of mineI) send({ t: "img", m: x });
           break;
         }
+        case "batch":
+          return; // unpacked before it gets here
       }
       persist();
       requestDraw();
@@ -852,7 +976,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
 
   const sendLive = () => {
     const now = performance.now();
-    if (current.current && now - liveSend.current > 30) {
+    if (current.current && now - liveSend.current > 50) {
       liveSend.current = now;
       send({ t: "live", s: packStroke(current.current) });
     }
@@ -936,11 +1060,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const switchToErase = (id: number, sx: number, sy: number) => {
     clearHold();
     setAngle(null);
+    // The half-drawn stroke is dropped: take its preview off the other screen too.
+    const dropped = current.current?.id;
     current.current = null;
+    if (dropped) send({ t: "del", ids: [dropped] });
     gesture.current = { mode: "erase", id, erased: [], straightened: false };
     setEraserAt({ x: sx, y: sy });
     eraseAt(sx, sy);
-    send(fullBoard());
   };
 
   /** Pick up a picture under (sx, sy): its gold dot resizes, the rest moves it. */
@@ -1171,7 +1297,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
    * one; a long, clearly straight line straightens. Undo brings the hand
    * version back. Small strokes (writing) are never touched.
    */
-  const recognise = (s: Stroke) => {
+  const recognise = (s: Stroke): boolean => {
     const z = cam.current.z;
     const now = Date.now();
     // Only the stroke drawn just before, a few seconds ago, can pair up into a T.
@@ -1191,9 +1317,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         syncMeta();
       } else commit({ type: "replace", before, after: [after] });
       recentLines.current = recentLines.current.filter((l) => !before.some((b) => b.id === l.id));
-      // Small messages, not the whole board, so the laptop keeps up on a full board.
-      send({ t: "del", ids: before.map((b) => b.id) });
-      send({ t: "add", s: packStroke(after) });
+      // One message: the old ones go and the new one appears together (the stroke just drawn was never sent).
+      const old = before.filter((b) => b.id !== s.id).map((b) => b.id);
+      send({ t: "batch", ms: [...(old.length ? [{ t: "del" as const, ids: old }] : []), { t: "add" as const, s: packStroke(after) }] });
       requestDraw();
       try {
         navigator.vibrate?.(10);
@@ -1210,12 +1336,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         // T account size only, so a capital T in a heading stays handwriting.
         if (!t || !other || (t.b[0] - t.a[0]) * z < 150 || (t.b[1] - t.a[1]) * z < 90) continue;
         swap([other, s], { id: newId(), kind: "form", form: "t", color: other.color, size: Math.max(other.size, s.size), pts: [t.a, t.b] }, "T account");
-        return;
+        return true;
       }
       recentLines.current.push({ id: s.id, ends, dir, at: now });
     }
 
-    if (s.kind !== "ink") return;
+    if (s.kind !== "ink") return false;
     const big = (() => {
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
       for (const p of s.pts) {
@@ -1238,7 +1364,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       }) && !images.current.some((m) => m.x < sh.b[0] && m.x + m.w > sh.a[0] && m.y < sh.b[1] && m.y + m.h > sh.a[1]);
     if (shape && empty(shape)) {
       swap([s], { id: newId(), kind: shape.kind, color: s.color, size: s.size, pts: [shape.a, shape.b] });
-      return;
+      return true;
     }
     // Long and clearly straight: tidy it into a ruled line (underlines, totals), at its own angle.
     const tidy = straightOf(s.pts, 0.03);
@@ -1247,7 +1373,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       swap([s], line);
       // Still counts towards a T, under its new id.
       if (dir) recentLines.current.push({ id: line.id, ends: [line.pts[0], line.pts[1]], dir, at: now });
+      return true;
     }
+    return false;
   };
 
   const endGesture = (e: React.PointerEvent<HTMLCanvasElement>, cancelled = false) => {
@@ -1317,10 +1445,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       if (!cancelled && !tooShort) {
         strokes.current = [...strokes.current, s];
         commit({ type: "add", s });
-        send({ t: "add", s: packStroke(s) });
-        recognise(s);
+        // A stroke that gets tidied (a ruled line, a T account) is sent once, as the tidy version.
+        if (!recognise(s)) send({ t: "add", s: packStroke(s) });
       } else {
-        send(fullBoard());
+        send({ t: "del", ids: [s.id] }); // the preview on the other screen goes
       }
     }
     gesture.current = { mode: null, id: -1, erased: [], straightened: false };
@@ -1409,7 +1537,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const hasContent = meta.content > 0;
 
   return (
-    <div data-board className="fixed inset-0 select-none overflow-hidden bg-[#141618] text-[#f0ede8] [-webkit-touch-callout:none]" style={{ fontFamily: "var(--font-sans)" }}>
+    <div data-board className="fixed inset-0 select-none overflow-hidden text-[#f0ede8] [-webkit-touch-callout:none]" style={{ fontFamily: "var(--font-sans)", background: THEMES[look].bg }}>
       <canvas
         ref={canvasRef}
         className="absolute inset-0 h-full w-full touch-none"
@@ -1450,12 +1578,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             commitTyping();
           }
         }}
-        className={`absolute resize-none overflow-hidden whitespace-pre border-0 bg-transparent p-0 font-medium leading-[1.25] caret-[#FBC159] outline-none [field-sizing:content] ${
+        className={`absolute resize-none overflow-hidden whitespace-pre border-0 bg-transparent p-0 font-medium leading-[1.25] outline-none [field-sizing:content] ${
           typing ? "rounded-sm ring-1 ring-[#FBC159]/45 ring-offset-4 ring-offset-transparent" : "pointer-events-none opacity-0"
         }`}
         style={
           typing
-            ? { left: typing.x, top: typing.y, fontSize: typing.px, color: typing.color, minWidth: Math.max(40, typing.px * 3) }
+            ? { left: typing.x, top: typing.y, fontSize: typing.px, color: inkOf(typing.color), caretColor: inkOf(typing.color), minWidth: Math.max(40, typing.px * 3) }
             : { left: -9999, top: 0, width: 1, height: 1 }
         }
       />
@@ -1464,8 +1592,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       {eraserAt && (
         <span
           aria-hidden
-          className="pointer-events-none absolute rounded-full border border-white/70 bg-white/5"
-          style={{ left: eraserAt.x - ERASER_PX, top: eraserAt.y - ERASER_PX, width: ERASER_PX * 2, height: ERASER_PX * 2 }}
+          className="pointer-events-none absolute rounded-full border"
+          style={{ left: eraserAt.x - ERASER_PX, top: eraserAt.y - ERASER_PX, width: ERASER_PX * 2, height: ERASER_PX * 2, borderColor: THEMES[look].ring.border, background: THEMES[look].ring.fill }}
         />
       )}
 
@@ -1483,7 +1611,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       {/* Tools hidden (clean screen for sharing): a quiet mark and a way back. */}
       {toolsHidden && (
         <>
-          <span style={{ fontFamily: "var(--font-caveat)" }} className="pointer-events-none absolute bottom-4 right-5 text-lg text-[#FBC159]/60">
+          <span style={{ fontFamily: "var(--font-caveat)" }} className={`pointer-events-none absolute bottom-4 right-5 text-lg ${look === "paper" ? "text-[#0F63A8]/70" : "text-[#FBC159]/60"}`}>
             hamzateaches
           </span>
           <button
@@ -1547,6 +1675,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         >
           {fingerDraws ? "Finger draws" : "Pen only"}
         </button>
+        <button
+          type="button"
+          onClick={switchLook}
+          className="h-9 rounded-xl px-3 text-xs font-semibold text-[#b9bec3] transition-colors hover:bg-white/[0.06] hover:text-[#f0ede8]"
+          title="Switch between a light board (easiest to see on a TV) and a dark one. It changes on your laptop and the students' screens too."
+        >
+          {look === "paper" ? "Light board" : "Dark board"}
+        </button>
         <span className="w-12 text-center text-xs font-semibold tabular-nums text-[#80868c]">{zoom}%</span>
         <ToolButton label="Fit the whole board" onClick={fit}>{I.fit}</ToolButton>
         <ToolButton label="Hide the tools for a clean shared screen (H)" onClick={() => setToolsHidden(true)}>{I.hide}</ToolButton>
@@ -1578,7 +1714,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           <button
             key={c.value}
             type="button"
-            aria-label={c.name}
+            aria-label={look === "paper" && c.value === COLORS[0].value ? "Ink" : c.name}
             aria-pressed={color === c.value}
             onClick={() => {
               setColor(c.value);
@@ -1588,7 +1724,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           >
             <span
               className={`block rounded-full transition-all duration-200 ${color === c.value ? "h-6 w-6 ring-2 ring-[#FBC159] ring-offset-2 ring-offset-[#1c1f22]" : "h-5 w-5 opacity-80 hover:opacity-100"}`}
-              style={{ background: c.value }}
+              style={{ background: inkOf(c.value), boxShadow: look === "paper" ? "inset 0 0 0 1px rgba(255,255,255,0.18)" : undefined }}
             />
           </button>
         ))}
@@ -1663,10 +1799,17 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
   const followRef = useRef(true);
   const [teacherHere, setTeacherHere] = useState(false);
   const [got, setGot] = useState(false);
+  const [look, setLook] = useState<ThemeId>("paper");
+  const [ledger] = useState(() => new Ledger(0));
 
   const { canvasRef, size: screen, requestDraw } = useCanvas((ctx, w, h, again) =>
     paint(ctx, w, h, cam.current, images.current, strokes.current, [live.current], again),
   );
+  // Same light or dark board as the teacher's.
+  useEffect(() => {
+    setTheme(look);
+    requestDraw();
+  }, [look, requestDraw]);
 
   // Following the tablet: each position update sets a target, and the camera
   // glides to it at screen speed (60 fps), so panning and zooming look smooth
@@ -1713,44 +1856,65 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
 
   useEffect(() => {
     const linkRef: { l: BoardLink | null } = { l: null };
+    let behind = 0;
     const l = connectBoard(
       room,
       "viewer",
       (m) => {
         if (m.t === "set") {
+          ledger.hear(m.q);
           strokes.current = m.strokes;
           images.current = m.images ?? [];
           live.current = null;
+          if (m.q !== undefined) ledger.reset(m.q);
           setGot(true);
         } else if (m.t === "add") {
+          if (!ledger.fresh(m.s.id, m.q)) return;
           strokes.current = [...strokes.current.filter((s) => s.id !== m.s.id), m.s];
           if (live.current?.id === m.s.id) live.current = null;
           setGot(true);
         } else if (m.t === "del") {
-          const ids = new Set(m.ids);
+          const ids = new Set(m.ids.filter((id) => ledger.fresh(id, m.q)));
+          if (!ids.size) return;
           strokes.current = strokes.current.filter((s) => !ids.has(s.id));
           if (live.current && ids.has(live.current.id)) live.current = null;
         } else if (m.t === "clear") {
+          if (m.q !== undefined) {
+            if (!ledger.fresh("*clear", m.q)) return;
+            ledger.reset(m.q);
+          }
           strokes.current = [];
           images.current = [];
           live.current = null;
         } else if (m.t === "live") {
+          if (ledger.known(m.s.id)) return;
           live.current = m.s;
           setGot(true);
         } else if (m.t === "img") {
+          if (!ledger.fresh(m.m.id, m.q)) return;
           images.current = [...images.current.filter((x) => x.id !== m.m.id), m.m];
           setGot(true);
         } else if (m.t === "imgdel") {
-          const ids = new Set(m.ids);
+          const ids = new Set(m.ids.filter((id) => ledger.fresh(id, m.q)));
+          if (!ids.size) return;
           images.current = images.current.filter((x) => !ids.has(x.id));
+        } else if (m.t === "theme") {
+          setLook(m.v);
         } else if (m.t === "view") {
           teacherView.current = m.v;
           if (followRef.current) followFn.current();
         } else if (m.t === "rev") {
-          // Self-check: if anything was missed, fetch the whole board again.
-          const n = strokes.current.length + images.current.length;
-          const last = strokes.current[strokes.current.length - 1]?.id ?? "";
-          if (n !== m.n || last !== m.last) linkRef.l?.send({ t: "hello" });
+          // Self-check: behind twice in a row (not just a stroke in flight)? Fetch the whole board again.
+          const shared = images.current.filter((x) => !x.url.startsWith("blob:"));
+          const same =
+            m.d !== undefined
+              ? boardDigest(strokes.current, shared) === m.d
+              : strokes.current.length + shared.length === m.n && (strokes.current[strokes.current.length - 1]?.id ?? "") === m.last;
+          behind = same ? 0 : behind + 1;
+          if (behind >= 2) {
+            behind = 0;
+            linkRef.l?.send({ t: "hello" });
+          }
           return;
         }
         requestDraw();
@@ -1759,7 +1923,7 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
     );
     linkRef.l = l;
     return () => l.close();
-  }, [room, requestDraw]);
+  }, [room, requestDraw, ledger]);
 
   // The laptop window changes size (going full screen to share): re-fit at once.
   useEffect(() => {
@@ -1781,7 +1945,7 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
   };
 
   return (
-    <div className="fixed inset-0 select-none overflow-hidden bg-[#141618] text-[#f0ede8]">
+    <div className="fixed inset-0 select-none overflow-hidden text-[#f0ede8]" style={{ background: THEMES[look].bg }}>
       <canvas
         ref={canvasRef}
         className="absolute inset-0 h-full w-full touch-none"

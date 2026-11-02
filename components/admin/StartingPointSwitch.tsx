@@ -8,6 +8,41 @@ import { DEMO } from "@/lib/demo";
 import type { Kind } from "@/lib/diagnostic/logic";
 import { supabase } from "@/lib/supabase";
 
+const SITE = "https://www.hamzateaches.com";
+const LINKS = [
+  {
+    label: "Online students",
+    note: "For students who join my classes online.",
+    url: `${SITE}/check`,
+    message: "Hi, please take my Starting Point Check before we begin. It helps me start your classes at exactly the right place.",
+  },
+  {
+    label: "Students in the classroom",
+    note: "For students sitting in the room. Put the code on the TV and they scan it with their phones.",
+    url: `${SITE}/check/class`,
+    message: "Hi, please take my Starting Point Check now. It helps me start your classes at exactly the right place.",
+  },
+];
+
+/** A big code and link for the TV or projector, so a room can scan and start. */
+function TvCode({ label, url, onClose }: { label: string; url: string; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const img = `https://api.qrserver.com/v1/create-qr-code/?size=700x700&margin=0&data=${encodeURIComponent(url)}`;
+  return (
+    <div role="dialog" aria-label="Starting Point Check code" className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-white p-6 text-center" onClick={onClose}>
+      <p className="text-2xl font-bold text-[#1b1e21] sm:text-4xl">Scan to start the Starting Point Check</p>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={img} alt={`Code for ${url}`} className="aspect-square w-[min(70vh,80vw)] max-w-[640px] rounded-2xl border border-black/10 p-4" />
+      <p className="text-xl font-semibold text-[#1b1e21] sm:text-3xl">{url.replace("https://", "")}</p>
+      <p className="text-sm text-[#5b6168]">{label}. Tap anywhere or press Escape to close.</p>
+    </div>
+  );
+}
+
 /**
  * Settings: open the Starting Point Check for the first class, close it
  * after, and switch it to the end of session check when the session ends.
@@ -16,7 +51,7 @@ export function StartingPointSwitch() {
   const { toast } = useToast();
   const [st, setSt] = useState<{ open: boolean; kind: Kind } | null>(DEMO ? { open: false, kind: "start" } : null);
   const [busy, setBusy] = useState(false);
-  const link = "https://www.hamzateaches.com/starting-point";
+  const [tv, setTv] = useState<{ label: string; url: string } | null>(null);
 
   useEffect(() => {
     if (DEMO) return;
@@ -102,13 +137,36 @@ export function StartingPointSwitch() {
             {st?.open ? "Close it" : "Open it"}
           </Button>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <code className="rounded-md bg-surface-2 px-2.5 py-1.5 text-xs text-ink-2">{link}</code>
-          <Button size="sm" variant="ghost" onClick={() => void navigator.clipboard?.writeText(link).then(() => toast("Link copied.", "success"))}>
-            Copy link
-          </Button>
+        <div className="space-y-3 border-t border-border pt-4">
+          <p className="text-sm font-semibold text-ink">Links to share</p>
+          {LINKS.map((l) => (
+            <div key={l.url} className="rounded-xl border border-border bg-surface-2/40 p-3">
+              <p className="text-sm font-semibold text-ink">{l.label}</p>
+              <p className="mt-0.5 text-xs text-ink-3">{l.note}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <code className="rounded-md bg-surface-2 px-2.5 py-1.5 text-xs text-ink-2">{l.url.replace("https://", "")}</code>
+                <Button size="sm" variant="ghost" onClick={() => void navigator.clipboard?.writeText(l.url).then(() => toast("Link copied.", "success"))}>
+                  Copy link
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => void navigator.clipboard?.writeText(`${l.message}\n${l.url}`).then(() => toast("Message copied. Paste it into WhatsApp.", "success"))}
+                >
+                  Copy message
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => setTv({ label: l.label, url: l.url })}>
+                  Show on TV
+                </Button>
+              </div>
+            </div>
+          ))}
+          <p className="text-xs text-ink-3">
+            Both open the same check. Results from the classroom link are marked &ldquo;In class&rdquo;, so you can look at them apart from the online students.
+          </p>
         </div>
       </CardBody>
+      {tv && <TvCode label={tv.label} url={tv.url} onClose={() => setTv(null)} />}
     </Card>
   );
 }

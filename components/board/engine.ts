@@ -44,10 +44,50 @@ export const COLORS = [
 ];
 
 export const SIZES = [
-  { name: "Fine", value: 2.2 },
-  { name: "Medium", value: 3.6 },
-  { name: "Bold", value: 6 },
+  { name: "Fine", value: 2.6 },
+  { name: "Medium", value: 4.2 },
+  { name: "Bold", value: 7 },
 ];
+
+// ---------------------------------------------------------------- look (paper or night)
+
+export type ThemeId = "paper" | "night";
+interface Theme {
+  /** Board background. */
+  bg: string;
+  /** Grid dots. */
+  dots: string;
+  /** What each saved ink colour is drawn as: strokes keep their original colour, so the
+   * same board reads on both looks (white writing becomes charcoal on paper). */
+  ink: Record<string, string>;
+  /** Selection outline and handle. */
+  accent: string;
+  /** Eraser ring (CSS colours). */
+  ring: { border: string; fill: string };
+}
+export const THEMES: Record<ThemeId, Theme> = {
+  paper: {
+    bg: "#F6F3EB",
+    dots: "rgba(28,32,35,0.16)",
+    ink: { "#F3F1EC": "#1A1D20", "#FBC159": "#B26A00", "#8FD0F5": "#0F63A8" },
+    accent: "#0F63A8",
+    ring: { border: "rgba(20,22,24,0.55)", fill: "rgba(20,22,24,0.05)" },
+  },
+  night: {
+    bg: "#141618",
+    dots: "rgba(240,237,232,0.09)",
+    ink: {},
+    accent: "#FBC159",
+    ring: { border: "rgba(255,255,255,0.7)", fill: "rgba(255,255,255,0.05)" },
+  },
+};
+let themeId: ThemeId = "paper";
+export const getTheme = () => THEMES[themeId];
+export function setTheme(id: ThemeId) {
+  themeId = id;
+}
+/** The colour a stroke is drawn in on the current look. */
+export const inkOf = (c: string) => THEMES[themeId].ink[c] ?? c;
 
 export const MIN_Z = 0.2;
 export const MAX_Z = 6;
@@ -240,8 +280,9 @@ export function boundsOf(strokes: Stroke[]): View | null {
 
 /** Draw one stroke onto a context already transformed to world space. */
 export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
-  ctx.strokeStyle = s.color;
-  ctx.fillStyle = s.color;
+  const ink = inkOf(s.color);
+  ctx.strokeStyle = ink;
+  ctx.fillStyle = ink;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   const pts = s.pts;
@@ -511,7 +552,7 @@ export function drawGrid(ctx: CanvasRenderingContext2D, cam: Camera, w: number, 
   const x1 = cam.x + w / cam.z;
   const y1 = cam.y + h / cam.z;
   const r = Math.max(0.6, 1.1 / cam.z);
-  ctx.fillStyle = "rgba(240,237,232,0.09)";
+  ctx.fillStyle = THEMES[themeId].dots;
   for (let x = x0; x <= x1; x += step)
     for (let y = y0; y <= y1; y += step) {
       ctx.beginPath();
@@ -605,6 +646,12 @@ export function drawImages(ctx: CanvasRenderingContext2D, imgs: BoardImage[], on
     ctx.fillRect(m.x, m.y, m.w, m.h);
     ctx.globalAlpha = 1;
     if (el) ctx.drawImage(el, m.x, m.y, m.w, m.h);
+    // On the light board a page needs an edge to stand off the paper.
+    if (themeId === "paper") {
+      ctx.strokeStyle = "rgba(20,22,24,0.22)";
+      ctx.lineWidth = 1.2;
+      ctx.strokeRect(m.x, m.y, m.w, m.h);
+    }
   }
 }
 

@@ -62,7 +62,11 @@ export interface State {
   written: Record<string, string>;
   startedAt: string | null;
   finishedAt: string | null;
+  /** Which link they came from: the online link, or the one for students in the classroom. */
+  group?: Group;
 }
+
+export type Group = "online" | "class";
 
 export const STORE_KEY = "bp-diagnostic-v3";
 export const fresh = (kind: Kind = "start"): State => ({ step: "welcome", kind, name: "", tracks: [], pos: 0, profile: {}, ans: {}, written: {}, startedAt: null, finishedAt: null });
@@ -260,6 +264,7 @@ export function payload(s: State) {
     summary: results(s),
     startedAt: s.startedAt,
     finishedAt: s.finishedAt,
+    group: s.group === "class" ? ("class" as const) : ("online" as const),
   };
 }
 export type ResultPayload = ReturnType<typeof payload>;
