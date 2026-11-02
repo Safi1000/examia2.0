@@ -18,8 +18,9 @@ export type BoardMsg =
   | { t: "set"; strokes: Stroke[]; images?: BoardImage[] } // full board (join, undo, redo, clear)
   | { t: "img"; m: BoardImage } // picture added, moved or resized
   | { t: "imgdel"; ids: string[] }
+  | { t: "clear" } // everything off the board
   | { t: "view"; v: View } // what Hamza's screen shows, for "follow"
-  | { t: "hello" } // a viewer asking for the full board
+  | { t: "hello" } // a viewer (or the other device joining) asking for the full board
   | { t: "rev"; n: number; last: string }; // teacher's heartbeat: item count + newest stroke, so viewers can self-check
 
 /**
@@ -48,7 +49,10 @@ export function connectBoard(
   room: string,
   role: "teacher" | "viewer",
   onMsg: (m: BoardMsg) => void,
-  onPeople?: (viewers: number, teacherHere: boolean) => void,
+  /** viewers watching, and how many OTHER teacher devices (tablet or laptop) are here. */
+  onPeople?: (viewers: number, teachers: number) => void,
+  /** Ask for the full board on joining and on waking (viewers always do; the laptop editor too). */
+  askOnJoin = role === "viewer",
 ): BoardLink {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -56,8 +60,17 @@ export function connectBoard(
   if (!url || !key) {
     const bc = new BroadcastChannel(`ht-board-${room}`);
     bc.onmessage = (e) => onMsg(e.data as BoardMsg);
-    onPeople?.(0, role === "viewer");
-    return { send: (m) => bc.postMessage(m), close: () => bc.close() };
+    onPeople?.(0, role === "viewer" ? 1 : 0);
+    let open = true;
+    const post = (m: BoardMsg) => open && bc.postMessage(m);
+    if (askOnJoin) setTimeout(() => post({ t: "hello" }), 0);
+    return {
+      send: post,
+      close: () => {
+        open = false;
+        bc.close();
+      },
+    };
   }
 
   const sb = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
@@ -75,12 +88,15 @@ export function connectBoard(
     c.on("broadcast", { event: "m" }, ({ payload }) => onMsg(payload as BoardMsg));
     c.on("presence", { event: "sync" }, () => {
       const keys = Object.keys(c.presenceState());
-      onPeople?.(keys.filter((k) => k.startsWith("viewer")).length, keys.some((k) => k.startsWith("teacher")));
+      onPeople?.(
+        keys.filter((k) => k.startsWith("viewer")).length,
+        keys.filter((k) => k.startsWith("teacher") && k !== presenceKey).length,
+      );
     });
     c.subscribe((status) => {
       if (status === "SUBSCRIBED") {
         void c.track({ role });
-        if (role === "viewer") void c.send({ type: "broadcast", event: "m", payload: { t: "hello" } });
+        if (askOnJoin) void c.send({ type: "broadcast", event: "m", payload: { t: "hello" } });
       } else if ((status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") && !closed) {
         if (retry) return;
         retry = setTimeout(() => {
@@ -95,7 +111,7 @@ export function connectBoard(
 
   // Coming back to the tab (laptop woke up): make sure we're still in sync.
   const onVisible = () => {
-    if (document.visibilityState === "visible" && role === "viewer") ch?.send({ type: "broadcast", event: "m", payload: { t: "hello" } });
+    if (document.visibilityState === "visible" && askOnJoin) ch?.send({ type: "broadcast", event: "m", payload: { t: "hello" } });
   };
   document.addEventListener("visibilitychange", onVisible);
 

@@ -4,30 +4,30 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { Card } from "@/components/ui";
 
 /**
- * Whiteboard for class: draw on the tablet, share the laptop. The laptop view
- * follows every pan, zoom and stroke from the tablet live, so the tablet never
- * has to join Meet (saves its battery and Wi-Fi).
+ * Whiteboard for class: one board on two devices. Draw, type and add pictures
+ * on either; the laptop (shared in Meet) follows the tablet's pan and zoom, so
+ * the tablet never has to join Meet (saves its battery and Wi-Fi).
  */
 export default function WhiteboardPage() {
   const steps = [
     {
       n: "1",
       title: "On your tablet",
-      body: "Open the board and draw. Pan and zoom with two fingers; the S Pen draws.",
+      body: "Open the board and draw. The S Pen writes, fingers pan and zoom. Where the tablet looks, the laptop looks.",
       href: "/teach/board",
       cta: "Open the board",
     },
     {
       n: "2",
       title: "On your laptop",
-      body: "Open the screen sharing view, then in Meet choose Present → A tab (or window) → this one. It follows the tablet by itself.",
+      body: "Open the laptop board, then in Meet choose Present → A tab (or window) → this one. Draw, type and add pictures here too.",
       href: "/teach/present",
-      cta: "Open screen sharing view",
+      cta: "Open the laptop board",
     },
   ];
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-      <PageHeader title="Whiteboard" subtitle="Draw on the tablet. Share the laptop. Students see every stroke, pan and zoom live." />
+      <PageHeader title="Whiteboard" subtitle="One board on your tablet and laptop. Write on either, share the laptop. Students see it all live." />
       <div className="grid gap-4 sm:grid-cols-2">
         {steps.map((s) => (
           <Card key={s.n} className="flex flex-col p-5">
@@ -49,6 +49,8 @@ export default function WhiteboardPage() {
         <li>Both devices pair on their own because they&apos;re both signed in as you. Nothing to copy.</li>
         <li>Open the board on the tablet from this page (or bookmark it to the home screen for one tap).</li>
         <li>If the laptop was opened late, it catches up with everything already drawn within a second or two.</li>
+        <li>Typing: pick the T tool, tap or click where the words go, and press Enter to finish. Tap the words again to edit them.</li>
+        <li>For a clean shared screen, hide the tools (the eye button, or H on the laptop). &ldquo;Show tools&rdquo; brings them back.</li>
         <li>These pages never sign you out mid-class.</li>
       </ul>
     </div>

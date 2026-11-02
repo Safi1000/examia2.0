@@ -11,14 +11,16 @@ export type Pt = [number, number, number];
 
 export interface Stroke {
   id: string;
-  /** rect, ellipse and form keep two corners in pts. */
-  kind: "ink" | "line" | "rect" | "ellipse" | "form";
+  /** rect, ellipse, form and text keep two corners in pts. */
+  kind: "ink" | "line" | "rect" | "ellipse" | "form" | "text";
   color: string;
   /** Base width in world units. */
   size: number;
   pts: Pt[];
   /** For kind "form": which accounting layout (see FORMS). */
   form?: FormId;
+  /** For kind "text": what was typed (size is the font size). */
+  text?: string;
 }
 
 export interface Camera {
@@ -208,6 +210,10 @@ export function hitStroke(s: Stroke, x: number, y: number, r: number): boolean {
     const k = Math.hypot((x - bx - rx) / rx, (y - by - ry) / ry);
     return Math.abs(k - 1) * Math.min(rx, ry) <= reach;
   }
+  if (s.kind === "text") {
+    const { x: bx, y: by, w, h } = box(s);
+    return x >= bx - r && x <= bx + w + r && y >= by - r && y <= by + h + r;
+  }
   if (s.kind === "rect" || s.kind === "form") {
     // Only the ruled lines count, so rubbing out a figure inside never removes the layout.
     return shapeParts(s).segs.some(([x0, y0, x1, y1]) => distToSeg(x, y, [x0, y0, 0], [x1, y1, 0]) <= reach);
@@ -251,6 +257,12 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
     drawShape(ctx, s);
     return;
   }
+  if (s.kind === "text") {
+    ctx.font = `500 ${s.size}px ${boardFont()}`;
+    ctx.textBaseline = "top";
+    (s.text ?? "").split("\n").forEach((line, i) => ctx.fillText(line, pts[0][0], pts[0][1] + i * s.size * TEXT_LINE));
+    return;
+  }
   // A tap (full stop, decimal point, the dot on an i): a round dot, never an empty outline.
   const tiny = s.size * 0.5;
   if (pts.length === 1 || pts.every((p) => Math.abs(p[0] - pts[0][0]) <= tiny && Math.abs(p[1] - pts[0][1]) <= tiny)) {
@@ -280,7 +292,7 @@ export function strokeBox(s: Stroke): View {
     x1 = Math.max(x1, p[0]);
     y1 = Math.max(y1, p[1]);
   }
-  const pad = s.size * 2 + (s.kind === "form" ? 40 : 0); // room for the nib and a form's labels
+  const pad = s.kind === "text" ? 4 : s.size * 2 + (s.kind === "form" ? 40 : 0); // room for the nib and a form's labels
   const b = { x: x0 - pad, y: y0 - pad, w: x1 - x0 + pad * 2, h: y1 - y0 + pad * 2 };
   boxes.set(s, { pts: s.pts, n: s.pts.length, b });
   return b;
@@ -506,6 +518,34 @@ export function drawGrid(ctx: CanvasRenderingContext2D, cam: Camera, w: number, 
       ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fill();
     }
+}
+
+// ---------------------------------------------------------------- typed text
+
+/** Line height of typed text, as a share of its font size. */
+export const TEXT_LINE = 1.25;
+/** Font size on screen for each pen size (fine, medium, bold). */
+export const TEXT_PX = [22, 30, 42];
+
+let font = "";
+/** The site's own sans font, so typed text matches the portal. */
+export function boardFont(): string {
+  // Read from the board itself, the same font its text box uses, so words don't shift when finished.
+  if (!font && typeof document !== "undefined") font = getComputedStyle(document.querySelector("[data-board]") ?? document.body).fontFamily;
+  return font || "system-ui, sans-serif";
+}
+
+let meter: CanvasRenderingContext2D | null = null;
+/** Width and height of typed text in world units, for its box (eraser, fit, off screen). */
+export function measureText(text: string, size: number): { w: number; h: number } {
+  meter ??= document.createElement("canvas").getContext("2d");
+  const lines = text.split("\n");
+  let w = 0;
+  if (meter) {
+    meter.font = `500 ${size}px ${boardFont()}`;
+    for (const l of lines) w = Math.max(w, meter.measureText(l).width);
+  } else w = Math.max(...lines.map((l) => l.length)) * size * 0.55;
+  return { w: Math.max(w, size * 0.4), h: lines.length * size * TEXT_LINE };
 }
 
 /** Compact a stroke for sending: fewer decimals, same look. */
