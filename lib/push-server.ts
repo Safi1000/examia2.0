@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { liveSlotsOn, pkDate, setSchedule } from "@/lib/timetable";
 import { loadSchedule } from "@/lib/schedule-server";
 import { assignmentCopy, classCopy, recordingCopy, resultCopy, studyCopy, testOpensCopy } from "@/lib/notify-copy";
+import { cleanLevels, type LevelSubjects } from "@/lib/levels";
 
 /**
  * Phone notifications, server side. The rules that keep them quiet:
@@ -163,6 +164,24 @@ export async function notifyClassChange(sb: SupabaseClient, studentIds: string[]
   );
 }
 
+/** Each student's subjects per level (for students taking two levels), by student id. See lib/levels.ts. */
+export async function levelSubjectsByStudent(sb: SupabaseClient): Promise<Map<string, LevelSubjects>> {
+  const out = new Map<string, LevelSubjects>();
+  const { data: rows } = await sb.from("students").select("id,user_id");
+  const byUser = new Map((rows ?? []).filter((r) => r.user_id).map((r) => [r.user_id as string, r.id as string]));
+  for (let page = 1; page <= 10; page++) {
+    const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) break;
+    for (const u of data.users) {
+      const id = byUser.get(u.id);
+      const levels = cleanLevels((u.app_metadata as { levels?: unknown } | undefined)?.levels);
+      if (id && Object.keys(levels).length) out.set(id, levels);
+    }
+    if (data.users.length < 1000) break;
+  }
+  return out;
+}
+
 /** Students we may notify: have a device, and their cohort is switched on. */
 async function reachableStudents(sb: SupabaseClient) {
   const [{ data: subs }, { data: students }, { data: cohorts }, { data: sc }, { data: ss }] = await Promise.all([
@@ -172,6 +191,7 @@ async function reachableStudents(sb: SupabaseClient) {
     sb.from("student_classes").select("student_id,class_id"),
     sb.from("student_subjects").select("student_id,subject_id"),
   ]);
+  const levels = await levelSubjectsByStudent(sb);
   const withDevice = new Set((subs ?? []).map((s) => s.student_id as string));
   const off = new Set((cohorts ?? []).filter((c) => c.active === false).map((c) => c.id as string));
   const classes = new Map<string, Set<string>>();
@@ -180,14 +200,20 @@ async function reachableStudents(sb: SupabaseClient) {
   for (const r of ss ?? []) subjects.set(r.student_id, (subjects.get(r.student_id) ?? new Set()).add(r.subject_id));
   return (students ?? [])
     .filter((s) => withDevice.has(s.id) && !(s.cohort_id && off.has(s.cohort_id)))
-    .map((s) => ({ id: s.id as string, cohortId: (s.cohort_id as string) ?? null, classes: classes.get(s.id) ?? new Set<string>(), subjects: subjects.get(s.id) ?? new Set<string>() }));
+    .map((s) => ({
+      id: s.id as string,
+      cohortId: (s.cohort_id as string) ?? null,
+      classes: classes.get(s.id) ?? new Set<string>(),
+      subjects: subjects.get(s.id) ?? new Set<string>(),
+      levels: levels.get(s.id) ?? ({} as LevelSubjects),
+    }));
 }
 
 type Reach = Awaited<ReturnType<typeof reachableStudents>>[number];
 const covers = (w: { cohort_id: string | null; class_id: string | null; subject_id: string | null }, s: Reach, cohortRequired = false) =>
   (cohortRequired ? w.cohort_id === s.cohortId : w.cohort_id === null || w.cohort_id === s.cohortId) &&
   (!w.class_id || s.classes.has(w.class_id)) &&
-  (!w.subject_id || s.subjects.has(w.subject_id));
+  (!w.subject_id || (w.class_id && s.levels[w.class_id]?.length ? s.levels[w.class_id].includes(w.subject_id) : s.subjects.has(w.subject_id)));
 
 /** Results released in the last 24 h (or just these submissions), grouped per student. */
 async function resultItems(sb: SupabaseClient, onlyIds?: string[]): Promise<Item[]> {
@@ -319,7 +345,9 @@ async function classItems(sb: SupabaseClient, students: Reach[], now: number, wi
     const lv = s.classes.size ? s.classes : (cohortClasses.get(s.cohortId ?? "") ?? new Set<string>());
     const sb2 = s.subjects.size ? s.subjects : (cohortSubjects.get(s.cohortId ?? "") ?? new Set<string>());
     for (const sl of started) {
-      if (!lv.has(sl.classId) || (sb2.size && !sb2.has(sl.subjectId))) continue;
+      if (!lv.has(sl.classId)) continue;
+      const atLevel = s.levels[sl.classId]?.length ? new Set(s.levels[sl.classId]) : sb2;
+      if (atLevel.size && !atLevel.has(sl.subjectId)) continue;
       if (joined.has(`${s.id}|${sl.classId}|${sl.subjectId}`)) continue;
       const key = `${today}|${sl.classId}|${sl.subjectId}`;
       items.push({

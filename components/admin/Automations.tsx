@@ -93,9 +93,9 @@ export function HealthLine() {
 const SWITCHES: Array<{ key: keyof Settings; label: string; detail: string }> = [
   {
     key: "autoAbsent",
-    label: "Mark no-shows absent",
+    label: "Mark late and absent",
     detail:
-      "10 minutes after a level's last class, anyone who didn't join and has no mark is marked absent. Only when at least one student joined, so a class that didn't happen marks nobody. Change any mark in Attendance.",
+      "Joining more than 10 minutes after a class starts is marked late. 10 minutes after a level's last class, anyone who didn't join and has no mark is marked absent (only when at least one student joined, so a class that didn't happen marks nobody). Change any mark in Attendance.",
   },
   {
     key: "autoRelease",

@@ -16,7 +16,7 @@ import type { BoardImage, Stroke, ThemeId, View } from "@/components/board/engin
  */
 
 export type BoardMsg =
-  | { t: "live"; s: Stroke } // stroke being drawn right now
+  | { t: "live"; s: Stroke; from?: number } // stroke being drawn right now (`from`: only the points after this many)
   | { t: "add"; s: Stroke; q?: number }
   | { t: "del"; ids: string[]; q?: number }
   | { t: "set"; strokes: Stroke[]; images?: BoardImage[]; q?: number } // full board (join, repair)
@@ -108,6 +108,40 @@ export interface BoardLink {
   close: () => void;
 }
 
+/**
+ * The live service drops any message over about 250 KB, and a full board (a
+ * long class, pictures) is bigger than that: the laptop then never caught up.
+ * Big messages go in pieces and are put back together on arrival.
+ */
+const PIECE = 60_000;
+type Piece = { t: "part"; id: string; i: number; n: number; s: string };
+function pieces(m: BoardMsg): Array<BoardMsg | Piece> {
+  const text = JSON.stringify(m);
+  if (text.length <= PIECE) return [m];
+  const id = Math.random().toString(36).slice(2, 10);
+  const n = Math.ceil(text.length / PIECE);
+  return Array.from({ length: n }, (_, i) => ({ t: "part" as const, id, i, n, s: text.slice(i * PIECE, (i + 1) * PIECE) }));
+}
+function assembler(onMsg: (m: BoardMsg) => void) {
+  const open = new Map<string, { got: string[]; left: number; at: number }>();
+  return (p: BoardMsg | Piece) => {
+    if (p.t !== "part") return deliver(p, onMsg);
+    const now = Date.now();
+    for (const [k, v] of open) if (now - v.at > 30_000) open.delete(k); // a piece never came: give up on it
+    const a = open.get(p.id) ?? { got: new Array<string>(p.n), left: p.n, at: now };
+    if (a.got[p.i] === undefined) {
+      a.got[p.i] = p.s;
+      a.left--;
+    }
+    open.set(p.id, a);
+    if (a.left > 0) return;
+    open.delete(p.id);
+    try {
+      deliver(JSON.parse(a.got.join("")) as BoardMsg, onMsg);
+    } catch {}
+  };
+}
+
 /** Hands a message (or each message in a batch, in order) to the board. */
 function deliver(m: BoardMsg, onMsg: (m: BoardMsg) => void) {
   if (m.t === "batch") for (const x of m.ms) deliver(x, onMsg);
@@ -150,6 +184,7 @@ export function connectBoard(
   });
   const presenceKey = `${role}-${Math.random().toString(36).slice(2, 8)}`;
   let ch: RealtimeChannel | null = null;
+  const receive = assembler(onMsg);
   let closed = false;
   let retry: ReturnType<typeof setTimeout> | null = null;
 
@@ -159,7 +194,7 @@ export function connectBoard(
     if (closed) return;
     const c = sb.channel(`board:${room}`, { config: { broadcast: { self: false }, presence: { key: presenceKey } } });
     ch = c;
-    c.on("broadcast", { event: "m" }, ({ payload }) => deliver(payload as BoardMsg, onMsg));
+    c.on("broadcast", { event: "m" }, ({ payload }) => receive(payload as BoardMsg | Piece));
     c.on("presence", { event: "sync" }, () => {
       const keys = Object.keys(c.presenceState());
       onPeople?.(
@@ -190,7 +225,9 @@ export function connectBoard(
   document.addEventListener("visibilitychange", onVisible);
 
   return {
-    send: (m) => void ch?.send({ type: "broadcast", event: "m", payload: m }),
+    send: (m) => {
+      for (const p of pieces(m)) void ch?.send({ type: "broadcast", event: "m", payload: p });
+    },
     close: () => {
       closed = true;
       if (retry) clearTimeout(retry);

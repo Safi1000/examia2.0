@@ -9,6 +9,7 @@ import { waTextLink } from "@/lib/landing";
 import { displayName } from "@/lib/display-name";
 import { Card } from "@/components/ui";
 import { cn } from "@/lib/cn";
+import { takesLevelSubject } from "@/lib/levels";
 
 /**
  * "What to work on next": turns marks into the next three concrete steps.
@@ -44,8 +45,7 @@ export function StudyCoach({
       .filter(
         (na) =>
           na.cohortId === student.cohortId &&
-          (!na.classId || student.classIds.includes(na.classId)) &&
-          (!na.subjectId || student.subjectIds.includes(na.subjectId)),
+          takesLevelSubject(student, na.classId ?? null, na.subjectId ?? null),
       )
       .map((na) => na.noteId),
   );

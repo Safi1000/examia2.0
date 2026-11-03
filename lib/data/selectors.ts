@@ -5,6 +5,7 @@
 import type { Announcement, Student, Submission, Test, TestStats, TestStatus } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { awardedMarks, percent, totalMarks } from "@/lib/scoring";
+import { takesLevelSubject } from "@/lib/levels";
 
 export const cohortById = (db: Database, id: string | null) =>
   id ? db.cohorts.find((c) => c.id === id) ?? null : null;
@@ -54,8 +55,7 @@ export function liveStatus(test: Test, nowMs = Date.now()): TestStatus {
 /** Whether a test is scoped to this student: cohort + class + subject match. */
 export const testCoversStudent = (test: Test, student: Student) =>
   (test.cohortId === null || test.cohortId === student.cohortId) &&
-  (test.classId === null || student.classIds.includes(test.classId)) &&
-  (test.subjectId === null || student.subjectIds.includes(test.subjectId));
+  takesLevelSubject(student, test.classId, test.subjectId);
 
 /** Students the test is assigned to — the denominator for completion (not those who joined after it closed). */
 export const eligibleStudents = (db: Database, test: Test) =>

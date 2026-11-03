@@ -36,6 +36,8 @@ export interface Student {
   classIds: string[];
   /** IDs of subjects the student is enrolled in. */
   subjectIds: string[];
+  /** Taking more than one level: the subjects at each (level id to subject ids). See lib/levels.ts. */
+  levelSubjects?: Record<string, string[]>;
   /**
    * Initial password, used only when the admin creates/edits a student (the
    * Edge Function provisions the Supabase Auth user with it). Never loaded back

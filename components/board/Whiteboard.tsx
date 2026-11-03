@@ -18,6 +18,8 @@ import {
   drawGrid,
   drawImages,
   drawStroke,
+  areaView,
+  clearInset,
   fitView,
   hitStroke,
   imageAt,
@@ -42,6 +44,7 @@ import {
   zoomAt,
 } from "@/components/board/engine";
 import { boardDigest, connectBoard, Ledger, viewerRoom, type BoardLink, type BoardMsg } from "@/components/board/sync";
+import { loadBoard, saveBoard } from "@/components/board/storage";
 import { cloudinaryConfigured, uploadImage, uploadPdfPages } from "@/lib/cloudinary";
 
 /**
@@ -147,6 +150,12 @@ function useCanvas(draw: (ctx: CanvasRenderingContext2D, w: number, h: number, a
   return { canvasRef, size, requestDraw };
 }
 
+/** The cached finished board for each canvas (see paint). */
+type Layer = { c: HTMLCanvasElement; key: string; strokes: Stroke[] | null; images: BoardImage[] | null };
+const layers = new WeakMap<HTMLCanvasElement, Layer>();
+/** Goes up each time a picture finishes loading, so the layer is redrawn with it. */
+let imageVersion = 0;
+
 function paint(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -159,20 +168,52 @@ function paint(
   selected?: BoardImage | null,
 ) {
   const look = getTheme();
-  ctx.fillStyle = look.bg;
-  ctx.fillRect(0, 0, w, h);
+  // The finished board (paper, grid, pictures, every stroke) is drawn once into its own
+  // layer and reused while the pen moves: each frame then only adds the stroke being
+  // drawn, so a full board stays as quick as an empty one. Redrawn only when the board,
+  // the view or a picture changes.
+  const dpr = ctx.getTransform().a || 1;
+  let L = layers.get(ctx.canvas);
+  if (!L) {
+    L = { c: document.createElement("canvas"), key: "", strokes: null, images: null };
+    layers.set(ctx.canvas, L);
+  }
+  const key = `${w}|${h}|${dpr}|${cam.x}|${cam.y}|${cam.z}|${look.bg}|${imageVersion}`;
+  if (L.key !== key || L.strokes !== strokes || L.images !== images) {
+    L.key = key;
+    L.strokes = strokes;
+    L.images = images;
+    const pw = Math.round(w * dpr);
+    const ph = Math.round(h * dpr);
+    if (L.c.width !== pw || L.c.height !== ph) {
+      L.c.width = pw;
+      L.c.height = ph;
+    }
+    const b = L.c.getContext("2d")!;
+    b.setTransform(dpr, 0, 0, dpr, 0, 0);
+    b.fillStyle = look.bg;
+    b.fillRect(0, 0, w, h);
+    b.save();
+    b.scale(cam.z, cam.z);
+    b.translate(-cam.x, -cam.y);
+    drawGrid(b, cam, w, h);
+    drawImages(b, images, () => {
+      imageVersion++;
+      onImage();
+    });
+    // Only what is on screen gets drawn.
+    const vx = cam.x, vy = cam.y, vw = w / cam.z, vh = h / cam.z;
+    for (const s of strokes) {
+      const bx = strokeBox(s);
+      if (bx.x > vx + vw || bx.y > vy + vh || bx.x + bx.w < vx || bx.y + bx.h < vy) continue;
+      drawStroke(b, s);
+    }
+    b.restore();
+  }
+  ctx.drawImage(L.c, 0, 0, w, h);
   ctx.save();
   ctx.scale(cam.z, cam.z);
   ctx.translate(-cam.x, -cam.y);
-  drawGrid(ctx, cam, w, h);
-  drawImages(ctx, images, onImage);
-  // Only what is on screen gets drawn, so a full board stays smooth.
-  const vx = cam.x, vy = cam.y, vw = w / cam.z, vh = h / cam.z;
-  for (const s of strokes) {
-    const b = strokeBox(s);
-    if (b.x > vx + vw || b.y > vy + vh || b.x + b.w < vx || b.y + b.h < vy) continue;
-    drawStroke(ctx, s);
-  }
   for (const s of extra) if (s) drawStroke(ctx, s);
   if (selected) {
     const px = 1 / cam.z;
@@ -277,10 +318,8 @@ function ToolButton({ active, label, onClick, disabled, children }: { active?: b
       title={label}
       onClick={onClick}
       disabled={disabled}
-      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200 disabled:opacity-30 [&_svg]:h-[22px] [&_svg]:w-[22px] ${
-        active
-          ? "bg-[linear-gradient(180deg,rgba(251,193,89,0.22),rgba(251,193,89,0.1))] text-[#FBC159] shadow-[inset_0_0_0_1px_rgba(251,193,89,0.35)]"
-          : "text-[#a6acb2] hover:bg-white/[0.06] hover:text-[#f0ede8]"
+      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors duration-150 disabled:opacity-30 [&_svg]:h-[21px] [&_svg]:w-[21px] ${
+        active ? "bg-[#1A1D20] text-white" : "text-[#4B5563] hover:bg-black/[0.05] hover:text-[#1A1D20]"
       }`}
     >
       {children}
@@ -288,7 +327,24 @@ function ToolButton({ active, label, onClick, disabled, children }: { active?: b
   );
 }
 
-const Divider = () => <span className="mx-1 h-7 w-px bg-white/10" aria-hidden />;
+const Divider = () => <span className="mx-1 h-6 w-px shrink-0 bg-black/[0.08]" aria-hidden />;
+
+/** The look of every floating bar: white, a hairline edge, a soft shadow. */
+const PANEL = "rounded-2xl border border-black/[0.07] bg-white/92 shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_30px_-14px_rgba(16,24,40,0.25)] backdrop-blur-xl";
+
+function SmallButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className="flex h-7 w-8 items-center justify-center rounded-lg text-[#6B7280] transition-colors hover:bg-black/[0.05] hover:text-[#1A1D20] [&_svg]:h-[18px] [&_svg]:w-[18px]"
+    >
+      {children}
+    </button>
+  );
+}
 
 // ---------------------------------------------------------------- sync helpers
 
@@ -325,13 +381,8 @@ function stampMsg(ledger: Ledger, m: BoardMsg): BoardMsg {
   }
 }
 
-const savedLook = (): ThemeId => {
-  try {
-    return localStorage.getItem("ht-board-look") === "night" ? "night" : "paper";
-  } catch {
-    return "paper";
-  }
-};
+// One look everywhere: the light board (clearest on a TV and in Meet).
+setTheme("paper");
 
 // ---------------------------------------------------------------- teacher
 
@@ -353,32 +404,31 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const lastRaw = useRef<Pt | null>(null);
   const [size, setSize] = useState(SIZES[0].value);
   const [fingerDraws, setFingerDraws] = useState(false);
-  const [viewers, setViewers] = useState(0);
   // The other device (laptop or tablet) on the private room.
   const [partner, setPartner] = useState(false);
   // Light (paper) or dark (night) board: shared with the other device and students.
-  const [look, setLookState] = useState<ThemeId>(savedLook);
-  const lookRef = useRef<ThemeId>(look);
-  const setLook = (v: ThemeId) => {
-    lookRef.current = v;
-    setLookState(v);
-  };
+  const look: ThemeId = "paper";
   const [ledger] = useState(() => new Ledger(lead ? 1 : 0));
   const remoteLiveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [toolsHidden, setToolsHidden] = useState(false);
+  // Pen down: the bars fade so they never cover the writing.
+  const [inking, setInking] = useState(false);
+  // Laptop (what students see): the bars hide after a few seconds without the mouse.
+  const [quiet, setQuiet] = useState(false);
+  const topBarRef = useRef<HTMLDivElement>(null);
+  const sidePanelRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
   // Typing: where the text box sits on screen, and what is in it.
   const [typing, setTyping] = useState<{ x: number; y: number; px: number; color: string } | null>(null);
   const typingRef = useRef<{ id: string; wx: number; wy: number; size: number; color: string; text: string; editing?: Stroke } | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   // What the other device is drawing or typing right now.
   const remoteLive = useRef<Stroke | null>(null);
-  const peers = useRef({ own: 0, link: 0 });
   const [angle, setAngle] = useState<{ x: number; y: number; deg: number } | null>(null);
   const [eraserAt, setEraserAt] = useState<{ x: number; y: number } | null>(null);
   const [zoom, setZoom] = useState(100);
   // What the toolbar needs to know, mirrored from the refs after each change.
   const [meta, setMeta] = useState({ undo: 0, redo: 0, content: 0 });
-  const [copied, setCopied] = useState(false);
   const [copiedPresent, setCopiedPresent] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -419,24 +469,16 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const persist = useCallback(() => {
     if (save.current) clearTimeout(save.current);
     save.current = setTimeout(() => {
-      try {
-        // Pictures that only live in this browser (local preview) aren't kept.
-        const keep = images.current.filter((m) => !m.url.startsWith("blob:"));
-        localStorage.setItem(storeKey, JSON.stringify({ strokes: strokes.current, images: keep }));
-      } catch {}
-    }, 400);
+      // Pictures that only live in this browser (local preview) aren't kept. Saved compact
+      // (points rounded to a tenth), so even a very full board saves in a moment.
+      void saveBoard(storeKey, { strokes: strokes.current.map(packStroke), images: images.current.filter((m) => !m.url.startsWith("blob:")) });
+    }, 700);
   }, [storeKey]);
 
-  // Everything goes to the private room (the laptop) and the student link's room.
-  // Only the private room is listened to for anything but "send me the board".
-  const viewLink = useRef<BoardLink | null>(null);
+  // Everything goes to the private room: just Hamza's tablet and laptop, nobody else.
   const send = useCallback(
     (m: BoardMsg) => {
-      const out = stampMsg(ledger, m);
-      link.current?.send(out);
-      // Students get finished strokes only (no live preview or pan updates here): a class of
-      // them watching would otherwise be hundreds of messages a second.
-      if (out.t !== "live" && out.t !== "view") viewLink.current?.send(out);
+      link.current?.send(stampMsg(ledger, m));
     },
     [ledger],
   );
@@ -444,8 +486,11 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     (): BoardMsg => ({ t: "set", strokes: strokes.current.map(packStroke), images: images.current.filter((m) => !m.url.startsWith("blob:")) }),
     [],
   );
+  // What the tablet shares: the space between its own toolbars, where Hamza writes. The
+  // laptop and students fit exactly that, so it fills their screens and nothing is cut off.
+  const writingView = (w: number, h: number) =>
+    areaView(cam.current, w, h, clearInset(h, [topBarRef.current, sidePanelRef.current], [toolbarRef.current], 0));
   const sendView = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sendViewStudents = useRef<ReturnType<typeof setTimeout> | null>(null);
   // `screen` is a stable ref from useCanvas; the compiler just can't see that.
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const shareView = useCallback(() => {
@@ -454,14 +499,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       sendView.current = setTimeout(() => {
         sendView.current = null;
         const { w, h } = screen.current;
-        if (w && h) link.current?.send({ t: "view", v: visibleView(cam.current, w, h) });
+        if (w && h) link.current?.send({ t: "view", v: writingView(w, h) });
       }, 40); // ~25 position updates a second to the laptop, which glides between them
-    if (!sendViewStudents.current)
-      sendViewStudents.current = setTimeout(() => {
-        sendViewStudents.current = null;
-        const { w, h } = screen.current;
-        if (w && h) viewLink.current?.send({ t: "view", v: visibleView(cam.current, w, h) });
-      }, 250); // students glide too, with far fewer messages
   }, [screen, lead]);
 
   // ---- the other device: everything it does lands here too
@@ -476,53 +515,30 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
 
   useEffect(() => {
     showDebug.current = new URL(window.location.href).searchParams.get("debug") === "1";
-    const loadSaved = () => {
-      try {
-        const saved = JSON.parse(localStorage.getItem(storeKey) ?? "null");
-        if (Array.isArray(saved)) strokes.current = saved as Stroke[];
-        else if (saved) {
-          strokes.current = saved.strokes ?? [];
-          images.current = saved.images ?? [];
-        }
-      } catch {}
+    let alive = true;
+    const loadSaved = async () => {
+      const saved = await loadBoard(storeKey);
+      if (!alive || !saved) return;
+      // Anything that arrived while it loaded (the other device's board) stays too.
+      const hasS = new Set(saved.strokes.map((x) => x.id));
+      const hasI = new Set(saved.images.map((x) => x.id));
+      strokes.current = [...saved.strokes, ...strokes.current.filter((x) => !hasS.has(x.id))];
+      images.current = [...saved.images, ...images.current.filter((x) => !hasI.has(x.id))];
       requestDraw();
       syncMeta();
     };
     // The tablet opens its saved board. The laptop waits a moment for the tablet's
     // board, and only opens its own copy when the tablet isn't on.
-    if (lead) loadSaved();
-    const late = lead ? null : setTimeout(() => !gotBoard.current && loadSaved(), 1800);
+    if (lead) void loadSaved();
+    const late = lead ? null : setTimeout(() => !gotBoard.current && void loadSaved(), 1800);
     const t = setTimeout(syncMeta, 0);
     link.current = connectBoard(
       room,
       "teacher",
       (m) => onRemote.current(m),
-      (n, others) => {
-        peers.current.own = n;
-        setViewers(peers.current.own + peers.current.link);
-        setPartner(others > 0);
-      },
+      (_viewers, others) => setPartner(others > 0),
       true,
     );
-    // The student link's room: it can only ask for the board, never change it.
-    viewLink.current = room.includes(".")
-      ? connectBoard(
-          viewerRoom(room),
-          "teacher",
-          (m) => {
-            if (m.t !== "hello") return;
-            // Answer the student who asked, on their own channel.
-            viewLink.current?.send(stampMsg(ledger, fullBoard()));
-            viewLink.current?.send({ t: "theme", v: lookRef.current });
-            const { w, h } = screen.current;
-            if (w && h) viewLink.current?.send({ t: "view", v: visibleView(cam.current, w, h) });
-          },
-          (n) => {
-            peers.current.link = n;
-            setViewers(peers.current.own + peers.current.link);
-          },
-        )
-      : null;
     // Heartbeat (tablet only): the laptop and students compare it with what they have and fetch the board again if behind.
     const beat = lead
       ? setInterval(() => {
@@ -531,27 +547,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         }, 2000)
       : undefined;
     return () => {
+      alive = false;
       clearTimeout(t);
       if (late) clearTimeout(late);
       clearInterval(beat);
       link.current?.close();
-      viewLink.current?.close();
     };
   }, [room, storeKey, requestDraw, send, screen, fullBoard, lead, ledger]);
 
-  // The light or dark look: remembered on this device, and shared with the other device and students.
-  useEffect(() => {
-    setTheme(look);
-    requestDraw();
-    try {
-      localStorage.setItem("ht-board-look", look);
-    } catch {}
-  }, [look, requestDraw]);
-  const switchLook = () => {
-    const next: ThemeId = look === "paper" ? "night" : "paper";
-    setLook(next);
-    send({ t: "theme", v: next });
-  };
 
   // Keeps the text box on its words while the board pans or zooms.
   const placeTyping = useCallback(() => {
@@ -589,7 +592,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       const v = teacherView.current;
       const { w, h } = screen.current;
       if (!v || !w || !h) return;
-      followTarget.current = fitView(v, w, h);
+      // Fit the tablet's whole screen into the part of this one the toolbars leave clear.
+      followTarget.current = fitView(v, w, h, clearInset(h, [topBarRef.current, sidePanelRef.current], [toolbarRef.current]));
       if (jump) {
         cam.current = followTarget.current;
         refresh();
@@ -607,6 +611,34 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, [lead]);
+
+  // Laptop: the bars step aside after 3 seconds without the mouse, and come back as soon as it moves.
+  useEffect(() => {
+    if (lead) return;
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const wake = () => {
+      setQuiet(false);
+      if (t) clearTimeout(t);
+      t = setTimeout(() => setQuiet(true), 3000);
+    };
+    wake();
+    window.addEventListener("pointermove", wake);
+    window.addEventListener("pointerdown", wake);
+    window.addEventListener("keydown", wake);
+    return () => {
+      if (t) clearTimeout(t);
+      window.removeEventListener("pointermove", wake);
+      window.removeEventListener("pointerdown", wake);
+      window.removeEventListener("keydown", wake);
+    };
+  }, [lead]);
+
+  // Tools hidden or shown on the laptop: the clear space changed, so fit again (bigger without tools).
+  useEffect(() => {
+    if (lead) return;
+    const t = setTimeout(() => follow.current(true), 30);
+    return () => clearTimeout(t);
+  }, [lead, toolsHidden]);
 
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flash = (msg: string) => {
@@ -709,14 +741,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         case "hello": {
           // The other device asked for the board: answer it on this channel only.
           link.current?.send(stampMsg(ledger, fullBoard()));
-          link.current?.send({ t: "theme", v: lookRef.current });
           const { w, h } = screen.current;
-          if (lead && w && h) link.current?.send({ t: "view", v: visibleView(cam.current, w, h) });
+          if (lead && w && h) link.current?.send({ t: "view", v: writingView(w, h) });
           return;
         }
         case "theme":
-          setLook(m.v);
-          return;
+          return; // one light board now; an older device's look is ignored
         case "view":
           // Only the laptop follows; a tablet pan always brings the laptop back to it.
           if (!lead) {
@@ -742,7 +772,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         }
         case "live": {
           if (ledger.known(m.s.id)) return; // the final stroke already came: this preview is stale
-          remoteLive.current = m.s;
+          if (m.from) {
+            // Just the newest points: add them to what's on screen (if a part went missing, wait for the next whole one).
+            const have = remoteLive.current;
+            if (!have || have.id !== m.s.id || have.pts.length < m.from) return;
+            remoteLive.current = { ...m.s, pts: [...have.pts.slice(0, m.from), ...m.s.pts] };
+          } else remoteLive.current = m.s;
           if (remoteLiveTimer.current) clearTimeout(remoteLiveTimer.current);
           // A preview that stops coming (pen lifted, message lost) never stays on screen.
           remoteLiveTimer.current = setTimeout(() => {
@@ -791,6 +826,20 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           gotBoard.current = true;
           const theirs = m.strokes;
           const theirImgs = m.images ?? [];
+          if (lead && !first) {
+            // The tablet's board is the truth: after a Wi-Fi blip it only takes what the laptop drew
+            // meanwhile, never the laptop's (maybe older) copy of everything.
+            const hasS = new Set(strokes.current.map((x) => x.id));
+            const hasI = new Set(images.current.map((x) => x.id));
+            const newS = theirs.filter((x) => !hasS.has(x.id) && !ledger.known(x.id));
+            const newI = theirImgs.filter((x) => !hasI.has(x.id) && !ledger.known(x.id));
+            if (!newS.length && !newI.length) return;
+            strokes.current = [...strokes.current, ...newS];
+            images.current = [...images.current, ...newI];
+            for (const x of newS) send({ t: "add", s: packStroke(x) });
+            for (const x of newI) send({ t: "img", m: x });
+            break;
+          }
           if (!first || resync.current === "rev") {
             // Catching up after being away or behind: the other device's board is the truth.
             resync.current = "join";
@@ -968,28 +1017,64 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const r = canvasRef.current!.getBoundingClientRect();
     return [e.clientX - r.left, e.clientY - r.top] as const;
   };
+  // Where the mouse last was over the board (laptop), for the T key.
+  const hoverAt = useRef<{ x: number; y: number } | null>(null);
 
   const logPen = (e: React.PointerEvent, what: string) => {
     if (!showDebug.current) return;
     setDebug(`${what} · ${e.pointerType} · button ${e.button} · buttons ${e.buttons} · pressure ${e.pressure.toFixed(2)} · size ${Math.round(e.width)}×${Math.round(e.height)}`);
   };
 
+  // How much of the stroke being drawn the laptop already has: only the new points go, and the
+  // whole stroke every 20th time in case one went missing (the finished stroke settles it anyway).
+  const liveShared = useRef<{ id: string; n: number; times: number }>({ id: "", n: 0, times: 0 });
   const sendLive = () => {
     const now = performance.now();
-    if (current.current && now - liveSend.current > 50) {
-      liveSend.current = now;
-      send({ t: "live", s: packStroke(current.current) });
-    }
+    const s = current.current;
+    if (!s || now - liveSend.current <= 40) return;
+    liveSend.current = now;
+    const sh = liveShared.current;
+    if (sh.id !== s.id) liveShared.current = { id: s.id, n: 0, times: 0 };
+    const k = liveShared.current;
+    k.times++;
+    // Only growing pen ink can go in parts (a ruled line changes its ends, so it goes whole). Keeps a
+    // few points of overlap, since the smoothing still moves the newest ones.
+    const from = s.kind === "ink" && k.n > 4 && k.times % 20 !== 0 ? k.n - 4 : 0;
+    const packed = packStroke(from ? { ...s, pts: s.pts.slice(from) } : s);
+    k.n = s.pts.length;
+    send(from ? { t: "live", s: packed, from } : { t: "live", s: packed });
   };
 
+  // Where the eraser was a moment ago (world), so a quick rub also catches thin lines it jumped over.
+  const lastErase = useRef<[number, number] | null>(null);
+  // Rubbed-out strokes go to the other screens together, a few times a second, not one message per touch point.
+  const eraseOut = useRef<{ ids: string[]; timer: ReturnType<typeof setTimeout> | null }>({ ids: [], timer: null });
+  const flushErase = () => {
+    const q = eraseOut.current;
+    if (q.timer) clearTimeout(q.timer);
+    q.timer = null;
+    if (q.ids.length) send({ t: "del", ids: q.ids });
+    q.ids = [];
+  };
   const eraseAt = (sx: number, sy: number) => {
     const [wx, wy] = toWorld(cam.current, sx, sy);
     const r = ERASER_PX / cam.current.z;
-    const hit = strokes.current.filter((s) => hitStroke(s, wx, wy, r));
+    // Check the whole path from the last spot, in steps smaller than the eraser.
+    const from = lastErase.current ?? [wx, wy];
+    lastErase.current = [wx, wy];
+    const steps = Math.min(40, Math.max(1, Math.ceil(Math.hypot(wx - from[0], wy - from[1]) / (r * 0.6))));
+    const hit = strokes.current.filter((s) => {
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        if (hitStroke(s, from[0] + (wx - from[0]) * t, from[1] + (wy - from[1]) * t, r)) return true;
+      }
+      return false;
+    });
     if (!hit.length) return;
     strokes.current = strokes.current.filter(removeIds(hit));
     gesture.current.erased.push(...hit);
-    send({ t: "del", ids: hit.map((s) => s.id) });
+    eraseOut.current.ids.push(...hit.map((s) => s.id));
+    eraseOut.current.timer ??= setTimeout(flushErase, 60);
     requestDraw();
   };
 
@@ -1064,6 +1149,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const dropped = current.current?.id;
     current.current = null;
     if (dropped) send({ t: "del", ids: [dropped] });
+    lastErase.current = null;
+    setInking(true);
     gesture.current = { mode: "erase", id, erased: [], straightened: false };
     setEraserAt({ x: sx, y: sy });
     eraseAt(sx, sy);
@@ -1156,6 +1243,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const [wx, wy] = toWorld(cam.current, sx, sy);
 
     if (isPenEraser(e) || tool === "eraser") {
+      lastErase.current = null;
+      setInking(true);
       gesture.current = { mode: "erase", id: e.pointerId, erased: [], straightened: false };
       setEraserAt({ x: sx, y: sy });
       eraseAt(sx, sy);
@@ -1174,10 +1263,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const ink = color === COLORS[0].value && imageAt(images.current, wx, wy) ? "#1B1E21" : color;
     if (tool === "line") {
       current.current = { id: newId(), kind: "line", color: ink, size: w, pts: [p, p] };
+      setInking(true);
       gesture.current = { mode: "line", id: e.pointerId, erased: [], straightened: true };
     } else {
       current.current = { id: newId(), kind: "ink", color: ink, size: w, pts: [p] };
       lastRaw.current = p;
+      setInking(true);
       gesture.current = { mode: "draw", id: e.pointerId, erased: [], straightened: false };
       hold.current.path = 0;
       armHold(sx, sy);
@@ -1421,6 +1512,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     clearHold();
     setAngle(null);
     if (g.mode === "erase") {
+      flushErase();
+      lastErase.current = null;
       if (g.erased.length) commit({ type: "erase", s: g.erased });
       if (tool !== "eraser") setEraserAt(null);
     } else if ((g.mode === "drag" || g.mode === "resize") && g.img) {
@@ -1452,6 +1545,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       }
     }
     gesture.current = { mode: null, id: -1, erased: [], straightened: false };
+    setInking(false);
     requestDraw();
   };
 
@@ -1489,7 +1583,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       if (e.key === "l") pickTool("line");
       if (e.key === "e") pickTool("eraser");
       if (e.key === "v") pickTool("move");
-      if (e.key === "t") pickTool("text");
+      if (e.key === "t") {
+        // T: the text box opens right where the mouse is (or the middle), ready to type.
+        e.preventDefault();
+        pickTool("text");
+        const { w, h } = screen.current;
+        const at = hoverAt.current ?? { x: w / 2, y: h / 2 };
+        startTyping(at.x, at.y);
+      }
       if (e.key === "h") setToolsHidden((v) => !v);
       if ((e.key === "Delete" || e.key === "Backspace") && selectedRef.current) deleteSelected();
     };
@@ -1519,25 +1620,22 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     refresh();
   };
 
-  const viewerUrl = typeof window !== "undefined" ? `${window.location.origin}/board-lab/view?room=${room.includes(".") ? viewerRoom(room) : room}` : "";
-  const copyLink = async (present = false) => {
-    // Inside the portal the laptop just opens /teach/present (it pairs by sign-in).
-    const inPortal = window.location.pathname.startsWith("/teach");
-    const url = present ? (inPortal ? `${window.location.origin}/teach/present` : `${viewerUrl}&present=1`) : viewerUrl;
+  /** The laptop's link: /teach/present (it pairs with this tablet by Hamza's sign-in). */
+  const copyLink = async () => {
+    const url = `${window.location.origin}/teach/present`;
     try {
       await navigator.clipboard.writeText(url);
     } catch {
-      window.prompt(present ? "Laptop link" : "Student link", url);
+      window.prompt("Laptop link", url);
     }
-    const set = present ? setCopiedPresent : setCopied;
-    set(true);
-    setTimeout(() => set(false), 1800);
+    setCopiedPresent(true);
+    setTimeout(() => setCopiedPresent(false), 1800);
   };
 
   const hasContent = meta.content > 0;
 
   return (
-    <div data-board className="fixed inset-0 select-none overflow-hidden text-[#f0ede8] [-webkit-touch-callout:none]" style={{ fontFamily: "var(--font-sans)", background: THEMES[look].bg }}>
+    <div data-board className="fixed inset-0 select-none overflow-hidden text-[#1A1D20] [-webkit-touch-callout:none]" style={{ fontFamily: "var(--font-sans)", background: THEMES[look].bg }}>
       <canvas
         ref={canvasRef}
         className="absolute inset-0 h-full w-full touch-none"
@@ -1545,7 +1643,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         onPointerDown={onPointerDown}
         // Keeps the text box focused when the board is clicked or tapped to type.
         onMouseDown={(e) => tool === "text" && e.preventDefault()}
-        onPointerMove={onPointerMove}
+        onPointerMove={(e) => {
+          if (e.pointerType === "mouse") {
+            const [x, y] = local(e);
+            hoverAt.current = { x, y };
+          }
+          onPointerMove(e);
+        }}
         onPointerUp={(e) => endGesture(e)}
         onPointerCancel={(e) => endGesture(e, true)}
         onLostPointerCapture={(e) => gesture.current.id === e.pointerId && gesture.current.mode && endGesture(e)}
@@ -1579,7 +1683,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           }
         }}
         className={`absolute resize-none overflow-hidden whitespace-pre border-0 bg-transparent p-0 font-medium leading-[1.25] outline-none [field-sizing:content] ${
-          typing ? "rounded-sm ring-1 ring-[#FBC159]/45 ring-offset-4 ring-offset-transparent" : "pointer-events-none opacity-0"
+          typing ? "rounded-sm ring-1 ring-[#1557B0]/35 ring-offset-4 ring-offset-transparent" : "pointer-events-none opacity-0"
         }`}
         style={
           typing
@@ -1601,155 +1705,128 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       {angle && (
         <span
           aria-hidden
-          className="pointer-events-none absolute rounded-full bg-[#FBC159] px-2.5 py-1 text-xs font-bold tabular-nums text-[#141618] shadow-lg"
+          className="pointer-events-none absolute rounded-full bg-[#1A1D20] px-2.5 py-1 text-xs font-bold tabular-nums text-white shadow-lg"
           style={{ left: angle.x + 18, top: angle.y - 34 }}
         >
           {angle.deg}°
         </span>
       )}
 
-      {/* Tools hidden (clean screen for sharing): a quiet mark and a way back. */}
+      {/* Tools hidden (clean screen for sharing): just a way back, in the corner. */}
       {toolsHidden && (
-        <>
-          <span style={{ fontFamily: "var(--font-caveat)" }} className={`pointer-events-none absolute bottom-4 right-5 text-lg ${look === "paper" ? "text-[#0F63A8]/70" : "text-[#FBC159]/60"}`}>
-            hamzateaches
-          </span>
-          <button
-            type="button"
-            onClick={() => setToolsHidden(false)}
-            className="absolute bottom-4 left-4 h-9 rounded-xl bg-white/[0.04] px-3 text-xs font-semibold text-[#80868c] transition-colors hover:bg-white/[0.08] hover:text-[#f0ede8]"
-          >
-            Show tools
-          </button>
-        </>
+        <button
+          type="button"
+          onClick={() => setToolsHidden(false)}
+          className={`absolute bottom-3 left-3 h-8 rounded-lg px-2.5 text-[11px] font-semibold text-[#6B7280] transition-opacity duration-300 hover:bg-black/[0.04] hover:text-[#1A1D20] ${quiet ? "opacity-0" : "opacity-70"}`}
+        >
+          Show tools (H)
+        </button>
       )}
 
-      {/* Top bar: brand, live status, student link */}
-      <div className={`pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-4 ${toolsHidden ? "hidden" : ""}`}>
-        <div className="pointer-events-auto flex items-center gap-3 rounded-2xl border border-white/[0.07] bg-[#1c1f22]/80 px-4 py-2.5 backdrop-blur-xl">
-          <span style={{ fontFamily: "var(--font-caveat)" }} className="text-xl leading-none text-[#FBC159]">
-            hamzateaches
-          </span>
-          <span className="h-4 w-px bg-white/10" />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#80868c]">{lead ? "Board" : "Board · laptop"}</span>
-          <span className="h-4 w-px bg-white/10" />
-          <span
-            className="flex items-center gap-1.5 text-xs font-semibold text-[#b9bec3]"
-            title={lead ? "Open the screen sharing view on your laptop: it draws too, and follows this tablet." : "Open the board on your tablet: when it pans or zooms, this screen follows."}
+      {/* Everything on top of the board fades while the pen is down, and on the laptop when the mouse rests. */}
+      <div className={`transition-opacity duration-300 ${toolsHidden ? "hidden" : ""} ${quiet ? "pointer-events-none opacity-0" : inking ? "opacity-25" : ""}`}>
+        {/* Top: who's linked (left), view controls (right). Small, so the board gets the room. */}
+        <div ref={topBarRef} className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
+          <div
+            className={`${PANEL} pointer-events-auto flex h-9 items-center gap-2 px-3 text-xs font-semibold text-[#4B5563]`}
+            title={lead ? "Open /teach/present on your laptop: it draws too, and follows this tablet." : "Open the board on your tablet: when it pans or zooms, this screen follows."}
           >
-            <span className={`h-2 w-2 rounded-full ${partner ? "bg-[#7FD1A6] shadow-[0_0_8px_#7FD1A6]" : "bg-[#5a6066]"}`} />
+            <span className={`h-2 w-2 rounded-full ${partner ? "bg-[#22A06B]" : "bg-[#C4C9CF]"}`} />
             {partner ? (lead ? "Laptop linked" : "Tablet linked") : lead ? "Laptop not open" : "Tablet not open"}
-          </span>
+          </div>
+          <div ref={sidePanelRef} className={`${PANEL} pointer-events-auto flex h-9 items-center gap-0.5 px-1`}>
+            {lead && (
+              <button
+                type="button"
+                onClick={() => setFingerDraws((v) => !v)}
+                className={`h-7 rounded-lg px-2.5 text-xs font-semibold transition-colors ${fingerDraws ? "bg-[#1A1D20] text-white" : "text-[#6B7280] hover:bg-black/[0.05] hover:text-[#1A1D20]"}`}
+                title="For phones without a pen. On your tablet, leave this off: only the S Pen draws."
+              >
+                {fingerDraws ? "Finger draws" : "Pen only"}
+              </button>
+            )}
+            <button type="button" onClick={fit} title="Fit the whole board" className="h-7 w-14 rounded-lg text-center text-xs font-semibold tabular-nums text-[#6B7280] hover:bg-black/[0.05] hover:text-[#1A1D20]">
+              {zoom}%
+            </button>
+            <SmallButton label="Hide the tools for a clean shared screen (H)" onClick={() => setToolsHidden(true)}>{I.hide}</SmallButton>
+            {lead && (
+              <button
+                type="button"
+                onClick={() => void copyLink()}
+                title="Copy the link for your laptop: open it there and share that screen in Meet."
+                className="ml-0.5 h-7 rounded-lg bg-[#1A1D20] px-2.5 text-xs font-semibold text-white transition-colors hover:bg-[#30353a]"
+              >
+                {copiedPresent ? "Copied" : "Laptop link"}
+              </button>
+            )}
+          </div>
         </div>
-        <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-white/[0.07] bg-[#1c1f22]/80 p-1.5 pl-3.5 backdrop-blur-xl">
-          <span className="flex items-center gap-2 text-xs font-semibold text-[#b9bec3]">
-            <span className={`h-2 w-2 rounded-full ${viewers ? "bg-[#7FD1A6] shadow-[0_0_8px_#7FD1A6]" : "bg-[#5a6066]"}`} />
-            {viewers ? `${viewers} watching` : "No one watching"}
-          </span>
-          <button
-            type="button"
-            onClick={() => void copyLink()}
-            className="flex h-9 items-center gap-1.5 rounded-xl bg-white/[0.06] px-3 text-xs font-semibold text-[#f0ede8] transition-colors hover:bg-white/[0.1] [&_svg]:h-4 [&_svg]:w-4"
-          >
-            {I.link}
-            {copied ? "Copied" : "Student link"}
-          </button>
-          {lead && <button
-            type="button"
-            onClick={() => void copyLink(true)}
-            title="Open this on your MacBook and share that screen in Meet: it mirrors this tablet, with no buttons on screen."
-            className="flex h-9 items-center gap-1.5 rounded-xl bg-[#FBC159]/15 px-3 text-xs font-semibold text-[#FBC159] transition-colors hover:bg-[#FBC159]/25 [&_svg]:h-4 [&_svg]:w-4"
-          >
-            {copiedPresent ? "Copied" : "Laptop link"}
-          </button>}
+
+        {/* Picture actions, when one is selected */}
+        {selectedId && (
+          <div className={`${PANEL} absolute left-1/2 top-14 flex -translate-x-1/2 items-center gap-2 p-1 pl-3`}>
+            <span className="text-xs font-semibold text-[#4B5563]">{lead ? "Finger drags it · round handle resizes" : "Drag to move · round handle resizes"}</span>
+            <button type="button" onClick={deleteSelected} className="flex h-8 items-center gap-1.5 rounded-lg bg-[#FDECEA] px-2.5 text-xs font-bold text-[#B42318] [&_svg]:h-4 [&_svg]:w-4">
+              {I.trash}
+              Remove
+            </button>
+          </div>
+        )}
+
+        {/* Main toolbar */}
+        <div ref={toolbarRef} className={`${PANEL} absolute bottom-4 left-1/2 flex max-w-[calc(100vw-16px)] -translate-x-1/2 items-center gap-0.5 overflow-x-auto p-1 [scrollbar-width:none]`}>
+          <ToolButton label="Pen (P). Draw a T for a T account; hold still at the end to snap a line, box or circle" active={tool === "pen"} onClick={() => pickTool("pen")}>{I.pen}</ToolButton>
+          <ToolButton label="Straight line (L)" active={tool === "line"} onClick={() => pickTool("line")}>{I.line}</ToolButton>
+          <ToolButton label="Eraser (E), or hold the pen's side button" active={tool === "eraser"} onClick={() => pickTool("eraser")}>{I.eraser}</ToolButton>
+          <ToolButton label="Type (T starts typing where the mouse is). Enter finishes, Shift+Enter for a new line" active={tool === "text"} onClick={() => pickTool("text")}>{I.text}</ToolButton>
+          <ToolButton label="Move pictures (V)" active={tool === "move"} onClick={() => pickTool("move")}>{I.move}</ToolButton>
+          <ToolButton label="Insert a picture or PDF" disabled={!!busy} onClick={() => fileRef.current?.click()}>
+            {busy ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-black/10 border-t-[#1A1D20]" /> : I.insert}
+          </ToolButton>
+          <Divider />
+          {COLORS.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              aria-label={c.name}
+              title={c.name}
+              aria-pressed={color === c.value}
+              onClick={() => {
+                setColor(c.value);
+                if (tool === "eraser" || tool === "move") pickTool("pen");
+              }}
+              className="flex h-10 w-8 shrink-0 items-center justify-center"
+            >
+              <span
+                className={`block rounded-full transition-all duration-150 ${color === c.value ? "h-[22px] w-[22px] ring-2 ring-[#1A1D20]/80 ring-offset-2 ring-offset-white" : "h-[18px] w-[18px] hover:scale-110"}`}
+                style={{ background: inkOf(c.value) }}
+              />
+            </button>
+          ))}
+          <Divider />
+          {SIZES.map((s) => (
+            <button
+              key={s.value}
+              type="button"
+              aria-label={`${s.name} pen`}
+              title={`${s.name} pen`}
+              aria-pressed={size === s.value}
+              onClick={() => setSize(s.value)}
+              className={`flex h-10 w-8 shrink-0 items-center justify-center rounded-xl transition-colors ${size === s.value ? "bg-black/[0.06]" : "hover:bg-black/[0.04]"}`}
+            >
+              <span className="block rounded-full" style={{ width: s.value * 2.2, height: s.value * 2.2, background: size === s.value ? "#1A1D20" : "#9CA3AF" }} />
+            </button>
+          ))}
+          <Divider />
+          <ToolButton label="Undo (Ctrl+Z, or tap with two fingers)" disabled={!meta.undo} onClick={undo}>{I.undo}</ToolButton>
+          <ToolButton label="Redo (Ctrl+Shift+Z)" disabled={!meta.redo} onClick={redo}>{I.redo}</ToolButton>
+          <ToolButton label="Clear the board" disabled={!hasContent} onClick={() => setConfirmClear(true)}>{I.trash}</ToolButton>
         </div>
-      </div>
-
-      {/* Zoom + palm settings (top right, clear of the toolbar on a portrait tablet) */}
-      <div className={`absolute right-4 top-[76px] flex items-center gap-1 rounded-2xl border border-white/[0.07] bg-[#1c1f22]/80 p-1.5 backdrop-blur-xl ${toolsHidden ? "hidden" : ""}`}>
-        <button
-          type="button"
-          onClick={() => setFingerDraws((v) => !v)}
-          className={`h-9 rounded-xl px-3 text-xs font-semibold transition-colors ${fingerDraws ? "bg-white/[0.08] text-[#f0ede8]" : "text-[#80868c] hover:text-[#f0ede8]"}`}
-          title="For phones without a pen. On your tablet, leave this off: only the S Pen draws."
-        >
-          {fingerDraws ? "Finger draws" : "Pen only"}
-        </button>
-        <button
-          type="button"
-          onClick={switchLook}
-          className="h-9 rounded-xl px-3 text-xs font-semibold text-[#b9bec3] transition-colors hover:bg-white/[0.06] hover:text-[#f0ede8]"
-          title="Switch between a light board (easiest to see on a TV) and a dark one. It changes on your laptop and the students' screens too."
-        >
-          {look === "paper" ? "Light board" : "Dark board"}
-        </button>
-        <span className="w-12 text-center text-xs font-semibold tabular-nums text-[#80868c]">{zoom}%</span>
-        <ToolButton label="Fit the whole board" onClick={fit}>{I.fit}</ToolButton>
-        <ToolButton label="Hide the tools for a clean shared screen (H)" onClick={() => setToolsHidden(true)}>{I.hide}</ToolButton>
-      </div>
-
-      {/* Picture actions, when one is selected */}
-      {selectedId && !toolsHidden && (
-        <div className="absolute left-1/2 top-20 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-[#FBC159]/30 bg-[#1c1f22]/90 p-1.5 pl-4 backdrop-blur-xl">
-          <span className="text-xs font-semibold text-[#b9bec3]">{lead ? "Finger drags it · gold dot resizes" : "Drag to move · gold dot resizes"}</span>
-          <button type="button" onClick={deleteSelected} className="flex h-9 items-center gap-1.5 rounded-xl bg-[#F07A6A]/15 px-3 text-xs font-bold text-[#F07A6A] [&_svg]:h-4 [&_svg]:w-4">
-            {I.trash}
-            Remove
-          </button>
-        </div>
-      )}
-
-      {/* Main toolbar */}
-      <div className={`absolute bottom-5 left-1/2 max-w-[calc(100vw-16px)] -translate-x-1/2 items-center gap-1 overflow-x-auto rounded-[22px] [scrollbar-width:none] ${toolsHidden ? "hidden" : "flex"} border border-white/[0.08] bg-[#1c1f22]/85 p-1.5 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl`}>
-        <ToolButton label="Pen (P). Draw a T for a T account; hold still at the end to snap a line, box or circle" active={tool === "pen"} onClick={() => pickTool("pen")}>{I.pen}</ToolButton>
-        <ToolButton label="Straight line (L)" active={tool === "line"} onClick={() => pickTool("line")}>{I.line}</ToolButton>
-        <ToolButton label="Eraser (E), or hold the pen's side button" active={tool === "eraser"} onClick={() => pickTool("eraser")}>{I.eraser}</ToolButton>
-        <ToolButton label="Type (T). Tap or click where the words go; Enter finishes, Shift+Enter for a new line" active={tool === "text"} onClick={() => pickTool("text")}>{I.text}</ToolButton>
-        <ToolButton label="Move pictures (V)" active={tool === "move"} onClick={() => pickTool("move")}>{I.move}</ToolButton>
-        <ToolButton label="Insert a picture or PDF" disabled={!!busy} onClick={() => fileRef.current?.click()}>
-          {busy ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#FBC159]/30 border-t-[#FBC159]" /> : I.insert}
-        </ToolButton>
-        <Divider />
-        {COLORS.map((c) => (
-          <button
-            key={c.value}
-            type="button"
-            aria-label={look === "paper" && c.value === COLORS[0].value ? "Ink" : c.name}
-            aria-pressed={color === c.value}
-            onClick={() => {
-              setColor(c.value);
-              if (tool === "eraser" || tool === "move") pickTool("pen");
-            }}
-            className="flex h-11 w-9 shrink-0 items-center justify-center"
-          >
-            <span
-              className={`block rounded-full transition-all duration-200 ${color === c.value ? "h-6 w-6 ring-2 ring-[#FBC159] ring-offset-2 ring-offset-[#1c1f22]" : "h-5 w-5 opacity-80 hover:opacity-100"}`}
-              style={{ background: inkOf(c.value), boxShadow: look === "paper" ? "inset 0 0 0 1px rgba(255,255,255,0.18)" : undefined }}
-            />
-          </button>
-        ))}
-        <Divider />
-        {SIZES.map((s) => (
-          <button
-            key={s.value}
-            type="button"
-            aria-label={`${s.name} pen`}
-            aria-pressed={size === s.value}
-            onClick={() => setSize(s.value)}
-            className={`flex h-11 w-9 shrink-0 items-center justify-center rounded-xl transition-colors ${size === s.value ? "bg-white/[0.08]" : "hover:bg-white/[0.05]"}`}
-          >
-            <span className="block rounded-full" style={{ width: s.value * 2.4, height: s.value * 2.4, background: size === s.value ? "#FBC159" : "#a6acb2" }} />
-          </button>
-        ))}
-        <Divider />
-        <ToolButton label="Undo (Ctrl+Z, or tap with two fingers)" disabled={!meta.undo} onClick={undo}>{I.undo}</ToolButton>
-        <ToolButton label="Redo" disabled={!meta.redo} onClick={redo}>{I.redo}</ToolButton>
-        <ToolButton label="Clear the board" disabled={!hasContent} onClick={() => setConfirmClear(true)}>{I.trash}</ToolButton>
       </div>
 
       {/* Short messages: "Undone", upload progress, errors */}
       {(notice || busy) && (
-        <div className="pointer-events-none absolute bottom-24 left-1/2 -translate-x-1/2 rounded-full bg-[#1c1f22]/95 px-4 py-2 text-xs font-semibold text-[#f0ede8] shadow-lg">
+        <div className="pointer-events-none absolute bottom-20 left-1/2 -translate-x-1/2 rounded-full bg-[#1A1D20] px-4 py-2 text-xs font-semibold text-white shadow-lg">
           {busy ?? notice}
         </div>
       )}
@@ -1761,12 +1838,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
 
       {/* Clear confirm */}
       {confirmClear && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setConfirmClear(false)}>
-          <div className="w-[320px] rounded-2xl border border-white/10 bg-[#1c1f22] p-5 text-center" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute inset-0 flex items-center justify-center bg-[#1A1D20]/25 backdrop-blur-[2px]" onClick={() => setConfirmClear(false)}>
+          <div className={`${PANEL} w-[320px] p-5 text-center`} onClick={(e) => e.stopPropagation()}>
             <p className="text-lg font-bold">Clear the whole board?</p>
-            <p className="mt-1 text-sm text-[#a6acb2]">Writing and pictures go. Undo brings them back.</p>
+            <p className="mt-1 text-sm text-[#6B7280]">Writing and pictures go. Undo brings them back.</p>
             <div className="mt-5 flex gap-2">
-              <button type="button" onClick={() => setConfirmClear(false)} className="h-11 flex-1 rounded-xl bg-white/[0.06] text-sm font-semibold">
+              <button type="button" onClick={() => setConfirmClear(false)} className="h-11 flex-1 rounded-xl bg-black/[0.05] text-sm font-semibold">
                 Cancel
               </button>
               <button
@@ -1775,7 +1852,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                   clearAll();
                   setConfirmClear(false);
                 }}
-                className="h-11 flex-1 rounded-xl bg-[#FBC159] text-sm font-bold text-[#141618]"
+                className="h-11 flex-1 rounded-xl bg-[#1A1D20] text-sm font-bold text-white"
               >
                 Clear
               </button>
@@ -1799,17 +1876,12 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
   const followRef = useRef(true);
   const [teacherHere, setTeacherHere] = useState(false);
   const [got, setGot] = useState(false);
-  const [look, setLook] = useState<ThemeId>("paper");
+  const look: ThemeId = "paper";
   const [ledger] = useState(() => new Ledger(0));
 
   const { canvasRef, size: screen, requestDraw } = useCanvas((ctx, w, h, again) =>
     paint(ctx, w, h, cam.current, images.current, strokes.current, [live.current], again),
   );
-  // Same light or dark board as the teacher's.
-  useEffect(() => {
-    setTheme(look);
-    requestDraw();
-  }, [look, requestDraw]);
 
   // Following the tablet: each position update sets a target, and the camera
   // glides to it at screen speed (60 fps), so panning and zooming look smooth
@@ -1834,6 +1906,7 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
       else requestAnimationFrame(() => glideStep.current());
     };
   }, [requestDraw]);
+  const viewerBarRef = useRef<HTMLDivElement>(null);
   // Held in a ref so the live connection never has to restart to use it.
   const followFn = useRef<(jump?: boolean) => void>(() => {});
   useEffect(() => {
@@ -1841,7 +1914,7 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
       const v = teacherView.current;
       const { w, h } = screen.current;
       if (!v || !w || !h) return;
-      target.current = fitView(v, w, h);
+      target.current = fitView(v, w, h, clearInset(h, [viewerBarRef.current], []));
       if (jump) {
         cam.current = target.current;
         requestDraw();
@@ -1887,7 +1960,7 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
           images.current = [];
           live.current = null;
         } else if (m.t === "live") {
-          if (ledger.known(m.s.id)) return;
+          if (ledger.known(m.s.id) || m.from) return;
           live.current = m.s;
           setGot(true);
         } else if (m.t === "img") {
@@ -1899,7 +1972,7 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
           if (!ids.size) return;
           images.current = images.current.filter((x) => !ids.has(x.id));
         } else if (m.t === "theme") {
-          setLook(m.v);
+          // one light board now
         } else if (m.t === "view") {
           teacherView.current = m.v;
           if (followRef.current) followFn.current();
@@ -2000,7 +2073,7 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
           hamzateaches
         </span>
       )}
-      <div className={`pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3 sm:p-4 ${present ? "hidden" : ""}`}>
+      <div ref={viewerBarRef} className={`pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3 sm:p-4 ${present ? "hidden" : ""}`}>
         <div className="flex items-center gap-3 rounded-2xl border border-white/[0.07] bg-[#1c1f22]/80 px-4 py-2.5 backdrop-blur-xl">
           <span style={{ fontFamily: "var(--font-caveat)" }} className="text-xl leading-none text-[#FBC159]">
             hamzateaches

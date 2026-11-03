@@ -141,12 +141,31 @@ export function useClassLinks(from: string, to: string, withJoins = false, poll 
   return { links, joins, ready, save, reload: load };
 }
 
-/** Student taps Join: records attendance, then returns the Meet link to open. */
+/**
+ * Student taps Join: records attendance, then returns the Meet link to open.
+ * Sent as a "keepalive" request, so it still lands after the page has moved on
+ * to Meet: on slow mobile data the Join used to be cut off, and a student who
+ * was in class got no mark (then an automatic absent).
+ */
 export async function joinClass(slot: DaySlot, fallbackUrl: string | null): Promise<string | null> {
   if (DEMO) return fallbackUrl;
-  const { data, error } = await supabase().rpc("join_class", { p_class: slot.classId, p_subject: slot.subjectId });
-  if (error) return fallbackUrl;
-  return (data as string | null) ?? fallbackUrl;
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const { data: sess } = await supabase().auth.getSession();
+  const token = sess.session?.access_token;
+  if (!base || !key || !token) return fallbackUrl;
+  try {
+    const res = await fetch(`${base}/rest/v1/rpc/join_class`, {
+      method: "POST",
+      keepalive: true,
+      headers: { apikey: key, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_class: slot.classId, p_subject: slot.subjectId }),
+    });
+    if (!res.ok) return fallbackUrl;
+    return ((await res.json()) as string | null) ?? fallbackUrl;
+  } catch {
+    return fallbackUrl;
+  }
 }
 
 

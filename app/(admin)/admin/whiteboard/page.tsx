@@ -27,7 +27,7 @@ export default function WhiteboardPage() {
   ];
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-      <PageHeader title="Whiteboard" subtitle="One board on your tablet and laptop. Write on either, share the laptop. Students on the link see each stroke the moment you lift the pen." />
+      <PageHeader title="Whiteboard" subtitle="One board on your tablet and laptop. Write on either, then share the laptop screen in Meet or on the TV." />
       <div className="grid gap-4 sm:grid-cols-2">
         {steps.map((s) => (
           <Card key={s.n} className="flex flex-col p-5">
@@ -49,9 +49,11 @@ export default function WhiteboardPage() {
         <li>Both devices pair on their own because they&apos;re both signed in as you. Nothing to copy.</li>
         <li>Open the board on the tablet from this page (or bookmark it to the home screen for one tap).</li>
         <li>If the laptop was opened late, it catches up with everything already drawn within a second or two.</li>
-        <li>Typing: pick the T tool, tap or click where the words go, and press Enter to finish. Tap the words again to edit them.</li>
-        <li>Light board or dark board: the button at the top right. Light is easiest to see on a TV and in a bright room, and it changes on your laptop and the students&apos; screens too.</li>
-        <li>For a clean shared screen, hide the tools (the eye button, or H on the laptop). &ldquo;Show tools&rdquo; brings them back.</li>
+        <li>Typing: on the laptop, point where the words go and press T. On the tablet, pick the T tool and tap. Enter finishes, Shift+Enter starts a new line. Tap the words again to edit them.</li>
+        <li>Laptop keys: P pen, L line, E eraser, T type, V move pictures, H hide the tools, Ctrl+Z undo, Ctrl+Shift+Z redo.</li>
+        <li>The tools fade while you write, and on the laptop they step aside after 3 seconds without the mouse, so they never cover the board.</li>
+        <li>For a fully clean shared screen, hide the tools (the eye button, or H). &ldquo;Show tools&rdquo; brings them back.</li>
+        <li>Each device keeps its board when you leave, however full, and it&apos;s there when you come back.</li>
         <li>These pages never sign you out mid-class.</li>
       </ul>
     </div>

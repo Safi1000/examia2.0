@@ -37,10 +37,13 @@ export interface View {
   h: number;
 }
 
+// Saved colours stay the same (older boards keep working); the light board draws each as its ink.
 export const COLORS = [
-  { name: "White", value: "#F3F1EC" },
-  { name: "Gold", value: "#FBC159" },
-  { name: "Sky blue", value: "#8FD0F5" },
+  { name: "Black", value: "#F3F1EC" },
+  { name: "Blue", value: "#8FD0F5" },
+  { name: "Red", value: "#F07A6A" },
+  { name: "Green", value: "#7FD1A6" },
+  { name: "Orange", value: "#FBC159" },
 ];
 
 export const SIZES = [
@@ -67,9 +70,10 @@ interface Theme {
 }
 export const THEMES: Record<ThemeId, Theme> = {
   paper: {
-    bg: "#F6F3EB",
+    // Clean white with a hint of warmth: crisp on a TV, no glare.
+    bg: "#FCFCFA",
     dots: "rgba(28,32,35,0.16)",
-    ink: { "#F3F1EC": "#1A1D20", "#FBC159": "#B26A00", "#8FD0F5": "#0F63A8" },
+    ink: { "#F3F1EC": "#1A1D20", "#FBC159": "#C26A00", "#8FD0F5": "#1557B0", "#F07A6A": "#C62828", "#7FD1A6": "#1B7F4B" },
     accent: "#0F63A8",
     ring: { border: "rgba(20,22,24,0.55)", fill: "rgba(20,22,24,0.05)" },
   },
@@ -98,12 +102,44 @@ export const toWorld = (cam: Camera, sx: number, sy: number): [number, number] =
 
 export const visibleView = (cam: Camera, w: number, h: number): View => ({ x: cam.x, y: cam.y, w: w / cam.z, h: h / cam.z });
 
-/** Camera that fits a world rectangle inside a w x h screen, centred. */
-export function fitView(v: View, w: number, h: number): Camera {
-  const z = Math.min(MAX_Z, Math.max(MIN_Z, Math.min(w / v.w, h / v.h)));
+/** The part of the board shown in a screen's clear area (inside `pad`). */
+export const areaView = (cam: Camera, w: number, h: number, pad: Inset): View => ({
+  x: cam.x + pad.l / cam.z,
+  y: cam.y + pad.t / cam.z,
+  w: Math.max(80, w - pad.l - pad.r) / cam.z,
+  h: Math.max(80, h - pad.t - pad.b) / cam.z,
+});
+
+/** Space kept clear at each edge of a screen (toolbars, a margin), in screen pixels. */
+export type Inset = { t: number; r: number; b: number; l: number };
+const NO_INSET: Inset = { t: 0, r: 0, b: 0, l: 0 };
+
+/**
+ * Camera that fits a world rectangle inside a w x h screen, centred in the part
+ * left clear by `pad`, so nothing ends up under the toolbars or off the edge.
+ */
+export function fitView(v: View, w: number, h: number, pad: Inset = NO_INSET): Camera {
+  const iw = Math.max(80, w - pad.l - pad.r);
+  const ih = Math.max(80, h - pad.t - pad.b);
+  const z = Math.min(MAX_Z, Math.max(MIN_Z, Math.min(iw / v.w, ih / v.h)));
   const cx = v.x + v.w / 2;
   const cy = v.y + v.h / 2;
-  return { x: cx - w / 2 / z, y: cy - h / 2 / z, z };
+  return { x: cx - (pad.l + iw / 2) / z, y: cy - (pad.t + ih / 2) / z, z };
+}
+
+/** The clear part of a screen: below the top bars and above the bottom ones, plus a margin. */
+export function clearInset(h: number, top: (Element | null)[], bottom: (Element | null)[], margin = 14): Inset {
+  let t = margin;
+  let b = margin;
+  for (const el of top) {
+    const r = el?.getBoundingClientRect();
+    if (r && r.height) t = Math.max(t, r.bottom + margin);
+  }
+  for (const el of bottom) {
+    const r = el?.getBoundingClientRect();
+    if (r && r.height) b = Math.max(b, h - r.top + margin);
+  }
+  return { t, r: margin, b, l: margin };
 }
 
 /** Zoom by `factor` keeping the screen point (sx, sy) still. */
@@ -544,21 +580,41 @@ export function recogniseShape(pts: Pt[], strict = 0.045): { kind: "rect" | "ell
 }
 
 /** Subtle dot grid behind the ink, so the board feels like paper, not a void. */
+/**
+ * Squared paper: fine lines, with every fourth one a little stronger, like an
+ * exercise book. Each set is one path (fast at any size), always a hairline on screen.
+ */
 export function drawGrid(ctx: CanvasRenderingContext2D, cam: Camera, w: number, h: number) {
   let step = 32;
-  while (step * cam.z < 18) step *= 2;
+  while (step * cam.z < 16) step *= 2;
   const x0 = Math.floor(cam.x / step) * step;
   const y0 = Math.floor(cam.y / step) * step;
   const x1 = cam.x + w / cam.z;
   const y1 = cam.y + h / cam.z;
-  const r = Math.max(0.6, 1.1 / cam.z);
-  ctx.fillStyle = THEMES[themeId].dots;
-  for (let x = x0; x <= x1; x += step)
-    for (let y = y0; y <= y1; y += step) {
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
+  const px = 1 / cam.z;
+  const night = themeId === "night";
+  const lines = (isMajor: boolean) => {
+    ctx.beginPath();
+    for (let x = x0; x <= x1; x += step) {
+      if ((Math.round(x / step) % 4 === 0) !== isMajor) continue;
+      const sx = Math.round((x - cam.x) * cam.z) / cam.z + cam.x + px / 2; // on a pixel, so it stays sharp
+      ctx.moveTo(sx, y0);
+      ctx.lineTo(sx, y1 + step);
     }
+    for (let y = y0; y <= y1; y += step) {
+      if ((Math.round(y / step) % 4 === 0) !== isMajor) continue;
+      const sy = Math.round((y - cam.y) * cam.z) / cam.z + cam.y + px / 2;
+      ctx.moveTo(x0, sy);
+      ctx.lineTo(x1 + step, sy);
+    }
+    ctx.lineWidth = px;
+    ctx.strokeStyle = night
+      ? isMajor ? "rgba(240,237,232,0.10)" : "rgba(240,237,232,0.05)"
+      : isMajor ? "rgba(40,70,110,0.2)" : "rgba(40,70,110,0.1)";
+    ctx.stroke();
+  };
+  lines(false);
+  lines(true);
 }
 
 // ---------------------------------------------------------------- typed text

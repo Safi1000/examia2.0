@@ -14,7 +14,8 @@ import {
   type Schedule,
 } from "@/lib/timetable";
 import { loadSchedule } from "@/lib/schedule-server";
-import { RECORDINGS_ROOT, accessToken, closeLinkSharing, createClassEvent, deleteEvent, fileIdOf, findRecording, getEvent, moveEvent } from "@/lib/google";
+import { loadAutomation, saveAutomation } from "@/lib/automation";
+import { RECORDINGS_ROOT, accessToken, autoRecord, closeLinkSharing, createClassEvent, deleteEvent, fileIdOf, findRecording, getEvent, moveEvent } from "@/lib/google";
 
 // Cancelled classes get no link and no recording.
 const slotsOn: typeof allSlotsOn = (db, date) => allSlotsOn(db, date).filter((s) => !s.cancelled);
@@ -32,8 +33,10 @@ const slotsOn: typeof allSlotsOn = (db, date) => allSlotsOn(db, date).filter((s)
  *     shared "anyone with the link" and added for students.
  *  3. 24 hours after the class ends, link sharing is switched off again, so
  *     students can't save it for later. Anyone Hamza shared the folder with
- *     by email (late joiners) still has access. Recording still has to be
- *     started in Meet.
+ *     by email (late joiners) still has access.
+ *  4. Every class link today is set to record by itself (Meet's own "record
+ *     automatically"), so recording starts when Hamza joins. If Google won't
+ *     allow it (needs Reconnect once), Today says so and Record is pressed by hand.
  */
 
 export const eventTitle = (s: DaySlot) => `${LEVEL_LABEL[s.level]} ${s.subject} · Hamza Teaches`;
@@ -105,6 +108,27 @@ export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), f
       }
     }
   }
+
+  // 4. Today's rooms record by themselves. Checked every run until the class ends
+  // (a link pasted by hand later gets it too); a room already set costs one quick look.
+  let recordIssue: string | null = null;
+  let tried = false;
+  const { data: fresh } = await sb.from("class_links").select("class_id,subject_id,meet_url").eq("on_date", today);
+  for (const s of todays) {
+    if (s.endMs <= now) continue;
+    const url = (fresh ?? []).find((r) => r.class_id === s.classId && r.subject_id === s.subjectId)?.meet_url as string | undefined;
+    if (!url?.includes("meet.google.com")) continue;
+    tried = true;
+    try {
+      await autoRecord(token, url);
+    } catch (e) {
+      recordIssue = String(e).slice(0, 300);
+      console.error("[classes] auto record", eventTitle(s), e);
+      break; // the same reason for every class (permission), no need to repeat it
+    }
+  }
+  const before = await loadAutomation(sb).catch(() => null);
+  if (tried && before && (before.recordIssue ?? null) !== recordIssue) await saveAutomation(sb, null, { recordIssue }).catch(() => {});
 
   // 2 and 3. Recordings, driven by the links that exist (not today's
   // timetable), so editing the timetable never strands a recording.

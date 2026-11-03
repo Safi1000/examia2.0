@@ -1,5 +1,6 @@
 import type { ClassItem, Student, SubjectItem } from "@/types";
 import type { Database } from "@/lib/data/seed";
+import { subjectsAtLevel } from "@/lib/levels";
 
 /**
  * The weekly timetable and date helpers (Pakistan time). Hamza edits the
@@ -241,8 +242,12 @@ export const liveSlotsOn = (db: Pick<Database, "classes" | "subjects">, date: st
 export function slotsForStudent(db: Database, student: Student, date: string): DaySlot[] {
   const cohort = db.cohorts.find((c) => c.id === student.cohortId);
   const classes = student.classIds.length ? student.classIds : (cohort?.classIds ?? []);
-  const subjects = student.subjectIds.length ? student.subjectIds : (cohort?.subjectIds ?? []);
-  return liveSlotsOn(db, date).filter((s) => classes.includes(s.classId) && (!subjects.length || subjects.includes(s.subjectId)));
+  return liveSlotsOn(db, date).filter((s) => {
+    if (!classes.includes(s.classId)) return false;
+    // Two levels (AS and A2): only the subjects they take at this one.
+    const subjects = subjectsAtLevel(student, s.classId, cohort?.subjectIds);
+    return !subjects.length || subjects.includes(s.subjectId);
+  });
 }
 
 export const slotKey = (s: { date: string; classId: string; subjectId: string }) => `${s.date}|${s.classId}|${s.subjectId}`;

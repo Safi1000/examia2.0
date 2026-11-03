@@ -53,6 +53,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createSeed, type Database } from "@/lib/data/seed";
 import { DEMO } from "@/lib/demo";
 import { supabase } from "@/lib/supabase";
+import { cleanLevels, type LevelSubjects } from "@/lib/levels";
 
 /**
  * How long a realtime channel is held open after its last subscriber leaves.
@@ -657,6 +658,7 @@ class Store {
     }
 
     const studentClassMap = new Map<string, string[]>();
+    await this.readLevels((stu.data as Row[]) ?? []);
     const studentSubjectMap = new Map<string, string[]>();
     for (const r of (sCls.data as Row[]) ?? []) {
       const sid = r.student_id as string;
@@ -674,9 +676,12 @@ class Store {
       cohorts: keep(coh, () => ((coh.data as Row[]) ?? []).map((r) =>
         mapCohort(r, cohortClassMap.get(r.id as string) ?? [], cohortSubjectMap.get(r.id as string) ?? [])
       ), prev.cohorts),
-      students: keep(stu, () => ((stu.data as Row[]) ?? []).map((r) =>
-        mapStudent(r, studentClassMap.get(r.id as string) ?? [], studentSubjectMap.get(r.id as string) ?? [])
-      ), prev.students),
+      students: keep(stu, () => ((stu.data as Row[]) ?? []).map((r) => {
+        const st = mapStudent(r, studentClassMap.get(r.id as string) ?? [], studentSubjectMap.get(r.id as string) ?? []);
+        const lv = this.levelMap.get(st.id);
+        if (lv && Object.keys(lv).length) st.levelSubjects = lv;
+        return st;
+      }), prev.students),
       tests: keep(tst, () => tests, prev.tests),
       submissions: keep(sub, () => ((sub.data as Row[]) ?? []).map(mapSubmission), prev.submissions),
       announcements: keep(ann, () => ((ann.data as Row[]) ?? []).map(mapAnnouncement), prev.announcements),
@@ -1067,6 +1072,62 @@ class Store {
     });
     if (input.classIds.length) await this.setStudentClasses(student.id, input.classIds);
     if (input.subjectIds.length) await this.setStudentSubjects(student.id, input.subjectIds);
+    if (input.levelSubjects && Object.keys(input.levelSubjects).length) await this.setStudentLevels(student.id, input.levelSubjects);
+  }
+
+  /**
+   * Subjects per level, for a student taking two levels (see lib/levels.ts).
+   * Saved on their sign-in account by the server. If that can't be saved, they
+   * still get every subject at every level they take, as before.
+   */
+  async setStudentLevels(studentId: string, levels: LevelSubjects) {
+    const clean = Object.fromEntries(Object.entries(levels).filter(([, ids]) => ids.length));
+    this.commit((d) => {
+      const st = d.students.find((x) => x.id === studentId);
+      if (st) st.levelSubjects = Object.keys(clean).length ? clean : undefined;
+    });
+    this.levelsSaveFailed = false;
+    if (DEMO) return;
+    const { data } = await supabase().auth.getSession();
+    const res = await fetch("/api/admin/levels", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token ?? ""}` },
+      body: JSON.stringify({ studentId, levels: clean }),
+    }).catch(() => null);
+    // Never throws: the student is already saved, and the screen asks to try again instead.
+    this.levelsSaveFailed = !res?.ok;
+    if (res?.ok) this.levelMap.set(studentId, clean);
+  }
+  /** The last per-level save didn't reach the server (the roster says so after saving). */
+  levelsSaveFailed = false;
+  /** Subjects per level by student id, as last read from the server (admin) or the student's own account. */
+  private levelMap = new Map<string, LevelSubjects>();
+  private levelsRead = false;
+  private async readLevels(studentRows: Row[]): Promise<void> {
+    if (DEMO) return;
+    try {
+      const sb = supabase();
+      // The session's copy is enough (no extra request); a change reaches a student within the hour.
+      const { data: sess } = await sb.auth.getSession();
+      const user = sess.session?.user;
+      if (!user) return;
+      const meta = user.app_metadata as { role?: string; levels?: unknown } | undefined;
+      if (meta?.role === "admin") {
+        // Hamza: everyone's, once per visit (and kept current by his own saves).
+        if (this.levelsRead) return;
+        const res = await fetch("/api/admin/levels", { headers: { Authorization: `Bearer ${sess.session?.access_token ?? ""}` } });
+        if (!res.ok) return;
+        const all = (await res.json()) as Record<string, unknown>;
+        this.levelMap = new Map(Object.entries(all).map(([k, v]) => [k, cleanLevels(v)]));
+        this.levelsRead = true;
+      } else {
+        // A student: their own, from their account.
+        const mine = studentRows.find((r) => r.user_id === user.id);
+        if (mine) this.levelMap.set(mine.id as string, cleanLevels(meta?.levels));
+      }
+    } catch {
+      // Not reachable: everyone keeps all their subjects at each level.
+    }
   }
   /**
    * Saves a student. The sign in details (username, cohort, a new password) go
@@ -1104,6 +1165,7 @@ class Store {
     });
     if (patch.classIds !== undefined) await this.setStudentClasses(id, patch.classIds);
     if (patch.subjectIds !== undefined) await this.setStudentSubjects(id, patch.subjectIds);
+    if (patch.levelSubjects !== undefined) await this.setStudentLevels(id, patch.levelSubjects);
     return done;
   }
   /** Deletes the student and their sign in; resolves once the server has done it (throws if not). */

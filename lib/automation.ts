@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { LEVEL_LABEL, addDays, at, liveSlotsOn, pkDate, setSchedule, slotsOn } from "@/lib/timetable";
 import { adminUser, loadSchedule, saveAdminMeta } from "@/lib/schedule-server";
 import { accessToken, googleReady } from "@/lib/google";
+import { levelSubjectsByStudent } from "@/lib/push-server";
 
 /**
  * Hands-off jobs run by the 15-minute timer (no AI, no paid services):
@@ -10,6 +11,9 @@ import { accessToken, googleReady } from "@/lib/google";
  *    who didn't tap Join and has no mark for the day is marked absent. Only
  *    when somebody did join, so a class that never happened marks nobody.
  *    Hamza can change any mark in Attendance afterwards.
+ *  - Auto-late: a Join tapped more than LATE_MINUTES after the class started
+ *    turns that day's automatic "present" into "late". A mark Hamza set by
+ *    hand is never changed.
  *  - Auto-release (off unless Hamza turns it on): once a multiple-choice-only
  *    test closes, its handed-in papers are released (they mark themselves),
  *    and the usual "result is out" notification follows.
@@ -27,12 +31,14 @@ export const DEFAULT_AUTOMATION: AutomationSettings = { autoAbsent: true, autoRe
 interface AutomationMeta extends Partial<AutomationSettings> {
   /** When the 15-minute timer last ran. */
   cronAt?: string;
+  /** Why the last try to switch on automatic recording failed (cleared once it works). */
+  recordIssue?: string | null;
 }
 
-export async function loadAutomation(sb: SupabaseClient): Promise<AutomationSettings & { cronAt?: string }> {
+export async function loadAutomation(sb: SupabaseClient): Promise<AutomationSettings & { cronAt?: string; recordIssue?: string | null }> {
   const u = await adminUser(sb).catch(() => null);
   const m = ((u?.app_metadata as { automation?: AutomationMeta } | undefined)?.automation ?? {}) as AutomationMeta;
-  return { ...DEFAULT_AUTOMATION, ...pick(m), cronAt: m.cronAt };
+  return { ...DEFAULT_AUTOMATION, ...pick(m), cronAt: m.cronAt, recordIssue: m.recordIssue ?? null };
 }
 
 const pick = (m: Partial<AutomationSettings>): Partial<AutomationSettings> => {
@@ -42,10 +48,15 @@ const pick = (m: Partial<AutomationSettings>): Partial<AutomationSettings> => {
   return out;
 };
 
-export async function saveAutomation(sb: SupabaseClient, callerId: string | null, patch: Partial<AutomationSettings> & { cronAt?: string }) {
+export async function saveAutomation(sb: SupabaseClient, callerId: string | null, patch: Partial<AutomationSettings> & { cronAt?: string; recordIssue?: string | null }) {
   const u = await adminUser(sb).catch(() => null);
   const current = ((u?.app_metadata as { automation?: AutomationMeta } | undefined)?.automation ?? {}) as AutomationMeta;
-  const next: AutomationMeta = { ...current, ...pick(patch), ...(patch.cronAt ? { cronAt: patch.cronAt } : {}) };
+  const next: AutomationMeta = {
+    ...current,
+    ...pick(patch),
+    ...(patch.cronAt ? { cronAt: patch.cronAt } : {}),
+    ...("recordIssue" in patch ? { recordIssue: patch.recordIssue ?? null } : {}),
+  };
   await saveAdminMeta(sb, callerId, { automation: next });
   return next;
 }
@@ -81,6 +92,7 @@ export async function studentsIn(sb: SupabaseClient, classId: string, subjectIds
     return m;
   };
   const off = new Set((cohorts ?? []).filter((c) => c.active === false).map((c) => c.id as string));
+  const levels = await levelSubjectsByStudent(sb);
   const ownC = group(sc, "student_id", "class_id");
   const ownS = group(ss, "student_id", "subject_id");
   const cohC = group(cc, "cohort_id", "class_id");
@@ -90,10 +102,45 @@ export async function studentsIn(sb: SupabaseClient, classId: string, subjectIds
     .filter((s) => {
       const classes = ownC.get(s.id)?.size ? ownC.get(s.id)! : (cohC.get(s.cohort_id ?? "") ?? new Set<string>());
       if (!classes.has(classId)) return false;
-      const subjects = ownS.get(s.id)?.size ? ownS.get(s.id)! : (cohS.get(s.cohort_id ?? "") ?? new Set<string>());
+      const atLevel = levels.get(s.id)?.[classId];
+      const subjects = atLevel?.length ? new Set(atLevel) : ownS.get(s.id)?.size ? ownS.get(s.id)! : (cohS.get(s.cohort_id ?? "") ?? new Set<string>());
       return !subjectIds.length || !subjects.size || subjectIds.some((x) => subjects.has(x));
     })
     .map((s) => s.id as string);
+}
+
+/** Minutes after the start that still count as on time. */
+export const LATE_MINUTES = 10;
+
+/** Today's late joiners: their automatic "present" becomes "late" (see top). */
+async function autoLate(sb: SupabaseClient, now: number) {
+  const today = pkDate(now);
+  const db = await catalogue(sb);
+  const slots = liveSlotsOn(db, today).filter((s) => s.startMs <= now);
+  if (!slots.length) return 0;
+  const [{ data: joins }, { data: marks }] = await Promise.all([
+    sb.from("class_joins").select("student_id,class_id,subject_id,joined_at").eq("on_date", today),
+    sb.from("attendance_days").select("id,student_id,class_id,status,created_at").eq("on_date", today).eq("status", "present"),
+  ]);
+  const late: string[] = [];
+  for (const m of marks ?? []) {
+    // The automatic mark is written in the same moment as the student's first Join;
+    // a mark made by hand has no Join at that moment, so it's never touched.
+    const made = +new Date(m.created_at as string);
+    const j = (joins ?? []).find(
+      (x) => x.student_id === m.student_id && x.class_id === m.class_id && Math.abs(+new Date(x.joined_at as string) - made) < 60_000,
+    );
+    if (!j) continue;
+    const slot = slots.find((s) => s.classId === j.class_id && s.subjectId === j.subject_id);
+    if (slot && +new Date(j.joined_at as string) > slot.startMs + LATE_MINUTES * 60_000) late.push(m.id as string);
+  }
+  if (!late.length) return 0;
+  const { error } = await sb.from("attendance_days").update({ status: "late" }).in("id", late).eq("status", "present");
+  if (error) {
+    console.error("[automation] late", error.message);
+    return 0;
+  }
+  return late.length;
 }
 
 /** After each level's last class: mark the no-shows absent (see top). */
@@ -168,12 +215,13 @@ async function autoRelease(sb: SupabaseClient, now: number) {
 export async function runAutomations(sb: SupabaseClient, now = Date.now()) {
   const settings = await loadAutomation(sb);
   setSchedule(await loadSchedule(sb));
-  const [absent, released] = await Promise.all([
+  const [absent, late, released] = await Promise.all([
     settings.autoAbsent ? autoAbsent(sb, now).catch((e) => (console.error("[automation] absent", e), 0)) : 0,
+    settings.autoAbsent ? autoLate(sb, now).catch((e) => (console.error("[automation] late", e), 0)) : 0,
     settings.autoRelease ? autoRelease(sb, now).catch((e) => (console.error("[automation] release", e), 0)) : 0,
   ]);
   await saveAutomation(sb, null, { cronAt: new Date(now).toISOString() }).catch((e) => console.error("[automation] heartbeat", e));
-  return { absent, released };
+  return { absent, late, released };
 }
 
 export interface HealthIssue {
@@ -206,6 +254,19 @@ export async function healthCheck(sb: SupabaseClient, now = Date.now()): Promise
   if (!token) {
     issues.push({ kind: "google", text: "Google has disconnected (a password change or removed access). Reconnect it, or today's classes get no Meet links." });
     return issues;
+  }
+
+  // Automatic recording couldn't be switched on (see class-automation step 4).
+  if (settings.recordIssue) {
+    const r = settings.recordIssue;
+    issues.push({
+      kind: "google",
+      text: /SERVICE_DISABLED|has not been used|is disabled/i.test(r)
+        ? "Classes can't record by themselves yet: the Google Meet API is switched off in Google Cloud. Ask the developer to turn on \"Google Meet REST API\" (one switch). Until then, press Record in Meet."
+        : /403|PERMISSION|insufficient|scope/i.test(r)
+          ? "Reconnect Google once so each class records by itself. Until then, press Record in Meet."
+          : "Classes couldn't be set to record by themselves today. Press Record in Meet, and Reconnect Google if this stays.",
+    });
   }
 
   // Links: due from 1 pm (or 2 h before the first class).

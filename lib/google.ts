@@ -15,6 +15,8 @@ const SCOPES = [
   "https://www.googleapis.com/auth/calendar.events",
   // Full Drive, because the recordings are files Meet made, not this app.
   "https://www.googleapis.com/auth/drive",
+  // Switch on Meet's own "record automatically" for each class.
+  "https://www.googleapis.com/auth/meetings.space.settings",
 ];
 
 export const googleReady = () => !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
@@ -127,6 +129,31 @@ export async function createClassEvent(token: string, title: string, startIso: s
     }),
   });
   return { eventId: ev.id, meetUrl: ev.hangoutLink ?? null };
+}
+
+// ---- Meet: each class records by itself -----------------------------------------
+
+interface MeetSpace {
+  name: string;
+  config?: { artifactConfig?: { recordingConfig?: { autoRecordingGeneration?: string } } };
+}
+
+/**
+ * Turns on Meet's "record automatically" for a class link, so recording starts
+ * when Hamza joins (no Record button to remember). Hamza must be the meeting's
+ * organiser, which he is for every link made here. Safe to call again: a room
+ * already set is left alone.
+ */
+export async function autoRecord(token: string, meetUrl: string): Promise<"on" | "already"> {
+  const code = meetUrl.match(/meet\.google\.com\/([a-z]+-[a-z]+-[a-z]+)/i)?.[1];
+  if (!code) throw new Error("not a Meet link");
+  const space = await g<MeetSpace>(token, `https://meet.googleapis.com/v2/spaces/${code}`);
+  if (space.config?.artifactConfig?.recordingConfig?.autoRecordingGeneration === "ON") return "already";
+  await g<MeetSpace>(token, `https://meet.googleapis.com/v2/${space.name}?updateMask=config.artifactConfig.recordingConfig.autoRecordingGeneration`, {
+    method: "PATCH",
+    body: JSON.stringify({ config: { artifactConfig: { recordingConfig: { autoRecordingGeneration: "ON" } } } }),
+  });
+  return "on";
 }
 
 export const getEvent = (token: string, id: string) =>

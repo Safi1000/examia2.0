@@ -67,7 +67,7 @@ export default function RosterPage() {
 
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Student | "new" | null>(null);
-  const [form, setForm] = useState({ username: "", email: "", whatsapp: "", phone: "", photoUrl: "", cohortId: "", tempPassword: "", classIds: [] as string[], subjectIds: [] as string[] });
+  const [form, setForm] = useState({ username: "", email: "", whatsapp: "", phone: "", photoUrl: "", cohortId: "", tempPassword: "", classIds: [] as string[], subjectIds: [] as string[], levelSubjects: {} as Record<string, string[]> });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // The just-added student's login, for the ready-made welcome message.
@@ -114,19 +114,32 @@ export default function RosterPage() {
 
   // Classes/subjects available for the selected cohort in the form
   const selectedCohort = db.cohorts.find((c) => c.id === form.cohortId);
-  // The cohort's own levels and subjects, or every one when it has none linked (same as Import).
-  const availableClasses = selectedCohort?.classIds.length
-    ? db.classes.filter((c) => selectedCohort.classIds.includes(c.id))
-    : db.classes;
+  // Every level, the cohort's own first: a student can also take a second level (AS and A2 together).
+  const availableClasses = [...db.classes].sort(
+    (a, b) => Number(!selectedCohort?.classIds.includes(a.id)) - Number(!selectedCohort?.classIds.includes(b.id)),
+  );
+  const twoLevels = form.classIds.length > 1;
   const availableSubjects = selectedCohort?.subjectIds.length
     ? db.subjects.filter((s) => selectedCohort.subjectIds.includes(s.id))
     : db.subjects;
 
   function toggleClass(id: string) {
-    setForm((f) => ({
-      ...f,
-      classIds: f.classIds.includes(id) ? f.classIds.filter((x) => x !== id) : [...f.classIds, id],
-    }));
+    setForm((f) => {
+      const classIds = f.classIds.includes(id) ? f.classIds.filter((x) => x !== id) : [...f.classIds, id];
+      // Each level keeps its own subjects; one already picked carries over to the first level.
+      const levelSubjects: Record<string, string[]> = {};
+      for (const c of classIds) levelSubjects[c] = f.levelSubjects[c] ?? (f.classIds.includes(c) ? f.subjectIds : []);
+      // Back to one level: its subjects are simply theirs.
+      const subjectIds = classIds.length === 1 ? (levelSubjects[classIds[0]] ?? []) : [...new Set(Object.values(levelSubjects).flat())];
+      return { ...f, classIds, levelSubjects, subjectIds };
+    });
+  }
+  function toggleLevelSubject(classId: string, id: string) {
+    setForm((f) => {
+      const now = f.levelSubjects[classId] ?? [];
+      const levelSubjects = { ...f.levelSubjects, [classId]: now.includes(id) ? now.filter((x) => x !== id) : [...now, id] };
+      return { ...f, levelSubjects, subjectIds: [...new Set(f.classIds.flatMap((c) => levelSubjects[c] ?? []))] };
+    });
   }
   function toggleSubject(id: string) {
     setForm((f) => ({
@@ -137,12 +150,12 @@ export default function RosterPage() {
 
   function openNew() {
     setEditing("new");
-    setForm({ username: "", email: "", whatsapp: "", phone: "", photoUrl: "", cohortId: cohortId ?? db.cohorts[0]?.id ?? "", tempPassword: genPassword(), classIds: [], subjectIds: [] });
+    setForm({ username: "", email: "", whatsapp: "", phone: "", photoUrl: "", cohortId: cohortId ?? db.cohorts[0]?.id ?? "", tempPassword: genPassword(), classIds: [], subjectIds: [], levelSubjects: {} });
     setError(null);
   }
   function openEdit(s: Student) {
     setEditing(s);
-    setForm({ username: s.username, email: s.email ?? "", whatsapp: s.whatsapp ?? "", phone: s.phone ?? "", photoUrl: s.photoUrl ?? "", cohortId: s.cohortId, tempPassword: "", classIds: [...s.classIds], subjectIds: [...s.subjectIds] });
+    setForm({ username: s.username, email: s.email ?? "", whatsapp: s.whatsapp ?? "", phone: s.phone ?? "", photoUrl: s.photoUrl ?? "", cohortId: s.cohortId, tempPassword: "", classIds: [...s.classIds], subjectIds: [...s.subjectIds], levelSubjects: Object.fromEntries(s.classIds.map((c) => [c, [...(s.levelSubjects?.[c] ?? s.subjectIds)]])) });
     setError(null);
   }
   async function save() {
@@ -151,6 +164,10 @@ export default function RosterPage() {
     // Tests, notes and the timetable reach students through their level and subjects.
     if (db.classes.length && form.classIds.length === 0) return setError("Pick their level, so the right tests, notes and classes reach them.");
     if (db.subjects.length && form.subjectIds.length === 0) return setError("Pick at least one subject.");
+    if (twoLevels && db.subjects.length) {
+      const empty = form.classIds.find((c) => !form.levelSubjects[c]?.length);
+      if (empty) return setError(`Pick their ${db.classes.find((c) => c.id === empty)?.name ?? "second level"} subjects too.`);
+    }
     const exceptId = editing !== "new" && editing ? editing.id : undefined;
     if (store.usernameTaken(form.username, exceptId)) return setError("That username is already taken.");
     // Passwords live in Supabase auth and are never read back, so the field is
@@ -182,6 +199,12 @@ export default function RosterPage() {
       tempPassword: form.tempPassword.trim(),
       classIds: form.classIds,
       subjectIds: form.subjectIds,
+      // Two levels: the subjects at each. One level: nothing extra (cleared if they had two before).
+      ...(twoLevels
+        ? { levelSubjects: Object.fromEntries(form.classIds.map((c) => [c, form.levelSubjects[c] ?? []])) }
+        : editing !== "new" && editing?.levelSubjects
+          ? { levelSubjects: {} }
+          : {}),
     };
     // Provisioning happens in an edge function, so it can genuinely fail. Wait
     // for it: reporting success and closing the dialog before the round trip
@@ -199,6 +222,7 @@ export default function RosterPage() {
         else if (editing.username !== fields.username) setSent({ username: fields.username, password: "", phone: fields.phone, parent: fields.whatsapp, kind: "username" });
         else toast("Student updated. Their login hasn't changed.", "success");
       }
+      if (fields.levelSubjects && store.levelsSaveFailed) toast("Saved, but the subjects for each level didn't save. Open the student and save again.", "error");
       setEditing(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save this student.");
@@ -313,6 +337,11 @@ export default function RosterPage() {
             const released = db.submissions.filter((x) => x.studentId === s.id && x.status === "released").length;
             const classNames = s.classIds.map((cid) => db.classes.find((x) => x.id === cid)?.name).filter(Boolean);
             const subjectNames = s.subjectIds.map((sid) => db.subjects.find((x) => x.id === sid)?.name).filter(Boolean);
+            const nameOf = (sid: string) => db.subjects.find((x) => x.id === sid)?.name;
+            // Two levels with their own subjects: "AS: Economics" and "A2: Accounting".
+            const perLevel = s.classIds.length > 1 && s.levelSubjects
+              ? db.classes.filter((c) => s.classIds.includes(c.id)).map((c) => c.id).map((cid) => `${db.classes.find((x) => x.id === cid)?.name ?? ""}: ${(s.levelSubjects?.[cid] ?? s.subjectIds).map(nameOf).filter(Boolean).join(", ")}`)
+              : null;
             return (
               <Card key={s.id} className="flex items-start justify-between gap-3 p-4">
                 <span className="pt-1">
@@ -340,12 +369,16 @@ export default function RosterPage() {
                     </p>
                     {(classNames.length > 0 || subjectNames.length > 0) && (
                       <div className="mt-1.5 flex flex-wrap gap-1">
+                        {perLevel ? perLevel.map((n) => (
+                          <span key={n} className="rounded border border-brand/40 bg-brand-soft px-1.5 py-0.5 text-xs text-brand">{n}</span>
+                        )) : <>
                         {classNames.map((n) => (
                           <span key={n} className="rounded border border-border px-1.5 py-0.5 text-xs text-ink-2">{n}</span>
                         ))}
                         {subjectNames.map((n) => (
                           <span key={n} className="rounded border border-brand/40 bg-brand-soft px-1.5 py-0.5 text-xs text-brand">{n}</span>
                         ))}
+                        </>}
                       </div>
                     )}
                   </div>
@@ -460,14 +493,14 @@ export default function RosterPage() {
             </div>
             <p className="mt-1.5 text-xs text-ink-3">Cropped to a square and shrunk to 512px before upload.</p>
           </div>
-          <Select label="Cohort" value={form.cohortId} onChange={(e) => setForm({ ...form, cohortId: e.target.value, classIds: [], subjectIds: [] })}>
+          <Select label="Cohort" value={form.cohortId} onChange={(e) => setForm({ ...form, cohortId: e.target.value, classIds: [], subjectIds: [], levelSubjects: {} })}>
             <option value="">Choose…</option>
             {db.cohorts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
           <div>
             <Label>Classes</Label>
             <p className="mb-2 text-xs text-ink-3">
-              {form.cohortId ? "Select which classes this student takes." : "Select a cohort first to see available classes."}
+              {form.cohortId ? "Pick their level. Taking two (AS and A2 together)? Pick both." : "Select a cohort first to see available classes."}
             </p>
             <ChipToggle
               items={availableClasses}
@@ -476,18 +509,33 @@ export default function RosterPage() {
               placeholder={form.cohortId ? "No classes assigned to this cohort yet." : ""}
             />
           </div>
-          <div>
-            <Label>Subjects</Label>
-            <p className="mb-2 text-xs text-ink-3">
-              {form.cohortId ? "Select which subjects this student takes." : "Select a cohort first to see available subjects."}
-            </p>
-            <ChipToggle
-              items={availableSubjects}
-              selected={form.subjectIds}
-              onToggle={toggleSubject}
-              placeholder={form.cohortId ? "No subjects assigned to this cohort yet." : ""}
-            />
-          </div>
+          {twoLevels ? (
+            <div className="space-y-3">
+              <div>
+                <Label>Subjects at each level</Label>
+                <p className="text-xs text-ink-3">Their timetable, Join button, reminders, tests and notes follow these.</p>
+              </div>
+              {db.classes.filter((c) => form.classIds.includes(c.id)).map(({ id: cid, name }) => (
+                <div key={cid} className="rounded-xl border border-border p-3">
+                  <p className="mb-2 text-sm font-semibold text-ink">{name}</p>
+                  <ChipToggle items={availableSubjects} selected={form.levelSubjects[cid] ?? []} onToggle={(id) => toggleLevelSubject(cid, id)} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div>
+              <Label>Subjects</Label>
+              <p className="mb-2 text-xs text-ink-3">
+                {form.cohortId ? "Select which subjects this student takes." : "Select a cohort first to see available subjects."}
+              </p>
+              <ChipToggle
+                items={availableSubjects}
+                selected={form.subjectIds}
+                onToggle={toggleSubject}
+                placeholder={form.cohortId ? "No subjects assigned to this cohort yet." : ""}
+              />
+            </div>
+          )}
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-ink-2">
               {editing === "new" ? "Temporary password" : "New password (only if they need one)"}

@@ -10,6 +10,7 @@ import type { Student } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { useSchedule, LEVEL_LABEL, RECORDING_HOURS, getSchedule, addDays, isClassDay, pkDate, slotKey, slotsForStudent, slotsOn, span, useClassLinks } from "@/lib/classes";
 import { cn } from "@/lib/cn";
+import { subjectsAtLevel } from "@/lib/levels";
 
 /**
  * The student's classes that were called off on a date. `slotsForStudent`
@@ -19,8 +20,11 @@ import { cn } from "@/lib/cn";
 function cancelledFor(db: Database, student: Student, date: string) {
   const cohort = db.cohorts.find((c) => c.id === student.cohortId);
   const classes = student.classIds.length ? student.classIds : (cohort?.classIds ?? []);
-  const subjects = student.subjectIds.length ? student.subjectIds : (cohort?.subjectIds ?? []);
-  return slotsOn(db, date).filter((s) => s.cancelled && classes.includes(s.classId) && (!subjects.length || subjects.includes(s.subjectId)));
+  return slotsOn(db, date).filter((s) => {
+    if (!s.cancelled || !classes.includes(s.classId)) return false;
+    const subjects = subjectsAtLevel(student, s.classId, cohort?.subjectIds);
+    return !subjects.length || subjects.includes(s.subjectId);
+  });
 }
 
 const dayName = (ymd: string) => new Date(`${ymd}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });

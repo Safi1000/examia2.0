@@ -10,6 +10,7 @@ import { useNow } from "@/hooks/useNow";
 import { NoteViewer } from "@/components/NoteViewer";
 import { cn } from "@/lib/cn";
 import type { Note } from "@/types";
+import { takesLevelSubject } from "@/lib/levels";
 
 /** Short file type for the little tile, and its tint. */
 function fileKind(type: string): { label: string; tint: string } {
@@ -105,8 +106,7 @@ function StudentNotes() {
   // can access. We still filter locally to know each note's subject.
   const accessibleAssignments = db.noteAssignments.filter((na) => {
     if (na.cohortId !== student.cohortId) return false;
-    if (na.classId && !student.classIds.includes(na.classId)) return false;
-    if (na.subjectId && !student.subjectIds.includes(na.subjectId)) return false;
+    if (!takesLevelSubject(student, na.classId ?? null, na.subjectId ?? null)) return false;
     return true;
   });
   const shown = viewing ?? (linked ? { id: linked.id, title: linked.title } : null);
