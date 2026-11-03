@@ -50,7 +50,8 @@ export default function WhiteboardPage() {
         <li>Open the board on the tablet from this page (or bookmark it to the home screen for one tap).</li>
         <li>If the laptop was opened late, it catches up with everything already drawn within a second or two.</li>
         <li>Typing: on the laptop, point where the words go and press T. On the tablet, pick the T tool and tap. Enter finishes, Shift+Enter starts a new line. Tap the words again to edit them.</li>
-        <li>Laptop keys: P pen, L line, E eraser, T type, V move pictures, H hide the tools, Ctrl+Z undo, Ctrl+Shift+Z redo.</li>
+        <li>Each class gets its own page, opened by itself 10 minutes before it starts (&ldquo;A2 Economics · Wed 4 Nov&rdquo;), so a new class never starts on the last one&apos;s writing. The arrows at the top left go back to earlier pages; + starts a blank one.</li>
+        <li>Laptop keys: P pen, L line, E eraser, T type, V move pictures, H hide the tools, [ and ] pages, N new page, Ctrl+Z undo, Ctrl+Shift+Z redo.</li>
         <li>The tools fade while you write, and on the laptop they step aside after 3 seconds without the mouse, so they never cover the board.</li>
         <li>For a fully clean shared screen, hide the tools (the eye button, or H). &ldquo;Show tools&rdquo; brings them back.</li>
         <li>Each device keeps its board when you leave, however full, and it&apos;s there when you come back.</li>

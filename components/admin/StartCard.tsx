@@ -22,14 +22,21 @@ export function StartCard({ slot, url, nowMs }: { slot: DaySlot; url: string | n
         </p>
       </div>
       {url ? (
-        <a
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex h-12 items-center gap-2 rounded-full bg-brand px-7 text-base font-semibold text-on-brand transition hover:brightness-110 active:scale-[0.98]"
-        >
-          Start class <Icon.ChevronRight className="h-4 w-4" />
-        </a>
+        <div className="flex flex-col items-end gap-1.5">
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => {
+              // One tap: Meet opens in a new tab, and this tab becomes the board, ready to share.
+              setTimeout(() => window.location.assign("/teach/present"), 300);
+            }}
+            className="inline-flex h-12 items-center gap-2 rounded-full bg-brand px-7 text-base font-semibold text-on-brand transition hover:brightness-110 active:scale-[0.98]"
+          >
+            Start class <Icon.ChevronRight className="h-4 w-4" />
+          </a>
+          <p className="text-xs text-ink-3">Opens Meet, and turns this tab into the board to share.</p>
+        </div>
       ) : (
         <p className="max-w-[16rem] text-sm text-ink-2">No Meet link yet. If Google is connected it appears here automatically; or open More on the class to paste one.</p>
       )}

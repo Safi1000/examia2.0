@@ -67,3 +67,48 @@ export async function loadBoard(key: string): Promise<SavedBoard | null> {
   } catch {}
   return null;
 }
+
+/** A page of the board: one per class (made on its own as each class starts), or a blank one. */
+export interface BoardPage {
+  id: string;
+  title: string;
+  /** When it was made (pages are listed in this order). */
+  at: number;
+  /** The class it belongs to (made on its own when that class starts). */
+  classId?: string;
+  subjectId?: string;
+}
+export interface PageIndex {
+  pages: BoardPage[];
+  current: string;
+}
+
+export async function loadIndex(key: string): Promise<PageIndex | null> {
+  try {
+    const d = await db();
+    const got = await new Promise<unknown>((resolve, reject) => {
+      const req = d.transaction(STORE, "readonly").objectStore(STORE).get(`${key}#pages`);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    return (got as PageIndex | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveIndex(key: string, index: PageIndex): Promise<void> {
+  try {
+    const d = await db();
+    const tx = d.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).put(index, `${key}#pages`);
+  } catch {}
+}
+
+/** A page dropped from the list (the oldest, once there are many): its board goes too. */
+export async function deleteBoard(key: string): Promise<void> {
+  try {
+    const d = await db();
+    d.transaction(STORE, "readwrite").objectStore(STORE).delete(key);
+  } catch {}
+}

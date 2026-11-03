@@ -2,6 +2,7 @@
 
 import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
 import type { BoardImage, Stroke, ThemeId, View } from "@/components/board/engine";
+import type { BoardPage } from "@/components/board/storage";
 
 /**
  * Live link between Hamza's tablet, his laptop, and the students watching.
@@ -25,9 +26,10 @@ export type BoardMsg =
   | { t: "clear"; q?: number } // everything off the board
   | { t: "batch"; ms: BoardMsg[] } // several changes that belong together, in order
   | { t: "theme"; v: ThemeId }
+  | { t: "page"; p: BoardPage; q?: number } // switched to another page: the other device follows
   | { t: "view"; v: View } // what the tablet shows, for "follow"
   | { t: "hello" } // asking for the full board
-  | { t: "rev"; n: number; last: string; d?: string }; // heartbeat: item count, newest stroke and a fingerprint, so the other side can self-check
+  | { t: "rev"; n: number; last: string; d?: string; p?: BoardPage }; // heartbeat: item count, newest stroke, a fingerprint and the page, so the other side can self-check
 
 /** A short fingerprint of a board (which strokes and pictures, in their current form). */
 export function boardDigest(strokes: Stroke[], images: BoardImage[]): string {

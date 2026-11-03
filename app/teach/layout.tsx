@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { TeachGate } from "@/components/board/TeachGate";
+import { ScheduleGate } from "@/components/ScheduleGate";
 
 /**
  * Hamza's live whiteboard inside the portal: /teach/board on the tablet (draw),
@@ -22,5 +23,10 @@ export const viewport: Viewport = {
 };
 
 export default function TeachLayout({ children }: { children: React.ReactNode }) {
-  return <TeachGate>{children}</TeachGate>;
+  // The timetable too, so each class opens its own page on the board.
+  return (
+    <TeachGate>
+      <ScheduleGate>{children}</ScheduleGate>
+    </TeachGate>
+  );
 }

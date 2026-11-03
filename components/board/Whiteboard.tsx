@@ -44,7 +44,10 @@ import {
   zoomAt,
 } from "@/components/board/engine";
 import { boardDigest, connectBoard, Ledger, viewerRoom, type BoardLink, type BoardMsg } from "@/components/board/sync";
-import { loadBoard, saveBoard } from "@/components/board/storage";
+import { deleteBoard, loadBoard, loadIndex, saveBoard, saveIndex, type BoardPage } from "@/components/board/storage";
+import { useDatabase } from "@/lib/data/store";
+import { LEVEL_LABEL, liveSlotsOn, pkDate, slotKey } from "@/lib/timetable";
+import { useSchedule } from "@/lib/classes";
 import { cloudinaryConfigured, uploadImage, uploadPdfPages } from "@/lib/cloudinary";
 
 /**
@@ -70,6 +73,12 @@ const MIN_HOLD_PATH_PX = 28;
 const PALM_LOCK_MS = 350;
 const PALM_SIZE_PX = 56;
 const ERASER_PX = 14;
+/** The board from before pages existed (and the page used outside class time). */
+const MAIN_PAGE: BoardPage = { id: "main", title: "Board", at: 0 };
+/** Pages kept on a device; older ones (and their boards) are let go. */
+const MAX_PAGES = 80;
+/** A class's page opens this long before it starts. */
+const PAGE_EARLY_MIN = 10;
 const PAN_GAIN = 1.15;
 const HANDLE_PX = 22;
 
@@ -301,6 +310,9 @@ const I = {
   ),
   trash: svg(<path d="M4.5 7h15M9.5 7V5h5v2M6.5 7l.8 12a1.5 1.5 0 001.5 1.4h6.4a1.5 1.5 0 001.5-1.4l.8-12" />),
   fit: svg(<path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4" />),
+  prev: svg(<path d="M14.5 6l-6 6 6 6" />),
+  next: svg(<path d="M9.5 6l6 6-6 6" />),
+  plus: svg(<path d="M12 5.5v13M5.5 12h13" />),
   link: svg(
     <>
       <path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1" />
@@ -332,14 +344,15 @@ const Divider = () => <span className="mx-1 h-6 w-px shrink-0 bg-black/[0.08]" a
 /** The look of every floating bar: white, a hairline edge, a soft shadow. */
 const PANEL = "rounded-2xl border border-black/[0.07] bg-white/92 shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_30px_-14px_rgba(16,24,40,0.25)] backdrop-blur-xl";
 
-function SmallButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+function SmallButton({ label, onClick, disabled, children }: { label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
   return (
     <button
       type="button"
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="flex h-7 w-8 items-center justify-center rounded-lg text-[#6B7280] transition-colors hover:bg-black/[0.05] hover:text-[#1A1D20] [&_svg]:h-[18px] [&_svg]:w-[18px]"
+      disabled={disabled}
+      className="flex h-7 w-8 shrink-0 disabled:opacity-30 items-center justify-center rounded-lg text-[#6B7280] transition-colors hover:bg-black/[0.05] hover:text-[#1A1D20] [&_svg]:h-[18px] [&_svg]:w-[18px]"
     >
       {children}
     </button>
@@ -368,6 +381,12 @@ function stampMsg(ledger: Ledger, m: BoardMsg): BoardMsg {
       return { ...m, q };
     }
     case "clear": {
+      const q = ledger.stamp();
+      ledger.reset(q);
+      return { ...m, q };
+    }
+    case "page": {
+      // A new page starts clean: nothing numbered before it belongs on it.
       const q = ledger.stamp();
       ledger.reset(q);
       return { ...m, q };
@@ -465,15 +484,29 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   // Saved under the room's first part, so a board drawn before the private key existed is still here.
   // The laptop keeps its own copy: the tablet's board always wins when both are on.
   const storeKey = `ht-board-${room.split(".")[0]}${lead ? "" : "-laptop"}`;
+  // Pages: each class gets its own (see openPage). "main" is the board from before pages.
+  const pageRef = useRef<BoardPage>(MAIN_PAGE);
+  const pagesRef = useRef<BoardPage[]>([MAIN_PAGE]);
+  // The laptop: has the tablet sent this page's board yet? (Then its own older copy isn't needed.)
+  const pageBoardIn = useRef(false);
+  // The laptop: when the tablet's heartbeat was last heard (while it's on, the tablet picks the page).
+  const tabletHeardAt = useRef(0);
+  // Set once openPage exists (further down), for the message handler above it.
+  const openPageRef = useRef<(p: BoardPage, announce: boolean) => void>(() => {});
+  const [page, setPage] = useState<BoardPage>(MAIN_PAGE);
+  const [pageList, setPageList] = useState<BoardPage[]>([MAIN_PAGE]);
+  const keyFor = useCallback((id: string) => (id === MAIN_PAGE.id ? storeKey : `${storeKey}#${id}`), [storeKey]);
+  // Pictures that only live in this browser (local preview) aren't kept. Saved compact
+  // (points rounded to a tenth), so even a very full board saves in a moment.
+  const snapshot = () => ({ strokes: strokes.current.map(packStroke), images: images.current.filter((m) => !m.url.startsWith("blob:")) });
   const save = useRef<ReturnType<typeof setTimeout> | null>(null);
   const persist = useCallback(() => {
     if (save.current) clearTimeout(save.current);
     save.current = setTimeout(() => {
-      // Pictures that only live in this browser (local preview) aren't kept. Saved compact
-      // (points rounded to a tenth), so even a very full board saves in a moment.
-      void saveBoard(storeKey, { strokes: strokes.current.map(packStroke), images: images.current.filter((m) => !m.url.startsWith("blob:")) });
+      save.current = null;
+      void saveBoard(keyFor(pageRef.current.id), { strokes: strokes.current.map(packStroke), images: images.current.filter((m) => !m.url.startsWith("blob:")) });
     }, 700);
-  }, [storeKey]);
+  }, [keyFor]);
 
   // Everything goes to the private room: just Hamza's tablet and laptop, nobody else.
   const send = useCallback(
@@ -517,7 +550,19 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     showDebug.current = new URL(window.location.href).searchParams.get("debug") === "1";
     let alive = true;
     const loadSaved = async () => {
-      const saved = await loadBoard(storeKey);
+      // Where Hamza left off: the page he was on, then its board.
+      const idx = await loadIndex(storeKey);
+      if (!alive) return;
+      if (idx?.pages.length && pageRef.current.id === MAIN_PAGE.id) {
+        pagesRef.current = idx.pages;
+        setPageList(idx.pages);
+        const cur = idx.pages.find((x) => x.id === idx.current);
+        if (cur) {
+          pageRef.current = cur;
+          setPage(cur);
+        }
+      }
+      const saved = await loadBoard(keyFor(pageRef.current.id));
       if (!alive || !saved) return;
       // Anything that arrived while it loaded (the other device's board) stays too.
       const hasS = new Set(saved.strokes.map((x) => x.id));
@@ -543,7 +588,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const beat = lead
       ? setInterval(() => {
           const shared = images.current.filter((m) => !m.url.startsWith("blob:"));
-          send({ t: "rev", n: strokes.current.length + shared.length, last: strokes.current[strokes.current.length - 1]?.id ?? "", d: boardDigest(strokes.current, shared) });
+          send({ t: "rev", n: strokes.current.length + shared.length, last: strokes.current[strokes.current.length - 1]?.id ?? "", d: boardDigest(strokes.current, shared), p: pageRef.current });
         }, 2000)
       : undefined;
     return () => {
@@ -553,7 +598,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       clearInterval(beat);
       link.current?.close();
     };
-  }, [room, storeKey, requestDraw, send, screen, fullBoard, lead, ledger]);
+  }, [room, storeKey, keyFor, requestDraw, send, screen, fullBoard, lead, ledger]);
 
 
   // Keeps the text box on its words while the board pans or zooms.
@@ -739,7 +784,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     onRemote.current = (m: BoardMsg) => {
       switch (m.t) {
         case "hello": {
-          // The other device asked for the board: answer it on this channel only.
+          // The other device asked for the board: answer it on this channel only (page first).
+          if (lead) link.current?.send({ t: "page", p: pageRef.current });
           link.current?.send(stampMsg(ledger, fullBoard()));
           const { w, h } = screen.current;
           if (lead && w && h) link.current?.send({ t: "view", v: writingView(w, h) });
@@ -747,6 +793,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         }
         case "theme":
           return; // one light board now; an older device's look is ignored
+        case "page":
+          // The other device moved to another page (a class starting, or by hand): follow it.
+          if (m.q !== undefined) {
+            ledger.hear(m.q);
+            ledger.reset(m.q);
+          }
+          openPageRef.current(m.p, false);
+          return;
         case "view":
           // Only the laptop follows; a tablet pan always brings the laptop back to it.
           if (!lead) {
@@ -756,6 +810,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           return;
         case "rev": {
           if (lead) return;
+          tabletHeardAt.current = Date.now();
+          // Missed a page change: catch up (the board follows in the reply to "hello").
+          if (m.p && m.p.id !== pageRef.current.id) {
+            openPageRef.current(m.p, false);
+            link.current?.send({ t: "hello" });
+            return;
+          }
           const shared = images.current.filter((x) => !x.url.startsWith("blob:"));
           const same =
             m.d !== undefined
@@ -822,6 +883,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           break;
         case "set": {
           ledger.hear(m.q);
+          pageBoardIn.current = true;
           const first = !gotBoard.current;
           gotBoard.current = true;
           const theirs = m.strokes;
@@ -1565,7 +1627,112 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     requestDraw();
   };
 
-  // Keyboard on a laptop: P/L/E/V/T tools, H hides the tools, Ctrl+Z / Ctrl+Shift+Z, space to pan, Delete.
+  // ---- pages: one per class, so a new class never starts on the last one's writing
+  /** Remember a page in the list (newest last), and where Hamza is. */
+  const rememberPage = (p: BoardPage) => {
+    let list = pagesRef.current.some((x) => x.id === p.id) ? pagesRef.current.map((x) => (x.id === p.id ? { ...x, ...p } : x)) : [...pagesRef.current, p];
+    list = list.sort((a, b) => a.at - b.at);
+    if (list.length > MAX_PAGES) {
+      const drop = list.slice(0, list.length - MAX_PAGES).filter((x) => x.id !== p.id && x.id !== MAIN_PAGE.id);
+      for (const x of drop) void deleteBoard(keyFor(x.id));
+      list = list.filter((x) => !drop.includes(x));
+    }
+    pagesRef.current = list;
+    setPageList(list);
+    void saveIndex(storeKey, { pages: list, current: p.id });
+  };
+  /**
+   * Switch page. The page being left is saved as it is; the new one opens from this device's
+   * copy. Told to the other device (`announce`), which follows; the tablet then sends its copy,
+   * which the laptop takes as the truth.
+   */
+  const openPage = (p: BoardPage, announce: boolean) => {
+    if (p.id === pageRef.current.id) return;
+    commitTyping();
+    if (save.current) clearTimeout(save.current);
+    save.current = null;
+    void saveBoard(keyFor(pageRef.current.id), snapshot());
+    camByPage.current.set(pageRef.current.id, cam.current);
+    pageRef.current = p;
+    setPage(p);
+    rememberPage(p);
+    strokes.current = [];
+    images.current = [];
+    remoteLive.current = null;
+    current.current = null;
+    undoStack.current = [];
+    redoStack.current = [];
+    select(null);
+    pageBoardIn.current = false;
+    if (announce) send({ t: "page", p });
+    if (lead) {
+      cam.current = camByPage.current.get(p.id) ?? { x: -60, y: -60, z: 1 };
+      refresh();
+    }
+    void loadBoard(keyFor(p.id)).then((saved) => {
+      if (pageRef.current.id !== p.id) return;
+      // The laptop already has the tablet's copy of this page: that wins.
+      if (!lead && pageBoardIn.current) return;
+      if (saved) {
+        const hasS = new Set(saved.strokes.map((x) => x.id));
+        const hasI = new Set(saved.images.map((x) => x.id));
+        strokes.current = [...saved.strokes, ...strokes.current.filter((x) => !hasS.has(x.id))];
+        images.current = [...saved.images, ...images.current.filter((x) => !hasI.has(x.id))];
+      }
+      if (lead) send(fullBoard());
+      requestDraw();
+      syncMeta();
+    });
+    requestDraw();
+    syncMeta();
+  };
+  const camByPage = useRef(new Map<string, Camera>());
+  useEffect(() => {
+    openPageRef.current = openPage;
+  });
+  const newPage = () =>
+    openPage({ id: `p-${Date.now().toString(36)}`, title: `Page · ${new Date().toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true })}`, at: Date.now() }, true);
+  const stepPage = (dir: 1 | -1) => {
+    const list = pagesRef.current;
+    const i = list.findIndex((x) => x.id === pageRef.current.id);
+    const next = list[i + dir];
+    if (next) openPage(next, true);
+  };
+
+  // Each class opens its own page by itself, 10 minutes before it starts (on the tablet, or the
+  // laptop when it's on its own). Only when the class changes: going back to another page by
+  // hand during class is never undone.
+  const db = useDatabase();
+  const schedule = useSchedule();
+  const lastAutoSlot = useRef<string | null>(null);
+  const autoPage = useRef<() => void>(() => {});
+  useEffect(() => {
+    autoPage.current = () => {
+      const now = Date.now();
+      if (!lead && now - tabletHeardAt.current < 10_000) return;
+      const today = pkDate(now);
+      const slot = liveSlotsOn(db, today).find((s) => now >= s.startMs - PAGE_EARLY_MIN * 60_000 && now < s.endMs);
+      if (!slot) return;
+      const key = slotKey(slot);
+      if (lastAutoSlot.current === key) return;
+      lastAutoSlot.current = key;
+      const id = `c-${key.replace(/[^a-z0-9]/gi, "").slice(0, 40)}`;
+      const day = new Date(`${today}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+      const p = pagesRef.current.find((x) => x.id === id) ?? { id, title: `${LEVEL_LABEL[slot.level]} ${slot.subject} · ${day}`, at: now, classId: slot.classId, subjectId: slot.subjectId };
+      openPage(p, true);
+    };
+  });
+  useEffect(() => {
+    // A moment after opening (the saved page first), then every 20 seconds.
+    const first = setTimeout(() => autoPage.current(), 1500);
+    const every = setInterval(() => autoPage.current(), 20_000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(every);
+    };
+  }, [schedule]);
+
+  // Keyboard on a laptop: P/L/E/V/T tools, H hides the tools, [ ] pages, N new page, Ctrl+Z / Ctrl+Shift+Z, space to pan, Delete.
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       // Typing in the text box: its keys are words, not shortcuts.
@@ -1592,6 +1759,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         startTyping(at.x, at.y);
       }
       if (e.key === "h") setToolsHidden((v) => !v);
+      if (e.key === "[") stepPage(-1);
+      if (e.key === "]") stepPage(1);
+      if (e.key === "n") newPage();
       if ((e.key === "Delete" || e.key === "Backspace") && selectedRef.current) deleteSelected();
     };
     const up = (e: KeyboardEvent) => {
@@ -1633,6 +1803,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   };
 
   const hasContent = meta.content > 0;
+  const pageIndex = pageList.findIndex((x) => x.id === page.id);
 
   return (
     <div data-board className="fixed inset-0 select-none overflow-hidden text-[#1A1D20] [-webkit-touch-callout:none]" style={{ fontFamily: "var(--font-sans)", background: THEMES[look].bg }}>
@@ -1727,12 +1898,22 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       <div className={`transition-opacity duration-300 ${toolsHidden ? "hidden" : ""} ${quiet ? "pointer-events-none opacity-0" : inking ? "opacity-25" : ""}`}>
         {/* Top: who's linked (left), view controls (right). Small, so the board gets the room. */}
         <div ref={topBarRef} className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
-          <div
-            className={`${PANEL} pointer-events-auto flex h-9 items-center gap-2 px-3 text-xs font-semibold text-[#4B5563]`}
-            title={lead ? "Open /teach/present on your laptop: it draws too, and follows this tablet." : "Open the board on your tablet: when it pans or zooms, this screen follows."}
-          >
-            <span className={`h-2 w-2 rounded-full ${partner ? "bg-[#22A06B]" : "bg-[#C4C9CF]"}`} />
-            {partner ? (lead ? "Laptop linked" : "Tablet linked") : lead ? "Laptop not open" : "Tablet not open"}
+          {/* The page: each class has its own. Arrows go back to earlier ones, + starts a blank one. */}
+          <div className={`${PANEL} pointer-events-auto flex h-9 min-w-0 items-center gap-0.5 px-1`}>
+            <SmallButton label="Previous page ([)" onClick={() => stepPage(-1)} disabled={pageIndex <= 0}>{I.prev}</SmallButton>
+            <span className="max-w-[46vw] truncate px-1 text-xs font-semibold text-[#1A1D20]" title={page.title}>
+              {page.title}
+            </span>
+            <SmallButton label="Next page (])" onClick={() => stepPage(1)} disabled={pageIndex >= pageList.length - 1}>{I.next}</SmallButton>
+            <SmallButton label="New blank page (N)" onClick={newPage}>{I.plus}</SmallButton>
+            <span className="mx-1 h-4 w-px bg-black/[0.08]" />
+            <span
+              className="flex items-center gap-1.5 pr-2 text-[11px] font-semibold text-[#6B7280]"
+              title={lead ? "Open /teach/present on your laptop: it draws too, and follows this tablet." : "Open the board on your tablet: when it pans or zooms, this screen follows."}
+            >
+              <span className={`h-2 w-2 rounded-full ${partner ? "bg-[#22A06B]" : "bg-[#C4C9CF]"}`} />
+              {partner ? (lead ? "Laptop" : "Tablet") : lead ? "No laptop" : "No tablet"}
+            </span>
           </div>
           <div ref={sidePanelRef} className={`${PANEL} pointer-events-auto flex h-9 items-center gap-0.5 px-1`}>
             {lead && (
