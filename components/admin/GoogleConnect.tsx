@@ -65,7 +65,11 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
       if (action === "test") {
         if (!j.eventId) throw new Error();
         keepTest({ eventId: j.eventId, meetUrl: j.meetUrl, startedAt: j.startedAt });
-        toast("Test class made. It's also in your Google Calendar.", "success");
+        // Did "record by itself" switch on? Say plainly, and what to do if not.
+        if (j.autoRecording === "on") toast("Test class made. It records by itself: just join, no Record button.", "success");
+        else if (j.autoRecording === "reconnect") toast("Test class made, but it can't record by itself yet. Press Reconnect Google once, then make another test class.", "error");
+        else if (j.autoRecording === "api-off") toast("Test class made, but Google Meet API is off in Google Cloud. Ask the developer to turn on \"Google Meet REST API\".", "error");
+        else toast("Test class made, but recording by itself didn't switch on. Press Record in Meet for this one.", "error");
       }
       if (action === "test-check") {
         if (j.recordingUrl) keepTest({ ...test!, recordingUrl: j.recordingUrl });
@@ -115,6 +119,15 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
               Google connected{status.email ? ` (${status.email})` : ""}. Links at 1 pm, recordings open 24 h.
             </p>
             <div className="flex items-center gap-1">
+              <button
+                type="button"
+                title="Sign in to Google again, to give any new permission (like classes recording by themselves)."
+                className={`${btn} text-ink-2 hover:bg-surface-2 hover:text-ink`}
+                disabled={!!busy}
+                onClick={() => void act("connect")}
+              >
+                {busy === "connect" ? "Opening Google…" : "Reconnect"}
+              </button>
               <button type="button" className={`${btn} text-ink-2 hover:bg-surface-2 hover:text-ink`} disabled={!!busy} onClick={() => void act("sync")}>
                 {busy === "sync" ? "Working…" : "Make today's links now"}
               </button>
@@ -129,8 +142,8 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
             <summary className="cursor-pointer select-none text-xs font-semibold hover:text-ink">Test the setup</summary>
             <div className="mt-3 space-y-2">
               <p className="text-xs">
-                A 20-minute test class starting now (students never see it). Join, press Record for a minute, end the call, then check
-                30 to 40 minutes later. Recordings go to &quot;Hamza Teaches recordings&quot; in your Drive, sorted by level and subject. To give
+                A 20-minute test class starting now (students never see it). Join it: recording should start by itself within a few
+                seconds (Meet shows a red dot). Talk for a minute, end the call, then check 30 to 40 minutes later. Recordings go to &quot;Hamza Teaches recordings&quot; in your Drive, sorted by level and subject. To give
                 a late joiner old classes, share that folder with their Gmail.
               </p>
               <div className="flex flex-wrap items-center gap-1">

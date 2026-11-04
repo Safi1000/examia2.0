@@ -243,7 +243,20 @@ export async function makeTestClass(sb: SupabaseClient) {
   if (!token) return { error: "not connected" };
   const start = Date.now();
   const ev = await createClassEvent(token, TEST_TITLE, new Date(start).toISOString(), new Date(start + 20 * 60_000).toISOString());
-  return { eventId: ev.eventId, meetUrl: ev.meetUrl ?? (await getEvent(token, ev.eventId)).hangoutLink ?? null, startedAt: new Date(start).toISOString() };
+  const meetUrl = ev.meetUrl ?? (await getEvent(token, ev.eventId)).hangoutLink ?? null;
+  // The same "record by itself" setting real classes get, so this tests it too.
+  let autoRecording: "on" | "reconnect" | "api-off" | "failed" = "failed";
+  if (meetUrl) {
+    try {
+      await autoRecord(token, meetUrl);
+      autoRecording = "on";
+    } catch (e) {
+      const r = String(e);
+      console.error("[classes] test auto record", r);
+      autoRecording = /SERVICE_DISABLED|has not been used|is disabled/i.test(r) ? "api-off" : /403|PERMISSION|insufficient|scope/i.test(r) ? "reconnect" : "failed";
+    }
+  }
+  return { eventId: ev.eventId, meetUrl, startedAt: new Date(start).toISOString(), autoRecording };
 }
 
 export async function findTestRecording(sb: SupabaseClient, eventId: string, startedAt: string) {
