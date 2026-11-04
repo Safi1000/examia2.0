@@ -43,7 +43,7 @@ export const COLORS = [
   { name: "Blue", value: "#8FD0F5" },
   { name: "Red", value: "#F07A6A" },
   { name: "Green", value: "#7FD1A6" },
-  { name: "Orange", value: "#FBC159" },
+  { name: "Gold", value: "#FBC159" },
 ];
 
 export const SIZES = [
@@ -70,10 +70,12 @@ interface Theme {
 }
 export const THEMES: Record<ThemeId, Theme> = {
   paper: {
-    // Clean white with a hint of warmth: crisp on a TV, no glare.
-    bg: "#FCFCFA",
+    // The brand's paper white: crisp on a TV, no glare.
+    bg: "#FDFDFB",
     dots: "rgba(28,32,35,0.16)",
-    ink: { "#F3F1EC": "#1A1D20", "#FBC159": "#C26A00", "#8FD0F5": "#1557B0", "#F07A6A": "#C62828", "#7FD1A6": "#1B7F4B" },
+    // Deep, even inks that read from the back of a room and on a TV: the brand charcoal, a royal
+    // blue, a clear red, a calm green and a deep brand gold (plain gold is too light on white).
+    ink: { "#F3F1EC": "#1A1D20", "#FBC159": "#C98500", "#8FD0F5": "#1F4FD1", "#F07A6A": "#D0342C", "#7FD1A6": "#0F7A55" },
     accent: "#0F63A8",
     ring: { border: "rgba(20,22,24,0.55)", fill: "rgba(20,22,24,0.05)" },
   },
@@ -610,7 +612,7 @@ export function drawGrid(ctx: CanvasRenderingContext2D, cam: Camera, w: number, 
     ctx.lineWidth = px;
     ctx.strokeStyle = night
       ? isMajor ? "rgba(240,237,232,0.10)" : "rgba(240,237,232,0.05)"
-      : isMajor ? "rgba(40,70,110,0.2)" : "rgba(40,70,110,0.1)";
+      : isMajor ? "rgba(26,29,32,0.15)" : "rgba(26,29,32,0.07)";
     ctx.stroke();
   };
   lines(false);

@@ -16,7 +16,8 @@ import type { BoardPage } from "@/components/board/storage";
  * receiver keeps the newest word on each stroke (see Ledger).
  */
 
-export type BoardMsg =
+/** `pg`: the page a change belongs to, so one sent just as the page changes can't land on the next page. */
+export type BoardMsg = (
   | { t: "live"; s: Stroke; from?: number } // stroke being drawn right now (`from`: only the points after this many)
   | { t: "add"; s: Stroke; q?: number }
   | { t: "del"; ids: string[]; q?: number }
@@ -29,7 +30,8 @@ export type BoardMsg =
   | { t: "page"; p: BoardPage; q?: number } // switched to another page: the other device follows
   | { t: "view"; v: View } // what the tablet shows, for "follow"
   | { t: "hello" } // asking for the full board
-  | { t: "rev"; n: number; last: string; d?: string; p?: BoardPage }; // heartbeat: item count, newest stroke, a fingerprint and the page, so the other side can self-check
+  | { t: "rev"; n: number; last: string; d?: string; p?: BoardPage } // heartbeat: item count, newest stroke, a fingerprint and the page, so the other side can self-check
+) & { pg?: string };
 
 /** A short fingerprint of a board (which strokes and pictures, in their current form). */
 export function boardDigest(strokes: Stroke[], images: BoardImage[]): string {
@@ -158,6 +160,11 @@ export function connectBoard(
   onPeople?: (viewers: number, teachers: number) => void,
   /** Ask for the full board on joining and on waking (viewers always do; the laptop editor too). */
   askOnJoin = role === "viewer",
+  /**
+   * After a dropped connection, what to send before asking for the board: the laptop's own board,
+   * so writing done while the Wi-Fi was down reaches the tablet instead of being replaced.
+   */
+  beforeRejoin?: () => BoardMsg | null,
 ): BoardLink {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -189,6 +196,7 @@ export function connectBoard(
   const receive = assembler(onMsg);
   let closed = false;
   let retry: ReturnType<typeof setTimeout> | null = null;
+  let joinedOnce = false;
 
   // (Re)join the room. If the connection drops (Wi-Fi blip, laptop sleep),
   // join again by itself and ask for the full board, so nothing is missed.
@@ -207,13 +215,18 @@ export function connectBoard(
     c.subscribe((status) => {
       if (status === "SUBSCRIBED") {
         void c.track({ role });
+        if (joinedOnce && beforeRejoin) {
+          const mine = beforeRejoin();
+          if (mine) for (const p of pieces(mine)) void c.send({ type: "broadcast", event: "m", payload: p });
+        }
+        joinedOnce = true;
         if (askOnJoin) void c.send({ type: "broadcast", event: "m", payload: { t: "hello" } });
       } else if ((status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") && !closed) {
         if (retry) return;
         retry = setTimeout(() => {
           retry = null;
-          void sb.removeChannel(c);
-          join();
+          // Fully gone first: joining straight away got the same broken channel back.
+          void sb.removeChannel(c).finally(join);
         }, 1500);
       }
     });

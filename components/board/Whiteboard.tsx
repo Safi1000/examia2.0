@@ -79,6 +79,13 @@ const MAIN_PAGE: BoardPage = { id: "main", title: "Board", at: 0 };
 const MAX_PAGES = 80;
 /** A class's page opens this long before it starts. */
 const PAGE_EARLY_MIN = 10;
+/** Messages that change a page's board (tagged with that page). */
+const PAGE_CHANGES = new Set<BoardMsg["t"]>(["add", "del", "img", "imgdel", "clear", "set", "live"]);
+/** Every change says which page it's for (see BoardMsg.pg). */
+function tagPage(m: BoardMsg, pg: string): BoardMsg {
+  if (m.t === "batch") return { ...m, ms: m.ms.map((x) => tagPage(x, pg)) };
+  return PAGE_CHANGES.has(m.t) ? { ...m, pg } : m;
+}
 const PAN_GAIN = 1.15;
 const HANDLE_PX = 22;
 
@@ -331,7 +338,7 @@ function ToolButton({ active, label, onClick, disabled, children }: { active?: b
       onClick={onClick}
       disabled={disabled}
       className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors duration-150 disabled:opacity-30 [&_svg]:h-[21px] [&_svg]:w-[21px] ${
-        active ? "bg-[#1A1D20] text-white" : "text-[#4B5563] hover:bg-black/[0.05] hover:text-[#1A1D20]"
+        active ? "bg-[#1A1D20] text-[#FBC159]" : "text-[#4B5563] hover:bg-black/[0.05] hover:text-[#1A1D20]"
       }`}
     >
       {children}
@@ -489,6 +496,11 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const pagesRef = useRef<BoardPage[]>([MAIN_PAGE]);
   // The laptop: has the tablet sent this page's board yet? (Then its own older copy isn't needed.)
   const pageBoardIn = useRef(false);
+  // When Hamza last wrote, erased or typed here (a class's page waits until he pauses).
+  const lastInkAt = useRef(0);
+  // Which page's board has actually arrived here (from this device's store or the tablet). A page is
+  // only saved on leaving once it has: leaving one still loading must never save it empty.
+  const loadedPageId = useRef<string | null>(null);
   // The laptop: when the tablet's heartbeat was last heard (while it's on, the tablet picks the page).
   const tabletHeardAt = useRef(0);
   // Set once openPage exists (further down), for the message handler above it.
@@ -511,7 +523,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   // Everything goes to the private room: just Hamza's tablet and laptop, nobody else.
   const send = useCallback(
     (m: BoardMsg) => {
-      link.current?.send(stampMsg(ledger, m));
+      link.current?.send(tagPage(stampMsg(ledger, m), pageRef.current.id));
     },
     [ledger],
   );
@@ -563,7 +575,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         }
       }
       const saved = await loadBoard(keyFor(pageRef.current.id));
-      if (!alive || !saved) return;
+      if (!alive) return;
+      if (!(gotBoard.current && !lead)) loadedPageId.current = pageRef.current.id;
+      if (!saved) return;
       // Anything that arrived while it loaded (the other device's board) stays too.
       const hasS = new Set(saved.strokes.map((x) => x.id));
       const hasI = new Set(saved.images.map((x) => x.id));
@@ -583,6 +597,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       (m) => onRemote.current(m),
       (_viewers, others) => setPartner(others > 0),
       true,
+      lead ? undefined : () => tagPage(stampMsg(ledger, fullBoard()), pageRef.current.id),
     );
     // Heartbeat (tablet only): the laptop and students compare it with what they have and fetch the board again if behind.
     const beat = lead
@@ -694,6 +709,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
 
   // ---- history
   const commit = (a: Action) => {
+    lastInkAt.current = Date.now();
     undoStack.current.push(a);
     redoStack.current = [];
     persist();
@@ -782,11 +798,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   // arrives late, twice or out of order can never undo something newer.
   useEffect(() => {
     onRemote.current = (m: BoardMsg) => {
+      if (!lead) tabletHeardAt.current = Date.now(); // the tablet is on: it picks the page
+      // A change meant for another page (sent just as the page changed) is left out.
+      if (m.pg && m.pg !== pageRef.current.id) return;
       switch (m.t) {
         case "hello": {
           // The other device asked for the board: answer it on this channel only (page first).
           if (lead) link.current?.send({ t: "page", p: pageRef.current });
-          link.current?.send(stampMsg(ledger, fullBoard()));
+          link.current?.send(tagPage(stampMsg(ledger, fullBoard()), pageRef.current.id));
           const { w, h } = screen.current;
           if (lead && w && h) link.current?.send({ t: "view", v: writingView(w, h) });
           return;
@@ -832,7 +851,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           return;
         }
         case "live": {
-          if (ledger.known(m.s.id)) return; // the final stroke already came: this preview is stale
+          lastInkAt.current = Date.now(); // writing on the other device counts too
+          // The final stroke already came: this preview is stale. (Not for typed words: editing them
+          // removes the old version first, and their previews arrive in order.)
+          if (m.s.kind !== "text" && ledger.known(m.s.id)) return;
           if (m.from) {
             // Just the newest points: add them to what's on screen (if a part went missing, wait for the next whole one).
             const have = remoteLive.current;
@@ -884,6 +906,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         case "set": {
           ledger.hear(m.q);
           pageBoardIn.current = true;
+          // The laptop now has this page's real board. (The tablet's own copy comes from its store.)
+          if (!lead) loadedPageId.current = pageRef.current.id;
           const first = !gotBoard.current;
           gotBoard.current = true;
           const theirs = m.strokes;
@@ -902,8 +926,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             for (const x of newI) send({ t: "img", m: x });
             break;
           }
-          if (!first || resync.current === "rev") {
-            // Catching up after being away or behind: the other device's board is the truth.
+          if (!lead || !first || resync.current === "rev") {
+            // The laptop always takes the tablet's board as the truth (catching up, or opening while
+            // the tablet is on): merging its own older copy would bring back what was erased.
             resync.current = "join";
             strokes.current = theirs;
             images.current = theirImgs;
@@ -939,11 +964,17 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const m = measureText(text, t.size);
     return { id: t.id, kind: "text", text, color: t.color, size: t.size, pts: [[t.wx, t.wy, 0.5], [t.wx + m.w, t.wy + m.h, 0.5]] };
   };
+  // Typing started with the T key goes back to the tool before it once the words are done.
+  const toolBeforeT = useRef<Tool | null>(null);
   const commitTyping = () => {
     const t = typingRef.current;
     if (!t) return;
     typingRef.current = null;
     setTyping(null);
+    if (toolBeforeT.current) {
+      setTool(toolBeforeT.current);
+      toolBeforeT.current = null;
+    }
     if (textRef.current) {
       textRef.current.value = "";
       textRef.current.blur();
@@ -951,7 +982,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     if (!t.text.trim()) {
       // Emptied: an edited text is erased (undo brings it back), a new one just goes.
       if (t.editing) commit({ type: "erase", s: [t.editing] });
-      else send({ t: "del", ids: [t.id] });
+      send({ t: "del", ids: [t.id] }); // the live preview on the other screen goes at once
       requestDraw();
       return;
     }
@@ -1470,8 +1501,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         syncMeta();
       } else commit({ type: "replace", before, after: [after] });
       recentLines.current = recentLines.current.filter((l) => !before.some((b) => b.id === l.id));
-      // One message: the old ones go and the new one appears together (the stroke just drawn was never sent).
-      const old = before.filter((b) => b.id !== s.id).map((b) => b.id);
+      // One message: the old ones go and the new one appears together. The stroke just drawn was never
+      // sent as final, but its live preview was, so it's removed by name too (no 2-second ghost).
+      const old = [...new Set([...before.map((b) => b.id), s.id])];
       send({ t: "batch", ms: [...(old.length ? [{ t: "del" as const, ids: old }] : []), { t: "add" as const, s: packStroke(after) }] });
       requestDraw();
       try {
@@ -1651,7 +1683,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     commitTyping();
     if (save.current) clearTimeout(save.current);
     save.current = null;
-    void saveBoard(keyFor(pageRef.current.id), snapshot());
+    if (loadedPageId.current === pageRef.current.id) void saveBoard(keyFor(pageRef.current.id), snapshot());
+    loadedPageId.current = null;
     camByPage.current.set(pageRef.current.id, cam.current);
     pageRef.current = p;
     setPage(p);
@@ -1669,10 +1702,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       cam.current = camByPage.current.get(p.id) ?? { x: -60, y: -60, z: 1 };
       refresh();
     }
+    // The laptop moved because the tablet did: the tablet's copy follows at once and is the truth,
+    // so the laptop's own (maybe older) copy is left alone, or erased writing would come back.
+    if (!lead && !announce) return;
     void loadBoard(keyFor(p.id)).then((saved) => {
       if (pageRef.current.id !== p.id) return;
       // The laptop already has the tablet's copy of this page: that wins.
       if (!lead && pageBoardIn.current) return;
+      loadedPageId.current = p.id;
       if (saved) {
         const hasS = new Set(saved.strokes.map((x) => x.id));
         const hasI = new Set(saved.images.map((x) => x.id));
@@ -1690,8 +1727,11 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   useEffect(() => {
     openPageRef.current = openPage;
   });
-  const newPage = () =>
-    openPage({ id: `p-${Date.now().toString(36)}`, title: `Page · ${new Date().toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true })}`, at: Date.now() }, true);
+  // Blank pages are numbered (Page 2, Page 3…); class pages carry the class name.
+  const newPage = () => {
+    const n = pagesRef.current.filter((x) => !x.classId).length + 1;
+    openPage({ id: `p-${Date.now().toString(36)}`, title: `Page ${n}`, at: Date.now() }, true);
+  };
   const stepPage = (dir: 1 | -1) => {
     const list = pagesRef.current;
     const i = list.findIndex((x) => x.id === pageRef.current.id);
@@ -1710,11 +1750,20 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     autoPage.current = () => {
       const now = Date.now();
       if (!lead && now - tabletHeardAt.current < 10_000) return;
+      // Not before this page's own board has loaded (its list of pages comes with it).
+      if (loadedPageId.current === null) return;
       const today = pkDate(now);
-      const slot = liveSlotsOn(db, today).find((s) => now >= s.startMs - PAGE_EARLY_MIN * 60_000 && now < s.endMs);
+      const slots = liveSlotsOn(db, today);
+      // The class running now keeps its page to the end (back-to-back subjects: Economics isn't
+      // cut short by Business coming up); only between classes does the next one open early.
+      const slot =
+        slots.find((s) => now >= s.startMs && now < s.endMs) ??
+        slots.find((s) => now >= s.startMs - PAGE_EARLY_MIN * 60_000 && now < s.endMs);
       if (!slot) return;
       const key = slotKey(slot);
       if (lastAutoSlot.current === key) return;
+      // Never mid-sentence: wait until the pen has rested 15 seconds (checked again every 20).
+      if (lastAutoSlot.current !== null && now - lastInkAt.current < 15_000) return;
       lastAutoSlot.current = key;
       const id = `c-${key.replace(/[^a-z0-9]/gi, "").slice(0, 40)}`;
       const day = new Date(`${today}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
@@ -1724,7 +1773,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   });
   useEffect(() => {
     // A moment after opening (the saved page first), then every 20 seconds.
-    const first = setTimeout(() => autoPage.current(), 1500);
+    const first = setTimeout(() => autoPage.current(), 3000);
     const every = setInterval(() => autoPage.current(), 20_000);
     return () => {
       clearTimeout(first);
@@ -1753,7 +1802,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       if (e.key === "t") {
         // T: the text box opens right where the mouse is (or the middle), ready to type.
         e.preventDefault();
+        const before = tool === "text" ? toolBeforeT.current : tool;
         pickTool("text");
+        toolBeforeT.current = before;
         const { w, h } = screen.current;
         const at = hoverAt.current ?? { x: w / 2, y: h / 2 };
         startTyping(at.x, at.y);
@@ -1854,7 +1905,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           }
         }}
         className={`absolute resize-none overflow-hidden whitespace-pre border-0 bg-transparent p-0 font-medium leading-[1.25] outline-none [field-sizing:content] ${
-          typing ? "rounded-sm ring-1 ring-[#1557B0]/35 ring-offset-4 ring-offset-transparent" : "pointer-events-none opacity-0"
+          typing ? "rounded-sm ring-1 ring-[#E5A832]/60 ring-offset-4 ring-offset-transparent" : "pointer-events-none opacity-0"
         }`}
         style={
           typing
