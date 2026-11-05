@@ -196,6 +196,18 @@ let imageVersion = 0;
 /** A zoom is shown by stretching the cached board, then drawn sharp this long after it stops. */
 const SETTLE_MS = 140;
 
+/** Each finished stroke is packed (rounded) once and remembered: saving and sending a full page
+ * then costs almost nothing, instead of rounding every point of every stroke each time. */
+const packed = new WeakMap<Stroke, Stroke>();
+function packOnce(s: Stroke): Stroke {
+  let p = packed.get(s);
+  if (!p) {
+    p = packStroke(s);
+    packed.set(s, p);
+  }
+  return p;
+}
+
 /** Strokes only added at the end since last time (the usual case: a new line), not removed or changed. */
 function onlyAdded(before: Stroke[] | null, now: Stroke[]): boolean {
   if (!before || now.length <= before.length) return false;
@@ -607,14 +619,36 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const keyFor = useCallback((id: string) => (id === MAIN_PAGE.id ? storeKey : `${storeKey}#${id}`), [storeKey]);
   // Pictures that only live in this browser (local preview) aren't kept. Saved compact
   // (points rounded to a tenth), so even a very full board saves in a moment.
-  const snapshot = () => ({ strokes: strokes.current.map(packStroke), images: images.current.filter((m) => !m.url.startsWith("blob:")) });
+  const snapshot = () => ({ strokes: strokes.current.map(packOnce), images: images.current.filter((m) => !m.url.startsWith("blob:")) });
   const save = useRef<ReturnType<typeof setTimeout> | null>(null);
   const persist = useCallback(() => {
     if (save.current) clearTimeout(save.current);
+    // Saved a moment after writing stops, in a quiet gap between pen strokes, so saving a full
+    // page never makes the pen hitch.
     save.current = setTimeout(() => {
       save.current = null;
-      void saveBoard(keyFor(pageRef.current.id), { strokes: strokes.current.map(packStroke), images: images.current.filter((m) => !m.url.startsWith("blob:")) });
-    }, 700);
+      const go = () => void saveBoard(keyFor(pageRef.current.id), { strokes: strokes.current.map(packOnce), images: images.current.filter((m) => !m.url.startsWith("blob:")) });
+      const idle = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+      if (idle) idle(go, { timeout: 2000 });
+      else go();
+    }, 1500);
+  }, [keyFor]);
+
+  // Closing or leaving the tab with a save still waiting: save straight away.
+  useEffect(() => {
+    const flush = () => {
+      if (!save.current) return;
+      clearTimeout(save.current);
+      save.current = null;
+      void saveBoard(keyFor(pageRef.current.id), { strokes: strokes.current.map(packOnce), images: images.current.filter((m) => !m.url.startsWith("blob:")) });
+    };
+    const onHide = () => document.visibilityState === "hidden" && flush();
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", flush);
+    };
   }, [keyFor]);
 
   // Everything goes to the private room: just Hamza's tablet and laptop, nobody else.
@@ -625,7 +659,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     [ledger],
   );
   const fullBoard = useCallback(
-    (): BoardMsg => ({ t: "set", strokes: strokes.current.map(packStroke), images: images.current.filter((m) => !m.url.startsWith("blob:")) }),
+    (): BoardMsg => ({ t: "set", strokes: strokes.current.map(packOnce), images: images.current.filter((m) => !m.url.startsWith("blob:")) }),
     [],
   );
   // What the tablet shares: the space between its own toolbars, where Hamza writes. The
@@ -1892,9 +1926,11 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       // Never mid-stroke or mid-word: it waits for the pen to lift (checked again in 5 seconds).
       if (gesture.current.mode || typingRef.current) return;
       lastAutoSlot.current = key;
-      const id = `c-${key.replace(/[^a-z0-9]/gi, "").slice(0, 40)}`;
-      const day = new Date(`${today}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-      const p = pagesRef.current.find((x) => x.id === id) ?? { id, title: `${LEVEL_LABEL[slot.level]} ${slot.subject} · ${day}`, at: now, classId: slot.classId, subjectId: slot.subjectId };
+      // One page per class (AS Accounting, AS Business…), kept from one lesson to the next, so each
+      // class carries on where it left off. Moved to the end of the list each time it's used.
+      const id = `k-${slot.classId}-${slot.subjectId}`.replace(/[^a-z0-9-]/gi, "");
+      const had = pagesRef.current.find((x) => x.id === id);
+      const p = { ...(had ?? { id, classId: slot.classId, subjectId: slot.subjectId }), title: `${LEVEL_LABEL[slot.level]} ${slot.subject}`, at: now };
       openPage(p, true);
     };
   });
