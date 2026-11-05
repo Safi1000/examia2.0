@@ -421,6 +421,20 @@ const I = {
   ),
 };
 
+/**
+ * Palm guard for the toolbar: while the pen is in use (or just was), a touch on a button is a
+ * resting hand, not a tap, so it does nothing. A finger tap with the pen away still works.
+ */
+let penAt = 0;
+const notePen = () => {
+  penAt = Date.now();
+};
+let palmUntil = 0;
+const palmDown = (e: React.PointerEvent) => {
+  if (e.pointerType === "touch" && (Date.now() - penAt < 1500 || e.width > PALM_SIZE_PX || e.height > PALM_SIZE_PX)) palmUntil = Date.now() + 700;
+};
+const palmBlocked = () => Date.now() < palmUntil;
+
 function ToolButton({ active, label, onClick, disabled, children }: { active?: boolean; label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
   return (
     <button
@@ -428,7 +442,8 @@ function ToolButton({ active, label, onClick, disabled, children }: { active?: b
       aria-label={label}
       aria-pressed={active}
       title={label}
-      onClick={onClick}
+      onPointerDown={palmDown}
+      onClick={() => !palmBlocked() && onClick()}
       disabled={disabled}
       className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors duration-150 disabled:opacity-30 [&_svg]:h-[21px] [&_svg]:w-[21px] ${
         active ? "bg-[#1A1D20] text-[#FBC159]" : "text-[#4B5563] hover:bg-black/[0.05] hover:text-[#1A1D20]"
@@ -439,7 +454,10 @@ function ToolButton({ active, label, onClick, disabled, children }: { active?: b
   );
 }
 
-const Divider = () => <span className="mx-1 h-6 w-px shrink-0 bg-black/[0.08]" aria-hidden />;
+/** `across`: a line across a vertical toolbar (the tablet's). */
+const Divider = ({ across = false }: { across?: boolean }) => (
+  <span className={across ? "my-1 h-px w-6 shrink-0 bg-black/[0.08]" : "mx-1 h-6 w-px shrink-0 bg-black/[0.08]"} aria-hidden />
+);
 
 /** The look of every floating bar: white, a hairline edge, a soft shadow. */
 const PANEL = "rounded-2xl border border-black/[0.07] bg-white/92 shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_30px_-14px_rgba(16,24,40,0.25)] backdrop-blur-xl";
@@ -605,6 +623,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   // Pages: each class gets its own (see openPage). "main" is the board from before pages.
   const pageRef = useRef<BoardPage>(MAIN_PAGE);
   const pagesRef = useRef<BoardPage[]>([MAIN_PAGE]);
+  // Set once forgetPage exists (further down), for the message handler above it.
+  const forgetPageRef = useRef<(id: string) => void>(() => {});
   // The laptop: has the tablet sent this page's board yet? (Then its own older copy isn't needed.)
   const pageBoardIn = useRef(false);
   // Which page's board has actually arrived here (from this device's store or the tablet). A page is
@@ -665,7 +685,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   // What the tablet shares: the space between its own toolbars, where Hamza writes. The
   // laptop and students fit exactly that, so it fills their screens and nothing is cut off.
   const writingView = (w: number, h: number) =>
-    areaView(cam.current, w, h, clearInset(h, [topBarRef.current, sidePanelRef.current], [toolbarRef.current], 0));
+    areaView(cam.current, w, h, clearInset(h, [topBarRef.current, sidePanelRef.current], [], 0, [toolbarRef.current]));
   const sendView = useRef<ReturnType<typeof setTimeout> | null>(null);
   // `screen` is a stable ref from useCanvas; the compiler just can't see that.
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
@@ -947,6 +967,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         }
         case "theme":
           return; // one light board now; an older device's look is ignored
+        case "pagedel":
+          if (m.id !== pageRef.current.id && m.id !== MAIN_PAGE.id) forgetPageRef.current(m.id);
+          return;
         case "bg":
           if (BACKDROPS.includes(m.v)) setPaper(m.v, false);
           return;
@@ -1427,6 +1450,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       pens.current.seen = true;
       pens.current.active = true;
       pens.current.lastAt = Date.now();
+      notePen();
     }
 
     // Palm rejection: while the pen is down or was just near the screen, touches do nothing.
@@ -1521,7 +1545,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const [sx, sy] = local(e);
     if (e.pointerType === "pen") {
-      pens.current.lastAt = Date.now(); // hovering counts: keeps palms locked out
+      pens.current.lastAt = Date.now();
+      notePen(); // hovering counts: keeps palms locked out
       if (e.buttons === 0 && isPenEraser(e)) setEraserAt({ x: sx, y: sy });
     }
 
@@ -1724,6 +1749,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     if (e.pointerType === "pen") {
       pens.current.active = false;
       pens.current.lastAt = Date.now();
+      notePen();
     }
     if (touches.current.has(e.pointerId)) {
       const wasSingle = touches.current.size === 1;
@@ -1894,6 +1920,32 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const n = pagesRef.current.filter((x) => !x.classId).length + 1;
     openPage({ id: `p-${Date.now().toString(36)}`, title: `Page ${n}`, at: Date.now() }, true);
   };
+  // Delete the page on screen (after a confirm): its writing goes for good, on both devices, and the
+  // page next to it opens. "Board" itself stays (it can be cleared instead). A class's page is
+  // made again, empty, at its next lesson.
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const forgetPage = (id: string) => {
+    const list = pagesRef.current.filter((x) => x.id !== id);
+    pagesRef.current = list;
+    setPageList(list);
+    void deleteBoard(keyFor(id));
+    void saveIndex(storeKey, { pages: list, current: pageRef.current.id });
+  };
+  const deletePage = () => {
+    setConfirmDelete(false);
+    const gone = pageRef.current;
+    if (gone.id === MAIN_PAGE.id) return;
+    const list = pagesRef.current;
+    const i = list.findIndex((x) => x.id === gone.id);
+    const next = list[i - 1] ?? list[i + 1] ?? MAIN_PAGE;
+    loadedPageId.current = null; // leaving it: nothing to save
+    openPage(next, true);
+    forgetPage(gone.id);
+    send({ t: "pagedel", id: gone.id });
+  };
+  useEffect(() => {
+    forgetPageRef.current = forgetPage;
+  });
   const stepPage = (dir: 1 | -1) => {
     const list = pagesRef.current;
     const i = list.findIndex((x) => x.id === pageRef.current.id);
@@ -2120,6 +2172,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             </span>
             <SmallButton label="Next page (])" onClick={() => stepPage(1)} disabled={pageIndex >= pageList.length - 1}>{I.next}</SmallButton>
             <SmallButton label="New blank page (N)" onClick={newPage}>{I.plus}</SmallButton>
+            {page.id !== MAIN_PAGE.id && <SmallButton label="Delete this page" onClick={() => setConfirmDelete(true)}>{I.trash}</SmallButton>}
             <span className="mx-1 h-4 w-px bg-black/[0.08]" />
             <span
               className="flex items-center gap-1.5 pr-2 text-[11px] font-semibold text-[#6B7280]"
@@ -2177,7 +2230,16 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         )}
 
         {/* Main toolbar */}
-        <div ref={toolbarRef} className={`${PANEL} absolute bottom-4 left-1/2 flex max-w-[calc(100vw-16px)] -translate-x-1/2 items-center gap-0.5 overflow-x-auto p-1 [scrollbar-width:none]`}>
+        {/* The tablet: a column down the left edge, away from the writing hand's palm. The laptop:
+            along the bottom. */}
+        <div
+          ref={toolbarRef}
+          className={`${PANEL} absolute flex items-center gap-0.5 p-1 [scrollbar-width:none] ${
+            lead
+              ? "left-3 top-1/2 max-h-[calc(100dvh-80px)] -translate-y-1/2 flex-col overflow-y-auto"
+              : "bottom-4 left-1/2 max-w-[calc(100vw-16px)] -translate-x-1/2 overflow-x-auto"
+          }`}
+        >
           <ToolButton label="Pen (P). Draw a T for a T account; hold still at the end to snap a line, box or circle" active={tool === "pen"} onClick={() => pickTool("pen")}>{I.pen}</ToolButton>
           <ToolButton label="Straight line (L)" active={tool === "line"} onClick={() => pickTool("line")}>{I.line}</ToolButton>
           <ToolButton label="Eraser (E), or hold the pen's side button" active={tool === "eraser"} onClick={() => pickTool("eraser")}>{I.eraser}</ToolButton>
@@ -2186,7 +2248,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           <ToolButton label="Insert a picture or PDF" disabled={!!busy} onClick={() => fileRef.current?.click()}>
             {busy ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-black/10 border-t-[#1A1D20]" /> : I.insert}
           </ToolButton>
-          <Divider />
+          <Divider across={lead} />
           {COLORS.map((c) => (
             <button
               key={c.value}
@@ -2194,11 +2256,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               aria-label={c.name}
               title={c.name}
               aria-pressed={color === c.value}
+              onPointerDown={palmDown}
               onClick={() => {
+                if (palmBlocked()) return;
                 setColor(c.value);
                 if (tool === "eraser" || tool === "move") pickTool("pen");
               }}
-              className="flex h-10 w-8 shrink-0 items-center justify-center"
+              className={`flex shrink-0 items-center justify-center ${lead ? "h-8 w-10" : "h-10 w-8"}`}
             >
               <span
                 className={`block rounded-full transition-all duration-150 ${color === c.value ? "h-[22px] w-[22px] ring-2 ring-[#1A1D20]/80 ring-offset-2 ring-offset-white" : "h-[18px] w-[18px] hover:scale-110"}`}
@@ -2206,7 +2270,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               />
             </button>
           ))}
-          <Divider />
+          <Divider across={lead} />
           {SIZES.map((s) => (
             <button
               key={s.value}
@@ -2214,13 +2278,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               aria-label={`${s.name} pen`}
               title={`${s.name} pen`}
               aria-pressed={size === s.value}
-              onClick={() => setSize(s.value)}
-              className={`flex h-10 w-8 shrink-0 items-center justify-center rounded-xl transition-colors ${size === s.value ? "bg-black/[0.06]" : "hover:bg-black/[0.04]"}`}
+              onPointerDown={palmDown}
+              onClick={() => !palmBlocked() && setSize(s.value)}
+              className={`flex shrink-0 items-center justify-center rounded-xl transition-colors ${lead ? "h-8 w-10" : "h-10 w-8"} ${size === s.value ? "bg-black/[0.06]" : "hover:bg-black/[0.04]"}`}
             >
               <span className="block rounded-full" style={{ width: s.value * 2.2, height: s.value * 2.2, background: size === s.value ? "#1A1D20" : "#9CA3AF" }} />
             </button>
           ))}
-          <Divider />
+          <Divider across={lead} />
           <ToolButton label="Undo (Ctrl+Z, or tap with two fingers)" disabled={!meta.undo} onClick={undo}>{I.undo}</ToolButton>
           <ToolButton label="Redo (Ctrl+Shift+Z)" disabled={!meta.redo} onClick={redo}>{I.redo}</ToolButton>
           <ToolButton label="Clear the board" disabled={!hasContent} onClick={() => setConfirmClear(true)}>{I.trash}</ToolButton>
@@ -2237,6 +2302,24 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       {/* Pen diagnostics (?debug=1): what the tablet reports for the pen and its button */}
       {debug && (
         <div className="pointer-events-none absolute left-4 top-20 max-w-[90vw] rounded-lg bg-black/80 px-3 py-2 font-mono text-[11px] text-[#7FD1A6]">{debug}</div>
+      )}
+
+      {/* Delete page confirm */}
+      {confirmDelete && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[#1A1D20]/25 backdrop-blur-[2px]" onClick={() => setConfirmDelete(false)}>
+          <div className={`${PANEL} w-[320px] p-5 text-center`} onClick={(e) => e.stopPropagation()}>
+            <p className="text-lg font-bold">Delete &ldquo;{page.title}&rdquo;?</p>
+            <p className="mt-1 text-sm text-[#6B7280]">The page and its writing go for good, on your laptop too.</p>
+            <div className="mt-5 flex gap-2">
+              <button type="button" onClick={() => setConfirmDelete(false)} className="h-11 flex-1 rounded-xl bg-black/[0.05] text-sm font-semibold">
+                Cancel
+              </button>
+              <button type="button" onClick={deletePage} className="h-11 flex-1 rounded-xl bg-[#B42318] text-sm font-bold text-white">
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Clear confirm */}

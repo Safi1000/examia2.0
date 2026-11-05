@@ -130,9 +130,15 @@ export function fitView(v: View, w: number, h: number, pad: Inset = NO_INSET): C
 }
 
 /** The clear part of a screen: below the top bars and above the bottom ones, plus a margin. */
-export function clearInset(h: number, top: (Element | null)[], bottom: (Element | null)[], margin = 14): Inset {
+export function clearInset(h: number, top: (Element | null)[], bottom: (Element | null)[], margin = 14, left: (Element | null)[] = []): Inset {
   let t = margin;
   let b = margin;
+  let l = margin;
+  // A toolbar down the left edge (the tablet's).
+  for (const el of left) {
+    const r = el?.getBoundingClientRect();
+    if (r && r.width) l = Math.max(l, r.right + margin);
+  }
   for (const el of top) {
     const r = el?.getBoundingClientRect();
     if (r && r.height) t = Math.max(t, r.bottom + margin);
@@ -141,7 +147,7 @@ export function clearInset(h: number, top: (Element | null)[], bottom: (Element 
     const r = el?.getBoundingClientRect();
     if (r && r.height) b = Math.max(b, h - r.top + margin);
   }
-  return { t, r: margin, b, l: margin };
+  return { t, r: margin, b, l };
 }
 
 /** Zoom by `factor` keeping the screen point (sx, sy) still. */

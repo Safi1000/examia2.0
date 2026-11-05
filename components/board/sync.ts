@@ -29,6 +29,7 @@ export type BoardMsg = (
   | { t: "theme"; v: ThemeId }
   | { t: "bg"; v: Backdrop } // plain or a faint grid: the laptop follows the tablet
   | { t: "page"; p: BoardPage; q?: number } // switched to another page: the other device follows
+  | { t: "pagedel"; id: string } // a page deleted: the other device lets it go too
   | { t: "view"; v: View } // what the tablet shows, for "follow"
   | { t: "hello" } // asking for the full board
   | { t: "rev"; n: number; last: string; d?: string; p?: BoardPage } // heartbeat: item count, newest stroke, a fingerprint and the page, so the other side can self-check
