@@ -2,14 +2,14 @@ import webpush from "web-push";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { liveSlotsOn, pkDate, setSchedule } from "@/lib/timetable";
 import { loadSchedule } from "@/lib/schedule-server";
-import { assignmentCopy, classCopy, recordingCopy, resultCopy, studyCopy, testOpensCopy } from "@/lib/notify-copy";
+import { assignmentCopy, classCopy, newHomeworkCopy, recordingCopy, resultCopy, studyCopy, testOpensCopy } from "@/lib/notify-copy";
 import { cleanLevels, type LevelSubjects } from "@/lib/levels";
 
 /**
  * Phone notifications, server side. The rules that keep them quiet:
  *
- *  1. Only four kinds: results out, test opens in 30 min, assignment due
- *     within 24 h (not handed in), and their first class of the day starting
+ *  1. Only these: results out, test opens in 30 min, new homework set (once),
+ *     homework due within 24 h (not handed in), and their first class of the day starting
  *     (one a day, sent in the 15 minutes before it starts).
  *  2. Never the same thing twice (notify_log is the memory).
  *  3. At most 3 a day per student (Pakistan day).
@@ -259,11 +259,20 @@ export async function runReminders(): Promise<{ sent: number; quiet?: boolean }>
     sb.from("tests").select("id,title,opens_at,closes_at,cohort_id,class_id,subject_id").neq("status", "draft").gt("opens_at", iso(now)).lte("opens_at", iso(now + 35 * 6e4)),
     sb.from("assignments").select("id,title,due_at,cohort_id,class_id,subject_id").gt("due_at", iso(now)).lte("due_at", iso(now + 864e5)),
   ]);
+  // Homework set in the last 12 hours (still to come): each student in it hears once. Set at night,
+  // it goes out in the morning.
+  const { data: fresh } = await sb
+    .from("assignments")
+    .select("id,title,due_at,cohort_id,class_id,subject_id")
+    .gt("created_at", iso(now - 12 * 3_600_000))
+    .gt("due_at", iso(now + 3 * 3_600_000));
   // Who already handed in, for just these tests and assignments (never the whole table).
   const none = Promise.resolve({ data: [] as Array<Record<string, string>> });
   const [{ data: handed }, { data: handedA }] = await Promise.all([
     opening?.length ? sb.from("submissions").select("test_id,student_id").in("test_id", opening.map((t) => t.id)) : none,
-    due?.length ? sb.from("assignment_submissions").select("assignment_id,student_id").in("assignment_id", due.map((a) => a.id)) : none,
+    due?.length || fresh?.length
+      ? sb.from("assignment_submissions").select("assignment_id,student_id").in("assignment_id", [...(due ?? []), ...(fresh ?? [])].map((a) => a.id))
+      : none,
   ]);
   const done = new Set((handed ?? []).map((h) => `${h.student_id}|${h.test_id}`));
   const doneA = new Set((handedA ?? []).map((h) => `${h.student_id}|${h.assignment_id}`));
@@ -281,6 +290,13 @@ export async function runReminders(): Promise<{ sent: number; quiet?: boolean }>
     for (const t of opening ?? []) {
       if (!covers(t, s) || done.has(`${s.id}|${t.id}`)) continue;
       items.push({ studentId: s.id, kind: "tests", refs: [`open:${t.id}`], ...testOpensCopy(`${s.id}${t.id}`, t.title, pkTime(t.opens_at)), url: `/test/${t.id}`, tag: `test-${t.id}`, priority: 2 });
+    }
+    const when = (d: string) => new Date(d).toLocaleString("en-GB", { timeZone: TZ, weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
+    for (const a of fresh ?? []) {
+      // Due within a day: the "due" reminder below says it anyway (one message, not two).
+      if (+new Date(a.due_at) - now <= 864e5) continue;
+      if (!covers(a, s, false) || doneA.has(`${s.id}|${a.id}`)) continue;
+      items.push({ studentId: s.id, kind: "assignments", refs: [`new:${a.id}`], ...newHomeworkCopy(`${s.id}${a.id}`, a.title, when(a.due_at)), url: `/assignments#a-${a.id}`, tag: `asg-${a.id}`, priority: 3 });
     }
     for (const a of due ?? []) {
       if (!covers(a, s, false) || doneA.has(`${s.id}|${a.id}`)) continue;

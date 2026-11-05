@@ -31,7 +31,7 @@ const TITLES: Record<string, string> = {
   "/dashboard": "Home",
   "/plan": "My plan",
   "/progress": "Progress",
-  "/assignments": "Tasks",
+  "/assignments": "Homework",
   "/tests": "Tests",
   "/groundwork": "Groundwork",
   "/classes": "Classes",
@@ -151,11 +151,11 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     { href: "/classes", label: "Classes", short: "Classes", Icon: NavIcon.Classes },
     { href: "/tests", label: "Tests", short: "Tests", Icon: NavIcon.Tests },
     { href: "/groundwork", label: "Groundwork", short: "Groundwork", Icon: NavIcon.Groundwork, feature: true },
-    { href: "/assignments", label: "Tasks", short: "Tasks", Icon: NavIcon.Tasks },
+    { href: "/assignments", label: "Homework", short: "Homework", Icon: NavIcon.Tasks },
     { href: "/notes", label: "Notes", short: "Notes", Icon: NavIcon.Notes },
     { href: "/progress", label: "Progress", short: "Progress", Icon: NavIcon.Progress },
   ];
-  // Phones: five tabs. "Work" holds Tests, Tasks and Notes behind a switch.
+  // Phones: five tabs. "Work" holds Tests, Homework and Notes behind a switch.
   const WORK = ["/tests", "/assignments", "/notes"];
   const isWork = WORK.includes(pathname) || pathname.startsWith("/results") || /^\/test\/[^/]+\/submitted$/.test(pathname);
   const phoneLinks = [
@@ -219,7 +219,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           <ul className="grid grid-cols-3 gap-1 rounded-full border border-border bg-surface p-1">
             {[
               ["/tests", "Tests"],
-              ["/assignments", "Tasks"],
+              ["/assignments", "Homework"],
               ["/notes", "Notes"],
             ].map(([href, label]) => {
               const on = pathname === href || (href === "/tests" && pathname.startsWith("/results"));

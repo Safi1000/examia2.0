@@ -35,7 +35,7 @@ const PHASE_LABEL: Record<PlanWeek["phase"], string> = {
 /**
  * Home: what to do now (class, open tests, work due), then where the student
  * stands (performance) and what this week is for (plan). Full lists live on
- * Tests, Tasks and Progress, so nothing here repeats them.
+ * Tests, Homework and Progress, so nothing here repeats them.
  */
 export default function DashboardPage() {
   const { session, profile } = useAuth();
@@ -64,12 +64,13 @@ export default function DashboardPage() {
 
   if (!student || !heavy.plan) return null;
 
-  // Assignments due in the next 3 days that aren't handed in yet.
+  // All homework still to come that isn't handed in yet.
   const mine = assignmentsForStudent(db, student);
   const dueSoon = mine
     .filter((a) => {
       const due = +new Date(a.dueAt);
-      return due > nowMs && due - nowMs < 3 * 86_400_000 && !db.assignmentSubmissions.some((x) => x.assignmentId === a.id && x.studentId === student.id);
+      // Every piece of homework not handed in yet, however far off, so nothing is a surprise.
+      return due > nowMs && !db.assignmentSubmissions.some((x) => x.assignmentId === a.id && x.studentId === student.id);
     })
     .sort((a, b) => +new Date(a.dueAt) - +new Date(b.dueAt));
   // Missed deadlines from the last two weeks stay on the list until handed in.
@@ -88,7 +89,7 @@ export default function DashboardPage() {
   const status = first
     ? `${tests.open.length === 1 ? "One test" : `${tests.open.length} tests`} to do. ${first.title} closes ${formatRelative(first.closesAt, nowMs)}.`
     : overdue.length
-      ? `${overdue.length === 1 ? `${overdue[0].title} is` : `${overdue.length} assignments are`} overdue. Hand ${overdue.length === 1 ? "it" : "them"} in when you can.`
+      ? `${overdue.length === 1 ? `${overdue[0].title} is` : `${overdue.length} pieces of homework are`} overdue. Hand ${overdue.length === 1 ? "it" : "them"} in when you can.`
       : dueSoon.length
       ? `${dueSoon[0].title} is due ${formatRelative(dueSoon[0].dueAt, nowMs)}.`
       : tests.next
@@ -97,9 +98,9 @@ export default function DashboardPage() {
 
   const todo = [
     ...tests.open.map((t) => ({ key: t.id, href: `/test/${t.id}`, title: t.title, meta: `Test · closes ${formatRelative(t.closesAt, nowMs)}`, cta: "Start" })),
-    // Straight to that assignment on Tasks, not the top of the list.
-    ...overdue.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Assignment · overdue since ${formatWhen(a.dueAt)}`, cta: "Hand in" })),
-    ...dueSoon.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Assignment · due ${formatWhen(a.dueAt)}`, cta: "Hand in" })),
+    // Straight to that homework on the Homework page, not the top of the list.
+    ...overdue.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · overdue since ${formatWhen(a.dueAt)}`, cta: "Hand in" })),
+    ...dueSoon.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · due ${formatWhen(a.dueAt)}`, cta: "Hand in" })),
   ];
 
   return (

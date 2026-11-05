@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient, type RealtimeChannel } from "@supabase/supabase-js";
-import type { BoardImage, Stroke, ThemeId, View } from "@/components/board/engine";
+import type { Backdrop, BoardImage, Stroke, ThemeId, View } from "@/components/board/engine";
 import type { BoardPage } from "@/components/board/storage";
 
 /**
@@ -27,6 +27,7 @@ export type BoardMsg = (
   | { t: "clear"; q?: number } // everything off the board
   | { t: "batch"; ms: BoardMsg[] } // several changes that belong together, in order
   | { t: "theme"; v: ThemeId }
+  | { t: "bg"; v: Backdrop } // plain or a faint grid: the laptop follows the tablet
   | { t: "page"; p: BoardPage; q?: number } // switched to another page: the other device follows
   | { t: "view"; v: View } // what the tablet shows, for "follow"
   | { t: "hello" } // asking for the full board

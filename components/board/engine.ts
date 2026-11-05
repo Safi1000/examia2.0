@@ -582,41 +582,43 @@ export function recogniseShape(pts: Pt[], strict = 0.045): { kind: "rect" | "ell
 }
 
 /** Subtle dot grid behind the ink, so the board feels like paper, not a void. */
+/** What's printed on the board: nothing, or a very faint grid. */
+export type Backdrop = "plain" | "grid";
+export const BACKDROPS: Backdrop[] = ["plain", "grid"];
+export const BACKDROP_NAME: Record<Backdrop, string> = { plain: "Plain", grid: "Faint grid" };
+let backdrop: Backdrop = "plain";
+export const getBackdrop = () => backdrop;
+export function setBackdrop(b: Backdrop) {
+  backdrop = b;
+}
+
 /**
- * Squared paper: fine lines, with every fourth one a little stronger, like an
- * exercise book. Each set is one path (fast at any size), always a hairline on screen.
+ * The faint grid: one set of soft squares, barely there (enough to keep writing straight,
+ * never louder than the ink). One path, a hairline on screen at any zoom.
  */
 export function drawGrid(ctx: CanvasRenderingContext2D, cam: Camera, w: number, h: number) {
-  let step = 32;
-  while (step * cam.z < 16) step *= 2;
+  if (backdrop !== "grid") return;
+  let step = 40;
+  while (step * cam.z < 20) step *= 2;
   const x0 = Math.floor(cam.x / step) * step;
   const y0 = Math.floor(cam.y / step) * step;
   const x1 = cam.x + w / cam.z;
   const y1 = cam.y + h / cam.z;
   const px = 1 / cam.z;
-  const night = themeId === "night";
-  const lines = (isMajor: boolean) => {
-    ctx.beginPath();
-    for (let x = x0; x <= x1; x += step) {
-      if ((Math.round(x / step) % 4 === 0) !== isMajor) continue;
-      const sx = Math.round((x - cam.x) * cam.z) / cam.z + cam.x + px / 2; // on a pixel, so it stays sharp
-      ctx.moveTo(sx, y0);
-      ctx.lineTo(sx, y1 + step);
-    }
-    for (let y = y0; y <= y1; y += step) {
-      if ((Math.round(y / step) % 4 === 0) !== isMajor) continue;
-      const sy = Math.round((y - cam.y) * cam.z) / cam.z + cam.y + px / 2;
-      ctx.moveTo(x0, sy);
-      ctx.lineTo(x1 + step, sy);
-    }
-    ctx.lineWidth = px;
-    ctx.strokeStyle = night
-      ? isMajor ? "rgba(240,237,232,0.10)" : "rgba(240,237,232,0.05)"
-      : isMajor ? "rgba(26,29,32,0.15)" : "rgba(26,29,32,0.07)";
-    ctx.stroke();
-  };
-  lines(false);
-  lines(true);
+  ctx.beginPath();
+  for (let x = x0; x <= x1; x += step) {
+    const sx = Math.round((x - cam.x) * cam.z) / cam.z + cam.x + px / 2; // on a pixel, so it stays sharp
+    ctx.moveTo(sx, y0);
+    ctx.lineTo(sx, y1 + step);
+  }
+  for (let y = y0; y <= y1; y += step) {
+    const sy = Math.round((y - cam.y) * cam.z) / cam.z + cam.y + px / 2;
+    ctx.moveTo(x0, sy);
+    ctx.lineTo(x1 + step, sy);
+  }
+  ctx.lineWidth = px;
+  ctx.strokeStyle = themeId === "night" ? "rgba(240,237,232,0.05)" : "rgba(26,29,32,0.055)";
+  ctx.stroke();
 }
 
 // ---------------------------------------------------------------- typed text
@@ -674,6 +676,11 @@ export const imageAt = (imgs: BoardImage[], x: number, y: number): BoardImage | 
 
 /** Loaded pictures, shared by every board on the page. */
 const cache = new Map<string, HTMLImageElement>();
+/** Let go of loaded pictures (all, or all but `keep`): a new page starts light. */
+export function forgetImages(keep: string[] = []) {
+  const k = new Set(keep);
+  for (const url of [...cache.keys()]) if (!k.has(url)) cache.delete(url);
+}
 export function loadImage(url: string, onReady: () => void): HTMLImageElement | null {
   const hit = cache.get(url);
   if (hit) return hit.complete && hit.naturalWidth ? hit : null;

@@ -9,6 +9,7 @@ import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Select, EmptyState, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
+import { useClassLinks } from "@/lib/classes";
 
 type Mode = "daily" | "monthly";
 
@@ -43,6 +44,8 @@ export default function AttendancePage() {
   );
 
   const month = monthStart(date);
+  // Who tapped Join on this day (and when), so the register shows who actually came.
+  const { joins } = useClassLinks(date, date, true, date === todayISO());
 
   if (db.students.length === 0) {
     return (
@@ -57,7 +60,11 @@ export default function AttendancePage() {
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader
         title="Attendance"
-        subtitle={mode === "daily" ? "Everyone starts present. Tap Late or Absent to change it" : "One percentage per student"}
+        subtitle={
+          mode === "daily"
+            ? "Filled in by itself from Join taps: late after 10 minutes, absent for no-shows after class. Tap to change any mark."
+            : "One percentage per student"
+        }
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -111,29 +118,62 @@ export default function AttendancePage() {
     classId: string | null;
     date: string;
   }) {
+    // A mark made elsewhere that day (e.g. a Join tap, filed under the level) counts too, and
+    // tapping edits that row, so a day never ends up with two different marks.
+    const markOf = (id: string) =>
+      db.attendanceDays.find((a) => a.studentId === id && a.classId === classId && a.date === date) ??
+      db.attendanceDays.find((a) => a.studentId === id && a.date === date);
+    const firstJoin = (id: string) =>
+      joins
+        .filter((j) => j.studentId === id && (!classId || j.classId === classId))
+        .sort((x, y) => x.joinedAt.localeCompare(y.joinedAt))[0];
+    const rows = students.map((s) => ({ s, mark: markOf(s.id), join: firstJoin(s.id) }));
+    const count = (st: AttendanceStatus) => rows.filter((r) => r.mark?.status === st).length;
+    const unmarked = rows.filter((r) => !r.mark);
+    const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit", hour12: true });
+    const markRest = (status: AttendanceStatus) => {
+      for (const r of unmarked) store.setAttendance(r.s.id, classId, date, status);
+      toast(`${unmarked.length} marked ${status}.`, "success");
+    };
+
     return (
-      <Card className="divide-y divide-border p-0">
-        {students.map((s) => {
-          // No row means present: the register only stores the exceptions.
-          // A mark made elsewhere that day (e.g. a Join tap, which is filed under
-          // the level) counts too, and tapping edits that row, so a day never
-          // ends up with two different marks.
-          const mark =
-            db.attendanceDays.find((a) => a.studentId === s.id && a.classId === classId && a.date === date) ??
-            db.attendanceDays.find((a) => a.studentId === s.id && a.date === date);
-          const current: AttendanceStatus = mark?.status ?? "present";
-          return (
-            <div key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-              <span className="min-w-0 flex-1 truncate font-semibold capitalize text-ink">{s.username}</span>
+      <>
+        {/* The day at a glance, and one tap for everyone not marked yet. */}
+        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+          <span className="font-semibold text-success">{count("present")} present</span>
+          <span className="font-semibold text-warning">{count("late")} late</span>
+          <span className="font-semibold text-error">{count("absent")} absent</span>
+          <span className="text-ink-3">{unmarked.length} not marked</span>
+          {unmarked.length > 0 && (
+            <span className="ml-auto flex gap-1.5">
+              <button type="button" onClick={() => markRest("present")} className="h-9 rounded-md border border-border-strong bg-surface px-3 text-xs font-semibold text-ink-2 hover:bg-surface-2">
+                Mark the rest present
+              </button>
+              <button type="button" onClick={() => markRest("absent")} className="h-9 rounded-md border border-border-strong bg-surface px-3 text-xs font-semibold text-ink-2 hover:bg-surface-2">
+                Mark the rest absent
+              </button>
+            </span>
+          )}
+        </div>
+        <Card className="divide-y divide-border p-0">
+          {rows.map(({ s, mark, join }) => (
+            <div key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-semibold capitalize text-ink">{s.username}</span>
+                <span className="block text-xs text-ink-3">
+                  {join ? `Joined ${clock(join.joinedAt)}` : "Didn't tap Join"}
+                  {!mark && " · not marked yet"}
+                </span>
+              </span>
               <div className="flex gap-1.5">
                 {STATUS.map((opt) => (
                   <button
                     key={opt.value}
                     onClick={() => store.setAttendance(s.id, mark ? mark.classId : classId, date, opt.value)}
-                    aria-pressed={current === opt.value}
+                    aria-pressed={mark?.status === opt.value}
                     className={cn(
-                      "h-9 rounded-md border px-3 text-sm font-semibold transition-colors",
-                      current === opt.value ? opt.tone : "border-border-strong bg-surface text-ink-2 hover:bg-surface-2",
+                      "h-10 min-w-[4.5rem] rounded-md border px-3 text-sm font-semibold transition-colors",
+                      mark?.status === opt.value ? opt.tone : "border-border-strong bg-surface text-ink-2 hover:bg-surface-2",
                     )}
                   >
                     {opt.label}
@@ -141,9 +181,10 @@ export default function AttendancePage() {
                 ))}
               </div>
             </div>
-          );
-        })}
-      </Card>
+          ))}
+        </Card>
+        <p className="mt-3 text-xs text-ink-3">Days with no mark are left out of the monthly percentage (late counts as half).</p>
+      </>
     );
   }
 

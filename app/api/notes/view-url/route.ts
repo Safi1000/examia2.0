@@ -41,5 +41,6 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     url: signViewUrl(fileUrl as string, (note.file_name as string) ?? "note"),
     fileType: note.file_type ?? "application/octet-stream",
+    fileName: (note.file_name as string) ?? "",
   });
 }

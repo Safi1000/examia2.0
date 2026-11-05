@@ -15,7 +15,13 @@ import {
   setTheme,
   THEMES,
   type ThemeId,
+  BACKDROPS,
+  BACKDROP_NAME,
   drawGrid,
+  forgetImages,
+  getBackdrop,
+  setBackdrop,
+  type Backdrop,
   drawImages,
   drawStroke,
   areaView,
@@ -78,7 +84,7 @@ const MAIN_PAGE: BoardPage = { id: "main", title: "Board", at: 0 };
 /** Pages kept on a device; older ones (and their boards) are let go. */
 const MAX_PAGES = 80;
 /** A class's page opens this long before it starts. */
-const PAGE_EARLY_MIN = 10;
+const PAGE_EARLY_MIN = 1;
 /** Messages that change a page's board (tagged with that page). */
 const PAGE_CHANGES = new Set<BoardMsg["t"]>(["add", "del", "img", "imgdel", "clear", "set", "live"]);
 /** Every change says which page it's for (see BoardMsg.pg). */
@@ -166,11 +172,36 @@ function useCanvas(draw: (ctx: CanvasRenderingContext2D, w: number, h: number, a
   return { canvasRef, size, requestDraw };
 }
 
-/** The cached finished board for each canvas (see paint). */
-type Layer = { c: HTMLCanvasElement; key: string; strokes: Stroke[] | null; images: BoardImage[] | null };
+/**
+ * The cached finished board for each canvas (see paint): drawn for the view `cam`, plus a
+ * margin all round, so moving the view a little reuses it instead of drawing everything again.
+ */
+type Layer = {
+  c: HTMLCanvasElement;
+  content: string;
+  strokes: Stroke[] | null;
+  images: BoardImage[] | null;
+  cam: Camera | null;
+  /** Margin drawn around the view, in screen pixels. */
+  m: number;
+  /** When the view last moved (a zoom is redrawn sharp once it settles). */
+  movedAt: number;
+  /** When the layer was last drawn in full (rubbing out redraws at most this often). */
+  builtAt: number;
+  lastCam: string;
+};
 const layers = new WeakMap<HTMLCanvasElement, Layer>();
 /** Goes up each time a picture finishes loading, so the layer is redrawn with it. */
 let imageVersion = 0;
+/** A zoom is shown by stretching the cached board, then drawn sharp this long after it stops. */
+const SETTLE_MS = 140;
+
+/** Strokes only added at the end since last time (the usual case: a new line), not removed or changed. */
+function onlyAdded(before: Stroke[] | null, now: Stroke[]): boolean {
+  if (!before || now.length <= before.length) return false;
+  if (!before.length) return true;
+  return now[0] === before[0] && now[before.length - 1] === before[before.length - 1];
+}
 
 function paint(
   ctx: CanvasRenderingContext2D,
@@ -184,49 +215,99 @@ function paint(
   selected?: BoardImage | null,
 ) {
   const look = getTheme();
-  // The finished board (paper, grid, pictures, every stroke) is drawn once into its own
-  // layer and reused while the pen moves: each frame then only adds the stroke being
-  // drawn, so a full board stays as quick as an empty one. Redrawn only when the board,
-  // the view or a picture changes.
+  // The finished board (paper, grid, pictures, every stroke) lives in its own layer:
+  //  - the pen moving only draws the stroke in progress on top;
+  //  - a new stroke is added to the layer, not the whole board drawn again;
+  //  - panning (or the laptop following the tablet) slides the layer, zooming stretches it
+  //    until the view settles, then it's drawn sharp once.
+  // So a full page stays as quick as an empty one on both devices.
   const dpr = ctx.getTransform().a || 1;
   let L = layers.get(ctx.canvas);
   if (!L) {
-    L = { c: document.createElement("canvas"), key: "", strokes: null, images: null };
+    L = { c: document.createElement("canvas"), content: "", strokes: null, images: null, cam: null, m: 0, movedAt: 0, builtAt: 0, lastCam: "" };
     layers.set(ctx.canvas, L);
   }
-  const key = `${w}|${h}|${dpr}|${cam.x}|${cam.y}|${cam.z}|${look.bg}|${imageVersion}`;
-  if (L.key !== key || L.strokes !== strokes || L.images !== images) {
-    L.key = key;
+  const now = performance.now();
+  const camKey = `${cam.x}|${cam.y}|${cam.z}`;
+  if (camKey !== L.lastCam) {
+    L.lastCam = camKey;
+    L.movedAt = now;
+  }
+  const settling = now - L.movedAt < SETTLE_MS;
+  const content = `${w}|${h}|${dpr}|${look.bg}|${getBackdrop()}|${imageVersion}`;
+  const sameContent = L.content === content && L.images === images;
+
+  // Where the layer sits for this view: its own view, the margin, and the zoom between them.
+  const fits = (lc: Camera) => {
+    const k = cam.z / lc.z;
+    const sx = (lc.x - L.m / lc.z - cam.x) * cam.z;
+    const sy = (lc.y - L.m / lc.z - cam.y) * cam.z;
+    const sw = (w + 2 * L.m) * k;
+    const sh = (h + 2 * L.m) * k;
+    return { sx, sy, sw, sh, covers: sx <= 0.5 && sy <= 0.5 && sx + sw >= w - 0.5 && sy + sh >= h - 0.5, k };
+  };
+  const layerCtx = (lc: Camera) => {
+    const b = L.c.getContext("2d")!;
+    b.setTransform(dpr, 0, 0, dpr, 0, 0);
+    b.scale(lc.z, lc.z);
+    b.translate(-(lc.x - L.m / lc.z), -(lc.y - L.m / lc.z));
+    return b;
+  };
+  const rebuild = () => {
+    L.builtAt = performance.now();
+    L.content = content;
     L.strokes = strokes;
     L.images = images;
-    const pw = Math.round(w * dpr);
-    const ph = Math.round(h * dpr);
+    L.cam = { ...cam };
+    L.m = Math.round(0.18 * Math.max(w, h));
+    const pw = Math.round((w + 2 * L.m) * dpr);
+    const ph = Math.round((h + 2 * L.m) * dpr);
     if (L.c.width !== pw || L.c.height !== ph) {
       L.c.width = pw;
       L.c.height = ph;
     }
-    const b = L.c.getContext("2d")!;
-    b.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const b = layerCtx(L.cam);
+    const ox = L.cam.x - L.m / L.cam.z;
+    const oy = L.cam.y - L.m / L.cam.z;
+    const vw = (w + 2 * L.m) / L.cam.z;
+    const vh = (h + 2 * L.m) / L.cam.z;
     b.fillStyle = look.bg;
-    b.fillRect(0, 0, w, h);
-    b.save();
-    b.scale(cam.z, cam.z);
-    b.translate(-cam.x, -cam.y);
-    drawGrid(b, cam, w, h);
+    b.fillRect(ox, oy, vw, vh);
+    const area: Camera = { x: ox, y: oy, z: L.cam.z };
+    drawGrid(b, area, w + 2 * L.m, h + 2 * L.m);
     drawImages(b, images, () => {
       imageVersion++;
       onImage();
     });
-    // Only what is on screen gets drawn.
-    const vx = cam.x, vy = cam.y, vw = w / cam.z, vh = h / cam.z;
+    // Only what is in the layer gets drawn.
     for (const s of strokes) {
       const bx = strokeBox(s);
-      if (bx.x > vx + vw || bx.y > vy + vh || bx.x + bx.w < vx || bx.y + bx.h < vy) continue;
+      if (bx.x > ox + vw || bx.y > oy + vh || bx.x + bx.w < ox || bx.y + bx.h < oy) continue;
       drawStroke(b, s);
     }
-    b.restore();
+  };
+
+  if (!L.cam || !sameContent) rebuild();
+  else if (L.strokes !== strokes) {
+    // New strokes only: add them to the layer. Anything else (erased, undone, moved): draw again.
+    if (onlyAdded(L.strokes, strokes)) {
+      const b = layerCtx(L.cam);
+      for (let i = L.strokes!.length; i < strokes.length; i++) drawStroke(b, strokes[i]);
+      L.strokes = strokes;
+    } else if (strokes.length < (L.strokes?.length ?? 0) && now - L.builtAt < 50) {
+      // Rubbing out: the board is drawn again at most 20 times a second, not on every pen move.
+      onImage();
+    } else rebuild();
   }
-  ctx.drawImage(L.c, 0, 0, w, h);
+  let f = fits(L.cam!);
+  if (!f.covers || (f.k !== 1 && !settling)) {
+    // Slid past the margin, or a zoom has settled: draw it fresh for this view.
+    rebuild();
+    f = fits(L.cam!);
+  } else if (f.k !== 1) onImage(); // keep drawing until the zoom settles, then sharpen
+  ctx.fillStyle = look.bg;
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(L.c, f.sx, f.sy, f.sw, f.sh);
   ctx.save();
   ctx.scale(cam.z, cam.z);
   ctx.translate(-cam.x, -cam.y);
@@ -487,6 +568,24 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     ),
   );
 
+  // The paper: plain or a faint grid. Remembered on this device; the laptop follows the tablet.
+  const [paper, setPaperState] = useState<Backdrop>("plain");
+  const paperRef = useRef<Backdrop>("plain");
+  const setPaperRef = useRef<(v: Backdrop, share: boolean) => void>(() => {});
+  const setPaper = (v: Backdrop, share: boolean) => {
+    paperRef.current = v;
+    setPaperState(v);
+    setBackdrop(v);
+    requestDraw();
+    try {
+      localStorage.setItem("ht-board-bg", v);
+    } catch {}
+    if (share) link.current?.send({ t: "bg", v });
+  };
+  useEffect(() => {
+    setPaperRef.current = setPaper;
+  });
+
   // ---- persistence + live link
   // Saved under the room's first part, so a board drawn before the private key existed is still here.
   // The laptop keeps its own copy: the tablet's board always wins when both are on.
@@ -496,8 +595,6 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const pagesRef = useRef<BoardPage[]>([MAIN_PAGE]);
   // The laptop: has the tablet sent this page's board yet? (Then its own older copy isn't needed.)
   const pageBoardIn = useRef(false);
-  // When Hamza last wrote, erased or typed here (a class's page waits until he pauses).
-  const lastInkAt = useRef(0);
   // Which page's board has actually arrived here (from this device's store or the tablet). A page is
   // only saved on leaving once it has: leaving one still loading must never save it empty.
   const loadedPageId = useRef<string | null>(null);
@@ -545,7 +642,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         sendView.current = null;
         const { w, h } = screen.current;
         if (w && h) link.current?.send({ t: "view", v: writingView(w, h) });
-      }, 40); // ~25 position updates a second to the laptop, which glides between them
+      }, 70); // ~14 position updates a second to the laptop, which glides smoothly between them (fewer messages, so drawing never queues behind them)
   }, [screen, lead]);
 
   // ---- the other device: everything it does lands here too
@@ -562,9 +659,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     showDebug.current = new URL(window.location.href).searchParams.get("debug") === "1";
     let alive = true;
     const loadSaved = async () => {
-      // Where Hamza left off: the page he was on, then its board.
+      // Where Hamza left off: the paper he chose, the page he was on, then its board.
       const idx = await loadIndex(storeKey);
       if (!alive) return;
+      try {
+        const bg = localStorage.getItem("ht-board-bg") as Backdrop | null;
+        if (bg && BACKDROPS.includes(bg)) setPaperRef.current(bg, false);
+      } catch {}
       if (idx?.pages.length && pageRef.current.id === MAIN_PAGE.id) {
         pagesRef.current = idx.pages;
         setPageList(idx.pages);
@@ -709,7 +810,6 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
 
   // ---- history
   const commit = (a: Action) => {
-    lastInkAt.current = Date.now();
     undoStack.current.push(a);
     redoStack.current = [];
     persist();
@@ -805,6 +905,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         case "hello": {
           // The other device asked for the board: answer it on this channel only (page first).
           if (lead) link.current?.send({ t: "page", p: pageRef.current });
+          if (lead) link.current?.send({ t: "bg", v: paperRef.current });
           link.current?.send(tagPage(stampMsg(ledger, fullBoard()), pageRef.current.id));
           const { w, h } = screen.current;
           if (lead && w && h) link.current?.send({ t: "view", v: writingView(w, h) });
@@ -812,6 +913,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         }
         case "theme":
           return; // one light board now; an older device's look is ignored
+        case "bg":
+          if (BACKDROPS.includes(m.v)) setPaper(m.v, false);
+          return;
         case "page":
           // The other device moved to another page (a class starting, or by hand): follow it.
           if (m.q !== undefined) {
@@ -851,7 +955,6 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           return;
         }
         case "live": {
-          lastInkAt.current = Date.now(); // writing on the other device counts too
           // The final stroke already came: this preview is stale. (Not for typed words: editing them
           // removes the old version first, and their previews arrive in order.)
           if (m.s.kind !== "text" && ledger.known(m.s.id)) return;
@@ -866,7 +969,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           remoteLiveTimer.current = setTimeout(() => {
             remoteLive.current = null;
             requestDraw();
-          }, 2500);
+          }, 8000);
           requestDraw();
           return;
         }
@@ -1121,10 +1224,20 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   // How much of the stroke being drawn the laptop already has: only the new points go, and the
   // whole stroke every 20th time in case one went missing (the finished stroke settles it anyway).
   const liveShared = useRef<{ id: string; n: number; times: number }>({ id: "", n: 0, times: 0 });
+  // When a preview is held back (sent too recently), it still goes a moment later: the last bit of
+  // a line always reaches the laptop, even if the pen then pauses.
+  const liveLater = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sendLive = () => {
     const now = performance.now();
     const s = current.current;
-    if (!s || now - liveSend.current <= 40) return;
+    if (!s) return;
+    if (now - liveSend.current <= 40) {
+      liveLater.current ??= setTimeout(() => {
+        liveLater.current = null;
+        sendLive();
+      }, 45);
+      return;
+    }
     liveSend.current = now;
     const sh = liveShared.current;
     if (sh.id !== s.id) liveShared.current = { id: s.id, n: 0, times: 0 };
@@ -1369,6 +1482,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     requestDraw();
   };
 
+  // Set once endGesture exists (below), for a pen whose lift came late.
+  const endLate = useRef<(e: React.PointerEvent<HTMLCanvasElement>) => void>(() => {});
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const [sx, sy] = local(e);
     if (e.pointerType === "pen") {
@@ -1407,6 +1522,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const g = gesture.current;
     if (g.id !== e.pointerId || !g.mode) {
       if (tool === "eraser" && e.pointerType !== "touch") setEraserAt({ x: sx, y: sy });
+      return;
+    }
+
+    // The pen is hovering again but the browser never said it lifted (some tablets report the lift
+    // late, or only at the next touch): finish the stroke now, so the laptop gets it at once.
+    if (e.pointerType === "pen" && e.buttons === 0 && (g.mode === "draw" || g.mode === "line" || g.mode === "box")) {
+      endLate.current(e);
       return;
     }
 
@@ -1643,6 +1765,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     requestDraw();
   };
 
+  useEffect(() => {
+    endLate.current = (e) => endGesture(e);
+  });
+
   // Mouse wheel / trackpad: pinch or ctrl+wheel zooms, plain wheel pans.
   const onWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     const [sx, sy] = local(e);
@@ -1695,6 +1821,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     current.current = null;
     undoStack.current = [];
     redoStack.current = [];
+    // A fresh start for each page: pictures from earlier pages are let go (as a reload would).
+    forgetImages();
     select(null);
     pageBoardIn.current = false;
     if (announce) send({ t: "page", p });
@@ -1753,17 +1881,16 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       // Not before this page's own board has loaded (its list of pages comes with it).
       if (loadedPageId.current === null) return;
       const today = pkDate(now);
-      const slots = liveSlotsOn(db, today);
-      // The class running now keeps its page to the end (back-to-back subjects: Economics isn't
-      // cut short by Business coming up); only between classes does the next one open early.
-      const slot =
-        slots.find((s) => now >= s.startMs && now < s.endMs) ??
-        slots.find((s) => now >= s.startMs - PAGE_EARLY_MIN * 60_000 && now < s.endMs);
+      // The class that has started (or starts within a minute): with back-to-back subjects, the
+      // next one's page opens a minute before it starts.
+      const slot = liveSlotsOn(db, today)
+        .filter((s) => now >= s.startMs - PAGE_EARLY_MIN * 60_000 && now < s.endMs)
+        .sort((a, b) => b.startMs - a.startMs)[0];
       if (!slot) return;
       const key = slotKey(slot);
       if (lastAutoSlot.current === key) return;
-      // Never mid-sentence: wait until the pen has rested 15 seconds (checked again every 20).
-      if (lastAutoSlot.current !== null && now - lastInkAt.current < 15_000) return;
+      // Never mid-stroke or mid-word: it waits for the pen to lift (checked again in 5 seconds).
+      if (gesture.current.mode || typingRef.current) return;
       lastAutoSlot.current = key;
       const id = `c-${key.replace(/[^a-z0-9]/gi, "").slice(0, 40)}`;
       const day = new Date(`${today}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
@@ -1774,7 +1901,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   useEffect(() => {
     // A moment after opening (the saved page first), then every 20 seconds.
     const first = setTimeout(() => autoPage.current(), 3000);
-    const every = setInterval(() => autoPage.current(), 20_000);
+    const every = setInterval(() => autoPage.current(), 5_000);
     return () => {
       clearTimeout(first);
       clearInterval(every);
@@ -1979,6 +2106,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             )}
             <button type="button" onClick={fit} title="Fit the whole board" className="h-7 w-14 rounded-lg text-center text-xs font-semibold tabular-nums text-[#6B7280] hover:bg-black/[0.05] hover:text-[#1A1D20]">
               {zoom}%
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaper(BACKDROPS[(BACKDROPS.indexOf(paper) + 1) % BACKDROPS.length], true)}
+              title="The board's paper: plain, or a faint grid (tap to switch). The laptop changes too."
+              className="h-7 rounded-lg px-2.5 text-xs font-semibold text-[#6B7280] transition-colors hover:bg-black/[0.05] hover:text-[#1A1D20]"
+            >
+              {BACKDROP_NAME[paper]}
             </button>
             <SmallButton label="Hide the tools for a clean shared screen (H)" onClick={() => setToolsHidden(true)}>{I.hide}</SmallButton>
             {lead && (

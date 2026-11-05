@@ -50,6 +50,14 @@ export function testOpensCopy(seed: string, test: string, time: string): Copy {
 }
 
 /** An assignment due within a day. */
+/** New homework set: what it is and when it's due, once. */
+export function newHomeworkCopy(seed: string, title: string, when: string): Copy {
+  return pick(seed, [
+    { title: "New homework 📚", body: `${title}. Due ${when}.` },
+    { title: `Homework: ${title}`, body: `Due ${when}. It's on your Homework page.` },
+  ]);
+}
+
 export function assignmentCopy(seed: string, title: string, when: string, today = false): Copy {
   if (today)
     return pick(seed, [

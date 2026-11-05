@@ -402,12 +402,18 @@ export function createSeed(now: number = Date.now()): Database {
       { id: "cl_as", name: "A-Levels (AS)", createdAt: iso(-90 * DAY) },
       { id: "cl_a2", name: "A-Levels (A2)", createdAt: iso(-90 * DAY) },
     ],
-    assignments: [],
+    // Preview only: one homework still to do and one handed in late (with a reply), so Homework shows both states.
+    assignments: [
+      { id: "as_dep", title: "Week 6: Depreciation questions", instructions: "Do questions 1 to 4. Show your workings.", attachments: [], dueAt: iso(2 * DAY), cohortId: "co_autumn", classId: "cl_as", subjectId: "sj_acc", createdAt: iso(-1 * DAY) },
+      { id: "as_bep", title: "Week 5: Break-even analysis", instructions: "Draw the break-even chart and label the margin of safety.", attachments: [], dueAt: iso(-3 * DAY), cohortId: "co_autumn", classId: "cl_as", subjectId: "sj_bus", createdAt: iso(-8 * DAY) },
+    ],
     reports: [],
     remindersSent: [],
     attendanceDays: [],
     attendanceMonths: [],
-    assignmentSubmissions: [],
+    assignmentSubmissions: [
+      { id: "asub_1", assignmentId: "as_bep", studentId: "st_amelia", fileUrls: [], submittedAt: iso(-2 * DAY), feedback: "Good chart. Label the axes next time.", feedbackAt: iso(-1 * DAY) },
+    ],
     subjects: [
       { id: "sj_acc", name: "Accounting", createdAt: iso(-90 * DAY) },
       { id: "sj_bus", name: "Business Studies", createdAt: iso(-90 * DAY) },

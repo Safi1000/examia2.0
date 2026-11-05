@@ -55,11 +55,11 @@ export default function StudentAssignmentsPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="mb-1 font-display text-2xl font-bold text-ink">Tasks</h1>
+      <h1 className="mb-1 font-display text-2xl font-bold text-ink">Homework</h1>
       <p className="mb-6 text-sm text-ink-3">Hand in your work as photos or a PDF.</p>
 
       {assignments.length === 0 && done.length === 0 ? (
-        <EmptyState icon={<Icon.Doc />} title="Nothing set right now" message="New assignments will appear here." />
+        <EmptyState icon={<Icon.Doc />} title="No homework right now" message="When I set homework, it appears here with its due date." />
       ) : assignments.length === 0 ? (
         <p className="text-sm text-ink-2">All handed in. Nothing to do right now.</p>
       ) : (
@@ -131,14 +131,22 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
     setProgress(0);
     try {
       const parts = accepted.map(() => 0);
-      const results = await Promise.allSettled(
-        accepted.map((f, i) =>
-          uploadAsImages(f, (p) => {
+      // Two at a time: ten photos at once on phone data often stalled and failed together.
+      const results: PromiseSettledResult<string[]>[] = new Array(accepted.length);
+      let next = 0;
+      const worker = async () => {
+        while (next < accepted.length) {
+          const i = next++;
+          results[i] = await uploadAsImages(accepted[i], (p) => {
             parts[i] = p;
             setProgress(parts.reduce((a, b) => a + b, 0) / parts.length);
-          }),
-        ),
-      );
+          }).then(
+            (value) => ({ status: "fulfilled" as const, value }),
+            (reason: unknown) => ({ status: "rejected" as const, reason }),
+          );
+        }
+      };
+      await Promise.all([worker(), worker()]);
       const pages = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
       const failed = results.length - results.filter((r) => r.status === "fulfilled").length;
       if (!pages.length) throw new Error("Nothing uploaded. Check your internet and try again.");
@@ -156,7 +164,11 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
   return (
     <Card id={`a-${assignment.id}`} className="scroll-mt-24 p-4">
       <div className="flex flex-wrap items-center gap-2">
-        {mine ? <Badge tone="success">Handed in</Badge> : <Badge tone={overdue ? "warning" : "neutral"}>{overdue ? "Overdue" : "To do"}</Badge>}
+        {mine ? (
+          <Badge tone="success">{+new Date(mine.submittedAt) > +new Date(assignment.dueAt) ? "Handed in late" : "Handed in"}</Badge>
+        ) : (
+          <Badge tone={overdue ? "warning" : "neutral"}>{overdue ? "Overdue" : "To do"}</Badge>
+        )}
         {subjectName && <Badge tone="neutral">{subjectName}</Badge>}
         <span className="text-sm text-ink-2">Due {formatTimestamp(assignment.dueAt)}</span>
       </div>
@@ -171,7 +183,9 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
 
       {mine && mine.fileUrls.length > 0 && (
         <div className="mt-4">
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-3">Your work</p>
+          <p className="mb-1.5 text-xs font-semibold text-ink-3">
+            Your work · {mine.fileUrls.length} {mine.fileUrls.length === 1 ? "page" : "pages"} · handed in {formatTimestamp(mine.submittedAt)}
+          </p>
           <PageStack urls={mine.fileUrls} label="Your work" />
           {/* Wrong photo? Take it out (or swap the only one), until Hamza has replied. */}
           {!mine.feedback && mine.fileUrls.length === 1 && (
@@ -235,7 +249,7 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
             fileRef.current?.click();
           }}
         >
-          <Icon.Camera className="h-4 w-4" /> {mine ? "Add more pages" : "Hand in work"}
+          <Icon.Camera className="h-4 w-4" /> {mine ? "Add more pages" : overdue ? "Hand in late" : "Hand in work"}
         </Button>
         {uploading && (
           <div className="mt-2.5 flex items-center gap-2.5" role="status">
@@ -246,7 +260,8 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
           </div>
         )}
         {mine?.feedback && <p className="mt-1.5 text-xs text-ink-3">I&apos;ve already replied. If you add pages, message me so I see them.</p>}
-        {overdue && !mine && <p className="mt-1.5 text-xs text-ink-3">The deadline has passed.</p>}
+        {overdue && !mine && <p className="mt-1.5 text-xs text-ink-3">The deadline has passed, but you can still hand it in.</p>}
+        {!mine && !uploading && <p className="mt-1.5 text-xs text-ink-3">Take a clear photo of each page, or pick a PDF. You can add more pages after.</p>}
       </div>
     </Card>
   );

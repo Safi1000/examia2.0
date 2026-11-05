@@ -21,7 +21,7 @@ type Prefs = { results: boolean; tests: boolean; assignments: boolean };
 const KINDS: Array<{ key: keyof Prefs; label: string; hint: string }> = [
   { key: "results", label: "Results", hint: "When I release your marks" },
   { key: "tests", label: "Tests", hint: "30 minutes before a test opens" },
-  { key: "assignments", label: "Assignments", hint: "The day before it's due, if you haven't handed it in" },
+  { key: "assignments", label: "Homework", hint: "When I set it, and the day before it's due if you haven't handed it in" },
 ];
 
 function keyBytes(base64: string) {
