@@ -547,3 +547,8 @@ textarea:-webkit-autofill:focus {
 .auth-btn:not(:disabled):hover::after { animation: auth-sheen 0.9s ease-out; }
 /* In the sign-in door the gold underline is the focus mark, not a box. */
 .auth-field :is(input, textarea):focus-visible { outline: none; }
+
+/* Past paper practice: the floating WhatsApp button would cover the answer sheet. */
+.pp-practice .wa-float {
+  display: none;
+}

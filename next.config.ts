@@ -23,11 +23,12 @@ const nextConfig: NextConfig = {
   // Articles live in content/blog/*.mdx and are imported by app/blog/[slug].
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   poweredByHeader: false,
-  // Past papers (PDFs and page images) live in file storage; they are served
-  // from this site's own address so search engines credit hamzateaches.com.
+  // Past papers (PDFs and page images) live in Cloudflare R2 (bucket "pastpapers");
+  // they are served from this site's own address so search engines credit
+  // hamzateaches.com. PAPER_FILES_ORIGIN overrides it (local testing).
   async rewrites() {
-    const origin = process.env.PAPER_FILES_ORIGIN?.replace(/\/$/, "");
-    return origin ? [{ source: "/papers/:path*", destination: `${origin}/:path*` }] : [];
+    const origin = (process.env.PAPER_FILES_ORIGIN || "https://pub-68aedf85fa834c318cbe7828a6d29c25.r2.dev").replace(/\/$/, "");
+    return [{ source: "/papers/:path*", destination: `${origin}/:path*` }];
   },
   // Starting Points was removed: old links go to the homepage.
   async redirects() {

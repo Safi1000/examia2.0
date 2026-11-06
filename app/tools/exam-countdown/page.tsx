@@ -47,7 +47,7 @@ export default async function ExamCountdownPage({ searchParams }: Props) {
       faq={FAQ}
       related={[
         { href: "/tools/revision-planner", label: "Revision planner: turn the days into a weekly plan" },
-        { href: "/past-papers", label: "Past papers 2022 to 2026, with mark schemes" },
+        { href: "/past-papers", label: "Past papers 2022 to 2025, with mark schemes" },
         { href: "/grade-thresholds", label: "Grade thresholds: the marks you need" },
       ]}
       how={

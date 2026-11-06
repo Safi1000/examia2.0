@@ -4,7 +4,10 @@ import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
-import { PAST_PAPER_SYLLABI, fileUrl, paperCount, paperLabel, pastPaperSyllabus, sessionLabel, sessionsFor, type PaperSession } from "@/lib/past-papers";
+import { SyllabusBrowser, type BrowserSeries } from "@/components/past-papers/SyllabusBrowser";
+import { PaperSearch } from "@/components/past-papers/PaperSearch";
+import { PastPapersNav } from "@/components/past-papers/Bits";
+import { YEAR_RANGE, hasPractice, practiceQuestions, PAST_PAPER_SYLLABI, fileName, paperCount, paperHref, paperNumbers, papersFor, pastPaperSyllabus, pdfUrl, sessionKey, sessionLabel, sessionsFor } from "@/lib/past-papers";
 import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
 import { syllabusByCode, SYLLABI } from "@/lib/syllabus";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
@@ -19,8 +22,8 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const s = pastPaperSyllabus((await params).slug);
   if (!s) return {};
-  const title = `${s.name} Past Papers 2022 to 2026`;
-  const description = `All ${s.name} past papers from 2022 to 2026 with mark schemes, inserts, examiner reports and grade thresholds, sorted by series. Free.`;
+  const title = `${s.name} Past Papers ${YEAR_RANGE}`;
+  const description = `All ${s.name} past papers from ${YEAR_RANGE} with mark schemes, inserts, examiner reports and grade thresholds, sorted by series. Free.`;
   return {
     title: fitTitle(title),
     description,
@@ -29,67 +32,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-const ext = { target: "_blank", rel: "noopener noreferrer" } as const;
 const pill =
   "inline-flex min-h-11 items-center rounded-full border border-hairline px-4 text-[15px] font-semibold text-foreground transition-colors hover:border-gold-border hover:text-gold";
-
-function SessionBlock({ code, s }: { code: string; s: PaperSession }) {
-  const papers = Object.entries(s.p).filter(([, t]) => t.includes("q") || t.includes("m"));
-  return (
-    <div>
-      <ul className="divide-y divide-hairline border-y border-hairline">
-        {papers.map(([pv, t]) => (
-          <li key={pv} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
-            <span className="font-semibold text-foreground">{paperLabel(pv)}</span>
-            <span className="flex flex-wrap gap-2">
-              {t.includes("q") && (
-                <a href={fileUrl(code, s, "qp", pv)} {...ext} className={pill}>
-                  Question paper
-                </a>
-              )}
-              {t.includes("m") && (
-                <a href={fileUrl(code, s, "ms", pv)} {...ext} className={pill}>
-                  Mark scheme
-                </a>
-              )}
-              {t.includes("i") && (
-                <a href={fileUrl(code, s, "in", pv)} {...ext} className={pill}>
-                  Insert
-                </a>
-              )}
-            </span>
-          </li>
-        ))}
-      </ul>
-      {(s.er || s.gt) && (
-        <p className="mt-3 flex flex-wrap gap-2">
-          {s.er && (
-            <a href={fileUrl(code, s, "er")} {...ext} className={pill}>
-              Examiner report
-            </a>
-          )}
-          {s.gt && (
-            <a href={fileUrl(code, s, "gt")} {...ext} className={pill}>
-              Grade thresholds
-            </a>
-          )}
-        </p>
-      )}
-    </div>
-  );
-}
 
 export default async function PastPaperSyllabusPage({ params }: Props) {
   const s = pastPaperSyllabus((await params).slug);
   if (!s) notFound();
-  const sessions = sessionsFor(s.code);
+  const papers = papersFor(s.code);
+  const series: BrowserSeries[] = sessionsFor(s.code).map((x) => ({
+    id: sessionKey(x),
+    label: sessionLabel(x),
+    year: x.y,
+    s: x.s,
+    er: x.er ? pdfUrl(fileName(s.code, x, "er")) : null,
+    gt: x.gt ? pdfUrl(fileName(s.code, x, "gt")) : null,
+    papers: papers
+      .filter((p) => p.session === x)
+      .map((p) => ({ key: p.key, href: paperHref(s.slug, p), num: p.num, pv: p.pv, title: p.title, minutes: p.minutes, marks: p.marks, mcq: p.mcq, insert: p.insert })),
+  }));
+  const mcqCount = papers.filter((p) => p.mcq).length;
+  const others = PAST_PAPER_SYLLABI.filter((o) => o.code !== s.code && (o.level === s.level || o.subject === s.subject));
   const thresholds = THRESHOLD_PAGES.find((p) => p.code === s.code);
   const syllabus = syllabusByCode(s.code) ?? SYLLABI.find((x) => x.replaces === s.code) ?? null;
   const next = s.next ? syllabusByCode(s.next.code) : null;
   const faq = [
     {
       q: `Where can I find ${s.name} mark schemes?`,
-      a: `Next to each paper on this page. Every ${s.code} paper from 2022 to 2026 has its mark scheme, and inserts where the paper uses one.`,
+      a: `Open any paper on this page and tap Mark scheme. Every ${s.code} paper from ${YEAR_RANGE} has its mark scheme, and the insert where the paper uses one. On a laptop you can put the paper and mark scheme side by side.`,
     },
     {
       q: "What does the variant number mean?",
@@ -104,46 +73,52 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
     <MarketingShell>
       <JsonLd data={breadcrumbLd([{ name: "Home", path: "/" }, { name: "Past papers", path: "/past-papers" }, { name: s.name, path: `/past-papers/${s.slug}` }])} />
       <JsonLd data={faqLd(faq)} />
-      <div className="mx-auto max-w-3xl px-5 pb-20 pt-14 md:pt-20">
-        <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Past papers", href: "/past-papers" }, { name: s.short }]} />
-        <h1 className="mt-8 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{s.name} past papers</h1>
-        <p className="mt-5 max-w-[62ch] text-lg leading-relaxed text-muted-foreground">
-          {paperCount(s.code)} papers from 2022 to 2026, newest first, each with its mark scheme. Examiner reports and grade thresholds sit under each series.
+      <div className="mx-auto max-w-4xl px-5 pb-20 pt-8 md:pt-12">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <PastPapersNav className="w-fit max-w-full" />
+          <PaperSearch compact className="w-full sm:w-[300px]" />
+        </div>
+        <div className="mt-8"><Crumbs trail={[{ name: "Past papers", href: "/past-papers" }, { name: s.short }]} /></div>
+        <h1 className="mt-4 text-4xl font-bold leading-[1.06] tracking-tight text-foreground md:text-5xl">{s.name} past papers</h1>
+        <p className="mt-4 max-w-[58ch] text-lg leading-relaxed text-muted-foreground">
+          {paperCount(s.code)} papers from {YEAR_RANGE}, each with its mark scheme. Open one to read it, practise it timed, and see your grade.
         </p>
+        <nav aria-label="Switch subject or level" className="mt-5 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+          {others.map((o) => (
+            <Link key={o.code} href={`/past-papers/${o.slug}`} className="inline-flex min-h-10 shrink-0 items-center rounded-full border border-hairline px-4 text-[14px] font-semibold text-muted-foreground transition-colors hover:border-gold-border hover:text-foreground">
+              {o.level === s.level ? o.short : `${o.level === "AS and A Level" ? "A Level" : o.level} ${o.code}`}
+            </Link>
+          ))}
+        </nav>
+        {hasPractice(s.code) && (
+          <Link
+            href={`/past-papers/${s.slug}/practice`}
+            className="mt-6 flex items-center justify-between gap-4 rounded-[20px] border border-gold-border bg-card-raised px-5 py-4 transition-colors hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+          >
+            <span>
+              <span className="block font-semibold text-foreground">Practise {practiceQuestions(s.code).length} multiple choice questions</span>
+              <span className="block text-[15px] text-muted-foreground">One at a time, marked as you tap. Mistakes saved.</span>
+            </span>
+            <span className="shrink-0 rounded-full bg-gold px-4 py-2 text-[14px] font-semibold text-[#1b1e21]">Start</span>
+          </Link>
+        )}
         {s.next && (
-          <p className="mt-5 rounded-[16px] border border-gold-border bg-card px-5 py-4 text-[17px] leading-relaxed text-muted-foreground">
-            From {s.next.from}, {s.code} is replaced by <span className="font-semibold text-foreground">{s.next.code}</span>. These papers are still the best practice you can get.
+          <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
+            From {s.next.from}, {s.code} is replaced by <span className="font-semibold text-foreground">{s.next.code}</span>. These papers are still the best practice there is.
             {next && (
               <>
                 {" "}
                 <Link href={`/syllabus/${next.slug}`} className="font-semibold text-gold hover:underline">
-                  See the {s.next.code} syllabus
+                  {s.next.code} syllabus
                 </Link>
               </>
             )}
           </p>
         )}
-        <nav aria-label="Also for this syllabus" className="mt-6 flex flex-wrap gap-2">
-          {thresholds && (
-            <Link href={`/grade-thresholds/${thresholds.slug}`} className={pill}>
-              Grade thresholds
-            </Link>
-          )}
-          {syllabus && (
-            <Link href={`/syllabus/${syllabus.slug}`} className={pill}>
-              Syllabus checklist
-            </Link>
-          )}
-          <Link href="/tools/grade-predictor" className={pill}>
-            Grade predictor
-          </Link>
-        </nav>
 
-        {sessions.slice(0, 2).map((x) => (
-          <Section key={`${x.y}${x.s}`} title={sessionLabel(x)}>
-            <SessionBlock code={s.code} s={x} />
-          </Section>
-        ))}
+        <div className="mt-10">
+          <SyllabusBrowser series={series} papers={paperNumbers(s.code)} />
+        </div>
 
         <TrialBox
           from={`past-papers:${s.code}`}
@@ -153,20 +128,22 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
           body={`That is what I fix in class: the exact ${s.short} questions you keep dropping marks on, with the mark scheme open. Start with one free lesson.`}
         />
 
-        <Section title="Earlier series">
-          <div className="space-y-3">
-            {sessions.slice(2).map((x) => (
-              <details key={`${x.y}${x.s}`} className="group rounded-[16px] border border-hairline bg-card px-5 py-1 open:pb-5">
-                <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between font-semibold text-foreground">
-                  {sessionLabel(x)}
-                  <span aria-hidden className="text-gold transition-transform group-open:rotate-45">+</span>
-                </summary>
-                <div className="mt-2">
-                  <SessionBlock code={s.code} s={x} />
-                </div>
-              </details>
-            ))}
-          </div>
+        <Section title="Also for this syllabus">
+          <nav aria-label="Also for this syllabus" className="flex flex-wrap gap-2">
+            {thresholds && (
+              <Link href={`/grade-thresholds/${thresholds.slug}`} className={pill}>
+                Grade thresholds
+              </Link>
+            )}
+            {syllabus && (
+              <Link href={`/syllabus/${syllabus.slug}`} className={pill}>
+                Syllabus checklist
+              </Link>
+            )}
+            <Link href="/tools/grade-predictor" className={pill}>
+              Grade predictor
+            </Link>
+          </nav>
         </Section>
 
         <Section title="Questions students ask">
@@ -180,7 +157,7 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
           </dl>
         </Section>
         <p className="mt-12 text-sm text-faint">
-          Papers are © Cambridge University Press &amp; Assessment. Links open the files on PapaCambridge, a free public archive.
+          Papers, mark schemes and reports are © Cambridge University Press &amp; Assessment, shared here for students&apos; revision.
         </p>
       </div>
     </MarketingShell>

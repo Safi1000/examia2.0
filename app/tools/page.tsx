@@ -24,7 +24,7 @@ const GROUPS: Array<{ title: string; tools: Array<{ href: string; name: string; 
       { href: "/syllabus", name: "Syllabus checklists", what: "The full Cambridge syllabus for your subject. Mark what you know, see your weak topics." },
       { href: "/tools/exam-countdown", name: "Exam countdown", what: "Days to your paper and the weekly pace that gets the syllabus done. Share it with your class." },
       { href: "/tools/revision-planner", name: "Revision planner", what: "A plan for each week up to your exam, weak topics first." },
-      { href: "/past-papers", name: "Past papers", what: "Every paper from 2022 to 2026 with mark schemes, inserts, examiner reports and thresholds." },
+      { href: "/past-papers", name: "Past papers", what: "Every paper from 2022 to 2025 with mark schemes, inserts, examiner reports and thresholds." },
     ],
   },
   {
