@@ -163,6 +163,7 @@ export default async function PaperPage({ params }: Props) {
             docs={docs}
             answer={key}
             thresholds={t ? { ...t, series: sessionLabel(p.session) } : null}
+            report={f.er}
           />
         </div>
 

@@ -41,6 +41,22 @@ const MS_WORDS: Array<[string, string]> = [
   ["/", "Separates answers that are each acceptable."],
 ];
 
+/** What Cambridge's command words ask for, in plain words. */
+const COMMAND_WORDS: Array<[string, string]> = [
+  ["Identify, State", "Name it briefly. No explanation needed."],
+  ["Define", "Give the exact meaning of the term."],
+  ["Explain", "Say why or how, linking each cause to its effect."],
+  ["Analyse", "Break it down and show the chain of reasoning, step by step."],
+  ["Discuss", "Give points on both sides."],
+  ["Evaluate, Assess", "Weigh the points up and reach a judgement you can justify."],
+  ["Calculate", "Work out the number and show your working."],
+];
+
+const minutesWord = (m: number) => {
+  const r = Math.round(m * 10) / 10;
+  return `${r} ${r === 1 ? "minute" : "minutes"}`;
+};
+
 const clock = (ms: number) => {
   const s = Math.floor(Math.abs(ms) / 1000);
   const h = Math.floor(s / 3600);
@@ -85,6 +101,8 @@ const I = {
   full: "M3.5 7.5v-4h4M16.5 7.5v-4h-4M3.5 12.5v4h4M16.5 12.5v4h-4",
   night: "M16.5 12.2A7 7 0 0 1 7.8 3.5a7 7 0 1 0 8.7 8.7Z",
   split: "M3.5 4h13v12h-13zM10 4v12",
+  guide: "M10 17.5a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15ZM10 9v4.5M10 6.5v.01",
+  close: "M5 5l10 10M15 5 5 15",
 };
 
 /** A scrolling stack of pages: images that work on every phone, or the PDF itself if there are none. */
@@ -188,6 +206,7 @@ export function PaperView({
   docs,
   answer,
   thresholds,
+  report = null,
 }: {
   pkey: string;
   code: string;
@@ -198,6 +217,8 @@ export function PaperView({
   docs: ViewDoc[];
   answer: string | null;
   thresholds: ViewThresholds | null;
+  /** The series' examiner report, if there is one. */
+  report?: string | null;
 }) {
   const [tab, setTab] = useState<Tab>("qp");
   const [split, setSplit] = useState(false);
@@ -250,6 +271,9 @@ export function PaperView({
 
   // A link like ?page=5&doc=ms (from search) opens that document at that page.
   const [jump, setJump] = useState<number | null>(null);
+  const [guide, setGuide] = useState(false);
+  /** "Continue from page 5": where they stopped reading last time, offered quietly once. */
+  const [resume, setResume] = useState<number | null>(null);
   useEffect(() => {
     const u = new URLSearchParams(window.location.search);
     const d = u.get("doc");
@@ -257,8 +281,32 @@ export function PaperView({
     /* eslint-disable react-hooks/set-state-in-effect */
     if (d === "ms" || d === "in") setTab(d);
     if (n > 1) setJump(n);
+    else {
+      try {
+        const saved = Number(localStorage.getItem(`ht-pp-pos-${pkey}`));
+        if (saved > 1) setResume(saved);
+      } catch {}
+    }
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, []);
+  }, [pkey]);
+
+  // Remember the page they're on in the question paper (quietly, on this device).
+  useEffect(() => {
+    if (tab !== "qp" || split || page < 1) return;
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(`ht-pp-pos-${pkey}`, String(page));
+      } catch {}
+    }, 800);
+    return () => clearTimeout(t);
+  }, [page, tab, split, pkey]);
+
+  // The offer to continue fades away on its own.
+  useEffect(() => {
+    if (!resume) return;
+    const t = setTimeout(() => setResume(null), 9000);
+    return () => clearTimeout(t);
+  }, [resume]);
 
   // New document: back to its first page.
   useEffect(() => {
@@ -480,7 +528,7 @@ export function PaperView({
         {/* The viewer */}
         <div
           ref={panel}
-          className="flex h-[calc(100dvh-110px)] min-h-[520px] flex-col overflow-hidden rounded-[22px] border border-hairline bg-band-c sm:h-[calc(100dvh-124px)] [&:fullscreen]:h-screen [&:fullscreen]:rounded-none"
+          className="relative flex h-[calc(100dvh-110px)] min-h-[520px] flex-col overflow-hidden rounded-[22px] border border-hairline bg-band-c sm:h-[calc(100dvh-124px)] [&:fullscreen]:h-screen [&:fullscreen]:rounded-none"
         >
           <div className="flex items-center gap-2 border-b border-hairline px-2 py-2 sm:px-3">
             <div role="tablist" aria-label="Documents" className="flex min-w-0 gap-1 overflow-x-auto [scrollbar-width:none]">
@@ -514,6 +562,9 @@ export function PaperView({
                   >
                     {minutes ? `${left < 0 ? "+" : ""}${clock(left)}` : clock(elapsed)}
                   </span>
+                  <button type="button" className={cn(iconBtn, "inline-flex", guide && "bg-white/10 text-foreground")} onClick={() => setGuide(!guide)} aria-pressed={guide} aria-label="How this paper is marked" title="How this paper is marked">
+                    <Icon d={I.guide} />
+                  </button>
                   <button type="button" onClick={pause} className="min-h-10 rounded-full px-3 text-[14px] font-semibold text-muted-foreground hover:text-foreground">
                     {runningSince == null ? "Resume" : "Pause"}
                   </button>
@@ -538,6 +589,9 @@ export function PaperView({
                       <Icon d={I.split} />
                     </button>
                   )}
+                  <button type="button" className={cn(iconBtn, "inline-flex", guide && "bg-white/10 text-foreground")} onClick={() => setGuide(!guide)} aria-pressed={guide} aria-label="How this paper is marked" title="How this paper is marked">
+                    <Icon d={I.guide} />
+                  </button>
                   <button type="button" className={cn(iconBtn, "inline-flex", night && "text-gold")} onClick={toggleNight} aria-pressed={night} aria-label="Night colours" title="Night colours">
                     <Icon d={I.night} />
                   </button>
@@ -576,11 +630,79 @@ export function PaperView({
               <div ref={scroller} className="h-full overflow-auto px-3 py-4 sm:px-6 sm:py-6" tabIndex={0} role="tabpanel" aria-label={current.label}>
                 <Pages doc={current} zoom={zoom} night={night} onPage={setPage} />
               </div>
+              {resume && tab === "qp" && !practising && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setJump(resume);
+                    setResume(null);
+                  }}
+                  className="absolute bottom-4 left-4 rounded-full border border-gold-border bg-band-b/90 px-4 py-2 text-[13px] font-semibold text-gold backdrop-blur transition-opacity hover:bg-band-b"
+                >
+                  Continue from page {resume}
+                </button>
+              )}
               {current.pages > 0 && (
                 <span className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-hairline-strong bg-band-b/90 px-3.5 py-1.5 text-[13px] font-semibold tabular-nums text-foreground backdrop-blur">
                   {page} / {current.pages}
                 </span>
               )}
+            </div>
+          )}
+
+          {guide && (
+            <div className="absolute inset-y-0 right-0 z-10 flex w-full max-w-[360px] flex-col border-l border-hairline bg-card shadow-[-24px_0_48px_-24px_rgba(0,0,0,0.6)]" role="dialog" aria-label="How this paper is marked">
+              <div className="flex items-center justify-between border-b border-hairline px-5 py-3">
+                <p className="text-[15px] font-semibold text-foreground">How this paper is marked</p>
+                <button type="button" className={cn(iconBtn, "inline-flex")} onClick={() => setGuide(false)} aria-label="Close">
+                  <Icon d={I.close} />
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5 text-[14px] leading-relaxed">
+                {minutes && (answer ? answer.length : marks) ? (
+                  <section>
+                    <h3 className="text-[13px] font-semibold text-faint">Pace</h3>
+                    <p className="mt-1 text-muted-foreground">
+                      {answer
+                        ? `About ${minutesWord(minutes / answer.length)} a question. If one is taking much longer, move on and come back.`
+                        : `About ${minutesWord(minutes / (marks as number))} a mark, so a 6 mark question is worth roughly ${Math.round((minutes / (marks as number)) * 6)} minutes. Let the marks decide how much you write.`}
+                    </p>
+                  </section>
+                ) : null}
+                {!answer && (
+                  <section>
+                    <h3 className="text-[13px] font-semibold text-faint">What the question is asking</h3>
+                    <dl className="mt-2 space-y-2">
+                      {COMMAND_WORDS.map(([k, v]) => (
+                        <div key={k}>
+                          <dt className="font-semibold text-foreground">{k}</dt>
+                          <dd className="text-muted-foreground">{v}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </section>
+                )}
+                <section>
+                  <h3 className="text-[13px] font-semibold text-faint">Mark scheme shorthand</h3>
+                  <dl className="mt-2 space-y-2">
+                    {MS_WORDS.map(([k, v]) => (
+                      <div key={k} className="flex gap-3">
+                        <dt className="w-14 shrink-0 font-semibold text-gold">{k}</dt>
+                        <dd className="text-muted-foreground">{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </section>
+                {report && (
+                  <section>
+                    <h3 className="text-[13px] font-semibold text-faint">Where marks were lost</h3>
+                    <p className="mt-1 text-muted-foreground">The examiner report says what students did well and where they dropped marks in this series.</p>
+                    <a href={report} target="_blank" rel="noopener" className="mt-2 inline-flex min-h-11 items-center font-semibold text-gold hover:underline">
+                      Read the examiner report
+                    </a>
+                  </section>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -639,25 +761,6 @@ export function PaperView({
           )}
           {answer && <span className="text-[14px] text-faint">Multiple choice: marked for you the moment you finish.</span>}
         </div>
-      )}
-
-      {/* Mark scheme shorthand, when the mark scheme is open */}
-      {!practising && ms && (tab === "ms" || split) && (
-        <details className="group mt-4 rounded-[18px] border border-hairline bg-card px-5 py-1 open:pb-4">
-          <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-[15px] font-semibold text-foreground [&::-webkit-details-marker]:hidden">
-            What do OFR, OWTTE and BOD mean?
-            <span aria-hidden className="text-gold transition-transform group-open:rotate-45">+</span>
-          </summary>
-          <dl className="mt-1 grid gap-x-6 gap-y-2.5 text-[15px] sm:grid-cols-2">
-            {MS_WORDS.map(([k, v]) => (
-              <div key={k} className="flex gap-3">
-                <dt className="w-16 shrink-0 font-semibold text-gold">{k}</dt>
-                <dd className="text-muted-foreground">{v}</dd>
-              </div>
-            ))}
-          </dl>
-          <p className="mt-3 text-[14px] text-faint">Each mark scheme&apos;s first pages explain the rules it uses.</p>
-        </details>
       )}
 
       {/* Phone: answer sheet drawer, or a finish bar for written papers */}
