@@ -15,6 +15,7 @@
  */
 import raw from "@/lib/past-paper-data.json";
 import meta from "@/lib/past-paper-meta.json";
+import tags from "@/lib/past-paper-tags.json";
 import type { LevelName, SubjectName } from "@/lib/landing";
 
 export interface PaperSession {
@@ -69,6 +70,8 @@ type Meta = {
   x: string[];
   /** Multiple choice papers: each question's [page, top, bottom] on the page images (top and bottom as fractions of the page height). */
   q: Record<string, number[][]>;
+  /** Page shapes (height ÷ width) for documents that aren't all portrait A4. */
+  r: Record<string, number[]>;
 };
 const M = meta as unknown as Meta;
 const HELD = new Set(M.x ?? []);
@@ -106,6 +109,8 @@ export const fileName = (code: string, s: PaperSession, type: FileType, pv?: str
 export const pdfUrl = (name: string) => `/papers/pdf/${name}.pdf`;
 export const pageUrl = (name: string, n: number) => `/papers/img/${name}/${n}.jpg`;
 export const pageCount = (name: string) => M.n[name] ?? 0;
+/** Height ÷ width of each page, or null when they're all portrait A4. */
+export const pageRatios = (name: string) => M.r?.[name] ?? null;
 
 /** "12" → "Paper 1, variant 2". */
 export const paperLabel = (pv: string) => `Paper ${pv.slice(0, -1)}${pv.length > 1 ? `, variant ${pv.slice(-1)}` : ""}`;
@@ -211,7 +216,7 @@ export const answerKey = (p: Paper) => M.k[p.key] ?? null;
 export function filesFor(p: Paper) {
   const one = (type: FileType, pv?: string) => {
     const name = fileName(p.code, p.session, type, pv);
-    return { name, pdf: pdfUrl(name), pages: pageCount(name) };
+    return { name, pdf: pdfUrl(name), pages: pageCount(name), ratios: pageRatios(name) };
   };
   return {
     qp: one("qp", p.pv),
@@ -300,6 +305,8 @@ export interface PracticeQuestion {
   num: string;
   y: number;
   href: string;
+  /** Syllabus subtopic it tests ("2.3"), if tagged. */
+  sub?: string;
 }
 
 /** Every multiple choice question for a syllabus that can be shown on its own (skips questions Cambridge removed). */
@@ -313,7 +320,7 @@ export function practiceQuestions(code: string): PracticeQuestion[] {
       const name = fileName(p.code, p.session, "qp", p.pv);
       return M.q[p.key].flatMap(([page, t, b, r], i) =>
         key[i] && key[i] !== "-" && key[i] !== "*"
-          ? [{ id: `${p.key}#${i + 1}`, img: pageUrl(name, page), t, b, r: r ?? 1.414, a: key[i], c: cieCode(p), n: i + 1, num: p.num, y: p.session.y, href: paperHref(s.slug, p) }]
+          ? [{ id: `${p.key}#${i + 1}`, img: pageUrl(name, page), t, b, r: r ?? 1.414, a: key[i], c: cieCode(p), n: i + 1, num: p.num, y: p.session.y, href: paperHref(s.slug, p), sub: (tags as unknown as Record<string, string[]>)[`${p.key}#${i + 1}`]?.[0] }]
           : [],
       );
     });

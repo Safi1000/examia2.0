@@ -2,6 +2,10 @@ import type { Database } from "@/lib/data/seed";
 import type { Student } from "@/types";
 import { absenceStreak, archivedCohortIds, isArchivedTest, liveStatus, testCoversStudent } from "@/lib/data/selectors";
 import { COMPANY_NAME } from "@/lib/config";
+import { awardedMarks, isFullyGraded, percent, totalMarks } from "@/lib/scoring";
+
+/** Results under this percentage are worth a word with the parents. */
+export const LOW_SCORE = 70;
 
 /**
  * What the admin still has to chase.
@@ -12,7 +16,7 @@ import { COMPANY_NAME } from "@/lib/config";
  * the panel, the dedupe and the send button need no changes.
  */
 
-export type ReminderKind = "missed_test" | "absent_streak" | "report_due";
+export type ReminderKind = "missed_test" | "absent_streak" | "low_score" | "report_due";
 
 export interface Reminder {
   kind: ReminderKind;
@@ -26,8 +30,9 @@ export interface Reminder {
 }
 
 export const KINDS: Record<ReminderKind, { label: string; tone: "warning" | "error" | "brand" }> = {
-  missed_test: { label: "Missed a test", tone: "warning" },
-  absent_streak: { label: "Absent repeatedly", tone: "error" },
+  missed_test: { label: "Skipped a test", tone: "warning" },
+  absent_streak: { label: "Absent 2+ days", tone: "error" },
+  low_score: { label: "Below 70%", tone: "warning" },
   report_due: { label: "Report to send", tone: "brand" },
 };
 
@@ -69,7 +74,7 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
     }
   }
 
-  // 2. Two or more absences in a row.
+  // 2. Absent two or more classes in a row.
   for (const student of students) {
     const streak = absenceStreak(db, student.id);
     if (streak < 2) continue;
@@ -85,7 +90,27 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
     });
   }
 
-  // 3. Last month's report, from the 1st onwards.
+  // 3. A result under 70%, released in the last 14 days.
+  for (const sub of db.submissions) {
+    if (sub.status !== "released" || !sub.releasedAt || nowMs - new Date(sub.releasedAt).getTime() > RECENT) continue;
+    const student = students.find((s) => s.id === sub.studentId);
+    const test = db.tests.find((t) => t.id === sub.testId);
+    if (!student || !test || isArchivedTest(db, test, off)) continue;
+    const total = totalMarks(test);
+    // Only results that are fully marked: an unmarked answer would count as zero.
+    if (!total || !isFullyGraded(test, sub)) continue;
+    const pct = percent(awardedMarks(sub), total);
+    if (pct >= LOW_SCORE) continue;
+    add({
+      kind: "low_score",
+      student,
+      ref: sub.id,
+      label: `${student.username} scored ${Math.round(pct)}% in "${test.title}"`,
+      message: `Assalam o Alaikum. ${student.username} scored ${Math.round(pct)}% in "${test.title}" (${test.subject}). The marked paper with my feedback is in their portal. Please sit with them this week to go through what went wrong. ${COMPANY_NAME}`,
+    });
+  }
+
+  // 4. Last month's report, from the 1st onwards.
   const now = new Date(nowMs);
   const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, "0")}`;

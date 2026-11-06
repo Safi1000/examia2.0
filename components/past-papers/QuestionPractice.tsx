@@ -58,7 +58,8 @@ export function QuestionPractice({
   name: string;
   path: string;
   code: string;
-  topics: Array<{ t: string; n: number }>;
+  /** Syllabus subtopics that have questions, grouped under their topic. */
+  topics: Array<{ num: string; name: string; group: string }>;
 }) {
   const { seen, wrong } = useProgress();
   const [night] = useNight();
@@ -73,16 +74,21 @@ export function QuestionPractice({
   const [topic, setTopic] = useState("");
   const [topicIds, setTopicIds] = useState<Set<string> | null>(null);
   const [topicBusy, setTopicBusy] = useState(false);
+  const [sub, setSub] = useState<string | null>(null);
+  const [wordSearch, setWordSearch] = useState(false);
   const [log, setLog] = useState<Array<{ q: PracticeQuestion; pick: string; right: boolean }>>([]);
 
   useEffect(() => {
     // "?mode=mistakes" from the progress page opens straight on the mistakes list.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (new URLSearchParams(window.location.search).get("mode") === "mistakes") setMode("mistakes");
+    const u = new URLSearchParams(window.location.search);
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (u.get("mode") === "mistakes") setMode("mistakes");
+    if (u.get("topic")) setSub(u.get("topic"));
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   const years = useMemo(() => [...new Set(questions.map((q) => q.y))].sort((a, b) => b - a), [questions]);
-  const pool = questions.filter((q) => (!paper || q.num === paper) && (!year || q.y === year) && (!topicIds || topicIds.has(q.id)));
+  const pool = questions.filter((q) => (!paper || q.num === paper) && (!year || q.y === year) && (!topicIds || topicIds.has(q.id)) && (!sub || q.sub === sub));
 
   const findTopic = async (t: string) => {
     const term = t.trim();
@@ -180,59 +186,89 @@ export function QuestionPractice({
         <div className="rounded-[20px] border border-hairline bg-card px-6 py-6 md:px-8 md:py-7">
           <h2 className="text-xl font-bold text-foreground">New questions</h2>
           <p className="mt-1 text-[15px] text-muted-foreground">
-            {pool.length} questions to choose from, {fresh} you haven&apos;t done yet. Questions you haven&apos;t seen come first.
+            {fresh ? "Questions you haven't done come first." : "You've done every question here, so they'll come round again."}
           </p>
 
           <fieldset className="mt-6">
             <legend className="mb-2 text-[15px] font-semibold text-foreground">Topic</legend>
-            <form
-              className="flex gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void findTopic(topic);
-              }}
-            >
-              <label htmlFor="topic-q" className="sr-only">
-                Topic or keyword
-              </label>
-              <input
-                id="topic-q"
-                type="search"
-                value={topic}
-                onChange={(e) => {
-                  setTopic(e.target.value);
-                  if (!e.target.value) setTopicIds(null);
-                }}
-                placeholder="Any topic, or type one"
-                className="h-12 min-w-0 flex-1 rounded-full border border-hairline-strong bg-band-c px-5 text-[16px] text-foreground placeholder:text-faint focus:border-gold-border focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gold"
-              />
-              <button type="submit" className="h-12 shrink-0 rounded-full border border-hairline-strong px-5 text-[15px] font-semibold text-foreground hover:border-gold-border">
-                {topicBusy ? "Finding…" : "Find"}
-              </button>
-            </form>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                aria-pressed={!topicIds}
-                onClick={() => {
-                  setTopic("");
-                  setTopicIds(null);
-                }}
-                className={chip(!topicIds)}
-              >
-                All topics
-              </button>
-              {topics.map((t) => (
-                <button key={t.t} type="button" aria-pressed={!!topicIds && topic === t.t} onClick={() => void findTopic(t.t)} className={chip(!!topicIds && topic === t.t)}>
-                  {t.t}
-                  <span className="ml-1.5 text-[13px] font-normal opacity-70">{t.n}</span>
+            {!wordSearch ? (
+              <>
+                <label htmlFor="topic-pick" className="sr-only">
+                  Topic
+                </label>
+                <select
+                  id="topic-pick"
+                  value={sub ?? ""}
+                  onChange={(e) => {
+                    setSub(e.target.value || null);
+                    setTopic("");
+                    setTopicIds(null);
+                  }}
+                  className="h-12 w-full rounded-full border border-hairline-strong bg-band-c px-5 text-[16px] text-foreground focus:border-gold-border focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gold"
+                >
+                  <option value="">All topics</option>
+                  {[...new Set(topics.map((t) => t.group))].map((g) => (
+                    <optgroup key={g} label={g}>
+                      {topics
+                        .filter((t) => t.group === g)
+                        .map((t) => (
+                          <option key={t.num} value={t.num}>
+                            {t.num} {t.name}
+                          </option>
+                        ))}
+                    </optgroup>
+                  ))}
+                </select>
+                <button type="button" onClick={() => setWordSearch(true)} className="mt-2 min-h-10 text-[14px] font-semibold text-muted-foreground hover:text-foreground">
+                  Or search for a word
                 </button>
-              ))}
-            </div>
-            {topicIds && (
-              <p className="mt-3 text-[15px] text-muted-foreground" aria-live="polite">
-                {topicIds.size ? `${pool.length} questions mention “${topic}”${pool.length < topicIds.size ? " with these filters" : ""}.` : `No multiple choice question mentions “${topic}”. Try another word.`}
-              </p>
+              </>
+            ) : (
+              <>
+                <form
+                  className="flex gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    setSub(null);
+                    void findTopic(topic);
+                  }}
+                >
+                  <label htmlFor="topic-q" className="sr-only">
+                    A word to find
+                  </label>
+                  <input
+                    id="topic-q"
+                    type="search"
+                    value={topic}
+                    autoFocus
+                    onChange={(e) => {
+                      setTopic(e.target.value);
+                      if (!e.target.value) setTopicIds(null);
+                    }}
+                    placeholder="e.g. depreciation"
+                    className="h-12 min-w-0 flex-1 rounded-full border border-hairline-strong bg-band-c px-5 text-[16px] text-foreground placeholder:text-faint focus:border-gold-border focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gold"
+                  />
+                  <button type="submit" className="h-12 shrink-0 rounded-full border border-hairline-strong px-5 text-[15px] font-semibold text-foreground hover:border-gold-border">
+                    {topicBusy ? "Finding…" : "Find"}
+                  </button>
+                </form>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWordSearch(false);
+                    setTopic("");
+                    setTopicIds(null);
+                  }}
+                  className="mt-2 min-h-10 text-[14px] font-semibold text-muted-foreground hover:text-foreground"
+                >
+                  Pick a syllabus topic instead
+                </button>
+                {topicIds && (
+                  <p className="mt-1 text-[15px] text-muted-foreground" aria-live="polite">
+                    {topicIds.size ? `Questions that mention “${topic}” are ready.` : `No multiple choice question mentions “${topic}”. Try another word.`}
+                  </p>
+                )}
+              </>
             )}
           </fieldset>
 

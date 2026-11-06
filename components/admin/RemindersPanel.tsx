@@ -110,7 +110,7 @@ export function RemindersPanel() {
     <Card className="mb-4 p-0">
       <div className="flex items-center gap-3 border-b border-border px-4 py-3">
         <h2 className="text-base font-semibold text-ink">
-          Needs attention <span className="text-ink-3">({reminders.length})</span>
+          Tell parents <span className="text-ink-3">({reminders.length})</span>
         </h2>
         {reportRun.length > 0 && !running && (
           <Button size="sm" variant="secondary" onClick={() => void startRun()}>

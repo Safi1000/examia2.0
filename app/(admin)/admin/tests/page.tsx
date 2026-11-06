@@ -12,7 +12,6 @@ import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Button, Card, Badge, Pill, CohortTag, EmptyState, Modal, Icon } from "@/components/ui";
 import { FilterChips } from "@/components/admin/FilterChips";
-import { RemindersPanel } from "@/components/admin/RemindersPanel";
 import { BulkBar, RowCheck } from "@/components/admin/BulkBar";
 import { fromLocalInput } from "@/lib/time";
 import { buttonClasses } from "@/components/ui/Button";
@@ -108,7 +107,6 @@ export default function AdminTestsPage() {
       />
 
       {/* Admins land here, so this is where what-needs-chasing lives. */}
-      <RemindersPanel />
 
       <BulkBar count={picked.length} noun="test" onClear={() => setPicked([])}>
         <label className="flex items-center gap-1.5 text-sm text-ink-2">

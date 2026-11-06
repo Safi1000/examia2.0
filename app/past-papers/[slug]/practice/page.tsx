@@ -7,15 +7,7 @@ import { PastPapersNav } from "@/components/past-papers/Bits";
 import { QuestionPractice } from "@/components/past-papers/QuestionPractice";
 import { PAST_PAPER_SYLLABI, hasPractice, paperNumbers, pastPaperSyllabus, practiceQuestions } from "@/lib/past-papers";
 import { breadcrumbLd, fitTitle } from "@/lib/seo";
-import questionText from "@/lib/past-paper-qtext.json";
-
-/** Topics students look for most, per subject. Only the ones with enough questions are shown. */
-const TOPICS: Record<string, string[]> = {
-  Accounting: ["depreciation", "partnership", "bank reconciliation", "trial balance", "inventory", "accruals", "control account", "irrecoverable", "ratio", "manufacturing", "suspense", "capital expenditure", "cash budget", "break-even", "budget"],
-  Economics: ["price elasticity", "inflation", "exchange rate", "unemployment", "market failure", "opportunity cost", "tax", "monopoly", "balance of payments", "interest rate", "subsidy", "externalities", "supply", "economic growth", "trade union"],
-  Business: [],
-};
-const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+import { currentSyllabus } from "@/lib/topical";
 
 export const dynamicParams = false;
 export function generateStaticParams() {
@@ -41,13 +33,9 @@ export default async function PracticePage({ params }: Props) {
   const titles = Object.fromEntries(paperNumbers(s.code).map((p) => [p.num, p.title]));
   const papers = nums.map((num) => ({ num, label: `Paper ${num}${titles[num] ? `: ${titles[num]}` : ""}` }));
   const url = `/past-papers/${s.slug}/practice`;
-  const live = new Set(questions.map((q) => q.id));
-  const qt = Object.entries(questionText as unknown as Record<string, string>).filter(([id]) => live.has(id));
-  const topics = (TOPICS[s.subject] ?? [])
-    .map((t) => ({ t, n: qt.filter(([, x]) => x.includes(squash(t))).length }))
-    .filter((x) => x.n >= 6)
-    .sort((a, b) => b.n - a.n)
-    .slice(0, 10);
+  const syl = currentSyllabus(s);
+  const tagged = new Set(questions.map((q) => q.sub).filter(Boolean));
+  const topics = (syl?.topics ?? []).flatMap((t) => t.subs.filter((u) => tagged.has(u.num)).map((u) => ({ num: u.num, name: u.name, group: `${t.num} ${t.name}` })));
   return (
     <MarketingShell>
       <JsonLd

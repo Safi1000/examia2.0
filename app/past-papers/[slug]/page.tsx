@@ -6,6 +6,7 @@ import { MarketingShell } from "@/components/landing/MarketingShell";
 import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
 import { SyllabusBrowser, type BrowserSeries } from "@/components/past-papers/SyllabusBrowser";
 import { PaperSearch } from "@/components/past-papers/PaperSearch";
+import { hasTopical } from "@/lib/topical";
 import { PastPapersNav } from "@/components/past-papers/Bits";
 import { YEAR_RANGE, hasPractice, searchName, PAST_PAPER_SYLLABI, fileName, paperHref, paperNumbers, papersFor, pastPaperSyllabus, pdfUrl, sessionKey, sessionLabel, sessionsFor } from "@/lib/past-papers";
 import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
@@ -90,18 +91,26 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
             </Link>
           ))}
         </nav>
-        {hasPractice(s.code) && (
-          <Link
-            href={`/past-papers/${s.slug}/practice`}
-            className="mt-6 flex items-center justify-between gap-4 rounded-[20px] border border-gold-border bg-card-raised px-5 py-4 transition-colors hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
-          >
-            <span>
-              <span className="block font-semibold text-foreground">Practise the multiple choice questions</span>
-              <span className="block text-[15px] text-muted-foreground">One at a time, marked as you tap. Mistakes saved.</span>
-            </span>
-            <span className="shrink-0 rounded-full bg-gold px-4 py-2 text-[14px] font-semibold text-[#1b1e21]">Start</span>
-          </Link>
-        )}
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          {hasTopical(s.code) && (
+            <Link
+              href={`/past-papers/${s.slug}/topics`}
+              className="group rounded-[20px] border border-gold-border bg-card-raised px-5 py-4 transition-colors hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+            >
+              <span className="block font-semibold text-foreground">Revise by topic</span>
+              <span className="block text-[15px] text-muted-foreground">Every Paper 1 and 2 question, sorted by syllabus topic.</span>
+            </Link>
+          )}
+          {hasPractice(s.code) && (
+            <Link
+              href={`/past-papers/${s.slug}/practice`}
+              className="group rounded-[20px] border border-hairline bg-card px-5 py-4 transition-colors hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+            >
+              <span className="block font-semibold text-foreground">Quick MCQ quiz</span>
+              <span className="block text-[15px] text-muted-foreground">Ten at a time, marked as you tap.</span>
+            </Link>
+          )}
+        </div>
         {s.next && (
           <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
             From {s.next.from}, {s.code} is replaced by <span className="font-semibold text-foreground">{s.next.code}</span>. These papers are still the best practice there is.

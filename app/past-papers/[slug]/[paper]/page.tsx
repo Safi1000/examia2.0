@@ -88,9 +88,9 @@ export default async function PaperPage({ params }: Props) {
     .join(" ");
 
   const docs: ViewDoc[] = [
-    { id: "qp", label: "Question paper", pdf: f.qp.pdf, name: f.qp.name, pages: f.qp.pages },
-    ...(f.ms ? [{ id: "ms" as const, label: "Mark scheme", pdf: f.ms.pdf, name: f.ms.name, pages: f.ms.pages }] : []),
-    ...(f.insert ? [{ id: "in" as const, label: "Insert", pdf: f.insert.pdf, name: f.insert.name, pages: f.insert.pages }] : []),
+    { id: "qp", label: "Question paper", pdf: f.qp.pdf, name: f.qp.name, pages: f.qp.pages, ratios: f.qp.ratios },
+    ...(f.ms ? [{ id: "ms" as const, label: "Mark scheme", pdf: f.ms.pdf, name: f.ms.name, pages: f.ms.pages, ratios: f.ms.ratios }] : []),
+    ...(f.insert ? [{ id: "in" as const, label: "Insert", pdf: f.insert.pdf, name: f.insert.name, pages: f.insert.pages, ratios: f.insert.ratios }] : []),
   ];
 
   const sameSeries = all.filter((o) => o.session === p.session && o.key !== p.key);

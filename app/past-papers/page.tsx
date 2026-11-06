@@ -97,10 +97,17 @@ export default function PastPapersHub() {
           </div>
         </section>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <Link href="/past-papers/topics" className="group flex items-center justify-between gap-4 rounded-[20px] border border-gold-border bg-card-raised px-6 py-5 transition-colors hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+            <span>
+              <span className="block text-[17px] font-semibold text-foreground">Topical</span>
+              <span className="mt-0.5 block text-[15px] text-muted-foreground">Questions sorted by topic</span>
+            </span>
+            <span aria-hidden className="text-xl text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-gold">→</span>
+          </Link>
           <Link href="/past-papers/practice" className="group flex items-center justify-between gap-4 rounded-[20px] border border-hairline bg-card px-6 py-5 transition-colors hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
             <span>
-              <span className="block text-[17px] font-semibold text-foreground">Question practice</span>
+              <span className="block text-[17px] font-semibold text-foreground">MCQ quiz</span>
               <span className="mt-0.5 block text-[15px] text-muted-foreground">Real MCQs, marked as you tap</span>
             </span>
             <span aria-hidden className="text-xl text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-gold">→</span>

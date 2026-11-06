@@ -16,6 +16,7 @@ import { StartCard } from "@/components/admin/StartCard";
 import { SlippingCard } from "@/components/admin/SlippingCard";
 import { HealthLine } from "@/components/admin/Automations";
 import { NotifyCoverage } from "@/components/admin/NotifyCoverage";
+import { RemindersPanel } from "@/components/admin/RemindersPanel";
 import { addDays, clock, LEVEL_LABEL, liveSlotsOn, pkDate, slotKey, useClassLinks, useSchedule } from "@/lib/classes";
 import { formatRelative } from "@/lib/time";
 import { createRetest, reachOf, retestQuestions, retestTarget, weakTopics } from "@/lib/retest";
@@ -205,6 +206,9 @@ export default function TodayPage() {
       <HealthLine />
 
       <NotifyCoverage />
+
+      {/* Parents to message: a skipped test, 2+ absences in a row, a result under 70%, monthly reports. Hidden when there's nothing. */}
+      <RemindersPanel />
 
       {/* The class to start, from 3 hours before until it ends. */}
       {heroClass && <StartCard slot={heroClass} url={classLinks.find((l) => slotKey(l) === slotKey(heroClass))?.meetUrl ?? null} nowMs={nowMs} />}

@@ -12,6 +12,8 @@ export interface ViewDoc {
   pdf: string;
   name: string;
   pages: number;
+  /** Height ÷ width per page, when not all portrait A4 (mark schemes are often landscape). */
+  ratios?: number[] | null;
 }
 export interface ViewThresholds {
   max: number;
@@ -137,7 +139,7 @@ function Pages({ doc, zoom, night, onPage }: { doc: ViewDoc; zoom: number; night
             src={`/papers/img/${doc.name}/${i + 1}.jpg`}
             alt={`${doc.label}, page ${i + 1} of ${doc.pages}`}
             width={1100}
-            height={1556}
+            height={Math.round(1100 * (doc.ratios?.[i] ?? 1.414))}
             loading={i < 2 ? "eager" : "lazy"}
             decoding="async"
             className={cn("h-auto w-full rounded-[4px] bg-white shadow-[0_12px_32px_-16px_rgba(0,0,0,0.8)]", night && "invert hue-rotate-180")}
