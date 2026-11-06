@@ -21,7 +21,18 @@ export interface Stroke {
   form?: FormId;
   /** For kind "text": what was typed (size is the font size). */
   text?: string;
+  /** For kind "text": bold, italic, and a highlighter behind it. */
+  bold?: boolean;
+  italic?: boolean;
+  hl?: boolean;
 }
+
+/** Typed text's style. */
+export type TextStyle = { bold?: boolean; italic?: boolean };
+/** The font for typed text, in its style. */
+export const textFont = (size: number, st: TextStyle = {}) => `${st.italic ? "italic " : ""}${st.bold ? 700 : 500} ${size}px ${boardFont()}`;
+/** The highlighter: a soft marker yellow that ink reads clearly through, on a TV too. */
+export const HIGHLIGHT = "rgba(255, 213, 0, 0.42)";
 
 export interface Camera {
   x: number;
@@ -38,18 +49,18 @@ export interface View {
 }
 
 // Saved colours stay the same (older boards keep working); the light board draws each as its ink.
+// Three inks with strong contrast on white, on a TV and in Meet: near-black, a deep royal blue
+// and a clear red. (Green and gold from before still draw as they were.)
 export const COLORS = [
   { name: "Black", value: "#F3F1EC" },
   { name: "Blue", value: "#8FD0F5" },
   { name: "Red", value: "#F07A6A" },
-  { name: "Green", value: "#7FD1A6" },
-  { name: "Gold", value: "#FBC159" },
 ];
 
 export const SIZES = [
-  { name: "Fine", value: 2.6 },
-  { name: "Medium", value: 4.2 },
-  { name: "Bold", value: 7 },
+  // A little heavier than before, so writing reads clearly on the tablet, the laptop and a TV.
+  { name: "Regular", value: 5 },
+  { name: "Bold", value: 8 },
 ];
 
 // ---------------------------------------------------------------- look (paper or night)
@@ -75,7 +86,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     dots: "rgba(28,32,35,0.16)",
     // Deep, even inks that read from the back of a room and on a TV: the brand charcoal, a royal
     // blue, a clear red, a calm green and a deep brand gold (plain gold is too light on white).
-    ink: { "#F3F1EC": "#1A1D20", "#FBC159": "#C98500", "#8FD0F5": "#1F4FD1", "#F07A6A": "#D0342C", "#7FD1A6": "#0F7A55" },
+    ink: { "#F3F1EC": "#14171A", "#FBC159": "#C98500", "#8FD0F5": "#1D47C9", "#F07A6A": "#CC1F1A", "#7FD1A6": "#0F7A55" },
     accent: "#0F63A8",
     ring: { border: "rgba(20,22,24,0.55)", fill: "rgba(20,22,24,0.05)" },
   },
@@ -391,9 +402,25 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
     return;
   }
   if (s.kind === "text") {
-    ctx.font = `500 ${s.size}px ${boardFont()}`;
+    const lines = (s.text ?? "").split("\n");
+    ctx.font = textFont(s.size, s);
     ctx.textBaseline = "top";
-    (s.text ?? "").split("\n").forEach((line, i) => ctx.fillText(line, pts[0][0], pts[0][1] + i * s.size * TEXT_LINE));
+    if (s.hl) {
+      // Marker behind each line, a little wider than the words, softly rounded.
+      ctx.save();
+      ctx.fillStyle = HIGHLIGHT;
+      lines.forEach((line, i) => {
+        if (!line.trim()) return;
+        const w = ctx.measureText(line).width;
+        const pad = s.size * 0.18;
+        ctx.beginPath();
+        ctx.roundRect(pts[0][0] - pad, pts[0][1] + i * s.size * TEXT_LINE - s.size * 0.06, w + pad * 2, s.size * 1.18, s.size * 0.18);
+        ctx.fill();
+      });
+      ctx.restore();
+      ctx.fillStyle = ink;
+    }
+    lines.forEach((line, i) => ctx.fillText(line, pts[0][0], pts[0][1] + i * s.size * TEXT_LINE));
     return;
   }
   // A tap (full stop, decimal point, the dot on an i): a round dot, never an empty outline.
@@ -693,7 +720,7 @@ export function drawGrid(ctx: CanvasRenderingContext2D, cam: Camera, w: number, 
 /** Line height of typed text, as a share of its font size. */
 export const TEXT_LINE = 1.25;
 /** Font size on screen for each pen size (fine, medium, bold). */
-export const TEXT_PX = [22, 30, 42];
+export const TEXT_PX = [32, 44];
 
 let font = "";
 /** The site's own sans font, so typed text matches the portal. */
@@ -709,9 +736,9 @@ let meter: CanvasRenderingContext2D | null = null;
  * Typed words that reach the edge go on to the next line, like a page (whole words; a word too
  * long for the line is split). `maxW` is in board units.
  */
-export function wrapText(text: string, size: number, maxW: number): string {
+export function wrapText(text: string, size: number, maxW: number, st: TextStyle = {}): string {
   if (!Number.isFinite(maxW) || maxW <= 0) return text;
-  const fits = (s: string) => measureText(s, size).w <= maxW;
+  const fits = (s: string) => measureText(s, size, st).w <= maxW;
   return text
     .split("\n")
     .map((line) => {
@@ -739,12 +766,12 @@ export function wrapText(text: string, size: number, maxW: number): string {
     .join("\n");
 }
 
-export function measureText(text: string, size: number): { w: number; h: number } {
+export function measureText(text: string, size: number, st: TextStyle = {}): { w: number; h: number } {
   meter ??= document.createElement("canvas").getContext("2d");
   const lines = text.split("\n");
   let w = 0;
   if (meter) {
-    meter.font = `500 ${size}px ${boardFont()}`;
+    meter.font = textFont(size, st);
     for (const l of lines) w = Math.max(w, meter.measureText(l).width);
   } else w = Math.max(...lines.map((l) => l.length)) * size * 0.55;
   return { w: Math.max(w, size * 0.4), h: lines.length * size * TEXT_LINE };

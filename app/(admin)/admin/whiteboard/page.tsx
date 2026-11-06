@@ -52,7 +52,9 @@ export default function WhiteboardPage() {
         <li>Typing: on the laptop, point where the words go and press T. On the tablet, pick the T tool and tap. Enter finishes, Shift+Enter starts a new line. Tap the words again to edit them.</li>
         <li>Each class gets its own page, opened by itself 10 minutes before it starts (&ldquo;A2 Economics · Wed 4 Nov&rdquo;), so a new class never starts on the last one&apos;s writing. The arrows at the top left go back to earlier pages; + starts a blank one.</li>
         <li>Laptop keys: P pen, L line, A axes, E eraser, T type, V move pictures, H hide the tools, [ and ] pages, N new page, Ctrl+Z undo, Ctrl+Shift+Z redo.</li>
-        <li>Diagrams: the axes tool (or just draw an L) gives clean x and y axes with 0 at the origin and arrows at the ends. Drag to size them, or tap.</li>
+        <li>Diagrams: draw an L (or press A on the laptop) for clean x and y axes, with 0 at the origin and arrows at the ends.</li>
+        <li>Moving things: the Move tool (V) drags pictures, typed text and writing. With the Type tool, a tap on words edits them and a drag moves them.</li>
+        <li>While typing: B for bold, I for italic, and a highlighter, in the little bar above the words (or Ctrl+B, Ctrl+I, Ctrl+H).</li>
         <li>Writing reaches the bottom of the screen? The board slides up by itself to give you fresh lines. Typed words carry on to the next line at the edge.</li>
         <li>The tools fade while you write, and on the laptop they step aside after 3 seconds without the mouse, so they never cover the board.</li>
         <li>For a fully clean shared screen, hide the tools (the eye button, or H). &ldquo;Show tools&rdquo; brings them back.</li>

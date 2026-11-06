@@ -18,6 +18,7 @@ import {
   BACKDROPS,
   BACKDROP_NAME,
   drawGrid,
+  HIGHLIGHT,
   forgetImages,
   getBackdrop,
   setBackdrop,
@@ -543,6 +544,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const current = useRef<Stroke | null>(null);
   // The next few pen positions the tablet predicts (drawn ahead of the pen, never saved).
   const predicted = useRef<Pt[]>([]);
+  // Typed text or writing being dragged to a new place (drawn on top until it's let go).
+  const moving = useRef<Stroke | null>(null);
   const undoStack = useRef<Action[]>([]);
   const redoStack = useRef<Action[]>([]);
   const link = useRef<BoardLink | null>(null);
@@ -570,9 +573,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const sidePanelRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   // Typing: where the text box sits on screen, and what is in it.
-  const [typing, setTyping] = useState<{ x: number; y: number; px: number; color: string; maxPx: number } | null>(null);
+  const [typing, setTyping] = useState<{ x: number; y: number; px: number; color: string; maxPx: number; bold?: boolean; italic?: boolean; hl?: boolean } | null>(null);
   // `maxW`: how wide a line may run before it carries on below (to the screen's right edge).
-  const typingRef = useRef<{ id: string; wx: number; wy: number; size: number; color: string; text: string; maxW: number; editing?: Stroke } | null>(null);
+  const typingRef = useRef<{ id: string; wx: number; wy: number; size: number; color: string; text: string; maxW: number; bold?: boolean; italic?: boolean; hl?: boolean; editing?: Stroke } | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   // What the other device is drawing or typing right now.
   const remoteLive = useRef<Stroke | null>(null);
@@ -607,7 +610,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       cam.current,
       images.current,
       strokes.current,
-      [withPrediction(current.current, predicted.current), remoteLive.current],
+      [withPrediction(current.current, predicted.current), remoteLive.current, moving.current],
       again,
       images.current.find((m) => m.id === selectedRef.current) ?? null,
     ),
@@ -791,7 +794,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const t = typingRef.current;
     if (!t) return;
     const c = cam.current;
-    setTyping({ x: (t.wx - c.x) * c.z, y: (t.wy - c.y) * c.z, px: t.size * c.z, color: t.color, maxPx: t.maxW * c.z });
+    setTyping({ x: (t.wx - c.x) * c.z, y: (t.wy - c.y) * c.z, px: t.size * c.z, color: t.color, maxPx: t.maxW * c.z, bold: t.bold, italic: t.italic, hl: t.hl });
   }, []);
 
   const refresh = useCallback(() => {
@@ -985,6 +988,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         case "pagedel":
           if (m.id !== pageRef.current.id && m.id !== MAIN_PAGE.id) forgetPageRef.current(m.id);
           return;
+        case "mag":
+          return; // (a laptop magnifier was tried and removed)
         case "bg":
           if (BACKDROPS.includes(m.v)) setPaper(m.v, false);
           return;
@@ -1135,9 +1140,31 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   // ---- typing
   const textSize = () => (TEXT_PX[SIZES.findIndex((x) => x.value === size)] ?? TEXT_PX[1]) / cam.current.z;
   const typedStroke = (t: NonNullable<typeof typingRef.current>): Stroke => {
-    const text = wrapText(t.text.replace(/\s+$/, ""), t.size, t.maxW);
-    const m = measureText(text, t.size);
-    return { id: t.id, kind: "text", text, color: t.color, size: t.size, pts: [[t.wx, t.wy, 0.5], [t.wx + m.w, t.wy + m.h, 0.5]] };
+    const text = wrapText(t.text.replace(/\s+$/, ""), t.size, t.maxW, t);
+    const m = measureText(text, t.size, t);
+    return {
+      id: t.id,
+      kind: "text",
+      text,
+      color: t.color,
+      size: t.size,
+      ...(t.bold ? { bold: true } : {}),
+      ...(t.italic ? { italic: true } : {}),
+      ...(t.hl ? { hl: true } : {}),
+      pts: [[t.wx, t.wy, 0.5], [t.wx + m.w, t.wy + m.h, 0.5]],
+    };
+  };
+  // Bold, italic, highlight: switched on the text being typed (the whole of it), shown at once
+  // there and on the other screen.
+  const lastTextStyle = useRef<{ bold?: boolean; italic?: boolean; hl?: boolean }>({});
+  const toggleStyle = (k: "bold" | "italic" | "hl") => {
+    const t = typingRef.current;
+    if (!t) return;
+    t[k] = !t[k];
+    lastTextStyle.current = { bold: t.bold, italic: t.italic, hl: t.hl };
+    placeTyping();
+    send({ t: "live", s: typedStroke(t) });
+    textRef.current?.focus({ preventScroll: true });
   };
   // Typing started with the T key goes back to the tool before it once the words are done.
   const toolBeforeT = useRef<Tool | null>(null);
@@ -1162,7 +1189,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       return;
     }
     const s = typedStroke(t);
-    if (t.editing && t.editing.text === s.text && t.editing.color === s.color) {
+    const sameStyle = !!t.editing && !!t.editing.bold === !!s.bold && !!t.editing.italic === !!s.italic && !!t.editing.hl === !!s.hl;
+    if (t.editing && t.editing.text === s.text && t.editing.color === s.color && sameStyle) {
       strokes.current = [...strokes.current, t.editing];
       send({ t: "add", s: packStroke(t.editing) });
     } else {
@@ -1183,11 +1211,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       // Lifted off the board while it is edited, so it isn't drawn twice.
       strokes.current = strokes.current.filter((x) => x.id !== under.id);
       send({ t: "del", ids: [under.id] });
-      typingRef.current = { id: under.id, wx: under.pts[0][0], wy: under.pts[0][1], size: under.size, color: under.color, text: under.text ?? "", maxW: lineFrom(under.pts[0][0]), editing: under };
+      typingRef.current = { id: under.id, wx: under.pts[0][0], wy: under.pts[0][1], size: under.size, color: under.color, text: under.text ?? "", maxW: lineFrom(under.pts[0][0]), bold: under.bold, italic: under.italic, hl: under.hl, editing: under };
     } else {
       const sz = textSize();
       const ink = color === COLORS[0].value && imageAt(images.current, wx, wy) ? "#1B1E21" : color;
-      typingRef.current = { id: newId(), wx, wy: wy - sz * 0.6, size: sz, color: ink, text: "", maxW: lineFrom(wx) };
+      // New text keeps the style used last (bold headings stay bold until switched off).
+      const st = lastTextStyle.current;
+      typingRef.current = { id: newId(), wx, wy: wy - sz * 0.6, size: sz, color: ink, text: "", maxW: lineFrom(wx), ...st };
     }
     const el = textRef.current;
     if (el) {
@@ -1273,11 +1303,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   // How far this finger pan has travelled, and when it last moved: a tap or a stop never glides.
   const panTrip = useRef({ dist: 0, at: 0 });
   const gesture = useRef<{
-    mode: "draw" | "line" | "box" | "erase" | "pan" | "drag" | "resize" | null;
+    mode: "draw" | "line" | "box" | "erase" | "pan" | "drag" | "resize" | "shift" | null;
     id: number;
     erased: Stroke[];
     straightened: boolean;
     img?: { before: BoardImage; ox: number; oy: number };
+    /** Moving typed text or writing: the stroke, where the pointer went down, and whether it has
+     * moved yet (a tap on words with the type tool edits them instead). */
+    mv?: { s: Stroke; x0: number; y0: number; moved: boolean; tapEdits: boolean; previewId: string };
   }>({ mode: null, id: -1, erased: [], straightened: false });
   const hold = useRef<{ x: number; y: number; timer: ReturnType<typeof setTimeout> | null; path: number }>({ x: 0, y: 0, timer: null, path: 0 });
   const liveSend = useRef(0);
@@ -1455,6 +1488,21 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     return !!hit;
   };
 
+  // ---- moving typed text and writing
+  /** The topmost typed text (or, `anyStroke`, any writing) under a screen point. */
+  const strokeUnder = (sx: number, sy: number, anyStroke: boolean) => {
+    const [wx, wy] = toWorld(cam.current, sx, sy);
+    const r = 10 / cam.current.z;
+    return [...strokes.current].reverse().find((x) => (x.kind === "text" || anyStroke) && hitStroke(x, wx, wy, r));
+  };
+  const shifted = (s: Stroke, dx: number, dy: number): Stroke => ({ ...s, pts: s.pts.map((p) => [p[0] + dx, p[1] + dy, p[2]] as Pt) });
+  const grabStroke = (id: number, sx: number, sy: number, tapEdits: boolean) => {
+    const hit = strokeUnder(sx, sy, !tapEdits);
+    if (!hit) return false;
+    gesture.current = { mode: "shift", id, erased: [], straightened: false, mv: { s: hit, x0: sx, y0: sy, moved: false, tapEdits, previewId: `${hit.id}~${Date.now().toString(36)}` } };
+    return true;
+  };
+
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const [sx, sy] = local(e);
     const isPen = e.pointerType === "pen";
@@ -1516,6 +1564,11 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     // Typing: the pen or mouse puts the text box here (focus stays in it).
     if (tool === "text" && !isPenEraser(e)) {
       e.preventDefault();
+      // On words already there: a drag moves them, a tap opens them to edit (on lifting).
+      if (!typingRef.current && grabStroke(e.pointerId, sx, sy, true)) {
+        capture(canvasRef.current, e.pointerId);
+        return;
+      }
       startTyping(sx, sy);
       return;
     }
@@ -1533,7 +1586,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     }
 
     if (tool === "move") {
-      grabImage(e.pointerId, sx, sy, false);
+      // A picture, or else any typed text or writing under the pointer.
+      if (!grabImage(e.pointerId, sx, sy, false)) grabStroke(e.pointerId, sx, sy, false);
       return;
     }
 
@@ -1603,6 +1657,27 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const g = gesture.current;
     if (g.id !== e.pointerId || !g.mode) {
       if (tool === "eraser" && e.pointerType !== "touch") setEraserAt({ x: sx, y: sy });
+      return;
+    }
+
+    if (g.mode === "shift" && g.mv) {
+      const mv = g.mv;
+      if (!mv.moved) {
+        if (Math.hypot(sx - mv.x0, sy - mv.y0) < 6) return;
+        // Lifted off the board while it moves (drawn on top), so the board isn't redrawn each move.
+        mv.moved = true;
+        strokes.current = strokes.current.filter((x) => x.id !== mv.s.id);
+        send({ t: "del", ids: [mv.s.id] });
+        setInking(true);
+      }
+      const z = cam.current.z;
+      moving.current = shifted(mv.s, (sx - mv.x0) / z, (sy - mv.y0) / z);
+      const now = performance.now();
+      if (now - liveSend.current > 40) {
+        liveSend.current = now;
+        send({ t: "live", s: packStroke({ ...moving.current, id: mv.previewId }) });
+      }
+      requestDraw();
       return;
     }
 
@@ -1846,6 +1921,26 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     if (g.id !== e.pointerId) return;
     clearHold();
     setAngle(null);
+    if (g.mode === "shift" && g.mv) {
+      const mv = g.mv;
+      gesture.current = { mode: null, id: -1, erased: [], straightened: false };
+      setInking(false);
+      if (!mv.moved) {
+        // A tap on words with the type tool: open them to edit.
+        if (mv.tapEdits && !cancelled) startTyping(mv.x0, mv.y0);
+        return;
+      }
+      const after = cancelled ? mv.s : (moving.current ?? mv.s);
+      moving.current = null;
+      strokes.current = [...strokes.current, after];
+      if (after !== mv.s) commit({ type: "replace", before: [mv.s], after: [after] });
+      // The preview goes and the moved one lands, together.
+      send({ t: "batch", ms: [{ t: "del", ids: [mv.previewId] }, { t: "add", s: packStroke(after) }] });
+      persist();
+      requestDraw();
+      syncMeta();
+      return;
+    }
     if (g.mode === "erase") {
       flushErase();
       lastErase.current = null;
@@ -2187,16 +2282,76 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             e.preventDefault();
             commitTyping();
           }
+          // Ctrl+B bold, Ctrl+I italic, Ctrl+H highlight (Cmd on a Mac).
+          if (e.ctrlKey || e.metaKey) {
+            const k = e.key.toLowerCase();
+            const which = k === "b" ? "bold" : k === "i" ? "italic" : k === "h" ? "hl" : null;
+            if (which) {
+              e.preventDefault();
+              toggleStyle(which);
+            }
+          }
         }}
-        className={`absolute resize-none overflow-hidden whitespace-pre-wrap break-words border-0 bg-transparent p-0 font-medium leading-[1.25] outline-none [field-sizing:content] ${
+        className={`absolute resize-none overflow-hidden whitespace-pre-wrap break-words border-0 bg-transparent p-0 leading-[1.25] outline-none [field-sizing:content] ${
           typing ? "rounded-sm ring-1 ring-[#E5A832]/60 ring-offset-4 ring-offset-transparent" : "pointer-events-none opacity-0"
         }`}
         style={
           typing
-            ? { left: typing.x, top: typing.y, fontSize: typing.px, color: inkOf(typing.color), caretColor: inkOf(typing.color), minWidth: Math.max(40, typing.px * 3), maxWidth: typing.maxPx }
+            ? {
+                left: typing.x,
+                top: typing.y,
+                fontSize: typing.px,
+                fontWeight: typing.bold ? 700 : 500,
+                fontStyle: typing.italic ? "italic" : "normal",
+                background: typing.hl ? HIGHLIGHT : "transparent",
+                color: inkOf(typing.color),
+                caretColor: inkOf(typing.color),
+                minWidth: Math.max(40, typing.px * 3),
+                maxWidth: typing.maxPx,
+              }
             : { left: -9999, top: 0, width: 1, height: 1 }
         }
       />
+
+      {/* While typing: bold, italic, highlight, just above the words (taps keep the keyboard open). */}
+      {typing && (
+        <div
+          className={`${PANEL} absolute z-10 flex items-center gap-0.5 p-1`}
+          style={{ left: Math.max(8, typing.x - 6), top: Math.max(8, typing.y - 52) }}
+          onPointerDown={(e) => e.preventDefault()}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          {(
+            [
+              ["bold", "B", "Bold (Ctrl+B)", "font-bold"],
+              ["italic", "I", "Italic (Ctrl+I)", "italic font-serif"],
+            ] as const
+          ).map(([k, label, title, cls]) => (
+            <button
+              key={k}
+              type="button"
+              title={title}
+              aria-label={title}
+              aria-pressed={!!typing[k]}
+              onClick={() => toggleStyle(k)}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg text-[15px] transition-colors ${cls} ${typing[k] ? "bg-[#1A1D20] text-white" : "text-[#374151] hover:bg-black/[0.05]"}`}
+            >
+              {label}
+            </button>
+          ))}
+          <button
+            type="button"
+            title="Highlight (Ctrl+H)"
+            aria-label="Highlight (Ctrl+H)"
+            aria-pressed={!!typing.hl}
+            onClick={() => toggleStyle("hl")}
+            className={`flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-colors ${typing.hl ? "bg-[#1A1D20] text-white" : "text-[#374151] hover:bg-black/[0.05]"}`}
+          >
+            <span className="h-3.5 w-3.5 rounded-[4px]" style={{ background: "rgb(255, 213, 0)" }} />
+            Highlight
+          </button>
+        </div>
+      )}
 
       {/* Eraser ring */}
       {eraserAt && (
@@ -2311,10 +2466,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         >
           <ToolButton label="Pen (P). Draw a T for a T account; hold still at the end to snap a line, box or circle" active={tool === "pen"} onClick={() => pickTool("pen")}>{I.pen}</ToolButton>
           <ToolButton label="Straight line (L)" active={tool === "line"} onClick={() => pickTool("line")}>{I.line}</ToolButton>
-          <ToolButton label="Axes for a diagram (A): drag out the graph, or tap. Drawing an L does it too" active={tool === "axes"} onClick={() => pickTool("axes")}>{I.axes}</ToolButton>
           <ToolButton label="Eraser (E), or hold the pen's side button" active={tool === "eraser"} onClick={() => pickTool("eraser")}>{I.eraser}</ToolButton>
           <ToolButton label="Type (T starts typing where the mouse is). Enter finishes, Shift+Enter for a new line" active={tool === "text"} onClick={() => pickTool("text")}>{I.text}</ToolButton>
-          <ToolButton label="Move pictures (V)" active={tool === "move"} onClick={() => pickTool("move")}>{I.move}</ToolButton>
+          <ToolButton label="Move (V): drag pictures, typed text or writing" active={tool === "move"} onClick={() => pickTool("move")}>{I.move}</ToolButton>
           <ToolButton label="Insert a picture or PDF" disabled={!!busy} onClick={() => fileRef.current?.click()}>
             {busy ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-black/10 border-t-[#1A1D20]" /> : I.insert}
           </ToolButton>

@@ -28,6 +28,7 @@ export type BoardMsg = (
   | { t: "batch"; ms: BoardMsg[] } // several changes that belong together, in order
   | { t: "theme"; v: ThemeId }
   | { t: "bg"; v: Backdrop } // plain or a faint grid: the laptop follows the tablet
+  | { t: "mag"; v: number } // how much bigger the laptop shows the writing than the tablet (1 = the same)
   | { t: "page"; p: BoardPage; q?: number } // switched to another page: the other device follows
   | { t: "pagedel"; id: string } // a page deleted: the other device lets it go too
   | { t: "view"; v: View } // what the tablet shows, for "follow"
