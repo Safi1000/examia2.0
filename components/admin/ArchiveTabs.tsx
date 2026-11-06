@@ -6,7 +6,9 @@ export type ArchiveView = "current" | "archive";
 
 /**
  * Current / Archive switch for admin lists. The archive holds everything from
- * switched-off cohorts. Hidden until there is something in it.
+ * switched-off cohorts. It never shows on its own: archived work is only
+ * reached from that cohort's card on the Cohorts page (which opens the page
+ * with ?archive=1), so old cohorts never clutter the everyday screens.
  */
 export function ArchiveTabs({
   view,
@@ -23,7 +25,7 @@ export function ArchiveTabs({
   currentCount: number;
   archiveCount: number;
 }) {
-  if (archiveCount === 0 && view === "current") return null;
+  if (view === "current") return null;
   return (
     <Tabs
       className="mb-4"
@@ -35,4 +37,10 @@ export function ArchiveTabs({
       ]}
     />
   );
+}
+
+/** Pages opened from an archived cohort's card come with ?archive=1. */
+export function archiveFromUrl(): boolean {
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).get("archive") === "1";
 }

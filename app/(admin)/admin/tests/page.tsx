@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { TestStatus } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter, useStickyFilter } from "@/lib/admin-filter";
 import { archivedCohortIds, cohortById, isArchivedTest, liveStatus, testStats } from "@/lib/data/selectors";
-import { ArchiveTabs, type ArchiveView } from "@/components/admin/ArchiveTabs";
+import { ArchiveTabs, archiveFromUrl, type ArchiveView } from "@/components/admin/ArchiveTabs";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Button, Card, Badge, Pill, CohortTag, EmptyState, Modal, Icon } from "@/components/ui";
@@ -42,6 +42,10 @@ export default function AdminTestsPage() {
 
   // Tests for switched-off cohorts live in the archive.
   const [view, setView] = useState<ArchiveView>("current");
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (archiveFromUrl()) setView("archive");
+  }, []);
   const archived = useMemo(() => {
     const off = archivedCohortIds(db);
     return new Set(db.tests.filter((t) => isArchivedTest(db, t, off)).map((t) => t.id));

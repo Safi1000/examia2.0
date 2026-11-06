@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import type { Student } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
@@ -12,7 +12,7 @@ import { squareThumbnail } from "@/lib/image";
 import { BulkBar, RowCheck } from "@/components/admin/BulkBar";
 import { uploadImage } from "@/lib/cloudinary";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { ArchiveTabs, type ArchiveView } from "@/components/admin/ArchiveTabs";
+import { ArchiveTabs, archiveFromUrl, type ArchiveView } from "@/components/admin/ArchiveTabs";
 import { Card, Button, Input, Select, Label, CohortDot, Modal, EmptyState, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { cld } from "@/lib/cld";
@@ -99,6 +99,10 @@ export default function RosterPage() {
   // Past students (in switched-off cohorts) are kept apart. Tick them and use
   // "Add to cohort" to bring them into a new cohort; they can sign in again.
   const [view, setView] = useState<ArchiveView>("current");
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (archiveFromUrl()) setView("archive");
+  }, []);
   const off = useMemo(() => new Set(db.cohorts.filter((c) => !c.active).map((c) => c.id)), [db.cohorts]);
   const pastCount = db.students.filter((s) => off.has(s.cohortId)).length;
 

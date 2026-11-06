@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type { Cohort, CohortColor } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
@@ -122,6 +123,13 @@ export default function CohortsPage() {
                       {!c.active && <Badge tone="neutral">Off</Badge>}
                     </p>
                     <p className="text-sm text-ink-2">{studentCount} students · {testCount} tests</p>
+                    {!c.active && (
+                      <p className="mt-1.5 flex flex-wrap gap-x-3 text-xs font-semibold">
+                        <Link href="/admin/roster?archive=1" className="text-brand hover:underline">Students</Link>
+                        <Link href="/admin/tests?archive=1" className="text-brand hover:underline">Tests</Link>
+                        <Link href="/admin/submissions?archive=1" className="text-brand hover:underline">Marks</Link>
+                      </p>
+                    )}
                     {(classNames.length > 0 || subjectNames.length > 0) && (
                       <div className="mt-1.5 flex flex-wrap gap-1">
                         {classNames.map((n) => (
@@ -151,14 +159,10 @@ export default function CohortsPage() {
                       toast(`${c.name} is back on. Its students, tests and work are out of the archive.`, "success");
                     }}
                     className="flex h-9 items-center rounded px-2 text-xs font-semibold text-ink-3 hover:bg-surface-2 hover:text-ink"
-                    aria-label={c.active ? `Switch off ${c.name}` : `Switch on ${c.name}`}
-                    title={
-                      c.active
-                        ? "Switch off: its students, tests and work move to the archive. Nothing is deleted."
-                        : "Switch back on"
-                    }
+                    aria-label={c.active ? `Archive ${c.name}` : `Switch on ${c.name}`}
+                    title={c.active ? "Archive: hide everything from this cohort and delete its notes" : "Switch back on"}
                   >
-                    {c.active ? "Switch off" : "Switch on"}
+                    {c.active ? "Archive" : "Switch on"}
                   </button>
                   <button onClick={() => openEdit(c)} className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label={`Edit ${c.name}`}>
                     <Icon.Edit className="h-4 w-4" />
@@ -193,7 +197,7 @@ export default function CohortsPage() {
             <span aria-hidden className="transition-transform group-open:rotate-90">›</span>
             Archived cohorts ({db.cohorts.filter((c) => !c.active).length})
           </summary>
-          <p className="mb-3 mt-1 text-xs text-ink-3">Switched off: hidden everywhere else in the portal. Nothing here is deleted unless you delete it.</p>
+          <p className="mb-3 mt-1 text-xs text-ink-3">Hidden from every other screen in the portal. Open a cohort&apos;s Students, Tests or Marks to look back.</p>
           <div className="grid gap-3 sm:grid-cols-2">
             {db.cohorts.filter((c) => !c.active).map(card)}
           </div>
@@ -249,8 +253,8 @@ export default function CohortsPage() {
       <Modal
         open={!!switchingOff}
         onClose={() => setSwitchingOff(null)}
-        title={switchingOff ? `Switch off ${switchingOff.name}?` : ""}
-        description="Everything moves to the archive. Nothing is deleted, and you can switch it back on any time."
+        title={switchingOff ? `Archive ${switchingOff.name}?` : ""}
+        description="It disappears from every list and menu, and its notes are deleted. You can still find it under Archived cohorts at the bottom of this page."
         footer={
           <>
             <Button variant="secondary" onClick={() => setSwitchingOff(null)}>Cancel</Button>
@@ -258,11 +262,12 @@ export default function CohortsPage() {
               onClick={() => {
                 if (!switchingOff) return;
                 store.setCohortActive(switchingOff.id, false);
-                toast(`${switchingOff.name} switched off and archived.`, "success");
+                const r = store.clearCohortNotes(switchingOff.id);
+                toast(`${switchingOff.name} archived${r.deleted ? `, ${r.deleted} ${r.deleted === 1 ? "note" : "notes"} deleted` : ""}.`, "success");
                 setSwitchingOff(null);
               }}
             >
-              Switch off &amp; archive
+              Archive and delete notes
             </Button>
           </>
         }
@@ -271,12 +276,13 @@ export default function CohortsPage() {
           const ids = new Set(studentsInCohort(db, switchingOff.id).map((st) => st.id));
           const testIds = new Set(db.tests.filter((t) => t.cohortId === switchingOff.id).map((t) => t.id));
           const work = db.submissions.filter((x) => testIds.has(x.testId) || ids.has(x.studentId)).length;
+          const notes = store.cohortNotes(switchingOff.id);
           return (
             <ul className="space-y-1.5 text-sm text-ink-2">
-              <li><span className="font-semibold text-ink">{ids.size}</span> students move to Past students and can&apos;t sign in.</li>
-              <li><span className="font-semibold text-ink">{testIds.size}</span> tests move to the Tests archive.</li>
-              <li><span className="font-semibold text-ink">{work}</span> submissions move to the Submissions archive.</li>
-              <li>To bring a student back, add them to a new cohort from Roster → Past students.</li>
+              <li><span className="font-semibold text-ink">{ids.size}</span> {ids.size === 1 ? "student is" : "students are"} hidden and can&apos;t sign in.</li>
+              <li><span className="font-semibold text-ink">{testIds.size}</span> {testIds.size === 1 ? "test" : "tests"} and <span className="font-semibold text-ink">{work}</span> {work === 1 ? "hand-in" : "hand-ins"} are hidden from every list.</li>
+              <li><span className="font-semibold text-ink">{notes.onlyHere.length}</span> {notes.onlyHere.length === 1 ? "note is" : "notes are"} deleted for good{notes.shared.length ? `; ${notes.shared.length} shared with other cohorts stay with them` : ""}.</li>
+              <li>Marks are kept. Find them later under Archived cohorts below.</li>
             </ul>
           );
         })()}
