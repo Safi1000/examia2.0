@@ -9,6 +9,7 @@ import { WaitlistBox } from "@/components/tools/WaitlistBox";
 import { breadcrumbLd, fitTitle } from "@/lib/seo";
 import { SYLLABI, pointCount, resourcesFor, splitPoint, subtopicCount, syllabusBySlug } from "@/lib/syllabus";
 import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
+import { topicalHrefFor } from "@/lib/topical";
 
 export const dynamicParams = false;
 export function generateStaticParams() {
@@ -77,7 +78,8 @@ export default async function SyllabusPage({ params }: Props) {
               </h2>
               <ul className="mt-5 space-y-3">
                 {t.subs.map((u) => {
-                  const links = resourcesFor(`${t.name} ${u.name} ${u.parts.map((p) => p.name).join(" ")}`);
+                  const topical = topicalHrefFor(s.code, u.num);
+                  const links = [...(topical ? [{ href: topical, label: "Past paper questions on this" }] : []), ...resourcesFor(`${t.name} ${u.name} ${u.parts.map((p) => p.name).join(" ")}`)];
                   return (
                     <li key={u.num} id={`s-${u.num}`} className="scroll-mt-24 rounded-[16px] border border-hairline bg-card">
                       <details className="group">

@@ -55,19 +55,19 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
   const others = PAST_PAPER_SYLLABI.filter((o) => o.code !== s.code && (o.level === s.level || o.subject === s.subject));
   const thresholds = THRESHOLD_PAGES.find((p) => p.code === s.code);
   const syllabus = syllabusByCode(s.code) ?? SYLLABI.find((x) => x.replaces === s.code) ?? null;
-  const next = s.next ? syllabusByCode(s.next.code) : null;
+  const next = s.next ? syllabusByCode(s.next.code) : s.revised ? syllabus : null;
   const faq = [
     {
-      q: `Where can I find ${s.name} mark schemes?`,
-      a: `Open any paper on this page and tap Mark scheme. Every ${s.code} paper from ${YEAR_RANGE} has its mark scheme, and the insert where the paper uses one. On a laptop you can put the paper and mark scheme side by side.`,
+      q: `Where are the ${s.code} mark schemes?`,
+      a: `Right next to each paper. Open one and tap Mark scheme. On a laptop, put them side by side and mark as you go. Inserts are there too, for the papers that use one.`,
     },
     {
-      q: "What does the variant number mean?",
-      a: "Cambridge sets more than one version of each paper for different time zones. Paper 1, variant 2 is written 12 on the file. The content and the standard are the same, so practise with any variant.",
+      q: "Variant 1, 2, 3: which one do I do?",
+      a: "Any. Cambridge writes a few versions of each paper for different time zones, same standard, different questions. Paper 1 variant 2 is the 12 in the file name. More variants just means more practice.",
     },
     {
-      q: "How should I use past papers?",
-      a: "Do one paper under timed conditions, mark it with the mark scheme, then read the examiner report for that series. Write down every mark you lost and why. That list is what you revise next.",
+      q: "How do I actually use past papers?",
+      a: "Sit one against the clock. Mark it honestly with the mark scheme. Read the examiner report for that series. Then write down every mark you lost and why. That list is your revision plan, and it's shorter than you think.",
     },
   ];
   return (
@@ -81,49 +81,31 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
         </div>
         <div className="mt-8"><Crumbs trail={[{ name: "Past papers", href: "/past-papers" }, { name: s.short }]} /></div>
         <h1 className="mt-4 text-4xl font-bold leading-[1.06] tracking-tight text-foreground md:text-5xl">{searchName(s)} past papers</h1>
-        <p className="mt-4 max-w-[58ch] text-lg leading-relaxed text-muted-foreground">
-          Every paper from {YEAR_RANGE} with its mark scheme. Open one to read it, practise it timed, and see your grade.
-        </p>
-        <nav aria-label="Switch subject or level" className="mt-5 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
-          {others.map((o) => (
-            <Link key={o.code} href={`/past-papers/${o.slug}`} className="inline-flex min-h-10 shrink-0 items-center rounded-full border border-hairline px-4 text-[14px] font-semibold text-muted-foreground transition-colors hover:border-gold-border hover:text-foreground">
-              {o.level === s.level ? o.short : `${o.level === "AS and A Level" ? "A Level" : o.level} ${o.code}`}
-            </Link>
-          ))}
-        </nav>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          {hasTopical(s.code) && (
-            <Link
-              href={`/past-papers/${s.slug}/topics`}
-              className="group rounded-[20px] border border-gold-border bg-card-raised px-5 py-4 transition-colors hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
-            >
-              <span className="block font-semibold text-foreground">Revise by topic</span>
-              <span className="block text-[15px] text-muted-foreground">Every Paper 1 and 2 question, sorted by syllabus topic.</span>
-            </Link>
-          )}
-          {hasPractice(s.code) && (
-            <Link
-              href={`/past-papers/${s.slug}/practice`}
-              className="group rounded-[20px] border border-hairline bg-card px-5 py-4 transition-colors hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
-            >
-              <span className="block font-semibold text-foreground">Quick MCQ quiz</span>
-              <span className="block text-[15px] text-muted-foreground">Ten at a time, marked as you tap.</span>
-            </Link>
-          )}
-        </div>
-        {s.next && (
-          <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
-            From {s.next.from}, {s.code} is replaced by <span className="font-semibold text-foreground">{s.next.code}</span>. These papers are still the best practice there is.
+        {(s.next || s.revised) && (
+          <p className="mt-3 text-[15px] text-muted-foreground">
+            {s.next ? `${s.next.code} replaces ${s.code} from ${s.next.from}.` : `New syllabus from ${s.revised}, same code.`}
             {next && (
               <>
                 {" "}
-                <Link href={`/syllabus/${next.slug}`} className="font-semibold text-gold hover:underline">
-                  {s.next.code} syllabus
+                <Link href={`/syllabus/${next.slug}`} className="text-gold hover:underline">
+                  What changed
                 </Link>
               </>
             )}
           </p>
         )}
+        <p className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-[15px] font-semibold">
+          {hasTopical(s.code) && (
+            <Link href={`/past-papers/${s.slug}/topics`} className="text-foreground underline decoration-gold/50 underline-offset-[6px] hover:decoration-gold">
+              Revise by topic
+            </Link>
+          )}
+          {hasPractice(s.code) && (
+            <Link href={`/past-papers/${s.slug}/practice`} className="text-foreground underline decoration-gold/50 underline-offset-[6px] hover:decoration-gold">
+              Quick MCQ quiz
+            </Link>
+          )}
+        </p>
 
         <div className="mt-10">
           <SyllabusBrowser series={series} papers={paperNumbers(s.code)} />
@@ -137,8 +119,13 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
           body={`That is what I fix in class: the exact ${s.short} questions you keep dropping marks on, with the mark scheme open. Start with one free lesson.`}
         />
 
-        <Section title="Also for this syllabus">
+        <Section title="Keep exploring">
           <nav aria-label="Also for this syllabus" className="flex flex-wrap gap-2">
+            {others.map((o) => (
+              <Link key={o.code} href={`/past-papers/${o.slug}`} className={pill}>
+                {o.level === s.level ? o.short : `${o.level === "AS and A Level" ? "A Level" : o.level} ${o.code}`} papers
+              </Link>
+            ))}
             {thresholds && (
               <Link href={`/grade-thresholds/${thresholds.slug}`} className={pill}>
                 Grade thresholds

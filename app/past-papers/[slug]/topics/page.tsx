@@ -49,7 +49,7 @@ export default async function TopicIndex({ params }: Props) {
         </div>
         <h1 className="mt-4 text-4xl font-bold leading-[1.06] tracking-tight text-foreground md:text-5xl">{searchName(s)} topical past papers</h1>
         <p className="mt-4 max-w-[56ch] text-lg leading-relaxed text-muted-foreground">
-          Every Paper 1 and Paper 2 question, sorted by the topic it tests{s.next ? `, using the new ${s.next.code} syllabus topics` : ""}. Pick a topic you&apos;re working on.
+          Every Paper 1 and Paper 2 question, sorted by the topic it tests{s.next ? `, using the new ${s.next.code} topics` : s.revised ? `, using the new ${s.revised} syllabus` : ""}. Pick the one that keeps biting you.
         </p>
 
         <div className="mt-10 space-y-10">

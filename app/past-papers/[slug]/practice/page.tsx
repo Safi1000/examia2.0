@@ -51,7 +51,7 @@ export default async function PracticePage({ params }: Props) {
         <PastPapersNav className="mt-6 w-fit max-w-full" />
         <h1 className="mt-8 text-3xl font-bold leading-[1.1] tracking-tight text-foreground md:text-5xl">{s.name} question practice</h1>
         <p className="mt-4 max-w-[60ch] text-lg leading-relaxed text-muted-foreground">
-          Real multiple choice questions from past papers, by topic. One at a time, marked the moment you answer. Anything you get wrong goes on your mistakes list.
+          Real past paper questions, one at a time, marked the second you tap. Pick a topic or let it surprise you. Anything you miss comes back until you don&apos;t.
         </p>
         <div className="mt-8">
           <QuestionPractice questions={questions} papers={papers} name={s.short} path={url} code={s.code} topics={topics} />

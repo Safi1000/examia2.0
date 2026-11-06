@@ -32,9 +32,9 @@ export function ProgressView({ syllabi, exam }: { syllabi: ProgressSyllabus[]; e
   if (!doneKeys.length && !answered) {
     return (
       <div className={`${card} text-center md:py-12`}>
-        <p className="text-xl font-semibold text-foreground">Nothing here yet</p>
+        <p className="text-xl font-semibold text-foreground">Nothing here yet. That changes today.</p>
         <p className="mx-auto mt-2 max-w-[44ch] text-[16px] leading-relaxed text-muted-foreground">
-          Do a paper or a round of question practice and your scores, grades and mistakes collect here. It&apos;s saved on this device, no sign up.
+          Do one paper or ten quick questions and this page starts keeping score: grades, scores, and every mistake worth a second look. It lives on your phone. No sign up.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link href="/past-papers/practice" className="inline-flex min-h-12 items-center rounded-full bg-gold px-6 font-semibold text-[#1b1e21] hover:bg-[#ffd07a]">

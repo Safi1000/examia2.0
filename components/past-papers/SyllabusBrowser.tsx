@@ -121,10 +121,7 @@ export function SyllabusBrowser({ series, papers }: { series: BrowserSeries[]; p
       </div>
 
       <p className="mt-5 flex min-h-11 items-center justify-between gap-4 text-[15px] text-muted-foreground" aria-live="polite">
-        <span>
-          {count} {count === 1 ? "paper" : "papers"}
-          {filtered ? " match" : ", newest first"}
-        </span>
+        <span>{filtered ? `${count} ${count === 1 ? "paper matches" : "papers match"}` : "Newest first"}</span>
         {filtered && (
           <button
             type="button"

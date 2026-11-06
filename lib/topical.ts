@@ -13,7 +13,7 @@
 import tags from "@/lib/past-paper-tags.json";
 import meta from "@/lib/past-paper-meta.json";
 import { SYLLABI, type SyllabusInfo, type Subtopic, type Topic } from "@/lib/syllabus";
-import { cieCode, fileName, pageUrl, paperHref, papersFor, syllabusByPaperCode, type PastPaperSyllabus } from "@/lib/past-papers";
+import { PAST_PAPER_SYLLABI, cieCode, fileName, pageUrl, paperHref, papersFor, syllabusByPaperCode, type PastPaperSyllabus } from "@/lib/past-papers";
 
 type Meta = {
   k: Record<string, string>;
@@ -117,3 +117,19 @@ export function topicalFor(code: string): TopicEntry[] {
 
 export const topicEntry = (code: string, slug: string) => topicalFor(code).find((e) => e.slug === slug) ?? null;
 export const hasTopical = (code: string) => topicalFor(code).some((e) => e.questions.length > 0);
+
+/**
+ * The topical page for a syllabus subtopic, if it has questions. Works from the
+ * syllabus checklist's code too: 0264 and 7081 point at the 0450 and 7115 papers.
+ */
+export function topicalHrefFor(syllabusCode: string, subNum: string): string | null {
+  const s = PAST_PAPER_SYLLABI.find((p) => p.code === syllabusCode || p.next?.code === syllabusCode);
+  if (!s) return null;
+  const e = topicalFor(s.code).find((x) => x.sub.num === subNum && x.questions.length);
+  return e ? `/past-papers/${s.slug}/topics/${e.slug}` : null;
+}
+
+/** Topics a paper's questions test, in syllabus order (for "Topics in this paper"). */
+export function topicsInPaper(code: string, paperKey: string): TopicEntry[] {
+  return topicalFor(code).filter((e) => e.questions.some((q) => q.id.startsWith(`${paperKey}#`)));
+}

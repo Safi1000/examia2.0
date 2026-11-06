@@ -25,8 +25,7 @@ export default function PracticeHub() {
         <PastPapersNav className="mt-6 w-fit max-w-full" />
         <h1 className="mt-8 text-3xl font-bold leading-[1.1] tracking-tight text-foreground md:text-5xl">Question practice</h1>
         <p className="mt-4 max-w-[60ch] text-lg leading-relaxed text-muted-foreground">
-          Real multiple choice questions from Cambridge past papers. Pick your subject, do 10 at a time, and see the answer the moment you tap. Questions you get wrong come back until you get them right.
-        </p>
+          Ten real questions at a time. Instant marking. The ones you miss come back until they don&apos;t.</p>
         <div className="mt-10 space-y-8">
           {PAPER_LEVELS.map((lvl) => {
             const here = list.filter((s) => s.level === lvl);

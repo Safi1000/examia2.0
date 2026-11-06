@@ -26,7 +26,7 @@ export default function TopicsHub() {
           <Crumbs trail={[{ name: "Past papers", href: "/past-papers" }, { name: "Topical" }]} />
         </div>
         <h1 className="mt-4 text-4xl font-bold tracking-tight text-foreground md:text-5xl">Topical past papers</h1>
-        <p className="mt-4 max-w-[54ch] text-lg leading-relaxed text-muted-foreground">Every Paper 1 and Paper 2 question, filed under the topic it tests. Revise one topic at a time.</p>
+        <p className="mt-4 max-w-[54ch] text-lg leading-relaxed text-muted-foreground">Every Paper 1 and Paper 2 question, filed under the topic it tests. Weak on one topic? Do every question ever set on it, back to back.</p>
         <div className="mt-10 space-y-8">
           {PAPER_LEVELS.map((lvl) => {
             const here = list.filter((s) => s.level === lvl);

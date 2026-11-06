@@ -7,7 +7,8 @@ import { Crumbs, TrialBox } from "@/components/study/StudyBits";
 import { PastPapersNav } from "@/components/past-papers/Bits";
 import { TopicalList } from "@/components/past-papers/TopicalList";
 import { PAST_PAPER_SYLLABI, hasPractice, pastPaperSyllabus } from "@/lib/past-papers";
-import { topicEntry, topicalFor } from "@/lib/topical";
+import { currentSyllabus, topicEntry, topicalFor } from "@/lib/topical";
+import { resourcesFor } from "@/lib/syllabus";
 import { breadcrumbLd } from "@/lib/seo";
 
 export const dynamicParams = false;
@@ -53,6 +54,11 @@ export default async function TopicPage({ params }: Props) {
   // Newest first; multiple choice before written within a series, so a student checks the idea before writing.
   const questions = [...e.questions].sort((a, b) => b.y - a.y || a.s.localeCompare(b.s) || (a.kind === b.kind ? a.c.localeCompare(b.c) || a.n - b.n : a.kind === "mcq" ? -1 : 1));
   const base = `/past-papers/${s.slug}/topics`;
+  const syl = currentSyllabus(s);
+  const reading = [
+    ...resourcesFor(`${e.topic.name} ${e.sub.name} ${e.sub.parts.map((p) => p.name).join(" ")}`),
+    ...(syl ? [{ href: `/syllabus/${syl.slug}#s-${e.sub.num}`, label: "What the syllabus says" }] : []),
+  ];
   return (
     <MarketingShell>
       <JsonLd
@@ -75,10 +81,10 @@ export default async function TopicPage({ params }: Props) {
         <h1 className="mt-1 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{e.sub.name}</h1>
         <p className="mt-4 max-w-[58ch] text-[17px] leading-relaxed text-muted-foreground">
           {hasMcq && hasWritten
-            ? "Every past paper question on this topic. Start with a few multiple choice to check the idea, then try a written one and mark it with the mark scheme."
+            ? "Warm up with a few multiple choice. Then try a written one and mark it the way an examiner would."
             : hasMcq
-              ? "Every past paper multiple choice question on this topic. Tap an answer to check it."
-              : "Every past paper written question on this topic. Try one, then mark it with the mark scheme."}
+              ? "Every multiple choice question on this topic. Tap an answer. You'll know straight away."
+              : "Every written question on this topic. Try one properly, then check yourself against the mark scheme."}
         </p>
         {hasMcq && hasPractice(s.code) && (
           <p className="mt-5">
@@ -95,7 +101,21 @@ export default async function TopicPage({ params }: Props) {
           <TopicalList questions={questions} hasMcq={hasMcq} hasWritten={hasWritten} />
         </div>
 
-        <nav aria-label="Other topics" className="mt-12 grid gap-3 sm:grid-cols-2">
+        {reading.length > 0 && (
+          <p className="mt-12 text-[15px] text-muted-foreground">
+            Read next:{" "}
+            {reading.map((l, i) => (
+              <span key={l.href}>
+                {i > 0 && " · "}
+                <Link href={l.href} className="text-foreground underline decoration-gold/50 underline-offset-4 hover:decoration-gold">
+                  {l.label}
+                </Link>
+              </span>
+            ))}
+          </p>
+        )}
+
+        <nav aria-label="Other topics" className="mt-8 grid gap-3 sm:grid-cols-2">
           {prev ? (
             <Link href={`${base}/${prev.slug}`} className="rounded-[16px] border border-hairline bg-card px-5 py-4 hover:border-gold-border">
               <span className="block text-[13px] text-faint">← {prev.sub.num}</span>
@@ -117,7 +137,7 @@ export default async function TopicPage({ params }: Props) {
           subject={s.subject}
           level={s.trialLevel}
           title={`Stuck on ${e.sub.name.toLowerCase()}?`}
-          body={`It's one of the topics I teach step by step in class, with past paper questions like these. Start with one free lesson.`}
+          body={`I take topics like this apart in class, one past paper question at a time, until they stop being scary. Start with one free lesson.`}
         />
       </div>
     </MarketingShell>

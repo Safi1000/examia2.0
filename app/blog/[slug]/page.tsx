@@ -59,12 +59,12 @@ export default async function ArticlePage({ params }: Props) {
   ];
   const resources = [
     ...toolFor.filter(([re]) => re.test(slug)).map(([, href, label]) => ({ href, label })),
-    ...PAST_PAPER_SYLLABI.filter((p) => a.code.includes(p.code) || (p.next && a.code.includes(p.next.code))).map((p) => ({
-      href: `/past-papers/${p.slug}`,
-      label: `${p.name} past papers`,
-    })),
+    ...PAST_PAPER_SYLLABI.filter((p) => a.code.includes(p.code) || (p.next && a.code.includes(p.next.code))).flatMap((p) => [
+      { href: `/past-papers/${p.slug}/topics`, label: `${p.short} questions by topic` },
+      { href: `/past-papers/${p.slug}`, label: `${p.name} past papers` },
+    ]),
     { href: "/tools/exam-countdown", label: "Exam countdown" },
-  ].slice(0, 4);
+  ].slice(0, 5);
 
   return (
     <MarketingShell>

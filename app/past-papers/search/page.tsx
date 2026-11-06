@@ -28,7 +28,7 @@ export default function SearchInsidePage() {
           <Crumbs trail={[{ name: "Past papers", href: "/past-papers" }, { name: "Search inside papers" }]} />
         </div>
         <h1 className="mt-4 text-4xl font-bold tracking-tight text-foreground md:text-5xl">Search inside papers</h1>
-        <p className="mt-3 max-w-[54ch] text-lg leading-relaxed text-muted-foreground">Find every past paper question on a topic, then jump straight to the page.</p>
+        <p className="mt-3 max-w-[54ch] text-lg leading-relaxed text-muted-foreground">Remember a question about coffee prices or a bakery&apos;s cash flow? Type a few words. I&apos;ll find the page.</p>
         <div className="mt-8">
           <SearchInside syllabi={syllabi} suggestions={SUGGESTIONS} />
         </div>

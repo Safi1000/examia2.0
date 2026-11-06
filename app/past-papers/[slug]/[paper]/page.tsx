@@ -23,6 +23,7 @@ import {
 } from "@/lib/past-papers";
 import { absolute, breadcrumbLd } from "@/lib/seo";
 import paperText from "@/lib/past-paper-text.json";
+import { topicsInPaper } from "@/lib/topical";
 
 export const dynamicParams = false;
 export function generateStaticParams() {
@@ -74,6 +75,7 @@ export default async function PaperPage({ params }: Props) {
   // The paper's own words, for search engines and screen readers. Skipped when
   // the PDF's text lost its spaces (some older papers), as it would read badly.
   const textPages = ((paperText as unknown as Record<string, Array<[string, string]>>)[f.qp.name] ?? []).filter(([, t]) => (t.match(/ /g)?.length ?? 0) > t.length / 9);
+  const inPaper = topicsInPaper(s.code, p.key).slice(0, 10);
   const levelWord = s.level === "AS and A Level" ? "Cambridge International AS and A Level" : `Cambridge ${s.level}`;
   const topA = t?.grades.find(([g]) => g === "A");
   const about = [
@@ -172,6 +174,19 @@ export default async function PaperPage({ params }: Props) {
             About this paper
           </h2>
           <p className="mt-2 text-[16px] leading-relaxed text-muted-foreground">{about}</p>
+          {inPaper.length > 0 && (
+            <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
+              Topics in this paper:{" "}
+              {inPaper.map((t, i) => (
+                <span key={t.slug}>
+                  {i > 0 && " · "}
+                  <Link href={`/past-papers/${s.slug}/topics/${t.slug}`} className="text-foreground underline decoration-gold/40 underline-offset-4 hover:decoration-gold">
+                    {t.sub.name}
+                  </Link>
+                </span>
+              ))}
+            </p>
+          )}
         </section>
 
         {textPages.length > 0 && (

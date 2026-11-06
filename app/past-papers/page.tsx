@@ -6,7 +6,7 @@ import { Section, TrialBox } from "@/components/study/StudyBits";
 import { PastPapersNav } from "@/components/past-papers/Bits";
 import { PaperSearch } from "@/components/past-papers/PaperSearch";
 import { ContinueStrip } from "@/components/past-papers/ContinueStrip";
-import { YEAR_RANGE, PAPER_LEVELS, PAST_PAPER_SYLLABI, papersFor } from "@/lib/past-papers";
+import { YEAR_RANGE, PAPER_LEVELS, PAST_PAPER_SYLLABI, changeNote } from "@/lib/past-papers";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 
 const title = `Past Papers ${YEAR_RANGE}: O Level, IGCSE and A Level`;
@@ -23,23 +23,26 @@ export const metadata: Metadata = {
 const SUBJECTS = ["Accounting", "Economics", "Business"] as const;
 
 export default function PastPapersHub() {
-  const instant = PAST_PAPER_SYLLABI.reduce((n, s) => n + papersFor(s.code).filter((p) => p.mcq).length, 0);
   const faq = [
     {
       q: "Are these the real Cambridge papers?",
-      a: `Yes. Every question paper, mark scheme, insert, examiner report and grade threshold table here is the original Cambridge file, from ${YEAR_RANGE}.`,
+      a: `Yes. Original Cambridge files, ${YEAR_RANGE}: question papers, mark schemes, inserts, examiner reports and grade thresholds. Nothing retyped, nothing missing.`,
     },
     {
-      q: "How do I find a paper quickly?",
-      a: "Type the code printed on the front of the paper into the search box, like 2281/12/M/J/25, or just a subject and year. You can also pick your subject below and filter by paper, year and series.",
+      q: "How do I find one paper fast?",
+      a: "Type the code on its front page, like 2281/12/M/J/25. Or type it the way you'd say it: economics june 2024 paper 2. Both work.",
     },
     {
-      q: "Which papers are marked automatically?",
-      a: `All the multiple choice papers, ${instant} of them. Tap your answers on screen and you get your score, the grade it gets on that paper, and every question you got wrong with the right answer.`,
+      q: "Which papers mark themselves?",
+      a: "Every multiple choice paper. Tap your answers, press Mark it, and you get your score, your grade on that paper and every question you missed. Written papers you mark with the mark scheme. That part is on you, and it's where the learning happens.",
     },
     {
-      q: "Is it free?",
-      a: "Yes. No sign up, no ads. Your progress is saved on your own phone or laptop.",
+      q: "Is it actually free?",
+      a: "Yes. No ads, no sign up, and no premium button waiting at the end. Your progress stays on your own phone. I'd rather you spend your time on papers than on pop-ups.",
+    },
+    {
+      q: "My syllabus changed in 2027. Are these still worth doing?",
+      a: "Yes. Business moved to new codes (0450 is now 0264, 7115 is now 7081). Accounting and Economics kept their codes with refreshed content. The ideas these papers test haven't gone anywhere, and where a topic is brand new in 2027, the topical pages say so.",
     },
   ];
   return (
@@ -49,18 +52,15 @@ export default function PastPapersHub() {
       <div className="mx-auto max-w-5xl px-5 pb-20 pt-10 md:pt-16">
         <header className="mx-auto max-w-2xl text-center">
           <h1 className="text-5xl font-bold tracking-tight text-foreground md:text-7xl">Past papers</h1>
-          <p className="mx-auto mt-4 max-w-[46ch] text-lg leading-relaxed text-muted-foreground">
-            Every Cambridge paper from {YEAR_RANGE} with its mark scheme. Read, practise, see your grade.
-          </p>
-          <PaperSearch quiet className="mt-8 text-left" />
+          <PaperSearch quiet className="mt-10 text-left" />
           <PastPapersNav className="mx-auto mt-5 w-fit max-w-full" />
         </header>
 
         <ContinueStrip />
 
-        <section aria-labelledby="pick-h" className="mt-16">
-          <h2 id="pick-h" className="text-[13px] font-semibold uppercase tracking-[0.22em] text-faint">
-            Choose your syllabus
+        <section aria-labelledby="pick-h" className="mt-14">
+          <h2 id="pick-h" className="sr-only">
+            Syllabuses
           </h2>
           <div className="mt-5 overflow-hidden rounded-[24px] border border-hairline bg-card">
             <div className="hidden grid-cols-[180px_repeat(3,minmax(0,1fr))] border-b border-hairline md:grid">
@@ -86,7 +86,7 @@ export default function PastPapersHub() {
                         >
                           <span className="text-[13px] text-muted-foreground md:hidden">{sub}</span>
                           <span className="text-xl font-bold tabular-nums text-foreground group-hover:text-gold md:text-2xl">{s.code}</span>
-                          {s.next && <span className="mt-0.5 text-[13px] text-faint md:text-[14px]">and {s.next.code} from {s.next.from}</span>}
+                          {changeNote(s) && <span className="mt-0.5 text-[13px] text-faint md:text-[14px]">{changeNote(s)}</span>}
                         </Link>
                       </li>
                     );
@@ -97,34 +97,10 @@ export default function PastPapersHub() {
           </div>
         </section>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          <Link href="/past-papers/topics" className="group flex items-center justify-between gap-4 rounded-[20px] border border-gold-border bg-card-raised px-6 py-5 transition-colors hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
-            <span>
-              <span className="block text-[17px] font-semibold text-foreground">Topical</span>
-              <span className="mt-0.5 block text-[15px] text-muted-foreground">Questions sorted by topic</span>
-            </span>
-            <span aria-hidden className="text-xl text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-gold">→</span>
-          </Link>
-          <Link href="/past-papers/practice" className="group flex items-center justify-between gap-4 rounded-[20px] border border-hairline bg-card px-6 py-5 transition-colors hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
-            <span>
-              <span className="block text-[17px] font-semibold text-foreground">MCQ quiz</span>
-              <span className="mt-0.5 block text-[15px] text-muted-foreground">Real MCQs, marked as you tap</span>
-            </span>
-            <span aria-hidden className="text-xl text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-gold">→</span>
-          </Link>
-          <Link href="/past-papers/progress" className="group flex items-center justify-between gap-4 rounded-[20px] border border-hairline bg-card px-6 py-5 transition-colors hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
-            <span>
-              <span className="block text-[17px] font-semibold text-foreground">My progress</span>
-              <span className="mt-0.5 block text-[15px] text-muted-foreground">Scores, grades and your mistakes list</span>
-            </span>
-            <span aria-hidden className="text-xl text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-gold">→</span>
-          </Link>
-        </div>
-
         <TrialBox
           from="past-papers"
-          title="Past papers show you the gaps. Classes close them."
-          body="Doing papers tells you what you keep losing marks on. In my classes we fix exactly that, every week, with the mark scheme open. Start with one free lesson."
+          title="Papers find the gaps. Classes close them."
+          body="Every paper tells you where the marks go missing. In class, that's exactly what we fix. One free lesson to see if it clicks."
         />
 
         <Section title="Questions students ask">
