@@ -1230,6 +1230,72 @@ class Store {
   }
 
   /**
+   * A copy of a test to edit: every question, picture and correct answer, as a hidden draft
+   * ("<title> (copy)", opening now for a week, its own code). Saved in order (the test, then
+   * its questions, then the MCQ answers), so a copy can never end up half made.
+   */
+  async duplicateTest(testId: string): Promise<string> {
+    const src = this.state.tests.find((t) => t.id === testId);
+    if (!src) throw new Error("That test isn't here any more.");
+    const id = genId();
+    const now = Date.now();
+    const createdAt = new Date(now).toISOString();
+    const copy: Test = {
+      ...src,
+      id,
+      title: `${src.title} (copy)`,
+      status: "draft",
+      testCode: `NEW-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+      opensAt: createdAt,
+      closesAt: new Date(now + 7 * 86_400_000).toISOString(),
+      createdAt,
+      questions: [...src.questions].sort((a, b) => a.order - b.order).map((q, i) => ({ ...q, id: genId(), order: i })),
+    };
+    this.commit((d) => d.tests.push(copy));
+    if (DEMO) return id;
+    const sb = supabase();
+    const undo = () => this.commit((d) => { d.tests = d.tests.filter((t) => t.id !== id); });
+    const { error } = await sb.from("tests").insert({
+      id,
+      title: copy.title,
+      subject: copy.subject,
+      duration_minutes: copy.durationMinutes,
+      upload_minutes: copy.uploadMinutes,
+      cohort_id: copy.cohortId,
+      class_id: copy.classId,
+      subject_id: copy.subjectId,
+      opens_at: copy.opensAt,
+      closes_at: copy.closesAt,
+      test_code: copy.testCode,
+      status: copy.status,
+      created_at: createdAt,
+    });
+    if (error) {
+      undo();
+      this.report(`duplicateTest: ${error.message}`);
+      throw new Error("The copy didn't save. Try again.");
+    }
+    if (copy.questions.length) {
+      const { error: qErr } = await sb.from("questions").insert(copy.questions.map((q) => questionToRow(id, q.id, q, q.order)));
+      if (qErr) {
+        this.report(`duplicateTest/questions: ${qErr.message}`);
+        await sb.from("tests").delete().eq("id", id);
+        undo();
+        throw new Error("The copy didn't save its questions. Try again.");
+      }
+      const keys = copy.questions.flatMap((q) => (q.type === "mcq" ? [{ question_id: q.id, correct_index: q.correctIndex }] : []));
+      if (keys.length) {
+        const { error: kErr } = await sb.from("question_keys").insert(keys);
+        if (kErr) {
+          this.report(`duplicateTest/keys: ${kErr.message}`);
+          throw new Error("Copied, but the multiple-choice answers didn't save. Open the copy and set them again.");
+        }
+      }
+    }
+    return id;
+  }
+
+  /**
    * File the "test created" notifications, once. Called only when a test is
    * genuinely live (created non-draft, or a draft published), and guarded so
    * that saving repeatedly — or unpublishing and republishing — cannot file it

@@ -377,6 +377,10 @@ export default function TestEditorPage() {
           setQModalOpen(false);
           toast(editingQ ? "Question updated." : "Question added.", "success");
         }}
+        onAddNext={(draft) => {
+          store.addQuestion(id, stripDraft(draft));
+          toast("Added. Next question.", "success");
+        }}
       />
 
       <ImportBankModal

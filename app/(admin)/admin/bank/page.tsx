@@ -126,6 +126,10 @@ export default function QuestionBankPage() {
           setModalOpen(false);
           toast(editing ? "Question updated." : "Question added to bank.", "success");
         }}
+        onAddNext={(draft) => {
+          store.addBankItem(draft as Omit<QuestionBankItem, "id">);
+          toast("Added to the bank. Next question.", "success");
+        }}
       />
 
       <Modal

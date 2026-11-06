@@ -23,12 +23,15 @@ export function QuestionModal({
   onSave,
   initial,
   withSubject,
+  onAddNext,
 }: {
   open: boolean;
   onClose: () => void;
   onSave: (draft: QuestionDraft) => void;
   initial?: QuestionDraft | null;
   withSubject?: boolean;
+  /** Adding: save this one and stay open for the next (type, topic and marks kept). */
+  onAddNext?: (draft: QuestionDraft) => void;
 }) {
   // State is seeded from `initial` at mount rather than synced in an effect.
   // Callers pass a `key` that changes per open/target, so opening the modal (or
@@ -75,10 +78,9 @@ export function QuestionModal({
 
   function validate(): boolean {
     const e: Record<string, string> = {};
-    // A photo question is usually just "answer the attached paper", so neither
-    // the prompt nor the topic tag is worth typing out.
+    // A photo question is usually just "answer the attached paper", so the prompt isn't worth
+    // typing out. The topic tag is always optional (it only groups results by topic).
     if (type !== "photo" && !prompt.trim()) e.prompt = "A question prompt is required.";
-    if (type !== "photo" && !topic.trim()) e.topic = "Add a topic tag.";
     if (withSubject && !subject.trim()) e.subject = "Choose a subject.";
     if (marks < 1) e.marks = "Marks must be at least 1.";
     if (type === "mcq" && options.some((o) => !o.trim())) e.options = "Fill in all four options.";
@@ -86,9 +88,9 @@ export function QuestionModal({
     return Object.keys(e).length === 0;
   }
 
-  function handleSave() {
-    if (!validate()) return;
-    const common = { prompt: prompt.trim(), topic: topic.trim(), marks, attachments, ...(withSubject ? { subject: subject.trim() } : {}) };
+  function build(): QuestionDraft {
+    // No topic given: filed under "General", so results still group neatly.
+    const common = { prompt: prompt.trim(), topic: topic.trim() || "General", marks, attachments, ...(withSubject ? { subject: subject.trim() } : {}) };
     let draft: QuestionDraft;
     if (type === "mcq") {
       draft = { ...common, type: "mcq", options: options.map((o) => o.trim()), correctIndex } as QuestionDraft;
@@ -97,7 +99,40 @@ export function QuestionModal({
     } else {
       draft = { ...common, type: "photo" } as QuestionDraft;
     }
-    onSave(draft);
+    return draft;
+  }
+  function handleSave() {
+    if (!validate()) return;
+    onSave(build());
+  }
+  // Save and clear for the next question: same type, topic and marks, cursor back in the question.
+  const formRef = useRef<HTMLDivElement>(null);
+  function handleNext() {
+    if (!onAddNext || !validate()) return;
+    onAddNext(build());
+    setPrompt("");
+    setOptions(["", "", "", ""]);
+    setCorrectIndex(0);
+    setAttachments([]);
+    setErrors({});
+    requestAnimationFrame(() => formRef.current?.querySelector("textarea")?.focus());
+  }
+  const adding = !initial && !!onAddNext;
+
+  // A whole multiple-choice question pasted at once ("Question… A) … B) … C) … D) …"):
+  // the options go into their own boxes.
+  function onPastePrompt(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    if (type !== "mcq") return;
+    const text = e.clipboardData.getData("text");
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const opt = /^\(?([A-Da-d])[).:\]]\s*(.+)$/;
+    const first = lines.findIndex((l) => opt.test(l));
+    const found = lines.filter((l) => opt.test(l)).map((l) => l.replace(opt, "$2").trim());
+    if (first < 1 || found.length < 2) return;
+    e.preventDefault();
+    setPrompt(lines.slice(0, first).join("\n"));
+    setOptions([...found, "", "", ""].slice(0, 4));
+    toast("Options filled in. Tap the circle next to the right answer.", "success");
   }
 
   return (
@@ -109,11 +144,27 @@ export function QuestionModal({
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave}>{initial ? "Save changes" : "Add question"}</Button>
+          {adding && (
+            <Button variant="secondary" onClick={handleNext} title="Ctrl+Enter">
+              Add &amp; next
+            </Button>
+          )}
+          <Button onClick={handleSave}>{initial ? "Save changes" : adding ? "Add & close" : "Add question"}</Button>
         </>
       }
     >
-      <div className="space-y-4">
+      <div
+        ref={formRef}
+        className="space-y-4"
+        onKeyDown={(e) => {
+          // Ctrl+Enter (Cmd+Enter on a Mac): add and go to the next question (or save, when editing).
+          if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            if (adding) handleNext();
+            else handleSave();
+          }
+        }}
+      >
         <div>
           <Label>Question type</Label>
           <div className="grid grid-cols-3 gap-2">
@@ -142,7 +193,14 @@ export function QuestionModal({
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           error={errors.prompt}
-          placeholder={type === "photo" ? "Leave blank if the attached paper says it all" : "What are you asking?"}
+          onPaste={onPastePrompt}
+          placeholder={
+            type === "photo"
+              ? "Leave blank if the attached paper says it all"
+              : type === "mcq"
+                ? "What are you asking? Tip: paste the question with its A) B) C) D) options and they fill in by themselves"
+                : "What are you asking?"
+          }
           required={type !== "photo"}
         />
 
@@ -182,12 +240,11 @@ export function QuestionModal({
 
         <div className="grid grid-cols-2 gap-3">
           <Input
-            label={type === "photo" ? "Topic tag (optional)" : "Topic tag"}
+            label="Topic tag (optional)"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             error={errors.topic}
             placeholder="e.g. Algebra"
-            required={type !== "photo"}
           />
           <Input label="Marks" type="number" min={1} value={marks} onChange={(e) => setMarks(Number(e.target.value))} error={errors.marks} required />
         </div>
@@ -220,6 +277,13 @@ export function QuestionModal({
                   <input
                     value={opt}
                     onChange={(e) => setOptions((prev) => prev.map((o, j) => (j === i ? e.target.value : o)))}
+                    onKeyDown={(e) => {
+                      // Enter goes to the next option.
+                      if (e.key === "Enter" && !e.ctrlKey && !e.metaKey) {
+                        e.preventDefault();
+                        (e.currentTarget.closest(".space-y-2")?.querySelectorAll("input")[i + 1] as HTMLInputElement | undefined)?.focus();
+                      }
+                    }}
                     placeholder={`Option ${i + 1}`}
                     className="w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-3"
                     aria-label={`Option ${i + 1}`}

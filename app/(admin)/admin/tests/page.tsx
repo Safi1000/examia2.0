@@ -60,6 +60,19 @@ export default function AdminTestsPage() {
       );
   }, [db.tests, cohortId, subjectFilter, statuses, view, archived]);
 
+  // Duplicate: a copy of the test (questions and answers) as a hidden draft, opened to edit.
+  const [copying, setCopying] = useState<string | null>(null);
+  async function duplicate(id: string) {
+    setCopying(id);
+    try {
+      const copy = await store.duplicateTest(id);
+      router.push(`/admin/tests/${copy}`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "The copy didn't save. Try again.", "error");
+      setCopying(null);
+    }
+  }
+
   function createTest() {
     const now = Date.now();
     const code = `NEW-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
@@ -195,6 +208,16 @@ export default function AdminTestsPage() {
                     <Link href={`/admin/tests/${t.id}`} className={buttonClasses({ variant: "secondary", size: "sm" })}>
                       <Icon.Edit className="h-4 w-4" /> Edit
                     </Link>
+                    <button
+                      onClick={() => void duplicate(t.id)}
+                      disabled={copying !== null}
+                      className="flex h-10 items-center gap-1.5 rounded-md px-2.5 text-sm font-semibold text-ink-2 hover:bg-surface-2 hover:text-ink disabled:opacity-50"
+                      aria-label={`Duplicate ${t.title}`}
+                      title="Make a copy to edit: same questions and answers, as a hidden draft"
+                    >
+                      <Icon.Layers className="h-[18px] w-[18px]" />
+                      <span className="hidden sm:inline">{copying === t.id ? "Copying…" : "Duplicate"}</span>
+                    </button>
                     <button
                       onClick={() => setDeleteId(t.id)}
                       className="flex h-10 w-10 items-center justify-center rounded-md text-ink-3 hover:bg-error-soft hover:text-error"
