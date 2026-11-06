@@ -481,6 +481,13 @@ textarea:-webkit-autofill:focus {
     transform: translateY(14px);
   }
 }
+/* Already seen this visit: no cover, hero shows at once. */
+.intro-seen .intro-splash {
+  display: none;
+}
+.intro-seen .intro-rise {
+  animation: none;
+}
 /* Reduced motion keeps the write-in (a reveal, no movement) and drops the lift and rise. */
 @media (prefers-reduced-motion: reduce) {
   .intro-splash__mark {

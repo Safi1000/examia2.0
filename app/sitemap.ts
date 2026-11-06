@@ -6,6 +6,7 @@ import { GULF_CITY_PAGES } from "@/lib/gulf-pages";
 import { PAPERS, liveSyllabuses, paperSlug } from "@/lib/mcq-papers";
 import { PUBLIC_ROUTES, absolute } from "@/lib/seo";
 import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
+import { PAST_PAPER_SYLLABI } from "@/lib/past-papers";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const articles = await allArticles();
@@ -21,6 +22,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly" as const,
       priority: 0.6,
     })),
+    ...PAST_PAPER_SYLLABI.map((p) => ({ url: absolute(`/past-papers/${p.slug}`), changeFrequency: "monthly" as const, priority: 0.8 })),
     ...SYLLABI.map((s) => ({ url: absolute(`/syllabus/${s.slug}`), changeFrequency: "monthly" as const, priority: 0.7 })),
     ...[...CITY_PAGES, ...GULF_CITY_PAGES].map((c) => ({
       url: absolute(`/online-classes/${c.slug}`),

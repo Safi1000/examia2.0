@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LandingPage } from "@/components/landing/LandingPage";
+import { INTRO_SEEN_SCRIPT } from "@/components/landing/IntroLogo";
 import { COMPANY_NAME } from "@/lib/config";
 import { JsonLd } from "@/components/JsonLd";
 import { FAQS } from "@/lib/landing";
@@ -30,6 +31,7 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <>
+      <script dangerouslySetInnerHTML={{ __html: INTRO_SEEN_SCRIPT }} />
       <JsonLd data={organizationLd()} />
       <JsonLd data={personLd()} />
       <JsonLd data={websiteLd()} />

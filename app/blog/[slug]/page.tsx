@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PAST_PAPER_SYLLABI } from "@/lib/past-papers";
 import { JsonLd } from "@/components/JsonLd";
 import { ArticleCta } from "@/components/blog/ArticleCta";
 import { MarketingShell } from "@/components/landing/MarketingShell";
@@ -47,6 +48,23 @@ export default async function ArticlePage({ params }: Props) {
   const ctaProps = { slug, topic, subject: a.subject, level: a.level };
 
   const related = (await allArticles()).filter((o) => o.slug !== slug && o.subject === a.subject).slice(0, 2);
+  // Free resources for this article: its calculator (by topic) and past papers for its codes.
+  const toolFor: Array<[RegExp, string, string]> = [
+    [/depreciation/, "/tools/depreciation-calculator", "Depreciation calculator"],
+    [/investment-appraisal/, "/tools/investment-appraisal-calculator", "Investment appraisal calculator"],
+    [/elasticity/, "/tools/elasticity-calculator", "Elasticity calculator"],
+    [/break-even/, "/tools/break-even-calculator", "Break-even calculator"],
+    [/accounting-formats|trial-balance|ratio/, "/tools/ratio-calculator", "Accounting ratio calculator"],
+    [/grade-thresholds|a-star|marks/, "/tools/grade-predictor", "Grade predictor"],
+  ];
+  const resources = [
+    ...toolFor.filter(([re]) => re.test(slug)).map(([, href, label]) => ({ href, label })),
+    ...PAST_PAPER_SYLLABI.filter((p) => a.code.includes(p.code) || (p.next && a.code.includes(p.next.code))).map((p) => ({
+      href: `/past-papers/${p.slug}`,
+      label: `${p.name} past papers`,
+    })),
+    { href: "/tools/exam-countdown", label: "Exam countdown" },
+  ].slice(0, 4);
 
   return (
     <MarketingShell>
@@ -98,6 +116,19 @@ export default async function ArticlePage({ params }: Props) {
           </div>
 
           <ArticleCta variant="end" {...ctaProps} />
+
+          <nav aria-label="Free for this topic" className="mt-12">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-faint">Free for this topic</p>
+            <ul className="mt-4 flex flex-wrap gap-2">
+              {resources.map((r) => (
+                <li key={r.href}>
+                  <Link href={r.href} className="inline-flex min-h-11 items-center rounded-full border border-hairline px-4 text-[15px] font-semibold text-foreground hover:border-gold-border hover:text-gold">
+                    {r.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
 
           {related.length > 0 && (
             <nav aria-label="More from The Exam Room" className="mt-16">
