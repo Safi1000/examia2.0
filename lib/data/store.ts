@@ -54,6 +54,7 @@ import { createSeed, type Database } from "@/lib/data/seed";
 import { DEMO } from "@/lib/demo";
 import { supabase } from "@/lib/supabase";
 import { cleanLevels, type LevelSubjects } from "@/lib/levels";
+import { clearSnapshot, writeSnapshot, type Snapshot } from "@/lib/data/snapshot";
 
 /**
  * How long a realtime channel is held open after its last subscriber leaves.
@@ -419,6 +420,34 @@ class Store {
     mutator(next);
     this.state = next;
     this.notify();
+    this.saveSoon();
+  }
+
+  // ---- On-device copy (lib/data/snapshot.ts) ---------------------------
+  private owner: { userId: string; session: Snapshot["session"] } | null = null;
+  private saveTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Whose portal this is, so the saved copy is only ever shown to them. */
+  setOwner(userId: string, session: Snapshot["session"]) {
+    this.owner = { userId, session };
+    this.saveSoon(1000);
+  }
+  /** Show the last saved copy straight away; the real load replaces it. */
+  restore(snap: Snapshot) {
+    this.state = snap.db;
+    this.ready = true;
+    this.restored = true;
+    this.notify();
+  }
+  /** True while the screen shows the saved copy and fresh data hasn't arrived. */
+  restored = false;
+  private saveSoon(ms = 5000) {
+    if (DEMO || !this.owner || !this.ready) return;
+    if (this.saveTimer) clearTimeout(this.saveTimer);
+    this.saveTimer = setTimeout(() => {
+      this.saveTimer = null;
+      if (!this.owner) return;
+      void writeSnapshot({ userId: this.owner.userId, session: this.owner.session, db: this.state });
+    }, ms);
   }
   /** Fire-and-forget a Supabase write; surface failures through the reporter. */
   private run(p: PromiseLike<{ error: { message: string } | null }>, label: string) {
@@ -698,12 +727,20 @@ class Store {
       noteAssignments: keep(nAssigns, () => ((nAssigns.data as Row[]) ?? []).map(mapNoteAssignment), prev.noteAssignments),
     };
     this.ready = true;
+    this.restored = false;
     this.notify();
+    this.saveSoon(1500);
   }
 
   reset() {
     this.state = EMPTY;
     this.ready = false;
+    this.restored = false;
+    this.owner = null;
+    if (this.saveTimer) clearTimeout(this.saveTimer);
+    this.saveTimer = null;
+    // A shared phone must not keep the last student's portal.
+    if (!DEMO) void clearSnapshot();
     // Signing out must not leave a live socket streaming the previous user's
     // rows into the next session's cache.
     this.closeChannels();
@@ -1889,11 +1926,11 @@ class Store {
   }
 
   // ---- Announcements ---------------------------------------------------
-  async addAnnouncement(input: Omit<Announcement, "id" | "createdAt" | "dismissedBy">) {
+  async addAnnouncement(input: Omit<Announcement, "id" | "createdAt" | "dismissedBy">, toPhones = false): Promise<number | null> {
     const id = genId();
     const createdAt = new Date().toISOString();
     this.commit((d) => d.announcements.unshift({ ...input, id, createdAt, dismissedBy: [] }));
-    if (DEMO) return;
+    if (DEMO) return toPhones ? 0 : null;
     // Students are told only once it's really saved; if it fails, it comes off the screen again.
     const { error } = await supabase().from("announcements").insert({
       id,
@@ -1919,6 +1956,20 @@ class Store {
       link: "/dashboard",
       audience: "student",
     });
+    if (!toPhones) return null;
+    try {
+      const { data } = await supabase().auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return null;
+      const res = await fetch("/api/notify/announcement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id, cohortId: input.cohortId, text: input.body }),
+      });
+      return ((await res.json()) as { sent?: number }).sent ?? 0;
+    } catch {
+      return null;
+    }
   }
   updateAnnouncement(id: string, patch: Partial<Pick<Announcement, "body" | "pinned" | "cohortId">>) {
     this.commit((d) => {
@@ -2136,7 +2187,11 @@ class Store {
       (s) => s.assignmentId === assignmentId && s.studentId === studentId,
     );
     const id = existing?.id ?? genId();
-    const submittedAt = new Date().toISOString();
+    // Adding or removing a page after an on-time hand-in keeps the on-time
+    // time, so the homework doesn't flip to "Handed in late".
+    const due = this.state.assignments.find((a) => a.id === assignmentId)?.dueAt;
+    const keepTime = existing && due && +new Date(existing.submittedAt) <= +new Date(due);
+    const submittedAt = keepTime ? existing.submittedAt : new Date().toISOString();
     this.commit((d) => {
       const idx = d.assignmentSubmissions.findIndex((s) => s.id === id);
       const row = { ...(existing ?? { id, assignmentId, studentId }), fileUrls, submittedAt } as AssignmentSubmission;
@@ -2408,8 +2463,64 @@ class Store {
           // the next refresh. Pull the referenced row in; refresh() coalesces,
           // so a burst of submissions costs one round trip.
           if (added && this.referencesUncachedRow(row)) this.softRefresh();
+          // A released or reviewed paper already sits in the cache as
+          // "pending": re-read just that one so the result shows at once.
+          else if (added && (row.type === "result_released" || row.type === "submission_reviewed") && row.submission_id) {
+            void this.refreshSubmission(row.submission_id as string);
+          }
         },
       );
+    });
+  }
+
+  /**
+   * A published note re-reads just the notes and who can see them, not the
+   * whole portal (a class of phones used to reload everything at once).
+   */
+  private notesTimer: ReturnType<typeof setTimeout> | null = null;
+  private refreshNotesSoon() {
+    if (this.notesTimer || DEMO) return;
+    const spread = this.audience === "student" ? Math.random() * 10_000 : 0;
+    this.notesTimer = setTimeout(async () => {
+      this.notesTimer = null;
+      const sb = supabase();
+      const [nts, na] = await Promise.all([
+        sb.from("notes").select("*").order("created_at", { ascending: false }),
+        sb.from("note_assignments").select("*"),
+      ]);
+      if (nts.error || na.error) return this.softRefresh();
+      this.commit((d) => {
+        d.notes = ((nts.data as Row[]) ?? []).map(mapNote);
+        d.noteAssignments = ((na.data as Row[]) ?? []).map(mapNoteAssignment);
+      });
+    }, 1500 + spread);
+  }
+
+  /** Re-read one paper (with its answers) and swap it into the cache. */
+  async refreshSubmission(id: string): Promise<void> {
+    if (DEMO) return;
+    const { data, error } = await supabase().from("submissions").select("*, answers(*)").eq("id", id).maybeSingle();
+    if (error || !data) return;
+    const fresh = mapSubmission(data as Row);
+    // A student learns the right MCQ options only from their released answers.
+    const correct = new Map<string, number>();
+    if ((data as Row).status === "released") {
+      for (const a of ((data as Row).answers as Row[]) ?? []) {
+        if (a.type === "mcq" && a.correct_index != null) correct.set(a.question_id as string, a.correct_index as number);
+      }
+    }
+    this.commit((d) => {
+      const i = d.submissions.findIndex((x) => x.id === id);
+      if (i >= 0) d.submissions[i] = fresh;
+      else d.submissions.push(fresh);
+      if (!correct.size) return;
+      for (const t of d.tests) {
+        if (t.id !== fresh.testId) continue;
+        for (const q of t.questions) {
+          const c = correct.get(q.id);
+          if (q.type === "mcq" && c != null) q.correctIndex = c;
+        }
+      }
     });
   }
 
@@ -2436,7 +2547,7 @@ class Store {
    */
   subscribeToNotes(): () => void {
     return this.shareChannel("notes-feed", (channel) => {
-      const reload = () => this.softRefresh();
+      const reload = () => this.refreshNotesSoon();
       channel.on("postgres_changes", { event: "*", schema: "public", table: "notes" }, reload);
       channel.on("postgres_changes", { event: "*", schema: "public", table: "note_assignments" }, reload);
     });

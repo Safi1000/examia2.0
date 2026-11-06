@@ -21,7 +21,7 @@ const GROUPS = [
       { href: "/admin/whiteboard", label: "Whiteboard", Icon: NavIcon.Board },
       { href: "/admin/tests", label: "Tests", Icon: NavIcon.Tests },
       { href: "/admin/submissions", label: "Submissions", Icon: NavIcon.Inbox },
-      { href: "/admin/assignments", label: "Assignments", Icon: NavIcon.Assignments },
+      { href: "/admin/assignments", label: "Homework", Icon: NavIcon.Assignments },
     ],
   },
   {

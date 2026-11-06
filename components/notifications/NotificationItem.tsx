@@ -58,7 +58,7 @@ const STATUS_TONE: Record<TestNotificationStatus, "info" | "success" | "warning"
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[10px] font-bold uppercase tracking-wider text-ink-3">{label}</dt>
+      <dt className="text-[11px] font-bold uppercase tracking-wider text-ink-3">{label}</dt>
       <dd className="mt-1 truncate text-sm font-semibold text-ink">{value}</dd>
     </div>
   );
@@ -69,7 +69,7 @@ function WhenField({ label, iso }: { label: string; iso: string }) {
   const d = new Date(iso);
   return (
     <div className="min-w-0">
-      <dt className="text-[10px] font-bold uppercase tracking-wider text-ink-3">{label}</dt>
+      <dt className="text-[11px] font-bold uppercase tracking-wider text-ink-3">{label}</dt>
       <dd className="mt-1">
         <span className="block truncate text-sm font-semibold text-ink">
           {d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
@@ -123,7 +123,7 @@ function TestDetails({ testId, updatedAt }: { testId: string; updatedAt?: string
         <Field label="Duration" value={formatTestDuration(test.durationMinutes)} />
         {countdown ? (
           <div className="min-w-0">
-            <dt className="text-[10px] font-bold uppercase tracking-wider text-ink-3">
+            <dt className="text-[11px] font-bold uppercase tracking-wider text-ink-3">
               {countdown.label}
             </dt>
             <dd
@@ -343,9 +343,9 @@ export function NotificationItem({
           aria-label={`Delete notification: ${activity.title}`}
           title="Delete notification"
           className={cn(
-            "mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-3",
+            "mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-ink-3",
             "hover:bg-error-soft hover:text-error focus-visible:outline-2 focus-visible:outline-offset-2",
-            full ? "mt-3.5" : "mt-2.5",
+            full ? "mt-2" : "mt-1",
             // Always visible on touch, where there is no hover to reveal it.
             "sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100",
           )}

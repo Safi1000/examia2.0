@@ -22,18 +22,28 @@ export default function AnnouncementsPage() {
   const [editing, setEditing] = useState<Announcement | "new" | null>(null);
   const [body, setBody] = useState("");
   const [pinned, setPinned] = useState(false);
+  const [toPhones, setToPhones] = useState(false);
   const [cohortId, setCohortId] = useState("");
   const [deleting, setDeleting] = useState<Announcement | null>(null);
 
-  function openNew() { setEditing("new"); setBody(""); setPinned(false); setCohortId(viewing ?? ""); }
+  function openNew() { setEditing("new"); setBody(""); setPinned(false); setToPhones(false); setCohortId(viewing ?? ""); }
   function openEdit(a: Announcement) { setEditing(a); setBody(a.body); setPinned(a.pinned); setCohortId(a.cohortId ?? ""); }
   async function save() {
     const text = body.trim().slice(0, MAX);
     if (!text) return;
     if (editing === "new") {
       try {
-        await store.addAnnouncement({ body: text, pinned, cohortId: cohortId || null });
-        toast("Announcement posted.", "success");
+        const sent = await store.addAnnouncement({ body: text, pinned, cohortId: cohortId || null }, toPhones);
+        toast(
+          !toPhones
+            ? "Announcement posted."
+            : sent === null
+              ? "Posted. The phone notification couldn't go out; it still shows in the portal."
+              : sent === 0
+                ? "Posted. No phones to notify right now (quiet hours, or no one has notifications on)."
+                : `Posted and sent to ${sent} ${sent === 1 ? "student" : "students"}.`,
+          "success",
+        );
       } catch (e) {
         toast(e instanceof Error ? e.message : "Couldn't post the announcement. Try again.", "error");
         return;
@@ -114,6 +124,7 @@ export default function AnnouncementsPage() {
             {db.cohorts.filter((c) => c.active || c.id === cohortId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
           <Checkbox checked={pinned} onChange={setPinned} label="Pin to the top (always visible, not dismissible)" />
+          {editing === "new" && <Checkbox checked={toPhones} onChange={setToPhones} label="Also send to their phones (for something important)" />}
         </div>
       </Modal>
 

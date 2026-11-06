@@ -164,7 +164,7 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
               aria-checked={profile.notifyClasses !== false}
               aria-label="Classes notifications"
               onClick={() => updateProfile({ notifyClasses: profile.notifyClasses === false })}
-              className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${profile.notifyClasses !== false ? "bg-brand" : "bg-surface-2 ring-1 ring-inset ring-border-strong"}`}
+              className={`relative h-7 w-12 shrink-0 rounded-full transition-colors before:absolute before:-inset-x-1 before:-inset-y-2.5 before:content-[""] ${profile.notifyClasses !== false ? "bg-brand" : "bg-surface-2 ring-1 ring-inset ring-border-strong"}`}
             >
               <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${profile.notifyClasses !== false ? "left-6" : "left-1"}`} />
             </button>
@@ -187,7 +187,7 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
                 aria-checked={profile[key] !== false}
                 aria-label={`${label} notifications`}
                 onClick={() => updateProfile({ [key]: profile[key] === false })}
-                className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${profile[key] !== false ? "bg-brand" : "bg-surface-2 ring-1 ring-inset ring-border-strong"}`}
+                className={`relative h-7 w-12 shrink-0 rounded-full transition-colors before:absolute before:-inset-x-1 before:-inset-y-2.5 before:content-[""] ${profile[key] !== false ? "bg-brand" : "bg-surface-2 ring-1 ring-inset ring-border-strong"}`}
               >
                 <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${profile[key] !== false ? "left-6" : "left-1"}`} />
               </button>
@@ -205,7 +205,7 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
                 aria-checked={prefs[k.key]}
                 aria-label={`${k.label} notifications`}
                 onClick={() => void setPref(k.key, !prefs[k.key])}
-                className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${prefs[k.key] ? "bg-brand" : "bg-surface-2 ring-1 ring-inset ring-border-strong"}`}
+                className={`relative h-7 w-12 shrink-0 rounded-full transition-colors before:absolute before:-inset-x-1 before:-inset-y-2.5 before:content-[""] ${prefs[k.key] ? "bg-brand" : "bg-surface-2 ring-1 ring-inset ring-border-strong"}`}
               >
                 <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${prefs[k.key] ? "left-6" : "left-1"}`} />
               </button>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Splash } from "@/components/Splash";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useLockout } from "@/hooks/useLockout";
@@ -68,7 +69,7 @@ export default function StudentLoginPage() {
 
   // Checking for an earlier sign-in, or on the way in: no form to flash.
   if ((initializing && !busy) || session) {
-    return <div className="flex min-h-dvh items-center justify-center text-sm text-ink-3">Opening your portal…</div>;
+    return <Splash label="Opening your portal…" />;
   }
 
   return (

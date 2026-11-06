@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { User } from "@supabase/supabase-js";
 import type { Role, Session } from "@/types";
 import { supabase } from "@/lib/supabase";
+import { readSnapshot } from "@/lib/data/snapshot";
 import { getStore } from "@/lib/data/store";
 import { studentEmail } from "@/lib/config";
 import { DEMO, DEMO_STUDENT_ID, demoRole, setDemoRole, type DemoRole } from "@/lib/demo";
@@ -74,12 +75,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     currentUserId.current = user.id;
     setFailedUser(null);
     setInitializing(true);
-    try {
-      // Role is known from the sign-in itself; load the portal while the
-      // student record is looked up, instead of one after the other.
-      getStore().setAudience((user.app_metadata as Record<string, unknown>)?.role === "admin" ? "admin" : "student");
-      const [next] = await Promise.all([resolveSession(user), getStore().load()]);
-      setSession(next);
+    const store = getStore();
+    // Role is known from the sign-in itself; load the portal while the
+    // student record is looked up, instead of one after the other.
+    store.setAudience((user.app_metadata as Record<string, unknown>)?.role === "admin" ? "admin" : "student");
+    const applyPrefs = (next: Session) => {
       // Server-stored preference is the source of truth; fall back to this
       // device's last choice, then default. Sync the local cache either way.
       setProfile(((user.user_metadata as Record<string, unknown>)?.profile as Profile) ?? {});
@@ -87,8 +87,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const tid = serverTheme || loadThemeId(themeUserKey(next)) || DEFAULT_THEME_ID;
       setThemeId(tid);
       saveThemeId(themeUserKey(next), tid);
+    };
+    // Open instantly from the copy saved on this device last time, then
+    // swap in fresh data when it arrives (lib/data/snapshot.ts).
+    const snap = await readSnapshot(user.id).catch(() => null);
+    if (snap && currentUserId.current === user.id) {
+      store.restore(snap);
+      setSession(snap.session as Session);
+      applyPrefs(snap.session as Session);
+      setInitializing(false);
+    }
+    try {
+      const [next] = await Promise.all([resolveSession(user), store.load()]);
+      if (currentUserId.current !== user.id) return false; // signed out meanwhile
+      setSession((cur) => (cur && cur.role === next.role && cur.studentId === next.studentId ? cur : next));
+      if (!snap) applyPrefs(next);
+      store.setOwner(user.id, { role: next.role, studentId: next.studentId });
     } catch (e) {
       console.error("auth establish failed", e);
+      // Already showing the saved copy: stay on it quietly and catch up later.
+      if (snap) {
+        store.softRefresh(15_000);
+        return true;
+      }
       currentUserId.current = null; // so trying again actually retries
       setFailedUser(user);
       return false;

@@ -34,6 +34,7 @@ import {
   isPenEraser,
   lineAngle,
   measureText,
+  TEXT_LINE,
   wrapText,
   newId,
   TEXT_PX,
@@ -213,6 +214,10 @@ function packOnce(s: Stroke): Stroke {
   }
   return p;
 }
+
+/** On the laptop: a small dot in the ink's colour as the cursor, instead of a crosshair. */
+const penCursor = (ink: string) =>
+  `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16'><circle cx='8' cy='8' r='4' fill='${ink}' stroke='white' stroke-width='1.5'/></svg>`)}") 8 8, crosshair`;
 
 /** The stroke being drawn, with the predicted points on the end (pen ink only). */
 function withPrediction(s: Stroke | null, ahead: Pt[]): Stroke | null {
@@ -426,6 +431,7 @@ const I = {
   prev: svg(<path d="M14.5 6l-6 6 6 6" />),
   next: svg(<path d="M9.5 6l6 6-6 6" />),
   plus: svg(<path d="M12 5.5v13M5.5 12h13" />),
+  down: svg(<path d="M6.5 6.5L12 12l5.5-5.5M6.5 12.5L12 18l5.5-5.5" />),
   link: svg(
     <>
       <path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1" />
@@ -471,6 +477,30 @@ function ToolButton({ active, label, onClick, disabled, children }: { active?: b
 const Divider = ({ across = false }: { across?: boolean }) => (
   <span className={across ? "my-1 h-px w-6 shrink-0 bg-black/[0.08]" : "mx-1 h-6 w-px shrink-0 bg-black/[0.08]"} aria-hidden />
 );
+
+/** The text colour choices in the style bar (the same three inks as the pen). */
+function TextColors({ value, big, onPick }: { value: string; big: boolean; onPick: (c: string) => void }) {
+  return (
+    <>
+      {COLORS.map((c) => (
+        <button
+          key={c.value}
+          type="button"
+          title={`${c.name} text`}
+          aria-label={`${c.name} text`}
+          aria-pressed={value === c.value}
+          onClick={() => onPick(c.value)}
+          className={`flex items-center justify-center ${big ? "h-10 w-9" : "h-8 w-7"}`}
+        >
+          <span
+            className={`block rounded-full transition-all ${value === c.value ? "h-[18px] w-[18px] ring-2 ring-[#1A1D20]/70 ring-offset-2 ring-offset-white" : "h-4 w-4"}`}
+            style={{ background: inkOf(c.value) }}
+          />
+        </button>
+      ))}
+    </>
+  );
+}
 
 /** The look of every floating bar: white, a hairline edge, a soft shadow. */
 const PANEL = "rounded-2xl border border-black/[0.07] bg-white/92 shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_30px_-14px_rgba(16,24,40,0.25)] backdrop-blur-xl";
@@ -546,6 +576,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const predicted = useRef<Pt[]>([]);
   // Typed text or writing being dragged to a new place (drawn on top until it's let go).
   const moving = useRef<Stroke | null>(null);
+  // Laptop: where the tablet's pen is hovering (a pointer for the students to follow).
+  const pointer = useRef<{ x: number; y: number } | null>(null);
+  const pointerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pointerSent = useRef(0);
+  // Set once moreRoom exists (further down), for the message handler.
+  const moreRoomRef = useRef<() => void>(() => {});
   const undoStack = useRef<Action[]>([]);
   const redoStack = useRef<Action[]>([]);
   const link = useRef<BoardLink | null>(null);
@@ -573,9 +609,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const sidePanelRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   // Typing: where the text box sits on screen, and what is in it.
-  const [typing, setTyping] = useState<{ x: number; y: number; px: number; color: string; maxPx: number; bold?: boolean; italic?: boolean; hl?: boolean } | null>(null);
+  const [typing, setTyping] = useState<{ x: number; y: number; px: number; color: string; maxPx: number; hPx: number; wPx: number; bold?: boolean; italic?: boolean; hl?: boolean } | null>(null);
+  // The bold / italic / highlight bar above the text box (a tap on it mustn't close the box).
+  const styleBarRef = useRef<HTMLDivElement>(null);
   // `maxW`: how wide a line may run before it carries on below (to the screen's right edge).
-  const typingRef = useRef<{ id: string; wx: number; wy: number; size: number; color: string; text: string; maxW: number; bold?: boolean; italic?: boolean; hl?: boolean; editing?: Stroke } | null>(null);
+  // `boxW`: a width Hamza set by dragging the box's side (kept with the text).
+  const typingRef = useRef<{ id: string; wx: number; wy: number; size: number; color: string; text: string; maxW: number; boxW?: number; bold?: boolean; italic?: boolean; hl?: boolean; editing?: Stroke } | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   // What the other device is drawing or typing right now.
   const remoteLive = useRef<Stroke | null>(null);
@@ -610,7 +649,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       cam.current,
       images.current,
       strokes.current,
-      [withPrediction(current.current, predicted.current), remoteLive.current, moving.current],
+      [
+        withPrediction(current.current, predicted.current),
+        remoteLive.current,
+        moving.current,
+        pointer.current ? { id: "pointer", kind: "ink", color: "#F07A6A", size: 15 / cam.current.z, pts: [[pointer.current.x, pointer.current.y, 0.6]] } : null,
+      ],
       again,
       images.current.find((m) => m.id === selectedRef.current) ?? null,
     ),
@@ -665,7 +709,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     // page never makes the pen hitch.
     save.current = setTimeout(() => {
       save.current = null;
-      const go = () => void saveBoard(keyFor(pageRef.current.id), { strokes: strokes.current.map(packOnce), images: images.current.filter((m) => !m.url.startsWith("blob:")) });
+      // The page and its board as they are now; if the page changes before the quiet moment
+      // comes, this save is dropped (leaving a page already saves it).
+      const id = pageRef.current.id;
+      const board = { strokes: strokes.current.map(packOnce), images: images.current.filter((m) => !m.url.startsWith("blob:")) };
+      const go = () => {
+        if (pageRef.current.id === id) void saveBoard(keyFor(id), board);
+      };
       const idle = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
       if (idle) idle(go, { timeout: 2000 });
       else go();
@@ -794,14 +844,22 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const t = typingRef.current;
     if (!t) return;
     const c = cam.current;
-    setTyping({ x: (t.wx - c.x) * c.z, y: (t.wy - c.y) * c.z, px: t.size * c.z, color: t.color, maxPx: t.maxW * c.z, bold: t.bold, italic: t.italic, hl: t.hl });
+    // How big the words are now (they wrap), so the style bar and the handles sit just clear of them.
+    const wrapped = wrapText(t.text || " ", t.size, t.maxW, t);
+    const m = measureText(wrapped, t.size, t);
+    const wPx = Math.max(t.boxW ?? 0, m.w, t.size * 3) * c.z;
+    setTyping({ x: (t.wx - c.x) * c.z, y: (t.wy - c.y) * c.z, px: t.size * c.z, color: t.color, maxPx: t.maxW * c.z, hPx: m.h * c.z, wPx, bold: t.bold, italic: t.italic, hl: t.hl });
   }, []);
 
+  // The zoom % label updates once the view stops moving, not on every frame of a pinch or
+  // glide (each update redraws the toolbars, which made pinching stutter on the tablet).
+  const zoomLabel = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refresh = useCallback(() => {
     requestDraw();
-    setZoom(Math.round(cam.current.z * 100));
+    if (zoomLabel.current) clearTimeout(zoomLabel.current);
+    zoomLabel.current = setTimeout(() => setZoom(Math.round(cam.current.z * 100)), 150);
     shareView();
-    placeTyping();
+    if (typingRef.current) placeTyping();
   }, [requestDraw, shareView, placeTyping]);
 
   // The laptop glides to wherever the tablet is looking, at screen speed.
@@ -897,7 +955,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const ms: BoardMsg[] = [];
     const gone = beforeS.filter((x) => !nowS.has(x.id)).map((x) => x.id);
     if (gone.length) ms.push({ t: "del", ids: gone });
-    for (const x of strokes.current) if (!oldS.has(x.id)) ms.push({ t: "add", s: packStroke(x) });
+    // New strokes, and ones changed in place under the same id (moved, or text edited).
+    const was = new Map(beforeS.map((x) => [x.id, x]));
+    for (const x of strokes.current) if (!oldS.has(x.id) || was.get(x.id) !== x) ms.push({ t: "add", s: packStroke(x) });
     const nowI = new Map(images.current.map((m) => [m.id, m]));
     const goneI = beforeI.filter((m) => !nowI.has(m.id)).map((m) => m.id);
     if (goneI.length) ms.push({ t: "imgdel", ids: goneI });
@@ -990,6 +1050,21 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           return;
         case "mag":
           return; // (a laptop magnifier was tried and removed)
+        case "room":
+          if (lead) moreRoomRef.current();
+          return;
+        case "pt":
+          // The tablet's pen hovering: a soft red pointer here, gone a moment after it lifts away.
+          if (!lead) {
+            pointer.current = { x: m.x, y: m.y };
+            if (pointerTimer.current) clearTimeout(pointerTimer.current);
+            pointerTimer.current = setTimeout(() => {
+              pointer.current = null;
+              requestDraw();
+            }, 1200);
+            requestDraw();
+          }
+          return;
         case "bg":
           if (BACKDROPS.includes(m.v)) setPaper(m.v, false);
           return;
@@ -1043,10 +1118,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           } else remoteLive.current = m.s;
           if (remoteLiveTimer.current) clearTimeout(remoteLiveTimer.current);
           // A preview that stops coming (pen lifted, message lost) never stays on screen.
-          remoteLiveTimer.current = setTimeout(() => {
-            remoteLive.current = null;
-            requestDraw();
-          }, 8000);
+          // Typed words stay while the box is open (Hamza may pause to talk); writing previews
+          // that stop coming are cleared after a while.
+          if (remoteLive.current?.kind !== "text")
+            remoteLiveTimer.current = setTimeout(() => {
+              remoteLive.current = null;
+              requestDraw();
+            }, 8000);
           requestDraw();
           return;
         }
@@ -1151,7 +1229,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       ...(t.bold ? { bold: true } : {}),
       ...(t.italic ? { italic: true } : {}),
       ...(t.hl ? { hl: true } : {}),
-      pts: [[t.wx, t.wy, 0.5], [t.wx + m.w, t.wy + m.h, 0.5]],
+      ...(t.boxW ? { boxW: t.boxW } : {}),
+      raw: t.text.replace(/\s+$/, ""),
+      wrapW: t.maxW,
+      pts: [[t.wx, t.wy, 0.5], [t.wx + Math.max(m.w, t.boxW ?? 0), t.wy + m.h, 0.5]],
     };
   };
   // Bold, italic, highlight: switched on the text being typed (the whole of it), shown at once
@@ -1166,14 +1247,58 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     send({ t: "live", s: typedStroke(t) });
     textRef.current?.focus({ preventScroll: true });
   };
+  // Like Canva: drag the box's side to set how wide its lines run, or its corner to make the
+  // words bigger or smaller. The keyboard stays open throughout.
+  const resizing = useRef<{ kind: "w" | "s"; x0: number; w0: number; size0: number; box0?: number } | null>(null);
+  const onHandleDown = (kind: "w" | "s", e: React.PointerEvent<HTMLButtonElement>) => {
+    const t = typingRef.current;
+    if (!t) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    resizing.current = { kind, x0: e.clientX, w0: Math.max(1, (typing?.wPx ?? 100) / cam.current.z), size0: t.size, box0: t.boxW };
+  };
+  const onHandleMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const r = resizing.current;
+    const t = typingRef.current;
+    if (!r || !t) return;
+    const z = cam.current.z;
+    const dx = (e.clientX - r.x0) / z;
+    if (r.kind === "w") {
+      t.boxW = Math.max(t.size * 2, r.w0 + dx);
+      t.maxW = t.boxW;
+    } else {
+      const k = Math.max(0.4, Math.min(4, (r.w0 + dx) / r.w0));
+      t.size = Math.max(10 / z, r.size0 * k);
+      if (r.box0) t.maxW = t.boxW = r.box0 * k;
+    }
+    placeTyping();
+    // The event's own time (same clock as performance.now), so the other screen gets ~16 updates a second.
+    if (e.timeStamp - liveSend.current > 60) {
+      liveSend.current = e.timeStamp;
+      send({ t: "live", s: typedStroke(t) });
+    }
+  };
+  const onHandleUp = () => {
+    resizing.current = null;
+    textRef.current?.focus({ preventScroll: true });
+  };
+  const setTextColor = (c: string) => {
+    const t = typingRef.current;
+    if (!t) return;
+    t.color = c;
+    placeTyping();
+    send({ t: "live", s: typedStroke(t) });
+    textRef.current?.focus({ preventScroll: true });
+  };
   // Typing started with the T key goes back to the tool before it once the words are done.
   const toolBeforeT = useRef<Tool | null>(null);
-  const commitTyping = () => {
+  /** `nextBox`: closed because another box is opening (the T-key tool stays until typing is done). */
+  const commitTyping = (nextBox = false) => {
     const t = typingRef.current;
     if (!t) return;
     typingRef.current = null;
     setTyping(null);
-    if (toolBeforeT.current) {
+    if (toolBeforeT.current && !nextBox) {
       setTool(toolBeforeT.current);
       toolBeforeT.current = null;
     }
@@ -1189,7 +1314,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       return;
     }
     const s = typedStroke(t);
-    const sameStyle = !!t.editing && !!t.editing.bold === !!s.bold && !!t.editing.italic === !!s.italic && !!t.editing.hl === !!s.hl;
+    const sameStyle =
+      !!t.editing && !!t.editing.bold === !!s.bold && !!t.editing.italic === !!s.italic && !!t.editing.hl === !!s.hl && t.editing.size === s.size && t.editing.boxW === s.boxW;
     if (t.editing && t.editing.text === s.text && t.editing.color === s.color && sameStyle) {
       strokes.current = [...strokes.current, t.editing];
       send({ t: "add", s: packStroke(t.editing) });
@@ -1202,7 +1328,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   };
   /** Opens the text box at a spot, or on the words already there. Focus happens now, so the keyboard opens. */
   const startTyping = (sx: number, sy: number) => {
-    commitTyping();
+    commitTyping(true);
     const [wx, wy] = toWorld(cam.current, sx, sy);
     const under = [...strokes.current].reverse().find((x) => x.kind === "text" && hitStroke(x, wx, wy, 6 / cam.current.z));
     // Lines run to the right edge of the screen (less a margin), then carry on below.
@@ -1211,7 +1337,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       // Lifted off the board while it is edited, so it isn't drawn twice.
       strokes.current = strokes.current.filter((x) => x.id !== under.id);
       send({ t: "del", ids: [under.id] });
-      typingRef.current = { id: under.id, wx: under.pts[0][0], wy: under.pts[0][1], size: under.size, color: under.color, text: under.text ?? "", maxW: lineFrom(under.pts[0][0]), bold: under.bold, italic: under.italic, hl: under.hl, editing: under };
+      typingRef.current = { id: under.id, wx: under.pts[0][0], wy: under.pts[0][1], size: under.size, color: under.color, text: under.raw ?? under.text ?? "", maxW: under.boxW ?? under.wrapW ?? lineFrom(under.pts[0][0]), boxW: under.boxW, bold: under.bold, italic: under.italic, hl: under.hl, editing: under };
     } else {
       const sz = textSize();
       const ink = color === COLORS[0].value && imageAt(images.current, wx, wy) ? "#1B1E21" : color;
@@ -1226,12 +1352,15 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       el.setSelectionRange(el.value.length, el.value.length);
     }
     placeTyping();
+    // Opening words to edit: the other screen keeps showing them (not a gap until the first key).
+    if (typingRef.current.editing) send({ t: "live", s: typedStroke(typingRef.current) });
     requestDraw();
   };
   const onTypingInput = (text: string) => {
     const t = typingRef.current;
     if (!t) return;
     t.text = text;
+    placeTyping();
     const now = performance.now();
     if (now - liveSend.current > 60) {
       liveSend.current = now;
@@ -1514,6 +1643,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     if (isPen) {
       pens.current.seen = true;
       pens.current.active = true;
+      // A hand already resting on the screen must not pan the board under the pen.
+      touches.current.clear();
+      pinch.current = null;
+      tap1.current = null;
       pens.current.lastAt = Date.now();
       notePen();
     }
@@ -1569,6 +1702,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         capture(canvasRef.current, e.pointerId);
         return;
       }
+      // Keep this pointer, so its lift always comes back here (and the pen is never left "down").
+      capture(canvasRef.current, e.pointerId);
       startTyping(sx, sy);
       return;
     }
@@ -1586,8 +1721,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     }
 
     if (tool === "move") {
-      // A picture, or else any typed text or writing under the pointer.
-      if (!grabImage(e.pointerId, sx, sy, false)) grabStroke(e.pointerId, sx, sy, false);
+      // The selected picture's resize dot first, then writing (even on a picture or PDF page), then a picture.
+      const sel = images.current.find((m) => m.id === selectedRef.current);
+      const onDot = !!sel && Math.hypot((sel.x + sel.w - wx) * cam.current.z, (sel.y + sel.h - wy) * cam.current.z) <= HANDLE_PX;
+      if (onDot || !grabStroke(e.pointerId, sx, sy, false)) grabImage(e.pointerId, sx, sy, false);
       return;
     }
 
@@ -1623,11 +1760,22 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     if (e.pointerType === "pen") {
       pens.current.lastAt = Date.now();
       notePen(); // hovering counts: keeps palms locked out
+      // Hovering over the board (not writing): the laptop shows where the pen points.
+      if (lead && e.buttons === 0) {
+        const t = performance.now();
+        if (t - pointerSent.current > 50) {
+          pointerSent.current = t;
+          const [px, py] = toWorld(cam.current, sx, sy);
+          send({ t: "pt", x: Math.round(px * 10) / 10, y: Math.round(py * 10) / 10 });
+        }
+      }
       if (e.buttons === 0 && isPenEraser(e)) setEraserAt({ x: sx, y: sy });
     }
 
     // Touch pan / pinch.
     if (touches.current.has(e.pointerId)) {
+      // The pen is writing: a touch is the resting hand, never a pan.
+      if (pens.current.active) return;
       const prev = touches.current.get(e.pointerId)!;
       const now = performance.now();
       touches.current.set(e.pointerId, { x: sx, y: sy, t: now });
@@ -1861,21 +2009,24 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   };
 
   /**
-   * Like turning to fresh lines in a notebook: handwriting that reaches the bottom of the screen
-   * slides the board up (smoothly, the laptop following), so there's always room to carry on.
+   * "More room": one tap slides the board up smoothly (the laptop following), like turning to
+   * fresh lines in a notebook. Only when asked: writing at the bottom never moves the board.
    */
   const scrolling = useRef(false);
-  const makeRoomBelow = (s: Stroke) => {
-    if (!lead || s.kind !== "ink" || scrolling.current) return;
+  const moreRoom = () => {
+    // The laptop follows the tablet's view, so it asks the tablet to make the room.
+    if (!lead && partner) {
+      send({ t: "room" });
+      return;
+    }
+    if (scrolling.current) return;
     const { h } = screen.current;
-    const bottom = (strokeBox(s).y + strokeBox(s).h - cam.current.y) * cam.current.z;
-    if (bottom < h * 0.86) return;
     const from = cam.current.y;
-    const to = from + (h * 0.38) / cam.current.z;
+    const to = from + (h * 0.45) / cam.current.z;
     const t0 = performance.now();
     scrolling.current = true;
     const step = () => {
-      const k = Math.min(1, (performance.now() - t0) / 320);
+      const k = Math.min(1, (performance.now() - t0) / 340);
       const ease = 1 - Math.pow(1 - k, 3);
       cam.current = { ...cam.current, y: from + (to - from) * ease };
       refresh();
@@ -1883,6 +2034,49 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       else scrolling.current = false;
     };
     requestAnimationFrame(step);
+  };
+  useEffect(() => {
+    moreRoomRef.current = moreRoom;
+  });
+
+  /**
+   * Room by itself, only when it's clearly wanted: three or more handwritten strokes in a row end
+   * in the bottom band of the screen (lines of writing, not a long diagram line), then the pen
+   * rests for a moment and isn't hovering ready to write. Writing elsewhere resets it.
+   */
+  const bottomInk = useRef<{ times: number[]; timer: ReturnType<typeof setTimeout> | null; tries: number }>({ times: [], timer: null, tries: 0 });
+  const watchBottom = (s: Stroke) => {
+    if (!lead || s.kind !== "ink") return;
+    const b = bottomInk.current;
+    const { h } = screen.current;
+    const z = cam.current.z;
+    const box = strokeBox(s);
+    const bottomPx = (box.y + box.h - cam.current.y) * z;
+    const smallPx = box.h * z < h * 0.12;
+    if (bottomPx < h * 0.84 || !smallPx) {
+      b.times = [];
+      if (b.timer) clearTimeout(b.timer);
+      b.timer = null;
+      return;
+    }
+    const now = Date.now();
+    b.times = [...b.times.filter((t) => now - t < 25_000), now];
+    if (b.times.length < 3) return;
+    if (b.timer) clearTimeout(b.timer);
+    b.tries = 0;
+    const check = () => {
+      b.timer = null;
+      const last = b.times[b.times.length - 1] ?? 0;
+      const busy = gesture.current.mode !== null || Date.now() - pens.current.lastAt < 700 || Date.now() - last < 1500;
+      if (busy) {
+        // Still writing, or the pen hovers ready to: wait (and give up after a while).
+        if (++b.tries < 12) b.timer = setTimeout(check, 500);
+        return;
+      }
+      b.times = [];
+      moreRoom();
+    };
+    b.timer = setTimeout(check, 1500);
   };
 
   const endGesture = (e: React.PointerEvent<HTMLCanvasElement>, cancelled = false) => {
@@ -1977,7 +2171,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         commit({ type: "add", s });
         // A stroke that gets tidied (a ruled line, a T account) is sent once, as the tidy version.
         if (!recognise(s)) send({ t: "add", s: packStroke(s) });
-        makeRoomBelow(s);
+        watchBottom(s);
       } else {
         send({ t: "del", ids: [s.id] }); // the preview on the other screen goes
       }
@@ -2189,6 +2383,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         startTyping(at.x, at.y);
       }
       if (e.key === "h") setToolsHidden((v) => !v);
+      if (e.key === "PageDown") {
+        e.preventDefault();
+        moreRoom();
+      }
       if (e.key === "[") stepPage(-1);
       if (e.key === "]") stepPage(1);
       if (e.key === "n") newPage();
@@ -2240,7 +2438,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       <canvas
         ref={canvasRef}
         className="absolute inset-0 h-full w-full touch-none"
-        style={{ cursor: tool === "eraser" ? "none" : tool === "move" ? "grab" : tool === "text" ? "text" : "crosshair" }}
+        style={{ cursor: tool === "eraser" ? "none" : tool === "move" ? "grab" : tool === "text" ? "text" : penCursor(inkOf(color)) }}
         onPointerDown={onPointerDown}
         // Keeps the text box focused when the board is clicked or tapped to type.
         onMouseDown={(e) => tool === "text" && e.preventDefault()}
@@ -2276,7 +2474,11 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         autoCapitalize="sentences"
         rows={1}
         onChange={(e) => onTypingInput(e.target.value)}
-        onBlur={commitTyping}
+        onBlur={(e) => {
+          // Tapping the style bar: keep typing (and the keyboard) open.
+          if (e.relatedTarget && (e.relatedTarget as HTMLElement).closest?.("[data-typing-ui]")) return;
+          commitTyping();
+        }}
         onKeyDown={(e) => {
           if ((e.key === "Enter" && !e.shiftKey) || e.key === "Escape") {
             e.preventDefault();
@@ -2316,8 +2518,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       {/* While typing: bold, italic, highlight, just above the words (taps keep the keyboard open). */}
       {typing && (
         <div
-          className={`${PANEL} absolute z-10 flex items-center gap-0.5 p-1`}
-          style={{ left: Math.max(8, typing.x - 6), top: Math.max(8, typing.y - 52) }}
+          ref={styleBarRef}
+          data-typing-ui
+          className={`${PANEL} absolute z-20 flex animate-[scale-in_140ms_ease-out] items-center gap-0.5 p-1`}
+          // Above the words, or below them when there's no room above (near the top of the screen).
+          style={{
+            left: Math.min(Math.max(8, typing.x - 6), Math.max(8, screen.current.w - 230)),
+            top: typing.y - 60 > 64 ? typing.y - 60 : typing.y + typing.hPx + 14,
+          }}
           onPointerDown={(e) => e.preventDefault()}
           onMouseDown={(e) => e.preventDefault()}
         >
@@ -2334,7 +2542,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               aria-label={title}
               aria-pressed={!!typing[k]}
               onClick={() => toggleStyle(k)}
-              className={`flex h-8 w-8 items-center justify-center rounded-lg text-[15px] transition-colors ${cls} ${typing[k] ? "bg-[#1A1D20] text-white" : "text-[#374151] hover:bg-black/[0.05]"}`}
+              className={`flex items-center justify-center rounded-lg text-[15px] transition-colors ${lead ? "h-10 w-10" : "h-8 w-8"} ${cls} ${typing[k] ? "bg-[#1A1D20] text-white" : "text-[#374151] hover:bg-black/[0.05]"}`}
             >
               {label}
             </button>
@@ -2345,12 +2553,50 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             aria-label="Highlight (Ctrl+H)"
             aria-pressed={!!typing.hl}
             onClick={() => toggleStyle("hl")}
-            className={`flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-colors ${typing.hl ? "bg-[#1A1D20] text-white" : "text-[#374151] hover:bg-black/[0.05]"}`}
+            className={`flex items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-colors ${lead ? "h-10" : "h-8"} ${typing.hl ? "bg-[#1A1D20] text-white" : "text-[#374151] hover:bg-black/[0.05]"}`}
           >
             <span className="h-3.5 w-3.5 rounded-[4px]" style={{ background: "rgb(255, 213, 0)" }} />
             Highlight
           </button>
+          <span className="mx-1 h-5 w-px bg-black/[0.08]" aria-hidden />
+          <TextColors value={typing.color} big={lead} onPick={setTextColor} />
         </div>
+      )}
+
+      {/* Text box handles: the side sets the line width, the corner the size. */}
+      {typing && (
+        <>
+          <button
+            type="button"
+            data-typing-ui
+            aria-label="Drag to make the text box wider or narrower"
+            title="Drag: wider or narrower"
+            onPointerDown={(e) => onHandleDown("w", e)}
+            onMouseDown={(e) => e.preventDefault()}
+            onPointerMove={(e) => onHandleMove(e)}
+            onPointerUp={() => onHandleUp()}
+            onPointerCancel={() => onHandleUp()}
+            className="absolute z-20 flex h-7 w-4 cursor-ew-resize touch-none items-center justify-center"
+            style={{ left: typing.x + typing.wPx + 6, top: typing.y + typing.hPx / 2 - 14 }}
+          >
+            <span className="block h-6 w-1.5 rounded-full border border-black/20 bg-white shadow-sm" />
+          </button>
+          <button
+            type="button"
+            data-typing-ui
+            aria-label="Drag to make the text bigger or smaller"
+            title="Drag: bigger or smaller"
+            onPointerDown={(e) => onHandleDown("s", e)}
+            onMouseDown={(e) => e.preventDefault()}
+            onPointerMove={(e) => onHandleMove(e)}
+            onPointerUp={() => onHandleUp()}
+            onPointerCancel={() => onHandleUp()}
+            className="absolute z-20 flex h-6 w-6 cursor-nwse-resize touch-none items-center justify-center"
+            style={{ left: typing.x + typing.wPx + 1, top: typing.y + typing.hPx + 1 }}
+          >
+            <span className="block h-3 w-3 rounded-full border-2 border-[#1A1D20] bg-white shadow-sm" />
+          </button>
+        </>
       )}
 
       {/* Eraser ring */}
@@ -2513,6 +2759,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           <ToolButton label="Undo (Ctrl+Z)" disabled={!meta.undo} onClick={undo}>{I.undo}</ToolButton>
           <ToolButton label="Redo (Ctrl+Shift+Z)" disabled={!meta.redo} onClick={redo}>{I.redo}</ToolButton>
           <ToolButton label="Clear the board" disabled={!hasContent} onClick={() => setConfirmClear(true)}>{I.trash}</ToolButton>
+
         </div>
       </div>
 

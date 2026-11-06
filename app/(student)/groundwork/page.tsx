@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { freeTime, planToday, type PlanItem } from "@/lib/groundwork-plan";
 import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/lib/auth-context";
@@ -10,7 +12,7 @@ import { studentById } from "@/lib/data/selectors";
 import { displayName } from "@/lib/display-name";
 import { weakTopics } from "@/lib/performance";
 import { reviewWeekDue, sceneFor } from "@/lib/groundwork";
-import { todaysMission, useTopThree } from "@/components/student/StudyBuddy";
+import { useTopThree } from "@/components/student/StudyBuddy";
 import { StudyStats } from "@/components/student/StudyStats";
 import { studentSubjects } from "@/components/student/Welcome";
 import { Avatar } from "@/components/student/Avatar";
@@ -34,25 +36,28 @@ export default function GroundworkPage() {
   const db = useDatabase();
   const nowMs = useNow();
   const student = session?.studentId ? studentById(db, session.studentId) : null;
+  const router = useRouter();
   const [open, setOpen] = useState<null | { mission: Mission | null }>(null);
   const top = useTopThree();
-  if (!student) return null;
+  // The plan follows the clock in 5-minute steps, not every tick.
+  const step = Math.floor(nowMs / 300_000);
+  const plan = useMemo(() => (student ? planToday(db, student, profile, step * 300_000) : []), [db, student, profile, step]);
+  const free = useMemo(() => (student ? freeTime(db, student, nowMs) : null), [db, student, nowMs]);
+  if (!student || !free) return null;
 
   const name = displayName(student.username).split(" ")[0];
-  const mission = todaysMission(db, student, nowMs);
+  const me = { id: student.id, name, avatar: profile.avatar };
   const weak = weakTopics(db, student);
+  const startItem = (it: PlanItem | null) => {
+    if (it?.href) return router.push(it.href);
+    setOpen({ mission: it ? { subject: it.subject, topic: it.title, noteHref: it.noteHref, minutes: it.minutes, tag: it.tag } : null });
+  };
   const sundayWeek = reviewWeekDue(profile.weekReviewed, nowMs);
   const scene = sceneFor(profile.scene, nowMs);
 
   return (
     <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6 sm:py-8">
-      <CalmStart
-        name={name}
-        nowMs={nowMs}
-        onStart={() => setOpen({ mission: null })}
-        missionLabel={mission?.topic}
-        onMission={mission ? () => setOpen({ mission }) : undefined}
-      />
+      <CalmStart name={name} meId={student.id} nowMs={nowMs} plan={plan} free={free} onStart={startItem} />
 
       {sundayWeek && <SundayReview week={sundayWeek} nowMs={nowMs} name={name} />}
 
@@ -66,7 +71,7 @@ export default function GroundworkPage() {
       <section className="rounded-[22px] border border-border bg-surface p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-brand">Top this week</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-brand">Top this week</p>
             <p className="mt-1 text-xs text-ink-3">Your cohort, by study hours. Resets every Monday.</p>
           </div>
           {top?.me && top.me.rank <= 3 && top.me.minutes > 0 && (
@@ -102,7 +107,7 @@ export default function GroundworkPage() {
       <StudyStats nowMs={nowMs} />
 
       {open &&
-        createPortal(<FocusMode subjects={studentSubjects(db, student)} mission={open.mission} onClose={() => setOpen(null)} />, document.body)}
+        createPortal(<FocusMode subjects={studentSubjects(db, student)} mission={open.mission} me={me} onClose={() => setOpen(null)} />, document.body)}
     </div>
   );
 }

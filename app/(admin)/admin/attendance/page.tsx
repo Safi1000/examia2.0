@@ -1,5 +1,6 @@
 "use client";
 
+import { cohortById } from "@/lib/data/selectors";
 import { useMemo, useState } from "react";
 import type { AttendanceStatus } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
@@ -38,7 +39,8 @@ export default function AttendancePage() {
       db.students
         .filter((s) => !archivedCohortIds(db).has(s.cohortId))
         .filter((s) => (cohortId ? s.cohortId === cohortId : true))
-        .filter((s) => (classId ? s.classIds.includes(classId) : true))
+        // Their own classes, else their cohort's (the same rule the portal uses).
+        .filter((s) => (classId ? (s.classIds.length ? s.classIds : (cohortById(db, s.cohortId)?.classIds ?? [])).includes(classId) : true))
         .sort((a, b) => a.username.localeCompare(b.username)),
     [db, cohortId, classId],
   );

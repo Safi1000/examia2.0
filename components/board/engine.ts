@@ -21,6 +21,12 @@ export interface Stroke {
   form?: FormId;
   /** For kind "text": what was typed (size is the font size). */
   text?: string;
+  /** For kind "text": the width its lines wrap at, when set by dragging the box's side. */
+  boxW?: number;
+  /** For kind "text": the words as typed (before wrapping) and the width they were wrapped at,
+   * so opening them again never re-breaks the lines. */
+  raw?: string;
+  wrapW?: number;
   /** For kind "text": bold, italic, and a highlighter behind it. */
   bold?: boolean;
   italic?: boolean;

@@ -1,7 +1,7 @@
 "use client";
 
 import { cld } from "@/lib/cld";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Assignment } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
@@ -45,7 +45,13 @@ export default function AdminAssignmentsPage() {
   const [editing, setEditing] = useState<Assignment | "new" | null>(null);
   const [form, setForm] = useState<Form | null>(null);
   const [uploading, setUploading] = useState(false);
+  // Today's "Homework to reply to" opens straight onto that homework's hand-ins.
   const [openId, setOpenId] = useState<string | null>(null);
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("open");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (id) setOpenId(id);
+  }, []);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -91,7 +97,7 @@ export default function AdminAssignmentsPage() {
 
   function save() {
     if (!form) return;
-    if (!form.title.trim()) return toast("Give the assignment a title.", "error");
+    if (!form.title.trim()) return toast("Give the homework a title.", "error");
     if (!form.dueAt) return toast("Set a due date.", "error");
     if (!form.cohortId) return toast("Choose a cohort.", "error");
     const payload = {
@@ -116,17 +122,17 @@ export default function AdminAssignmentsPage() {
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader
-        title="Assignments"
+        title="Homework"
         subtitle={`${assignments.length} posted`}
-        actions={<Button onClick={openNew}><Icon.Plus className="h-4 w-4" /> New assignment</Button>}
+        actions={<Button onClick={openNew}><Icon.Plus className="h-4 w-4" /> New homework</Button>}
       />
 
       {assignments.length === 0 ? (
         <EmptyState
           icon={<Icon.Doc />}
-          title="No assignments yet"
+          title="No homework yet"
           message="Post work with a deadline; students hand in photos or a PDF."
-          action={<Button onClick={openNew}><Icon.Plus className="h-4 w-4" /> New assignment</Button>}
+          action={<Button onClick={openNew}><Icon.Plus className="h-4 w-4" /> New homework</Button>}
         />
       ) : (
         <div className="space-y-3">
@@ -177,7 +183,7 @@ export default function AdminAssignmentsPage() {
       <Modal
         open={!!form}
         onClose={() => { setForm(null); setEditing(null); }}
-        title={editing === "new" ? "New assignment" : "Edit assignment"}
+        title={editing === "new" ? "New homework" : "Edit homework"}
         size="lg"
         footer={
           <>
@@ -270,7 +276,7 @@ export default function AdminAssignmentsPage() {
       <Modal
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
-        title="Delete assignment?"
+        title="Delete this homework?"
         description={target ? `"${target.title}" and every hand-in will be removed.` : ""}
         footer={
           <>
@@ -290,7 +296,10 @@ function HandIns({ assignmentId }: { assignmentId: string }) {
   const store = useStore();
   const { toast } = useToast();
   const nowMs = useNow();
-  const rows = db.assignmentSubmissions.filter((s) => s.assignmentId === assignmentId);
+  // Still waiting for a reply first, oldest hand-in first.
+  const rows = db.assignmentSubmissions
+    .filter((s) => s.assignmentId === assignmentId)
+    .sort((a, b) => Number(!!a.feedback) - Number(!!b.feedback) || a.submittedAt.localeCompare(b.submittedAt));
   const a = db.assignments.find((x) => x.id === assignmentId);
   // Who it was set for (its cohort, and level/subject when set) and hasn't handed in.
   const off = archivedCohortIds(db);

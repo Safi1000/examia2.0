@@ -33,7 +33,8 @@ export function TestCard({
         <h3 className="mt-1.5 text-lg font-bold text-ink">{test.title}</h3>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-ink-2">
           <span className="inline-flex items-center gap-1"><Icon.Clock className="h-3.5 w-3.5" />{test.durationMinutes} min</span>
-          <span>{test.questions.length} questions</span>
+          {/* Questions stay hidden until a test opens: don't show "0 questions". */}
+          {test.questions.length > 0 && <span>{test.questions.length} {test.questions.length === 1 ? "question" : "questions"}</span>}
         </p>
       </div>
 

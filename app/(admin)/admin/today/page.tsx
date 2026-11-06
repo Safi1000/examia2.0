@@ -99,6 +99,11 @@ export default function TodayPage() {
       .filter((s) => s.status === "submitted" && studentIds.has(s.studentId))
       .sort((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""));
 
+    // Homework hand-ins still waiting for a reply, oldest first.
+    const toReply = db.assignmentSubmissions
+      .filter((x) => !x.feedback && studentIds.has(x.studentId))
+      .sort((a, b) => a.submittedAt.localeCompare(b.submittedAt));
+
     const handedIn = (t: Test) =>
       new Set(db.submissions.filter((s) => s.testId === t.id && s.status !== "in_progress").map((s) => s.studentId));
 
@@ -159,7 +164,7 @@ export default function TodayPage() {
 
     const weak = weakTopics(db, cohortId).map((w) => ({ ...w, available: retestQuestions(db, w.subject, w.name).length }));
 
-    return { toMark, closing, attention, avg30, weak };
+    return { toMark, toReply, closing, attention, avg30, weak };
   }, [db, cohortId, tick, profiles, checked]);
 
   const cohortName = cohortId ? cohortById(db, cohortId)?.name : null;
@@ -176,7 +181,7 @@ export default function TodayPage() {
   }
 
   const stats = [
-    { label: "To mark", value: data.toMark.length, href: "#to-mark" },
+    { label: "To mark", value: data.toMark.length + data.toReply.length, href: "#to-mark" },
     { label: "Closing in 48 hours", value: data.closing.length, href: "#closing" },
     { label: "Students to check on", value: data.attention.length, href: "#attention" },
     { label: "Average, last 30 days", value: data.avg30 === null ? "None yet" : `${data.avg30}%`, href: "/admin/analytics" },
@@ -227,7 +232,7 @@ export default function TodayPage() {
         <Card id="to-mark" className="scroll-mt-24 p-5">
           <h2 className="text-base font-semibold text-ink">To mark</h2>
           {data.toMark.length === 0 ? (
-            <p className="mt-2 text-[15px] text-ink-2">All marked. Nothing waiting.</p>
+            <p className="mt-2 text-[15px] text-ink-2">{data.toReply.length ? "No test papers waiting." : "All marked. Nothing waiting."}</p>
           ) : (
             <ul className="mt-3 divide-y divide-border">
               {data.toMark.slice(0, 6).map((sub) => {
@@ -253,6 +258,25 @@ export default function TodayPage() {
             <Link href="/admin/submissions" className="mt-3 inline-block text-sm font-semibold text-brand hover:underline">
               See all {data.toMark.length} →
             </Link>
+          )}
+          {data.toReply.length > 0 && (
+            <>
+              <h3 className="mt-5 text-sm font-semibold text-ink-2">Homework to reply to</h3>
+              <ul className="mt-1 divide-y divide-border">
+                {Object.entries(
+                  data.toReply.reduce<Record<string, number>>((m, x) => ((m[x.assignmentId] = (m[x.assignmentId] ?? 0) + 1), m), {}),
+                )
+                  .slice(0, 4)
+                  .map(([aid, n]) => (
+                    <li key={aid}>
+                      <Link href={`/admin/assignments?open=${aid}`} className="flex min-h-12 items-center justify-between gap-3 py-2.5 hover:text-brand">
+                        <span className="min-w-0 truncate font-semibold text-ink">{db.assignments.find((a) => a.id === aid)?.title ?? "Homework"}</span>
+                        <span className="shrink-0 rounded-full bg-brand/15 px-2.5 py-0.5 text-sm font-semibold text-brand tabular-nums">{n} to reply</span>
+                      </Link>
+                    </li>
+                  ))}
+              </ul>
+            </>
           )}
         </Card>
 

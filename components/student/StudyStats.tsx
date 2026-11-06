@@ -37,7 +37,7 @@ export function StudyStats({ nowMs }: { nowMs: number }) {
       <div className="flex items-center gap-4">
         <Avatar id={profile.avatar} initials={initials} level={level.index} className="m-4 h-16 w-16 text-xl" />
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-3">{STUDY_NAME}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-ink-3">{STUDY_NAME}</p>
           <p className="text-lg font-extrabold text-ink">
             {level.name} <span className="text-sm font-medium text-ink-3">· {Math.round(total / 6) / 10} h studied</span>
           </p>

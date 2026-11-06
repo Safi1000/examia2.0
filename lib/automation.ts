@@ -250,7 +250,12 @@ export async function healthCheck(sb: SupabaseClient, now = Date.now()): Promise
   if (!googleReady()) return issues;
   const { data: acct } = await sb.from("google_account").select("email").eq("id", 1).maybeSingle();
   if (!acct) return issues; // not connected: Classes already shows "Connect Google"
-  const token = await accessToken(sb).catch(() => null);
+  let busy = false;
+  const token = await accessToken(sb).catch(() => {
+    busy = true; // Google didn't answer this time; the connection is fine
+    return null;
+  });
+  if (busy) return issues;
   if (!token) {
     issues.push({ kind: "google", text: "Google has disconnected (a password change or removed access). Reconnect it, or today's classes get no Meet links." });
     return issues;

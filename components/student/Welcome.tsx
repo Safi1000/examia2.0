@@ -86,7 +86,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
         <ul className="space-y-3">
           {[
             { icon: <NavIcon.Classes active className="h-6 w-6" />, t: "Join class from Home", d: "A gold Join button appears 5 minutes before each class. One tap and you are in." },
-            { icon: <NavIcon.Tests active className="h-6 w-6" />, t: "One list of what's due", d: "Tests and assignments show on Home with their deadlines. Marked results are in Tests." },
+            { icon: <NavIcon.Tests active className="h-6 w-6" />, t: "One list of what's due", d: "Tests and homework show on Home with their deadlines. Tap Work for everything, and a gold number means something is waiting." },
             { icon: <NavIcon.Progress active className="h-6 w-6" />, t: "See where you stand", d: "Your grade, your weak topics and this week's plan, updated after every test." },
           ].map((x) => (
             <li key={x.t} className="flex gap-4 rounded-2xl border border-border bg-surface p-4">
@@ -195,13 +195,13 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
           </div>
           {picked.length > 0 && (
             <div className="rounded-2xl border border-border bg-surface p-4 text-sm">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-3">Aiming for</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-ink-3">Aiming for</p>
               <p className="mt-1.5 text-ink">{picked.map((sub) => `${targets[sub]} in ${sub}`).join(" · ")}</p>
             </div>
           )}
           {nextDay && (
             <div className="rounded-2xl border border-border bg-surface p-4 text-sm">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-3">Your classes</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-ink-3">Your classes</p>
               <p className="mt-1.5 text-ink">
                 <span className="font-semibold">{nextDayLabel}:</span> {nextDay.slots.map((sl) => sl.subject).join(", ")},{" "}
                 {spanHere(nextDay.date, nextDay.slots[0].start, nextDay.slots[nextDay.slots.length - 1].end)}

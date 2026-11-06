@@ -1,4 +1,4 @@
-import { createHmac, randomUUID, timingSafeEqual } from "crypto";
+import { createHash, createHmac, randomUUID, timingSafeEqual } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
@@ -82,18 +82,40 @@ export async function accessToken(sb: SupabaseClient): Promise<string | null> {
   if (!googleReady()) return null;
   const { data } = await sb.from("google_account").select("refresh_token").eq("id", 1).maybeSingle();
   if (!data?.refresh_token) return null;
-  const res = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      refresh_token: data.refresh_token as string,
-      client_id: process.env.GOOGLE_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-      grant_type: "refresh_token",
-    }),
-  });
-  const j = (await res.json()) as { access_token?: string };
-  return j.access_token ?? null;
+  // Only Google saying the access was revoked means "disconnected". A busy
+  // Google, a rate limit or a network blip is retried, then reported as busy,
+  // so Today never shows a false "Reconnect".
+  for (let attempt = 0; ; attempt++) {
+    let status = 0;
+    let j: { access_token?: string; error?: string } = {};
+    try {
+      const res = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          refresh_token: data.refresh_token as string,
+          client_id: process.env.GOOGLE_CLIENT_ID!,
+          client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+          grant_type: "refresh_token",
+        }),
+      });
+      status = res.status;
+      j = (await res.json().catch(() => ({}))) as typeof j;
+    } catch {}
+    if (j.access_token) return j.access_token;
+    if (j.error === "invalid_grant" || j.error === "unauthorized_client") return null;
+    if (attempt >= 2) throw new GoogleBusy(`Google token ${status || "network"}`);
+    await new Promise((r) => setTimeout(r, 700 * (attempt + 1)));
+  }
+}
+
+/** Google didn't answer properly this time; the connection itself is fine. */
+export class GoogleBusy extends Error {}
+
+/** Same id for the same class on the same day, so two runs can't make two Meet rooms. */
+export function classEventId(date: string, classId: string, subjectId: string): string {
+  // Calendar ids allow 0-9 and a-v; hex fits.
+  return "ht" + createHash("sha256").update(`${date}|${classId}|${subjectId}`).digest("hex").slice(0, 40);
 }
 
 async function g<T>(token: string, url: string, init: RequestInit = {}): Promise<T> {
@@ -116,10 +138,17 @@ interface CalEvent {
   attachments?: Array<{ fileId?: string; fileUrl?: string; mimeType?: string; title?: string }>;
 }
 
-export async function createClassEvent(token: string, title: string, startIso: string, endIso: string) {
+export async function createClassEvent(token: string, title: string, startIso: string, endIso: string, id?: string) {
+  if (id) {
+    // Already made by another run (or saved but not recorded here): reuse it.
+    const existing = await g<CalEvent & { status?: string }>(token, `https://www.googleapis.com/calendar/v3/calendars/primary/events/${id}`).catch(() => null);
+    if (existing && existing.status !== "cancelled") return { eventId: existing.id, meetUrl: existing.hangoutLink ?? null };
+    if (existing) id = undefined; // cancelled earlier today: make a fresh one
+  }
   const ev = await g<CalEvent>(token, "https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1", {
     method: "POST",
     body: JSON.stringify({
+      ...(id ? { id } : {}),
       summary: title,
       start: { dateTime: startIso, timeZone: "Asia/Karachi" },
       end: { dateTime: endIso, timeZone: "Asia/Karachi" },
@@ -127,6 +156,10 @@ export async function createClassEvent(token: string, title: string, startIso: s
       reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 10 }] },
       conferenceData: { createRequest: { requestId: randomUUID(), conferenceSolutionKey: { type: "hangoutsMeet" } } },
     }),
+  }).catch(async (e: Error) => {
+    // Another run made it a moment ago (same id): use that one.
+    if (id && /Google 409/.test(e.message)) return g<CalEvent>(token, `https://www.googleapis.com/calendar/v3/calendars/primary/events/${id}`);
+    throw e;
   });
   return { eventId: ev.id, meetUrl: ev.hangoutLink ?? null };
 }

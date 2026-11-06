@@ -25,7 +25,7 @@ import { Icon } from "@/components/ui";
 
 const fmt = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`);
 const card = "rounded-[22px] border border-border bg-surface p-5";
-const kicker = "text-[10px] font-semibold uppercase tracking-[0.3em] text-brand";
+const kicker = "text-[11px] font-semibold uppercase tracking-[0.3em] text-brand";
 
 /** This week: one dot per day, the days target, the weekly streak and hours. */
 export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
@@ -73,7 +73,7 @@ export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
           <select
             value={target}
             onChange={(e) => updateProfile({ daysTarget: Number(e.target.value) })}
-            className="h-8 rounded-full border border-border bg-surface-2 px-2 text-xs font-semibold text-ink"
+            className="h-10 rounded-full border border-border bg-surface-2 px-3 text-sm font-semibold text-ink"
           >
             {DAYS_TARGETS.map((t) => (
               <option key={t} value={t}>
@@ -215,7 +215,7 @@ export function ReviewCard({ weak, nowMs, onStudy }: { weak: Array<{ subject: st
               <button
                 type="button"
                 onClick={() => updateProfile((p) => ({ reviews: reviewDone(p.reviews, q.key, nowMs) }))}
-                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-border-strong px-3.5 text-sm font-semibold text-ink hover:border-brand/60"
+                className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-border-strong px-4 text-sm font-semibold text-ink hover:border-brand/60"
               >
                 <Icon.Check className="h-4 w-4" /> Reviewed
               </button>

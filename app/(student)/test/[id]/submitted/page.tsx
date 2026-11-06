@@ -43,9 +43,12 @@ export default function SubmittedPage() {
       </div>
 
       <Card ruled className="mt-6 animate-fade-up divide-y divide-border">
+{/* After a reload the answers stay hidden until results are out: only show a real count. */}
+        {submission.answers.length > 0 && (
         <Row label="Questions answered">
           <span className="font-mono font-semibold text-ink">{answered} / {test.questions.length}</span>
         </Row>
+        )}
         <Row label="Submitted at">
           <span className="text-ink">{submission.submittedAt ? formatTimestamp(submission.submittedAt) : "Not yet"}</span>
         </Row>

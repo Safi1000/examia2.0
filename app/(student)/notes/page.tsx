@@ -291,7 +291,7 @@ function NotesList({
                         aria-label={`Read ${n.title}`}
                       >
                         <span
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[10px] font-bold tracking-wider"
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold tracking-wider"
                           style={{ background: `color-mix(in srgb, ${k.tint} 16%, transparent)`, color: k.tint }}
                           aria-hidden
                         >

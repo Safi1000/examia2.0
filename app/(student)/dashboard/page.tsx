@@ -5,7 +5,9 @@ import { useMemo } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useNow } from "@/hooks/useNow";
 import { useDatabase } from "@/lib/data/store";
-import { assignmentsForStudent, studentById, submissionFor, testsForStudent } from "@/lib/data/selectors";
+import { studentById } from "@/lib/data/selectors";
+import { dueFor } from "@/lib/due";
+import { gradeSubmission } from "@/lib/grading";
 import { AnnouncementsPanel } from "@/components/student/AnnouncementsPanel";
 import { ClassNow } from "@/components/student/ClassNow";
 import { NotifyCard } from "@/components/student/NotifyCard";
@@ -43,15 +45,8 @@ export default function DashboardPage() {
   const nowMs = useNow();
   const student = session?.studentId ? studentById(db, session.studentId) : null;
 
-  const tests = useMemo(() => {
-    if (!student) return { open: [], next: null };
-    const all = testsForStudent(db, student);
-    const open = all
-      .filter((t) => testWindow(t.opensAt, t.closesAt, nowMs) === "open" && !submissionFor(db, student.id, t.id))
-      .sort((a, b) => +new Date(a.closesAt) - +new Date(b.closesAt));
-    const next = all.filter((t) => testWindow(t.opensAt, t.closesAt, nowMs) === "future").sort((a, b) => +new Date(a.opensAt) - +new Date(b.opensAt))[0] ?? null;
-    return { open, next };
-  }, [db, student, nowMs]);
+  const due = useMemo(() => (student ? dueFor(db, student, nowMs) : null), [db, student, nowMs]);
+  const tests = { open: due?.openTests ?? [], next: due?.nextTest ?? null };
 
   // Plan, performance and today's mission are the heavy sums on Home: work them
   // out once per data change (or every 5 minutes), not on every tick.
@@ -64,22 +59,8 @@ export default function DashboardPage() {
 
   if (!student || !heavy.plan) return null;
 
-  // All homework still to come that isn't handed in yet.
-  const mine = assignmentsForStudent(db, student);
-  const dueSoon = mine
-    .filter((a) => {
-      const due = +new Date(a.dueAt);
-      // Every piece of homework not handed in yet, however far off, so nothing is a surprise.
-      return due > nowMs && !db.assignmentSubmissions.some((x) => x.assignmentId === a.id && x.studentId === student.id);
-    })
-    .sort((a, b) => +new Date(a.dueAt) - +new Date(b.dueAt));
-  // Missed deadlines from the last two weeks stay on the list until handed in.
-  const overdue = mine
-    .filter((a) => {
-      const due = +new Date(a.dueAt);
-      return due <= nowMs && nowMs - due < 14 * 86_400_000 && !db.assignmentSubmissions.some((x) => x.assignmentId === a.id && x.studentId === student.id);
-    })
-    .sort((a, b) => +new Date(a.dueAt) - +new Date(b.dueAt));
+  const dueSoon = due?.dueSoon ?? [];
+  const overdue = due?.overdue ?? [];
 
   const { plan, perf, mission } = heavy;
   const week = plan.weeks.find((w) => w.isCurrent) ?? null;
@@ -96,17 +77,28 @@ export default function DashboardPage() {
         ? `Nothing due. Next test opens ${formatWhen(tests.next.opensAt)}.`
         : "You're all caught up.";
 
-  const todo = [
+  // Results out in the last 3 days sit at the end of the list, quietly.
+  const newResults = db.submissions
+    .filter((x) => x.studentId === student.id && x.status === "released" && x.releasedAt && nowMs - +new Date(x.releasedAt) < 3 * 86_400_000)
+    .sort((a, b) => +new Date(b.releasedAt!) - +new Date(a.releasedAt!))
+    .flatMap((x) => {
+      const t = db.tests.find((tt) => tt.id === x.testId);
+      return t ? [{ key: `r-${x.id}`, href: `/results/${x.id}`, title: t.title, meta: `Result out · ${Math.round(gradeSubmission(t, x).percent)}%`, cta: "See result", quiet: true }] : [];
+    });
+
+  const todo: Array<{ key: string; href: string; title: string; meta: string; cta: string; quiet?: boolean }> = [
     ...tests.open.map((t) => ({ key: t.id, href: `/test/${t.id}`, title: t.title, meta: `Test · closes ${formatRelative(t.closesAt, nowMs)}`, cta: "Start" })),
     // Straight to that homework on the Homework page, not the top of the list.
     ...overdue.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · overdue since ${formatWhen(a.dueAt)}`, cta: "Hand in" })),
     ...dueSoon.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · due ${formatWhen(a.dueAt)}`, cta: "Hand in" })),
+    ...newResults,
   ];
+  const toDoCount = todo.filter((x) => !x.quiet).length;
 
   return (
     <div className="mx-auto max-w-3xl space-y-7 px-4 py-8 sm:px-6">
       <header className="animate-fade-up">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-brand">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-brand">
           {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
         </p>
         <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink sm:text-[2.5rem]">
@@ -121,7 +113,14 @@ export default function DashboardPage() {
       {todo.length > 0 && (
         <section className="animate-fade-up space-y-2.5">
           <h2 className="flex items-center gap-2 text-base font-semibold text-ink">
-            <span className="h-2 w-2 animate-low-pulse rounded-full bg-brand" /> To do
+            {toDoCount > 0 ? (
+              <>
+                <span className="h-2 w-2 animate-low-pulse rounded-full bg-brand" /> To do
+                <span className="text-sm font-medium text-ink-3 tabular-nums">{toDoCount}</span>
+              </>
+            ) : (
+              "New for you"
+            )}
           </h2>
           <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
             {todo.map((x) => (
@@ -131,7 +130,12 @@ export default function DashboardPage() {
                     <span className="block truncate font-semibold text-ink">{x.title}</span>
                     <span className="block text-sm text-ink-3">{x.meta}</span>
                   </span>
-                  <span className="inline-flex h-10 shrink-0 items-center gap-1 rounded-full bg-brand px-4 text-sm font-semibold text-on-brand">
+                  <span
+                    className={cn(
+                      "inline-flex h-10 shrink-0 items-center gap-1 rounded-full px-4 text-sm font-semibold",
+                      x.quiet ? "border border-border-strong text-ink" : "bg-brand text-on-brand",
+                    )}
+                  >
                     {x.cta} <Icon.ChevronRight className="h-4 w-4" />
                   </span>
                 </Link>
@@ -139,6 +143,18 @@ export default function DashboardPage() {
             ))}
           </ul>
         </section>
+      )}
+
+      {todo.length === 0 && (
+        <div className="animate-fade-up flex items-center gap-4 rounded-lg border border-border bg-surface px-5 py-4">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success-soft text-success">
+            <Icon.Check className="h-5 w-5" />
+          </span>
+          <p className="text-sm text-ink-2">
+            <span className="block font-semibold text-ink">Nothing due right now.</span>
+            {tests.next ? `Next test opens ${formatWhen(tests.next.opensAt)}.` : "New tests and homework show up here."}
+          </p>
+        </div>
       )}
 
       {/* Hamza's notices: high up, but one line each so the day's work stays in view. */}
@@ -167,7 +183,7 @@ function PerformanceCard({ perf, targets }: { perf: Snapshot | null; targets?: P
       href="/progress"
       className="animate-fade-up flex flex-col rounded-lg border border-border bg-surface p-5 transition-colors hover:border-border-strong"
     >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-3">Your performance</p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-ink-3">Your performance</p>
       {!perf || perf.marked < 3 ? (
         <p className="mt-3 flex-1 text-sm text-ink-2">
           {perf ? `${perf.marked} of 3 tests marked. ` : ""}Your grade shows here after three marked tests.
@@ -232,7 +248,7 @@ function PlanCard({ week, daysLeft }: { week: PlanWeek | null; daysLeft: number 
       style={{ animationDelay: "40ms" }}
     >
       <div className="flex items-baseline justify-between gap-3">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ink-3">This week</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-ink-3">This week</p>
         <span className="text-sm tabular-nums text-ink-2">
           <span className="font-bold text-brand">{daysLeft}</span> days to exams
         </span>

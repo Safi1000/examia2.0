@@ -41,7 +41,7 @@ export function AnnouncementsPanel({ student }: { student: Student }) {
                 <button
                   onClick={() => dismiss(a.id)}
                   aria-label="Dismiss announcement"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink"
+                  className="flex h-11 w-11 -mr-2 -mt-1 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink"
                 >
                   <Icon.Close className="h-4 w-4" />
                 </button>

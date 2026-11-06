@@ -93,7 +93,7 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
 
   return (
     <section className="animate-fade-up relative overflow-hidden rounded-lg border border-brand/30 bg-[linear-gradient(135deg,rgba(251,193,89,0.16),rgba(251,193,89,0.04))] p-5">
-      <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-brand">
+      <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-brand">
         <span className="h-2 w-2 animate-low-pulse rounded-full bg-brand" />
         {started ? "Class is live" : `Starts ${formatRelative(new Date(current.startMs).toISOString(), nowMs)}`}
       </p>
@@ -115,7 +115,9 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
             {joining === slotKey(current) ? "Joining…" : <>{started && after ? "Rejoin" : "Join class"} <Icon.ChevronRight className="h-4 w-4" /></>}
           </a>
         ) : (
-          <p className="max-w-[16rem] text-sm text-ink-2">{offline ? "No connection right now. Join shows up here when you're back online." : "The Join button appears here when I open the class."}</p>
+          <p className="max-w-[16rem] text-sm text-ink-2">{ready === null ? (
+            <span className="inline-flex items-center gap-2"><span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-brand/30 border-t-brand" />Getting your class link…</span>
+          ) : offline ? "No connection right now. Join shows up here when you're back online." : "The Join button appears here when I open the class."}</p>
         )}
       </div>
       {after && (
@@ -132,12 +134,12 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
                 e.preventDefault();
                 void join(after, urlFor(after)!);
               }}
-              className="inline-flex h-10 items-center gap-1.5 rounded-full border border-brand/50 px-5 text-sm font-semibold text-ink transition hover:bg-brand hover:text-on-brand"
+              className="inline-flex h-11 items-center gap-1.5 rounded-full border border-brand/50 px-5 text-sm font-semibold text-ink transition hover:bg-brand hover:text-on-brand"
             >
               {joining === slotKey(after) ? "Joining…" : <>Join {after.subject} <Icon.ChevronRight className="h-4 w-4" /></>}
             </a>
           ) : (
-            <span className="text-xs text-ink-3">{offline ? "Join shows up when you're back online." : "Join appears when I open it."}</span>
+            <span className="text-xs text-ink-3">{ready === null ? "Checking…" : offline ? "Join shows up when you're back online." : "Join appears when I open it."}</span>
           )}
         </div>
       )}

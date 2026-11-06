@@ -39,7 +39,9 @@ export default function ClassesPage() {
   const today = pkDate(nowMs);
   // Recordings stay open for 2 days, so three days back covers every one still open.
   const from = addDays(today, -3);
-  const { links } = useClassLinks(from, today);
+  // Check for fresh links only around class time, not every 20 s all day.
+  const nearClass = !!student && slotsForStudent(db, student, today).some((s) => nowMs >= s.startMs - 20 * 60_000 && nowMs < s.endMs);
+  const { links } = useClassLinks(from, today, false, nearClass);
   const schedule = useSchedule(); // re-render when the timetable loads or changes
 
   // The timetable is the same every class day, so show one (the next) day's slots.
@@ -81,7 +83,7 @@ export default function ClassesPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-9 px-4 py-8 sm:px-6">
       <header className="animate-fade-up">
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-brand">{dayRange(schedule.days)} · Pakistan time</p>
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-brand">{dayRange(schedule.days)} · Pakistan time</p>
         <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink sm:text-[2.5rem]">Classes</h1>
         {today < getSchedule().termStarts && <p className="mt-2.5 text-base text-ink-2">
             Classes start on {new Date(`${getSchedule().termStarts}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.

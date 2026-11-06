@@ -15,7 +15,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useDatabase, useDataReady } from "@/lib/data/store";
 import { studentById } from "@/lib/data/selectors";
+import { dueFor } from "@/lib/due";
 import { LogoTight } from "@/components/Brand";
+import { Splash } from "@/components/Splash";
 import { NotificationBell } from "@/components/NotificationBell";
 import { CohortTag } from "@/components/ui";
 import { NavIcon } from "@/components/nav/NavIcons";
@@ -47,6 +49,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const pathname = usePathname();
   const db = useDatabase();
   const ready = useDataReady();
+  const nowMs = useNow();
 
   // Signed in but the portal didn't load (weak signal) is not signed out:
   // stay here and offer Try again rather than sending them to /login.
@@ -74,7 +77,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     );
   }
   if (initializing || !session || session.role !== "student") {
-    return <div className="flex min-h-dvh items-center justify-center text-ink-3">Loading…</div>;
+    return <Splash />;
   }
   // Signed in, but no student record behind the account yet: waiting would
   // never end, so say so.
@@ -103,19 +106,26 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     );
   }
   if (!ready) {
-    return <div className="flex min-h-dvh items-center justify-center text-ink-3">Loading…</div>;
+    return <Splash />;
   }
 
   const student = studentById(db, session.studentId);
   if (!student) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
-        <p className="text-ink-2">Your session has ended. Please sign in again.</p>
+        <p className="font-semibold text-ink">Your portal didn&apos;t load.</p>
+        <p className="max-w-xs text-sm text-ink-2">Usually a weak signal. Check your internet and try again.</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="inline-flex h-11 items-center rounded-full bg-brand px-6 text-sm font-semibold text-on-brand active:scale-[0.98]"
+        >
+          Try again
+        </button>
         <button
           onClick={() => { logout(); router.replace("/login"); }}
-          className="inline-flex h-11 items-center rounded-full bg-brand px-6 text-sm font-semibold text-on-brand"
+          className="inline-flex h-11 items-center px-4 text-sm font-medium text-ink-3 hover:text-ink"
         >
-          Sign in
+          Sign out
         </button>
       </div>
     );
@@ -158,11 +168,17 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   // Phones: five tabs. "Work" holds Tests, Homework and Notes behind a switch.
   const WORK = ["/tests", "/assignments", "/notes"];
   const isWork = WORK.includes(pathname) || pathname.startsWith("/results") || /^\/test\/[^/]+\/submitted$/.test(pathname);
+  // Work opens where something is waiting: open tests first, else homework.
+  const due = dueFor(db, student, nowMs);
+  const testsDue = due.openTests.length;
+  const homeworkDue = due.overdue.length + due.dueSoon.filter((a) => +new Date(a.dueAt) - nowMs < 3 * 86_400_000).length;
+  const workHref = testsDue ? "/tests" : homeworkDue ? "/assignments" : "/tests";
+  const counts: Record<string, number> = { "/tests": testsDue, "/assignments": homeworkDue };
   const phoneLinks = [
     links[0],
     links[1],
     links[3],
-    { href: "/tests", label: "Work", short: "Work", Icon: NavIcon.Tests, work: true },
+    { href: workHref, label: "Work", short: "Work", Icon: NavIcon.Tests, work: true, badge: testsDue + homeworkDue },
     links[6],
   ];
   // Results belong to Tests; the full plan opens from Home.
@@ -228,9 +244,14 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                   <Link
                     href={href}
                     aria-current={on ? "page" : undefined}
-                    className={cn("flex h-10 items-center justify-center rounded-full text-sm font-semibold transition-colors", on ? "bg-brand text-on-brand" : "text-ink-2")}
+                    className={cn("flex h-11 items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition-colors", on ? "bg-brand text-on-brand" : "text-ink-2")}
                   >
                     {label}
+                    {!!counts[href] && (
+                      <span className={cn("min-w-5 rounded-full px-1.5 text-center text-xs font-bold leading-5 tabular-nums", on ? "bg-on-brand/15" : "bg-brand/15 text-brand")}>
+                        {counts[href]}
+                      </span>
+                    )}
                   </Link>
                 </li>
               );
@@ -276,11 +297,18 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                     href={l.href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex h-[52px] flex-col items-center justify-center gap-1 rounded-2xl text-[10px] font-semibold tracking-wide transition-colors duration-300 active:scale-95",
+                      "flex h-[52px] flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-semibold tracking-wide transition-colors duration-300 active:scale-95",
                       active ? "bg-brand/[0.12] text-brand" : "text-ink-3",
                     )}
                   >
-                    <l.Icon active={active} className="h-[20px] w-[20px]" />
+                    <span className="relative">
+                      <l.Icon active={active} className="h-[20px] w-[20px]" />
+                      {"badge" in l && !!l.badge && (
+                        <span aria-label={`${l.badge} to do`} className="absolute -right-2.5 -top-1.5 min-w-[18px] rounded-full bg-brand px-1 text-center text-[11px] font-bold leading-[18px] text-on-brand tabular-nums ring-2 ring-[#1d2023]">
+                          {l.badge}
+                        </span>
+                      )}
+                    </span>
                     {l.short}
                   </Link>
                 </li>

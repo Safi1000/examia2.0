@@ -15,7 +15,7 @@ import {
 } from "@/lib/timetable";
 import { loadSchedule } from "@/lib/schedule-server";
 import { loadAutomation, saveAutomation } from "@/lib/automation";
-import { RECORDINGS_ROOT, accessToken, autoRecord, closeLinkSharing, createClassEvent, deleteEvent, fileIdOf, findRecording, getEvent, moveEvent } from "@/lib/google";
+import { RECORDINGS_ROOT, accessToken, autoRecord, classEventId, closeLinkSharing, createClassEvent, deleteEvent, fileIdOf, findRecording, getEvent, moveEvent } from "@/lib/google";
 
 // Cancelled classes get no link and no recording.
 const slotsOn: typeof allSlotsOn = (db, date) => allSlotsOn(db, date).filter((s) => !s.cancelled);
@@ -100,7 +100,7 @@ export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), f
           }
           continue;
         }
-        const ev = await createClassEvent(token, eventTitle(s), new Date(s.startMs).toISOString(), new Date(s.endMs).toISOString());
+        const ev = await createClassEvent(token, eventTitle(s), new Date(s.startMs).toISOString(), new Date(s.endMs).toISOString(), classEventId(s.date, s.classId, s.subjectId));
         await save(s, { event_id: ev.eventId, meet_url: ev.meetUrl, auto: true });
         if (ev.meetUrl) links++;
       } catch (e) {

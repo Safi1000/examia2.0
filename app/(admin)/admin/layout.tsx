@@ -12,6 +12,10 @@ import { AdminLogin } from "@/components/admin/AdminLogin";
 import { Sidebar } from "@/components/admin/Sidebar";
 import { Icon } from "@/components/ui";
 import { LogoTight } from "@/components/Brand";
+import { Splash } from "@/components/Splash";
+import Link from "next/link";
+import { NavIcon } from "@/components/nav/NavIcons";
+import { cn } from "@/lib/cn";
 import { NotificationBell } from "@/components/NotificationBell";
 import { PortalAmbient } from "@/components/PortalAmbient";
 import { pageTitle, useDocumentTitle } from "@/hooks/usePageTitle";
@@ -24,7 +28,7 @@ const TITLES: Record<string, string> = {
   "/admin/tests": "Tests",
   "/admin/submissions": "Submissions",
   "/admin/grading": "Marking",
-  "/admin/assignments": "Assignments",
+  "/admin/assignments": "Homework",
   "/admin/bank": "Question bank",
   "/admin/notes": "Notes",
   "/admin/announcements": "Announcements",
@@ -53,7 +57,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useSessionTimeout(
     () => {
       logout();
-      toast("Signed out after 30 minutes of inactivity.", "info");
+      toast("Signed out after 3 hours without use.", "info");
       // Stay on the teacher sign-in, not the student one.
       router.replace("/admin");
     },
@@ -75,11 +79,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [mobileOpen]);
 
   if (initializing) {
-    return <div className="flex min-h-dvh items-center justify-center text-ink-3">Loading…</div>;
+    return <Splash />;
   }
   if (!isAdmin) return <AdminLogin />;
   if (!ready) {
-    return <div className="flex min-h-dvh items-center justify-center text-ink-3">Loading…</div>;
+    return <Splash />;
   }
 
   return (
@@ -121,8 +125,45 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </header>
 
-          <main className="flex-1"><ScheduleGate>{children}</ScheduleGate></main>
+          <main className="flex-1 pb-24 md:pb-0"><ScheduleGate>{children}</ScheduleGate></main>
         </div>
+
+        {/* Phones: the four everyday jobs at the thumb; everything else under More. */}
+        {!/^\/admin\/whiteboard/.test(pathname) && (
+          <nav aria-label="Quick" className="fixed inset-x-3 bottom-3 z-40 md:hidden" style={{ marginBottom: "env(safe-area-inset-bottom)" }}>
+            <ul className="grid grid-cols-5 rounded-[22px] border border-white/[0.08] bg-[#1d2023]/[0.97] p-1.5 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75)]">
+              {[
+                { href: "/admin/today", label: "Today", I: NavIcon.Today },
+                { href: "/admin/classes", label: "Classes", I: NavIcon.Classes },
+                { href: "/admin/whiteboard", label: "Board", I: NavIcon.Board },
+                { href: "/admin/submissions", label: "Marking", I: NavIcon.Inbox },
+              ].map(({ href, label, I }) => {
+                const on = pathname.startsWith(href);
+                return (
+                  <li key={href}>
+                    <Link
+                      href={href}
+                      aria-current={on ? "page" : undefined}
+                      className={cn("flex h-[52px] flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-semibold transition-colors active:scale-95", on ? "bg-brand/[0.12] text-brand" : "text-ink-3")}
+                    >
+                      <I active={on} className="h-5 w-5" />
+                      {label}
+                    </Link>
+                  </li>
+                );
+              })}
+              <li>
+                <button
+                  onClick={() => setMobileOpen(true)}
+                  className="flex h-[52px] w-full flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-semibold text-ink-3 active:scale-95"
+                >
+                  <Icon.Menu className="h-5 w-5" />
+                  More
+                </button>
+              </li>
+            </ul>
+          </nav>
+        )}
       </div>
     </AdminFilterProvider>
   );

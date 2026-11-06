@@ -12,7 +12,7 @@ import { cleanLevels, type LevelSubjects } from "@/lib/levels";
  *     homework due within 24 h (not handed in), and their first class of the day starting
  *     (one a day, sent in the 15 minutes before it starts).
  *  2. Never the same thing twice (notify_log is the memory).
- *  3. At most 3 a day per student (Pakistan day).
+ *  3. At most 2 a day per student (Pakistan day); class reminders don't count.
  *  4. Nothing between 10 pm and 8 am Pakistan time. Results released at night
  *     go out in the morning; reminders whose moment passed overnight are dropped.
  *  5. Each kind can be switched off by the student (notify_prefs; the class
@@ -24,7 +24,7 @@ import { cleanLevels, type LevelSubjects } from "@/lib/levels";
 const DAILY_CAP = 2;
 /** Calm rules: at most one per run, and two hours between anything that isn't time critical. */
 const GAP_MS = 2 * 3_600_000;
-const URGENT: Kind[] = ["classes", "tests"];
+const URGENT: Kind[] = ["classes", "tests", "news"];
 const TZ = "Asia/Karachi";
 
 export function pushReady(): boolean {
@@ -53,7 +53,9 @@ const pkDayStart = (d = new Date()) => {
   return new Date(`${ymd}T00:00:00+05:00`).toISOString();
 };
 
-type Kind = "results" | "tests" | "assignments" | "classes" | "study" | "recordings";
+type Kind = "results" | "tests" | "assignments" | "classes" | "study" | "recordings" | "news";
+/** Sent on purpose (a class change, a notice Hamza chose to send): never held back by the daily cap. */
+const UNCAPPED: Kind[] = ["classes", "news"];
 interface Item {
   studentId: string;
   kind: Kind;
@@ -101,7 +103,7 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
   for (const l of log ?? []) {
     const id = l.student_id as string;
     // Class reminders don't use up the day's allowance: every class matters.
-    if (l.kind === "classes") continue;
+    if (UNCAPPED.includes(l.kind as Kind)) continue;
     sends.set(id, (sends.get(id) ?? new Set()).add(String(l.sent_at).slice(0, 16)));
     lastSent.set(id, Math.max(lastSent.get(id) ?? 0, Date.parse(l.sent_at as string)));
   }
@@ -119,7 +121,7 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
     if (prefBy.get(it.studentId)?.[it.kind] === false) continue;
     const fresh = it.refs.filter((r) => !sent.has(`${it.studentId}|${it.kind}|${r}`));
     if (!fresh.length) continue;
-    if (it.kind !== "classes" && (todayCount.get(it.studentId) ?? 0) >= DAILY_CAP) continue;
+    if (!UNCAPPED.includes(it.kind) && (todayCount.get(it.studentId) ?? 0) >= DAILY_CAP) continue;
     if (thisRun.has(it.studentId)) continue;
     if (!URGENT.includes(it.kind) && nowMs - (lastSent.get(it.studentId) ?? 0) < GAP_MS) continue;
 
@@ -131,7 +133,7 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
       .select("ref");
     fresh.forEach((r) => sent.add(`${it.studentId}|${it.kind}|${r}`));
     if (error || !added?.length) continue;
-    if (it.kind !== "classes") todayCount.set(it.studentId, (todayCount.get(it.studentId) ?? 0) + 1);
+    if (!UNCAPPED.includes(it.kind)) todayCount.set(it.studentId, (todayCount.get(it.studentId) ?? 0) + 1);
     thisRun.add(it.studentId);
     lastSent.set(it.studentId, nowMs);
 
@@ -144,6 +146,10 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
           // The phone unsubscribed or the browser data was cleared: forget the device.
           const code = (e as { statusCode?: number }).statusCode;
           if (code === 404 || code === 410) await sb.from("push_subscriptions").delete().eq("id", d.id);
+          // The push service was busy: un-remember it so the next run tries again
+          // (only with one device, so a phone that did get it isn't sent it twice).
+          else if (devices.length === 1)
+            await sb.from("notify_log").delete().eq("student_id", it.studentId).eq("kind", it.kind).in("ref", added.map((a) => a.ref as string));
         }
       });
     count++;
@@ -161,6 +167,21 @@ export async function notifyClassChange(sb: SupabaseClient, studentIds: string[]
   return deliver(
     sb,
     studentIds.map((studentId) => ({ studentId, kind: "classes" as const, refs: [ref], title, body, url: "/classes", tag: `change-${ref}`, priority: -2 })),
+  );
+}
+
+/**
+ * Hamza ticked "Also send to phones" on a notice: one short notification to
+ * the students it is for (its cohort, or everyone). Quiet hours still apply.
+ */
+export async function notifyAnnouncement(id: string, cohortId: string | null, text: string): Promise<number> {
+  if (!pushReady() || isQuietHours()) return 0;
+  const sb = serviceClient();
+  const who = (await reachableStudents(sb)).filter((s) => !cohortId || s.cohortId === cohortId);
+  const body = text.length > 140 ? `${text.slice(0, 137).trimEnd()}…` : text;
+  return deliver(
+    sb,
+    who.map((s) => ({ studentId: s.id, kind: "news" as const, refs: [`ann:${id}`], title: "A note from Hamza", body, url: "/dashboard", tag: `ann-${id}`, priority: -2 })),
   );
 }
 
@@ -326,6 +347,16 @@ export async function notifyReleased(submissionIds: string[]): Promise<number> {
  * `windowMin` is how late a reminder still makes sense: short for the
  * every-minute check, longer for the 15-minute job (a fallback).
  */
+async function classJustStarted(sb: SupabaseClient, now: number, windowMin: number): Promise<boolean> {
+  setSchedule(await loadSchedule(sb));
+  const [{ data: classes }, { data: subjects }] = await Promise.all([sb.from("classes").select("id,name"), sb.from("subjects").select("id,name")]);
+  const db = {
+    classes: (classes ?? []).map((c) => ({ id: c.id as string, name: c.name as string, createdAt: "" })),
+    subjects: (subjects ?? []).map((x) => ({ id: x.id as string, name: x.name as string, createdAt: "" })),
+  };
+  return liveSlotsOn(db, pkDate(now)).some((sl) => now - sl.startMs >= 60_000 && now - sl.startMs <= windowMin * 60_000 && now < sl.endMs);
+}
+
 async function classItems(sb: SupabaseClient, students: Reach[], now: number, windowMin = 15): Promise<Item[]> {
   setSchedule(await loadSchedule(sb));
   const today = pkDate(now);
@@ -385,6 +416,8 @@ export async function runClassReminders(): Promise<{ sent: number; quiet?: boole
   if (!pushReady()) return { sent: 0 };
   if (isQuietHours()) return { sent: 0, quiet: true };
   const sb = serviceClient();
+  // Most minutes no class has just started: stop before reading every account.
+  if (!(await classJustStarted(sb, Date.now(), 4))) return { sent: 0 };
   const students = await reachableStudents(sb);
   if (!students.length) return { sent: 0 };
   return { sent: await deliver(sb, await classItems(sb, students, Date.now(), 4)) };

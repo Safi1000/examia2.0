@@ -55,7 +55,9 @@ export default function WhiteboardPage() {
         <li>Diagrams: draw an L (or press A on the laptop) for clean x and y axes, with 0 at the origin and arrows at the ends.</li>
         <li>Moving things: the Move tool (V) drags pictures, typed text and writing. With the Type tool, a tap on words edits them and a drag moves them.</li>
         <li>While typing: B for bold, I for italic, and a highlighter, in the little bar above the words (or Ctrl+B, Ctrl+I, Ctrl+H).</li>
-        <li>Writing reaches the bottom of the screen? The board slides up by itself to give you fresh lines. Typed words carry on to the next line at the edge.</li>
+        <li>Writing lines at the bottom of the screen? Pause for a moment and the board slides up for fresh space (only after a few lines of writing there, never while you write or draw). Page Down on the laptop does it any time. Typed words carry on to the next line at the edge.</li>
+        <li>Text boxes: drag the side handle to set how wide the lines run, the corner to make the words bigger or smaller. The bar above the words has bold, italic, highlight and the three colours.</li>
+        <li>Pointing: hold the S Pen just above the tablet without touching, and a soft red dot shows on the laptop and TV where you point.</li>
         <li>The tools fade while you write, and on the laptop they step aside after 3 seconds without the mouse, so they never cover the board.</li>
         <li>For a fully clean shared screen, hide the tools (the eye button, or H). &ldquo;Show tools&rdquo; brings them back.</li>
         <li>Each device keeps its board when you leave, however full, and it&apos;s there when you come back.</li>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Splash } from "@/components/Splash";
 import { useParams, useRouter } from "next/navigation";
 import type { Answer, Student, Test } from "@/types";
 import type { Database } from "@/lib/data/seed";
@@ -153,7 +154,7 @@ export default function TestRunnerPage() {
   }
   if (!boot && !gate) {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-ink-3">Loading test…</div>
+      <Splash label="Opening your test…" />
     );
   }
 
@@ -180,7 +181,7 @@ export default function TestRunnerPage() {
   if (gate && !boot && t) return <ReadyScreen test={t} nowMs={clock} busy={beginning} onBegin={() => void begin()} />;
   if (!boot) {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-ink-3">Loading test…</div>
+      <Splash label="Opening your test…" />
     );
   }
   return <TestRunner key={boot.startedAt} id={id} boot={boot} />;

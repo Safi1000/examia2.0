@@ -413,6 +413,8 @@ export function createSeed(now: number = Date.now()): Database {
     attendanceMonths: [],
     assignmentSubmissions: [
       { id: "asub_1", assignmentId: "as_bep", studentId: "st_amelia", fileUrls: [], submittedAt: iso(-2 * DAY), feedback: "Good chart. Label the axes next time.", feedbackAt: iso(-1 * DAY) },
+      { id: "asub_2", assignmentId: "as_bep", studentId: "st_noah", fileUrls: [], submittedAt: iso(-3.5 * DAY) },
+      { id: "asub_3", assignmentId: "as_bep", studentId: "st_priya", fileUrls: [], submittedAt: iso(-3.2 * DAY) },
     ],
     subjects: [
       { id: "sj_acc", name: "Accounting", createdAt: iso(-90 * DAY) },

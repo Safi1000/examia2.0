@@ -7,6 +7,10 @@ import { FOCUS_MODES, STUDY_NAME, quoteFor, recordFocus, type FocusMode as Mode 
 import { clearRunning, loadRunning, minutesToAdd, ownRunning, saveRunning } from "@/components/student/focus-session";
 import { useBackToClose } from "@/components/student/useBackToClose";
 import { cn } from "@/lib/cn";
+import { sceneFor, reviewDone, topicKey } from "@/lib/groundwork";
+import { currentStats } from "@/lib/focus";
+import { pkDate, addDays } from "@/lib/timetable";
+import { StudyRoomStrip, setStudying } from "@/components/student/StudyRoom";
 
 /**
  * The full-screen study timer. Loaded only when a student opens it, so Home
@@ -17,15 +21,36 @@ export interface Mission {
   subject: string;
   topic: string;
   noteHref?: string;
+  /** Suggested length in minutes (picks the closest session length). */
+  minutes?: number;
+  /** "Test prep", "Review 2 of 4"... shown above the topic. */
+  tag?: string;
 }
 
 type Phase = "setup" | "focus" | "rest" | "done";
 
 /** Full-screen timer: pick a subject and length, then nothing else on screen. */
-export default function FocusMode({ subjects, mission, onClose }: { subjects: string[]; mission?: Mission | null; onClose: () => void }) {
-  const { updateProfile } = useAuth();
+export default function FocusMode({
+  subjects,
+  mission,
+  onClose,
+  me,
+}: {
+  subjects: string[];
+  mission?: Mission | null;
+  onClose: () => void;
+  /** Shown in the live study room while the timer runs. */
+  me?: { id: string; name: string; avatar?: string };
+}) {
+  const { updateProfile, profile } = useAuth();
+  const [openedAt] = useState(() => Date.now());
+  const scene = sceneFor(profile.scene, openedAt);
   const [subject, setSubject] = useState(mission?.subject ?? subjects[0] ?? "Study");
-  const [mode, setMode] = useState<Mode>(FOCUS_MODES[0]);
+  const [mode, setMode] = useState<Mode>(
+    () => (mission?.minutes ? [...FOCUS_MODES].sort((a, b) => Math.abs(a.focus - mission.minutes!) - Math.abs(b.focus - mission.minutes!))[0] : FOCUS_MODES[0]),
+  );
+  const [checked, setChecked] = useState<null | "got" | "shaky">(null);
+  const [sessionMin, setSessionMin] = useState(0);
   const [phase, setPhase] = useState<Phase>("setup");
   const [endsAt, setEndsAt] = useState<number | null>(null);
   const [pausedLeft, setPausedLeft] = useState<number | null>(null);
@@ -163,6 +188,7 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
     const t = setTimeout(() => {
       chime(audio.current);
       if (phase === "focus") {
+        setSessionMin((m) => m + mode.focus);
         logFocus(mode.focus, subject);
         startedAt.current = null;
         clearRunning();
@@ -171,6 +197,7 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
       } else if (phase === "rest") {
         setPhase("done");
         setEndsAt(null);
+        setStudying(null);
       }
     }, 0);
     return () => clearTimeout(t);
@@ -195,11 +222,15 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
     setPausedLeft(null);
     setEndsAt(at + mode.focus * 60_000);
     setNow(at);
+    if (me) setStudying({ ...me, name: me.name.split(" ")[0], subject, since: at });
   };
   const close = () => {
     flush();
+    setStudying(null);
     onClose();
   };
+  // Leaving the room however the timer closes (route change, unmount).
+  useEffect(() => () => setStudying(null), []);
   // The phone's Back button ends the session here, like End session.
   useBackToClose(close);
   const togglePause = () => {
@@ -223,10 +254,20 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
     cn("h-11 rounded-full border px-4 text-sm font-semibold transition-colors", on ? "border-brand bg-brand text-on-brand" : "border-border-strong text-ink-2 hover:text-ink");
 
   return (
-    <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label={STUDY_NAME} className="fixed inset-0 z-[70] overflow-y-auto bg-[#141618] outline-none">
-      <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center px-6 py-8 text-center">
+    <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label={STUDY_NAME} className="focus-dark fixed inset-0 z-[70] overflow-y-auto bg-[#101214] outline-none">
+      {/* Their Groundwork scene, dimmed, so the timer feels like their own quiet room. */}
+      <div className="pointer-events-none fixed inset-0" aria-hidden style={{ background: scene.sky }}>
+        {scene.photo && (
+          <picture>
+            <source media="(min-width: 768px)" srcSet={`/wallpapers/${scene.photo}.jpg`} />
+            <img src={`/wallpapers/${scene.photo}-m.jpg`} alt="" className="h-full w-full object-cover" decoding="async" />
+          </picture>
+        )}
+        <div className={cn("absolute inset-0 transition-colors duration-1000", phase === "focus" ? "bg-[#0b0d0f]/80" : "bg-[#0b0d0f]/65")} />
+      </div>
+      <div className="relative mx-auto flex min-h-dvh max-w-md flex-col items-center px-6 py-8 text-center">
         <div className="flex w-full items-center justify-between">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-brand">{STUDY_NAME}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-brand">{STUDY_NAME}</p>
           <button type="button" onClick={close} className="h-10 px-2 text-sm font-semibold text-ink-3 hover:text-ink">
             {phase === "setup" || phase === "done" ? "Close" : "End session"}
           </button>
@@ -236,7 +277,7 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
           <div className="mt-10 w-full space-y-7 text-left">
             {mission ? (
               <div className="rounded-2xl border border-brand/30 bg-brand/[0.08] p-4 text-center">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-brand">Today&apos;s mission</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-brand">{mission.tag ?? "Today's mission"}</p>
                 <p className="mt-1.5 text-xl font-extrabold text-ink">{mission.topic}</p>
                 <p className="text-sm text-ink-2">{mission.subject}</p>
                 {mission.noteHref && (
@@ -275,15 +316,74 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
             </button>
           </div>
         ) : phase === "done" ? (
-          <div className="mt-24 space-y-5">
-            <p className="text-5xl">✓</p>
-            <h2 className="text-[1.8rem] font-extrabold tracking-tight text-ink">Session done.</h2>
-            <p className="text-ink-2">{mode.focus} minutes of {subject} added to your week.</p>
+          <div className="mt-16 w-full space-y-6">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-brand/15 text-4xl text-brand ring-1 ring-brand/30 animate-[scale-in_300ms_ease-out]">✓</div>
+            <div>
+              <h2 className="text-[1.8rem] font-extrabold tracking-tight text-ink">Session done.</h2>
+              <p className="mt-1 text-ink-2">
+                {sessionMin || mode.focus} minutes of {subject} added to your week.
+              </p>
+            </div>
+            {(() => {
+              const st = currentStats(profile.focus, now);
+              const goal = (profile.weeklyGoal ?? 5) * 60;
+              const pct = Math.min(100, Math.round((st.weekMinutes / goal) * 100));
+              return (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left backdrop-blur-md">
+                  <div className="flex items-baseline justify-between text-sm">
+                    <span className="font-semibold text-ink">This week</span>
+                    <span className="tabular-nums text-ink-2">
+                      {Math.round((st.weekMinutes / 60) * 10) / 10} of {profile.weeklyGoal ?? 5} h
+                    </span>
+                  </div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full rounded-full bg-brand transition-[width] duration-700" style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className="mt-2 text-xs text-ink-3">{pct >= 100 ? "Weekly goal hit. That's how grades move." : `${100 - pct}% to your weekly goal.`}{st.streak > 1 ? ` ${st.streak} days in a row.` : ""}</p>
+                </div>
+              );
+            })()}
+            {mission && subject === mission.subject && (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md">
+                <p className="text-sm font-semibold text-ink">How did {mission.topic} go?</p>
+                {checked ? (
+                  <p className="mt-2 text-sm text-ink-2">
+                    {checked === "got" ? "Nice. It comes back in a few days so it sticks." : "No problem. It's back on your plan tomorrow."}
+                  </p>
+                ) : (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setChecked("got");
+                        const key = topicKey(mission.subject, mission.topic);
+                        updateProfile((latest) => ({ reviews: reviewDone(latest.reviews, key, Date.now()) }));
+                      }}
+                      className="h-12 rounded-full bg-brand text-sm font-semibold text-on-brand active:scale-[0.98]"
+                    >
+                      Got it
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setChecked("shaky");
+                        const key = topicKey(mission.subject, mission.topic);
+                        const tomorrow = addDays(pkDate(Date.now()), 1);
+                        updateProfile((latest) => ({ reviews: { ...latest.reviews, [key]: { step: latest.reviews?.[key]?.step ?? 0, due: tomorrow } } }));
+                      }}
+                      className="h-12 rounded-full border border-border-strong text-sm font-semibold text-ink active:scale-[0.98]"
+                    >
+                      Still shaky
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             <div className="flex justify-center gap-2">
               <button type="button" onClick={start} className="h-12 rounded-full bg-brand px-6 text-sm font-semibold text-on-brand">
                 Another one
               </button>
-              <button type="button" onClick={onClose} className="h-12 rounded-full border border-border-strong px-6 text-sm font-semibold text-ink">
+              <button type="button" onClick={close} className="h-12 rounded-full border border-border-strong px-6 text-sm font-semibold text-ink">
                 I&apos;m done
               </button>
             </div>
@@ -293,7 +393,7 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
             <p className="mt-10 text-sm font-semibold text-ink-2">{phase === "rest" ? "Break. Stand up, drink water." : mission && subject === mission.subject ? `${subject} · ${mission.topic}` : subject}</p>
             <div className="relative mt-6">
               <svg width="272" height="272" viewBox="0 0 272 272" className="-rotate-90" aria-hidden>
-                <circle cx="136" cy="136" r={R} fill="none" stroke="#22262B" strokeWidth="10" />
+                <circle cx="136" cy="136" r={R} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="10" />
                 <circle
                   cx="136"
                   cy="136"
@@ -307,7 +407,7 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <p className="text-6xl font-extrabold tabular-nums tracking-tight text-ink" aria-live="off">
+                <p className="text-[4.25rem] font-extralight tabular-nums tracking-[-0.04em] text-ink" aria-live="off">
                   {mm}:{ss}
                 </p>
                 <p className="mt-1 text-xs uppercase tracking-[0.25em] text-ink-3">{pausedLeft != null ? "Paused" : phase === "rest" ? "Break" : "Focus"}</p>
@@ -324,6 +424,7 @@ export default function FocusMode({ subjects, mission, onClose }: { subjects: st
               )}
             </div>
             {phase === "focus" && <SoundPicker sound={sound} setSound={pickSound} compact />}
+            {me && <StudyRoomStrip meId={me.id} tone="dark" className="mt-8 w-full justify-center text-left" />}
           </>
         )}
 
