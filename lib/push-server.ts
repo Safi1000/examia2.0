@@ -1,6 +1,6 @@
 import webpush from "web-push";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { liveSlotsOn, pkDate, setSchedule } from "@/lib/timetable";
+import { RECORDING_HOURS, liveSlotsOn, pkDate, setSchedule } from "@/lib/timetable";
 import { loadSchedule } from "@/lib/schedule-server";
 import { assignmentCopy, classCopy, newHomeworkCopy, recordingCopy, resultCopy, studyCopy, testOpensCopy } from "@/lib/notify-copy";
 import { cleanLevels, type LevelSubjects } from "@/lib/levels";
@@ -463,17 +463,19 @@ function studyItems(students: Reach[], profiles: Map<string, StudentProfile>, no
 }
 
 /**
- * A class recording closing within 5 hours, for students in that class who
+ * A class recording closing within 5 hours (they stay open RECORDING_HOURS), for students in that class who
  * didn't join it and haven't opened the recording yet. Once per recording.
  */
 async function recordingItems(sb: SupabaseClient, students: Reach[], profiles: Map<string, StudentProfile>, now: number): Promise<Item[]> {
   const today = pkDate(now);
   const yesterday = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(now - 864e5);
+  // Recordings stay open 48 hours, so a class from two days ago can still be closing.
+  const twoDaysAgo = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(now - 2 * 864e5);
   const [{ data: links }, { data: classes }, { data: subjects }, { data: joins }, { data: cc }, { data: cs }] = await Promise.all([
-    sb.from("class_links").select("on_date,class_id,subject_id,recording_url").in("on_date", [yesterday, today]).not("recording_url", "is", null),
+    sb.from("class_links").select("on_date,class_id,subject_id,recording_url").in("on_date", [twoDaysAgo, yesterday, today]).not("recording_url", "is", null),
     sb.from("classes").select("id,name"),
     sb.from("subjects").select("id,name"),
-    sb.from("class_joins").select("student_id,on_date,class_id,subject_id").in("on_date", [yesterday, today]),
+    sb.from("class_joins").select("student_id,on_date,class_id,subject_id").in("on_date", [twoDaysAgo, yesterday, today]),
     sb.from("cohort_classes").select("cohort_id,class_id"),
     sb.from("cohort_subjects").select("cohort_id,subject_id"),
   ]);
@@ -492,13 +494,14 @@ async function recordingItems(sb: SupabaseClient, students: Reach[], profiles: M
   for (const l of links) {
     const slot = liveSlotsOn(db, l.on_date as string).find((x) => x.classId === l.class_id && x.subjectId === l.subject_id);
     if (!slot) continue;
-    const closes = slot.endMs + 24 * 3_600_000;
+    const closes = slot.endMs + RECORDING_HOURS * 3_600_000;
     if (closes <= now || closes - now > 5 * 3_600_000) continue;
     const key = `${l.on_date}|${l.class_id}|${l.subject_id}`;
     for (const s of students) {
       const lv = s.classes.size ? s.classes : (cohortClasses.get(s.cohortId ?? "") ?? new Set<string>());
       const sbj = s.subjects.size ? s.subjects : (cohortSubjects.get(s.cohortId ?? "") ?? new Set<string>());
-      if (!lv.has(l.class_id as string) || (sbj.size && !sbj.has(l.subject_id as string))) continue;
+      const atLevel = s.levels[l.class_id as string]?.length ? new Set(s.levels[l.class_id as string]) : sbj;
+      if (!lv.has(l.class_id as string) || (atLevel.size && !atLevel.has(l.subject_id as string))) continue;
       if (profiles.get(s.id)?.notifyRecordings === false) continue;
       if (joined.has(`${s.id}|${key}`) || profiles.get(s.id)?.watched?.includes(key)) continue;
       // One recording reminder per student: the first closing; any others ride along in its refs.
@@ -515,7 +518,7 @@ async function recordingItems(sb: SupabaseClient, students: Reach[], profiles: M
           `${s.id}${key}`,
           slot.subject,
           new Date(`${l.on_date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long" }),
-          new Date(closes).toLocaleTimeString("en-GB", { timeZone: TZ, hour: "numeric", minute: "2-digit", hour12: true }),
+          new Date(closes).toLocaleString("en-GB", { timeZone: TZ, weekday: "short", hour: "numeric", minute: "2-digit", hour12: true }),
         ),
         url: "/classes",
         tag: `rec-${key}`,

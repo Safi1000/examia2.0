@@ -116,7 +116,7 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="flex items-center gap-2 text-ink-3">
               <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden />
-              Google connected{status.email ? ` (${status.email})` : ""}. Links at 1 pm, recordings open 24 h.
+              Google connected{status.email ? ` (${status.email})` : ""}. Links at 1 pm, recordings open 2 days.
             </p>
             <div className="flex items-center gap-1">
               <button

@@ -31,7 +31,7 @@ const slotsOn: typeof allSlotsOn = (db, date) => allSlotsOn(db, date).filter((s)
  *     3 days, since Meet can take 30 to 40 minutes to save it), the recording
  *     is moved to "Hamza Teaches recordings / level / subject" in Drive,
  *     shared "anyone with the link" and added for students.
- *  3. 24 hours after the class ends, link sharing is switched off again, so
+ *  3. 48 hours after the class ends, link sharing is switched off again, so
  *     students can't save it for later. Anyone Hamza shared the folder with
  *     by email (late joiners) still has access.
  *  4. Every class link today is set to record by itself (Meet's own "record
@@ -149,7 +149,7 @@ export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), f
       if (!endMs || now < endMs + 15 * 60_000) continue;
       const closesAt = endMs + RECORDING_HOURS * 3_600_000;
       if (row.recording_url) {
-        // Past its 24 hours: close the link (retried for a few hours).
+        // Past its 48 hours: close the link (retried for a few hours).
         if (now >= closesAt && now < closesAt + 6 * 3_600_000) {
           const id = fileIdOf(row.recording_url);
           if (id) await closeLinkSharing(token, id);
@@ -162,7 +162,7 @@ export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), f
       const lvl = level ? levelOf(level) : null;
       const sub = subject ? subjectOf(subject) : null;
       const url = await findRecording(token, ev, title || (ev.summary ?? ""), new Date(startMs - 30 * 60_000).toISOString(), {
-        // Found only after its 24 hours: filed for Hamza, never opened to students.
+        // Found only after its 48 hours: filed for Hamza, never opened to students.
         share: now < closesAt,
         folder: lvl && sub ? [RECORDINGS_ROOT, LEVEL_LABEL[lvl].replace(" / ", " and "), sub] : [RECORDINGS_ROOT, "Other"],
       });

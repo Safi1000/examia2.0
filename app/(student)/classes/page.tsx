@@ -37,8 +37,8 @@ export default function ClassesPage() {
   const nowMs = useNow();
   const student = session?.studentId ? studentById(db, session.studentId) : null;
   const today = pkDate(nowMs);
-  // Recordings stay open for a day, so two days back is plenty.
-  const from = addDays(today, -2);
+  // Recordings stay open for 2 days, so three days back covers every one still open.
+  const from = addDays(today, -3);
   const { links } = useClassLinks(from, today);
   const schedule = useSchedule(); // re-render when the timetable loads or changes
 
@@ -53,7 +53,7 @@ export default function ClassesPage() {
 
   const recordings = (() => {
     if (!student) return [];
-    // Each of my classes, and when its recording closes (24 h after it ends).
+    // Each of my classes, and when its recording closes (48 hours after it ends).
     const closes = new Map<string, number>();
     for (let d = from; d <= today; d = addDays(d, 1))
       for (const s of slotsForStudent(db, student, d)) {
@@ -126,7 +126,7 @@ export default function ClassesPage() {
       <section className="space-y-3">
         <div>
           <h2 className="text-base font-semibold text-ink">Recordings</h2>
-          <p className="mt-0.5 text-sm text-ink-3">Watch within {RECORDING_HOURS} hours of class. After that they close.</p>
+          <p className="mt-0.5 text-sm text-ink-3">Each recording stays open for 2 days after class, then it closes.</p>
         </div>
         {pending.length > 0 && (
           <ul className="space-y-2">
@@ -185,7 +185,7 @@ export default function ClassesPage() {
           <EmptyState
             icon={<Icon.Doc />}
             title="No recordings right now"
-            message={`Each class recording appears here after class and stays open for ${RECORDING_HOURS} hours.`}
+            message="Each class recording appears here after class and stays open for 2 days."
           />
         )}
       </section>

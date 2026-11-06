@@ -11,7 +11,8 @@ import { subjectsAtLevel } from "@/lib/levels";
 /** Hour (Pakistan time) when the day's Meet links are made, before the first class at 3:30. */
 export const LINKS_AT_HOUR = 13;
 /** Students can watch a class recording until this many hours after the class ends. */
-export const RECORDING_HOURS = 24;
+/** How long a class recording stays open to students after the class ends. */
+export const RECORDING_HOURS = 48;
 /** How early the Join button wakes up. */
 export const JOIN_EARLY_MIN = 5;
 

@@ -33,6 +33,7 @@ import {
   isPenEraser,
   lineAngle,
   measureText,
+  wrapText,
   newId,
   TEXT_PX,
   packStroke,
@@ -44,6 +45,8 @@ import {
   straightOf,
   strokeBox,
   tAccountOf,
+  axesOf,
+  axesOfPair,
   snapLine,
   toWorld,
   visibleView,
@@ -76,7 +79,8 @@ import { cloudinaryConfigured, uploadImage, uploadPdfPages } from "@/lib/cloudin
 const HOLD_MS = 480;
 const HOLD_STILL_PX = 4;
 const MIN_HOLD_PATH_PX = 28;
-const PALM_LOCK_MS = 350;
+// After the pen lifts, touches are taken as the resting hand for this long (not a pan).
+const PALM_LOCK_MS = 900;
 const PALM_SIZE_PX = 56;
 const ERASER_PX = 14;
 /** The board from before pages existed (and the page used outside class time). */
@@ -95,7 +99,7 @@ function tagPage(m: BoardMsg, pg: string): BoardMsg {
 const PAN_GAIN = 1.15;
 const HANDLE_PX = 22;
 
-type Tool = "pen" | "line" | "eraser" | "move" | "text";
+type Tool = "pen" | "line" | "axes" | "eraser" | "move" | "text";
 type Action =
   | { type: "add"; s: Stroke }
   | { type: "erase"; s: Stroke[] }
@@ -153,7 +157,8 @@ function useCanvas(draw: (ctx: CanvasRenderingContext2D, w: number, h: number, a
     const loop = () => {
       if (dirty.current) {
         dirty.current = false;
-        const ctx = c.getContext("2d")!;
+        // Low-latency, opaque canvas: the ink shows a frame sooner on tablets that support it.
+        const ctx = (c.getContext("2d", { desynchronized: true, alpha: false }) ?? c.getContext("2d"))!;
         const { w, h, dpr } = size.current;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         drawRef.current(ctx, w, h, () => {
@@ -206,6 +211,12 @@ function packOnce(s: Stroke): Stroke {
     packed.set(s, p);
   }
   return p;
+}
+
+/** The stroke being drawn, with the predicted points on the end (pen ink only). */
+function withPrediction(s: Stroke | null, ahead: Pt[]): Stroke | null {
+  if (!s || s.kind !== "ink" || !ahead.length) return s;
+  return { ...s, pts: [...s.pts, ...ahead] };
 }
 
 /** Strokes only added at the end since last time (the usual case: a new line), not removed or changed. */
@@ -410,6 +421,7 @@ const I = {
   ),
   trash: svg(<path d="M4.5 7h15M9.5 7V5h5v2M6.5 7l.8 12a1.5 1.5 0 001.5 1.4h6.4a1.5 1.5 0 001.5-1.4l.8-12" />),
   fit: svg(<path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4" />),
+  axes: svg(<path d="M5 3.5V19h15.5M3 6l2-2.5L7 6M18 17l2.5 2-2.5 2" />),
   prev: svg(<path d="M14.5 6l-6 6 6 6" />),
   next: svg(<path d="M9.5 6l6 6-6 6" />),
   plus: svg(<path d="M12 5.5v13M5.5 12h13" />),
@@ -529,6 +541,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const images = useRef<BoardImage[]>([]);
   const cam = useRef<Camera>({ x: -60, y: -60, z: 1 });
   const current = useRef<Stroke | null>(null);
+  // The next few pen positions the tablet predicts (drawn ahead of the pen, never saved).
+  const predicted = useRef<Pt[]>([]);
   const undoStack = useRef<Action[]>([]);
   const redoStack = useRef<Action[]>([]);
   const link = useRef<BoardLink | null>(null);
@@ -556,8 +570,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const sidePanelRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   // Typing: where the text box sits on screen, and what is in it.
-  const [typing, setTyping] = useState<{ x: number; y: number; px: number; color: string } | null>(null);
-  const typingRef = useRef<{ id: string; wx: number; wy: number; size: number; color: string; text: string; editing?: Stroke } | null>(null);
+  const [typing, setTyping] = useState<{ x: number; y: number; px: number; color: string; maxPx: number } | null>(null);
+  // `maxW`: how wide a line may run before it carries on below (to the screen's right edge).
+  const typingRef = useRef<{ id: string; wx: number; wy: number; size: number; color: string; text: string; maxW: number; editing?: Stroke } | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   // What the other device is drawing or typing right now.
   const remoteLive = useRef<Stroke | null>(null);
@@ -592,7 +607,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       cam.current,
       images.current,
       strokes.current,
-      [current.current, remoteLive.current],
+      [withPrediction(current.current, predicted.current), remoteLive.current],
       again,
       images.current.find((m) => m.id === selectedRef.current) ?? null,
     ),
@@ -776,7 +791,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const t = typingRef.current;
     if (!t) return;
     const c = cam.current;
-    setTyping({ x: (t.wx - c.x) * c.z, y: (t.wy - c.y) * c.z, px: t.size * c.z, color: t.color });
+    setTyping({ x: (t.wx - c.x) * c.z, y: (t.wy - c.y) * c.z, px: t.size * c.z, color: t.color, maxPx: t.maxW * c.z });
   }, []);
 
   const refresh = useCallback(() => {
@@ -1120,7 +1135,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   // ---- typing
   const textSize = () => (TEXT_PX[SIZES.findIndex((x) => x.value === size)] ?? TEXT_PX[1]) / cam.current.z;
   const typedStroke = (t: NonNullable<typeof typingRef.current>): Stroke => {
-    const text = t.text.replace(/\s+$/, "");
+    const text = wrapText(t.text.replace(/\s+$/, ""), t.size, t.maxW);
     const m = measureText(text, t.size);
     return { id: t.id, kind: "text", text, color: t.color, size: t.size, pts: [[t.wx, t.wy, 0.5], [t.wx + m.w, t.wy + m.h, 0.5]] };
   };
@@ -1162,15 +1177,17 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     commitTyping();
     const [wx, wy] = toWorld(cam.current, sx, sy);
     const under = [...strokes.current].reverse().find((x) => x.kind === "text" && hitStroke(x, wx, wy, 6 / cam.current.z));
+    // Lines run to the right edge of the screen (less a margin), then carry on below.
+    const lineFrom = (x: number) => Math.max(160, screen.current.w - 24 - (x - cam.current.x) * cam.current.z) / cam.current.z;
     if (under) {
       // Lifted off the board while it is edited, so it isn't drawn twice.
       strokes.current = strokes.current.filter((x) => x.id !== under.id);
       send({ t: "del", ids: [under.id] });
-      typingRef.current = { id: under.id, wx: under.pts[0][0], wy: under.pts[0][1], size: under.size, color: under.color, text: under.text ?? "", editing: under };
+      typingRef.current = { id: under.id, wx: under.pts[0][0], wy: under.pts[0][1], size: under.size, color: under.color, text: under.text ?? "", maxW: lineFrom(under.pts[0][0]), editing: under };
     } else {
       const sz = textSize();
       const ink = color === COLORS[0].value && imageAt(images.current, wx, wy) ? "#1B1E21" : color;
-      typingRef.current = { id: newId(), wx, wy: wy - sz * 0.6, size: sz, color: ink, text: "" };
+      typingRef.current = { id: newId(), wx, wy: wy - sz * 0.6, size: sz, color: ink, text: "", maxW: lineFrom(wx) };
     }
     const el = textRef.current;
     if (el) {
@@ -1525,7 +1542,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const w = size / cam.current.z;
     // White ink would vanish on a white page: on a picture it writes in charcoal.
     const ink = color === COLORS[0].value && imageAt(images.current, wx, wy) ? "#1B1E21" : color;
-    if (tool === "line") {
+    if (tool === "axes") {
+      // Drag from where the y axis starts (top left) to the end of the x axis; a tap gives a standard size.
+      current.current = { id: newId(), kind: "form", form: "axes", color: ink, size: w, pts: [p, p] };
+      setInking(true);
+      gesture.current = { mode: "box", id: e.pointerId, erased: [], straightened: false };
+    } else if (tool === "line") {
       current.current = { id: newId(), kind: "line", color: ink, size: w, pts: [p, p] };
       setInking(true);
       gesture.current = { mode: "line", id: e.pointerId, erased: [], straightened: true };
@@ -1649,6 +1671,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         hold.current.path += Math.hypot(next[0] - last[0], next[1] - last[1]) * cam.current.z;
         s.pts.push(next);
       }
+      // Where the pen is about to be (the tablet's own guess): drawn ahead of it, never saved.
+      const ahead = e.nativeEvent.getPredictedEvents?.() ?? [];
+      predicted.current = ahead.slice(0, 3).map((ev) => {
+        const [x, y] = local(ev);
+        const [px, py] = toWorld(cam.current, x, y);
+        return [px, py, e.pointerType === "pen" ? ev.pressure || 0.5 : 0.5] as Pt;
+      });
       // Restart the "hold still" timer whenever the pen really moves.
       if (Math.hypot(sx - hold.current.x, sy - hold.current.y) > HOLD_STILL_PX) armHold(sx, sy);
     }
@@ -1697,8 +1726,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       for (let i = recentLines.current.length - 1; i >= 0; i--) {
         const o = recentLines.current[i];
         if (o.dir === dir) continue;
-        const t = dir === "v" ? tAccountOf(o.ends, ends) : tAccountOf(ends, o.ends);
         const other = strokes.current.find((x) => x.id === o.id);
+        // An upright and a base meeting at the bottom left: diagram axes.
+        const ax = dir === "v" ? axesOfPair(o.ends, ends) : axesOfPair(ends, o.ends);
+        if (ax && other && (ax.b[0] - ax.a[0]) * z >= 120 && (ax.b[1] - ax.a[1]) * z >= 90) {
+          swap([other, s], { id: newId(), kind: "form", form: "axes", color: other.color, size: Math.max(other.size, s.size), pts: [ax.a, ax.b] }, "Axes");
+          return true;
+        }
+        const t = dir === "v" ? tAccountOf(o.ends, ends) : tAccountOf(ends, o.ends);
         // T account size only, so a capital T in a heading stays handwriting.
         if (!t || !other || (t.b[0] - t.a[0]) * z < 150 || (t.b[1] - t.a[1]) * z < 90) continue;
         swap([other, s], { id: newId(), kind: "form", form: "t", color: other.color, size: Math.max(other.size, s.size), pts: [t.a, t.b] }, "T account");
@@ -1732,6 +1767,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       swap([s], { id: newId(), kind: shape.kind, color: s.color, size: s.size, pts: [shape.a, shape.b] });
       return true;
     }
+    // An L in one go (down the side, along the bottom): diagram axes.
+    const ax = big ? axesOf(s.pts) : null;
+    if (ax && (ax.b[0] - ax.a[0]) * z >= 120 && (ax.b[1] - ax.a[1]) * z >= 90) {
+      swap([s], { id: newId(), kind: "form", form: "axes", color: s.color, size: s.size, pts: [ax.a, ax.b] }, "Axes");
+      return true;
+    }
     // Long and clearly straight: tidy it into a ruled line (underlines, totals), at its own angle.
     const tidy = straightOf(s.pts, 0.03);
     if (tidy && len >= 120) {
@@ -1742,6 +1783,31 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       return true;
     }
     return false;
+  };
+
+  /**
+   * Like turning to fresh lines in a notebook: handwriting that reaches the bottom of the screen
+   * slides the board up (smoothly, the laptop following), so there's always room to carry on.
+   */
+  const scrolling = useRef(false);
+  const makeRoomBelow = (s: Stroke) => {
+    if (!lead || s.kind !== "ink" || scrolling.current) return;
+    const { h } = screen.current;
+    const bottom = (strokeBox(s).y + strokeBox(s).h - cam.current.y) * cam.current.z;
+    if (bottom < h * 0.86) return;
+    const from = cam.current.y;
+    const to = from + (h * 0.38) / cam.current.z;
+    const t0 = performance.now();
+    scrolling.current = true;
+    const step = () => {
+      const k = Math.min(1, (performance.now() - t0) / 320);
+      const ease = 1 - Math.pow(1 - k, 3);
+      cam.current = { ...cam.current, y: from + (to - from) * ease };
+      refresh();
+      if (k < 1) requestAnimationFrame(step);
+      else scrolling.current = false;
+    };
+    requestAnimationFrame(step);
   };
 
   const endGesture = (e: React.PointerEvent<HTMLCanvasElement>, cancelled = false) => {
@@ -1768,16 +1834,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       }
       touches.current.delete(e.pointerId);
       if (touches.current.size < 2) pinch.current = null;
-      // Two-finger tap (both down and up quickly, barely moving) = undo.
-      if (touches.current.size === 0 && tap2.current) {
-        const quick = performance.now() - tap2.current.at < 280 && tap2.current.moved < 14;
-        tap2.current = null;
-        if (quick) {
-          undo();
-          flash("Undone");
-          return;
-        }
-      }
+      // (A two-finger tap used to undo. A palm landing after writing looked just like one and
+      // undid the last line, so it's gone: undo is the button, or Ctrl+Z.)
+      if (touches.current.size === 0) tap2.current = null;
       const flicked = panTrip.current.dist > 24 && performance.now() - panTrip.current.at < 80;
       if (wasSingle && !cancelled && !tap2.current && flicked) startGlide(velocity.current.vx, velocity.current.vy);
       if (gesture.current.mode === "pan" && gesture.current.id === e.pointerId) gesture.current = { mode: null, id: -1, erased: [], straightened: false };
@@ -1810,17 +1869,26 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       }
       lastRaw.current = null;
       if (s.kind === "ink") s.pts = settleStroke(s.pts, s.size);
+      // Axes from a tap (or a tiny drag): a standard size, centred where it was tapped.
+      if (s.kind === "form" && s.form === "axes") {
+        const [a, b] = s.pts;
+        const z = cam.current.z;
+        if (Math.abs(b[0] - a[0]) * z < 60 || Math.abs(b[1] - a[1]) * z < 45) s.pts = [[a[0] - 210 / z, a[1] - 150 / z, 0.5], [a[0] + 210 / z, a[1] + 150 / z, 0.5]];
+        else s.pts = [[Math.min(a[0], b[0]), Math.min(a[1], b[1]), 0.5], [Math.max(a[0], b[0]), Math.max(a[1], b[1]), 0.5]];
+      }
       const tooShort = s.kind === "line" && Math.hypot(s.pts[1][0] - s.pts[0][0], s.pts[1][1] - s.pts[0][1]) * cam.current.z < 3;
       if (!cancelled && !tooShort) {
         strokes.current = [...strokes.current, s];
         commit({ type: "add", s });
         // A stroke that gets tidied (a ruled line, a T account) is sent once, as the tidy version.
         if (!recognise(s)) send({ t: "add", s: packStroke(s) });
+        makeRoomBelow(s);
       } else {
         send({ t: "del", ids: [s.id] }); // the preview on the other screen goes
       }
     }
     gesture.current = { mode: null, id: -1, erased: [], straightened: false };
+    predicted.current = [];
     setInking(false);
     requestDraw();
   };
@@ -2012,6 +2080,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "p") pickTool("pen");
       if (e.key === "l") pickTool("line");
+      if (e.key === "a") pickTool("axes");
       if (e.key === "e") pickTool("eraser");
       if (e.key === "v") pickTool("move");
       if (e.key === "t") {
@@ -2119,12 +2188,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             commitTyping();
           }
         }}
-        className={`absolute resize-none overflow-hidden whitespace-pre border-0 bg-transparent p-0 font-medium leading-[1.25] outline-none [field-sizing:content] ${
+        className={`absolute resize-none overflow-hidden whitespace-pre-wrap break-words border-0 bg-transparent p-0 font-medium leading-[1.25] outline-none [field-sizing:content] ${
           typing ? "rounded-sm ring-1 ring-[#E5A832]/60 ring-offset-4 ring-offset-transparent" : "pointer-events-none opacity-0"
         }`}
         style={
           typing
-            ? { left: typing.x, top: typing.y, fontSize: typing.px, color: inkOf(typing.color), caretColor: inkOf(typing.color), minWidth: Math.max(40, typing.px * 3) }
+            ? { left: typing.x, top: typing.y, fontSize: typing.px, color: inkOf(typing.color), caretColor: inkOf(typing.color), minWidth: Math.max(40, typing.px * 3), maxWidth: typing.maxPx }
             : { left: -9999, top: 0, width: 1, height: 1 }
         }
       />
@@ -2242,6 +2311,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         >
           <ToolButton label="Pen (P). Draw a T for a T account; hold still at the end to snap a line, box or circle" active={tool === "pen"} onClick={() => pickTool("pen")}>{I.pen}</ToolButton>
           <ToolButton label="Straight line (L)" active={tool === "line"} onClick={() => pickTool("line")}>{I.line}</ToolButton>
+          <ToolButton label="Axes for a diagram (A): drag out the graph, or tap. Drawing an L does it too" active={tool === "axes"} onClick={() => pickTool("axes")}>{I.axes}</ToolButton>
           <ToolButton label="Eraser (E), or hold the pen's side button" active={tool === "eraser"} onClick={() => pickTool("eraser")}>{I.eraser}</ToolButton>
           <ToolButton label="Type (T starts typing where the mouse is). Enter finishes, Shift+Enter for a new line" active={tool === "text"} onClick={() => pickTool("text")}>{I.text}</ToolButton>
           <ToolButton label="Move pictures (V)" active={tool === "move"} onClick={() => pickTool("move")}>{I.move}</ToolButton>
@@ -2286,7 +2356,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             </button>
           ))}
           <Divider across={lead} />
-          <ToolButton label="Undo (Ctrl+Z, or tap with two fingers)" disabled={!meta.undo} onClick={undo}>{I.undo}</ToolButton>
+          <ToolButton label="Undo (Ctrl+Z)" disabled={!meta.undo} onClick={undo}>{I.undo}</ToolButton>
           <ToolButton label="Redo (Ctrl+Shift+Z)" disabled={!meta.redo} onClick={redo}>{I.redo}</ToolButton>
           <ToolButton label="Clear the board" disabled={!hasContent} onClick={() => setConfirmClear(true)}>{I.trash}</ToolButton>
         </div>

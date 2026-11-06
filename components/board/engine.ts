@@ -271,6 +271,54 @@ export function tAccountOf(h: [Pt, Pt], v: [Pt, Pt]): { a: Pt; b: Pt } | null {
   return { a: [hx0, hy, 0.5], b: [hx1, bottom[1], 0.5] };
 }
 
+/**
+ * Two lines drawn as diagram axes (one up the side, one along the bottom, meeting at the
+ * bottom-left corner): the box for clean axes, or null.
+ */
+export function axesOfPair(h: [Pt, Pt], v: [Pt, Pt]): { a: Pt; b: Pt } | null {
+  const left = h[0][0] < h[1][0] ? h[0] : h[1];
+  const right = h[0][0] < h[1][0] ? h[1] : h[0];
+  const top = v[0][1] < v[1][1] ? v[0] : v[1];
+  const bottom = v[0][1] < v[1][1] ? v[1] : v[0];
+  const Lh = right[0] - left[0];
+  const Lv = bottom[1] - top[1];
+  if (Lh < 1 || Lv < 1 || Lv < Lh * 0.3 || Lh < Lv * 0.3) return null;
+  const near = Math.max(Lh, Lv) * 0.12;
+  // The corner: the bottom of the upright meets the left end of the base.
+  if (Math.hypot(bottom[0] - left[0], bottom[1] - left[1]) > near) return null;
+  const ox = (bottom[0] + left[0]) / 2;
+  const oy = (bottom[1] + left[1]) / 2;
+  return { a: [ox, top[1], 0.5], b: [right[0], oy, 0.5] };
+}
+
+/**
+ * One stroke drawn as an L (down the side, then along the bottom): the box for clean axes, or
+ * null. The path has to hug the left and bottom edges of its box all the way.
+ */
+export function axesOf(pts: Pt[]): { a: Pt; b: Pt } | null {
+  if (pts.length < 6) return null;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of pts) {
+    x0 = Math.min(x0, p[0]);
+    y0 = Math.min(y0, p[1]);
+    x1 = Math.max(x1, p[0]);
+    y1 = Math.max(y1, p[1]);
+  }
+  const w = x1 - x0;
+  const h = y1 - y0;
+  if (w < 1 || h < 1 || h < w * 0.3 || w < h * 0.3) return null;
+  const tol = Math.max(w, h) * 0.08;
+  const first = pts[0];
+  const last = pts[pts.length - 1];
+  // Starts at the top of the upright, ends at the right of the base (or drawn the other way).
+  const startsTop = Math.hypot(first[0] - x0, first[1] - y0) < tol * 2 && Math.hypot(last[0] - x1, last[1] - y1) < tol * 2;
+  const startsRight = Math.hypot(first[0] - x1, first[1] - y1) < tol * 2 && Math.hypot(last[0] - x0, last[1] - y0) < tol * 2;
+  if (!startsTop && !startsRight) return null;
+  // Every point near the left edge or the bottom edge.
+  for (const p of pts) if (Math.min(Math.abs(p[0] - x0), Math.abs(p[1] - y1)) > tol) return null;
+  return { a: [x0, y0, 0.5], b: [x1, y1, 0.5] };
+}
+
 /** Pen pressure to width factor: light touch stays readable, pressing thickens. */
 const widthAt = (size: number, p: number) => size * (0.3 + 1.05 * Math.pow(Math.min(1, Math.max(0, p)), 0.8));
 
@@ -465,6 +513,7 @@ export const FORMS = [
   { id: "running", name: "Running balance" },
   { id: "trial", name: "Trial balance" },
   { id: "statement", name: "Statement (two money columns)" },
+  { id: "axes", name: "Axes (diagram)" },
 ] as const;
 export type FormId = (typeof FORMS)[number]["id"];
 
@@ -472,7 +521,7 @@ type Seg = [number, number, number, number];
 type Label = { text: string; x: number; y: number; w: number; align: "left" | "center" };
 
 /** Column edges (as fractions of a width) and their headings, per layout. */
-const SIDES: Record<Exclude<FormId, "t">, { cols: number[]; heads: string[]; twoSided?: boolean }> = {
+const SIDES: Record<Exclude<FormId, "t" | "axes">, { cols: number[]; heads: string[]; twoSided?: boolean }> = {
   ledger: { cols: [0, 0.22, 0.72, 1], heads: ["Date", "Details", "$"], twoSided: true },
   cash3: { cols: [0, 0.15, 0.47, 0.64, 0.82, 1], heads: ["Date", "Details", "Disc", "Cash", "Bank"], twoSided: true },
   journal: { cols: [0, 0.14, 0.62, 0.81, 1], heads: ["Date", "Details", "Dr $", "Cr $"] },
@@ -494,6 +543,18 @@ export function shapeParts(s: Stroke): { segs: Seg[]; labels: Label[]; font: num
   const font = Math.max(6, Math.min(h * 0.06, w * 0.032, 28));
   if (s.kind === "rect") return { segs: [[x, y, x + w, y], [x + w, y, x + w, y + h], [x + w, y + h, x, y + h], [x, y + h, x, y]], labels, font };
   if (s.kind !== "form") return { segs, labels, font };
+  if (s.form === "axes") {
+    // Economics diagram axes: the origin bottom left, labelled 0; arrowheads at the far ends.
+    const a = Math.max(5, Math.min(w, h) * 0.035, s.size * 2.6);
+    const ox = x;
+    const oy = y + h;
+    segs.push([ox, oy, ox, y], [ox, oy, x + w, oy]);
+    segs.push([ox - a * 0.7, y + a * 1.3, ox, y], [ox, y, ox + a * 0.7, y + a * 1.3]);
+    segs.push([x + w - a * 1.3, oy - a * 0.7, x + w, oy], [x + w, oy, x + w - a * 1.3, oy + a * 0.7]);
+    const f = Math.max(8, Math.min(w, h) * 0.06, 14);
+    labels.push({ text: "0", x: ox - f * 0.75, y: oy + f * 1.05, w: f, align: "center" });
+    return { segs, labels, font: f };
+  }
   const top = y + font * 1.9; // the ruled line under the headings
   if (s.form === "t" || !s.form) {
     // The bar is the box's top edge; Dr and Cr sit just above its two ends.
@@ -644,6 +705,40 @@ export function boardFont(): string {
 
 let meter: CanvasRenderingContext2D | null = null;
 /** Width and height of typed text in world units, for its box (eraser, fit, off screen). */
+/**
+ * Typed words that reach the edge go on to the next line, like a page (whole words; a word too
+ * long for the line is split). `maxW` is in board units.
+ */
+export function wrapText(text: string, size: number, maxW: number): string {
+  if (!Number.isFinite(maxW) || maxW <= 0) return text;
+  const fits = (s: string) => measureText(s, size).w <= maxW;
+  return text
+    .split("\n")
+    .map((line) => {
+      if (fits(line)) return line;
+      const out: string[] = [];
+      let cur = "";
+      for (const word of line.split(/(\s+)/)) {
+        if (!word) continue;
+        const next = cur + word;
+        if (cur.trim() && !fits(next.trimEnd())) {
+          out.push(cur.trimEnd());
+          cur = word.trimStart();
+        } else cur = next;
+        // One word longer than the whole line: split it.
+        while (cur.length > 1 && !fits(cur)) {
+          let i = cur.length - 1;
+          while (i > 1 && !fits(cur.slice(0, i))) i--;
+          out.push(cur.slice(0, i));
+          cur = cur.slice(i);
+        }
+      }
+      out.push(cur);
+      return out.join("\n");
+    })
+    .join("\n");
+}
+
 export function measureText(text: string, size: number): { w: number; h: number } {
   meter ??= document.createElement("canvas").getContext("2d");
   const lines = text.split("\n");
