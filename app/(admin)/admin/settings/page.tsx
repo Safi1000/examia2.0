@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Button, Card, CardHeader, CardBody, Icon } from "@/components/ui";
@@ -12,9 +13,18 @@ import { levelOf, subjectOf } from "@/lib/timetable";
 export default function AdminSettingsPage() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-8 sm:px-8">
-      <PageHeader title="Settings" subtitle="Automations, levels and look" />
+      <PageHeader title="Settings" subtitle="Automations, levels, waitlist and look" />
       <AutomationSettings />
       <LevelsAndSubjects />
+      <Card className="max-w-2xl">
+        <CardHeader><h2 className="font-bold text-ink">Waitlist</h2></CardHeader>
+        <CardBody>
+          <p className="mb-4 text-sm text-ink-3">People who joined the waitlist from the website. Kept here, out of the menu, until it&apos;s busy.</p>
+          <Link href="/admin/leads" className="inline-flex h-10 items-center rounded-lg border border-border-strong px-4 text-sm font-semibold text-ink hover:bg-surface-2">
+            Open the waitlist
+          </Link>
+        </CardBody>
+      </Card>
       <Card className="max-w-2xl">
         <CardHeader><h2 className="font-bold text-ink">Accent colour</h2></CardHeader>
         <CardBody>
