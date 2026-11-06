@@ -3,7 +3,7 @@ import Link from "next/link";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { Crumbs } from "@/components/study/StudyBits";
 import { PastPapersNav } from "@/components/past-papers/Bits";
-import { PAPER_LEVELS, PAST_PAPER_SYLLABI, hasPractice, practiceQuestions } from "@/lib/past-papers";
+import { PAPER_LEVELS, PAST_PAPER_SYLLABI, hasPractice } from "@/lib/past-papers";
 import { fitTitle } from "@/lib/seo";
 
 const title = "Past Paper MCQ Practice: Accounting and Economics";
@@ -18,7 +18,6 @@ export const metadata: Metadata = {
 
 export default function PracticeHub() {
   const list = PAST_PAPER_SYLLABI.filter((s) => hasPractice(s.code));
-  const total = list.reduce((n, s) => n + practiceQuestions(s.code).length, 0);
   return (
     <MarketingShell>
       <div className="mx-auto max-w-4xl px-5 pb-20 pt-10 md:pt-14">
@@ -26,7 +25,7 @@ export default function PracticeHub() {
         <PastPapersNav className="mt-6 w-fit max-w-full" />
         <h1 className="mt-8 text-3xl font-bold leading-[1.1] tracking-tight text-foreground md:text-5xl">Question practice</h1>
         <p className="mt-4 max-w-[60ch] text-lg leading-relaxed text-muted-foreground">
-          {total.toLocaleString("en-GB")} real multiple choice questions from Cambridge past papers. Pick your subject, do 10 at a time, and see the answer the moment you tap. Questions you get wrong come back until you get them right.
+          Real multiple choice questions from Cambridge past papers. Pick your subject, do 10 at a time, and see the answer the moment you tap. Questions you get wrong come back until you get them right.
         </p>
         <div className="mt-10 space-y-8">
           {PAPER_LEVELS.map((lvl) => {
@@ -46,7 +45,7 @@ export default function PracticeHub() {
                       >
                         <span className="min-w-0 flex-1">
                           <span className="block text-lg font-semibold text-foreground">{s.short}</span>
-                          <span className="mt-0.5 block text-[15px] text-muted-foreground">{practiceQuestions(s.code).length} questions</span>
+                          <span className="mt-0.5 block text-[15px] text-muted-foreground">Multiple choice, marked as you tap</span>
                         </span>
                         <span className="rounded-full bg-gold px-4 py-2 text-[14px] font-semibold text-[#1b1e21] transition-colors group-hover:bg-[#ffd07a]">Start</span>
                       </Link>

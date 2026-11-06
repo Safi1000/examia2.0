@@ -27,9 +27,8 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const s = pastPaperSyllabus((await params).slug);
   if (!s) return {};
-  const n = practiceQuestions(s.code).length;
-  const title = `${s.name} MCQ Practice: ${n} Past Paper Questions`;
-  const description = `Practise ${n} real ${s.name} multiple choice past paper questions one at a time, each marked instantly. Your mistakes are saved so you can redo them. Free.`;
+  const title = `${s.name} MCQ Practice by Topic`;
+  const description = `Practise real ${s.name} multiple choice past paper questions by topic, one at a time, each marked instantly. Your mistakes are saved so you can redo them. Free, no ads.`;
   const url = `/past-papers/${s.slug}/practice`;
   return { title: fitTitle(title), description, alternates: { canonical: url }, openGraph: { title, description, url, type: "website", images: ["/opengraph-image"] } };
 }
@@ -64,7 +63,7 @@ export default async function PracticePage({ params }: Props) {
         <PastPapersNav className="mt-6 w-fit max-w-full" />
         <h1 className="mt-8 text-3xl font-bold leading-[1.1] tracking-tight text-foreground md:text-5xl">{s.name} question practice</h1>
         <p className="mt-4 max-w-[60ch] text-lg leading-relaxed text-muted-foreground">
-          {questions.length} real multiple choice questions from past papers. One at a time, marked the moment you answer. Anything you get wrong goes on your mistakes list.
+          Real multiple choice questions from past papers, by topic. One at a time, marked the moment you answer. Anything you get wrong goes on your mistakes list.
         </p>
         <div className="mt-8">
           <QuestionPractice questions={questions} papers={papers} name={s.short} path={url} code={s.code} topics={topics} />

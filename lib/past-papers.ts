@@ -53,6 +53,11 @@ export const PAST_PAPER_SYLLABI: PastPaperSyllabus[] = [
 
 export const PAPER_LEVELS = ["O Level", "IGCSE", "AS and A Level"] as const;
 
+/** "0450 / 0264" where Cambridge has moved the syllabus to a new code, else "0450". */
+export const codesLabel = (s: PastPaperSyllabus) => (s.next ? `${s.code} / ${s.next.code}` : s.code);
+/** "IGCSE Business Studies 0450 and 0264": the name students search for, old and new code. */
+export const searchName = (s: PastPaperSyllabus) => (s.next ? `${s.name} and ${s.next.code}` : s.name);
+
 export const pastPaperSyllabus = (slug: string) => PAST_PAPER_SYLLABI.find((s) => s.slug === slug) ?? null;
 export const syllabusByPaperCode = (code: string) => PAST_PAPER_SYLLABI.find((s) => s.code === code) ?? null;
 type Meta = {

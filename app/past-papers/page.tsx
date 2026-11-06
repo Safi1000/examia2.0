@@ -6,7 +6,7 @@ import { Section, TrialBox } from "@/components/study/StudyBits";
 import { PastPapersNav } from "@/components/past-papers/Bits";
 import { PaperSearch } from "@/components/past-papers/PaperSearch";
 import { ContinueStrip } from "@/components/past-papers/ContinueStrip";
-import { YEAR_RANGE, PAPER_LEVELS, PAST_PAPER_SYLLABI, paperCount, papersFor, practiceQuestions } from "@/lib/past-papers";
+import { YEAR_RANGE, PAPER_LEVELS, PAST_PAPER_SYLLABI, papersFor } from "@/lib/past-papers";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 
 const title = `Past Papers ${YEAR_RANGE}: O Level, IGCSE and A Level`;
@@ -23,8 +23,6 @@ export const metadata: Metadata = {
 const SUBJECTS = ["Accounting", "Economics", "Business"] as const;
 
 export default function PastPapersHub() {
-  const total = PAST_PAPER_SYLLABI.reduce((n, s) => n + paperCount(s.code), 0);
-  const instantQs = PAST_PAPER_SYLLABI.reduce((n, s) => n + practiceQuestions(s.code).length, 0);
   const instant = PAST_PAPER_SYLLABI.reduce((n, s) => n + papersFor(s.code).filter((p) => p.mcq).length, 0);
   const faq = [
     {
@@ -52,7 +50,7 @@ export default function PastPapersHub() {
         <header className="mx-auto max-w-2xl text-center">
           <h1 className="text-5xl font-bold tracking-tight text-foreground md:text-7xl">Past papers</h1>
           <p className="mx-auto mt-4 max-w-[46ch] text-lg leading-relaxed text-muted-foreground">
-            {total} Cambridge papers from {YEAR_RANGE} with mark schemes. Read, practise, see your grade.
+            Every Cambridge paper from {YEAR_RANGE} with its mark scheme. Read, practise, see your grade.
           </p>
           <PaperSearch quiet className="mt-8 text-left" />
           <PastPapersNav className="mx-auto mt-5 w-fit max-w-full" />
@@ -88,7 +86,7 @@ export default function PastPapersHub() {
                         >
                           <span className="text-[13px] text-muted-foreground md:hidden">{sub}</span>
                           <span className="text-xl font-bold tabular-nums text-foreground group-hover:text-gold md:text-2xl">{s.code}</span>
-                          <span className="mt-0.5 text-[13px] text-faint md:text-[14px]">{paperCount(s.code)} papers</span>
+                          {s.next && <span className="mt-0.5 text-[13px] text-faint md:text-[14px]">and {s.next.code} from {s.next.from}</span>}
                         </Link>
                       </li>
                     );
@@ -103,7 +101,7 @@ export default function PastPapersHub() {
           <Link href="/past-papers/practice" className="group flex items-center justify-between gap-4 rounded-[20px] border border-hairline bg-card px-6 py-5 transition-colors hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
             <span>
               <span className="block text-[17px] font-semibold text-foreground">Question practice</span>
-              <span className="mt-0.5 block text-[15px] text-muted-foreground">{instantQs.toLocaleString("en-GB")} MCQs, marked as you tap</span>
+              <span className="mt-0.5 block text-[15px] text-muted-foreground">Real MCQs, marked as you tap</span>
             </span>
             <span aria-hidden className="text-xl text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-gold">→</span>
           </Link>

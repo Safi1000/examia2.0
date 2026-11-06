@@ -7,7 +7,7 @@ import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
 import { SyllabusBrowser, type BrowserSeries } from "@/components/past-papers/SyllabusBrowser";
 import { PaperSearch } from "@/components/past-papers/PaperSearch";
 import { PastPapersNav } from "@/components/past-papers/Bits";
-import { YEAR_RANGE, hasPractice, practiceQuestions, PAST_PAPER_SYLLABI, fileName, paperCount, paperHref, paperNumbers, papersFor, pastPaperSyllabus, pdfUrl, sessionKey, sessionLabel, sessionsFor } from "@/lib/past-papers";
+import { YEAR_RANGE, hasPractice, searchName, PAST_PAPER_SYLLABI, fileName, paperHref, paperNumbers, papersFor, pastPaperSyllabus, pdfUrl, sessionKey, sessionLabel, sessionsFor } from "@/lib/past-papers";
 import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
 import { syllabusByCode, SYLLABI } from "@/lib/syllabus";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
@@ -22,8 +22,8 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const s = pastPaperSyllabus((await params).slug);
   if (!s) return {};
-  const title = `${s.name} Past Papers ${YEAR_RANGE}`;
-  const description = `All ${s.name} past papers from ${YEAR_RANGE} with mark schemes, inserts, examiner reports and grade thresholds, sorted by series. Free.`;
+  const title = `${searchName(s)} Past Papers ${YEAR_RANGE}`;
+  const description = `${s.name}${s.next ? ` (${s.next.code} from ${s.next.from})` : ""} past papers ${YEAR_RANGE} with mark schemes, inserts, examiner reports and grade thresholds. Read online, practise timed, no ads.`;
   return {
     title: fitTitle(title),
     description,
@@ -79,9 +79,9 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
           <PaperSearch compact className="w-full sm:w-[300px]" />
         </div>
         <div className="mt-8"><Crumbs trail={[{ name: "Past papers", href: "/past-papers" }, { name: s.short }]} /></div>
-        <h1 className="mt-4 text-4xl font-bold leading-[1.06] tracking-tight text-foreground md:text-5xl">{s.name} past papers</h1>
+        <h1 className="mt-4 text-4xl font-bold leading-[1.06] tracking-tight text-foreground md:text-5xl">{searchName(s)} past papers</h1>
         <p className="mt-4 max-w-[58ch] text-lg leading-relaxed text-muted-foreground">
-          {paperCount(s.code)} papers from {YEAR_RANGE}, each with its mark scheme. Open one to read it, practise it timed, and see your grade.
+          Every paper from {YEAR_RANGE} with its mark scheme. Open one to read it, practise it timed, and see your grade.
         </p>
         <nav aria-label="Switch subject or level" className="mt-5 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
           {others.map((o) => (
@@ -96,7 +96,7 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
             className="mt-6 flex items-center justify-between gap-4 rounded-[20px] border border-gold-border bg-card-raised px-5 py-4 transition-colors hover:bg-card focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
           >
             <span>
-              <span className="block font-semibold text-foreground">Practise {practiceQuestions(s.code).length} multiple choice questions</span>
+              <span className="block font-semibold text-foreground">Practise the multiple choice questions</span>
               <span className="block text-[15px] text-muted-foreground">One at a time, marked as you tap. Mistakes saved.</span>
             </span>
             <span className="shrink-0 rounded-full bg-gold px-4 py-2 text-[14px] font-semibold text-[#1b1e21]">Start</span>

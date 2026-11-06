@@ -10,6 +10,7 @@ import {
   PAST_PAPER_SYLLABI,
   answerKey,
   cieCode,
+  fileName,
   filesFor,
   paperBySlug,
   paperHref,
@@ -20,7 +21,8 @@ import {
   thresholdsFor,
   type Paper,
 } from "@/lib/past-papers";
-import { absolute, breadcrumbLd, fitTitle } from "@/lib/seo";
+import { absolute, breadcrumbLd } from "@/lib/seo";
+import paperText from "@/lib/past-paper-text.json";
 
 export const dynamicParams = false;
 export function generateStaticParams() {
@@ -43,11 +45,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const x = await load(params);
   if (!x) return {};
   const { s, p } = x;
-  const title = `${cieCode(p)} ${s.name} ${sessionLabel(p.session)} Paper ${p.num}`;
-  const description = `${s.name} ${sessionLabel(p.session)} ${paperTitle(p)}${variantText(p)} (${p.code}/${p.pv}) question paper and mark scheme. Read it here, practise it timed${p.mcq ? ", get it marked instantly" : ""} and see your grade.`;
+  const qpFile = fileName(p.code, p.session, "qp", p.pv);
+  const title = `${cieCode(p)} Past Paper & Mark Scheme (${qpFile})`;
+  const description = `${s.name} ${sessionLabel(p.session)} ${paperTitle(p)}${variantText(p)}: question paper ${qpFile}${p.ms ? `, mark scheme ${fileName(p.code, p.session, "ms", p.pv)}` : ""}${p.insert ? ", insert" : ""}.${s.next ? ` Practice for ${s.next.code} too.` : ""} Read online, practise timed${p.mcq ? ", marked instantly" : ""}. No ads.`;
   const url = paperHref(s.slug, p);
   return {
-    title: fitTitle(title),
+    title: { absolute: title },
     description,
     alternates: { canonical: url },
     openGraph: { title, description, url, type: "article", images: ["/opengraph-image"] },
@@ -68,6 +71,9 @@ export default async function PaperPage({ params }: Props) {
   const code = cieCode(p);
   const url = paperHref(s.slug, p);
 
+  // The paper's own words, for search engines and screen readers. Skipped when
+  // the PDF's text lost its spaces (some older papers), as it would read badly.
+  const textPages = ((paperText as unknown as Record<string, Array<[string, string]>>)[f.qp.name] ?? []).filter(([, t]) => (t.match(/ /g)?.length ?? 0) > t.length / 9);
   const levelWord = s.level === "AS and A Level" ? "Cambridge International AS and A Level" : `Cambridge ${s.level}`;
   const topA = t?.grades.find(([g]) => g === "A");
   const about = [
@@ -75,6 +81,7 @@ export default async function PaperPage({ params }: Props) {
     p.minutes && p.marks ? `It lasts ${time(p.minutes)} and is marked out of ${p.marks}${key ? `, with ${key.length} multiple choice questions` : ""}.` : "",
     topA && t ? `A grade A on this paper needed ${topA[1]} out of ${t.max}.` : "",
     `The question paper${f.ms ? ", mark scheme" : ""}${f.insert ? ", insert" : ""}${f.er ? " and the examiner report for the series" : ""} are all here, free to read, download and print.`,
+    s.next ? `From ${s.next.from} this syllabus is ${s.next.code}; these ${p.code} papers are still the closest practice for it.` : "",
     key ? "Practise it timed on this page and your answers are marked the moment you finish." : "Practise it timed on this page, mark it with the mark scheme, and see the grade your mark gets.",
   ]
     .filter(Boolean)
@@ -138,6 +145,11 @@ export default async function PaperPage({ params }: Props) {
             {p.marks && <li className="rounded-full border border-hairline px-3 py-1">{p.marks} marks</li>}
             {f.qp.pages > 0 && <li className="rounded-full border border-hairline px-3 py-1">{f.qp.pages} pages</li>}
           </ul>
+          <p className="w-full text-[13px] tabular-nums text-faint">
+            Files: {f.qp.name}
+            {f.ms ? ` · ${f.ms.name}` : ""}
+            {f.insert ? ` · ${f.insert.name}` : ""}
+          </p>
         </header>
 
         <div className="mt-5">
@@ -160,6 +172,23 @@ export default async function PaperPage({ params }: Props) {
           </h2>
           <p className="mt-2 text-[16px] leading-relaxed text-muted-foreground">{about}</p>
         </section>
+
+        {textPages.length > 0 && (
+          <details className="group mt-8 max-w-[70ch] rounded-[18px] border border-hairline bg-card px-5 py-1 open:pb-5">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-[15px] font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+              Read the question paper as text
+              <span aria-hidden className="text-gold transition-transform group-open:rotate-45">+</span>
+            </summary>
+            <div className="mt-2 space-y-5 text-[15px] leading-relaxed text-muted-foreground">
+              {textPages.map(([n, t]) => (
+                <section key={n} aria-label={`Page ${n}`}>
+                  <h3 className="text-[13px] font-semibold text-faint">Page {n}</h3>
+                  <p className="mt-1 whitespace-pre-line">{t}</p>
+                </section>
+              ))}
+            </div>
+          </details>
+        )}
 
         <div className="mt-10 grid gap-10 md:grid-cols-[1fr_1fr] md:gap-12">
           {t ? (

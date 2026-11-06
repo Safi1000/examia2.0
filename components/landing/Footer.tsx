@@ -7,6 +7,7 @@ const linkCls =
 
 const LINKS: Array<{ label: string; href: string; external?: boolean }> = [
   { label: "@hamzateaches", href: LANDING.instagram, external: true },
+  { label: "Past papers", href: "/past-papers" },
   { label: "The Exam Room", href: "/blog" },
   // Guides page (/guides) is built but hidden until the PDF pack is ready.
   // { label: "Guides", href: "/guides" },

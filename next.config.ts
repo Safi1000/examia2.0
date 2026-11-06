@@ -37,6 +37,9 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
+      // Raw paper files: Google should send people to the paper's page (with
+      // the viewer and practice), not straight to a bare PDF or image.
+      { source: "/papers/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex" }] },
       // Private pages: never stored by shared caches.
       { source: "/reports/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }, { key: "X-Robots-Tag", value: "noindex, nofollow" }] },
       // The portal never appears in search results, even if a link leaks.
