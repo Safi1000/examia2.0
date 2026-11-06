@@ -58,8 +58,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-const pill =
-  "inline-flex min-h-11 items-center rounded-full border border-hairline px-4 text-[15px] font-semibold text-foreground transition-colors hover:border-gold-border hover:text-gold";
 
 export default async function PaperPage({ params }: Props) {
   const x = await load(params);

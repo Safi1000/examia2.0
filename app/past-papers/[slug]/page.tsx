@@ -8,7 +8,7 @@ import { SyllabusBrowser, type BrowserSeries } from "@/components/past-papers/Sy
 import { PaperSearch } from "@/components/past-papers/PaperSearch";
 import { hasTopical } from "@/lib/topical";
 import { PastPapersNav } from "@/components/past-papers/Bits";
-import { YEAR_RANGE, hasPractice, searchName, PAST_PAPER_SYLLABI, fileName, paperHref, paperNumbers, papersFor, pastPaperSyllabus, pdfUrl, sessionKey, sessionLabel, sessionsFor } from "@/lib/past-papers";
+import { YEAR_RANGE, searchName, PAST_PAPER_SYLLABI, fileName, paperHref, paperNumbers, papersFor, pastPaperSyllabus, pdfUrl, sessionKey, sessionLabel, sessionsFor } from "@/lib/past-papers";
 import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
 import { syllabusByCode, SYLLABI } from "@/lib/syllabus";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
@@ -51,7 +51,6 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
       .filter((p) => p.session === x)
       .map((p) => ({ key: p.key, href: paperHref(s.slug, p), num: p.num, pv: p.pv, title: p.title, minutes: p.minutes, marks: p.marks, mcq: p.mcq, insert: p.insert })),
   }));
-  const mcqCount = papers.filter((p) => p.mcq).length;
   const others = PAST_PAPER_SYLLABI.filter((o) => o.code !== s.code && (o.level === s.level || o.subject === s.subject));
   const thresholds = THRESHOLD_PAGES.find((p) => p.code === s.code);
   const syllabus = syllabusByCode(s.code) ?? SYLLABI.find((x) => x.replaces === s.code) ?? null;
@@ -98,11 +97,6 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
           {hasTopical(s.code) && (
             <Link href={`/past-papers/${s.slug}/topics`} className="text-foreground underline decoration-gold/50 underline-offset-[6px] hover:decoration-gold">
               Revise by topic
-            </Link>
-          )}
-          {hasPractice(s.code) && (
-            <Link href={`/past-papers/${s.slug}/practice`} className="text-foreground underline decoration-gold/50 underline-offset-[6px] hover:decoration-gold">
-              Quick MCQ quiz
             </Link>
           )}
         </p>

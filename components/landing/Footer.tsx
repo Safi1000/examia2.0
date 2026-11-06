@@ -66,10 +66,10 @@ export function Footer() {
         </nav>
         <div className="mt-8 flex w-full flex-col items-center justify-between gap-3 border-t border-hairline pb-16 pt-6 text-sm text-faint sm:flex-row sm:pb-2 sm:pr-20">
           <p>© {year} {LANDING.brand}</p>
-          <Link href="/privacy" className="transition-colors hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+          <Link href="/privacy" className="inline-flex min-h-11 items-center transition-colors hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
             Privacy policy
           </Link>
-          <Link href="/terms" className="transition-colors hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+          <Link href="/terms" className="inline-flex min-h-11 items-center transition-colors hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
             Terms
           </Link>
         </div>

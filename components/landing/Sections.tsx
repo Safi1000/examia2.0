@@ -255,7 +255,7 @@ export function Difference() {
         <div className="relative mt-10 hidden gap-5 md:grid md:grid-cols-2">
           <div data-spot className="rounded-[20px] border border-hairline bg-card">
             <div className="border-b border-hairline px-6 py-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-faint">What you have now</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-faint">What you have now</p>
               <h3 className="mt-2 text-2xl font-bold text-foreground">Most classes</h3>
             </div>
             <ul className="divide-y divide-hairline">

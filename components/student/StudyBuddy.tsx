@@ -116,7 +116,7 @@ export function StudyBuddy({ db, student, nowMs, mission: given }: { db: Databas
             {pct > 0 && <circle cx="28" cy="28" r={r} fill="none" stroke="var(--color-brand)" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${c * pct} ${c}`} />}
           </svg>
           <div className="min-w-0 flex-1">
-            <Link href="/groundwork" className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.22em] text-ink-3 hover:text-brand">
+            <Link href="/groundwork" className="inline-flex min-h-11 items-center gap-1 whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.22em] text-ink-3 hover:text-brand">
               {STUDY_NAME} <Icon.ChevronRight className="h-3 w-3" />
             </Link>
             <p className="mt-1 text-sm text-ink-2">

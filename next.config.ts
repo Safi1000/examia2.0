@@ -32,7 +32,12 @@ const nextConfig: NextConfig = {
   },
   // Starting Points was removed: old links go to the homepage.
   async redirects() {
-    return ["/check", "/check/:path*", "/starting-point", "/starting-point/:path*", "/admin/starting-points"].map((source) => ({ source, destination: source.startsWith("/admin") ? "/admin" : "/", permanent: false }));
+    return [
+      // Practice was folded into Topics.
+      { source: "/past-papers/practice", destination: "/past-papers/topics", permanent: true },
+      { source: "/past-papers/:slug/practice", destination: "/past-papers/:slug/topics", permanent: true },
+      ...["/check", "/check/:path*", "/starting-point", "/starting-point/:path*", "/admin/starting-points"].map((source) => ({ source, destination: source.startsWith("/admin") ? "/admin" : "/", permanent: false })),
+    ];
   },
   async headers() {
     return [

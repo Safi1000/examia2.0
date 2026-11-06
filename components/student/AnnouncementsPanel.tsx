@@ -51,7 +51,7 @@ export function AnnouncementsPanel({ student }: { student: Student }) {
         })}
       </ul>
       {items.length > 3 && (
-        <button type="button" onClick={() => setAll(!all)} className="mt-2 text-sm font-semibold text-brand hover:underline">
+        <button type="button" onClick={() => setAll(!all)} className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-brand hover:underline">
           {all ? "Show fewer" : `Show all ${items.length}`}
         </button>
       )}

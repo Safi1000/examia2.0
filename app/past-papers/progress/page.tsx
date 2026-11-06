@@ -4,7 +4,7 @@ import { Crumbs } from "@/components/study/StudyBits";
 import { PastPapersNav } from "@/components/past-papers/Bits";
 import { ProgressView, type ProgressSyllabus } from "@/components/past-papers/ProgressView";
 import { EXAMS } from "@/lib/study-plan";
-import { PAST_PAPER_SYLLABI, cieCode, hasPractice, paperHref, paperTitle, papersFor } from "@/lib/past-papers";
+import { PAST_PAPER_SYLLABI, cieCode, paperHref, paperTitle, papersFor } from "@/lib/past-papers";
 
 export const metadata: Metadata = {
   title: "My past paper progress | Hamza Teaches",
@@ -19,7 +19,6 @@ export default function ProgressPage() {
     short: s.short,
     level: s.level,
     slug: s.slug,
-    practice: hasPractice(s.code),
     papers: papersFor(s.code).map((p) => ({ k: p.key, c: cieCode(p), u: paperHref(s.slug, p), t: paperTitle(p) })),
   }));
   return (

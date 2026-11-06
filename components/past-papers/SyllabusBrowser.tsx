@@ -32,11 +32,10 @@ const SERIES = [
   { id: "w", label: "Oct/Nov" },
 ] as const;
 
-const chip = (on: boolean) =>
-  cn(
-    "inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-[15px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
-    on ? "border-gold bg-gold text-[#1b1e21]" : "border-hairline-strong text-muted-foreground hover:border-gold-border hover:text-foreground",
-  );
+
+/** A quiet drop-down: one row of three fits a phone. */
+const SELECT =
+  "h-11 w-full min-w-0 appearance-none rounded-full border border-hairline-strong bg-card bg-[url(\"data:image/svg+xml;utf8,<svg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 20 20%27 fill=%27none%27 stroke=%27%23969ca2%27 stroke-width=%272%27><path d=%27m5 8 5 5 5-5%27/></svg>\")] bg-[length:12px] bg-[right_14px_center] bg-no-repeat pl-4 pr-8 text-[15px] font-semibold text-foreground focus:border-gold-border focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gold";
 
 const time = (m: number) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}`);
 
@@ -50,7 +49,6 @@ export function SyllabusBrowser({ series, papers }: { series: BrowserSeries[]; p
   const [paper, setPaper] = useState<string | null>(null);
   const [year, setYear] = useState<number | null>(null);
   const [ser, setSer] = useState<string | null>(null);
-  const [todo, setTodo] = useState(false);
   const { done } = useProgress();
 
   useEffect(() => {
@@ -74,49 +72,43 @@ export function SyllabusBrowser({ series, papers }: { series: BrowserSeries[]; p
   const years = useMemo(() => [...new Set(series.map((s) => s.year))], [series]);
   const shown = series
     .filter((s) => (!year || s.year === year) && (!ser || s.s === ser))
-    .map((s) => ({ ...s, papers: s.papers.filter((p) => (!paper || p.num === paper) && (!todo || !done[p.key])) }))
+    .map((s) => ({ ...s, papers: s.papers.filter((p) => (!paper || p.num === paper)) }))
     .filter((s) => s.papers.length);
   const count = shown.reduce((n, s) => n + s.papers.length, 0);
-  const filtered = !!(paper || year || ser || todo);
+  const filtered = !!(paper || year || ser);
 
   return (
     <div>
       <div className="sticky top-[84px] z-20 -mx-5 border-b border-hairline bg-[color-mix(in_srgb,var(--color-band-b)_92%,transparent)] px-5 py-3 backdrop-blur-xl sm:top-[96px]">
-        <div role="group" aria-label="Paper" className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
-          <button type="button" aria-pressed={!paper} onClick={() => setPaper(null)} className={chip(!paper)}>
-            All papers
-          </button>
-          {papers.map((p) => (
-            <button key={p.num} type="button" aria-pressed={paper === p.num} onClick={() => setPaper(paper === p.num ? null : p.num)} className={chip(paper === p.num)}>
-              Paper {p.num}
-              {p.title && <span className="ml-1.5 hidden font-normal opacity-80 md:inline">{p.title}</span>}
-            </button>
-          ))}
-        </div>
-        <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
-          <div role="group" aria-label="Year" className="flex gap-2">
+        <div className="grid grid-cols-3 gap-2 sm:max-w-xl">
+          <label className="sr-only" htmlFor="f-paper">Paper</label>
+          <select id="f-paper" value={paper ?? ""} onChange={(e) => setPaper(e.target.value || null)} className={SELECT}>
+            <option value="">Paper</option>
+            {papers.map((p) => (
+              <option key={p.num} value={p.num}>
+                Paper {p.num}
+                {p.title ? `: ${p.title}` : ""}
+              </option>
+            ))}
+          </select>
+          <label className="sr-only" htmlFor="f-year">Year</label>
+          <select id="f-year" value={year ?? ""} onChange={(e) => setYear(Number(e.target.value) || null)} className={SELECT}>
+            <option value="">Year</option>
             {years.map((y) => (
-              <button key={y} type="button" aria-pressed={year === y} onClick={() => setYear(year === y ? null : y)} className={chip(year === y)}>
+              <option key={y} value={y}>
                 {y}
-              </button>
+              </option>
             ))}
-          </div>
-          <span aria-hidden className="mx-1 w-px shrink-0 bg-hairline-strong" />
-          <div role="group" aria-label="Series" className="flex gap-2">
-            {SERIES.map((s) => (
-              <button key={s.id} type="button" aria-pressed={ser === s.id} onClick={() => setSer(ser === s.id ? null : s.id)} className={chip(ser === s.id)}>
-                {s.label}
-              </button>
+          </select>
+          <label className="sr-only" htmlFor="f-series">Series</label>
+          <select id="f-series" value={ser ?? ""} onChange={(e) => setSer(e.target.value || null)} className={SELECT}>
+            <option value="">Series</option>
+            {SERIES.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.label}
+              </option>
             ))}
-          </div>
-          {Object.keys(done).length > 0 && (
-            <>
-              <span aria-hidden className="mx-1 w-px shrink-0 bg-hairline-strong" />
-              <button type="button" aria-pressed={todo} onClick={() => setTodo(!todo)} className={chip(todo)}>
-                Not done yet
-              </button>
-            </>
-          )}
+          </select>
         </div>
       </div>
 
@@ -129,7 +121,6 @@ export function SyllabusBrowser({ series, papers }: { series: BrowserSeries[]; p
               setPaper(null);
               setYear(null);
               setSer(null);
-              setTodo(false);
             }}
             className="min-h-11 rounded-full px-3 font-semibold text-gold hover:underline"
           >
@@ -194,8 +185,6 @@ export function SyllabusBrowser({ series, papers }: { series: BrowserSeries[]; p
                             Done{d.s != null && d.m ? `: ${d.s}/${d.m}` : ""}
                             {d.g ? `, grade ${d.g}` : ""}
                           </span>
-                        ) : p.mcq ? (
-                          <span className="mt-1 block text-[13px] font-semibold text-gold">Marked for you instantly</span>
                         ) : null}
                       </span>
                       <svg aria-hidden viewBox="0 0 20 20" className="h-5 w-5 shrink-0 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-gold" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

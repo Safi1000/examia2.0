@@ -6,7 +6,7 @@ import { MarketingShell } from "@/components/landing/MarketingShell";
 import { Crumbs, TrialBox } from "@/components/study/StudyBits";
 import { PastPapersNav } from "@/components/past-papers/Bits";
 import { TopicalList } from "@/components/past-papers/TopicalList";
-import { PAST_PAPER_SYLLABI, hasPractice, pastPaperSyllabus } from "@/lib/past-papers";
+import { PAST_PAPER_SYLLABI, pastPaperSyllabus } from "@/lib/past-papers";
 import { currentSyllabus, topicEntry, topicalFor } from "@/lib/topical";
 import { resourcesFor } from "@/lib/syllabus";
 import { breadcrumbLd } from "@/lib/seo";
@@ -86,16 +86,6 @@ export default async function TopicPage({ params }: Props) {
               ? "Every multiple choice question on this topic. Tap an answer. You'll know straight away."
               : "Every written question on this topic. Try one properly, then check yourself against the mark scheme."}
         </p>
-        {hasMcq && hasPractice(s.code) && (
-          <p className="mt-5">
-            <Link
-              href={`/past-papers/${s.slug}/practice?topic=${encodeURIComponent(e.sub.num)}`}
-              className="inline-flex min-h-11 items-center rounded-full border border-hairline-strong px-5 text-[15px] font-semibold text-foreground transition-colors hover:border-gold-border"
-            >
-              Quiz me on this topic
-            </Link>
-          </p>
-        )}
 
         <div className="mt-8">
           <TopicalList questions={questions} hasMcq={hasMcq} hasWritten={hasWritten} />

@@ -34,7 +34,7 @@ function Card({
         </div>
       </div>
       <div className="p-3.5 md:p-6">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold md:text-[11px] md:tracking-[0.22em]">{label}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold md:text-[12px] md:tracking-[0.22em]">{label}</p>
         <h3 className="mt-1 text-sm font-bold leading-snug text-foreground md:mt-2 md:text-lg">{title}</h3>
         <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground md:mt-1.5 md:text-[15px]">{text}</p>
       </div>

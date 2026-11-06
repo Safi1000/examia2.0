@@ -294,7 +294,7 @@ export default function TodayPage() {
               {data.closing.map(({ test, eligible, missing }) => (
                 <li key={test.id}>
                   <div className="flex items-baseline justify-between gap-3">
-                    <Link href={`/admin/tests/${test.id}`} className="font-semibold text-ink hover:text-brand">{test.title}</Link>
+                    <Link href={`/admin/tests/${test.id}`} className="inline-flex min-h-11 items-center font-semibold text-ink hover:text-brand">{test.title}</Link>
                     <span className="shrink-0 text-sm text-warning">Closes {formatRelative(test.closesAt, nowMs)}</span>
                   </div>
                   <p className="mt-0.5 text-sm text-ink-2">

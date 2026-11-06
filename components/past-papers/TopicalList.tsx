@@ -7,11 +7,14 @@ import { cn } from "@/lib/cn";
 import { recordAnswers, useNight, useProgress } from "./progress";
 import { NightToggle } from "./Bits";
 
-const chip = (on: boolean) =>
-  cn(
-    "inline-flex min-h-10 shrink-0 items-center rounded-full border px-4 text-[14px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
-    on ? "border-gold bg-gold text-[#1b1e21]" : "border-hairline-strong text-muted-foreground hover:border-gold-border hover:text-foreground",
-  );
+/** A quiet drop-down that fits a phone. */
+const SELECT =
+  "h-11 min-w-0 flex-1 appearance-none rounded-full border border-hairline-strong bg-card pl-4 pr-4 text-[15px] font-semibold text-foreground focus:border-gold-border focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gold sm:flex-none sm:pr-6";
+
+
+/** Cambridge pages have wide white margins: crop them so the question fills the width (easier to read on a phone). */
+const MARGIN = 0.075;
+const ZOOM = 1 / (1 - 2 * MARGIN);
 
 /** One cut-out piece of a page. */
 function Crop({ seg, night, alt }: { seg: Seg; night: boolean; alt: string }) {
@@ -20,7 +23,7 @@ function Crop({ seg, night, alt }: { seg: Seg; night: boolean; alt: string }) {
   return (
     <div
       className={cn("relative w-full overflow-hidden transition-colors duration-500", !ready ? "animate-pulse bg-card-raised" : night ? "bg-[#1b1d20]" : "bg-white")}
-      style={{ aspectRatio: `1 / ${h * seg.r}` }}
+      style={{ aspectRatio: `1 / ${h * seg.r * ZOOM}` }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -34,8 +37,8 @@ function Crop({ seg, night, alt }: { seg: Seg; night: boolean; alt: string }) {
         ref={(el) => {
           if (el?.complete && el.naturalWidth && !ready) setReady(true);
         }}
-        className={cn("absolute left-0 w-full max-w-none transition-opacity duration-500", ready ? "opacity-100" : "opacity-0", night && "invert hue-rotate-180")}
-        style={{ top: `${(-seg.t / h) * 100}%` }}
+        className={cn("absolute max-w-none transition-opacity duration-500", ready ? "opacity-100" : "opacity-0", night && "invert hue-rotate-180")}
+        style={{ top: `${(-seg.t / h) * 100}%`, width: `${ZOOM * 100}%`, left: `${-MARGIN * ZOOM * 100}%` }}
       />
     </div>
   );
@@ -119,7 +122,6 @@ export function TopicalList({ questions, hasMcq, hasWritten }: { questions: Topi
   const [night] = useNight();
   const [kind, setKind] = useState<"all" | "mcq" | "written">("all");
   const [year, setYear] = useState<number | null>(null);
-  const [hideDone, setHideDone] = useState(false);
   const [limit, setLimit] = useState(12);
 
   useEffect(() => {
@@ -129,52 +131,43 @@ export function TopicalList({ questions, hasMcq, hasWritten }: { questions: Topi
   }, []);
 
   const years = useMemo(() => [...new Set(questions.map((q) => q.y))].sort((a, b) => b - a), [questions]);
-  const shown = questions.filter((q) => (kind === "all" || q.kind === kind) && (!year || q.y === year) && (!hideDone || !seen[q.id]));
-  const doneCount = questions.filter((q) => seen[q.id]).length;
+  const shown = questions.filter((q) => (kind === "all" || q.kind === kind) && (!year || q.y === year));
 
   return (
     <div>
-      <div className="sticky top-[84px] z-20 -mx-5 flex gap-2 overflow-x-auto border-b border-hairline bg-[color-mix(in_srgb,var(--color-band-b)_92%,transparent)] px-5 py-3 backdrop-blur-xl [scrollbar-width:none] sm:top-[96px]">
+      <div className="sticky top-[84px] z-20 -mx-5 flex items-center gap-2 border-b border-hairline bg-[color-mix(in_srgb,var(--color-band-b)_92%,transparent)] px-5 py-3 backdrop-blur-xl sm:top-[96px]">
         {hasMcq && hasWritten && (
           <>
-            <button type="button" aria-pressed={kind === "all"} onClick={() => setKind("all")} className={chip(kind === "all")}>
-              All
-            </button>
-            <button type="button" aria-pressed={kind === "mcq"} onClick={() => setKind("mcq")} className={chip(kind === "mcq")}>
-              Multiple choice
-            </button>
-            <button type="button" aria-pressed={kind === "written"} onClick={() => setKind("written")} className={chip(kind === "written")}>
-              Written
-            </button>
-            <span aria-hidden className="mx-1 w-px shrink-0 bg-hairline-strong" />
+            <label className="sr-only" htmlFor="t-kind">Question type</label>
+            <select id="t-kind" value={kind} onChange={(e) => setKind(e.target.value as "all" | "mcq" | "written")} className={SELECT}>
+              <option value="all">All questions</option>
+              <option value="mcq">Multiple choice</option>
+              <option value="written">Written</option>
+            </select>
           </>
         )}
-        {years.map((y) => (
-          <button key={y} type="button" aria-pressed={year === y} onClick={() => setYear(year === y ? null : y)} className={chip(year === y)}>
-            {y}
-          </button>
-        ))}
-        {doneCount > 0 && (
-          <>
-            <span aria-hidden className="mx-1 w-px shrink-0 bg-hairline-strong" />
-            <button type="button" aria-pressed={hideDone} onClick={() => setHideDone(!hideDone)} className={chip(hideDone)}>
-              Hide done
-            </button>
-          </>
-        )}
+        <label className="sr-only" htmlFor="t-year">Year</label>
+        <select id="t-year" value={year ?? ""} onChange={(e) => setYear(Number(e.target.value) || null)} className={SELECT}>
+          <option value="">All years</option>
+          {years.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
+        </select>
         <span className="ml-auto shrink-0">
           <NightToggle />
         </span>
       </div>
 
       {shown.length === 0 ? (
-        <p className="mt-8 text-[17px] text-muted-foreground">{hideDone && doneCount ? "You've done every question here. Nice work." : "No questions for that mix. Try another year."}</p>
+        <p className="mt-8 text-[17px] text-muted-foreground">No questions for that mix. Try another year.</p>
       ) : (
         <ol className="mt-6 space-y-6">
           {shown.slice(0, limit).map((q) => (
             <li key={q.id} className="rounded-[20px] border border-hairline bg-card p-4 sm:p-5">
               <p className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 text-[13px]">
-                <Link href={q.href} className="font-semibold tabular-nums text-muted-foreground hover:text-gold">
+                <Link href={q.href} className="inline-flex min-h-10 items-center font-semibold tabular-nums text-muted-foreground hover:text-gold">
                   {q.c} · Question {q.n}
                 </Link>
                 <span className="text-faint">

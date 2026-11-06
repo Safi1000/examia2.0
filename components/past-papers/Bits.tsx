@@ -10,15 +10,12 @@ const SITE = "https://www.hamzateaches.com";
 /** The three places in the past paper section, on every past paper page. */
 export function PastPapersNav({ className }: { className?: string }) {
   const path = usePathname();
-  const { wrong, done } = useProgress();
-  const mistakes = Object.keys(wrong).length;
+  const { done } = useProgress();
   const finished = Object.keys(done).length;
   const items = [
-    { href: "/past-papers", label: "Papers", on: !/\/(practice|topics)(\/|$)/.test(path) && !path.startsWith("/past-papers/progress") && !path.startsWith("/past-papers/search") },
-    { href: "/past-papers/topics", label: "Topical", on: /\/topics(\/|$)/.test(path) },
-    { href: "/past-papers/practice", label: "Practice", on: path.endsWith("/practice") },
-    { href: "/past-papers/search", label: "Search", on: path.startsWith("/past-papers/search") },
-    { href: "/past-papers/progress", label: "Progress", on: path.startsWith("/past-papers/progress"), badge: mistakes || finished ? String(mistakes || finished) : null },
+    { href: "/past-papers", label: "Papers", on: !/\/topics(\/|$)/.test(path) && !path.startsWith("/past-papers/progress") },
+    { href: "/past-papers/topics", label: "Topics", on: /\/topics(\/|$)/.test(path) },
+    { href: "/past-papers/progress", label: "Progress", on: path.startsWith("/past-papers/progress"), badge: finished ? String(finished) : null },
   ];
   return (
     <nav aria-label="Past papers" className={cn("flex gap-1 overflow-x-auto rounded-full border border-hairline bg-card p-1 [scrollbar-width:none]", className)}>

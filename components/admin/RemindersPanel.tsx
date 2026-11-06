@@ -119,7 +119,7 @@ export function RemindersPanel() {
         )}
         <button
           onClick={() => setCollapsed((c) => !c)}
-          className="ml-auto flex h-8 w-8 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink"
+          className="ml-auto flex h-11 w-11 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink"
           aria-label={collapsed ? "Show reminders" : "Hide reminders"}
         >
           <Icon.ChevronRight className={cn("h-4 w-4 transition-transform", collapsed ? "" : "rotate-90")} />

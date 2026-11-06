@@ -64,7 +64,7 @@ export function ReviewSlider({ shots }: { shots: Shot[] }) {
               </a>
               <figcaption className="flex items-center justify-between border-t border-hairline px-4 py-3">
                 <span className="text-sm font-semibold text-foreground">{s.name}</span>
-                <span className="text-[10px] uppercase tracking-[0.2em] text-faint">{s.meta}</span>
+                <span className="text-[11px] uppercase tracking-[0.18em] text-faint">{s.meta}</span>
               </figcaption>
             </figure>
           </li>

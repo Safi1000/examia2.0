@@ -9,7 +9,6 @@ export interface ProgressSyllabus {
   short: string;
   level: string;
   slug: string;
-  practice: boolean;
   /** Newest first: key, code on the paper, link. */
   papers: Array<{ k: string; c: string; u: string; t: string }>;
 }
@@ -18,7 +17,7 @@ const card = "rounded-[20px] border border-hairline bg-card px-6 py-6";
 
 /** Everything a student has done in the library, from this device. */
 export function ProgressView({ syllabi, exam }: { syllabi: ProgressSyllabus[]; exam: { name: string; start: string } }) {
-  const { done, wrong, seen, recent } = useProgress();
+  const { done, seen, recent } = useProgress();
   const [today, setToday] = useState(0);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -28,6 +27,8 @@ export function ProgressView({ syllabi, exam }: { syllabi: ProgressSyllabus[]; e
   const weeks = days != null ? Math.floor(days / 7) : null;
   const doneKeys = Object.keys(done);
   const answered = Object.keys(seen).length;
+  const scoredAll = Object.values(done).filter((d) => d.s != null && d.m);
+  const avgAll = scoredAll.length ? Math.round(scoredAll.reduce((n, d) => n + (d.s! / d.m!) * 100, 0) / scoredAll.length) : null;
 
   if (!doneKeys.length && !answered) {
     return (
@@ -37,8 +38,8 @@ export function ProgressView({ syllabi, exam }: { syllabi: ProgressSyllabus[]; e
           Do one paper or ten quick questions and this page starts keeping score: grades, scores, and every mistake worth a second look. It lives on your phone. No sign up.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Link href="/past-papers/practice" className="inline-flex min-h-12 items-center rounded-full bg-gold px-6 font-semibold text-[#1b1e21] hover:bg-[#ffd07a]">
-            Try 10 questions
+          <Link href="/past-papers/topics" className="inline-flex min-h-12 items-center rounded-full bg-gold px-6 font-semibold text-[#1b1e21] hover:bg-[#ffd07a]">
+            Pick a topic
           </Link>
           <Link href="/past-papers" className="inline-flex min-h-12 items-center rounded-full border border-hairline-strong px-6 font-semibold text-foreground hover:border-gold-border">
             Find a paper
@@ -54,11 +55,10 @@ export function ProgressView({ syllabi, exam }: { syllabi: ProgressSyllabus[]; e
       const scored = papers.map((p) => done[p.k]).filter((d) => d.s != null && d.m);
       const avg = scored.length ? Math.round(scored.reduce((n, d) => n + (d.s! / d.m!) * 100, 0) / scored.length) : null;
       const prefix = `${s.code}_`;
-      const mistakes = Object.keys(wrong).filter((id) => id.startsWith(prefix)).length;
       const asked = Object.keys(seen).filter((id) => id.startsWith(prefix)).length;
       const next = s.papers.find((p) => !done[p.k]) ?? null;
       const last = [...papers].sort((a, b) => done[b.k].at - done[a.k].at).slice(0, 5);
-      return { s, papers, avg, mistakes, asked, next, last };
+      return { s, papers, avg, asked, next, last };
     })
     .filter((x) => x.papers.length || x.asked);
 
@@ -82,7 +82,7 @@ export function ProgressView({ syllabi, exam }: { syllabi: ProgressSyllabus[]; e
         {[
           ["Papers done", doneKeys.length],
           ["Questions answered", answered],
-          ["On your mistakes list", Object.keys(wrong).length],
+          ["Average score", avgAll != null ? `${avgAll}%` : "none yet"],
         ].map(([l, v]) => (
           <div key={l} className="rounded-[18px] border border-hairline bg-card px-4 py-4 md:px-6">
             <dt className="text-[13px] text-muted-foreground md:text-[14px]">{l}</dt>
@@ -91,7 +91,7 @@ export function ProgressView({ syllabi, exam }: { syllabi: ProgressSyllabus[]; e
         ))}
       </dl>
 
-      {mine.map(({ s, papers, avg, mistakes, asked, next, last }) => (
+      {mine.map(({ s, papers, avg, asked, next, last }) => (
         <section key={s.code} className={card} aria-labelledby={`pg-${s.code}`}>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 id={`pg-${s.code}`} className="text-xl font-bold text-foreground">
@@ -129,19 +129,9 @@ export function ProgressView({ syllabi, exam }: { syllabi: ProgressSyllabus[]; e
                 Next paper: <span className="ml-1 tabular-nums">{next.c}</span>
               </Link>
             )}
-            {s.practice && mistakes > 0 && (
-              <Link
-                href={`/past-papers/${s.slug}/practice?mode=mistakes`}
-                className="inline-flex min-h-11 items-center rounded-full border border-hairline-strong px-5 text-[15px] font-semibold text-foreground hover:border-gold-border"
-              >
-                Redo {mistakes} {mistakes === 1 ? "mistake" : "mistakes"}
-              </Link>
-            )}
-            {s.practice && (
-              <Link href={`/past-papers/${s.slug}/practice`} className="inline-flex min-h-11 items-center rounded-full px-4 text-[15px] font-semibold text-muted-foreground hover:text-foreground">
-                Question practice
-              </Link>
-            )}
+            <Link href={`/past-papers/${s.slug}/topics`} className="inline-flex min-h-11 items-center rounded-full px-4 text-[15px] font-semibold text-muted-foreground hover:text-foreground">
+              Topics
+            </Link>
           </div>
         </section>
       ))}
