@@ -122,13 +122,23 @@ const PAGE = 1000;
 async function allRows(
   page: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message: string } | null }>,
 ): Promise<{ data: Row[] | null; error: { message: string } | null }> {
-  const rows: Row[] = [];
-  for (let from = 0; ; from += PAGE) {
-    const r = await page(from, from + PAGE - 1);
-    if (r.error) return { data: null, error: r.error };
-    const got = (r.data as Row[] | null) ?? [];
-    rows.push(...got);
-    if (got.length < PAGE) return { data: rows, error: null };
+  // The first page on its own; if it's full, the next pages four at a time
+  // side by side instead of one after another (attendance, reminders and
+  // reports grow every day, and each trip from Pakistan costs a few hundred ms).
+  const first = await page(0, PAGE - 1);
+  if (first.error) return { data: null, error: first.error };
+  const rows: Row[] = [...((first.data as Row[] | null) ?? [])];
+  if (rows.length < PAGE) return { data: rows, error: null };
+  for (let from = PAGE; ; from += PAGE * 4) {
+    const batch = await Promise.all([0, 1, 2, 3].map((i) => page(from + i * PAGE, from + (i + 1) * PAGE - 1)));
+    for (const r of batch) {
+      // Asking past the last row can come back as "range not satisfiable": that just means the end.
+      if (r.error && /range/i.test(r.error.message)) return { data: rows, error: null };
+      if (r.error) return { data: null, error: r.error };
+      const got = (r.data as Row[] | null) ?? [];
+      rows.push(...got);
+      if (got.length < PAGE) return { data: rows, error: null };
+    }
   }
 }
 
@@ -577,6 +587,8 @@ class Store {
     // student screen (attendance, reports): don't spend a round trip or data.
     const empty = Promise.resolve({ data: [] as Row[], error: null });
     const staffOnly = <T,>(q: () => T) => (this.audience === "student" ? empty : q());
+    // The admin's level list is its own request: start it now, alongside the rest.
+    const levelsReady = this.readLevels([]);
     const [coh, stu, tst, sub, ann, bnk, keys, cls, subj, cCls, cSubj, sCls, sSubj, nts, nAssigns, asg, asgSubs, attD, attM, rep, rem, acts] = await Promise.all([
       sb.from("cohorts").select("*").order("created_at"),
       allRows((a, b) => sb.from("students").select("*").order("created_at").order("id").range(a, b)),
@@ -687,6 +699,7 @@ class Store {
     }
 
     const studentClassMap = new Map<string, string[]>();
+    await levelsReady;
     await this.readLevels((stu.data as Row[]) ?? []);
     const studentSubjectMap = new Map<string, string[]>();
     for (const r of (sCls.data as Row[]) ?? []) {
@@ -2296,6 +2309,29 @@ class Store {
       link: "/admin/notes",
     });
     return id;
+  }
+  /**
+   * Clear out a finished cohort's notes: notes shared only with this cohort are
+   * deleted; notes also shared with other cohorts just stop going to this one.
+   * Returns how many were deleted and how many were only unlinked.
+   */
+  cohortNotes(cohortId: string) {
+    const mine = this.state.noteAssignments.filter((na) => na.cohortId === cohortId);
+    const noteIds = [...new Set(mine.map((na) => na.noteId))];
+    const onlyHere = noteIds.filter((id) => this.state.noteAssignments.every((na) => na.noteId !== id || na.cohortId === cohortId));
+    return { onlyHere, shared: noteIds.filter((id) => !onlyHere.includes(id)), links: mine };
+  }
+  clearCohortNotes(cohortId: string): { deleted: number; unlinked: number } {
+    const { onlyHere, shared, links } = this.cohortNotes(cohortId);
+    for (const id of onlyHere) this.deleteNote(id);
+    const linkIds = links.filter((na) => shared.includes(na.noteId)).map((na) => na.id);
+    if (linkIds.length) {
+      this.commit((d) => {
+        d.noteAssignments = d.noteAssignments.filter((na) => !linkIds.includes(na.id));
+      });
+      this.run(supabase().from("note_assignments").delete().in("id", linkIds), "clearCohortNotes");
+    }
+    return { deleted: onlyHere.length, unlinked: shared.length };
   }
   deleteNote(id: string) {
     const title = this.state.notes.find((n) => n.id === id)?.title;

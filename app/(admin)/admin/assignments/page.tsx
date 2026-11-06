@@ -211,7 +211,7 @@ export default function AdminAssignmentsPage() {
               <Select label="Cohort" value={form.cohortId} onChange={(e) => setForm({ ...form, cohortId: e.target.value })}>
                 {/* An assignment needs a cohort: without one, no student can see it. */}
                 <option value="">Choose a cohort</option>
-                {db.cohorts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {db.cohorts.filter((c) => c.active || c.id === form.cohortId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </Select>
               <Select label="Class" value={form.classId} onChange={(e) => setForm({ ...form, classId: e.target.value })}>
                 <option value="">All classes</option>

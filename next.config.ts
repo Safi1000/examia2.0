@@ -23,6 +23,16 @@ const nextConfig: NextConfig = {
   // Articles live in content/blog/*.mdx and are imported by app/blog/[slug].
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   poweredByHeader: false,
+  // Past papers (PDFs and page images) live in file storage; they are served
+  // from this site's own address so search engines credit hamzateaches.com.
+  async rewrites() {
+    const origin = process.env.PAPER_FILES_ORIGIN?.replace(/\/$/, "");
+    return origin ? [{ source: "/papers/:path*", destination: `${origin}/:path*` }] : [];
+  },
+  // Starting Points was removed: old links go to the homepage.
+  async redirects() {
+    return ["/check", "/check/:path*", "/starting-point", "/starting-point/:path*", "/admin/starting-points"].map((source) => ({ source, destination: source.startsWith("/admin") ? "/admin" : "/", permanent: false }));
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

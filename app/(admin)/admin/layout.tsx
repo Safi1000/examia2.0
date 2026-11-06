@@ -34,7 +34,6 @@ const TITLES: Record<string, string> = {
   "/admin/announcements": "Announcements",
   "/admin/roster": "Roster",
   "/admin/leads": "Waitlist",
-  "/admin/starting-points": "Starting points",
   "/admin/cohorts": "Cohorts",
   "/admin/attendance": "Attendance",
   "/admin/analytics": "Analytics",

@@ -59,6 +59,7 @@ export default function CohortsPage() {
   const [deleting, setDeleting] = useState<Cohort | null>(null);
   const [reassignTo, setReassignTo] = useState("");
   const [switchingOff, setSwitchingOff] = useState<Cohort | null>(null);
+  const [clearing, setClearing] = useState<Cohort | null>(null);
 
   function toggleClass(id: string) {
     setSelClassIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
@@ -104,19 +105,7 @@ export default function CohortsPage() {
     setReassignTo("");
   }
 
-  return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
-      <PageHeader
-        title="Cohorts"
-        subtitle={`${db.cohorts.length} cohorts`}
-        actions={<Button onClick={openNew}><Icon.Plus className="h-4 w-4" /> New cohort</Button>}
-      />
-
-      {db.cohorts.length === 0 ? (
-        <EmptyState icon={<Icon.Layers />} title="No cohorts" action={<Button onClick={openNew}>Create one</Button>} />
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {db.cohorts.map((c) => {
+  const card = (c: Cohort) => {
             const studentCount = studentsInCohort(db, c.id).length;
             const testCount = db.tests.filter((t) => t.cohortId === c.id).length;
             const classNames = c.classIds.map((cid) => db.classes.find((x) => x.id === cid)?.name).filter(Boolean);
@@ -146,6 +135,15 @@ export default function CohortsPage() {
                   </div>
                 </div>
                 <div className="flex shrink-0 gap-1">
+                  {!c.active && db.noteAssignments.some((na) => na.cohortId === c.id) && (
+                    <button
+                      onClick={() => setClearing(c)}
+                      className="flex h-9 items-center rounded px-2 text-xs font-semibold text-ink-3 hover:bg-error-soft hover:text-error"
+                      title="Delete the notes that were only for this cohort"
+                    >
+                      Delete notes
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       if (c.active) return setSwitchingOff(c);
@@ -171,8 +169,35 @@ export default function CohortsPage() {
                 </div>
               </Card>
             );
-          })}
+  };
+
+  return (
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+      <PageHeader
+        title="Cohorts"
+        subtitle={`${db.cohorts.filter((c) => c.active).length} active`}
+        actions={<Button onClick={openNew}><Icon.Plus className="h-4 w-4" /> New cohort</Button>}
+      />
+
+      {db.cohorts.length === 0 ? (
+        <EmptyState icon={<Icon.Layers />} title="No cohorts" action={<Button onClick={openNew}>Create one</Button>} />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {db.cohorts.filter((c) => c.active).map(card)}
         </div>
+      )}
+
+      {db.cohorts.some((c) => !c.active) && (
+        <details className="group mt-8">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-semibold text-ink-3 hover:text-ink [&::-webkit-details-marker]:hidden">
+            <span aria-hidden className="transition-transform group-open:rotate-90">›</span>
+            Archived cohorts ({db.cohorts.filter((c) => !c.active).length})
+          </summary>
+          <p className="mb-3 mt-1 text-xs text-ink-3">Switched off: hidden everywhere else in the portal. Nothing here is deleted unless you delete it.</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {db.cohorts.filter((c) => !c.active).map(card)}
+          </div>
+        </details>
       )}
 
       {/* Create / edit */}
@@ -252,6 +277,41 @@ export default function CohortsPage() {
               <li><span className="font-semibold text-ink">{testIds.size}</span> tests move to the Tests archive.</li>
               <li><span className="font-semibold text-ink">{work}</span> submissions move to the Submissions archive.</li>
               <li>To bring a student back, add them to a new cohort from Roster → Past students.</li>
+            </ul>
+          );
+        })()}
+      </Modal>
+
+      {/* Delete an archived cohort's notes */}
+      <Modal
+        open={!!clearing}
+        onClose={() => setClearing(null)}
+        title={clearing ? `Delete ${clearing.name}'s notes?` : ""}
+        description="This can't be undone."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setClearing(null)}>Cancel</Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (!clearing) return;
+                const r = store.clearCohortNotes(clearing.id);
+                toast(`${r.deleted} ${r.deleted === 1 ? "note" : "notes"} deleted${r.unlinked ? `, ${r.unlinked} shared ${r.unlinked === 1 ? "note" : "notes"} kept for other cohorts` : ""}.`, "success");
+                setClearing(null);
+              }}
+            >
+              Delete notes
+            </Button>
+          </>
+        }
+      >
+        {clearing && (() => {
+          const r = store.cohortNotes(clearing.id);
+          return (
+            <ul className="space-y-1.5 text-sm text-ink-2">
+              <li><span className="font-semibold text-ink">{r.onlyHere.length}</span> {r.onlyHere.length === 1 ? "note was" : "notes were"} only for this cohort and will be deleted.</li>
+              {r.shared.length > 0 && <li><span className="font-semibold text-ink">{r.shared.length}</span> {r.shared.length === 1 ? "note is" : "notes are"} also shared with other cohorts: kept for them, just removed from this one.</li>}
+              <li>Students, tests and marks stay in the archive.</li>
             </ul>
           );
         })()}

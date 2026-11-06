@@ -244,7 +244,7 @@ export default function TestEditorPage() {
               }}
             >
               <option value="">Open to all cohorts</option>
-              {db.cohorts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {db.cohorts.filter((c) => c.active || c.id === form.cohortId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
             {(() => {
               const cohort = db.cohorts.find((c) => c.id === form.cohortId);

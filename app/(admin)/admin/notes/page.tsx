@@ -353,7 +353,7 @@ export default function NotesPage() {
             <div className="space-y-2">
               <Select value={aCohortId} onChange={(e) => { setACohortId(e.target.value); setAClassId(""); setASubjectId(""); }} aria-label="Cohort">
                 <option value="">Select cohort…</option>
-                {db.cohorts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {db.cohorts.filter((c) => c.active || c.id === aCohortId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </Select>
 
               {aCohortId && classesForA.length > 0 && (
@@ -423,7 +423,7 @@ export default function NotesPage() {
         <div className="space-y-3">
           <Select label="Cohort" value={eaCohortId} onChange={(e) => { setEACohortId(e.target.value); setEAClassId(""); setEASubjectId(""); }}>
             <option value="">Select cohort…</option>
-            {db.cohorts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {db.cohorts.filter((c) => c.active || c.id === eaCohortId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
           {eaCohortId && classesForEA.length > 0 && (
             <Select label="Class (optional)" value={eaClassId} onChange={(e) => { setEAClassId(e.target.value); setEASubjectId(""); }}>

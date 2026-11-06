@@ -37,7 +37,6 @@ const GROUPS = [
     items: [
       { href: "/admin/roster", label: "Roster", Icon: NavIcon.Roster },
       { href: "/admin/leads", label: "Waitlist", Icon: NavIcon.Inbox },
-      { href: "/admin/starting-points", label: "Starting points", Icon: NavIcon.Analytics },
       { href: "/admin/cohorts", label: "Cohorts", Icon: NavIcon.Cohorts },
       { href: "/admin/attendance", label: "Attendance", Icon: NavIcon.Attendance },
     ],

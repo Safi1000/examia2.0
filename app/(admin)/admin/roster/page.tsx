@@ -495,7 +495,7 @@ export default function RosterPage() {
           </div>
           <Select label="Cohort" value={form.cohortId} onChange={(e) => setForm({ ...form, cohortId: e.target.value, classIds: [], subjectIds: [], levelSubjects: {} })}>
             <option value="">Choose…</option>
-            {db.cohorts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {db.cohorts.filter((c) => c.active || c.id === form.cohortId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
           <div>
             <Label>Classes</Label>
