@@ -67,9 +67,18 @@ export function VideoPlayer({
         <>
           {/* The hero poster is the largest thing on a phone's first screen (Google's LCP), so it is fetched first. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={poster} alt="" aria-hidden loading={big ? "eager" : "lazy"} fetchPriority={big ? "high" : "auto"} className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl" />
+          <img src={sized(poster, 64)} alt="" aria-hidden loading={big ? "eager" : "lazy"} className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={poster} alt="" aria-hidden loading={big ? "eager" : "lazy"} fetchPriority={big ? "high" : "auto"} className="absolute inset-0 h-full w-full object-contain" />
+          <img
+            src={sized(poster, big ? 1080 : 640)}
+            srcSet={big ? `${sized(poster, 640)} 640w, ${sized(poster, 1080)} 1080w` : undefined}
+            sizes={big ? "(min-width: 1024px) 720px, 100vw" : undefined}
+            alt=""
+            aria-hidden
+            loading={big ? "eager" : "lazy"}
+            fetchPriority={big ? "high" : "auto"}
+            className="absolute inset-0 h-full w-full object-contain"
+          />
         </>
       ) : (
         <div
@@ -109,4 +118,9 @@ export function VideoPlayer({
       )}
     </div>
   );
+}
+
+/** YouTube stills come at full size (up to 1080 × 1920); the site's image service resizes them to WebP. */
+function sized(src: string, w: number) {
+  return /^https:\/\/i\.ytimg\.com\/vi\//.test(src) ? `/_next/image?url=${encodeURIComponent(src)}&w=${w}&q=75` : src;
 }

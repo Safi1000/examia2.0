@@ -91,7 +91,9 @@ export function NotificationsView() {
     [isUnread, markRead, resolveLink, router],
   );
 
-  const tabs: TabItem[] = FILTERS.map((f) => ({
+  // Only the filters that have something in them (plus All, and whichever is open).
+  const present = new Set(activities.map((a) => categoryOf(a.type)));
+  const tabs: TabItem[] = FILTERS.filter((f) => f.id === "all" || f.id === filter || (f.id === "unread" ? unreadCount > 0 : present.has(f.id as never))).map((f) => ({
     id: f.id,
     label: f.label,
     // Only the unread tab carries a count; the rest would just be noise.

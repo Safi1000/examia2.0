@@ -551,7 +551,14 @@ export function PaperView({
                     !split && tab === t.id ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {t.label}
+                  {t.id === "qp" ? (
+                    <>
+                      <span className="sm:hidden">Paper</span>
+                      <span className="hidden sm:inline">{t.label}</span>
+                    </>
+                  ) : (
+                    t.label
+                  )}
                 </button>
               ))}
             </div>

@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { isOwnCloudinary, safeFileName, verifyViewUrl } from "@/lib/signed-view";
 
+const RISKY = /^\s*(text\/html|application\/xhtml|image\/svg|text\/xml|application\/xml|text\/javascript|application\/javascript)/i;
+
 /**
  * Downloads one file as an attachment. Only reachable with a short-lived link
  * signed by a page that already checked access (today: the parent report page,
@@ -52,10 +54,11 @@ export async function GET(req: NextRequest) {
   );
   if (!upstream.ok) return new NextResponse("Could not fetch the file", { status: 502 });
 
-  const disposition = req.nextUrl.searchParams.get("inline") === "1" ? "inline" : "attachment";
+  const disposition = req.nextUrl.searchParams.get("inline") === "1" && !RISKY.test(upstream.headers.get("content-type") ?? "") ? "inline" : "attachment";
   return new NextResponse(upstream.body, {
     headers: {
-      "Content-Type": upstream.headers.get("content-type") ?? "application/octet-stream",
+      // A page or drawing (HTML, SVG, XML) would run as part of this site: never shown, only as plain bytes.
+      "Content-Type": RISKY.test(upstream.headers.get("content-type") ?? "") ? "application/octet-stream" : (upstream.headers.get("content-type") ?? "application/octet-stream"),
       "Content-Disposition": `${disposition}; filename="${safeFileName(payload.n)}"`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",

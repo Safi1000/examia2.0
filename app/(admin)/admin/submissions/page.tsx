@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter, useStickyFilter } from "@/lib/admin-filter";
 import { archivedCohortIds, cohortById, isArchivedSubmission } from "@/lib/data/selectors";
+import { displayName } from "@/lib/display-name";
 import { ArchiveTabs, archiveFromUrl, type ArchiveView } from "@/components/admin/ArchiveTabs";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -257,7 +258,14 @@ export default function SubmissionsPage() {
           </>
         }
       >
-        <p className="text-sm text-ink-2">This permanently removes the student&apos;s submission.</p>
+        <p className="text-sm text-ink-2">
+          {(() => {
+            const sub = db.submissions.find((x) => x.id === deleteId);
+            const who = db.students.find((x) => x.id === sub?.studentId)?.username;
+            const what = db.tests.find((x) => x.id === sub?.testId)?.title;
+            return who && what ? `This permanently removes ${displayName(who)}'s submission for ${what}.` : "This permanently removes the student's submission.";
+          })()}
+        </p>
       </Modal>
     </div>
   );

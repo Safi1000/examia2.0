@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isAdminRequest } from "@/lib/admin-auth";
-import { pushReady, serviceClient } from "@/lib/push-server";
+import { serviceClient } from "@/lib/push-server";
 import { pkDate, addDays } from "@/lib/timetable";
 import { AREAS, mergeNote, type Area, type DayActivity, type MonthFile, type NoteActivity, type StudentActivity } from "@/lib/activity";
 
@@ -22,6 +22,7 @@ const BATCH_CAP = 4 * 3600;
 const NOTES_CAP = 600;
 
 type Sb = ReturnType<typeof serviceClient>;
+const storageReady = () => !!(process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.NEXT_PUBLIC_SUPABASE_URL);
 let bucketReady = false;
 async function ensureBucket(sb: Sb) {
   if (bucketReady) return;
@@ -58,7 +59,7 @@ function serial<T>(key: string, job: () => Promise<T>): Promise<T> {
 }
 
 export async function POST(req: NextRequest) {
-  if (!pushReady()) return NextResponse.json({ ok: true });
+  if (!storageReady()) return NextResponse.json({ ok: true });
   const token = req.headers.get("authorization")?.replace(/^Bearer /, "");
   if (!token) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
@@ -128,9 +129,15 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
+/** The admin page's last answer per period, for a minute, so flicking between pages doesn't re-download every file. */
+const recent = new Map<string, { at: number; body: unknown }>();
+
 export async function GET(req: NextRequest) {
   if (!(await isAdminRequest(req))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  if (!pushReady()) return NextResponse.json({ students: {} });
+  if (!storageReady()) return NextResponse.json({ students: {} });
+  const key = `${req.nextUrl.searchParams.get("from") ?? ""}|${req.nextUrl.searchParams.get("student") ?? ""}`;
+  const hit = recent.get(key);
+  if (hit && Date.now() - hit.at < 60_000) return NextResponse.json(hit.body, { headers: { "Cache-Control": "private, no-store" } });
   const sb = serviceClient();
   await ensureBucket(sb);
 
@@ -180,5 +187,8 @@ export async function GET(req: NextRequest) {
     if (data.users.length < 1000) break;
   }
 
-  return NextResponse.json({ students, from }, { headers: { "Cache-Control": "private, no-store" } });
+  const body = { students, from };
+  recent.set(key, { at: Date.now(), body });
+  if (recent.size > 50) recent.delete(recent.keys().next().value!);
+  return NextResponse.json(body, { headers: { "Cache-Control": "private, no-store" } });
 }

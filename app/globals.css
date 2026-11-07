@@ -25,7 +25,7 @@
   --color-border-strong: #3c4146;
   --color-ink: #f0ede8;         /* text-primary (warm off-white) */
   --color-ink-2: #b0b6bb;       /* text-secondary (brand body grey) */
-  --color-ink-3: #8b9196;       /* text-muted, 5:1 on paper */
+  --color-ink-3: #969ca2;       /* text-muted: 4.5:1 or better on paper, surface-2 and raised cards */
 
   /* ---- Brand / accent (gold — overridden by ThemeManager per user) ---- */
   --color-brand: #FBC159;
@@ -577,4 +577,11 @@ textarea:-webkit-autofill:focus {
   textarea {
     font-size: max(16px, 1em) !important;
   }
+}
+
+/* Breadcrumb links: a finger-sized tap area without changing how they look. */
+nav[aria-label="Breadcrumb"] a {
+  display: inline-block;
+  padding-block: 12px;
+  margin-block: -12px;
 }

@@ -23,6 +23,8 @@ const nextConfig: NextConfig = {
   // Articles live in content/blog/*.mdx and are imported by app/blog/[slug].
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   poweredByHeader: false,
+  // Video posters come from YouTube at full size; resized and converted here instead.
+  images: { remotePatterns: [{ protocol: "https", hostname: "i.ytimg.com", pathname: "/vi/**" }] },
   // Past papers (PDFs and page images) live in Cloudflare R2 (bucket "pastpapers");
   // they are served from this site's own address so search engines credit
   // hamzateaches.com. PAPER_FILES_ORIGIN overrides it (local testing).

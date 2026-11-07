@@ -42,7 +42,7 @@ export function MetaPixel() {
 
   return (
     <>
-      <Script id="meta-pixel" strategy="beforeInteractive">
+      <Script id="meta-pixel" strategy="afterInteractive">
         {`(function(){
 var tz='';try{tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';}catch(e){}
 var choice=null;try{choice=localStorage.getItem('ht-cookies');}catch(e){}

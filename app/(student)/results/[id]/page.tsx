@@ -63,7 +63,7 @@ export default function ResultsPage() {
               {grade.awarded}
               <span className="text-xl text-ink-3">/{grade.total}</span>
             </p>
-            <p className="mt-1 text-sm text-ink-2">{grade.percent}% overall</p>
+            <p className="mt-1 text-sm text-ink-2">{Math.round(grade.percent)}% overall</p>
           </div>
           <div
             className={cn(

@@ -147,7 +147,7 @@ export function coursesLd() {
       provider: { "@id": ORG_ID, "@type": "EducationalOrganization", name: COMPANY_NAME },
       inLanguage: "en",
       hasCourseInstance: [{ "@type": "CourseInstance", courseMode: "online" }],
-      offers: { "@type": "Offer", category: "Free trial lesson", price: "0", priceCurrency: "PKR" },
+      offers: { "@type": "Offer", category: "Paid" },
     })),
   );
 }

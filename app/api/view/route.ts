@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { isOwnCloudinary, safeFileName, verifyViewUrl } from "@/lib/signed-view";
 
+const RISKY = /^\s*(text\/html|application\/xhtml|image\/svg|text\/xml|application\/xml|text\/javascript|application\/javascript)/i;
+
 /**
  * Streams a note INLINE for reading in the portal.
  *
@@ -55,8 +57,9 @@ export async function GET(req: NextRequest) {
 
   return new NextResponse(upstream.body, {
     headers: {
-      "Content-Type": upstream.headers.get("content-type") ?? "application/octet-stream",
-      "Content-Disposition": `inline; filename="${safeFileName(payload.n)}"`,
+      // A page or drawing (HTML, SVG, XML) would run as part of this site: never shown, only as plain bytes.
+      "Content-Type": RISKY.test(upstream.headers.get("content-type") ?? "") ? "application/octet-stream" : (upstream.headers.get("content-type") ?? "application/octet-stream"),
+      "Content-Disposition": `${RISKY.test(upstream.headers.get("content-type") ?? "") ? "attachment" : "inline"}; filename="${safeFileName(payload.n)}"`,
       // Never cached by a shared proxy, and gone from the browser quickly.
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",

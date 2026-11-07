@@ -38,8 +38,8 @@ const splineMono = Spline_Sans_Mono({
 export const metadata: Metadata = {
   // Resolves relative share-image and canonical URLs to the live domain.
   metadataBase: new URL(SITE_URL),
-  title: `${COMPANY_NAME} · Student portal`,
-  description: "A calm, mobile-first exam and cohort-management portal.",
+  title: `${COMPANY_NAME} · O Level, IGCSE and A Level tuition`,
+  description: "Online O Level, IGCSE and A Level tuition in Accounting, Business and Economics, with free past papers. Book a free trial lesson.",
   // Tab and home-screen icons come from app/icon.svg and app/apple-icon.tsx.
   ...(GSC_VERIFICATION ? { verification: { google: GSC_VERIFICATION } } : {}),
 };

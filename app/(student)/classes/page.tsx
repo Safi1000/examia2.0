@@ -133,7 +133,7 @@ export default function ClassesPage() {
         {pending.length > 0 && (
           <ul className="space-y-2">
             {pending.map((p) => (
-              <li key={slotKey(p)} className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-border bg-surface/50 px-5 py-3.5">
+              <li key={slotKey(p)} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border border-dashed border-border bg-surface/50 px-5 py-3.5">
                 <span>
                   <span className="block font-semibold text-ink">{p.subject}</span>
                   <span className="block text-xs text-ink-3">Today, {span(p.start, p.end)}</span>
