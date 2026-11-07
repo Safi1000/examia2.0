@@ -13,7 +13,7 @@ import { ClassNow } from "@/components/student/ClassNow";
 import { NotifyCard } from "@/components/student/NotifyCard";
 import { TopicChip } from "@/components/student/TopicChip";
 import { Icon } from "@/components/ui";
-import { formatRelative, formatWhen, testWindow } from "@/lib/time";
+import { formatRelative, formatWhen } from "@/lib/time";
 import { buildStudyPlan, type PlanWeek } from "@/lib/study-plan";
 import { GRADE_FLOOR, performanceSnapshot, sameSubject, type Snapshot } from "@/lib/performance";
 import { StudyBuddy, todaysMission } from "@/components/student/StudyBuddy";
@@ -83,7 +83,7 @@ export default function DashboardPage() {
     .sort((a, b) => +new Date(b.releasedAt!) - +new Date(a.releasedAt!))
     .flatMap((x) => {
       const t = db.tests.find((tt) => tt.id === x.testId);
-      return t ? [{ key: `r-${x.id}`, href: `/results/${x.id}`, title: t.title, meta: `Result out · ${Math.round(gradeSubmission(t, x).percent)}%`, cta: "See result", quiet: true }] : [];
+      return t ? [{ key: `r-${x.id}`, href: `/results/${t.id}`, title: t.title, meta: `Result out · ${Math.round(gradeSubmission(t, x).percent)}%`, cta: "See result", quiet: true }] : [];
     });
 
   const todo: Array<{ key: string; href: string; title: string; meta: string; cta: string; quiet?: boolean }> = [
@@ -127,7 +127,7 @@ export default function DashboardPage() {
               <li key={x.key}>
                 <Link href={x.href} className="flex items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-surface-2 active:bg-surface-2">
                   <span className="min-w-0">
-                    <span className="block truncate font-semibold text-ink">{x.title}</span>
+                    <span className="line-clamp-2 break-words font-semibold text-ink">{x.title}</span>
                     <span className="block text-sm text-ink-3">{x.meta}</span>
                   </span>
                   <span

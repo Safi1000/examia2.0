@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { pushReady, serviceClient } from "@/lib/push-server";
 import { currentStats, levelFor } from "@/lib/focus";
 import { displayName } from "@/lib/display-name";
-import type { Profile } from "@/lib/profile";
+import { AVATARS, type Profile } from "@/lib/profile";
 
 /**
  * This week's top 3 study hours in the signed-in student's cohort: first
@@ -72,7 +72,9 @@ async function buildRows(sb: ReturnType<typeof serviceClient>, cohortId: string)
         .reduce((n, [, m]) => n + Math.min(960, Math.max(0, Number(m) || 0)), 0);
       const minutes = Math.round(Math.min(MAX_WEEK_MIN, Math.max(0, Number(st.weekMinutes) || 0), fromDays));
       const level = levelFor(Math.min(6000 * 60, Math.max(0, Number(st.totalMinutes) || 0))).index;
-      if (minutes > 0) rows.push({ id: m.id as string, name: displayName(m.username as string).split(" ")[0], avatar: p.avatar, minutes, level });
+      // The avatar comes from the student's own editable profile: pass on only a real one.
+      const avatar = AVATARS.some((a) => a.id === p.avatar) ? p.avatar : undefined;
+      if (minutes > 0) rows.push({ id: m.id as string, name: displayName(m.username as string).split(" ")[0], avatar, minutes, level });
     }
     if (data.users.length < 1000) break;
   }

@@ -140,7 +140,9 @@ function Pages({ doc, zoom, night, onPage }: { doc: ViewDoc; zoom: number; night
             alt={`${doc.label}, page ${i + 1} of ${doc.pages}`}
             width={1100}
             height={Math.round(1100 * (doc.ratios?.[i] ?? 1.414))}
-            loading={i < 2 ? "eager" : "lazy"}
+            // Only page 1 is on the first screen (phone or desktop): it loads first, the rest as you scroll.
+            loading={i === 0 ? "eager" : "lazy"}
+            fetchPriority={i === 0 ? "high" : "auto"}
             decoding="async"
             className={cn("h-auto w-full rounded-[4px] bg-white shadow-[0_12px_32px_-16px_rgba(0,0,0,0.8)]", night && "invert hue-rotate-180")}
           />

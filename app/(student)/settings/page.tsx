@@ -16,9 +16,9 @@ export default function StudentSettingsPage() {
   const db = useDatabase();
   const student = studentId ? studentById(db, studentId) : null;
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6">
-      <h1 className="text-2xl font-extrabold tracking-tight text-ink">Settings</h1>
-      <p className="mt-1 text-sm text-ink-2">Your password, notifications and how your portal looks.</p>
+    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
+      <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink">Settings</h1>
+      <p className="mt-2 text-base text-ink-2">Your password, notifications and how your portal looks.</p>
 
       {student && <ProfileSettings db={db} student={student} />}
       {studentId && <NotificationSettings studentId={studentId} />}

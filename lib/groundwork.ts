@@ -153,6 +153,8 @@ export interface Scene {
   link?: string;
   /** Light photos get a stronger shade so white text stays readable. */
   light?: boolean;
+  /** A plain colour wash: nothing drawn on top. */
+  calm?: boolean;
 }
 
 /**
@@ -194,16 +196,37 @@ const DRAWN: Scene[] = [
   { id: "margalla", name: "Margalla", sky: "linear-gradient(180deg,#d9e4dc 0%,#a9c2b4 45%,#6f9384 100%)", hills: ["#5e8170", "#3c5a4c", "#22362d"], glow: "rgba(255,255,240,.45)" },
   { id: "gunmetal", name: "Gunmetal", sky: "radial-gradient(80% 60% at 70% 30%,rgba(251,193,89,.28),transparent 60%),linear-gradient(180deg,#1b2226 0%,#2a3439 60%,#323e44 100%)", hills: ["#3a474e", "#2a3439", "#1b2226"], glow: "rgba(251,193,89,.4)" },
 ];
-/** Every scene: the photos first, then the drawn ones. */
-export const SCENES: Scene[] = [...PHOTO_SCENES, ...DRAWN];
+/**
+ * Calm washes: soft colour, nothing else, so the screen stays quiet. The
+ * default; photos and drawn scenes are still there for anyone who picks them.
+ */
+const C = (id: string, name: string, a: string, b: string, base: string): Scene => ({
+  id,
+  name,
+  sky: `radial-gradient(70% 60% at 22% 18%, ${a}, transparent 70%), radial-gradient(65% 55% at 85% 88%, ${b}, transparent 70%), ${base}`,
+  hills: ["#000", "#000", "#000"],
+  glow: a,
+  calm: true,
+});
+export const CALM_SCENES: Scene[] = [
+  C("calm-ink", "Ink", "rgba(70,96,140,.55)", "rgba(36,52,84,.6)", "#0e131b"),
+  C("calm-dusk", "Dusk", "rgba(150,92,112,.5)", "rgba(196,128,86,.35)", "#1b1519"),
+  C("calm-sage", "Sage", "rgba(104,136,114,.5)", "rgba(52,74,62,.55)", "#121815"),
+  C("calm-sand", "Sand", "rgba(170,140,104,.45)", "rgba(96,78,62,.5)", "#1a1612"),
+  C("calm-ocean", "Ocean", "rgba(52,122,134,.5)", "rgba(24,58,74,.6)", "#0b1619"),
+  C("calm-graphite", "Graphite", "rgba(251,193,89,.16)", "rgba(80,88,96,.4)", "#131619"),
+];
 
-/** Scenes that suit each part of the day; a different one each day within it. */
+/** Every scene: the calm washes first, then photos, then the drawn ones. */
+export const SCENES: Scene[] = [...CALM_SCENES, ...PHOTO_SCENES, ...DRAWN];
+
+/** Calm washes that suit each part of the day; a different one each day within it. */
 const BY_TIME: Array<[number, string[]]> = [
-  [5, ["milky-way", "aurora-trees", "aurora-peaks"]],
-  [11, ["pastel-peaks", "green-mist", "lake-fog", "blue-ranges"]],
-  [16, ["mountain-lake", "pink-sea", "fog-forest"]],
-  [19, ["desert-dusk", "above-the-fog"]],
-  [24, ["milky-way", "aurora-trees", "aurora-peaks"]],
+  [5, ["calm-ink", "calm-graphite"]],
+  [11, ["calm-sage", "calm-ocean"]],
+  [16, ["calm-sand", "calm-sage"]],
+  [19, ["calm-dusk", "calm-sand"]],
+  [24, ["calm-ink", "calm-graphite", "calm-ocean"]],
 ];
 export function sceneFor(id: string | undefined, nowMs: number): Scene {
   const chosen = SCENES.find((s) => s.id === id);

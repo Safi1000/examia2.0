@@ -18,6 +18,8 @@ export const dynamic = "force-dynamic";
 const BUCKET = "activity";
 const DAY_CAP = 16 * 3600;
 const BATCH_CAP = 4 * 3600;
+/** Different notes kept in one month file, so a forged stream of ids can't grow it without end. */
+const NOTES_CAP = 600;
 
 type Sb = ReturnType<typeof serviceClient>;
 let bucketReady = false;
@@ -107,6 +109,7 @@ export async function POST(req: NextRequest) {
           const notes = (raw.n ?? {}) as Record<string, Record<string, unknown>>;
           for (const [id, n] of Object.entries(notes).slice(0, 40)) {
             if (!isId(id) || !n || typeof n !== "object") continue;
+            if (!file.notes[id] && Object.keys(file.notes).length >= NOTES_CAP) continue;
             const pages = (Array.isArray(n.p) ? n.p : []).filter((p): p is number => Number.isInteger(p) && p > 0 && p <= 2000).slice(0, 400);
             const add: NoteActivity = { s: Math.round(num(n.s, BATCH_CAP)), p: pages, t: Math.round(num(n.t, 2000)), at: num(n.at, now + 60_000) || now };
             file.notes[id] = mergeNote(file.notes[id], add);

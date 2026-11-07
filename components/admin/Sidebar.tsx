@@ -73,7 +73,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4" aria-label="Admin">
         {GROUPS.map((g) => (
           <div key={g.title}>
-            <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.24em] text-ink-3/70">{g.title}</p>
+            <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.24em] text-ink-3">{g.title}</p>
             <ul className="space-y-0.5">
               {g.items.map((item) => {
                 const active = pathname.startsWith(item.href);
@@ -102,12 +102,13 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         ))}
 
         <div>
-          <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.24em] text-ink-3/70">Viewing</p>
+          <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.24em] text-ink-3">Viewing</p>
           {/* Switched-off cohorts drop out of the filter, but stay on the
               Cohorts page where they can be switched back on. */}
           <div className="flex flex-wrap gap-1.5 px-2">
             <button
               onClick={() => setCohortId(null)}
+              aria-pressed={cohortId === null}
               className={cn(
                 "flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors",
                 cohortId === null ? "border-brand/40 bg-brand/10 text-brand" : "border-white/[0.08] text-ink-3 hover:text-ink",
@@ -119,6 +120,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               <button
                 key={c.id}
                 onClick={() => setCohortId(cohortId === c.id ? null : c.id)}
+                aria-pressed={cohortId === c.id}
                 className={cn(
                   "flex h-8 max-w-full items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors",
                   cohortId === c.id ? "border-brand/40 bg-brand/10 text-ink" : "border-white/[0.08] text-ink-3 hover:text-ink",
@@ -142,7 +144,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <span className="block text-[11px] text-ink-3">Teacher</span>
         </span>
         <button
-          onClick={() => { logout(); router.replace("/login"); }}
+          onClick={() => { logout(); router.replace("/admin"); }}
           aria-label="Sign out"
           title="Sign out"
           className="flex h-9 w-9 items-center justify-center rounded-lg text-ink-3 transition-colors hover:bg-white/[0.05] hover:text-ink"

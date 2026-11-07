@@ -126,14 +126,14 @@ export function StudyCoach({
                     <span className="inline-flex flex-wrap items-center gap-1.5">
                       <span className="text-ink-2">Redo</span>
                       {s.redo.map((n) => (
-                        <a key={n} href={`#q-${n}`} className="rounded-md border border-border-strong px-2.5 py-1.5 font-semibold text-ink hover:border-brand">
+                        <a key={n} href={`#q-${n}`} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-border-strong px-2.5 font-semibold text-ink hover:border-brand">
                           Q{n}
                         </a>
                       ))}
                     </span>
                   )}
                   {note && (
-                    <Link href={`/notes?open=${note.id}`} className="rounded-md border border-border-strong px-3 py-1.5 font-semibold text-ink hover:border-brand">
+                    <Link href={`/notes?open=${note.id}`} className="inline-flex min-h-11 items-center rounded-md border border-border-strong px-3 font-semibold text-ink hover:border-brand">
                       Read: {note.title}
                     </Link>
                   )}
@@ -141,7 +141,7 @@ export function StudyCoach({
                     href={waTextLink(`Hi Hamza, it's ${first}. I'm stuck on ${s.name} (${s.subject})${test ? ` from ${test.title}` : ""}. Can you help me with it?`)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-md px-3 py-1.5 font-semibold text-brand hover:underline"
+                    className="inline-flex min-h-11 items-center rounded-md px-3 font-semibold text-brand hover:underline"
                   >
                     Ask about this →
                   </a>

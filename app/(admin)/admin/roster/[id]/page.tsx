@@ -18,6 +18,7 @@ import { Card, Badge, CohortDot, EmptyState, Icon, Modal } from "@/components/ui
 import { useToast } from "@/components/toast";
 import { COMPANY_NAME } from "@/lib/config";
 import { waDigits } from "@/lib/phone";
+import { displayName } from "@/lib/display-name";
 import { notesConfigured, uploadNote } from "@/lib/cloudinary";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import { LineChart, type LinePoint } from "@/components/charts/LineChart";
@@ -203,8 +204,8 @@ function StudentDetail() {
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader
-        title={student.username}
-        subtitle={student.email}
+        title={displayName(student.username)}
+        subtitle={[student.username, student.email].filter(Boolean).join(" · ")}
         back={{ href: "/admin/roster", label: "Roster" }}
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -237,7 +238,7 @@ function StudentDetail() {
             )}
             <ResetPassword studentId={student.id} username={student.username} phone={student.phone} parent={student.whatsapp} />
             <Button variant="secondary" size="sm" onClick={openReport}>
-              <Icon.Download className="h-4 w-4" /> Monthly Report
+              <Icon.Download className="h-4 w-4" /> Monthly report
             </Button>
           </div>
         }

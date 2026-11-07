@@ -161,11 +161,11 @@ export default function ActivityPage() {
           )}
 
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
-            <Card className="p-5">
+            <Card className="min-w-0 p-5">
               <h2 className="mb-3 text-sm font-semibold text-ink">Where the time goes</h2>
               <AreaBars areas={totals.areas} />
             </Card>
-            <Card className="p-5">
+            <Card className="min-w-0 p-5">
               <h2 className="mb-3 text-sm font-semibold text-ink">Most-read notes</h2>
               {totals.topNotes.length ? (
                 <ol className="space-y-2.5">

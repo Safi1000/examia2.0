@@ -217,7 +217,7 @@ export default function TodayPage() {
           <span>
             Next class: <span className="font-semibold text-ink">{nextLabel}</span>
           </span>
-          <span className="text-sm text-ink-3">Classes →</span>
+          <span className="shrink-0 whitespace-nowrap text-sm text-ink-3">Classes →</span>
         </Link>
       )}
 
@@ -396,7 +396,7 @@ export default function TodayPage() {
             <ul className="mt-4 grid gap-3 md:grid-cols-3">
               {data.weak.map((w) => (
                 <li key={`${w.subject}|${w.name}`} className="flex flex-col rounded-md border border-border bg-surface-2 p-4">
-                  <p className="text-sm text-ink-3">{w.subject}</p>
+                  <p className="text-sm text-ink-2">{w.subject}</p>
                   <p className="font-semibold text-ink">{w.name}</p>
                   <div className="mt-3 h-1.5 rounded-full bg-paper" aria-hidden>
                     <div className={cn("h-full rounded-full", w.percent < 50 ? "bg-error" : "bg-warning")} style={{ width: `${Math.max(4, Math.round(w.percent))}%` }} />

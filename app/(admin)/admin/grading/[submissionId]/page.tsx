@@ -102,7 +102,7 @@ export default function GradingPage() {
       }}
     >
       <PageHeader
-        title="Grading"
+        title="Marking"
         subtitle={`${name} · ${test.title}${waiting ? ` · ${waiting} waiting to be marked` : ""}`}
         back={{ href: "/admin/submissions", label: "Submissions" }}
         actions={

@@ -11,8 +11,18 @@ export interface CountdownSyllabus {
 }
 
 const DAY = 86_400_000;
-const fmtDate = (ymd: string) =>
-  new Date(`${ymd}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "long", year: "numeric" });
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+/**
+ * "Mon 26 April 2027", spelled out by hand: the server and each browser format
+ * dates slightly differently (a comma after the day name), which broke
+ * hydration, and a visitor's time zone could shift the day.
+ */
+const fmtDate = (ymd: string) => {
+  const [y, m, d] = ymd.split("-").map(Number);
+  if (!y || !m || !d) return ymd;
+  return `${WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]} ${d} ${MONTHS[m - 1]} ${y}`;
+};
 
 /**
  * Days to the exam, and the pace that gets the syllabus done before the

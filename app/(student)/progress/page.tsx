@@ -181,7 +181,7 @@ export default function ProgressPage() {
                             const note = noteFor(m.name);
                             setPractise({ subject: m.subject, topic: m.name, noteHref: note ? `/notes?open=${note.id}` : undefined });
                           }}
-                          className="h-10 shrink-0 rounded-full bg-brand px-4 text-sm font-semibold text-on-brand active:scale-[0.98]"
+                          className="h-11 shrink-0 rounded-full bg-brand px-4 text-sm font-semibold text-on-brand active:scale-[0.98]"
                         >
                           Practise
                         </button>

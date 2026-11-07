@@ -34,7 +34,7 @@ export function Tabs({
             aria-selected={selected}
             onClick={() => onChange(t.id)}
             className={cn(
-              "relative whitespace-nowrap px-3.5 py-2.5 text-sm font-semibold transition-colors",
+              "relative min-h-11 whitespace-nowrap px-3.5 py-2.5 text-sm font-semibold transition-colors",
               selected ? "text-brand" : "text-ink-3 hover:text-ink-2",
             )}
           >

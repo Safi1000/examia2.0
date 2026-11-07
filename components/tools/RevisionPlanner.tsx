@@ -7,7 +7,16 @@ import { NumberField } from "@/components/tools/ToolBits";
 import { TrackedLink } from "@/components/landing/TrackedLink";
 import { cn } from "@/lib/cn";
 import { waTextLink } from "@/lib/landing";
-import { SYLLABI } from "@/lib/syllabus";
+import type { SyllabusInfo } from "@/lib/syllabus";
+
+/**
+ * Only what the planner needs from each syllabus (names and subtopic titles).
+ * The page passes this in, so the full syllabus files (every learning point)
+ * stay on the server instead of in this page's JavaScript.
+ */
+export type PlannerSyllabus = Pick<SyllabusInfo, "code" | "slug" | "name" | "level"> & {
+  topics: Array<{ subs: Array<{ num: string; name: string }> }>;
+};
 
 type Item = { code: string; subject: string; num: string; name: string; rating: Rating };
 type Week = { start: Date; phase: "learn" | "papers" | "final"; items: Item[] };
@@ -20,7 +29,7 @@ const WEIGHT: Record<Rating, number> = { unsure: 2.5, new: 2, confident: 0.6 };
  * subtopics: weak ("Not sure") topics first, subjects interleaved, then a
  * past paper phase, then a final week on the weakest topics.
  */
-export function RevisionPlanner({ initial }: { initial?: string }) {
+export function RevisionPlanner({ initial, syllabi: SYLLABI }: { initial?: string; syllabi: PlannerSyllabus[] }) {
   const [codes, setCodes] = useState<string[]>(initial ? [initial] : []);
   const [exam, setExam] = useState("");
   const [hours, setHours] = useState("6");
@@ -33,7 +42,7 @@ export function RevisionPlanner({ initial }: { initial?: string }) {
       setToday(Date.now());
     }, 0);
     return () => clearTimeout(id);
-  }, []);
+  }, [SYLLABI]);
 
   const plan = useMemo<Week[] | null>(() => {
     if (!codes.length || !exam || today === null) return null;
@@ -70,7 +79,7 @@ export function RevisionPlanner({ initial }: { initial?: string }) {
     for (let i = 0; i < paperWeeks; i++) out.push({ start: new Date(today + out.length * 7 * DAY), phase: "papers", items: [] });
     out.push({ start: new Date(today + out.length * 7 * DAY), phase: "final", items: merged.filter((x) => x.rating === "unsure").slice(0, 8) });
     return out;
-  }, [codes, exam, today, ratings]);
+  }, [codes, exam, today, ratings, SYLLABI]);
 
   const rated = codes.reduce((n, c) => n + Object.values(ratings[c] ?? {}).filter((r) => r !== "new").length, 0);
   const h = Number(hours) || 0;

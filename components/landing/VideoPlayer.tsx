@@ -65,10 +65,11 @@ export function VideoPlayer({
       {poster ? (
         // The still is shown whole (no zoom-crop) over a blurred copy of itself.
         <>
+          {/* The hero poster is the largest thing on a phone's first screen (Google's LCP), so it is fetched first. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={poster} alt="" aria-hidden loading={big ? "eager" : "lazy"} className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl" />
+          <img src={poster} alt="" aria-hidden loading={big ? "eager" : "lazy"} fetchPriority={big ? "high" : "auto"} className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={poster} alt="" aria-hidden loading={big ? "eager" : "lazy"} className="absolute inset-0 h-full w-full object-contain" />
+          <img src={poster} alt="" aria-hidden loading={big ? "eager" : "lazy"} fetchPriority={big ? "high" : "auto"} className="absolute inset-0 h-full w-full object-contain" />
         </>
       ) : (
         <div

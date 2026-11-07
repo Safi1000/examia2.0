@@ -106,7 +106,7 @@ function StudentNotes() {
   const shown = viewing ?? (linked ? { id: linked.id, title: linked.title, page: openPage } : null);
 
   return (
-    <main className="mx-auto max-w-3xl px-4 pb-16 pt-8">
+    <div className="mx-auto max-w-3xl px-4 pb-16 pt-8 sm:px-6">
       <Library db={db} student={student} positions={positions} onOpen={open} />
       {shown && (
         <NoteViewer
@@ -121,7 +121,7 @@ function StudentNotes() {
           }}
         />
       )}
-    </main>
+    </div>
   );
 }
 
@@ -365,8 +365,8 @@ function Library({ db, student, positions, onOpen }: { db: Db; student: Student;
 function Header({ ready }: { ready: number }) {
   return (
     <div className="mb-5">
-      <h1 className="font-display text-[30px] font-bold leading-tight tracking-tight text-ink">Notes</h1>
-      <p className="mt-1 text-[15px] text-ink-3">{ready ? "Every chapter, in the order we cover it." : "Your chapters, in the order we cover them."}</p>
+      <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink">Notes</h1>
+      <p className="mt-2 text-base text-ink-2">{ready ? "Every chapter, in the order we cover it." : "Your chapters, in the order we cover them."}</p>
     </div>
   );
 }

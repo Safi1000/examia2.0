@@ -203,7 +203,7 @@ function ReadyScreen({ test, nowMs, busy, onBegin }: { test: Test; nowMs: number
     { k: "Marks", v: String(marks) },
   ];
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
+    <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
       <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-brand">{test.subject}</p>
       <h1 className="mt-2 text-[1.9rem] font-extrabold leading-tight tracking-tight text-ink">{test.title}</h1>
 
@@ -243,7 +243,7 @@ function ReadyScreen({ test, nowMs, busy, onBegin }: { test: Test; nowMs: number
       <Link href="/dashboard" className="mt-4 flex min-h-11 items-center justify-center text-sm font-semibold text-ink-3 hover:text-ink">
         Not now, back to Home
       </Link>
-    </main>
+    </div>
   );
 }
 
@@ -275,6 +275,18 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
     });
   });
   const [index, setIndex] = useState(boot.index);
+  // A new question starts at its top (not halfway down, where the last one
+  // was left), and its number stays in view in the question map.
+  const mapRef = useRef<HTMLOListElement>(null);
+  const firstIndex = useRef(true);
+  useEffect(() => {
+    mapRef.current?.querySelector('[aria-current="step"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    if (firstIndex.current) {
+      firstIndex.current = false;
+      return;
+    }
+    globalThis.scrollTo({ top: 0 });
+  }, [index]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const submittedRef = useRef(false);
   const [submitting, setSubmitting] = useState(false);
@@ -505,7 +517,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
         </div>
         {/* Question map: tap any number to jump. Gold = answered, ring = where you are. */}
         <nav aria-label="Questions" className={cn("mx-auto flex max-w-2xl items-center gap-3 px-4 pb-3", uploading && "hidden")}>
-          <ol className="flex flex-1 gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
+          <ol ref={mapRef} className="-m-1 flex flex-1 gap-1.5 overflow-x-auto p-1 [scrollbar-width:none]">
             {test.questions.map((qq, i) => {
               const done = answers[i] ? isAnswered(answers[i]) : false;
               return (
@@ -559,7 +571,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
         </div>
       )}
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
+      <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
         {uploading ? (
           <div className="animate-fade-up space-y-6">
             <div className="rounded-lg border border-warning/40 bg-warning-soft px-4 py-3">
@@ -588,7 +600,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
             </div>
           )
         )}
-      </main>
+      </div>
 
       <footer className="sticky bottom-0 border-t border-border bg-paper/[0.97]">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">

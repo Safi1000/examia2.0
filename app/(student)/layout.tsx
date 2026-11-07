@@ -203,7 +203,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       {!inRunner && (
         <header className="sticky top-0 z-30 border-b border-white/[0.05] bg-paper/95 md:bg-paper/60 md:backdrop-blur-xl">
           <div className="mx-auto flex h-[68px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-            <Link href="/dashboard" className="flex shrink-0 items-center" aria-label="Home">
+            <Link href="/dashboard" className="flex min-h-11 shrink-0 items-center" aria-label="Home">
               <LogoTight className="h-[18px] sm:h-5" />
             </Link>
 
@@ -217,6 +217,8 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                       <Link
                         href={l.href}
                         aria-current={active ? "page" : undefined}
+                        aria-label={l.label}
+                        title={l.label}
                         className={cn(
                           "flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-semibold transition-all duration-300",
                           active
@@ -269,7 +271,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           </ul>
         </nav>
       )}
-      <ScheduleGate>{children}</ScheduleGate>
+      <main id="main">
+        <ScheduleGate>{children}</ScheduleGate>
+      </main>
       {!inRunner && !profile.onboarded && <WelcomeWhenFree db={db} student={student} />}
       {!inRunner && <NotifyNudge />}
 
@@ -366,12 +370,12 @@ function AccountMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account"
-        className="flex h-10 w-10 items-center justify-center rounded-full text-[13px] tracking-wide transition-transform hover:scale-105"
+        className="flex h-11 w-11 items-center justify-center rounded-full text-[13px] tracking-wide transition-transform hover:scale-105"
       >
         <Avatar id={avatar} initials={initials} level={level} still className="h-10 w-10" />
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 top-12 w-60 animate-fade-up rounded-2xl border border-white/[0.08] bg-[#1d2023]/95 p-2 shadow-[0_24px_48px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+        <div role="menu" className="absolute right-0 top-[52px] w-60 animate-fade-up rounded-2xl border border-white/[0.08] bg-[#1d2023]/95 p-2 shadow-[0_24px_48px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl">
           <div className="px-3 pb-3 pt-2">
             <p className="text-[15px] font-bold text-ink">{name}</p>
             {cohort && <CohortTag color={cohort.color} name={cohort.name} className="mt-1 text-xs" />}
@@ -381,7 +385,7 @@ function AccountMenu({
             role="menuitem"
             href="/settings"
             onClick={() => setOpen(false)}
-            className="mt-1 flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink"
+            className="mt-1 flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink"
           >
             <NavIcon.Settings className="h-[18px] w-[18px]" />
             Settings
@@ -392,7 +396,7 @@ function AccountMenu({
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => setOpen(false)}
-            className="flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink"
+            className="flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink"
           >
             <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z" />
@@ -402,7 +406,7 @@ function AccountMenu({
           <button
             role="menuitem"
             onClick={onSignOut}
-            className="mt-1 flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink"
+            className="mt-1 flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink"
           >
             <NavIcon.Logout className="h-[18px] w-[18px]" />
             Sign out

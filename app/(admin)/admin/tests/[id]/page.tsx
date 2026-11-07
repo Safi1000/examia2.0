@@ -179,7 +179,7 @@ export default function TestEditorPage() {
                   });
                 }}
               >
-                {test.status === "closed" ? "Reopen for 1 day" : "+1 day"}
+                {test.status === "closed" ? "Reopen for 1 day" : "Extend 1 day"}
               </Button>
             )}
             <Button variant={test.status === "draft" ? "secondary" : "primary"} onClick={() => saveSettings()} disabled={!canSave}>Save</Button>
@@ -279,12 +279,12 @@ export default function TestEditorPage() {
             })()}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-ink-2">Opens</label>
-                <input type="datetime-local" value={form.opensAt} onChange={(e) => set("opensAt", e.target.value)} className="h-12 w-full rounded-md border border-border-strong bg-surface px-3 text-ink" />
+                <label htmlFor="test-opens" className="mb-1.5 block text-sm font-semibold text-ink-2">Opens</label>
+                <input id="test-opens" type="datetime-local" value={form.opensAt} onChange={(e) => set("opensAt", e.target.value)} className="h-12 w-full rounded-md border border-border-strong bg-surface px-3 text-ink" />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-ink-2">Closes</label>
-                <input type="datetime-local" value={form.closesAt} onChange={(e) => set("closesAt", e.target.value)} className="h-12 w-full rounded-md border border-border-strong bg-surface px-3 text-ink" />
+                <label htmlFor="test-closes" className="mb-1.5 block text-sm font-semibold text-ink-2">Closes</label>
+                <input id="test-closes" type="datetime-local" value={form.closesAt} onChange={(e) => set("closesAt", e.target.value)} className="h-12 w-full rounded-md border border-border-strong bg-surface px-3 text-ink" />
               </div>
             </div>
             <p className="text-xs text-ink-3">

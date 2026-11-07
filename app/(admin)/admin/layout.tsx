@@ -25,6 +25,8 @@ const IDLE_MS = 3 * 60 * 60 * 1000;
 
 const TITLES: Record<string, string> = {
   "/admin/today": "Today",
+  "/admin/classes": "Classes",
+  "/admin/whiteboard": "Whiteboard",
   "/admin/tests": "Tests",
   "/admin/submissions": "Submissions",
   "/admin/grading": "Marking",
@@ -99,7 +101,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Mobile overlay sidebar */}
         {mobileOpen && (
-          <div className="fixed inset-0 z-50 md:hidden">
+          <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Menu">
             <div className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} aria-hidden />
             <div className="absolute inset-y-0 left-0 w-72 max-w-[82%] animate-slide-in border-r border-border shadow-[var(--shadow-lg)]">
               <Sidebar onNavigate={() => setMobileOpen(false)} />
@@ -138,7 +140,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 { href: "/admin/whiteboard", label: "Board", I: NavIcon.Board },
                 { href: "/admin/submissions", label: "Marking", I: NavIcon.Inbox },
               ].map(({ href, label, I }) => {
-                const on = pathname.startsWith(href);
+                // Marking a paper is still the Marking tab.
+                const on = pathname.startsWith(href) || (href === "/admin/submissions" && pathname.startsWith("/admin/grading"));
                 return (
                   <li key={href}>
                     <Link
@@ -155,6 +158,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <li>
                 <button
                   onClick={() => setMobileOpen(true)}
+                  aria-haspopup="dialog"
                   className="flex h-[52px] w-full flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-semibold text-ink-3 active:scale-95"
                 >
                   <Icon.Menu className="h-5 w-5" />

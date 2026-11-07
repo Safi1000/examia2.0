@@ -1,7 +1,17 @@
 import type { Metadata } from "next";
-import { RevisionPlanner } from "@/components/tools/RevisionPlanner";
+import { RevisionPlanner, type PlannerSyllabus } from "@/components/tools/RevisionPlanner";
 import { ToolShell } from "@/components/tools/ToolShell";
 import { fitTitle } from "@/lib/seo";
+import { SYLLABI } from "@/lib/syllabus";
+
+/** Names and subtopic titles only: the planner never shows learning points. */
+const PLANNER_SYLLABI: PlannerSyllabus[] = SYLLABI.map(({ code, slug, name, level, topics }) => ({
+  code,
+  slug,
+  name,
+  level,
+  topics: topics.map((t) => ({ subs: t.subs.map(({ num, name }) => ({ num, name })) })),
+}));
 
 const title = "Revision Planner for O Level, IGCSE and A Level";
 const description =
@@ -57,7 +67,7 @@ export default async function RevisionPlannerPage({ searchParams }: Props) {
         </div>
       }
     >
-      <RevisionPlanner initial={s && /^\d{4}$/.test(s) ? s : undefined} />
+      <RevisionPlanner initial={s && /^\d{4}$/.test(s) ? s : undefined} syllabi={PLANNER_SYLLABI} />
     </ToolShell>
   );
 }

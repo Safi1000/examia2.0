@@ -1,35 +1,44 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { FOCUS_MODES, STUDY_NAME, quoteFor, recordFocus, type FocusMode as Mode } from "@/lib/focus";
+import { STUDY_NAME, MIN_COUNTED, currentStats, quoteFor, recordFocus } from "@/lib/focus";
 import { clearRunning, loadRunning, minutesToAdd, ownRunning, saveRunning } from "@/components/student/focus-session";
 import { useBackToClose } from "@/components/student/useBackToClose";
 import { cn } from "@/lib/cn";
-import { sceneFor, reviewDone, topicKey } from "@/lib/groundwork";
-import { currentStats } from "@/lib/focus";
+import { SCENES, sceneFor, reviewDone, topicKey } from "@/lib/groundwork";
 import { pkDate, addDays } from "@/lib/timetable";
-import { StudyRoomStrip, setStudying } from "@/components/student/StudyRoom";
+import { setStudying } from "@/components/student/StudyRoom";
+import { SOUNDS, backgroundTicker, chime, clearLockScreen, pauseSound, playSound, showOnLockScreen, stopSound, wakeChime, type Sound } from "@/lib/focus-sound";
+import { clock, useFloatTimer } from "@/components/student/FloatTimer";
+import { BrickTimer } from "@/components/student/BrickTimer";
+import { Receipt, ShareReceipt, receiptId, type ReceiptData } from "@/components/student/StudyReceipt";
+import { setTitleOverride } from "@/hooks/usePageTitle";
 
 /**
- * The full-screen study timer. Loaded only when a student opens it, so Home
- * and the rest of the portal don't carry its weight (sounds are made in the
- * browser: no audio files to download).
+ * The focus room: the student's scene, full screen, with one big timer.
+ *
+ * Controls fade away while they work and come back on a touch. The timer can
+ * float over other apps (picture-in-picture), sits on the lock screen while a
+ * sound plays, keeps the screen awake, and ends with a study receipt.
+ * Loaded only when opened, so the rest of the portal doesn't carry it.
  */
 export interface Mission {
   subject: string;
   topic: string;
   noteHref?: string;
-  /** Suggested length in minutes (picks the closest session length). */
+  /** Suggested length in minutes. */
   minutes?: number;
   /** "Test prep", "Review 2 of 4"... shown above the topic. */
   tag?: string;
 }
 
 type Phase = "setup" | "focus" | "rest" | "done";
+type Block = { kind: "focus" | "rest"; min: number };
 
-/** Full-screen timer: pick a subject and length, then nothing else on screen. */
+const restFor = (focus: number) => Math.max(3, Math.min(15, Math.round(focus / 5)));
+
 export default function FocusMode({
   subjects,
   mission,
@@ -45,37 +54,40 @@ export default function FocusMode({
   const { updateProfile, profile } = useAuth();
   const [openedAt] = useState(() => Date.now());
   const scene = sceneFor(profile.scene, openedAt);
+  const today = pkDate(openedAt);
   const [subject, setSubject] = useState(mission?.subject ?? subjects[0] ?? "Study");
-  const [mode, setMode] = useState<Mode>(
-    () => (mission?.minutes ? [...FOCUS_MODES].sort((a, b) => Math.abs(a.focus - mission.minutes!) - Math.abs(b.focus - mission.minutes!))[0] : FOCUS_MODES[0]),
-  );
-  const [checked, setChecked] = useState<null | "got" | "shaky">(null);
-  const [sessionMin, setSessionMin] = useState(0);
+  const [focusMin, setFocusMin] = useState(() => Math.max(5, Math.min(120, mission?.minutes ?? 25)));
+  const restMin = restFor(focusMin);
+  const [intention] = useState(() => mission?.topic ?? (profile.today?.date === today && !profile.today.done ? profile.today.text : ""));
   const [phase, setPhase] = useState<Phase>("setup");
   const [endsAt, setEndsAt] = useState<number | null>(null);
   const [pausedLeft, setPausedLeft] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [sound, setSound] = useState<Sound>("off");
+  const [blocks, setBlocks] = useState<Block[]>([]);
+  const [pauses, setPauses] = useState(0);
+  const [finished, setFinished] = useState<boolean | null>(null);
+  const [checked, setChecked] = useState<null | "got" | "shaky">(null);
+  const [idle, setIdle] = useState(false);
+  const [fs, setFs] = useState(false);
   const [quote] = useState(() => quoteFor(Math.floor(Date.now() / 60_000)));
+  const [sessionAt, setSessionAt] = useState<number | null>(null);
   const startedAt = useRef<number | null>(null);
   const logged = useRef(0);
   const panel = useRef<HTMLDivElement>(null);
-  // One audio context for the whole visit, made inside a tap: iPhone keeps
-  // sound silent unless it was started (or woken) by the student's own tap.
-  const audio = useRef<AudioContext | null>(null);
 
+  const running = phase === "focus" || phase === "rest";
   const left = pausedLeft ?? (endsAt ? Math.max(0, endsAt - now) : 0);
-  const total = (phase === "rest" ? mode.rest : mode.focus) * 60_000;
-  const focusedMin = phase === "focus" ? Math.floor((total - left) / 60_000) : 0;
+  const total = (phase === "rest" ? restMin : focusMin) * 60_000;
+  const focusedMin = blocks.filter((b) => b.kind === "focus").reduce((a, b) => a + b.min, 0);
 
-  // The latest session state, for the page-hide and close handlers (which run
-  // outside render and would otherwise see an old copy).
-  const live = useRef({ phase, subject, planned: mode.focus as number, endsAt, pausedLeft });
+  // The latest state, for handlers that run outside render.
+  const live = useRef({ phase, subject, planned: focusMin, endsAt, pausedLeft, sound });
   useEffect(() => {
-    live.current = { phase, subject, planned: mode.focus, endsAt, pausedLeft };
+    live.current = { phase, subject, planned: focusMin, endsAt, pausedLeft, sound };
   });
 
-  /** Focused time in the current stretch, in ms. */
+  /** Focused time in the current block, in ms. */
   const doneMs = (at: number) => {
     const l = live.current;
     if (l.phase !== "focus" || startedAt.current == null) return 0;
@@ -83,42 +95,41 @@ export default function FocusMode({
     return Math.max(0, l.planned * 60_000 - remaining);
   };
 
-  /** Keep the running session on the phone (instant, works while the page is closing). */
+  /** Keep the running block on the phone (instant, works while the page is closing). */
   const persist = () => {
     if (live.current.phase !== "focus" || startedAt.current == null) return;
     const at = Date.now();
     saveRunning({ subject: live.current.subject, planned: live.current.planned, startedAt: startedAt.current, doneMs: doneMs(at), savedAt: at, logged: logged.current });
   };
 
-  /** Count the minutes actually focused (each minute once). */
+  /** Count the minutes actually focused (each minute once). Returns the block's counted minutes. */
   const logFocus = (minutes: number, subj: string) => {
     const m = minutesToAdd(minutes * 60_000, logged.current);
-    if (!m) return;
-    logged.current += m;
-    updateProfile((latest) => ({ focus: recordFocus(latest.focus, m, subj, Date.now()) }));
+    if (m) {
+      logged.current += m;
+      updateProfile((latest) => ({ focus: recordFocus(latest.focus, m, subj, Date.now()) }));
+    }
+    return logged.current;
   };
 
-  /** The session is ending here (End session, Back, leaving the page in the app): add its minutes now. */
+  /** The block is ending early (End, Back, leaving the page): count it now. */
   const flush = () => {
-    if (live.current.phase === "focus" && startedAt.current != null) logFocus(doneMs(Date.now()) / 60_000, live.current.subject);
+    let counted = 0;
+    if (live.current.phase === "focus" && startedAt.current != null) counted = logFocus(doneMs(Date.now()) / 60_000, live.current.subject);
     startedAt.current = null;
     clearRunning();
+    return counted;
   };
 
-  /** Create or wake the audio. Only ever called from a tap. */
-  const wakeAudio = () => {
-    try {
-      const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!Ctx) return;
-      if (!audio.current || audio.current.state === "closed") audio.current = new Ctx();
-      if (audio.current.state !== "running") void audio.current.resume().catch(() => {});
-    } catch {}
-  };
-
-  // Tick, keep the screen awake while timing, and stop sound on the way out.
+  // ---- The clock: a worker tick, so it (and the float) keep going in the background.
   useEffect(() => {
-    if (phase !== "focus" && phase !== "rest") return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    if (!running) return;
+    return backgroundTicker(() => setNow(Date.now()), 1000);
+  }, [running]);
+
+  // Keep the screen awake while timing.
+  useEffect(() => {
+    if (!running) return;
     let lock: { release: () => Promise<void> } | null = null;
     const ask = () =>
       (navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> } }).wakeLock
@@ -126,7 +137,6 @@ export default function FocusMode({
         .then((l) => (lock = l))
         .catch(() => {});
     void ask();
-    // The phone drops the lock when they switch away; ask again on return.
     const back = () => {
       if (document.visibilityState === "visible") {
         setNow(Date.now());
@@ -135,30 +145,21 @@ export default function FocusMode({
     };
     document.addEventListener("visibilitychange", back);
     return () => {
-      clearInterval(t);
       document.removeEventListener("visibilitychange", back);
       void lock?.release().catch(() => {});
     };
-  }, [phase]);
-  useEffect(() => {
-    // Sound stops while paused, and starts again on Resume.
-    if (phase === "focus" && sound !== "off" && pausedLeft == null && audio.current) return startSound(audio.current, sound);
-  }, [phase, sound, pausedLeft]);
+  }, [running]);
 
-  // Save the session on the phone each minute and on every pause or resume.
+  // Save the block on the phone each minute and on every pause or resume.
+  const minuteMark = Math.floor((total - left) / 60_000);
   useEffect(() => {
     persist();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, focusedMin, pausedLeft, endsAt]);
+  }, [phase, minuteMark, pausedLeft, endsAt]);
 
-  // Leaving the page (app switched away, tab closed, Android Back past the
-  // portal): write the latest minutes to the phone. The next visit adds them
-  // if this session never comes back.
   useEffect(() => {
     const onHide = () => persist();
-    const onVis = () => {
-      if (document.visibilityState === "hidden") persist();
-    };
+    const onVis = () => document.visibilityState === "hidden" && persist();
     window.addEventListener("pagehide", onHide);
     document.addEventListener("visibilitychange", onVis);
     return () => {
@@ -168,33 +169,40 @@ export default function FocusMode({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Closed from outside (a link, the page changing): count what was done.
-  // Also moves focus into the timer as it opens.
+  // Opening: focus moves into the room, the phone's top bar goes dark. Closing from outside: count what was done.
   useEffect(() => {
     panel.current?.focus();
-    const ctx = audio;
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    const prevTheme = meta?.content;
+    if (meta) meta.content = "#0b0d0f";
     return () => {
       flush();
       ownRunning(false);
-      void ctx.current?.close().catch(() => {});
-      ctx.current = null;
+      stopSound();
+      clearLockScreen();
+      setStudying(null);
+      if (meta && prevTheme) meta.content = prevTheme;
+      setTitleOverride(null);
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Phase end: focus → chime, log, rest; rest → done.
+  // Block end: focus → chime, count, break; break → the receipt.
   useEffect(() => {
     if (pausedLeft != null || !endsAt || now < endsAt) return;
     const t = setTimeout(() => {
-      chime(audio.current);
+      chime();
       if (phase === "focus") {
-        setSessionMin((m) => m + mode.focus);
-        logFocus(mode.focus, subject);
+        const counted = logFocus(focusMin, subject);
+        setBlocks((b) => [...b, { kind: "focus", min: counted }]);
         startedAt.current = null;
         clearRunning();
+        pauseSound();
         setPhase("rest");
-        setEndsAt(Date.now() + mode.rest * 60_000);
+        setEndsAt(Date.now() + restMin * 60_000);
       } else if (phase === "rest") {
+        setBlocks((b) => [...b, { kind: "rest", min: restMin }]);
         setPhase("done");
         setEndsAt(null);
         setStudying(null);
@@ -204,152 +212,396 @@ export default function FocusMode({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [now, endsAt, pausedLeft, phase]);
 
-  const start = () => {
-    wakeAudio();
-    // A session from an earlier visit that was cut off: add its minutes
-    // before this one takes its place on the phone.
+  const startBlock = () => {
+    wakeChime();
+    // A block from an earlier visit that was cut off: count it before this one takes its place.
     const old = loadRunning();
     if (old && old.startedAt !== startedAt.current) {
       const m = minutesToAdd(old.doneMs, old.logged);
       if (m > 0) updateProfile((latest) => ({ focus: recordFocus(latest.focus, m, old.subject, Date.now()) }));
     }
     const at = Date.now();
+    setSessionAt((v) => v ?? at);
     logged.current = 0;
     startedAt.current = at;
     ownRunning(true);
-    saveRunning({ subject, planned: mode.focus, startedAt: at, doneMs: 0, savedAt: at, logged: 0 });
+    saveRunning({ subject, planned: focusMin, startedAt: at, doneMs: 0, savedAt: at, logged: 0 });
     setPhase("focus");
     setPausedLeft(null);
-    setEndsAt(at + mode.focus * 60_000);
+    setEndsAt(at + focusMin * 60_000);
     setNow(at);
+    if (sound !== "off") playSound(sound);
     if (me) setStudying({ ...me, name: me.name.split(" ")[0], subject, since: at });
+  };
+
+  /** End now. With enough counted, show the receipt; otherwise close. Returns true if the room stays open. */
+  const end = (): boolean => {
+    const ph = live.current.phase;
+    if (ph === "focus") {
+      const counted = flush();
+      if (counted > 0) setBlocks((b) => [...b, { kind: "focus", min: counted }]);
+      const all = focusedMin + counted;
+      pauseSound();
+      setStudying(null);
+      if (all >= MIN_COUNTED) {
+        setPhase("done");
+        setEndsAt(null);
+        setPausedLeft(null);
+        return true;
+      }
+      close();
+      return false;
+    }
+    if (ph === "rest") {
+      const restDone = Math.round((total - left) / 60_000);
+      if (restDone > 0) setBlocks((b) => [...b, { kind: "rest", min: restDone }]);
+      setPhase("done");
+      setEndsAt(null);
+      setPausedLeft(null);
+      setStudying(null);
+      return true;
+    }
+    close();
+    return false;
   };
   const close = () => {
     flush();
+    stopSound();
     setStudying(null);
     onClose();
   };
-  // Leaving the room however the timer closes (route change, unmount).
-  useEffect(() => () => setStudying(null), []);
-  // The phone's Back button ends the session here, like End session.
-  useBackToClose(close);
-  const togglePause = () => {
-    if (pausedLeft != null) {
-      wakeAudio();
-      setEndsAt(Date.now() + pausedLeft);
-      setPausedLeft(null);
-    } else setPausedLeft(left);
+  // The phone's Back button: a running block ends to its receipt; otherwise the room closes.
+  useBackToClose(() => {
+    if (live.current.phase === "focus" || live.current.phase === "rest") return end();
+    close();
+  });
+
+  const pause = useCallback(() => {
+    const l = live.current;
+    if (l.pausedLeft != null || !l.endsAt) return;
+    setPausedLeft(Math.max(0, l.endsAt - Date.now()));
+    setPauses((n) => n + 1);
+    pauseSound();
+  }, []);
+  const resume = useCallback(() => {
+    const l = live.current;
+    if (l.pausedLeft == null) return;
+    const at = Date.now();
+    setEndsAt(at + l.pausedLeft);
+    setPausedLeft(null);
+    setNow(at);
+    if (l.phase === "focus" && l.sound !== "off") playSound(l.sound);
+  }, []);
+  const togglePause = () => (pausedLeft != null ? resume() : pause());
+  const skipBreak = () => {
+    const restDone = Math.round((total - left) / 60_000);
+    if (restDone > 0) setBlocks((b) => [...b, { kind: "rest", min: restDone }]);
+    startBlock();
   };
   const pickSound = (s: Sound) => {
-    if (s !== "off") wakeAudio();
     setSound(s);
+    if (phase === "focus" && pausedLeft == null) playSound(s);
+    else if (s === "off") stopSound();
+  };
+  const nextScene = () => {
+    const i = SCENES.findIndex((s) => s.id === scene.id);
+    updateProfile({ scene: SCENES[(i + 1) % SCENES.length].id });
   };
 
-  const mm = String(Math.floor(left / 60_000)).padStart(2, "0");
-  const ss = String(Math.floor((left % 60_000) / 1000)).padStart(2, "0");
-  const R = 120;
-  const C = 2 * Math.PI * R;
-  const done = phase === "focus" || phase === "rest" ? 1 - left / total : 0;
-  const chip = (on: boolean) =>
-    cn("h-11 rounded-full border px-4 text-sm font-semibold transition-colors", on ? "border-brand bg-brand text-on-brand" : "border-border-strong text-ink-2 hover:text-ink");
+  // ---- Floating timer (picture-in-picture).
+  const view = { leftMs: left, totalMs: total, phase: phase === "rest" ? ("rest" as const) : ("focus" as const), paused: pausedLeft != null, subject, intention: intention.trim() || undefined };
+  const float = useFloatTimer(view, { pause, resume }, running);
+
+  // ---- Lock screen and the tab title, once a minute and on every change.
+  const minsLeft = Math.ceil(left / 60_000);
+  useEffect(() => {
+    if (!running) return;
+    showOnLockScreen(
+      { title: pausedLeft != null ? "Paused" : phase === "rest" ? `Break · ${minsLeft} min left` : `${minsLeft} min left`, subject, totalMs: total, leftMs: left, paused: pausedLeft != null },
+      { play: resume, pause, stop: () => void end() },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running, minsLeft, pausedLeft, phase, subject]);
+  useEffect(() => {
+    if (!running) return setTitleOverride(null);
+    setTitleOverride(`${clock(left)} · ${pausedLeft != null ? "Paused" : phase === "rest" ? "Break" : subject}`);
+  }, [running, left, phase, subject, pausedLeft]);
+
+  // ---- Controls fade away while they work; any touch brings them back.
+  useEffect(() => {
+    if (!running || pausedLeft != null) return;
+    let t = setTimeout(() => setIdle(true), 3500);
+    const wake = () => {
+      setIdle(false);
+      clearTimeout(t);
+      t = setTimeout(() => setIdle(true), 3500);
+    };
+    const el = panel.current;
+    el?.addEventListener("pointermove", wake);
+    el?.addEventListener("pointerdown", wake);
+    window.addEventListener("keydown", wake);
+    return () => {
+      clearTimeout(t);
+      setIdle(false);
+      el?.removeEventListener("pointermove", wake);
+      el?.removeEventListener("pointerdown", wake);
+      window.removeEventListener("keydown", wake);
+    };
+  }, [running, pausedLeft]);
+
+  // ---- Full screen where the browser allows it (desktop, Android).
+  const fsOk = typeof document !== "undefined" && !!document.fullscreenEnabled;
+  useEffect(() => {
+    const on = () => setFs(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", on);
+    return () => document.removeEventListener("fullscreenchange", on);
+  }, []);
+  const toggleFs = () => {
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    else void panel.current?.requestFullscreen?.().catch(() => {});
+  };
+
+  // ---- Keyboard: Space pauses, F full screen, P floats.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === " " && running) {
+        e.preventDefault();
+        if (phase === "rest") skipBreak();
+        else togglePause();
+      } else if ((e.key === "f" || e.key === "F") && fsOk) toggleFs();
+      else if ((e.key === "p" || e.key === "P") && running && float.kind) void float.open();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  // ---- The receipt.
+  const stats = currentStats(profile.focus, now);
+  const receipt: ReceiptData | null =
+    phase === "done" && sessionAt
+      ? {
+          id: receiptId(sessionAt),
+          name: me?.name.split(" ")[0] ?? "Me",
+          subject,
+          intention: intention.trim() || undefined,
+          intentionDone: finished,
+          startedAt: sessionAt,
+          endedAt: now,
+          blocks: blocks.filter((b) => b.min > 0),
+          focusedMin,
+          pauses,
+          todayMin: stats.days?.[pkDate(now)] ?? focusedMin,
+          weekMin: stats.weekMinutes,
+          streak: stats.streak,
+        }
+      : null;
+
+  const done = running ? Math.min(1, Math.max(0, 1 - left / total)) : 0;
+  const accent = phase === "rest" ? "#7FD1A6" : "#FBC159";
+  const hide = running && idle && pausedLeft == null;
+  const fade = cn("transition-opacity duration-700", hide ? "pointer-events-none opacity-0" : "opacity-100");
+  const glass = "bg-white/[0.08] backdrop-blur-2xl border border-white/[0.12]";
+  const roundBtn = cn("flex h-11 w-11 items-center justify-center rounded-full text-white/85 transition hover:bg-white/15 hover:text-white active:scale-95", glass);
 
   return (
-    <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label={STUDY_NAME} className="focus-dark fixed inset-0 z-[70] overflow-y-auto bg-[#101214] outline-none">
-      {/* Their Groundwork scene, dimmed, so the timer feels like their own quiet room. */}
-      <div className="pointer-events-none fixed inset-0" aria-hidden style={{ background: scene.sky }}>
+    <div
+      ref={panel}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-label={STUDY_NAME}
+      className={cn("focus-dark fixed inset-0 z-[70] overflow-hidden bg-[#0b0d0f] text-white outline-none", hide && "cursor-none")}
+    >
+      {/* Their scene, slowly drifting, dimmed more while they focus. */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden style={{ background: scene.sky }}>
         {scene.photo && (
-          <picture>
+          <picture key={scene.id}>
             <source media="(min-width: 768px)" srcSet={`/wallpapers/${scene.photo}.jpg`} />
-            <img src={`/wallpapers/${scene.photo}-m.jpg`} alt="" className="h-full w-full object-cover" decoding="async" />
+            <img src={`/wallpapers/${scene.photo}-m.jpg`} alt="" className="room-drift h-full w-full object-cover" decoding="async" />
           </picture>
         )}
-        <div className={cn("absolute inset-0 transition-colors duration-1000", phase === "focus" ? "bg-[#0b0d0f]/80" : "bg-[#0b0d0f]/65")} />
+        <div
+          className="absolute inset-0 transition-[background] duration-1000"
+          style={{
+            background:
+              phase === "focus"
+                ? "linear-gradient(180deg,rgba(8,10,12,.72),rgba(8,10,12,.58) 45%,rgba(8,10,12,.82))"
+                : "linear-gradient(180deg,rgba(8,10,12,.55),rgba(8,10,12,.35) 45%,rgba(8,10,12,.78))",
+          }}
+        />
       </div>
-      <div className="relative mx-auto flex min-h-dvh max-w-md flex-col items-center px-6 py-8 text-center">
-        <div className="flex w-full items-center justify-between">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-brand">{STUDY_NAME}</p>
-          <button type="button" onClick={close} className="h-10 px-2 text-sm font-semibold text-ink-3 hover:text-ink">
-            {phase === "setup" || phase === "done" ? "Close" : "End session"}
-          </button>
+
+      <div
+        className={cn(
+          "relative mx-auto flex h-full w-full max-w-5xl flex-col px-5 sm:px-8",
+          "pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))]",
+          (phase === "setup" || phase === "done") && "overflow-y-auto overscroll-contain",
+        )}
+      >
+        {/* Top bar */}
+        <div className={cn("flex h-14 shrink-0 items-center justify-between gap-3", fade)}>
+          <p className="min-w-0 truncate text-[11px] font-semibold uppercase tracking-[0.3em] text-white/70">
+            {running ? (phase === "rest" ? "Break" : subject) : STUDY_NAME}
+          </p>
+          <div className="flex shrink-0 items-center gap-2">
+            <button type="button" onClick={nextScene} className={roundBtn} aria-label={`Scene: ${scene.name}. Change scene`} title={scene.name}>
+              <Glyph.Scene />
+            </button>
+            {running && float.kind && (
+              <button type="button" onClick={() => void (float.active ? float.close() : float.open())} className={roundBtn} aria-label={float.active ? "Stop floating the timer" : "Float the timer over other apps"} title="Float (P)">
+                <Glyph.Float />
+              </button>
+            )}
+            {fsOk && (
+              <button type="button" onClick={toggleFs} className={roundBtn} aria-label={fs ? "Exit full screen" : "Full screen"} title="Full screen (F)">
+                {fs ? <Glyph.Shrink /> : <Glyph.Expand />}
+              </button>
+            )}
+            {!running && (
+              <button type="button" onClick={close} className={roundBtn} aria-label="Close">
+                <Glyph.X />
+              </button>
+            )}
+          </div>
         </div>
 
-        {phase === "setup" ? (
-          <div className="mt-10 w-full space-y-7 text-left">
-            {mission ? (
-              <div className="rounded-2xl border border-brand/30 bg-brand/[0.08] p-4 text-center">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-brand">{mission.tag ?? "Today's mission"}</p>
-                <p className="mt-1.5 text-xl font-extrabold text-ink">{mission.topic}</p>
-                <p className="text-sm text-ink-2">{mission.subject}</p>
-                {mission.noteHref && (
-                  <Link href={mission.noteHref} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-brand hover:underline">
-                    Open the notes for it
-                  </Link>
-                )}
-              </div>
-            ) : (
-              <h2 className="text-center text-[1.8rem] font-extrabold tracking-tight text-ink">What are you studying?</h2>
+        {phase === "setup" && (
+          <div className="flex flex-1 flex-col items-center justify-center pb-8 text-center">
+            {mission && (
+              <p className="mb-8 max-w-xs truncate text-[13px] text-white/55">
+                {mission.tag ? `${mission.tag} · ` : ""}
+                {mission.topic}
+              </p>
             )}
-            <div className="flex flex-wrap justify-center gap-2">
-              {[...subjects, "Something else"].map((s) => (
-                <button key={s} type="button" aria-pressed={subject === s} onClick={() => setSubject(s)} className={chip(subject === s)}>
-                  {s}
-                </button>
-              ))}
+            <label className="relative inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full px-3 text-[15px] font-medium text-white/80 hover:text-white">
+              {subject}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+              <select value={subject} onChange={(e) => setSubject(e.target.value)} aria-label="Subject" className="absolute inset-0 cursor-pointer opacity-0">
+                {[...subjects, "Something else"].map((x) => (
+                  <option key={x} value={x}>
+                    {x}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="mt-4 flex max-w-full items-center gap-3 sm:gap-8">
+              <button type="button" onClick={() => setFocusMin((m) => Math.max(5, m - 5))} className={cn(roundBtn, "text-xl")} aria-label="5 minutes less">
+                −
+              </button>
+              <p className="room-time font-extralight leading-none tabular-nums tracking-[-0.05em] text-white">{clock(focusMin * 60_000)}</p>
+              <button type="button" onClick={() => setFocusMin((m) => Math.min(120, m + 5))} className={cn(roundBtn, "text-xl")} aria-label="5 minutes more">
+                +
+              </button>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              {FOCUS_MODES.map((m) => (
+            <p className="mt-3 text-[13px] text-white/45">then a {restMin} minute break</p>
+            <div role="radiogroup" aria-label="Sound" className="mt-10 flex items-center gap-1">
+              {SOUNDS.map((x) => (
                 <button
-                  key={m.id}
+                  key={x.id}
                   type="button"
-                  aria-pressed={mode.id === m.id}
-                  onClick={() => setMode(m)}
-                  className={cn("rounded-2xl border p-3 text-center transition-colors", mode.id === m.id ? "border-brand bg-brand/10" : "border-border-strong hover:border-ink-3")}
+                  role="radio"
+                  aria-checked={sound === x.id}
+                  onClick={() => setSound(x.id)}
+                  className={cn("min-h-11 rounded-full px-3 text-[13px] transition-colors", sound === x.id ? "font-semibold text-white" : "text-white/40 hover:text-white/75")}
                 >
-                  <span className="block text-xl font-extrabold text-ink">{m.focus}</span>
-                  <span className="block text-xs text-ink-3">min · {m.label}</span>
+                  {x.id === "off" ? "Silence" : x.label}
                 </button>
               ))}
             </div>
-            <SoundPicker sound={sound} setSound={pickSound} />
-            <button type="button" onClick={start} className="h-14 w-full rounded-full bg-brand text-base font-semibold text-on-brand transition hover:brightness-110 active:scale-[0.98]">
-              Start {mode.focus} minutes
+            <button type="button" onClick={startBlock} className="mt-8 h-14 w-full max-w-xs rounded-full bg-white text-base font-semibold text-black transition hover:bg-white/90 active:scale-[0.98]">
+              Start
             </button>
+            {mission?.noteHref && (
+              <Link href={mission.noteHref} className="mt-3 inline-flex min-h-11 items-center text-[13px] font-medium text-white/60 hover:text-white">
+                Open the notes first
+              </Link>
+            )}
           </div>
-        ) : phase === "done" ? (
-          <div className="mt-16 w-full space-y-6">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-brand/15 text-4xl text-brand ring-1 ring-brand/30 animate-[scale-in_300ms_ease-out]">✓</div>
-            <div>
-              <h2 className="text-[1.8rem] font-extrabold tracking-tight text-ink">Session done.</h2>
-              <p className="mt-1 text-ink-2">
-                {sessionMin || mode.focus} minutes of {subject} added to your week.
+        )}
+
+        {running && (
+          <div className="flex flex-1 flex-col items-center justify-center" onClick={() => setIdle(false)}>
+            <div className="aspect-[13/9] w-[min(80vw,46dvh,420px)] lg:w-[min(42vw,56dvh,540px)]">
+              <BrickTimer progress={done} phase={phase === "rest" ? "rest" : "focus"} paused={pausedLeft != null} />
+            </div>
+            <p className={cn("room-clock mt-10 font-extralight leading-none tabular-nums tracking-[-0.04em]", pausedLeft != null ? "text-white/50" : "text-white")} role="timer" aria-live="off">
+              {clock(left)}
+            </p>
+            <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.3em]" style={{ color: accent }}>
+              {pausedLeft != null ? "Paused" : phase === "rest" ? "Break · stand up, drink some water" : "Building"}
+            </p>
+            {phase === "rest" && (
+              <figure className="mt-8 max-w-sm px-6 text-center">
+                <blockquote className="text-[15px] leading-snug text-white/70 [text-wrap:balance]">“{quote.text}”</blockquote>
+                {quote.by && <figcaption className="mt-1 text-xs text-white/40">{quote.by}</figcaption>}
+              </figure>
+            )}
+          </div>
+        )}
+
+        {running && (
+          <div className={cn("shrink-0 pb-2", fade)}>
+            <div className="mx-auto flex max-w-sm items-center justify-between">
+              <div className="flex w-20 flex-col items-center gap-1.5">
+                <button type="button" onClick={() => void end()} className={cn(roundBtn, "h-14 w-14")} aria-label="End session">
+                  <Glyph.X />
+                </button>
+                <span className="text-[11px] text-white/60">End</span>
+              </div>
+              <button
+                type="button"
+                onClick={phase === "rest" ? skipBreak : togglePause}
+                className="flex h-[76px] w-[76px] items-center justify-center rounded-full bg-white text-black shadow-[0_18px_40px_-12px_rgba(0,0,0,.6)] transition active:scale-95"
+                aria-label={phase === "rest" ? "Skip the break" : pausedLeft != null ? "Resume" : "Pause"}
+              >
+                {phase === "rest" || pausedLeft != null ? <Glyph.Play /> : <Glyph.Pause />}
+              </button>
+              <div className="flex w-20 flex-col items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => pickSound(SOUNDS[(SOUNDS.findIndex((s) => s.id === sound) + 1) % SOUNDS.length].id)}
+                  className={cn(roundBtn, "h-14 w-14", sound !== "off" && "text-brand")}
+                  aria-label={`Sound: ${SOUNDS.find((s) => s.id === sound)?.label}. Change sound`}
+                >
+                  <Glyph.Sound off={sound === "off"} />
+                </button>
+                <span className="text-[11px] text-white/60">{SOUNDS.find((s) => s.id === sound)?.label}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {phase === "done" && receipt && (
+          <div className="flex flex-1 flex-col items-center gap-6 py-6">
+            <div className="text-center">
+              <h2 className="text-[1.75rem] font-semibold tracking-[-0.02em]">Nicely done.</h2>
+              <p className="mt-1 text-sm text-white/70">
+                {receipt.focusedMin} minutes of {subject} added to your week.
               </p>
             </div>
-            {(() => {
-              const st = currentStats(profile.focus, now);
-              const goal = (profile.weeklyGoal ?? 5) * 60;
-              const pct = Math.min(100, Math.round((st.weekMinutes / goal) * 100));
-              return (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left backdrop-blur-md">
-                  <div className="flex items-baseline justify-between text-sm">
-                    <span className="font-semibold text-ink">This week</span>
-                    <span className="tabular-nums text-ink-2">
-                      {Math.round((st.weekMinutes / 60) * 10) / 10} of {profile.weeklyGoal ?? 5} h
-                    </span>
-                  </div>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-                    <div className="h-full rounded-full bg-brand transition-[width] duration-700" style={{ width: `${pct}%` }} />
-                  </div>
-                  <p className="mt-2 text-xs text-ink-3">{pct >= 100 ? "Weekly goal hit. That's how grades move." : `${100 - pct}% to your weekly goal.`}{st.streak > 1 ? ` ${st.streak} days in a row.` : ""}</p>
+
+            {receipt.intention && finished == null && (
+              <div className={cn("w-full max-w-[340px] rounded-[22px] p-4 text-center", glass)}>
+                <p className="text-sm text-white/80">Did you finish it?</p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setFinished(true)} className="h-11 rounded-full bg-white text-sm font-semibold text-black active:scale-[0.98]">
+                    Yes
+                  </button>
+                  <button type="button" onClick={() => setFinished(false)} className="h-11 rounded-full border border-white/20 text-sm font-semibold text-white active:scale-[0.98]">
+                    Not yet
+                  </button>
                 </div>
-              );
-            })()}
+              </div>
+            )}
+
             {mission && subject === mission.subject && (
-              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-md">
-                <p className="text-sm font-semibold text-ink">How did {mission.topic} go?</p>
+              <div className={cn("w-full max-w-[340px] rounded-[22px] p-4 text-center", glass)}>
+                <p className="text-sm text-white/80">How did {mission.topic} go?</p>
                 {checked ? (
-                  <p className="mt-2 text-sm text-ink-2">
-                    {checked === "got" ? "Nice. It comes back in a few days so it sticks." : "No problem. It's back on your plan tomorrow."}
-                  </p>
+                  <p className="mt-2 text-sm text-white/70">{checked === "got" ? "Good. It comes back in a few days so it sticks." : "No problem. It's back on your plan tomorrow."}</p>
                 ) : (
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <button
@@ -359,7 +611,7 @@ export default function FocusMode({
                         const key = topicKey(mission.subject, mission.topic);
                         updateProfile((latest) => ({ reviews: reviewDone(latest.reviews, key, Date.now()) }));
                       }}
-                      className="h-12 rounded-full bg-brand text-sm font-semibold text-on-brand active:scale-[0.98]"
+                      className="h-11 rounded-full bg-white text-sm font-semibold text-black active:scale-[0.98]"
                     >
                       Got it
                     </button>
@@ -371,7 +623,7 @@ export default function FocusMode({
                         const tomorrow = addDays(pkDate(Date.now()), 1);
                         updateProfile((latest) => ({ reviews: { ...latest.reviews, [key]: { step: latest.reviews?.[key]?.step ?? 0, due: tomorrow } } }));
                       }}
-                      className="h-12 rounded-full border border-border-strong text-sm font-semibold text-ink active:scale-[0.98]"
+                      className="h-11 rounded-full border border-white/20 text-sm font-semibold text-white active:scale-[0.98]"
                     >
                       Still shaky
                     </button>
@@ -379,153 +631,84 @@ export default function FocusMode({
                 )}
               </div>
             )}
-            <div className="flex justify-center gap-2">
-              <button type="button" onClick={start} className="h-12 rounded-full bg-brand px-6 text-sm font-semibold text-on-brand">
-                Another one
+
+            <Receipt r={receipt} />
+
+            <div className="flex w-full max-w-[340px] flex-col gap-2 pb-4">
+              <button type="button" onClick={startBlock} className="h-12 rounded-full bg-white text-sm font-semibold text-black active:scale-[0.98]">
+                Another {focusMin} minutes
               </button>
-              <button type="button" onClick={close} className="h-12 rounded-full border border-border-strong px-6 text-sm font-semibold text-ink">
-                I&apos;m done
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <p className="mt-10 text-sm font-semibold text-ink-2">{phase === "rest" ? "Break. Stand up, drink water." : mission && subject === mission.subject ? `${subject} · ${mission.topic}` : subject}</p>
-            <div className="relative mt-6">
-              <svg width="272" height="272" viewBox="0 0 272 272" className="-rotate-90" aria-hidden>
-                <circle cx="136" cy="136" r={R} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="10" />
-                <circle
-                  cx="136"
-                  cy="136"
-                  r={R}
-                  fill="none"
-                  stroke={phase === "rest" ? "#7FD1A6" : "var(--color-brand)"}
-                  strokeWidth="10"
-                  strokeLinecap="round"
-                  strokeDasharray={`${C * done} ${C}`}
-                  style={{ transition: "stroke-dasharray 0.25s linear" }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <p className="text-[4.25rem] font-extralight tabular-nums tracking-[-0.04em] text-ink" aria-live="off">
-                  {mm}:{ss}
-                </p>
-                <p className="mt-1 text-xs uppercase tracking-[0.25em] text-ink-3">{pausedLeft != null ? "Paused" : phase === "rest" ? "Break" : "Focus"}</p>
+              <div className="grid grid-cols-2 gap-2">
+                <ShareReceipt r={receipt} scene={scene} />
+                <button type="button" onClick={close} className="h-12 rounded-full border border-white/20 text-sm font-semibold text-white active:scale-[0.98]">
+                  Finish
+                </button>
               </div>
             </div>
-            <div className="mt-8 flex gap-2">
-              <button type="button" onClick={togglePause} className="h-12 rounded-full border border-border-strong px-6 text-sm font-semibold text-ink">
-                {pausedLeft != null ? "Resume" : "Pause"}
-              </button>
-              {phase === "rest" && (
-                <button type="button" onClick={start} className="h-12 rounded-full bg-brand px-6 text-sm font-semibold text-on-brand">
-                  Skip break
-                </button>
-              )}
-            </div>
-            {phase === "focus" && <SoundPicker sound={sound} setSound={pickSound} compact />}
-            {me && <StudyRoomStrip meId={me.id} tone="dark" className="mt-8 w-full justify-center text-left" />}
-          </>
+          </div>
         )}
-
-        <figure className="mt-auto pt-12 text-ink-3">
-          <blockquote className="font-hand text-xl leading-snug text-ink-2">“{quote.text}”</blockquote>
-          {quote.by && <figcaption className="mt-1.5 text-xs">{quote.by}</figcaption>}
-        </figure>
       </div>
+
+      {float.portal}
+
+      <style>{`
+        .room-time { font-size: clamp(3.25rem, min(16vw, 10dvh), 8rem); }
+        .no-scrollbar { scrollbar-width: none; } .no-scrollbar::-webkit-scrollbar { display: none; }
+        .room-clock { font-size: clamp(2.75rem, 13vw, 4.25rem); }
+        @media (min-width: 1024px) { .room-clock { font-size: 4.5rem; } }
+        .room-drift { animation: room-drift 60s ease-in-out infinite alternate; transform-origin: 50% 60%; }
+        @keyframes room-drift { from { transform: scale(1.02); } to { transform: scale(1.1) translate3d(-1.5%, -1%, 0); } }
+        @media (prefers-reduced-motion: reduce) { .room-drift { animation: none; } }
+      `}</style>
     </div>
   );
 }
 
-// ---- Background sound, made in the browser (no files, nothing to licence) ----
-
-type Sound = "off" | "rain" | "waves" | "brown";
-
-function SoundPicker({ sound, setSound, compact }: { sound: Sound; setSound: (s: Sound) => void; compact?: boolean }) {
-  const opts: Array<{ id: Sound; label: string }> = [
-    { id: "off", label: "Silence" },
-    { id: "rain", label: "Rain" },
-    { id: "waves", label: "Waves" },
-    { id: "brown", label: "Deep hum" },
-  ];
-  return (
-    <div className={cn("flex justify-center gap-1.5", compact && "mt-6")} role="radiogroup" aria-label="Background sound">
-      {opts.map((o) => (
-        <button
-          key={o.id}
-          type="button"
-          role="radio"
-          aria-checked={sound === o.id}
-          onClick={() => setSound(o.id)}
-          className={cn("h-10 rounded-full px-4 text-xs font-semibold transition-colors", sound === o.id ? "bg-surface-2 text-ink" : "text-ink-3 hover:text-ink")}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/** Starts a looping noise on the shared audio context; returns a stop function. */
-function startSound(ctx: AudioContext, kind: Exclude<Sound, "off">): () => void {
-  const len = ctx.sampleRate * 4;
-  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-  const d = buf.getChannelData(0);
-  let last = 0;
-  for (let i = 0; i < len; i++) {
-    const white = Math.random() * 2 - 1;
-    // Brown noise: a slow random walk (a soft, deep hum); rain: brighter noise.
-    last = kind === "rain" ? white : (last + 0.02 * white) / 1.02;
-    d[i] = kind === "rain" ? white : last * 3.5;
-  }
-  const src = ctx.createBufferSource();
-  src.buffer = buf;
-  src.loop = true;
-  const filter = ctx.createBiquadFilter();
-  filter.type = "lowpass";
-  filter.frequency.value = kind === "rain" ? 1400 : kind === "waves" ? 700 : 500;
-  const gain = ctx.createGain();
-  gain.gain.value = kind === "rain" ? 0.08 : kind === "waves" ? 0.1 : 0.25;
-  src.connect(filter).connect(gain).connect(ctx.destination);
-  // Waves: the volume swells and falls slowly, like the sea.
-  let lfo: OscillatorNode | null = null;
-  if (kind === "waves") {
-    lfo = ctx.createOscillator();
-    const depth = ctx.createGain();
-    lfo.frequency.value = 0.09;
-    depth.gain.value = 0.08;
-    lfo.connect(depth).connect(gain.gain);
-    lfo.start();
-  }
-  src.start();
-  // The context stays open for the chime and the next sound; only this one stops.
-  return () => {
-    try {
-      src.stop();
-      lfo?.stop();
-    } catch {}
-    gain.disconnect();
-  };
-}
-
-/** A soft two-note chime at the end of a session or break, on the context made by the Start tap. */
-function chime(ctx: AudioContext | null) {
-  try {
-    navigator.vibrate?.([120, 80, 120]);
-  } catch {}
-  if (!ctx || ctx.state === "closed") return;
-  try {
-    if (ctx.state !== "running") void ctx.resume().catch(() => {});
-    [660, 880].forEach((f, i) => {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.frequency.value = f;
-      g.gain.setValueAtTime(0.0001, ctx.currentTime + i * 0.25);
-      g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + i * 0.25 + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i * 0.25 + 0.9);
-      o.connect(g).connect(ctx.destination);
-      o.start(ctx.currentTime + i * 0.25);
-      o.stop(ctx.currentTime + i * 0.25 + 1);
-    });
-  } catch {}
-}
+const S = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
+const Glyph = {
+  X: () => (
+    <svg {...S}>
+      <path d="M6 6l12 12M18 6 6 18" />
+    </svg>
+  ),
+  Pause: () => (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <rect x="6" y="5" width="4" height="14" rx="1.2" />
+      <rect x="14" y="5" width="4" height="14" rx="1.2" />
+    </svg>
+  ),
+  Play: () => (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
+    </svg>
+  ),
+  Float: () => (
+    <svg {...S}>
+      <rect x="3" y="5" width="18" height="14" rx="2.5" />
+      <rect x="12" y="11" width="7" height="6" rx="1.2" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  Expand: () => (
+    <svg {...S}>
+      <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+    </svg>
+  ),
+  Shrink: () => (
+    <svg {...S}>
+      <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />
+    </svg>
+  ),
+  Scene: () => (
+    <svg {...S}>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="m3 16 5-5 4 4 3-3 6 6" />
+      <circle cx="16" cy="8.5" r="1.5" />
+    </svg>
+  ),
+  Sound: ({ off }: { off?: boolean }) => (
+    <svg {...S}>
+      <path d="M4 10v4h3l5 4V6L7 10H4Z" />
+      {off ? <path d="m16 10 4 4m0-4-4 4" /> : <path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11" />}
+    </svg>
+  ),
+};

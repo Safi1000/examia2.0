@@ -94,7 +94,21 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
     sb.from("notify_log").select("student_id,kind,ref,sent_at").in("student_id", ids).gte("sent_at", today),
   ]);
   const subsBy = new Map<string, Sub[]>();
-  for (const s of (subs ?? []) as Sub[]) subsBy.set(s.student_id, [...(subsBy.get(s.student_id) ?? []), s]);
+  // Devices are written from the student's browser, so only real push services
+  // (https, a named host) and at most 10 a student: a made-up address can't make
+  // the server call it, and a flood of fake devices can't stall the run.
+  const realDevice = (s: Sub) => {
+    try {
+      const { protocol, hostname: h } = new URL(s.endpoint);
+      return protocol === "https:" && !h.startsWith("[") && h !== "localhost" && /[a-z]/i.test(h.split(".").pop() ?? "");
+    } catch {
+      return false;
+    }
+  };
+  for (const s of ((subs ?? []) as Sub[]).filter(realDevice)) {
+    const list = subsBy.get(s.student_id) ?? [];
+    if (list.length < 10) subsBy.set(s.student_id, [...list, s]);
+  }
   const prefBy = new Map((prefs ?? []).map((p) => [p.student_id as string, p as Record<Kind, boolean>]));
   const sent = new Set((log ?? []).map((l) => `${l.student_id}|${l.kind}|${l.ref}`));
   // Count sends, not refs: one grouped notification can log several refs at once.
@@ -141,7 +155,7 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
     for (const d of devices)
       queue.push(async () => {
         try {
-          await webpush.sendNotification({ endpoint: d.endpoint, keys: { p256dh: d.p256dh, auth: d.auth } }, payload, { TTL: 60 * 60 * 6 });
+          await webpush.sendNotification({ endpoint: d.endpoint, keys: { p256dh: d.p256dh, auth: d.auth } }, payload, { TTL: 60 * 60 * 6, timeout: 10_000 });
         } catch (e) {
           // The phone unsubscribed or the browser data was cleared: forget the device.
           const code = (e as { statusCode?: number }).statusCode;

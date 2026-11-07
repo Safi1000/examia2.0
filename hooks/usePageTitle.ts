@@ -24,11 +24,25 @@ export function useDocumentTitle(title: string | null) {
   useEffect(() => {
     if (!title) return;
     const apply = () => {
-      if (document.title !== title) document.title = title;
+      const want = override ?? title;
+      if (document.title !== want) document.title = want;
     };
     apply();
     const obs = new MutationObserver(apply);
     obs.observe(document.head, { childList: true, subtree: true, characterData: true });
-    return () => obs.disconnect();
+    listeners.add(apply);
+    return () => {
+      obs.disconnect();
+      listeners.delete(apply);
+    };
   }, [title]);
+}
+
+/** A title that wins over the page's own for a while (the study timer's countdown); null hands it back. */
+let override: string | null = null;
+const listeners = new Set<() => void>();
+export function setTitleOverride(t: string | null) {
+  override = t;
+  if (t) document.title = t;
+  listeners.forEach((f) => f());
 }

@@ -100,10 +100,10 @@ export default function QuestionBankPage() {
                 <p className="mt-1.5 text-sm text-ink">{b.prompt}</p>
               </div>
               <div className="flex shrink-0 gap-1">
-                <button onClick={() => { setEditing(b); setModalOpen(true); }} className="flex h-8 w-8 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Edit">
+                <button onClick={() => { setEditing(b); setModalOpen(true); }} className="flex h-10 w-10 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Edit question">
                   <Icon.Edit className="h-4 w-4" />
                 </button>
-                <button onClick={() => setDeleteId(b.id)} className="flex h-8 w-8 items-center justify-center rounded text-ink-3 hover:bg-error-soft hover:text-error" aria-label="Delete">
+                <button onClick={() => setDeleteId(b.id)} className="flex h-10 w-10 items-center justify-center rounded text-ink-3 hover:bg-error-soft hover:text-error" aria-label="Delete question">
                   <Icon.Trash className="h-4 w-4" />
                 </button>
               </div>

@@ -269,6 +269,7 @@ export default function AnalyticsPage() {
         </div>
 
         <select
+          aria-label="Month"
           value={selectedMonth}
           onChange={(e) => setSelectedMonth(e.target.value)}
           className="h-9 rounded-lg border border-border bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
@@ -281,11 +282,12 @@ export default function AnalyticsPage() {
 
         {view === "student" && (
           <select
+            aria-label="Student"
             value={selectedStudentId}
             onChange={(e) => setSelectedStudentId(e.target.value)}
             className="h-9 flex-1 min-w-[180px] rounded-lg border border-border bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
           >
-            <option value="">Select a student...</option>
+            <option value="">Pick a student</option>
             {base.students.map((s) => (
               <option key={s.id} value={s.id}>{s.username}</option>
             ))}

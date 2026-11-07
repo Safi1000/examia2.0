@@ -187,7 +187,7 @@ export default function ClassesPage() {
           <EmptyState
             icon={<Icon.Doc />}
             title="No recordings right now"
-            message="Each class recording appears here after class and stays open for 2 days."
+            message="Each class recording appears here after class."
           />
         )}
       </section>

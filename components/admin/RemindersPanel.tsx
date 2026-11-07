@@ -108,12 +108,12 @@ export function RemindersPanel() {
 
   return (
     <Card className="mb-4 p-0">
-      <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-        <h2 className="text-base font-semibold text-ink">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-4 py-3">
+        <h2 className="whitespace-nowrap text-base font-semibold text-ink">
           Tell parents <span className="text-ink-3">({reminders.length})</span>
         </h2>
         {reportRun.length > 0 && !running && (
-          <Button size="sm" variant="secondary" onClick={() => void startRun()}>
+          <Button size="sm" variant="secondary" className="order-last whitespace-nowrap sm:order-none" onClick={() => void startRun()}>
             Send monthly reports ({reportRun.length})
           </Button>
         )}
@@ -155,7 +155,7 @@ export function RemindersPanel() {
               </Button>
               <button
                 onClick={() => confirmSent(r)}
-                className="text-xs font-semibold text-ink-3 hover:text-ink"
+                className="min-h-11 px-2 text-xs font-semibold text-ink-3 hover:text-ink"
                 title="Stop showing this"
               >
                 Done

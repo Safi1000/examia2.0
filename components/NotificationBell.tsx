@@ -64,7 +64,7 @@ export function NotificationBell() {
         onClick={() => setOpen((v) => !v)}
         aria-label={unreadCount ? `Notifications (${unreadCount} unread)` : "Notifications"}
         aria-expanded={open}
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         className="relative flex h-11 w-11 items-center justify-center rounded-md text-ink-2 hover:bg-surface-2 hover:text-ink"
       >
         <Icon.Bell className="h-[18px] w-[18px]" />
@@ -83,7 +83,8 @@ export function NotificationBell() {
         // sits mid-header, so hanging the panel off it ran past the left edge).
         // From sm up: hangs from the bell as before.
         <div
-          role="menu"
+          role="dialog"
+          aria-label="Notifications"
           className="fixed inset-x-4 top-[76px] z-50 animate-scale-in overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-lg)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[22rem]"
         >
           <div className="flex items-center justify-between border-b border-border py-1 pl-4 pr-2">
@@ -91,7 +92,7 @@ export function NotificationBell() {
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
-                className="flex min-h-10 items-center rounded-md px-2 text-xs font-semibold text-brand hover:underline"
+                className="flex min-h-11 items-center rounded-md px-2 text-xs font-semibold text-brand hover:underline"
               >
                 Mark all read
               </button>

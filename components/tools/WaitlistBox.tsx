@@ -106,7 +106,11 @@ export function WaitlistBox({ source }: { source: string }) {
       </fieldset>
       {/* Left empty by people; filled by bots. */}
       <input value={website} onChange={(e) => setWebsite(e.target.value)} tabIndex={-1} autoComplete="off" aria-hidden className="hidden" name="website" />
-      {error && <p className="text-[15px] text-[#ff8a80]">{error}</p>}
+      {error && (
+        <p role="alert" className="text-[15px] text-[#ff8a80]">
+          {error}
+        </p>
+      )}
       <button type="submit" disabled={state === "sending"} className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] hover:bg-[#ffd07a] disabled:opacity-60 sm:w-auto">
         {state === "sending" ? "Sending…" : "Put me on the list"}
       </button>

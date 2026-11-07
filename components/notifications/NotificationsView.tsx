@@ -119,7 +119,7 @@ export function NotificationsView() {
           {activities.length > 0 && (
             <Button variant="secondary" size="sm" onClick={() => setConfirmClear(true)}>
               <Icon.Trash className="h-4 w-4" />
-              Clear All Notifications
+              Clear all
             </Button>
           )}
         </div>

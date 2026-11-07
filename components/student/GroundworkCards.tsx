@@ -24,7 +24,7 @@ import { ShareMoment } from "@/components/student/ShareMoment";
 import { Icon } from "@/components/ui";
 
 const fmt = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`);
-const card = "rounded-[22px] border border-border bg-surface p-5";
+const card = "rounded-[22px] border border-border bg-surface p-5 sm:p-6";
 const kicker = "text-[11px] font-semibold uppercase tracking-[0.3em] text-brand";
 
 /** This week: one dot per day, the days target, the weekly streak and hours. */
@@ -39,18 +39,19 @@ export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
     <section className={card}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className={kicker}>Your week</p>
-          <p className="mt-1.5 text-2xl font-extrabold tracking-[-0.02em] text-ink">
+          <p className="text-[28px] font-semibold leading-tight tracking-[-0.03em] text-ink">
             {streak.thisWeek} of {target} days
           </p>
-          <p className="text-sm text-ink-3">
+          <p className="mt-0.5 text-sm text-ink-3">
             {fmt(stats.weekMinutes)} this week · {level.name}
           </p>
         </div>
-        <div className="text-right">
-          <p className="text-3xl font-extrabold tabular-nums text-brand">{streak.weeks}</p>
-          <p className="text-[11px] text-ink-3">week streak</p>
-        </div>
+        {streak.weeks > 0 && (
+          <div className="text-right">
+            <p className="text-[28px] font-semibold leading-tight tabular-nums text-brand">{streak.weeks}</p>
+            <p className="text-[12px] text-ink-3">{streak.weeks === 1 ? "week streak" : "weeks in a row"}</p>
+          </div>
+        )}
       </div>
       <ol className="mt-5 grid grid-cols-7 gap-1.5" aria-label="Days studied this week">
         {days.map((d, i) => (
@@ -69,7 +70,7 @@ export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
       </ol>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
         <label className="flex items-center gap-2 text-xs text-ink-3">
-          Aim for
+          Goal
           <select
             value={target}
             onChange={(e) => updateProfile({ daysTarget: Number(e.target.value) })}
@@ -117,8 +118,7 @@ export function SlotsCard({ nowMs }: { nowMs: number }) {
     <section className={card}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className={kicker}>Study times</p>
-          <p className="mt-1.5 text-base font-semibold text-ink">
+          <p className="text-[17px] font-semibold text-ink">
             {next ? (
               <>
                 Next: {DAY_SHORT[next.slot.day]} at {clock12(next.slot.time)}
@@ -129,7 +129,7 @@ export function SlotsCard({ nowMs }: { nowMs: number }) {
           </p>
           <p className="text-sm text-ink-3">{next ? "Your phone reminds you at each one." : "A set time, every week, is what turns studying into a habit."}</p>
         </div>
-        <button type="button" onClick={startEdit} className="shrink-0 rounded-full border border-border-strong px-4 py-2 text-sm font-semibold text-ink hover:border-brand/60">
+        <button type="button" onClick={startEdit} className="h-10 shrink-0 rounded-full bg-surface-2 px-4 text-sm font-semibold text-ink hover:bg-surface-2/70">
           {slots.length ? "Edit" : "Set times"}
         </button>
       </div>

@@ -303,7 +303,7 @@ export default function RosterPage() {
             {unset.slice(0, 12).map((s, i) => (
               <span key={s.id}>
                 {i > 0 && ", "}
-                <button type="button" onClick={() => openEdit(s)} className="font-semibold text-brand hover:underline">
+                <button type="button" onClick={() => openEdit(s)} className="font-semibold capitalize text-brand hover:underline">
                   {s.username}
                 </button>
               </span>

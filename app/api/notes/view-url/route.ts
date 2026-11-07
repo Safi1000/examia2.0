@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { signViewUrl } from "@/lib/signed-view";
+import { isHidden } from "@/lib/notes-library";
 
 /**
  * Mints a short-lived view link for one note.
@@ -37,6 +38,10 @@ export async function POST(req: NextRequest) {
   // Until migration 20261020010000 is applied the link is still on the notes row.
   const fileUrl = link.error?.code === "PGRST202" ? (note?.file_url as string | null) : link.data;
   if (error || !note || !fileUrl) return NextResponse.json({ error: "not found" }, { status: 404 });
+  // A note Hamza hid is still assigned (row-level security lets it through),
+  // so only an admin may open it, the same rule as /api/notes/search.
+  const admin = (user.user.app_metadata as { role?: string } | undefined)?.role === "admin";
+  if (!admin && isHidden(String(note.file_type ?? ""))) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   return NextResponse.json({
     url: signViewUrl(fileUrl as string, (note.file_name as string) ?? "note"),

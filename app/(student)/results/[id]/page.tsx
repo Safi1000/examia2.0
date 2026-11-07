@@ -214,7 +214,7 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
 
 function BackLink() {
   return (
-    <Link href="/tests" className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-2 hover:text-ink">
+    <Link href="/tests" className="-ml-1 inline-flex min-h-11 items-center gap-1.5 px-1 text-sm font-semibold text-ink-2 hover:text-ink">
       <Icon.ArrowLeft className="h-4 w-4" /> Tests
     </Link>
   );

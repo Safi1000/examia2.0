@@ -182,7 +182,12 @@ export default function SubmissionsPage() {
                           label={`Select ${student?.username ?? "submission"}`}
                         />
                       </Td>
-                      <Td className="font-semibold capitalize">{student?.username ?? "Removed student"}</Td>
+                      <Td className="font-semibold capitalize">
+                        {/* On a phone the actions sit off to the side: the name opens the paper too. */}
+                        <Link href={`/admin/grading/${sub.id}`} className="hover:text-brand">
+                          {student?.username ?? "Removed student"}
+                        </Link>
+                      </Td>
                       <Td className="min-w-[10rem] text-ink-2">{test.title}<span className="block text-xs text-ink-3">{test.subject}</span></Td>
                       <Td className="hidden lg:table-cell">{cohort ? <span className="inline-flex items-center gap-1.5 text-ink-2"><CohortDot color={cohort.color} />{cohort.name}</span> : "No cohort"}</Td>
                       <Td>

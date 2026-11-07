@@ -57,6 +57,9 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${splineMono.variable} ${caveat.variable} ${interTight.variable} h-full`}
+      // The homepage's pre-paint script adds "intro-seen" to <html> on repeat visits
+      // (components/landing/IntroLogo.tsx), so its class can differ from the server's.
+      suppressHydrationWarning
     >
       <body className="min-h-dvh antialiased">
         {/* Outside Providers on purpose: that gate renders a splash until

@@ -14,7 +14,7 @@ export function ProfileSettings({ db, student }: { db: Database; student: Studen
   const { profile, updateProfile } = useAuth();
   const subjects = studentSubjects(db, student);
   const chip = (on: boolean) =>
-    cn("h-10 rounded-full border px-3 text-sm font-semibold transition-colors", on ? "border-brand bg-brand text-on-brand" : "border-border-strong text-ink-2 hover:text-ink");
+    cn("h-11 rounded-full border px-3 text-sm font-semibold transition-colors", on ? "border-brand bg-brand text-on-brand" : "border-border-strong text-ink-2 hover:text-ink");
 
   return (
     <Card className="mt-5 space-y-6 p-5">

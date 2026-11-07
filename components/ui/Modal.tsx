@@ -40,13 +40,33 @@ export function Modal({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onCloseRef.current();
     };
+    // Tab stays inside the dialog, and focus goes back where it was on close.
+    const onTab = (e: KeyboardEvent) => {
+      const panel = panelRef.current;
+      if (e.key !== "Tab" || !panel) return;
+      const items = [...panel.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter((el) => el.offsetParent !== null);
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === panel)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     document.addEventListener("keydown", onKey);
+    document.addEventListener("keydown", onTab);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     panelRef.current?.focus();
     return () => {
       document.removeEventListener("keydown", onKey);
+      document.removeEventListener("keydown", onTab);
       document.body.style.overflow = prevOverflow;
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
   }, [open]);
 
@@ -79,7 +99,7 @@ export function Modal({
           <button
             onClick={onClose}
             aria-label="Close dialog"
-            className="-mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink"
+            className="-mr-2 -mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M6 6l12 12M18 6 6 18" strokeLinecap="round" />

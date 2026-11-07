@@ -54,9 +54,9 @@ export default function StudentAssignmentsPage() {
   if (!studentId) return null;
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="mb-1 font-display text-2xl font-bold text-ink">Homework</h1>
-      <p className="mb-6 text-sm text-ink-3">Hand in your work as photos or a PDF.</p>
+    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+      <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink">Homework</h1>
+      <p className="mb-6 mt-2 text-base text-ink-2">Hand in your work as photos or a PDF.</p>
 
       {assignments.length === 0 && done.length === 0 ? (
         <EmptyState icon={<Icon.Doc />} title="No homework right now" message="When I set homework, it appears here with its due date." />
@@ -87,7 +87,7 @@ export default function StudentAssignmentsPage() {
           )}
         </details>
       )}
-    </main>
+    </div>
   );
 }
 
