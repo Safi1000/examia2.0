@@ -33,7 +33,10 @@ export function CookieBanner() {
     try {
       localStorage.setItem(KEY, yes ? "yes" : "no");
     } catch {}
-    if (yes) window.__htLoadPixel?.();
+    if (yes) {
+      window.__htLoadPixel?.();
+      window.__htLoadGa?.();
+    }
     setShow(false);
   };
 

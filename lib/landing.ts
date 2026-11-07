@@ -178,6 +178,9 @@ export function track(event: string, props: Record<string, unknown> = {}): void 
   const standard = STANDARD[event];
   if (standard) window.fbq?.("track", standard, { content_name: event, ...props });
   else window.fbq?.("trackCustom", event, props);
+  // WhatsApp taps reach Google Analytics through one page-wide listener
+  // (GoogleAnalytics.tsx), so they are not sent twice from here.
+  if (event !== "whatsapp_click") window.gtag?.("event", event, props);
 }
 
 /** Right-hand scroll rail. Ids must match the section ids rendered on `/`. */

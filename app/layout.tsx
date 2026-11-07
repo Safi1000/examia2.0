@@ -7,7 +7,8 @@ import {
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { MetaPixel } from "@/components/MetaPixel";
-import { COMPANY_NAME } from "@/lib/config";
+import { GoogleAnalytics } from "@/components/GoogleAnalytics";
+import { COMPANY_NAME, GSC_VERIFICATION } from "@/lib/config";
 import { SITE_URL } from "@/lib/seo";
 
 // The one brand typeface: public site and portal.
@@ -40,6 +41,7 @@ export const metadata: Metadata = {
   title: `${COMPANY_NAME} · Student portal`,
   description: "A calm, mobile-first exam and cohort-management portal.",
   // Tab and home-screen icons come from app/icon.svg and app/apple-icon.tsx.
+  ...(GSC_VERIFICATION ? { verification: { google: GSC_VERIFICATION } } : {}),
 };
 
 export const viewport: Viewport = {
@@ -60,6 +62,7 @@ export default function RootLayout({
         {/* Outside Providers on purpose: that gate renders a splash until
             hydration, which kept the pixel out of the server HTML entirely. */}
         <MetaPixel />
+        <GoogleAnalytics />
         <Providers>{children}</Providers>
       </body>
     </html>

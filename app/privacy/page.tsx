@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { GA_ID } from "@/lib/config";
 import Link from "next/link";
 import { CookieChoiceReset } from "@/components/landing/CookieBanner";
 import { LegalPage } from "@/components/landing/LegalPage";
@@ -133,7 +134,15 @@ export default function PrivacyPage() {
                   the login in the browser so it does not ask on every page. Without it the portal cannot work.
                 </li>
               </ul>
-              <p>There are no other analytics or tracking tools on the site.</p>
+              {GA_ID ? (
+                <p>
+                  <strong className="text-foreground">Analytics</strong>: Google Analytics sets cookies (such as _ga)
+                  to count visits and see which pages people find useful. It follows the same cookie choice as the
+                  Meta pixel. There are no other analytics or tracking tools on the site.
+                </p>
+              ) : (
+                <p>There are no other analytics or tracking tools on the site.</p>
+              )}
               <CookieChoiceReset />
             </>
           ),
@@ -152,6 +161,7 @@ export default function PrivacyPage() {
                 <li><strong className="text-foreground">Cloudinary</strong>: stores uploaded photos of work and shared notes.</li>
                 <li><strong className="text-foreground">Meta</strong>: WhatsApp messages, and the advertising pixel.</li>
                 <li><strong className="text-foreground">Google Meet and Zoom</strong>: live classes and their recordings.</li>
+                {GA_ID && <li><strong className="text-foreground">Google Analytics</strong>: counting visits to the public website.</li>}
                 <li><strong className="text-foreground">YouTube</strong>: plays videos on the site, in privacy-enhanced mode.</li>
               </ul>
               <p>I never sell your information, and I never share it with other tutors, schools or advertisers.</p>

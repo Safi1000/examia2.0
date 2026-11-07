@@ -35,3 +35,9 @@ export const CLOUDINARY_NOTES_PRESET =
  *  development get unless the variable is set. */
 export const META_PIXEL_ID =
   process.env.NEXT_PUBLIC_META_PIXEL_ID || "981948184238325";
+
+/** Google Analytics 4 measurement id (G-...). Empty disables it. */
+export const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "";
+
+/** Google Search Console "HTML tag" verification code (the content="..." value). Empty leaves the tag out. */
+export const GSC_VERIFICATION = process.env.NEXT_PUBLIC_GSC_VERIFICATION || "";
