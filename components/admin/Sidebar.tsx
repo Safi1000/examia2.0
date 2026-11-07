@@ -38,6 +38,7 @@ const GROUPS = [
       { href: "/admin/roster", label: "Roster", Icon: NavIcon.Roster },
       { href: "/admin/cohorts", label: "Cohorts", Icon: NavIcon.Cohorts },
       { href: "/admin/attendance", label: "Attendance", Icon: NavIcon.Attendance },
+      { href: "/admin/activity", label: "Activity", Icon: NavIcon.Progress },
     ],
   },
   {

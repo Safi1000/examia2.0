@@ -23,6 +23,7 @@ import { Button, buttonClasses } from "@/components/ui/Button";
 import { LineChart, type LinePoint } from "@/components/charts/LineChart";
 import { MasteryBar } from "@/components/charts/MasteryBar";
 import { LoginDetails } from "@/components/admin/LoginDetails";
+import { StudentActivitySection } from "@/components/admin/ActivityParts";
 import { gradeSubmission } from "@/lib/grading";
 import { topicMastery } from "@/lib/scoring";
 import { buildStudentReport } from "@/lib/report-build";
@@ -279,6 +280,8 @@ function StudentDetail() {
       ) : (
         <EmptyState className="mt-5" icon={<Icon.Chart />} title="No released results yet" message="Release a result to build this student's analytics." />
       )}
+
+      <StudentActivitySection studentId={student.id} />
 
       <h2 className="mb-2.5 mt-7 text-base font-semibold text-ink">Submissions</h2>
       {data.subs.length === 0 ? (

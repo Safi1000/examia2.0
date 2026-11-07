@@ -28,6 +28,9 @@ import { displayName } from "@/lib/display-name";
 import { PortalAmbient } from "@/components/PortalAmbient";
 import { pageTitle, useDocumentTitle } from "@/hooks/usePageTitle";
 import { useRecoverFocus } from "@/components/student/focus-session";
+import { setActivityPath, startActivity } from "@/lib/activity-tracker";
+import { supabase } from "@/lib/supabase";
+import { DEMO } from "@/lib/demo";
 
 const TITLES: Record<string, string> = {
   "/dashboard": "Home",
@@ -61,6 +64,13 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   // Groundwork minutes from a session that was cut off (closed app, flat
   // battery) are added once that session is clearly over.
   useRecoverFocus(!initializing && session?.role === "student" && !!session.studentId);
+  // Active time in the portal, for Hamza's Activity page (students never see it).
+  const tracking = !DEMO && !initializing && session?.role === "student" && !!session.studentId;
+  useEffect(() => {
+    if (!tracking) return;
+    return startActivity(async () => (await supabase().auth.getSession()).data.session?.access_token ?? null);
+  }, [tracking]);
+  useEffect(() => setActivityPath(pathname), [pathname]);
 
   if (loadFailed) {
     return (

@@ -8,6 +8,7 @@ import { PdfView } from "@/components/PdfView";
 import { useBackToClose } from "@/components/student/useBackToClose";
 import { DEMO } from "@/lib/demo";
 import { savePosition } from "@/lib/notes-library";
+import { setActivityNote, setActivityNotePage } from "@/lib/activity-tracker";
 
 /** Word, PowerPoint and Excel: phones can't show these, so Microsoft's free online viewer does. */
 const OFFICE = /\.(pptx?|docx?|xlsx?)$|officedocument|msword|ms-powerpoint|ms-excel/i;
@@ -42,7 +43,18 @@ export function NoteViewer({
   const [pdfFailed, setPdfFailed] = useState(false);
   const onPdfFail = useCallback(() => setPdfFailed(true), []);
   // Remember the page, so Notes can offer "Continue reading" next time.
-  const onPage = useCallback((p: number, total: number) => savePosition(noteId, p, total), [noteId]);
+  const onPage = useCallback(
+    (p: number, total: number) => {
+      savePosition(noteId, p, total);
+      setActivityNotePage(noteId, p, total);
+    },
+    [noteId],
+  );
+  // Reading time and pages, for Hamza's Activity page (only counted for students).
+  useEffect(() => {
+    setActivityNote(noteId);
+    return () => setActivityNote(null);
+  }, [noteId]);
 
   const onCloseRef = useRef(onClose);
   useEffect(() => {
