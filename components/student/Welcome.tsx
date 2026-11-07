@@ -12,6 +12,7 @@ import { NavIcon } from "@/components/nav/NavIcons";
 import { NotifyStep } from "@/components/student/NotifyStep";
 import { addDays, getSchedule, pkDate, slotsForStudent, spanHere } from "@/lib/timetable";
 import { useNow } from "@/hooks/useNow";
+import { isAsStudent } from "@/lib/grading";
 import { useBackToClose } from "@/components/student/useBackToClose";
 
 /** The subjects a student takes: their own, else their cohort's, else all. */
@@ -132,7 +133,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
             <div key={sub}>
               <p className="mb-2 text-sm font-semibold text-ink">{sub}</p>
               <div className="grid grid-cols-4 gap-2">
-                {TARGETS.map((t) => (
+                {TARGETS.filter((t) => t !== "A*" || !isAsStudent(student.id)).map((t) => (
                   <button
                     key={t}
                     type="button"

@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useDatabase } from "@/lib/data/store";
 import { useNow } from "@/hooks/useNow";
 import { studentById, submissionsForStudent, testById, testsForStudent } from "@/lib/data/selectors";
-import { gradeLetter, gradeSubmission } from "@/lib/grading";
+import { gradeSubmission } from "@/lib/grading";
 import { topicMastery } from "@/lib/scoring";
 import { GRADE_FLOOR, performanceSnapshot, sameSubject } from "@/lib/performance";
 import { formatDate } from "@/lib/time";
@@ -18,6 +18,7 @@ import { cn } from "@/lib/cn";
 import { ShareMoment } from "@/components/student/ShareMoment";
 import { displayName } from "@/lib/display-name";
 import { sceneFor } from "@/lib/groundwork";
+import { isAsStudent } from "@/lib/grading";
 import type { Mission } from "@/components/student/FocusMode";
 
 const FocusMode = dynamic(() => import("@/components/student/FocusMode"), { ssr: false });
@@ -65,7 +66,8 @@ export default function ProgressPage() {
   const targetFor = (subject: string) => {
     const key = Object.keys(profile.targets ?? {}).find((k) => sameSubject(k, subject));
     const t = key ? profile.targets![key] : undefined;
-    return typeof t === "string" && t in GRADE_FLOOR ? t : undefined;
+    // AS Level has no A*: an old A* target counts as A.
+    return typeof t === "string" && t in GRADE_FLOOR ? (t === "A*" && isAsStudent(student?.id) ? "A" : t) : undefined;
   };
   const noteFor = (topic: string) => db.notes.find((n) => n.title.toLowerCase().includes(topic.toLowerCase()));
 
@@ -214,7 +216,7 @@ export default function ProgressPage() {
               {results.map(({ test, sub, pct }) => (
                 <li key={sub.id}>
                   <Link href={`/results/${test.id}`} className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-surface-2">
-                    <span className="w-10 shrink-0 text-center text-lg font-extrabold text-brand">{gradeLetter(pct)}</span>
+                    <span className="w-10 shrink-0 text-center text-lg font-extrabold text-brand">{gradeSubmission(test, sub).letter}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold text-ink">{test.title}</span>
                       <span className="block text-xs text-ink-3">

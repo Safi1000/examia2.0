@@ -11,7 +11,7 @@ import { BarChart, type Bar } from "@/components/charts/BarChart";
 import { LineChart, type LinePoint } from "@/components/charts/LineChart";
 import { MasteryBar } from "@/components/charts/MasteryBar";
 import { StudentReport } from "@/components/report/StudentReport";
-import { gradeLetter, gradeRole, gradeSubmission, GRADE_ORDER, type GradeLetter } from "@/lib/grading";
+import { capAs, gradeLetter, gradeRole, gradeSubmission, isAsClass, isAsStudent, GRADE_ORDER, type GradeLetter } from "@/lib/grading";
 import { awardedMarks, percent, topicMastery, totalMarks, type TopicMastery } from "@/lib/scoring";
 import type { Cohort, Student, Submission, Test } from "@/types";
 import { cn } from "@/lib/cn";
@@ -141,7 +141,7 @@ export default function AnalyticsPage() {
     const dist: Record<string, number> = Object.fromEntries(GRADE_ORDER.map((g) => [g, 0]));
     base.released.forEach((s) => {
       const t = testById.get(s.testId);
-      if (t) dist[gradeLetter(gradeSubmission(t, s).percent)]++;
+      if (t) dist[gradeSubmission(t, s).letter]++;
     });
     const bars: Bar[] = GRADE_ORDER.map((g) => ({ label: g, value: dist[g] ?? 0, role: gradeRole(g) }));
 
@@ -149,7 +149,7 @@ export default function AnalyticsPage() {
     // script - counting scripts is how a roster of 17 reported 25.
     const perStudentGrade = base.students.flatMap((st) => {
       const subs = monthSubs.filter((x) => x.studentId === st.id);
-      return subs.length ? [gradeLetter(calcAvg(subs, testById))] : [];
+      return subs.length ? [capAs(gradeLetter(calcAvg(subs, testById)), isAsStudent(st.id))] : [];
     });
     const topStudents = perStudentGrade.filter((g) => g === "A*" || g === "A").length;
     const strugglingStudents = perStudentGrade.filter((g) => g === "E" || g === "U").length;
@@ -159,7 +159,7 @@ export default function AnalyticsPage() {
       const ts = monthSubs.filter((s) => s.testId === t.id);
       const avg = ts.length ? calcAvg(ts, testById) : null;
       const top = ts.length
-        ? (gradeLetter(Math.max(...ts.map((s) => gradeSubmission(t, s).percent))) as GradeLetter)
+        ? (capAs(gradeLetter(Math.max(...ts.map((s) => gradeSubmission(t, s).percent))), isAsClass(t.classId) || ts.every((s) => isAsStudent(s.studentId))) as GradeLetter)
         : null;
       // Sat but not yet marked: such a test reads "2 to mark", never "0%".
       const pending = base.awaiting.filter((x) => x.testId === t.id).length;
@@ -217,7 +217,7 @@ export default function AnalyticsPage() {
     const avg = curSubs.length ? calcAvg(curSubs, testById) : null;
     const prevAvg = prevSubs.length ? calcAvg(prevSubs, testById) : null;
     const delta = avg != null && prevAvg != null ? Math.round((avg - prevAvg) * 10) / 10 : null;
-    const grade = avg != null ? gradeLetter(avg) : null;
+    const grade = avg != null ? capAs(gradeLetter(avg), isAsStudent(student.id)) : null;
 
     const trendPoints: LinePoint[] = allSubs
       .slice()

@@ -17,6 +17,23 @@ export function gradeLetter(percent: number): GradeLetter {
   return "U";
 }
 
+// ---- AS Level has no A*: the top AS grade is A (as in the Cambridge exam). ----
+const AS_CLASSES = new Set<string>();
+const AS_STUDENTS = new Set<string>();
+const isAsName = (name: string) => !/\bA2\b/i.test(name) && (/\bAS\b/.test(name) || /\bAS[ -]?level/i.test(name));
+
+/** Called whenever the portal's data changes: which classes are AS, and which students only take AS. */
+export function syncAsLevels(classes: Array<{ id: string; name: string }>, students: Array<{ id: string; classIds: string[] }>) {
+  AS_CLASSES.clear();
+  AS_STUDENTS.clear();
+  for (const c of classes) if (isAsName(c.name)) AS_CLASSES.add(c.id);
+  for (const s of students) if (s.classIds.length && s.classIds.every((id) => AS_CLASSES.has(id))) AS_STUDENTS.add(s.id);
+}
+export const isAsClass = (classId: string | null | undefined) => !!classId && AS_CLASSES.has(classId);
+export const isAsStudent = (studentId: string | null | undefined) => !!studentId && AS_STUDENTS.has(studentId);
+/** A* becomes A when the work is AS. */
+export const capAs = (letter: GradeLetter, as: boolean): GradeLetter => (as && letter === "A*" ? "A" : letter);
+
 export const GRADE_ORDER: GradeLetter[] = ["A*", "A", "B", "C", "D", "E", "U"];
 
 /** Semantic role for a grade, reused by badges and the distribution chart. */
@@ -58,6 +75,6 @@ export function gradeSubmission(test: Test, submission: Submission): GradeResult
     awarded,
     total,
     percent: Math.round(pct * 10) / 10,
-    letter: gradeLetter(pct),
+    letter: capAs(gradeLetter(pct), isAsClass(test.classId) || isAsStudent(submission.studentId)),
   };
 }

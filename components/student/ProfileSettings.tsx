@@ -7,6 +7,7 @@ import { AVATARS, TARGETS, WEEKLY_GOALS, type Target } from "@/lib/profile";
 import { Avatar } from "@/components/student/Avatar";
 import { studentSubjects } from "@/components/student/Welcome";
 import { Card } from "@/components/ui";
+import { isAsStudent } from "@/lib/grading";
 import { cn } from "@/lib/cn";
 
 /** Settings → "Your portal": the same choices as the welcome flow, saved as you tap. */
@@ -48,7 +49,7 @@ export function ProfileSettings({ db, student }: { db: Database; student: Studen
           <div key={sub} className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
             <span className="text-sm text-ink-2">{sub}</span>
             <div className="flex gap-1.5">
-              {TARGETS.map((t) => (
+              {TARGETS.filter((t) => t !== "A*" || !isAsStudent(student.id)).map((t) => (
                 <button
                   key={t}
                   type="button"

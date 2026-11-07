@@ -20,6 +20,7 @@
  * ============================================================================
  */
 import { useSyncExternalStore } from "react";
+import { syncAsLevels } from "@/lib/grading";
 import type {
   Activity,
   ActivityType,
@@ -423,6 +424,7 @@ class Store {
   getReady = () => this.ready;
 
   private notify() {
+    syncAsLevels(this.state.classes ?? [], this.state.students ?? []);
     this.listeners.forEach((l) => l());
   }
   private commit(mutator: (draft: Database) => void) {

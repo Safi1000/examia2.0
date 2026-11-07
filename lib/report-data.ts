@@ -20,7 +20,7 @@ import {
   testById,
   testsForStudent,
 } from "@/lib/data/selectors";
-import { gradeLetter, gradeSubmission, type GradeLetter } from "@/lib/grading";
+import { capAs, gradeLetter, gradeSubmission, isAsStudent, type GradeLetter } from "@/lib/grading";
 import { topicMastery } from "@/lib/scoring";
 import { displayName } from "@/lib/display-name";
 
@@ -182,7 +182,7 @@ export function reportData(db: Database, studentId: string, month: string, teach
     const classAvg = mean(rs.map((r) => r.classAvg).filter((x): x is number => x != null));
     const verdict =
       average >= 80 ? "Strong" : average >= 65 ? "Secure" : average >= 50 ? "Getting there" : "Needs support";
-    return { subject, tests: rs.length, average, classAvg, grade: gradeLetter(average), verdict };
+    return { subject, tests: rs.length, average, classAvg, grade: capAs(gradeLetter(average), isAsStudent(student.id)), verdict };
   });
   const upcoming = testsForStudent(db, student)
     .filter((t) => !handed.has(t.id) && new Date(t.closesAt).getTime() >= Date.now())
@@ -243,7 +243,7 @@ export function reportData(db: Database, studentId: string, month: string, teach
     monthLabel: monthLabel(month),
     summary,
     average,
-    grade: average != null ? gradeLetter(average) : null,
+    grade: average != null ? capAs(gradeLetter(average), isAsStudent(student.id)) : null,
     prevAverage,
     change,
     classAverage,

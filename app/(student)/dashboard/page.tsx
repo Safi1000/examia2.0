@@ -19,6 +19,7 @@ import { GRADE_FLOOR, performanceSnapshot, sameSubject, type Snapshot } from "@/
 import { StudyBuddy, todaysMission } from "@/components/student/StudyBuddy";
 import type { Profile } from "@/lib/profile";
 import { displayName } from "@/lib/display-name";
+import { isAsStudent } from "@/lib/grading";
 import { cn } from "@/lib/cn";
 
 function greeting(d = new Date()) {
@@ -163,7 +164,7 @@ export default function DashboardPage() {
       <StudyBuddy db={db} student={student} nowMs={nowMs} mission={mission} />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <PerformanceCard perf={perf} targets={profile.targets} />
+        <PerformanceCard perf={perf} targets={profile.targets} asOnly={isAsStudent(student?.id)} />
         <PlanCard week={week} daysLeft={plan.daysLeft} />
       </div>
 
@@ -171,11 +172,13 @@ export default function DashboardPage() {
   );
 }
 
-function PerformanceCard({ perf, targets }: { perf: Snapshot | null; targets?: Profile["targets"] }) {
+function PerformanceCard({ perf, targets, asOnly }: { perf: Snapshot | null; targets?: Profile["targets"]; asOnly?: boolean }) {
   // Each subject against the student's own target, when they set one.
   const vsTarget = (perf?.bySubject ?? []).flatMap((s) => {
     const key = Object.keys(targets ?? {}).find((k) => sameSubject(k, s.subject));
-    const target = key && typeof targets![key] === "string" && targets![key] in GRADE_FLOOR ? targets![key] : undefined;
+    const raw = key && typeof targets![key] === "string" && targets![key] in GRADE_FLOOR ? targets![key] : undefined;
+    // AS Level has no A*: an old A* target counts as A.
+    const target = raw === "A*" && asOnly ? "A" : raw;
     return target ? [{ ...s, target, gap: Math.max(0, Math.ceil(GRADE_FLOOR[target] - s.recent)) }] : [];
   });
   return (

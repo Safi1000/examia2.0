@@ -1,7 +1,7 @@
 import type { Student, Test } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { submissionsForStudent, testById } from "@/lib/data/selectors";
-import { gradeLetter, gradeSubmission } from "@/lib/grading";
+import { capAs, gradeLetter, gradeSubmission, isAsClass, isAsStudent } from "@/lib/grading";
 import { topicMastery } from "@/lib/scoring";
 
 /**
@@ -38,6 +38,7 @@ export function performanceSnapshot(db: Database, student: Student): Snapshot | 
     return t ? [{ test: t, sub: s, pct: gradeSubmission(t, s).percent }] : [];
   });
   if (!results.length) return null;
+  const as = isAsStudent(student.id);
 
   const avg = (xs: number[]) => Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10;
   const pcts = results.map((r) => r.pct);
@@ -50,17 +51,17 @@ export function performanceSnapshot(db: Database, student: Student): Snapshot | 
   const bySubject = subjects.map((subject) => {
     const mine = results.filter((r) => r.test.subject.trim() === subject).map((r) => r.pct).slice(-5);
     const a = avg(mine);
-    return { subject, recent: a, grade: gradeLetter(a) };
+    return { subject, recent: a, grade: capAs(gradeLetter(a), as) };
   });
 
   return {
     bySubject,
     recent,
-    grade: gradeLetter(recent),
+    grade: capAs(gradeLetter(recent), as),
     delta: before.length >= 2 ? Math.round((recent - avg(before)) * 10) / 10 : null,
     marked: results.length,
     points: pcts.slice(-8),
-    last: { test: lastR.test, percent: Math.round(lastR.pct), letter: gradeLetter(lastR.pct) },
+    last: { test: lastR.test, percent: Math.round(lastR.pct), letter: capAs(gradeLetter(lastR.pct), as || isAsClass(lastR.test.classId)) },
     weakest: topicMastery(
       results.map((r) => r.test),
       results.map((r) => r.sub),
