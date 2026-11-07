@@ -347,7 +347,7 @@ export default function RosterPage() {
               ? db.classes.filter((c) => s.classIds.includes(c.id)).map((c) => c.id).map((cid) => `${db.classes.find((x) => x.id === cid)?.name ?? ""}: ${(s.levelSubjects?.[cid] ?? s.subjectIds).map(nameOf).filter(Boolean).join(", ")}`)
               : null;
             return (
-              <Card key={s.id} className="flex items-start justify-between gap-3 p-4">
+              <Card key={s.id} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 p-4 sm:flex-nowrap">
                 <span className="pt-1">
                   <RowCheck
                     checked={picked.includes(s.id)}
@@ -355,7 +355,7 @@ export default function RosterPage() {
                     label={`Select ${s.username}`}
                   />
                 </span>
-                <Link href={`/admin/roster/${s.id}`} className="flex min-w-0 flex-1 items-start gap-3 hover:opacity-80">
+                <Link href={`/admin/roster/${s.id}`} className="flex min-w-0 flex-1 basis-[calc(100%-2.5rem)] items-start gap-3 hover:opacity-80 sm:basis-auto">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-2 font-display text-sm font-bold uppercase text-ink-2">
                     {s.photoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -366,7 +366,7 @@ export default function RosterPage() {
                   </span>
                   <div className="min-w-0">
                     <p className="truncate font-bold capitalize text-ink">{s.username}</p>
-                    <p className="flex items-center gap-1.5 text-sm text-ink-2">
+                    <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm text-ink-2">
                       {cohort && <CohortDot color={cohort.color} />}
                       <span className="truncate">{cohort?.name ?? "No cohort"}</span>
                       <span className="text-ink-3">· {released} results</span>
@@ -387,7 +387,8 @@ export default function RosterPage() {
                     )}
                   </div>
                 </Link>
-                <div className="flex shrink-0 gap-1">
+                {/* On a phone the actions sit on their own line, so nothing runs off the screen. */}
+                <div className="ml-auto flex shrink-0 gap-1">
                   {s.phone && (
                     <a
                       href={`https://wa.me/${waDigits(s.phone)}`}

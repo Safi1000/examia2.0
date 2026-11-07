@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui";
+import { loadPdfJs } from "@/lib/notes-client";
 
 /**
  * A PDF reader inside the portal: every page drawn on the page itself, with
@@ -16,20 +17,38 @@ import { Spinner } from "@/components/ui";
  * scroll far away give their drawing memory back, which keeps iPhone Safari
  * from running out of memory on a 60-page handout.
  */
-const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs";
-const WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
 const MIN = 0.5;
 const MAX = 4;
 
 type PdfDoc = { numPages: number; getPage: (n: number) => Promise<PdfPage>; destroy?: () => Promise<void> };
+type TextItem = { str: string; transform: number[]; width: number };
 type PdfPage = {
-  getViewport: (o: { scale: number }) => { width: number; height: number };
+  getViewport: (o: { scale: number }) => { width: number; height: number; transform: number[] };
+  getTextContent: () => Promise<{ items: TextItem[] }>;
   render: (o: { canvasContext: CanvasRenderingContext2D; viewport: { width: number; height: number } }) => { promise: Promise<void>; cancel: () => void };
 };
 
 const clamp = (z: number) => Math.min(MAX, Math.max(MIN, z));
 
-export function PdfView({ url, onFail }: { url: string; onFail: () => void }) {
+/** A highlighted word on a page, in fractions of the page's size. */
+type Mark = { l: number; t: number; w: number; h: number };
+
+export function PdfView({
+  url,
+  onFail,
+  startPage,
+  highlight,
+  onPage,
+}: {
+  url: string;
+  onFail: () => void;
+  /** Open at this page (from a search result, or where they left off). */
+  startPage?: number;
+  /** Words to mark in yellow (from a search). */
+  highlight?: string[];
+  /** Told the page in view, for "Continue reading". */
+  onPage?: (page: number, pages: number) => void;
+}) {
   const box = useRef<HTMLDivElement>(null);
   const [doc, setDoc] = useState<PdfDoc | null>(null);
   // Page sizes at scale 1. Until a page is fetched it borrows page 1's size.
@@ -43,7 +62,12 @@ export function PdfView({ url, onFail }: { url: string; onFail: () => void }) {
   const [near, setNear] = useState<Set<number>>(() => new Set([0, 1]));
   const [page, setPage] = useState(1);
   const drawn = useRef(new Map<number, number>()); // page index -> zoom it was drawn at
-  const tasks = useRef(new Map<number, { cancel: () => void }>()); // drawings in progress
+  const tasks = useRef(new Map<number, { cancel: () => void; key?: number }>()); // drawings in progress, and the size they're for
+  const pageRef = useRef(1);
+  const utilRef = useRef<{ transform: (a: number[], b: number[]) => number[] } | null>(null);
+  const [marks, setMarks] = useState<Record<number, Mark[]>>({});
+  const marked = useRef(new Set<number>());
+  const started = useRef(false);
 
   // Load PDF.js, the file and page 1 (enough to show the reader).
   useEffect(() => {
@@ -51,12 +75,9 @@ export function PdfView({ url, onFail }: { url: string; onFail: () => void }) {
     let loaded: PdfDoc | null = null;
     void (async () => {
       try {
-        const lib = (await import(/* webpackIgnore: true */ /* turbopackIgnore: true */ PDFJS)) as {
-          GlobalWorkerOptions: { workerSrc: string };
-          getDocument: (o: { url: string }) => { promise: Promise<PdfDoc> };
-        };
-        lib.GlobalWorkerOptions.workerSrc = WORKER;
-        const d = await lib.getDocument({ url }).promise;
+        const lib = await loadPdfJs();
+        utilRef.current = lib.Util;
+        const d = (await lib.getDocument({ url }).promise) as unknown as PdfDoc;
         loaded = d;
         const first = (await d.getPage(1)).getViewport({ scale: 1 });
         if (!alive) return;
@@ -118,14 +139,32 @@ export function PdfView({ url, onFail }: { url: string; onFail: () => void }) {
           }
           return next;
         });
-        const top = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        if (top) setPage(Number((top.target as HTMLElement).dataset.page) + 1);
       },
       { root, rootMargin: "100% 0px" },
     );
     canvases.current.forEach((c) => c && io.observe(c));
     return () => io.disconnect();
   }, [doc, sizes.length]);
+
+  // The page in view: the last one whose top is above a third of the way down the screen.
+  useEffect(() => {
+    const el = box.current;
+    // Wait for the pages to be laid out, or every page looks "above the fold".
+    if (!doc || !el || !width) return;
+    const onScroll = () => {
+      const mark = el.scrollTop + el.clientHeight * 0.35;
+      let p = 1;
+      canvases.current.forEach((c, i) => {
+        const w = c?.parentElement;
+        if (w && w.offsetTop <= mark) p = i + 1;
+      });
+      pageRef.current = p;
+      setPage(p);
+    };
+    onScroll();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [doc, sizes.length, width]);
 
   // Draw the nearby pages at the settled zoom; release the ones that moved away.
   useEffect(() => {
@@ -144,9 +183,13 @@ export function PdfView({ url, onFail }: { url: string; onFail: () => void }) {
     }
     void (async () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      for (const i of [...near].sort((a, b) => a - b)) {
+      // The page in view first, then outwards from it.
+      const here = (pageRef.current || startPage || 1) - 1;
+      for (const i of [...near].sort((a, b) => Math.abs(a - here) - Math.abs(b - here) || a - b)) {
         if (!alive) return;
         if (drawn.current.get(i) === drawZoom * width) continue;
+        // Already being drawn at this size: let it finish rather than start again.
+        if (tasks.current.get(i)?.key === drawZoom * width) continue;
         const pg = await doc.getPage(i + 1).catch(() => null);
         if (!alive) return;
         const c = canvases.current[i];
@@ -175,12 +218,12 @@ export function PdfView({ url, onFail }: { url: string; onFail: () => void }) {
         } catch {
           continue;
         }
-        tasks.current.set(i, task);
+        tasks.current.set(i, { cancel: task.cancel.bind(task), key: drawZoom * width });
         const ok = await task.promise.then(
           () => true,
           () => false,
         );
-        if (tasks.current.get(i) === task) tasks.current.delete(i);
+        if (tasks.current.get(i)?.key === drawZoom * width) tasks.current.delete(i);
         // Released while drawing (scrolled away): it isn't drawn.
         if (ok && c.width > 0) drawn.current.set(i, drawZoom * width);
       }
@@ -188,7 +231,72 @@ export function PdfView({ url, onFail }: { url: string; onFail: () => void }) {
     return () => {
       alive = false;
     };
-  }, [doc, width, drawZoom, near]);
+  }, [doc, width, drawZoom, near, startPage]);
+
+  // Open at the asked-for page once the reader is laid out.
+  useEffect(() => {
+    if (!doc || !width || started.current) return;
+    started.current = true;
+    const i = Math.min(Math.max(1, startPage ?? 1), sizes.length) - 1;
+    if (i <= 0) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setNear(new Set([i - 1, i, i + 1].filter((x) => x >= 0)));
+    requestAnimationFrame(() => {
+      const c = canvases.current[i];
+      if (c && box.current) box.current.scrollTop = (c.parentElement?.offsetTop ?? c.offsetTop) - 12;
+    });
+  }, [doc, width, startPage, sizes.length]);
+
+  // Tell the page in view (a moment after scrolling stops).
+  useEffect(() => {
+    if (!doc || !onPage) return;
+    const t = setTimeout(() => onPage(page, sizes.length), 600);
+    return () => clearTimeout(t);
+  }, [doc, page, sizes.length, onPage]);
+
+  // Find the searched words on the pages near the screen and mark them.
+  const terms = (highlight ?? []).map((w) => w.toLowerCase()).filter((w) => w.length >= 2);
+  const termKey = terms.join(" ");
+  useEffect(() => {
+    if (!doc || !termKey) return;
+    const want = termKey.split(" ");
+    let alive = true;
+    void (async () => {
+      for (const i of near) {
+        if (marked.current.has(i)) continue;
+        marked.current.add(i);
+        const pg = await doc.getPage(i + 1).catch(() => null);
+        const util = utilRef.current;
+        if (!pg || !util || !alive) continue;
+        const vp = pg.getViewport({ scale: 1 });
+        const { items } = await pg.getTextContent().catch(() => ({ items: [] as TextItem[] }));
+        const found: Mark[] = [];
+        for (const it of items) {
+          const low = it.str.toLowerCase();
+          if (!low || !it.width) continue;
+          const tx = util.transform(vp.transform, it.transform);
+          const fh = Math.hypot(tx[2], tx[3]);
+          for (const w of want) {
+            let at = low.indexOf(w);
+            while (at !== -1) {
+              const x = tx[0] >= 0 ? tx[4] : tx[4] - it.width;
+              found.push({
+                l: (x + (it.width * at) / low.length) / vp.width,
+                t: (tx[5] - fh * 0.92) / vp.height,
+                w: ((it.width * w.length) / low.length) / vp.width,
+                h: (fh * 1.18) / vp.height,
+              });
+              at = low.indexOf(w, at + w.length);
+            }
+          }
+        }
+        if (alive && found.length) setMarks((m) => ({ ...m, [i]: found }));
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [doc, near, termKey]);
 
   /** Zoom around a point on screen, keeping that spot under the fingers. */
   const zoomAt = useCallback((factor: number, clientX?: number, clientY?: number) => {
@@ -271,22 +379,30 @@ export function PdfView({ url, onFail }: { url: string; onFail: () => void }) {
         ) : (
           <div className="mx-auto flex flex-col items-center gap-3 py-3" style={{ width: width * zoom + 24 }}>
             {sizes.map((s, i) => (
-              <canvas
-                key={i}
-                data-page={i}
-                ref={(c) => {
-                  canvases.current[i] = c;
-                }}
-                className="block rounded-sm bg-white shadow-[0_8px_24px_-12px_rgba(0,0,0,0.6)]"
-                style={{ width: width * zoom, height: (width * zoom * s.h) / s.w }}
-              />
+              <div key={i} className="relative" style={{ width: width * zoom, height: (width * zoom * s.h) / s.w }}>
+                <canvas
+                  data-page={i}
+                  ref={(c) => {
+                    canvases.current[i] = c;
+                  }}
+                  className="block h-full w-full rounded-sm bg-white shadow-[0_8px_24px_-12px_rgba(0,0,0,0.6)]"
+                />
+                {marks[i]?.map((m, k) => (
+                  <span
+                    key={k}
+                    aria-hidden
+                    className="pointer-events-none absolute rounded-[2px] bg-[#FBC159]/45 mix-blend-multiply"
+                    style={{ left: `${m.l * 100}%`, top: `${m.t * 100}%`, width: `${m.w * 100}%`, height: `${m.h * 100}%` }}
+                  />
+                ))}
+              </div>
             ))}
           </div>
         )}
       </div>
       {doc && (
-        <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-[#1d2023]/95 p-1 shadow-lg backdrop-blur">
-          <span className="px-2 text-xs tabular-nums text-ink-3" aria-live="polite">
+        <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-[#1d2023]/90 p-1 shadow-lg backdrop-blur-xl">
+          <span className="whitespace-nowrap px-2 text-xs tabular-nums text-ink-3" aria-live="polite">
             {page} / {sizes.length}
           </span>
           <button type="button" className={btn} onClick={() => zoomAt(1 / 1.25)} aria-label="Zoom out">

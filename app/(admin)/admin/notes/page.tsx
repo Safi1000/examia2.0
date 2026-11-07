@@ -1,189 +1,493 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Card, Button, Input, Select, Label, Modal, EmptyState, Icon, Badge } from "@/components/ui";
+import { Card, Button, Input, Select, Modal, EmptyState, Icon, Badge, Spinner } from "@/components/ui";
 import type { Note, NoteAssignment } from "@/types";
 import { NoteViewer } from "@/components/NoteViewer";
 import { BulkBar, RowCheck } from "@/components/admin/BulkBar";
 import { uploadNote, notesConfigured } from "@/lib/cloudinary";
+import { cn } from "@/lib/cn";
+import { DEMO } from "@/lib/demo";
+import {
+  LEVEL_SHORT,
+  NOTE_BOOKS,
+  chapterTitle,
+  isHidden,
+  levelOfName,
+  matchChapter,
+  setHidden,
+  slotOf,
+  subjectOfName,
+  type NoteBook,
+} from "@/lib/notes-library";
+import { indexExistingNote, pdfPagesText, saveNoteText, searchableNotes } from "@/lib/notes-client";
 
 const ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp";
+type Db = ReturnType<typeof useDatabase>;
+type Store = ReturnType<typeof useStore>;
 
-function fileIcon(type: string) {
-  if (type.startsWith("image/")) return "🖼️";
-  if (type.includes("pdf")) return "📄";
-  if (type.includes("word") || type.includes("document")) return "📝";
-  if (type.includes("sheet") || type.includes("excel")) return "📊";
-  if (type.includes("presentation") || type.includes("powerpoint")) return "📑";
-  return "📎";
+/** A notes book that exists in the portal: its level is a class, its subject a subject. */
+type BookOpt = { key: string; book: NoteBook | null; classId: string | null; subjectId: string | null; label: string };
+const EVERYONE: BookOpt = { key: "general", book: null, classId: null, subjectId: null, label: "Everyone (any subject)" };
+
+function useBookOptions(db: Db): BookOpt[] {
+  return useMemo(() => {
+    const out: BookOpt[] = [];
+    for (const book of NOTE_BOOKS) {
+      const cls = db.classes.find((c) => levelOfName(c.name) === book.level);
+      const subj = db.subjects.find((s) => subjectOfName(s.name) === book.subject);
+      if (cls && subj) out.push({ key: book.key, book, classId: cls.id, subjectId: subj.id, label: `${LEVEL_SHORT[book.level]} ${book.subject}` });
+    }
+    return out;
+  }, [db.classes, db.subjects]);
 }
 
-function AssignmentBadge({ assignment, db, onDelete }: {
-  assignment: NoteAssignment;
-  db: ReturnType<typeof useDatabase>;
-  onDelete: () => void;
-}) {
-  const cohort = db.cohorts.find((c) => c.id === assignment.cohortId);
-  const cls = assignment.classId ? db.classes.find((c) => c.id === assignment.classId) : null;
-  const subj = assignment.subjectId ? db.subjects.find((s) => s.id === assignment.subjectId) : null;
-
-  const parts = [cohort?.name, cls?.name, subj?.name].filter(Boolean);
-
-  return (
-    <span className="flex items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2 py-1 text-xs text-ink-2">
-      {parts.join(" › ")}
-      <button
-        onClick={() => window.confirm(`Stop showing this note to ${parts.join(", ")}?`) && onDelete()}
-        className="-my-1 -mr-1.5 flex h-8 w-8 items-center justify-center rounded text-ink-3 hover:bg-surface hover:text-error"
-        aria-label={`Stop showing to ${parts.join(", ")}`}
-      >
-        <Icon.Close className="h-3.5 w-3.5" />
-      </button>
-    </span>
+/** Batches that take this level and subject (a batch with no list takes everything). */
+function cohortsFor(db: Db, opt: BookOpt, picked: string[]) {
+  return db.cohorts.filter(
+    (c) =>
+      picked.includes(c.id) &&
+      (!opt.classId || !c.classIds.length || c.classIds.includes(opt.classId)) &&
+      (!opt.subjectId || !c.subjectIds.length || c.subjectIds.includes(opt.subjectId)),
   );
 }
+
+/** Which books a note goes to, from its assignments. */
+function booksOf(note: Note, assignments: NoteAssignment[], opts: BookOpt[]): BookOpt[] {
+  const mine = assignments.filter((a) => a.noteId === note.id);
+  return opts.filter((o) => mine.some((a) => a.subjectId === o.subjectId && (a.classId === o.classId || a.classId === null)));
+}
+
+/** The chapter a note sits on in a book, if any. */
+const slotIn = (book: NoteBook, note: Note) => {
+  const m = matchChapter(book, note.title, note.fileName);
+  return m ? slotOf(m) : null;
+};
+
+/** Every place a note can sit in a book: whole units and chapters. */
+function SlotSelect({ book, value, onChange, label }: { book: NoteBook; value: string; onChange: (v: string) => void; label: string }) {
+  return (
+    <Select value={value} onChange={(e) => onChange(e.target.value)} aria-label={label} className="h-10 text-sm">
+      <option value="">Not a chapter (shows under More notes)</option>
+      {book.units.map((u) => (
+        <optgroup key={u.num} label={`Unit ${u.num}: ${u.name}`}>
+          <option value={`U${u.num}`}>The whole of Unit {u.num}</option>
+          {u.chapters.map(([n, name]) => (
+            <option key={n} value={n}>
+              {n} {name}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </Select>
+  );
+}
+
+/** The title a note gets on a book's slot. */
+function slotTitle(book: NoteBook, slot: string): string | null {
+  if (!slot) return null;
+  if (slot.startsWith("U")) return book.units.find((u) => `U${u.num}` === slot)?.name ?? null;
+  const ch = book.units.flatMap((u) => u.chapters).find(([n]) => n === slot);
+  return ch ? chapterTitle(ch[0], ch[1]) : null;
+}
+
+function Chip({ on, onClick, children, disabled }: { on: boolean; onClick: () => void; children: React.ReactNode; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "inline-flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-[13px] font-semibold transition-colors disabled:opacity-40",
+        on ? "border-brand bg-brand-soft text-ink" : "border-border text-ink-2 hover:border-border-strong hover:text-ink",
+      )}
+    >
+      {on && <Icon.Check className="h-3.5 w-3.5 text-brand" />}
+      {children}
+    </button>
+  );
+}
+
+/** Classes to send a note to: one line per level, subjects beside it. */
+function BookPicker({ opts, picked, onToggle, disabled }: { opts: BookOpt[]; picked: string[]; onToggle: (key: string) => void; disabled?: boolean }) {
+  const levels = [...new Set(opts.filter((o) => o.book).map((o) => o.book!.level))];
+  const rest = opts.filter((o) => !o.book);
+  return (
+    <div className="space-y-2">
+      {levels.map((lv) => (
+        <div key={lv} className="flex flex-wrap items-center gap-1.5">
+          <span className="w-full text-xs text-ink-3 sm:w-28 sm:shrink-0">{LEVEL_SHORT[lv]}</span>
+          {opts
+            .filter((o) => o.book?.level === lv)
+            .map((o) => (
+              <Chip key={o.key} on={picked.includes(o.key)} onClick={() => onToggle(o.key)} disabled={disabled}>
+                <span className="sr-only">{LEVEL_SHORT[lv]} </span>
+                {o.book!.subject}
+              </Chip>
+            ))}
+        </div>
+      ))}
+      {rest.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {rest.map((o) => (
+            <Chip key={o.key} on={picked.includes(o.key)} onClick={() => onToggle(o.key)} disabled={disabled}>
+              {o.label}
+            </Chip>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+
+/* ======================================================================== */
 
 export default function NotesPage() {
   const db = useDatabase();
   const store = useStore();
   const { toast } = useToast();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const opts = useBookOptions(db);
 
   const [viewing, setViewing] = useState<{ id: string; title: string } | null>(null);
-  // Bulk assign: tick notes, pick a scope, assign them all in one go.
+  const [view, setView] = useState<"chapters" | "all">("chapters");
+  const [bookKey, setBookKey] = useState<string>("");
+  const [query, setQuery] = useState("");
+  const [upload, setUpload] = useState<{ book?: string; slot?: string } | null>(null);
+  const [assigning, setAssigning] = useState<Note | null>(null);
+  const [deleting, setDeleting] = useState<Note | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
-  const [bulkBusy, setBulkBusy] = useState(false);
-  const [bulkCohort, setBulkCohort] = useState("");
-  const [bulkClass, setBulkClass] = useState("");
-  const [bulkSubject, setBulkSubject] = useState("");
 
-  // Upload modal state
-  const [uploading, setUploading] = useState(false);
-  const [showUpload, setShowUpload] = useState(false);
-  const [uploadTitle, setUploadTitle] = useState("");
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  // Which PDFs can be searched inside. Checked once, then kept up to date here.
+  const [searchable, setSearchable] = useState<Set<string> | null>(null);
+  const [indexing, setIndexing] = useState<{ done: number; total: number; failed: number } | null>(null);
+  const pdfIds = useMemo(() => db.notes.filter((n) => n.fileType.includes("pdf")).map((n) => n.id), [db.notes]);
+  const checked = useRef(false);
+  useEffect(() => {
+    if (DEMO || checked.current || !pdfIds.length) return;
+    checked.current = true;
+    searchableNotes(pdfIds)
+      .then(setSearchable)
+      .catch(() => setSearchable(null));
+  }, [pdfIds]);
+  const unsearchable = searchable ? pdfIds.filter((id) => !searchable.has(id)) : [];
 
-  // Assignment form state (inside upload modal)
-  const [aCohortId, setACohortId] = useState("");
-  const [aClassId, setAClassId] = useState("");
-  const [aSubjectId, setASubjectId] = useState("");
-  const [pendingAssignments, setPendingAssignments] = useState<{ cohortId: string; classId: string | null; subjectId: string | null }[]>([]);
-
-  // Post-upload: adding assignments to existing note
-  const [assigningNote, setAssigningNote] = useState<Note | null>(null);
-  const [eaCohortId, setEACohortId] = useState("");
-  const [eaClassId, setEAClassId] = useState("");
-  const [eaSubjectId, setEASubjectId] = useState("");
-
-  // Delete confirmation
-  const [deletingNote, setDeletingNote] = useState<Note | null>(null);
-
-  function resetUploadModal() {
-    setUploadTitle("");
-    setUploadFile(null);
-    setUploadError(null);
-    setACohortId("");
-    setAClassId("");
-    setASubjectId("");
-    setPendingAssignments([]);
-    if (fileRef.current) fileRef.current.value = "";
-  }
-
-  function openUpload() {
-    resetUploadModal();
-    setShowUpload(true);
-  }
-
-  // Classes/subjects available for the selected cohort in the assignment form
-  const cohortForA = db.cohorts.find((c) => c.id === aCohortId);
-  const classesForA = cohortForA ? db.classes.filter((c) => cohortForA.classIds.includes(c.id)) : [];
-  const subjectsForA = cohortForA ? db.subjects.filter((s) => cohortForA.subjectIds.includes(s.id)) : [];
-
-  const cohortForEA = db.cohorts.find((c) => c.id === eaCohortId);
-  const classesForEA = cohortForEA ? db.classes.filter((c) => cohortForEA.classIds.includes(c.id)) : [];
-  const subjectsForEA = cohortForEA ? db.subjects.filter((s) => cohortForEA.subjectIds.includes(s.id)) : [];
-
-  function addPendingAssignment() {
-    // Silently doing nothing here is how a teacher ends up uploading a note
-    // with no assignment at all: they fill in class/subject, forget the cohort,
-    // click Add, and see no reason to think anything is wrong.
-    if (!aCohortId) return setUploadError("Choose a cohort first.");
-    setUploadError(null);
-    const already = pendingAssignments.some(
-      (a) => a.cohortId === aCohortId && a.classId === (aClassId || null) && a.subjectId === (aSubjectId || null),
-    );
-    if (already) return setUploadError("That group is already in the list.");
-    setPendingAssignments((prev) => [...prev, { cohortId: aCohortId, classId: aClassId || null, subjectId: aSubjectId || null }]);
-    setAClassId("");
-    setASubjectId("");
-  }
-
-  async function handleUpload() {
-    if (!uploadTitle.trim()) return setUploadError("Give the note a title.");
-    if (!uploadFile) return setUploadError("Choose a file.");
-    // A choice picked but not added with "Add" still counts (as well as the ones already in the list).
-    const pick = aCohortId ? { cohortId: aCohortId, classId: aClassId || null, subjectId: aSubjectId || null } : null;
-    const inList = pick && pendingAssignments.some((a) => a.cohortId === pick.cohortId && a.classId === pick.classId && a.subjectId === pick.subjectId);
-    const assigned = pick && !inList ? [...pendingAssignments, pick] : pendingAssignments;
-    // A note reaches students ONLY through an assignment. Uploading without one
-    // produces a note the teacher can see and no student ever can — which is
-    // indistinguishable, from the teacher's side, from notes being broken.
-    if (assigned.length === 0) {
-      return setUploadError("Choose who can see it (at least a cohort), so students can find it.");
-    }
-    if (!notesConfigured()) return setUploadError("Note uploads aren't set up yet. Ask your developer to check the file storage settings.");
-
-    setUploading(true);
-    setUploadError(null);
-    try {
-      const { url, fileType, fileName } = await uploadNote(uploadFile);
-      const noteId = await store.addNote(uploadTitle.trim(), url, fileType, fileName);
-      for (const a of assigned) {
-        await store.addNoteAssignment(noteId, a.cohortId, a.classId, a.subjectId);
+  async function makeSearchable() {
+    const todo = unsearchable;
+    setIndexing({ done: 0, total: todo.length, failed: 0 });
+    let failed = 0;
+    for (let i = 0; i < todo.length; i++) {
+      try {
+        await indexExistingNote(todo[i]);
+        setSearchable((s) => new Set([...(s ?? []), todo[i]]));
+      } catch {
+        failed++;
       }
-      toast("Note uploaded.", "success");
-      setShowUpload(false);
-      resetUploadModal();
+      setIndexing({ done: i + 1, total: todo.length, failed });
+    }
+    toast(failed ? `${todo.length - failed} done. ${failed} couldn't be read; try again later.` : "All notes can be searched now.", failed ? "error" : "success");
+    setIndexing(null);
+  }
+
+  const activeBook = opts.find((o) => o.key === bookKey) ?? opts[0];
+  const hiddenCount = db.notes.filter((n) => isHidden(n.fileType)).length;
+  const q = query.trim().toLowerCase();
+
+  async function setNoteHidden(n: Note, hidden: boolean) {
+    try {
+      await store.updateNote(n.id, { fileType: setHidden(n.fileType, hidden) });
+      toast(hidden ? "Hidden from students. It's still here if you need it back." : "Showing to students again.", "success");
     } catch (e) {
-      setUploadError(e instanceof Error ? e.message : "Upload failed.");
-    } finally {
-      setUploading(false);
+      toast(e instanceof Error ? e.message : "Couldn't save that.", "error");
     }
   }
 
-  async function addExistingAssignment() {
-    if (!assigningNote || !eaCohortId) return;
-    const existing = db.noteAssignments.filter((na) => na.noteId === assigningNote.id);
-    const already = existing.some(
-      (a) => a.cohortId === eaCohortId && a.classId === (eaClassId || null) && a.subjectId === (eaSubjectId || null),
-    );
-    if (already) { toast("That assignment already exists.", "error"); return; }
-    try {
-      await store.addNoteAssignment(assigningNote.id, eaCohortId, eaClassId || null, eaSubjectId || null);
-      setEACohortId("");
-      setEAClassId("");
-      setEASubjectId("");
-      toast("Assignment added.", "success");
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "Could not assign the note.", "error");
-    }
-  }
+  const actions = (n: Note) => (
+    <NoteActions
+      note={n}
+      searchable={searchable ? (n.fileType.includes("pdf") ? searchable.has(n.id) : null) : null}
+      onRead={() => setViewing({ id: n.id, title: n.title })}
+      onAssign={() => setAssigning(n)}
+      onHide={(h) => void setNoteHidden(n, h)}
+      onDelete={() => setDeleting(n)}
+    />
+  );
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader
         title="Notes"
-        subtitle={`${db.notes.length} uploaded`}
-        actions={<Button onClick={openUpload}><Icon.Plus className="h-4 w-4" /> Upload note</Button>}
+        subtitle={`${db.notes.length - hiddenCount} showing to students${hiddenCount ? ` · ${hiddenCount} hidden` : ""}`}
+        actions={
+          <Button onClick={() => setUpload({})}>
+            <Icon.Plus className="h-4 w-4" /> Upload notes
+          </Button>
+        }
       />
 
-      <BulkBar count={picked.length} noun="note" onClear={() => setPicked([])}>
-        <Select value={bulkCohort} onChange={(e) => setBulkCohort(e.target.value)} className="h-9 w-auto min-w-36" aria-label="Cohort">
-          <option value="">Cohort…</option>
+      {unsearchable.length > 0 && (
+        <Card className="mb-5 flex flex-wrap items-center gap-3 p-4">
+          <Icon.Search className="h-5 w-5 shrink-0 text-brand" />
+          <p className="min-w-0 flex-1 text-sm text-ink-2">
+            {indexing
+              ? `Reading note ${Math.min(indexing.done + 1, indexing.total)} of ${indexing.total}… keep this page open.`
+              : `${unsearchable.length} older PDF${unsearchable.length === 1 ? " isn't" : "s aren't"} searchable yet. Students can't find words inside ${unsearchable.length === 1 ? "it" : "them"}.`}
+          </p>
+          <Button size="sm" onClick={() => void makeSearchable()} loading={!!indexing} disabled={!!indexing}>
+            Make them searchable
+          </Button>
+        </Card>
+      )}
+
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <div role="tablist" aria-label="View" className="inline-flex rounded-full border border-border p-1">
+          {(["chapters", "all"] as const).map((v) => (
+            <button
+              key={v}
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+              className={cn("h-9 rounded-full px-4 text-sm font-semibold", view === v ? "bg-brand-soft text-ink" : "text-ink-3 hover:text-ink")}
+            >
+              {v === "chapters" ? "By chapter" : "All notes"}
+            </button>
+          ))}
+        </div>
+        <label className="relative min-w-0 basis-full sm:max-w-xs sm:flex-1 sm:basis-auto">
+          <Icon.Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Find a note by name"
+            aria-label="Find a note by name"
+            className="h-10 w-full rounded-full border border-border bg-surface pl-9 pr-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none"
+          />
+        </label>
+      </div>
+
+      {db.notes.length === 0 && !opts.length ? (
+        <EmptyState
+          icon={<Icon.Doc />}
+          title="No notes yet"
+          message="Upload PDFs, Word files, slides or images, and choose which classes get them."
+          action={<Button onClick={() => setUpload({})}>Upload notes</Button>}
+        />
+      ) : view === "chapters" && !q && activeBook?.book ? (
+        <>
+          <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {opts.map((o) => (
+              <Chip key={o.key} on={o.key === activeBook.key} onClick={() => setBookKey(o.key)}>
+                {o.label}
+              </Chip>
+            ))}
+          </div>
+          <BookView db={db} opt={activeBook} actions={actions} onUpload={(slot) => setUpload({ book: activeBook.key, slot })} />
+        </>
+      ) : (
+        <AllNotes db={db} store={store} opts={opts} q={q} picked={picked} setPicked={setPicked} actions={actions} />
+      )}
+
+      {upload && <UploadModal db={db} store={store} opts={opts} preset={upload} onClose={() => setUpload(null)} onIndexed={(id) => setSearchable((s) => (s ? new Set([...s, id]) : s))} />}
+      {assigning && <AssignModal db={db} store={store} opts={opts} note={assigning} onClose={() => setAssigning(null)} />}
+
+      <Modal
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        title="Delete note?"
+        description={deleting ? `"${deleting.title}" will be removed for all students.` : ""}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDeleting(null)}>
+              Cancel
+            </Button>
+            {deleting && !isHidden(deleting.fileType) && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  void setNoteHidden(deleting, true);
+                  setDeleting(null);
+                }}
+              >
+                Hide instead
+              </Button>
+            )}
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (deleting) store.deleteNote(deleting.id);
+                setDeleting(null);
+                toast("Note deleted.", "success");
+              }}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-2">This can&apos;t be undone. To keep it but stop students seeing it, hide it instead.</p>
+      </Modal>
+      {viewing && <NoteViewer noteId={viewing.id} title={viewing.title} onClose={() => setViewing(null)} />}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+
+function NoteActions({
+  note,
+  searchable,
+  onRead,
+  onAssign,
+  onHide,
+  onDelete,
+}: {
+  note: Note;
+  searchable: boolean | null;
+  onRead: () => void;
+  onAssign: () => void;
+  onHide: (hidden: boolean) => void;
+  onDelete: () => void;
+}) {
+  const hidden = isHidden(note.fileType);
+  const btn = "inline-flex h-9 items-center rounded-full px-3 text-[13px] font-semibold text-ink-2 hover:bg-surface-2 hover:text-ink";
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {hidden && <Badge tone="warning">Hidden</Badge>}
+      {searchable === false && <span className="px-1 text-xs text-ink-3">Not searchable</span>}
+      <button type="button" className={btn} onClick={onRead}>
+        Read
+      </button>
+      <button type="button" className={btn} onClick={onAssign}>
+        Who gets it
+      </button>
+      <button type="button" className={btn} onClick={() => onHide(!hidden)}>
+        {hidden ? "Show" : "Hide"}
+      </button>
+      <button type="button" onClick={onDelete} className="flex h-9 w-9 items-center justify-center rounded-full text-ink-3 hover:bg-error-soft hover:text-error" aria-label={`Delete ${note.title}`}>
+        <Icon.Trash className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+/** One book, unit by unit: what's uploaded on each chapter and what's still to come. */
+function BookView({ db, opt, actions, onUpload }: { db: Db; opt: BookOpt; actions: (n: Note) => React.ReactNode; onUpload: (slot: string) => void }) {
+  const book = opt.book!;
+  const bySlot = new Map<string, Note[]>();
+  const more: Note[] = [];
+  for (const n of db.notes) {
+    if (!booksOf(n, db.noteAssignments, [opt]).length) continue;
+    const s = slotIn(book, n);
+    if (s) bySlot.set(s, [...(bySlot.get(s) ?? []), n]);
+    else more.push(n);
+  }
+  const all = book.units.flatMap((u) => u.chapters.map(([c]) => ({ u: u.num, c })));
+  const done = all.filter(({ u, c }) => bySlot.has(c) || bySlot.has(`U${u}`)).length;
+
+  const row = (n: Note, label: string, sub?: string) => (
+    <div key={n.id} className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3", isHidden(n.fileType) && "opacity-60")}>
+      <span className="w-10 shrink-0 text-[13px] font-semibold tabular-nums text-brand">{label}</span>
+      <span className="min-w-0 flex-1 basis-[calc(100%-3.25rem)] sm:basis-0">
+        <span className="block text-[15px] font-semibold text-ink">{n.title}</span>
+        <span className="block text-xs text-ink-3">
+          {sub ? `${sub} · ` : ""}
+          {n.fileName} · {new Date(n.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+        </span>
+      </span>
+      <span className="ml-[3.25rem] sm:ml-0">{actions(n)}</span>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-sm text-ink-2">
+          <span className="font-semibold text-ink">
+            {done} of {all.length}
+          </span>{" "}
+          chapters uploaded for {opt.label}
+        </p>
+      </div>
+      {book.units.map((u) => {
+        const unitNotes = bySlot.get(`U${u.num}`) ?? [];
+        return (
+          <Card key={u.num} className="overflow-hidden p-0">
+            <div className="border-b border-border px-4 py-3">
+              <span className="block text-[13px] text-ink-3">Unit {u.num}</span>
+              <span className="block text-[17px] font-semibold leading-snug text-ink">{u.name}</span>
+            </div>
+            <div className="divide-y divide-border">
+              {unitNotes.map((n) => row(n, "Unit", "The whole unit"))}
+              {u.chapters.map(([c, name]) => {
+                const list = bySlot.get(c);
+                if (list) return list.map((n) => row(n, c));
+                return (
+                  // The whole row uploads to this chapter: one tap, no small button to aim for.
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => onUpload(c)}
+                    aria-label={`Upload ${c} ${name}`}
+                    className="group flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface-2 active:bg-surface-2"
+                  >
+                    <span className="w-10 shrink-0 text-[13px] tabular-nums text-ink-3">{c}</span>
+                    <span className="min-w-0 flex-1 text-[15px] text-ink-3">
+                      {name}
+                      {unitNotes.length ? " · in the unit notes" : ""}
+                    </span>
+                    <Icon.Plus className="h-4 w-4 shrink-0 text-ink-3 group-hover:text-brand" />
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+        );
+      })}
+      {more.length > 0 && (
+        <Card className="overflow-hidden p-0">
+          <p className="border-b border-border px-4 py-3 font-semibold text-ink">More notes (not on a chapter)</p>
+          <div className="divide-y divide-border">{more.map((n) => row(n, ""))}</div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function AllNotes({
+  db,
+  store,
+  opts,
+  q,
+  picked,
+  setPicked,
+  actions,
+}: {
+  db: Db;
+  store: Store;
+  opts: BookOpt[];
+  q: string;
+  picked: string[];
+  setPicked: (f: (p: string[]) => string[]) => void;
+  actions: (n: Note) => React.ReactNode;
+}) {
+  const { toast } = useToast();
+  const [bulkCohort, setBulkCohort] = useState("");
+  const [bulkClass, setBulkClass] = useState("");
+  const [bulkSubject, setBulkSubject] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const list = db.notes.filter((n) => !q || n.title.toLowerCase().includes(q) || n.fileName.toLowerCase().includes(q));
+
+  return (
+    <>
+      <BulkBar count={picked.length} noun="note" onClear={() => setPicked(() => [])}>
+        <Select value={bulkCohort} onChange={(e) => setBulkCohort(e.target.value)} className="h-9 w-auto min-w-36" aria-label="Batch">
+          <option value="">Batch…</option>
           {db.cohorts.filter((c) => c.active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select>
         <Select value={bulkClass} onChange={(e) => setBulkClass(e.target.value)} className="h-9 w-auto min-w-32" aria-label="Class">
@@ -204,7 +508,6 @@ export default function NotesPage() {
               let ok = 0;
               let failed = 0;
               for (const id of picked) {
-                // Already shown to that group: skip, never a duplicate.
                 const has = db.noteAssignments.some((a) => a.noteId === id && a.cohortId === bulkCohort && a.classId === (bulkClass || null) && a.subjectId === (bulkSubject || null));
                 if (has) continue;
                 try {
@@ -218,246 +521,543 @@ export default function NotesPage() {
               if (ok) toast(`${ok} note${ok === 1 ? "" : "s"} assigned.`, "success");
               if (failed) toast(`${failed} couldn't be assigned. Try them again.`, "error");
               if (!ok && !failed) toast("Those notes were already shown to that group.", "success");
-              setPicked([]);
+              setPicked(() => []);
             })();
           }}
         >
           Assign
         </Button>
       </BulkBar>
-
-      {db.notes.length === 0 ? (
-        <EmptyState
-          icon={<Icon.Doc />}
-          title="No notes yet"
-          message="Upload PDFs, Word docs, images, and more. Assign them to cohorts, classes, or subjects."
-          action={<Button onClick={openUpload}>Upload first note</Button>}
-        />
+      {list.length === 0 ? (
+        <p className="py-10 text-center text-sm text-ink-3">{q ? "No note has that name." : "No notes yet."}</p>
       ) : (
-        <div className="space-y-3">
-          {db.notes.map((note) => {
-            const assignments = db.noteAssignments.filter((na) => na.noteId === note.id);
+        <div className="space-y-2.5">
+          {list.map((n) => {
+            const books = booksOf(n, db.noteAssignments, opts);
+            const assigned = db.noteAssignments.some((a) => a.noteId === n.id);
             return (
-              <Card key={note.id} className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <span className="pt-1">
-                      <RowCheck
-                        checked={picked.includes(note.id)}
-                        onChange={(on) => setPicked((prev) => (on ? [...prev, note.id] : prev.filter((x) => x !== note.id)))}
-                        label={`Select ${note.title}`}
-                      />
-                    </span>
-                    <span className="text-2xl leading-none">{fileIcon(note.fileType)}</span>
-                    <div className="min-w-0">
-                      <p className="font-bold text-ink">{note.title}</p>
-                      <p className="text-sm text-ink-3">{note.fileName}</p>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {assignments.length === 0 && (
-                          // Unassigned means invisible to every student. Say so
-                          // plainly — "No assignments yet" read like a detail.
-                          <Badge tone="warning">
-                            <Icon.Warn className="h-3.5 w-3.5" />
-                            Not visible to students. Assign it
-                          </Badge>
-                        )}
-                        {assignments.map((a) => (
-                          <AssignmentBadge
-                            key={a.id}
-                            assignment={a}
-                            db={db}
-                            onDelete={() => store.deleteNoteAssignment(a.id)}
-                          />
-                        ))}
-                        <button
-                          onClick={() => { setAssigningNote(note); setEACohortId(""); setEAClassId(""); setEASubjectId(""); }}
-                          className="flex items-center gap-1 rounded-md border border-dashed border-border px-2 py-1 text-xs text-ink-3 hover:border-border-strong hover:text-ink"
-                        >
-                          <Icon.Plus className="h-3 w-3" /> Assign
-                        </button>
-                      </div>
+              <Card key={n.id} className={cn("p-4", isHidden(n.fileType) && "opacity-70")}>
+                <div className="flex flex-wrap items-start gap-3">
+                  <span className="pt-1.5">
+                    <RowCheck checked={picked.includes(n.id)} onChange={(on) => setPicked((p) => (on ? [...p, n.id] : p.filter((x) => x !== n.id)))} label={`Select ${n.title}`} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-ink">{n.title}</p>
+                    <p className="text-xs text-ink-3">
+                      {n.fileName} · {new Date(n.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {!assigned && (
+                        <Badge tone="warning">
+                          <Icon.Warn className="h-3.5 w-3.5" /> No student can see it yet
+                        </Badge>
+                      )}
+                      {books.map((b) => (
+                        <span key={b.key} className="rounded-full border border-border bg-surface-2 px-2.5 py-0.5 text-xs text-ink-2">
+                          {b.label}
+                        </span>
+                      ))}
+                      {assigned && !books.length && <span className="rounded-full border border-border bg-surface-2 px-2.5 py-0.5 text-xs text-ink-2">Shared with a batch</span>}
                     </div>
                   </div>
-                  <div className="flex shrink-0 gap-1">
-                    <button
-                      onClick={() => setViewing({ id: note.id, title: note.title })}
-                      className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink"
-                      aria-label="Read file"
-                    >
-                      <Icon.ChevronRight className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setDeletingNote(note)}
-                      className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-error-soft hover:text-error"
-                      aria-label="Delete note"
-                    >
-                      <Icon.Trash className="h-4 w-4" />
-                    </button>
-                  </div>
+                  {actions(n)}
                 </div>
               </Card>
             );
           })}
         </div>
       )}
+    </>
+  );
+}
 
-      {/* Upload modal */}
-      <Modal
-        open={showUpload}
-        onClose={() => { setShowUpload(false); resetUploadModal(); }}
-        title="Upload note"
-        size="md"
-        footer={
+/* ------------------------------------------------------------------------ */
+
+type Row = {
+  key: string;
+  file: File;
+  /** books this file goes to */
+  books: string[];
+  /** book key -> slot ("2.6", "U2", or "" for not a chapter) */
+  slots: Record<string, string>;
+  /** title when it isn't a chapter */
+  title: string;
+  /** older notes on the same chapter to hide when this one is published */
+  hideOld: string[];
+  status: "ready" | "uploading" | "saving" | "done" | "failed";
+  progress: number;
+  error?: string;
+  /** published, but its words couldn't be saved for search */
+  unsearchable?: boolean;
+  /** showing the class picker for this one file */
+  editing?: boolean;
+};
+
+const cleanName = (name: string) =>
+  name
+    .replace(/\.[^.]+$/, "")
+    .replace(/[_]+/g, " ")
+    .replace(/\s+-\s+/g, " ")
+    .trim();
+
+function UploadModal({
+  db,
+  store,
+  opts,
+  preset,
+  onClose,
+  onIndexed,
+}: {
+  db: Db;
+  store: Store;
+  opts: BookOpt[];
+  preset: { book?: string; slot?: string };
+  onClose: () => void;
+  onIndexed: (id: string) => void;
+}) {
+  const { toast } = useToast();
+  const allOpts = useMemo(() => [...opts, EVERYONE], [opts]);
+  const [defaults, setDefaults] = useState<string[]>(preset.book ? [preset.book] : []);
+  const activeCohorts = db.cohorts.filter((c) => c.active);
+  const [cohorts, setCohorts] = useState<string[]>(activeCohorts.map((c) => c.id));
+  const [rows, setRows] = useState<Row[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [drag, setDrag] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const folderRef = useRef<HTMLInputElement>(null);
+  const finished = rows.length > 0 && rows.every((r) => r.status === "done");
+
+  const optOf = (k: string) => allOpts.find((o) => o.key === k);
+
+  /** Visible notes already on this book's slot (to offer hiding the old one). */
+  const olderOn = (bookKey: string, slot: string) => {
+    const o = optOf(bookKey);
+    if (!o?.book || !slot) return [];
+    return db.notes.filter((n) => !isHidden(n.fileType) && booksOf(n, db.noteAssignments, [o]).length && slotIn(o.book!, n) === slot);
+  };
+
+  function addFiles(list: FileList | File[]) {
+    const files = [...list].filter((f) => f.size > 0 && !f.name.startsWith("."));
+    if (!files.length) return;
+    setError(null);
+    setRows((prev) => {
+      const next = [...prev];
+      for (const file of files) {
+        const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+        if (next.some((r) => r.file.name === file.name && r.file.size === file.size)) continue;
+        // A folder like "AS/Accounting/…" says which book it's for.
+        const parts = path.split("/").slice(0, -1);
+        const lvl = parts.map(levelOfName).find(Boolean) ?? null;
+        const sub = parts.map(subjectOfName).find(Boolean) ?? null;
+        const fromPath = opts.find((o) => o.book && o.book.level === lvl && o.book.subject === sub);
+        const books = fromPath ? [fromPath.key] : defaults.length ? [...defaults] : [];
+        const slots: Record<string, string> = {};
+        for (const k of books) {
+          const b = optOf(k)?.book;
+          if (!b) continue;
+          if (preset.slot && k === preset.book && files.length === 1) slots[k] = preset.slot;
+          else {
+            const m = matchChapter(b, cleanName(file.name), file.name);
+            slots[k] = m ? slotOf(m) : "";
+          }
+        }
+        next.push({ key: `${file.name}:${file.size}:${Math.random()}`, file, books, slots, title: cleanName(file.name), hideOld: [], status: "ready", progress: 0 });
+      }
+      return next;
+    });
+  }
+
+  const patch = (key: string, p: Partial<Row> | ((r: Row) => Partial<Row>)) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...(typeof p === "function" ? p(r) : p) } : r)));
+
+  function toggleBook(r: Row, k: string) {
+    const books = toggle(r.books, k);
+    const slots = { ...r.slots };
+    const b = optOf(k)?.book;
+    if (books.includes(k) && b && slots[k] === undefined) {
+      const m = matchChapter(b, cleanName(r.file.name), r.file.name);
+      slots[k] = m ? slotOf(m) : "";
+    }
+    patch(r.key, { books, slots });
+  }
+
+  /** Apply the "for" choice to every file still waiting. */
+  function applyDefaults(next: string[]) {
+    setDefaults(next);
+    setRows((rs) =>
+      rs.map((r) => {
+        if (r.status !== "ready") return r;
+        const slots: Record<string, string> = {};
+        for (const k of next) {
+          const b = optOf(k)?.book;
+          if (!b) continue;
+          const m = matchChapter(b, cleanName(r.file.name), r.file.name);
+          slots[k] = r.slots[k] ?? (m ? slotOf(m) : "");
+        }
+        return { ...r, books: next, slots };
+      }),
+    );
+  }
+
+  /** Groups of books that share one title: one note each. */
+  function plan(r: Row) {
+    const groups = new Map<string, BookOpt[]>();
+    for (const k of r.books) {
+      const o = optOf(k);
+      if (!o) continue;
+      const t = (o.book && slotTitle(o.book, r.slots[k] ?? "")) || r.title.trim() || cleanName(r.file.name);
+      groups.set(t, [...(groups.get(t) ?? []), o]);
+    }
+    return groups;
+  }
+
+  async function publish() {
+    setError(null);
+    const todo = rows.filter((r) => r.status === "ready" || r.status === "failed");
+    if (!todo.length) return;
+    for (const r of todo) {
+      if (!r.books.length) return setError(`Choose who gets "${r.file.name}".`);
+      for (const k of r.books) {
+        const o = optOf(k)!;
+        if (!cohortsFor(db, o, cohorts).length) return setError(`None of the batches you picked take ${o.label}. Tick a batch that does.`);
+      }
+    }
+    if (!DEMO && !notesConfigured()) return setError("Note uploads aren't set up yet. Ask your developer to check the file storage settings.");
+    setBusy(true);
+    let ok = 0;
+    // Two at a time: quick, and kind to a home connection.
+    const queue = [...todo];
+    const worker = async () => {
+      for (let r = queue.shift(); r; r = queue.shift()) {
+        const row = r;
+        patch(row.key, { status: "uploading", progress: 0, error: undefined });
+        try {
+          const isPdf = row.file.type.includes("pdf") || /\.pdf$/i.test(row.file.name);
+          // Read the words while the file uploads.
+          const words = isPdf ? pdfPagesText(row.file).catch(() => null) : Promise.resolve(null);
+          const { url, fileType, fileName } = await uploadNote(row.file, (f) => patch(row.key, { progress: f }));
+          patch(row.key, { status: "saving", progress: 1 });
+          const pages = await words;
+          let unsearchable = isPdf && !pages;
+          for (const [title, books] of plan(row)) {
+            const noteId = await store.addNote(title, url, fileType || (isPdf ? "application/pdf" : "application/octet-stream"), fileName);
+            for (const o of books) {
+              for (const c of cohortsFor(db, o, cohorts)) await store.addNoteAssignment(noteId, c.id, o.classId, o.subjectId);
+            }
+            if (pages) {
+              try {
+                await saveNoteText(noteId, pages);
+                onIndexed(noteId);
+              } catch {
+                unsearchable = true;
+              }
+            }
+          }
+          for (const id of row.hideOld) {
+            const old = db.notes.find((n) => n.id === id);
+            if (old) await store.updateNote(id, { fileType: setHidden(old.fileType, true) }).catch(() => {});
+          }
+          patch(row.key, { status: "done", unsearchable });
+          ok++;
+        } catch (e) {
+          patch(row.key, { status: "failed", error: e instanceof Error ? e.message : "Didn't upload." });
+        }
+      }
+    };
+    await Promise.all([worker(), worker()]);
+    setBusy(false);
+    if (ok) toast(`${ok} note${ok === 1 ? "" : "s"} published.`, "success");
+  }
+
+  const waiting = rows.filter((r) => r.status === "ready" || r.status === "failed").length;
+
+  return (
+    <Modal
+      open
+      onClose={() => !busy && onClose()}
+      title="Upload notes"
+      size="lg"
+      footer={
+        finished ? (
+          <Button onClick={onClose}>Done</Button>
+        ) : (
           <>
-            <Button variant="secondary" onClick={() => { setShowUpload(false); resetUploadModal(); }}>Cancel</Button>
-            <Button onClick={handleUpload} disabled={uploading || !uploadTitle.trim() || !uploadFile}>
-              {uploading ? "Uploading…" : "Upload"}
+            <Button variant="secondary" onClick={onClose} disabled={busy}>
+              Cancel
+            </Button>
+            <Button onClick={() => void publish()} disabled={busy || !waiting} loading={busy}>
+              {busy ? "Publishing…" : `Publish ${waiting || ""} note${waiting === 1 ? "" : "s"}`}
             </Button>
           </>
-        }
-      >
-        <div className="space-y-5">
-          <Input
-            label="Title"
-            value={uploadTitle}
-            onChange={(e) => setUploadTitle(e.target.value)}
-            placeholder="e.g. Chapter 3, Supply and Demand"
-            required
-            autoFocus
-          />
+        )
+      }
+    >
+      <div className="space-y-6">
+        <section>
+          <p className="mb-2 text-sm font-semibold text-ink">1. Who are these for?</p>
+          <p className="mb-2.5 text-xs text-ink-3">Tick every class that should get them. Files in a folder like &ldquo;AS / Accounting&rdquo; are picked up on their own.</p>
+          <BookPicker opts={allOpts} picked={defaults} onToggle={(k) => applyDefaults(toggle(defaults, k))} disabled={busy} />
+          {activeCohorts.length > 1 && (
+            <>
+              <p className="mb-2 mt-4 text-xs font-semibold text-ink-2">Batches</p>
+              <div className="flex flex-wrap gap-2">
+                {activeCohorts.map((c) => (
+                  <Chip key={c.id} on={cohorts.includes(c.id)} onClick={() => setCohorts(toggle(cohorts, c.id))} disabled={busy}>
+                    {c.name}
+                  </Chip>
+                ))}
+              </div>
+              <p className="mt-1.5 text-xs text-ink-3">Only batches that take that class and subject get the note.</p>
+            </>
+          )}
+        </section>
 
-          <div>
-            <Label required>File</Label>
-            <div className="mt-1">
-              <input
-                ref={fileRef}
-                type="file"
-                accept={ACCEPT}
-                onChange={(e) => {
-                  const f = e.target.files?.[0] ?? null;
-                  setUploadFile(f);
-                  // Name it after the file unless a title was typed.
-                  if (f && !uploadTitle.trim()) setUploadTitle(f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " "));
-                }}
-                className="block w-full text-sm text-ink-2 file:mr-3 file:rounded-md file:border-0 file:bg-brand-soft file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-brand hover:file:opacity-80"
-              />
-              <p className="mt-1 text-xs text-ink-3">PDF, Word, Excel, PowerPoint, or image (max 100 MB)</p>
-            </div>
-          </div>
-
-          {/* Assignment builder */}
-          <div>
-            <Label>Assign to</Label>
-            <p className="mb-2 text-xs text-ink-3">Cohort is required. Class and Subject are optional (narrower = fewer students see it).</p>
-
-            <div className="space-y-2">
-              <Select value={aCohortId} onChange={(e) => { setACohortId(e.target.value); setAClassId(""); setASubjectId(""); }} aria-label="Cohort">
-                <option value="">Select cohort…</option>
-                {db.cohorts.filter((c) => c.active || c.id === aCohortId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </Select>
-
-              {aCohortId && classesForA.length > 0 && (
-                <Select value={aClassId} onChange={(e) => { setAClassId(e.target.value); setASubjectId(""); }} aria-label="Class (optional)">
-                  <option value="">All classes in cohort</option>
-                  {classesForA.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </Select>
-              )}
-
-              {aCohortId && subjectsForA.length > 0 && (
-                <Select value={aSubjectId} onChange={(e) => setASubjectId(e.target.value)} aria-label="Subject (optional)">
-                  <option value="">All subjects in cohort{aClassId ? " & class" : ""}</option>
-                  {subjectsForA.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </Select>
-              )}
-
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={addPendingAssignment}
-                disabled={!aCohortId}
-                className="w-full"
-              >
-                <Icon.Plus className="h-4 w-4" /> Add who can see it
+        <section>
+          <p className="mb-2 text-sm font-semibold text-ink">2. Add the files</p>
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDrag(true);
+            }}
+            onDragLeave={() => setDrag(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDrag(false);
+              addFiles(e.dataTransfer.files);
+            }}
+            className={cn("rounded-2xl border-2 border-dashed px-4 py-6 text-center transition-colors", drag ? "border-brand bg-brand-soft" : "border-border")}
+          >
+            <p className="text-sm text-ink-2">Drop PDFs here, as many as you like</p>
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
+              <Button size="sm" variant="secondary" onClick={() => fileRef.current?.click()} disabled={busy}>
+                Choose files
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => folderRef.current?.click()} disabled={busy}>
+                Choose a folder
               </Button>
             </div>
-
-            {pendingAssignments.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {pendingAssignments.map((a, i) => {
-                  const cohort = db.cohorts.find((c) => c.id === a.cohortId);
-                  const cls = a.classId ? db.classes.find((c) => c.id === a.classId) : null;
-                  const subj = a.subjectId ? db.subjects.find((s) => s.id === a.subjectId) : null;
-                  const parts = [cohort?.name, cls?.name, subj?.name].filter(Boolean);
-                  return (
-                    <span key={i} className="flex items-center gap-1.5 rounded-md border border-border bg-surface-2 px-2 py-1 text-xs text-ink-2">
-                      {parts.join(" › ")}
-                      <button onClick={() => setPendingAssignments((p) => p.filter((_, j) => j !== i))} className="text-ink-3 hover:text-error">
-                        <Icon.Close className="h-3 w-3" />
-                      </button>
-                    </span>
-                  );
-                })}
-              </div>
-            )}
+            <p className="mt-2 text-xs text-ink-3">PDF works best (students can search inside it). Word, PowerPoint, Excel and images work too.</p>
+            <input ref={fileRef} type="file" multiple accept={ACCEPT} className="hidden" onChange={(e) => e.target.files && (addFiles(e.target.files), (e.target.value = ""))} />
+            <input
+              ref={folderRef}
+              type="file"
+              multiple
+              className="hidden"
+              {...({ webkitdirectory: "" } as Record<string, string>)}
+              onChange={(e) => e.target.files && (addFiles(e.target.files), (e.target.value = ""))}
+            />
           </div>
+        </section>
 
-          {uploadError && (
-            <p className="rounded-md border border-error/30 bg-error-soft px-3 py-2 text-sm font-medium text-error">{uploadError}</p>
-          )}
-        </div>
-      </Modal>
+        {rows.length > 0 && (
+          <section>
+            <p className="mb-2 text-sm font-semibold text-ink">3. Check each one</p>
+            <ul className="space-y-3">
+              {rows.map((r) => {
+                const locked = r.status !== "ready" && r.status !== "failed";
+                const titles = [...plan(r).keys()];
+                const anyChapter = r.books.some((k) => r.slots[k]);
+                return (
+                  <li key={r.key} className="rounded-2xl border border-border bg-surface p-3.5">
+                    <div className="flex items-start gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs text-ink-3">{r.file.name}</p>
+                        <p className="mt-0.5 text-[15px] font-semibold text-ink">{titles.length ? titles.join("  ·  ") : r.title}</p>
+                      </div>
+                      <RowStatus r={r} onRemove={() => setRows((rs) => rs.filter((x) => x.key !== r.key))} />
+                    </div>
+                    {!locked && (
+                      <div className="mt-3 space-y-2.5">
+                        {r.editing || !r.books.length ? (
+                          <BookPicker opts={allOpts} picked={r.books} onToggle={(k) => toggleBook(r, k)} />
+                        ) : (
+                          <p className="text-[13px] text-ink-3">
+                            For {r.books.map((k) => optOf(k)?.label).filter(Boolean).join(", ")}
+                            {" · "}
+                            <button type="button" onClick={() => patch(r.key, { editing: true })} className="font-semibold text-brand hover:underline">
+                              Change
+                            </button>
+                          </p>
+                        )}
+                        {r.books.map((k) => {
+                          const o = optOf(k);
+                          if (!o?.book) return null;
+                          const older = olderOn(k, r.slots[k] ?? "");
+                          return (
+                            <div key={k} className="space-y-1.5">
+                              <p className="text-xs font-semibold text-ink-2">{o.label}: where does it go?</p>
+                              <SlotSelect book={o.book} value={r.slots[k] ?? ""} onChange={(v) => patch(r.key, (x) => ({ slots: { ...x.slots, [k]: v } }))} label={`${o.label} chapter`} />
+                              {older.map((n) => (
+                                <label key={n.id} className="flex items-center gap-2 text-xs text-ink-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={r.hideOld.includes(n.id)}
+                                    onChange={() => patch(r.key, (x) => ({ hideOld: toggle(x.hideOld, n.id) }))}
+                                    className="h-4 w-4 accent-[var(--color-brand)]"
+                                  />
+                                  Hide the older note &ldquo;{n.title}&rdquo; from students
+                                </label>
+                              ))}
+                            </div>
+                          );
+                        })}
+                        {(!anyChapter || r.books.some((k) => !r.slots[k])) && (
+                          <Input label="Title (when it isn't a chapter)" value={r.title} onChange={(e) => patch(r.key, { title: e.target.value })} />
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+        {error && <p className="rounded-md border border-error/30 bg-error-soft px-3 py-2 text-sm font-medium text-error">{error}</p>}
+      </div>
+    </Modal>
+  );
+}
 
-      {/* Add assignment to existing note */}
-      <Modal
-        open={!!assigningNote}
-        onClose={() => setAssigningNote(null)}
-        title={`Assign: ${assigningNote?.title ?? ""}`}
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setAssigningNote(null)}>Done</Button>
-            <Button onClick={addExistingAssignment} disabled={!eaCohortId}>Add</Button>
-          </>
+function RowStatus({ r, onRemove }: { r: Row; onRemove: () => void }) {
+  if (r.status === "ready")
+    return (
+      <button type="button" onClick={onRemove} aria-label={`Remove ${r.file.name}`} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-surface-2 hover:text-ink">
+        <Icon.Close className="h-4 w-4" />
+      </button>
+    );
+  if (r.status === "uploading")
+    return (
+      <span className="flex w-24 shrink-0 flex-col items-end gap-1 pt-1">
+        <span className="text-xs tabular-nums text-ink-3">{Math.round(r.progress * 100)}%</span>
+        <span className="h-1 w-full overflow-hidden rounded-full bg-surface-2">
+          <span className="block h-full bg-brand transition-[width]" style={{ width: `${r.progress * 100}%` }} />
+        </span>
+      </span>
+    );
+  if (r.status === "saving")
+    return (
+      <span className="flex shrink-0 items-center gap-1.5 pt-1 text-xs text-ink-3">
+        <Spinner size={12} /> Saving
+      </span>
+    );
+  if (r.status === "done")
+    return (
+      <span className="shrink-0 pt-1 text-right text-xs font-semibold text-success">
+        Published
+        {r.unsearchable && <span className="block font-normal text-ink-3">Not searchable yet</span>}
+      </span>
+    );
+  return <span className="max-w-40 shrink-0 pt-1 text-right text-xs font-semibold text-error">{r.error ?? "Didn't upload"}. Press Publish to retry.</span>;
+}
+
+/* ------------------------------------------------------------------------ */
+
+/** Who gets one note: tick classes and batches; current links can be removed. Also where it sits. */
+function AssignModal({ db, store, opts, note, onClose }: { db: Db; store: Store; opts: BookOpt[]; note: Note; onClose: () => void }) {
+  const { toast } = useToast();
+  const allOpts = [...opts, EVERYONE];
+  const activeCohorts = db.cohorts.filter((c) => c.active);
+  const current = db.noteAssignments.filter((a) => a.noteId === note.id);
+  const [books, setBooks] = useState<string[]>([]);
+  const [cohorts, setCohorts] = useState<string[]>(activeCohorts.map((c) => c.id));
+  const [busy, setBusy] = useState(false);
+  const onBooks = booksOf(note, db.noteAssignments, opts);
+  const firstBook = onBooks[0]?.book ?? null;
+  const [slot, setSlot] = useState(() => (firstBook ? (slotIn(firstBook, note) ?? "") : ""));
+  const [title, setTitle] = useState(note.title);
+
+  const label = (a: NoteAssignment) =>
+    [db.cohorts.find((c) => c.id === a.cohortId)?.name, a.classId ? db.classes.find((c) => c.id === a.classId)?.name : "all classes", a.subjectId ? db.subjects.find((s) => s.id === a.subjectId)?.name : "all subjects"]
+      .filter(Boolean)
+      .join(" · ");
+
+  async function add() {
+    setBusy(true);
+    let n = 0;
+    try {
+      for (const k of books) {
+        const o = allOpts.find((x) => x.key === k)!;
+        for (const c of cohortsFor(db, o, cohorts)) {
+          if (current.some((a) => a.cohortId === c.id && a.classId === o.classId && a.subjectId === o.subjectId)) continue;
+          await store.addNoteAssignment(note.id, c.id, o.classId, o.subjectId);
+          n++;
         }
-      >
-        <div className="space-y-3">
-          <Select label="Cohort" value={eaCohortId} onChange={(e) => { setEACohortId(e.target.value); setEAClassId(""); setEASubjectId(""); }}>
-            <option value="">Select cohort…</option>
-            {db.cohorts.filter((c) => c.active || c.id === eaCohortId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select>
-          {eaCohortId && classesForEA.length > 0 && (
-            <Select label="Class (optional)" value={eaClassId} onChange={(e) => { setEAClassId(e.target.value); setEASubjectId(""); }}>
-              <option value="">All classes in cohort</option>
-              {classesForEA.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </Select>
-          )}
-          {eaCohortId && subjectsForEA.length > 0 && (
-            <Select label={`Subject (optional)`} value={eaSubjectId} onChange={(e) => setEASubjectId(e.target.value)}>
-              <option value="">All subjects in cohort{eaClassId ? " & class" : ""}</option>
-              {subjectsForEA.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </Select>
-          )}
-        </div>
-      </Modal>
+      }
+      toast(n ? `Now going to ${n} more group${n === 1 ? "" : "s"}.` : "It already goes to all of those.", "success");
+      setBooks([]);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Couldn't assign it.", "error");
+    } finally {
+      setBusy(false);
+    }
+  }
 
-      {/* Delete confirmation */}
-      <Modal
-        open={!!deletingNote}
-        onClose={() => setDeletingNote(null)}
-        title="Delete note?"
-        description={deletingNote ? `"${deletingNote.title}" will be removed for all students.` : ""}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeletingNote(null)}>Cancel</Button>
-            <Button variant="danger" onClick={() => { if (deletingNote) store.deleteNote(deletingNote.id); setDeletingNote(null); toast("Note deleted.", "success"); }}>Delete</Button>
-          </>
-        }
-      >
-        <p className="text-sm text-ink-2">This can&apos;t be undone. Students won&apos;t see it any more.</p>
-      </Modal>
-      {viewing && (
-        <NoteViewer noteId={viewing.id} title={viewing.title} onClose={() => setViewing(null)} />
-      )}
-    </div>
+  async function rename() {
+    const next = (firstBook && slotTitle(firstBook, slot)) || title.trim();
+    if (!next || next === note.title) return;
+    try {
+      await store.updateNote(note.id, { title: next });
+      setTitle(next);
+      toast("Saved.", "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Couldn't save that.", "error");
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title={note.title} size="md" footer={<Button onClick={onClose}>Done</Button>}>
+      <div className="space-y-6">
+        <section>
+          <p className="mb-2 text-sm font-semibold text-ink">Goes to now</p>
+          {current.length === 0 ? (
+            <p className="text-sm text-ink-3">Nobody yet. Students can&apos;t see it.</p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {current.map((a) => (
+                <span key={a.id} className="flex items-center gap-1 rounded-full border border-border bg-surface-2 py-0.5 pl-3 text-xs text-ink-2">
+                  {label(a)}
+                  <button
+                    type="button"
+                    onClick={() => window.confirm(`Stop showing this note to ${label(a)}?`) && store.deleteNoteAssignment(a.id)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-ink-3 hover:text-error"
+                    aria-label={`Stop showing to ${label(a)}`}
+                  >
+                    <Icon.Close className="h-3.5 w-3.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section>
+          <p className="mb-2 text-sm font-semibold text-ink">Also give it to</p>
+          <BookPicker opts={allOpts} picked={books} onToggle={(k) => setBooks(toggle(books, k))} />
+          {activeCohorts.length > 1 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {activeCohorts.map((c) => (
+                <Chip key={c.id} on={cohorts.includes(c.id)} onClick={() => setCohorts(toggle(cohorts, c.id))}>
+                  {c.name}
+                </Chip>
+              ))}
+            </div>
+          )}
+          <Button className="mt-3" size="sm" onClick={() => void add()} disabled={!books.length || !cohorts.length || busy} loading={busy}>
+            Give it to them
+          </Button>
+        </section>
+
+        <section>
+          <p className="mb-2 text-sm font-semibold text-ink">Where it sits{firstBook ? ` in ${LEVEL_SHORT[firstBook.level]} ${firstBook.subject}` : ""}</p>
+          {firstBook ? (
+            <SlotSelect book={firstBook} value={slot} onChange={setSlot} label="Chapter" />
+          ) : null}
+          {(!firstBook || !slot) && <Input label="Title" value={title} onChange={(e) => setTitle(e.target.value)} />}
+          <Button className="mt-3" size="sm" variant="secondary" onClick={() => void rename()}>
+            Save
+          </Button>
+        </section>
+      </div>
+    </Modal>
   );
 }

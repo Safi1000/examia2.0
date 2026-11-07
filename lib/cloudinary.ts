@@ -17,7 +17,7 @@ export function notesConfigured(): boolean {
 }
 
 /** Upload any file (PDF, docx, image…) using the notes preset (resource_type: raw). */
-export async function uploadNote(file: File): Promise<{ url: string; fileType: string; fileName: string }> {
+export async function uploadNote(file: File, onProgress?: OnProgress): Promise<{ url: string; fileType: string; fileName: string }> {
   if (!CLOUDINARY_CLOUD) {
     throw new Error("Cloudinary is not configured. Set NEXT_PUBLIC_CLOUDINARY_CLOUD.");
   }
@@ -25,16 +25,13 @@ export async function uploadNote(file: File): Promise<{ url: string; fileType: s
   form.append("file", file);
   form.append("upload_preset", CLOUDINARY_NOTES_PRESET);
 
-  const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/raw/upload`,
-    { method: "POST", body: form },
-  );
+  // Big notes on a slow line get ten minutes, not two.
+  const res = await postWithProgress(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/raw/upload`, form, onProgress, 600_000);
   if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    console.error("Cloudinary upload failed", res.status, detail);
+    console.error("Cloudinary upload failed", res.status, res.text);
     throw new Error("That file didn't upload. Try again.");
   }
-  const json = (await res.json()) as { secure_url?: string };
+  const json = JSON.parse(res.text) as { secure_url?: string };
   if (!json.secure_url) throw new Error("Cloudinary upload returned no secure_url.");
   return { url: json.secure_url, fileType: file.type || "application/octet-stream", fileName: file.name };
 }
@@ -43,7 +40,7 @@ export async function uploadNote(file: File): Promise<{ url: string; fileType: s
 export type OnProgress = (fraction: number) => void;
 
 /** POST to Cloudinary with upload progress (fetch can't report it). */
-function postWithProgress(url: string, form: FormData, onProgress?: OnProgress): Promise<{ ok: boolean; status: number; text: string }> {
+function postWithProgress(url: string, form: FormData, onProgress?: OnProgress, timeoutMs = 120_000): Promise<{ ok: boolean; status: number; text: string }> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", url);
@@ -51,7 +48,7 @@ function postWithProgress(url: string, form: FormData, onProgress?: OnProgress):
     xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, text: xhr.responseText });
     xhr.onerror = () => reject(new Error("Upload failed. Check your internet and try again."));
     // A stalled connection must end, so the student can simply try again.
-    xhr.timeout = 120_000;
+    xhr.timeout = timeoutMs;
     xhr.ontimeout = () => reject(new Error("The upload took too long. Check your internet and try again."));
     xhr.onabort = () => reject(new Error("Upload stopped. Try again."));
     xhr.send(form);

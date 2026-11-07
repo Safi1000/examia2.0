@@ -2343,6 +2343,26 @@ class Store {
     // No noteId: the FK would cascade this entry away with the note itself.
     this.logActivity({ type: "notes_deleted", title: `Notes deleted: "${title ?? "Untitled"}"` });
   }
+  /** Rename a note, or hide/show it for students (a marker on its file type). Throws on failure. */
+  async updateNote(id: string, patch: { title?: string; fileType?: string }): Promise<void> {
+    const before = this.state.notes.find((n) => n.id === id);
+    if (!before) return;
+    this.commit((d) => {
+      d.notes = d.notes.map((n) => (n.id === id ? { ...n, ...patch } : n));
+    });
+    if (DEMO) return;
+    const row: Record<string, string> = {};
+    if (patch.title !== undefined) row.title = patch.title;
+    if (patch.fileType !== undefined) row.file_type = patch.fileType;
+    const { error } = await supabase().from("notes").update(row).eq("id", id);
+    if (error) {
+      this.commit((d) => {
+        d.notes = d.notes.map((n) => (n.id === id ? before : n));
+      });
+      this.report(`updateNote: ${error.message}`);
+      throw new Error(`Could not save the change: ${error.message}`);
+    }
+  }
   /** Rolls the optimistic row back if the insert fails, so an assignment can
    *  never appear attached to a note without existing in the database. */
   async addNoteAssignment(noteId: string, cohortId: string, classId: string | null, subjectId: string | null): Promise<void> {

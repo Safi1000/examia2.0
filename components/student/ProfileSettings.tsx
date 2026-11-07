@@ -44,7 +44,8 @@ export function ProfileSettings({ db, student }: { db: Database; student: Studen
       <div className="space-y-3">
         <p className="text-sm font-semibold text-ink">Target grades</p>
         {subjects.map((sub) => (
-          <div key={sub} className="flex flex-wrap items-center justify-between gap-2">
+          // Name above its grades on a phone, beside them on a wider screen: every row lines up the same.
+          <div key={sub} className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
             <span className="text-sm text-ink-2">{sub}</span>
             <div className="flex gap-1.5">
               {TARGETS.map((t) => (

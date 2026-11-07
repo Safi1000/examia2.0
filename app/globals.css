@@ -552,3 +552,29 @@ textarea:-webkit-autofill:focus {
 .pp-practice .wa-float {
   display: none;
 }
+
+/* Notes are read on screen only. While a note is open, printing (and the
+   browser's "Save as PDF", which goes through printing) gives a blank page
+   with one line instead of the note. NoteViewer adds .note-open to <html>. */
+@media print {
+  html.note-open body > * {
+    display: none !important;
+  }
+  html.note-open body::before {
+    content: "Notes can't be printed. Read them in the portal.";
+    display: block;
+    padding: 48px;
+    font: 16px/1.5 system-ui, sans-serif;
+    color: #1b1e21;
+  }
+}
+
+/* Phones: iOS zooms the whole page in when a text box under 16px is tapped,
+   and leaves it zoomed. Every text box is at least 16px on small screens. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  select,
+  textarea {
+    font-size: max(16px, 1em) !important;
+  }
+}

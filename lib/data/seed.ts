@@ -423,15 +423,15 @@ export function createSeed(now: number = Date.now()): Database {
     ],
     // Preview only: a handful of notes across three subjects, so Notes has something to show.
     notes: [
-      { id: "nt_1", title: "Depreciation: straight line and reducing balance", fileUrl: "/demo/note.pdf", fileType: "application/pdf", fileName: "depreciation.pdf", createdAt: iso(-1 * DAY) },
+      { id: "nt_1", title: "1.2.1 The accounting system", fileUrl: "/demo/note.pdf", fileType: "application/pdf", fileName: "The accounting system.pdf", createdAt: iso(-1 * DAY) },
       { id: "nt_2", title: "Bank reconciliation worked example", fileUrl: "/demo/note.pdf", fileType: "application/pdf", fileName: "bank-rec.pdf", createdAt: iso(-6 * DAY) },
-      { id: "nt_3", title: "Ratio analysis formula sheet", fileUrl: "/demo/note.pdf", fileType: "application/pdf", fileName: "ratios.pdf", createdAt: iso(-12 * DAY) },
+      { id: "nt_3", title: "1.6.2 Calculation and evaluation of ratios", fileUrl: "/demo/note.pdf", fileType: "application/pdf", fileName: "ratios.pdf", createdAt: iso(-12 * DAY) },
       { id: "nt_4", title: "Partnership appropriation account", fileUrl: "/demo/note.pdf", fileType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", fileName: "partnership.pptx", createdAt: iso(-15 * DAY) },
       { id: "nt_5", title: "Incomplete records practice set", fileUrl: "/demo/note.pdf", fileType: "application/pdf", fileName: "incomplete.pdf", createdAt: iso(-20 * DAY) },
       { id: "nt_6", title: "Marketing mix: the 4Ps with examples", fileUrl: "/demo/note.pdf", fileType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", fileName: "4ps.docx", createdAt: iso(-2 * DAY) },
-      { id: "nt_7", title: "Break even analysis", fileUrl: "/demo/note.pdf", fileType: "application/pdf", fileName: "break-even.pdf", createdAt: iso(-9 * DAY) },
+      { id: "nt_7", title: "1.1 Enterprise", fileUrl: "/demo/note.pdf", fileType: "application/pdf", fileName: "Enterprise.pdf", createdAt: iso(-9 * DAY) },
       { id: "nt_8", title: "Price elasticity of demand diagrams", fileUrl: "/demo/note.pdf", fileType: "image/png", fileName: "ped.png", createdAt: iso(-3 * DAY) },
-      { id: "nt_9", title: "Market failure summary", fileUrl: "/demo/note.pdf", fileType: "application/pdf", fileName: "market-failure.pdf", createdAt: iso(-18 * DAY) },
+      { id: "nt_9", title: "1.1 Scarcity, choice and opportunity cost", fileUrl: "/demo/note.pdf", fileType: "application/pdf", fileName: "market-failure.pdf", createdAt: iso(-18 * DAY) },
       { id: "nt_10", title: "Blueprint session plan and exam dates", fileUrl: "/demo/note.pdf", fileType: "application/pdf", fileName: "session-plan.pdf", createdAt: iso(-25 * DAY) },
     ],
     noteAssignments: [
