@@ -585,3 +585,9 @@ nav[aria-label="Breadcrumb"] a {
   padding-block: 12px;
   margin-block: -12px;
 }
+
+/* Inside the phone app (it sets <html data-app="1"> before the page loads):
+   web-only parts such as the marketing chrome and browser print buttons stay hidden. See lib/in-app.ts. */
+html[data-app] .web-only {
+  display: none !important;
+}

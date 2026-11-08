@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { enablePush, pushStatus } from "@/lib/push-client";
+import { useInApp } from "@/lib/in-app";
 
 /**
  * One gentle ask, once: for students who skipped notifications in the
@@ -13,6 +14,8 @@ export function NotifyNudge() {
   const { profile, updateProfile } = useAuth();
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
+  // The phone app has its own notifications (in its Me tab).
+  const app = useInApp();
   // Onboarding (with its own notifications step) happens on this visit: don't
   // ask again seconds later. The nudge waits for a later visit.
   const [onboardingThisVisit] = useState(() => !profile.onboarded);
@@ -32,7 +35,7 @@ export function NotifyNudge() {
     };
   }, [profile.onboarded, onboardingThisVisit, count, askedAt]);
 
-  if (!show) return null;
+  if (!show || app) return null;
   const done = () => {
     setShow(false);
     updateProfile({ notifyAsked: true, notifyAskedAt: Date.now(), notifyAskCount: count + 1 });

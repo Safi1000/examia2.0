@@ -9,6 +9,7 @@ import { readSnapshot } from "@/lib/data/snapshot";
 import { getStore } from "@/lib/data/store";
 import { studentEmail } from "@/lib/config";
 import { DEMO, DEMO_STUDENT_ID, demoRole, setDemoRole, type DemoRole } from "@/lib/demo";
+import { inApp } from "@/lib/in-app";
 import {
   DEFAULT_THEME_ID,
   loadLastThemeId,
@@ -211,14 +212,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (DEMO) setDemoRole(null);
     // Signing out of a shared phone stops this student's notifications on it.
     void (async () => {
-      try {
-        const reg = await navigator.serviceWorker?.getRegistration("/sw.js");
-        const sub = await reg?.pushManager.getSubscription();
-        if (sub) {
-          await supabase().from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
-          await sub.unsubscribe();
-        }
-      } catch {}
+      // The phone app has no service worker: it handles its own device on sign-out.
+      if (!inApp())
+        try {
+          const reg = await navigator.serviceWorker?.getRegistration("/sw.js");
+          const sub = await reg?.pushManager.getSubscription();
+          if (sub) {
+            await supabase().from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+            await sub.unsubscribe();
+          }
+        } catch {}
       // This device only: the same account stays signed in on their other phone or laptop.
       await supabase().auth.signOut({ scope: "local" });
     })(); // onAuthStateChange clears session + cache

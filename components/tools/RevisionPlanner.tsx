@@ -187,7 +187,7 @@ export function RevisionPlanner({ initial, syllabi: SYLLABI }: { initial?: strin
             >
               Get help sticking to it
             </TrackedLink>
-            <button type="button" onClick={() => window.print()} className="inline-flex min-h-12 items-center rounded-full border border-hairline-strong px-6 text-[15px] font-semibold text-body hover:border-gold-border">
+            <button type="button" onClick={() => window.print()} className="web-only inline-flex min-h-12 items-center rounded-full border border-hairline-strong px-6 text-[15px] font-semibold text-body hover:border-gold-border">
               Print or save as PDF
             </button>
           </div>

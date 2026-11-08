@@ -1,6 +1,7 @@
 "use client";
 
 import { supabase } from "@/lib/supabase";
+import { inApp } from "@/lib/in-app";
 
 /**
  * Phone notifications in the browser: what this device can do, and turning
@@ -27,6 +28,8 @@ export const installed = () =>
 
 export async function pushStatus(): Promise<PushStatus> {
   if (!VAPID) return "notReady";
+  // The phone app sends its own notifications (no service worker in there).
+  if (inApp()) return "unsupported";
   if (device() === "iphone" && !installed()) return "iphone";
   if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return "unsupported";
   if (Notification.permission === "denied") return "blocked";

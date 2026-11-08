@@ -22,11 +22,16 @@ export function MarketingShell({ children }: { children: ReactNode }) {
       >
         Skip to content
       </a>
-      <Nav />
+      {/* The phone app brings its own navigation and privacy link: see web-only in app/globals.css. */}
+      <div className="web-only contents">
+        <Nav />
+      </div>
       <main id="main">{children}</main>
-      <Footer />
-      <MobileCta />
-      <CookieBanner />
+      <div className="web-only contents">
+        <Footer />
+        <MobileCta />
+        <CookieBanner />
+      </div>
     </div>
     </BookingProvider>
   );

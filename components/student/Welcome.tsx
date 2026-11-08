@@ -14,6 +14,7 @@ import { addDays, getSchedule, pkDate, slotsForStudent, spanHere } from "@/lib/t
 import { useNow } from "@/hooks/useNow";
 import { isAsStudent } from "@/lib/grading";
 import { useBackToClose } from "@/components/student/useBackToClose";
+import { useInApp } from "@/lib/in-app";
 
 /** The subjects a student takes: their own, else their cohort's, else all. */
 export function studentSubjects(db: Database, student: Student): string[] {
@@ -36,6 +37,8 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
   const nowMs = useNow();
   const subjects = studentSubjects(db, student);
   const [step, setStep] = useState(0);
+  // The phone app asks about notifications itself, so its welcome skips that step.
+  const app = useInApp();
   const [avatar, setAvatar] = useState<string | undefined>(profile.avatar);
   const [targets, setTargets] = useState<Record<string, Target>>(() => profile.targets ?? {});
   const [goal, setGoal] = useState<number | undefined>(profile.weeklyGoal);
@@ -175,7 +178,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
         </div>
       ),
     },
-    {
+    !app && {
       title: "Stay on top of things.",
       sub: "A quiet note when your class is starting, your result is out, a test is about to open or work is due tomorrow. Never at night, and only a few.",
       body: (
@@ -212,7 +215,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
         </div>
       ),
     },
-  ];
+  ].filter((x) => !!x);
   const s = steps[step];
   const last = step === steps.length - 1;
 

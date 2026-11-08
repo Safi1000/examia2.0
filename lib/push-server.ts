@@ -98,6 +98,8 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
   // (https, a named host) and at most 10 a student: a made-up address can't make
   // the server call it, and a flood of fake devices can't stall the run.
   const realDevice = (s: Sub) => {
+    // The phone app's devices: an Expo push token, sent only to Expo's own address below.
+    if (isExpo(s)) return /^expo:\S{10,200}$/.test(s.endpoint);
     try {
       const { protocol, hostname: h } = new URL(s.endpoint);
       return protocol === "https:" && !h.startsWith("[") && h !== "localhost" && /[a-z]/i.test(h.split(".").pop() ?? "");
@@ -129,6 +131,8 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
   // Sends are queued and go out together at the end, 10 at a time, so 50
   // students at class start take a couple of seconds, not one after another.
   const queue: Array<() => Promise<void>> = [];
+  // App devices go to Expo in batches of up to 100 (one request each) after the loop.
+  const expoQueue: ExpoJob[] = [];
   for (const it of items.sort((a, b) => a.priority - b.priority)) {
     const devices = subsBy.get(it.studentId);
     if (!devices?.length) continue;
@@ -152,7 +156,23 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
     lastSent.set(it.studentId, nowMs);
 
     const payload = JSON.stringify({ title: it.title, body: it.body, url: it.url, tag: it.tag });
-    for (const d of devices)
+    // The push service was busy: un-remember it so the next run tries again
+    // (only with one device, so a phone that did get it isn't sent it twice).
+    const retryLater = async () => {
+      if (devices.length === 1)
+        await sb.from("notify_log").delete().eq("student_id", it.studentId).eq("kind", it.kind).in("ref", added.map((a) => a.ref as string));
+    };
+    for (const d of devices) {
+      if (isExpo(d)) {
+        expoQueue.push({
+          message: { to: d.endpoint.slice(EXPO_PREFIX.length), title: it.title, body: it.body, data: { url: it.url }, sound: "default", channelId: "default", priority: "high" },
+          forget: async () => {
+            await sb.from("push_subscriptions").delete().eq("id", d.id);
+          },
+          retryLater,
+        });
+        continue;
+      }
       queue.push(async () => {
         try {
           await webpush.sendNotification({ endpoint: d.endpoint, keys: { p256dh: d.p256dh, auth: d.auth } }, payload, { TTL: 60 * 60 * 6, timeout: 10_000 });
@@ -160,16 +180,57 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
           // The phone unsubscribed or the browser data was cleared: forget the device.
           const code = (e as { statusCode?: number }).statusCode;
           if (code === 404 || code === 410) await sb.from("push_subscriptions").delete().eq("id", d.id);
-          // The push service was busy: un-remember it so the next run tries again
-          // (only with one device, so a phone that did get it isn't sent it twice).
-          else if (devices.length === 1)
-            await sb.from("notify_log").delete().eq("student_id", it.studentId).eq("kind", it.kind).in("ref", added.map((a) => a.ref as string));
+          else await retryLater();
         }
       });
+    }
     count++;
   }
   for (let i = 0; i < queue.length; i += 10) await Promise.allSettled(queue.slice(i, i + 10).map((job) => job()));
+  for (let i = 0; i < expoQueue.length; i += 100) await sendExpo(expoQueue.slice(i, i + 100));
   return count;
+}
+
+/** App devices are saved as "expo:" plus the phone's Expo push token. */
+const EXPO_PREFIX = "expo:";
+const isExpo = (d: Sub) => d.endpoint.startsWith(EXPO_PREFIX);
+
+interface ExpoJob {
+  message: { to: string; title: string; body: string; data: { url: string }; sound: "default"; channelId: string; priority: "high" };
+  /** The app was removed or its token expired: forget the device. */
+  forget: () => Promise<void>;
+  /** Expo was busy: let the next run try again. */
+  retryLater: () => Promise<void>;
+}
+
+/** One request to Expo's push service for up to 100 app devices; each ticket comes back in the same order. */
+async function sendExpo(jobs: ExpoJob[]): Promise<void> {
+  if (!jobs.length) return;
+  const headers: Record<string, string> = { "Content-Type": "application/json", Accept: "application/json" };
+  if (process.env.EXPO_ACCESS_TOKEN) headers.Authorization = `Bearer ${process.env.EXPO_ACCESS_TOKEN}`;
+  let tickets: Array<{ status?: string; details?: { error?: string } }> = [];
+  try {
+    const res = await fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(jobs.map((j) => j.message)),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) throw new Error(`expo ${res.status}`);
+    const json = (await res.json()) as { data?: typeof tickets };
+    tickets = Array.isArray(json.data) ? json.data : [];
+  } catch {
+    await Promise.allSettled(jobs.map((j) => j.retryLater()));
+    return;
+  }
+  await Promise.allSettled(
+    jobs.map((j, i) => {
+      const t = tickets[i];
+      if (t?.status === "ok") return Promise.resolve();
+      if (t?.details?.error === "DeviceNotRegistered") return j.forget();
+      return j.retryLater();
+    }),
+  );
 }
 
 /**

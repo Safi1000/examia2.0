@@ -6,6 +6,7 @@ import { useToast } from "@/components/toast";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { device, installed } from "@/lib/push-client";
+import { useInApp } from "@/lib/in-app";
 
 /**
  * "Phone notifications" card in Settings.
@@ -36,6 +37,7 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
   const [status, setStatus] = useState<"loading" | "unsupported" | "iphone" | "off" | "on" | "blocked" | "notReady">("loading");
   const [prefs, setPrefs] = useState<Prefs>({ results: true, tests: true, assignments: true });
   const [busy, setBusy] = useState(false);
+  const app = useInApp();
 
   useEffect(() => {
     let alive = true;
@@ -64,6 +66,15 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
       alive = false;
     };
   }, [studentId]);
+
+  // The phone app has its own notification switches.
+  if (app)
+    return (
+      <Card className="mt-5 p-5">
+        <h2 className="text-base font-semibold text-ink">Phone notifications</h2>
+        <p className="mt-1 text-sm text-ink-3">Notifications for the app are in the Me tab.</p>
+      </Card>
+    );
 
   async function turnOn() {
     setBusy(true);

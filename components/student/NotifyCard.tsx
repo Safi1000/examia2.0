@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/components/toast";
 import { NotifyStep } from "@/components/student/NotifyStep";
 import { enablePush, pushStatus, type PushStatus } from "@/lib/push-client";
+import { useInApp } from "@/lib/in-app";
 
 const HIDE_KEY = "ht-notify-card-later";
 
@@ -17,6 +18,8 @@ export function NotifyCard() {
   const [status, setStatus] = useState<PushStatus | "loading" | "later">("loading");
   const [steps, setSteps] = useState(false);
   const [busy, setBusy] = useState(false);
+  // The phone app has its own notifications (in its Me tab).
+  const app = useInApp();
 
   useEffect(() => {
     let alive = true;
@@ -35,7 +38,7 @@ export function NotifyCard() {
     };
   }, []);
 
-  if (status !== "off" && status !== "iphone" && status !== "blocked") return null;
+  if (app || (status !== "off" && status !== "iphone" && status !== "blocked")) return null;
 
   async function turnOn() {
     setBusy(true);

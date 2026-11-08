@@ -5,6 +5,11 @@ import { track } from "@/lib/landing";
 import { cn } from "@/lib/cn";
 import { addRecent, markDone, recordAnswers, unmarkDone, useNight, useProgress } from "./progress";
 import { ShareScore } from "./Bits";
+import dynamic from "next/dynamic";
+import { useInApp } from "@/lib/in-app";
+
+// Only loaded inside the phone app (see Pages below), so the public page carries none of it.
+const PdfView = dynamic(() => import("@/components/PdfView").then((m) => m.PdfView), { ssr: false });
 
 export interface ViewDoc {
   id: "qp" | "ms" | "in";
@@ -110,6 +115,8 @@ const I = {
 /** A scrolling stack of pages: images that work on every phone, or the PDF itself if there are none. */
 function Pages({ doc, zoom, night, onPage }: { doc: ViewDoc; zoom: number; night: boolean; onPage?: (n: number) => void }) {
   const box = useRef<HTMLOListElement>(null);
+  const app = useInApp();
+  const [pdfFailed, setPdfFailed] = useState(false);
   useEffect(() => {
     if (!onPage || !box.current) return;
     const seen = new Map<number, number>();
@@ -128,6 +135,13 @@ function Pages({ doc, zoom, night, onPage }: { doc: ViewDoc; zoom: number; night
   }, [doc.name, onPage]);
 
   if (!doc.pages) {
+    // Android's in-app browser can't show a PDF in a frame: the phone app draws it with pdf.js instead.
+    if (app && !pdfFailed)
+      return (
+        <div className="h-full min-h-[70dvh] w-full overflow-hidden rounded-[8px] bg-white">
+          <PdfView url={doc.pdf} onFail={() => setPdfFailed(true)} />
+        </div>
+      );
     return <iframe src={doc.pdf} title={doc.label} className="h-full min-h-[70dvh] w-full rounded-[8px] bg-white" />;
   }
   return (
@@ -606,7 +620,7 @@ export function PaperView({
                   <button type="button" className={cn(iconBtn, "inline-flex", night && "text-gold")} onClick={toggleNight} aria-pressed={night} aria-label="Night colours" title="Night colours">
                     <Icon d={I.night} />
                   </button>
-                  <button type="button" className={cn(iconBtn, "hidden sm:inline-flex")} onClick={print} aria-label={`Print ${current.label}`} title="Print">
+                  <button type="button" className={cn(iconBtn, "web-only hidden sm:inline-flex")} onClick={print} aria-label={`Print ${current.label}`} title="Print">
                     <Icon d={I.print} />
                   </button>
                   <a href={current.pdf} download className={cn(iconBtn, "inline-flex")} aria-label={`Download ${current.label} PDF`} title="Download PDF">
