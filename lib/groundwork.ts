@@ -155,6 +155,14 @@ export interface Scene {
   light?: boolean;
   /** A plain colour wash: nothing drawn on top. */
   calm?: boolean;
+  /** HD photo in public/wallpapers-hd (x.webp 2560 wide, x-m.webp 1080x1920, x-t.webp thumbnail). */
+  hd?: boolean;
+}
+
+/** The photo file for a scene: wide for desktops, tall for phones, or the tray thumbnail. */
+export function photoSrc(s: Scene, size: "wide" | "tall" | "thumb" = "wide"): string {
+  if (s.hd) return `/wallpapers-hd/${s.photo}${size === "tall" ? "-m" : size === "thumb" ? "-t" : ""}.webp`;
+  return `/wallpapers/${s.photo}${size === "wide" ? "" : "-m"}.jpg`;
 }
 
 /**
@@ -172,6 +180,34 @@ const P = (id: string, name: string, photo: string, by: string, slug: string, sk
   glow: "rgba(251,193,89,.35)",
   light,
 });
+/** HD photos, full window like a new-tab page. Free Unsplash licence; credited by link. */
+const H = (id: string, name: string, slug: string, sky: string, light = false): Scene => ({
+  id,
+  name,
+  photo: id,
+  hd: true,
+  link: `https://unsplash.com/photos/${slug}?utm_source=hamza_teaches&utm_medium=referral`,
+  sky,
+  hills: ["#000", "#000", "#000"],
+  glow: "rgba(251,193,89,.35)",
+  light,
+});
+export const HD_SCENES: Scene[] = [
+  H("patagonia-dawn", "Patagonia at dawn", "fIKwcBkoWIY", "linear-gradient(180deg,#3b3f6b,#8a6f8f 55%,#2c3350)"),
+  H("misty-path", "Misty valley", "AnRWq5V3gI8", "linear-gradient(180deg,#a9b1b3,#6e7b72 55%,#2f3a30)", true),
+  H("forest-mist", "Forest mist", "2Hzmz15wGik", "linear-gradient(180deg,#9aa39d,#4d5a52 55%,#1d2621)"),
+  H("alpine-valley", "Alpine valley", "Bkci_8qcdvQ", "linear-gradient(180deg,#7fa6cf,#5f7a8f 55%,#25352a)", true),
+  H("braies", "Alpine lake", "T7K4aEPoGGk", "linear-gradient(180deg,#8fb0c4,#3f8c86 55%,#1f4a46)", true),
+  H("dolomites-hut", "Lakeside cabin", "zAjdgNXsMeg", "linear-gradient(180deg,#c4c8cb,#7d8b8c 55%,#2f3a3b)", true),
+  H("sun-rays", "Sunlit peaks", "78A265wPiO4", "linear-gradient(180deg,#c9b27a,#6f7f4f 55%,#26301f)", true),
+  H("golden-shore", "Golden shore", "KMn4VEeEPR8", "linear-gradient(180deg,#e8b06a,#c98b55 50%,#4a5868)", true),
+  H("yosemite-dusk", "Yosemite at dusk", "NRQV-hBF10M", "linear-gradient(180deg,#e8b9a0,#5f8296 55%,#1e3340)"),
+  H("vestrahorn", "Vestrahorn, Iceland", "ruWkmt3nU58", "linear-gradient(180deg,#6d5f96,#4a4f7a 55%,#1b1d33)"),
+  H("starlit-peak", "Under the stars", "phIFdC6lA4E", "linear-gradient(180deg,#1c1838,#3b3566 55%,#12121f)"),
+  H("annapurna-night", "Annapurna, Nepal", "v7daTKlZzaw", "linear-gradient(180deg,#0e1c26,#1f3540 55%,#0a1015)"),
+];
+
+/** Older, smaller photos: kept so anyone who picked one keeps it, but no longer offered. */
 export const PHOTO_SCENES: Scene[] = [
   P("milky-way", "Milky Way", "milky-way", "Nathan Anderson", "milky-way-over-mountain-landscape-at-night-L95xDkSSuWw", "linear-gradient(180deg,#0b1020,#1d2440 60%,#3a2c3a)"),
   P("aurora-trees", "Northern lights", "aurora-trees", "Vincent Guth", "silhouette-of-trees-near-aurora-borealis-at-night-62V7ntlKgL8", "linear-gradient(180deg,#120c2a,#1d6b52 60%,#0a0f12)"),
@@ -218,15 +254,17 @@ export const CALM_SCENES: Scene[] = [
 ];
 
 /** Every scene: the calm washes first, then photos, then the drawn ones. */
-export const SCENES: Scene[] = [...CALM_SCENES, ...PHOTO_SCENES, ...DRAWN];
+export const SCENES: Scene[] = [...HD_SCENES, ...CALM_SCENES, ...PHOTO_SCENES, ...DRAWN];
+/** What the background tray offers: the HD photos, then the calm colours. */
+export const TRAY_SCENES: Scene[] = [...HD_SCENES, ...CALM_SCENES];
 
-/** Calm washes that suit each part of the day; a different one each day within it. */
+/** Photos that suit each part of the day; a different one each day within it. */
 const BY_TIME: Array<[number, string[]]> = [
-  [5, ["calm-ink", "calm-graphite"]],
-  [11, ["calm-sage", "calm-ocean"]],
-  [16, ["calm-sand", "calm-sage"]],
-  [19, ["calm-dusk", "calm-sand"]],
-  [24, ["calm-ink", "calm-graphite", "calm-ocean"]],
+  [5, ["starlit-peak", "annapurna-night", "vestrahorn"]],
+  [11, ["patagonia-dawn", "misty-path", "forest-mist", "alpine-valley"]],
+  [16, ["braies", "dolomites-hut", "alpine-valley", "sun-rays"]],
+  [19, ["golden-shore", "yosemite-dusk", "sun-rays"]],
+  [24, ["vestrahorn", "starlit-peak", "annapurna-night"]],
 ];
 export function sceneFor(id: string | undefined, nowMs: number): Scene {
   const chosen = SCENES.find((s) => s.id === id);

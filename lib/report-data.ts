@@ -14,6 +14,7 @@
 import type { Database } from "@/lib/data/seed";
 import type { Test } from "@/types";
 import {
+  attendancePercent,
   cohortById,
   studentById,
   submissionsForStudent,
@@ -23,6 +24,8 @@ import {
 import { capAs, gradeLetter, gradeSubmission, isAsStudent, type GradeLetter } from "@/lib/grading";
 import { topicMastery } from "@/lib/scoring";
 import { displayName } from "@/lib/display-name";
+import { syllabusProgress } from "@/lib/syllabus-progress";
+import { LEVEL_SHORT } from "@/lib/notes-library";
 
 export interface ReportResult {
   title: string;
@@ -62,7 +65,8 @@ export interface ReportData {
   set: number;
   handedIn: number;
   awaiting: number;
-  attendance: { percent: number; present: number; late: number; absent: number } | null;
+  /** Null when nothing was recorded this month. `days` is the register, oldest first; `last` is last month's figure. */
+  attendance: { percent: number; present: number; late: number; absent: number; days: Array<{ date: string; status: "present" | "late" | "absent" }>; last: number | null } | null;
   results: ReportResult[];
   strengths: ReportTopic[];
   focus: ReportTopic[];
@@ -77,6 +81,10 @@ export interface ReportData {
   headline: string;
   nextSteps: string[];
   teacherNote: string;
+  /** AS-only student: the grade scale tops out at A. */
+  asOnly: boolean;
+  /** How far through the syllabus each subject is, from the notes released by the end of the month. */
+  syllabus: Array<{ label: string; covered: number; total: number; added: number; latest: string | null }>;
 }
 
 const monthOf = (iso: string | null | undefined) => (iso ? iso.slice(0, 7) : "");
@@ -155,10 +163,14 @@ export function reportData(db: Database, studentId: string, month: string, teach
   const late = days.filter((d) => d.status === "late").length;
   const absent = days.filter((d) => d.status === "absent").length;
   // A figure Hamza typed wins (as on the Attendance page); the day counts still show.
+  const register = [...days].sort((a, b) => a.date.localeCompare(b.date)).map((d) => ({ date: d.date, status: d.status }));
+  const [ly, lm] = month.split("-").map(Number);
+  const lastMonth = new Date(Date.UTC(ly, lm - 2, 1)).toISOString().slice(0, 7);
+  const last = attendancePercent(db, student.id, `${lastMonth}-01`);
   const attendance = typed
-    ? { percent: typed.percent, present, late, absent }
+    ? { percent: typed.percent, present, late, absent, days: register, last }
     : days.length
-      ? { percent: round1(((present + late * 0.5) / days.length) * 100), present, late, absent }
+      ? { percent: round1(((present + late * 0.5) / days.length) * 100), present, late, absent, days: register, last }
       : null;
 
   // Topics from this month's marked work.
@@ -234,6 +246,24 @@ export function reportData(db: Database, studentId: string, month: string, teach
   if (missed.length) nextSteps.push(`Catch up: ${missed.length} missed test${missed.length === 1 ? "" : "s"}`);
   if (attendance && attendance.percent < 85) nextSteps.push("Attend every class");
 
+  // Syllabus covered: chapters whose notes were out by the end of the month, and how many came out this month.
+  const monthStart = Date.parse(`${month}-01T00:00:00+05:00`);
+  const monthEnd = Date.parse(`${shiftMonth(month, 1)}-01T00:00:00+05:00`) - 1;
+  const before = new Map(syllabusProgress(db, student, monthStart - 1).map((b) => [b.key, b.covered]));
+  const progress = syllabusProgress(db, student, monthEnd);
+  const multiLevel = new Set(progress.map((b) => b.level)).size > 1;
+  const syllabus = progress.map((b) => ({
+    label: multiLevel ? `${LEVEL_SHORT[b.level]} ${b.subject}` : b.subject,
+    covered: b.covered,
+    total: b.total,
+    added: b.covered - (before.get(b.key) ?? 0),
+    latest: b.latest?.name ?? null,
+  }));
+
+  // The newest chapter taught this month: past paper practice at home.
+  const fresh = progress.filter((b) => b.latest && b.covered > (before.get(b.key) ?? 0)).map((b) => b.latest!.name);
+  if (fresh.length && nextSteps.length < 3) nextSteps.push(`Past paper practice: ${fresh.slice(0, 2).join(", ")}`);
+
   return {
     name,
     firstName,
@@ -275,5 +305,7 @@ export function reportData(db: Database, studentId: string, month: string, teach
                 : "Needs support",
     nextSteps: nextSteps.slice(0, 3),
     teacherNote: teacherNote.trim(),
+    asOnly: isAsStudent(student.id),
+    syllabus,
   };
 }

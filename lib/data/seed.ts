@@ -88,6 +88,23 @@ function photoQ(prompt: string, topic: string, marks: number, order: number): Qu
   return { id: id("q"), type: "photo", prompt, topic, marks, order };
 }
 
+/** A believable register: three classes a week, mostly present, the odd late or missed day (fixed per student, not random). */
+function demoRegister(students: Student[], now: number): AttendanceDay[] {
+  const out: AttendanceDay[] = [];
+  students.forEach((st, si) => {
+    let k = 0;
+    for (let back = 63; back >= 0; back--) {
+      const d = new Date(now - back * DAY);
+      if (![1, 3, 5].includes(d.getDay())) continue;
+      k++;
+      const roll = (k * 7 + si * 13) % 23;
+      const status: AttendanceDay["status"] = roll === 4 && si % 3 !== 0 ? "absent" : roll === 9 || roll === 17 ? "late" : "present";
+      out.push({ id: `att_${st.id}_${k}`, studentId: st.id, classId: st.classIds[0] ?? null, date: d.toISOString().slice(0, 10), status });
+    }
+  });
+  return out;
+}
+
 export function createSeed(now: number = Date.now()): Database {
   counter = 0;
   const iso = (offset: number) => new Date(now + offset).toISOString();
@@ -176,7 +193,7 @@ export function createSeed(now: number = Date.now()): Database {
         mcq("Which organelle is the 'powerhouse' of the cell?", "Cells", 2, ["Nucleus", "Mitochondrion", "Ribosome", "Golgi body"], 1, 0),
         mcq("Plant cells contain which structure that animal cells lack?", "Cells", 2, ["Cell membrane", "Cytoplasm", "Cell wall", "Nucleus"], 2, 1),
         mcq("DNA is primarily stored in the:", "Genetics", 2, ["Vacuole", "Nucleus", "Lysosome", "Membrane"], 1, 2),
-        textQ("Explain, in 2–3 sentences, the role of the cell membrane in homeostasis.", "Cells", 6, 3),
+        textQ("Explain, in 2 or 3 sentences, the role of the cell membrane in homeostasis.", "Cells", 6, 3),
         mcq("Which process do mitochondria carry out?", "Cells", 2, ["Photosynthesis", "Respiration", "Transpiration", "Digestion"], 1, 4),
       ],
     },
@@ -320,7 +337,7 @@ export function createSeed(now: number = Date.now()): Database {
         };
         if (fullyGraded) {
           const award = Math.round((Math.min(100, targetPct + (seed % 20) - 10) / 100) * q.marks);
-          return { ...base, marksAwarded: Math.max(0, Math.min(q.marks, award)), feedback: award >= q.marks * 0.6 ? "Clear and accurate — good use of the key term." : "On the right track; tie it back to stability explicitly." };
+          return { ...base, marksAwarded: Math.max(0, Math.min(q.marks, award)), feedback: award >= q.marks * 0.6 ? "Clear and accurate. Good use of the key term." : "On the right track; tie it back to stability explicitly." };
         }
         return base;
       }
@@ -369,9 +386,9 @@ export function createSeed(now: number = Date.now()): Database {
   // ---- Announcements -----------------------------------------------------
   const announcements: Announcement[] = [
     { id: "an_welcome", body: "Welcome to the Autumn 2026 term. Check your dashboard each morning for newly opened tests.", pinned: true, cohortId: null, createdAt: iso(-5 * DAY), dismissedBy: [] },
-    { id: "an_algebra", body: "Algebra Foundations is open now and closes in a few hours — don't leave it to the last minute.", pinned: true, cohortId: "co_autumn", createdAt: iso(-30 * MIN), dismissedBy: [] },
+    { id: "an_algebra", body: "Algebra Foundations is open now and closes in a few hours, so don't leave it to the last minute.", pinned: true, cohortId: "co_autumn", createdAt: iso(-30 * MIN), dismissedBy: [] },
     { id: "an_results", body: "Forces & Motion results are being graded and will be released shortly.", pinned: false, cohortId: "co_autumn", createdAt: iso(-2 * DAY), dismissedBy: ["st_noah"] },
-    { id: "an_office", body: "Office hours move to Thursdays 4–5pm starting this week.", pinned: false, cohortId: null, createdAt: iso(-3 * DAY), dismissedBy: ["st_priya", "st_liam"] },
+    { id: "an_office", body: "Office hours move to Thursdays, 4 to 5pm, starting this week.", pinned: false, cohortId: null, createdAt: iso(-3 * DAY), dismissedBy: ["st_priya", "st_liam"] },
   ];
 
   // ---- Question bank -----------------------------------------------------
@@ -409,7 +426,8 @@ export function createSeed(now: number = Date.now()): Database {
     ],
     reports: [],
     remindersSent: [],
-    attendanceDays: [],
+    // Preview only: a register for the last 9 weeks (Mon, Wed, Fri classes), so Attendance and the report have something to show.
+    attendanceDays: demoRegister(students, now),
     attendanceMonths: [],
     assignmentSubmissions: [
       { id: "asub_1", assignmentId: "as_bep", studentId: "st_amelia", fileUrls: [], submittedAt: iso(-2 * DAY), feedback: "Good chart. Label the axes next time.", feedbackAt: iso(-1 * DAY) },

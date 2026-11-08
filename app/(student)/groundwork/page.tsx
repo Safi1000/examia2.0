@@ -19,6 +19,9 @@ import { Avatar } from "@/components/student/Avatar";
 import { CalmStart } from "@/components/student/CalmStart";
 import { SlotsCard, SundayReview, WeekCard } from "@/components/student/GroundworkCards";
 import { ShareMoment } from "@/components/student/ShareMoment";
+import { SyllabusCard, useTopicalIndex } from "@/components/student/SyllabusCard";
+import { practiceToday, syllabusProgress } from "@/lib/syllabus-progress";
+import Link from "next/link";
 import type { Mission } from "@/components/student/FocusMode";
 
 const FocusMode = dynamic(() => import("@/components/student/FocusMode"), { ssr: false });
@@ -41,6 +44,10 @@ export default function GroundworkPage() {
   const step = Math.floor(nowMs / 300_000);
   const plan = useMemo(() => (student ? planToday(db, student, profile, step * 300_000) : []), [db, student, profile, step]);
   const free = useMemo(() => (student ? freeTime(db, student, nowMs) : null), [db, student, nowMs]);
+  // Syllabus progress from the notes released so far, and past paper practice from it.
+  const books = useMemo(() => (student ? syllabusProgress(db, student) : []), [db, student]);
+  const index = useTopicalIndex();
+  const practice = useMemo(() => practiceToday(books, index, step * 300_000), [books, index, step]);
   if (!student || !free) return null;
 
   const name = displayName(student.username).split(" ")[0];
@@ -56,10 +63,12 @@ export default function GroundworkPage() {
   const later = plan;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-32 pt-6 sm:px-6 sm:pb-16 sm:pt-8">
+    <div>
       <CalmStart name={name} nowMs={nowMs} onStart={() => startItem(null)} />
 
-      <div className="mt-10 space-y-10 sm:mt-12">
+      {/* The rest slides up over the photo as a frosted sheet. */}
+      <div id="groundwork-more" className="scroll-mt-[68px] rounded-t-[32px] border-t border-white/10 bg-paper/80 shadow-[0_-30px_60px_-30px_rgba(0,0,0,.6)] backdrop-blur-2xl">
+      <div className="mx-auto max-w-5xl space-y-10 px-4 pb-32 pt-8 sm:px-6 sm:pb-16 sm:pt-10">
         {sundayWeek && <SundayReview week={sundayWeek} nowMs={nowMs} name={name} />}
 
         <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-2 lg:gap-x-8">
@@ -67,7 +76,7 @@ export default function GroundworkPage() {
             <WeekCard nowMs={nowMs} name={name} />
           </Group>
 
-          {(later.length > 0 || oneThing) && (
+          {(later.length > 0 || oneThing || practice.length > 0) && (
             <Group title="Today">
               <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border bg-surface">
                 {oneThing && (
@@ -103,11 +112,33 @@ export default function GroundworkPage() {
                     </button>
                   </li>
                 ))}
+                {practice.map((p) => (
+                  <li key={p.key}>
+                    <Link href={p.href} className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-surface-2/50 active:bg-surface-2">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[12px] text-ink-3">
+                          {p.fresh ? "Past papers · new this week" : "Past papers · keep it fresh"} · {p.subject}
+                        </span>
+                        <span className="block truncate text-[16px] font-semibold text-ink">{p.chapter.name}</span>
+                      </span>
+                      <span className="shrink-0 text-[13px] font-medium text-ink-2">{p.count} questions</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-ink-3" aria-hidden>
+                        <path d="m9 6 6 6-6 6" />
+                      </svg>
+                    </Link>
+                  </li>
+                ))}
               </ul>
             </Group>
           )}
 
         </div>
+
+        {books.length > 0 && (
+          <Group title="Syllabus">
+            <SyllabusCard books={books} index={index} />
+          </Group>
+        )}
 
         <details className="group">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-[22px] border border-border bg-surface px-5 py-4 text-[15px] font-semibold text-ink [&::-webkit-details-marker]:hidden">
@@ -159,6 +190,7 @@ export default function GroundworkPage() {
             </Group>
           </div>
         </details>
+      </div>
       </div>
 
       {open &&

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import type { Scene } from "@/lib/groundwork";
+import { photoSrc, type Scene } from "@/lib/groundwork";
 import { Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
@@ -166,7 +166,7 @@ export async function drawReceipt(r: ReceiptData, scene?: Scene): Promise<Blob> 
   ctx.fillRect(0, 0, W, H);
   if (scene?.photo) {
     try {
-      const img = await loadImage(`/wallpapers/${scene.photo}-m.jpg`);
+      const img = await loadImage(photoSrc(scene, "tall"));
       const k = Math.max(W / img.width, H / img.height);
       ctx.drawImage(img, (W - img.width * k) / 2, (H - img.height * k) / 2, img.width * k, img.height * k);
     } catch {}

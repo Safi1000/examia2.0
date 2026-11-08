@@ -109,34 +109,68 @@ function ScoreRing({ data }: { data: ReportData }) {
 }
 
 function Attendance({ a }: { a: ReportData["attendance"] }) {
-  const w = 104;
-  const cx = w / 2;
-  const cy = 50;
-  const r = 42;
-  const pct = a ? Math.max(0, Math.min(100, a.percent)) : 0;
-  const total = a ? a.present + a.late + a.absent : 0;
-  return (
-    <View style={{ width: COL / 2 + 10 }}>
-      <Text style={s.label}>Attendance</Text>
-      <View style={{ width: w, height: 54, marginTop: 8 }}>
-        <Svg width={w} height={54}>
-          <Path d={arc(cx, cy, r, -90, 90)} stroke={LINE} strokeWidth={7} fill="none" strokeLinecap="round" />
-          {a && pct > 0 ? <Path d={arc(cx, cy, r, -90, -90 + pct * 1.8)} stroke={pct >= 85 ? GOLD : BAD} strokeWidth={7} fill="none" strokeLinecap="round" /> : null}
-        </Svg>
-        <Text style={{ position: "absolute", left: 0, top: 26, width: w, textAlign: "center", fontSize: 16, fontWeight: 800, color: a ? INK : MUTED }}>
-          {a ? `${Math.round(a.percent)}%` : "None"}
-        </Text>
+  const w = 168;
+  if (!a) {
+    return (
+      <View style={{ width: w }}>
+        <Text style={s.label}>Attendance</Text>
+        <Text style={{ fontSize: 13, fontWeight: 800, color: MUTED, marginTop: 9, lineHeight: 1 }}>Not recorded</Text>
+        <Text style={{ fontSize: 6.8, color: MUTED, marginTop: 6 }}>No register was taken this month.</Text>
       </View>
-      <Text style={{ fontSize: 6.6, color: MUTED, marginTop: 4, width: w, textAlign: "center" }}>
-        {!a ? "Not recorded yet" : total ? `${a.present + a.late} of ${total} classes` : "This month"}
+    );
+  }
+  const total = a.present + a.late + a.absent;
+  const tone = a.percent >= 90 ? GOOD : a.percent >= 75 ? GOLD : BAD;
+  const delta = a.last == null ? null : Math.round(a.percent - a.last);
+  const missed = a.days.filter((d) => d.status === "absent").map((d) => fmtDate(d.date));
+  return (
+    <View style={{ width: w }}>
+      <Text style={s.label}>Attendance</Text>
+      <View style={[s.row, { alignItems: "flex-end", marginTop: 8 }]}>
+        <Text style={{ fontSize: 22, fontWeight: 800, color: tone, lineHeight: 1 }}>{Math.round(a.percent)}%</Text>
+        {delta != null && delta !== 0 ? (
+          <Text style={{ fontSize: 6.6, fontWeight: 600, color: delta > 0 ? GOOD : BAD, marginLeft: 6, marginBottom: 2 }}>
+            {delta > 0 ? "+" : "−"}
+            {Math.abs(delta)} vs last month
+          </Text>
+        ) : delta === 0 ? (
+          <Text style={{ fontSize: 6.6, color: MUTED, marginLeft: 6, marginBottom: 2 }}>same as last month</Text>
+        ) : null}
+      </View>
+      {a.days.length ? (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 9, width: w }}>
+          {a.days.slice(0, 24).map((d, i) => (
+            <View
+              key={i}
+              style={{
+                width: 5,
+                height: 11,
+                borderRadius: 2.5,
+                marginRight: 3,
+                marginBottom: 3,
+                backgroundColor: d.status === "present" ? GOLD : d.status === "absent" ? BAD : "transparent",
+                borderWidth: d.status === "late" ? 1.2 : 0,
+                borderColor: GOLD,
+              }}
+            />
+          ))}
+        </View>
+      ) : null}
+      <Text style={{ fontSize: 6.8, color: BODY, marginTop: a.days.length ? 2 : 6 }}>
+        {total ? `${a.present + a.late} of ${total} classes` : "This month"}
+        {a.late ? `, ${a.late} late` : ""}
+        {total && !missed.length ? <Text style={{ color: GOOD }}>{"  ·  none missed"}</Text> : null}
       </Text>
+      {missed.length ? (
+        <Text style={{ fontSize: 6.6, color: BAD, marginTop: 2 }}>Missed {missed.slice(0, 5).join(", ")}{missed.length > 5 ? ` and ${missed.length - 5} more` : ""}</Text>
+      ) : null}
     </View>
   );
 }
 
 function Tests({ data }: { data: ReportData }) {
   return (
-    <View style={{ width: COL / 2 + 20 }}>
+    <View style={{ width: 150 }}>
       <Text style={s.label}>Tests handed in</Text>
       <Text style={{ fontSize: 22, fontWeight: 800, color: INK, marginTop: 8, lineHeight: 1 }}>
         {data.set ? data.handedIn : data.results.length}
@@ -179,13 +213,13 @@ function Tests({ data }: { data: ReportData }) {
   );
 }
 
-function Grade({ grade }: { grade: ReportData["grade"] }) {
+function Grade({ grade, asOnly }: { grade: ReportData["grade"]; asOnly: boolean }) {
   return (
     <View style={{ flex: 1 }}>
       <Text style={s.label}>Indicative grade</Text>
       <Text style={{ fontSize: 30, fontWeight: 800, color: GOLD, marginTop: 6, lineHeight: 1 }}>{grade ?? "None yet"}</Text>
       <View style={{ flexDirection: "row", marginTop: 9 }}>
-        {GRADES.map((g) => (
+        {GRADES.filter((g) => !asOnly || g !== "A*").map((g) => (
           <View key={g} style={{ alignItems: "center", width: 21 }}>
             <View style={{ width: 16, height: 3, borderRadius: 2, backgroundColor: g === grade ? GOLD : LINE }} />
             <Text style={{ fontSize: 6.4, marginTop: 2, color: g === grade ? GOLD : MUTED, fontWeight: g === grade ? 800 : 400 }}>{g}</Text>
@@ -227,7 +261,7 @@ function Subjects({ data }: { data: ReportData }) {
 function Trend({ data, listedFrom }: { data: ReportData; listedFrom: number }) {
   const pts = data.results;
   if (pts.length < 2) return null;
-  const CH = 70;
+  const CH = 58;
   const PL = 22;
   const PR = 8;
   const PT = 10;
@@ -303,12 +337,42 @@ function Topics({ title, items, good }: { title: string; items: ReportData["stre
   );
 }
 
+/** Where each subject is in the syllabus, from the chapters released in class so far. */
+function Syllabus({ data }: { data: ReportData }) {
+  const rows = data.syllabus.filter((r) => r.total > 0);
+  if (!rows.length) return null;
+  return (
+    <View style={{ width: COL }}>
+      <Text style={s.h2}>Syllabus covered in class</Text>
+      {rows.slice(0, 4).map((r) => (
+        <View key={r.label} style={{ marginBottom: 7 }}>
+          <View style={[s.row, { alignItems: "flex-end", justifyContent: "space-between" }]}>
+            <Text style={{ fontSize: 8.6, fontWeight: 600, color: INK, maxWidth: COL - 92 }}>
+              {r.label}
+              {r.latest ? <Text style={{ fontSize: 6.2, fontWeight: 400, color: MUTED }}>{`   ${r.latest.length > 30 ? `${r.latest.slice(0, 29)}…` : r.latest}`}</Text> : null}
+            </Text>
+            <Text style={{ fontSize: 8.6, fontWeight: 800, color: INK }}>
+              {r.covered}
+              <Text style={{ fontSize: 6.6, color: MUTED, fontWeight: 600 }}>{` of ${r.total}`}</Text>
+              <Text style={{ fontSize: 6.4, color: r.added > 0 ? GOOD : MUTED, fontWeight: 600 }}>{r.added > 0 ? `   +${r.added} this month` : "   none new"}</Text>
+            </Text>
+          </View>
+          <View style={{ height: 4, backgroundColor: LINE, borderRadius: 2, marginTop: 3.5 }}>
+            <View style={{ height: 4, width: `${Math.max(r.covered ? 2 : 0, (r.covered / r.total) * 100)}%`, backgroundColor: GOLD, borderRadius: 2 }} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export function ReportDocument({ data }: { data: ReportData }) {
   const logoSrc = typeof window !== "undefined" ? new URL(logo.src, window.location.origin).href : logo.src;
   // One page: the latest four results are listed (filled dots on the chart); the chart shows all.
   const MAX = 4;
   const listedFrom = Math.max(0, data.results.length - MAX);
   const listed = data.results.slice(listedFrom);
+  const hasSyllabus = data.syllabus.some((r) => r.total > 0);
   // The note box allows 260 characters; older or longer notes are cut at a word.
   const note = data.teacherNote.length > 260 ? `${data.teacherNote.slice(0, 257).replace(/\s+\S*$/, "")}…` : data.teacherNote;
 
@@ -335,7 +399,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
         </View>
 
         {/* Hero */}
-        <View style={[s.row, { marginTop: 20, justifyContent: "space-between", alignItems: "center" }]}>
+        <View style={[s.row, { marginTop: 16, justifyContent: "space-between", alignItems: "center" }]}>
           <View style={{ flex: 1, paddingRight: 18 }}>
             <Text style={{ fontSize: 36, fontWeight: 800, color: INK, letterSpacing: -1, lineHeight: 1 }}>{data.name}</Text>
             <Text style={{ fontFamily: "Caveat", fontSize: 22, color: GOLD, marginTop: 5, lineHeight: 1 }}>{data.headline}</Text>
@@ -344,20 +408,20 @@ export function ReportDocument({ data }: { data: ReportData }) {
           <ScoreRing data={data} />
         </View>
 
-        <View style={[s.hair, { marginTop: 16, marginBottom: 14 }]} />
+        <View style={[s.hair, { marginTop: 13, marginBottom: 12 }]} />
 
         {/* Attendance, tests, grade */}
         <View style={[s.row, { alignItems: "flex-start" }]}>
           <Attendance a={data.attendance} />
           <Tests data={data} />
-          <Grade grade={data.grade} />
+          <Grade grade={data.grade} asOnly={data.asOnly} />
         </View>
 
         <Subjects data={data} />
         <Trend data={data} listedFrom={listedFrom} />
 
         {/* Results + topics */}
-        <View style={[s.row, { marginTop: 14, alignItems: "flex-start" }]}>
+        <View style={[s.row, { marginTop: 12, alignItems: "flex-start" }]}>
           <View style={{ width: COL }}>
             <Text style={s.h2}>Latest results</Text>
             {listed.map((r, i) => {
@@ -395,16 +459,16 @@ export function ReportDocument({ data }: { data: ReportData }) {
           </View>
         </View>
 
-        {/* Next + note */}
+        {/* Next, and where each class is in the syllabus */}
         <View style={[s.row, { marginTop: 8, alignItems: "flex-start" }]}>
-          <View style={{ width: note ? COL : W }}>
+          <View style={{ width: hasSyllabus ? COL : W }}>
             <Text style={s.h2}>Next</Text>
             {data.nextSteps.slice(0, 3).map((n, i) => {
               const [k, v] = n.includes(": ") ? n.split(/: (.+)/) : ["", n];
               return (
                 <View key={i} style={[s.row, { marginBottom: 4 }]}>
                   <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: GOLD, marginTop: 3.5, marginRight: 7 }} />
-                  <Text style={{ fontSize: 8.2, color: INK }}>
+                  <Text style={{ fontSize: 8.2, color: INK, flex: 1 }}>
                     {k ? <Text style={{ color: MUTED }}>{k}  </Text> : null}
                     {v}
                   </Text>
@@ -412,19 +476,19 @@ export function ReportDocument({ data }: { data: ReportData }) {
               );
             })}
           </View>
-          {note ? (
-            <>
-              <View style={{ width: GAP }} />
-              <View style={{ width: COL, borderLeftWidth: 1.5, borderColor: GOLD, paddingLeft: 11 }}>
-                <Text style={{ fontSize: 8.4, color: INK, lineHeight: 1.5 }}>{note}</Text>
-                <Text style={{ fontFamily: "Caveat", fontSize: 14, color: GOLD, marginTop: 3 }}>Hamza Sadaqat</Text>
-              </View>
-            </>
-          ) : null}
+          {hasSyllabus ? <View style={{ width: GAP }} /> : null}
+          <Syllabus data={data} />
         </View>
 
+        {note ? (
+          <View style={{ marginTop: 8, borderLeftWidth: 1.5, borderColor: GOLD, paddingLeft: 11 }}>
+            <Text style={{ fontSize: 8.4, color: INK, lineHeight: 1.5 }}>{note}</Text>
+            <Text style={{ fontFamily: "Caveat", fontSize: 14, color: GOLD, marginTop: 3 }}>Hamza Sadaqat</Text>
+          </View>
+        ) : null}
+
         {/* Footer */}
-        <View style={{ position: "absolute", bottom: 20, left: PAD, right: PAD }}>
+        <View fixed style={{ position: "absolute", bottom: 20, left: PAD, right: PAD }}>
           <View style={[s.hair, { marginBottom: 6 }]} />
           <View style={[s.row, { justifyContent: "space-between" }]}>
             <Text style={{ fontSize: 6.6, color: MUTED }}>Questions? WhatsApp {phone(LANDING.waNumber)}</Text>

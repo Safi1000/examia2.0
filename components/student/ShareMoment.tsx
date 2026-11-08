@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import logo from "@/logo/logo-web.png";
 import { Icon } from "@/components/ui";
-import { SCENES, type Scene } from "@/lib/groundwork";
+import { SCENES, photoSrc, type Scene } from "@/lib/groundwork";
 
 /**
  * Proud moments, shareable: draws a story-sized card (1080 × 1920) in the
@@ -76,7 +76,7 @@ export async function drawMoment(m: Moment): Promise<Blob> {
   let photoDone = false;
   if (scene.photo) {
     try {
-      const img = await loadImage(`/wallpapers/${scene.photo}-m.jpg`);
+      const img = await loadImage(photoSrc(scene, "tall"));
       const k = Math.max(W / img.width, H / img.height);
       ctx.drawImage(img, (W - img.width * k) / 2, (H - img.height * k) / 2, img.width * k, img.height * k);
       const shade = ctx.createLinearGradient(0, 0, 0, H);

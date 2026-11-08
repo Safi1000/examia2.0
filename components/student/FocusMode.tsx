@@ -7,7 +7,7 @@ import { STUDY_NAME, MIN_COUNTED, currentStats, quoteFor, recordFocus } from "@/
 import { clearRunning, loadRunning, minutesToAdd, ownRunning, saveRunning } from "@/components/student/focus-session";
 import { useBackToClose } from "@/components/student/useBackToClose";
 import { cn } from "@/lib/cn";
-import { SCENES, sceneFor, reviewDone, topicKey } from "@/lib/groundwork";
+import { TRAY_SCENES as SCENES, photoSrc, sceneFor, reviewDone, topicKey } from "@/lib/groundwork";
 import { pkDate, addDays } from "@/lib/timetable";
 import { setStudying } from "@/components/student/StudyRoom";
 import { SOUNDS, backgroundTicker, chime, clearLockScreen, pauseSound, playSound, showOnLockScreen, stopSound, wakeChime, type Sound } from "@/lib/focus-sound";
@@ -417,8 +417,8 @@ export default function FocusMode({
       <div className="pointer-events-none absolute inset-0" aria-hidden style={{ background: scene.sky }}>
         {scene.photo && (
           <picture key={scene.id}>
-            <source media="(min-width: 768px)" srcSet={`/wallpapers/${scene.photo}.jpg`} />
-            <img src={`/wallpapers/${scene.photo}-m.jpg`} alt="" className="room-drift h-full w-full object-cover" decoding="async" />
+            <source media="(min-width: 768px)" srcSet={photoSrc(scene)} />
+            <img src={photoSrc(scene, "tall")} alt="" className="room-drift h-full w-full object-cover" decoding="async" />
           </picture>
         )}
         <div
