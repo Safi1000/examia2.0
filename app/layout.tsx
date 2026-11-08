@@ -8,6 +8,7 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { MetaPixel } from "@/components/MetaPixel";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
+import { RouteProgress } from "@/components/RouteProgress";
 import { COMPANY_NAME, GSC_VERIFICATION } from "@/lib/config";
 import { SITE_URL } from "@/lib/seo";
 
@@ -62,10 +63,14 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-dvh antialiased">
+        {/* Inside the phone app (its browser name says HamzaTeachesApp), mark the page
+            before it paints so web-only parts never flash (see lib/in-app.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: `try{if(navigator.userAgent.indexOf("HamzaTeachesApp/")>-1)document.documentElement.dataset.app="1"}catch(e){}` }} />
         {/* Outside Providers on purpose: that gate renders a splash until
             hydration, which kept the pixel out of the server HTML entirely. */}
         <MetaPixel />
         <GoogleAnalytics />
+        <RouteProgress />
         <Providers>{children}</Providers>
       </body>
     </html>
