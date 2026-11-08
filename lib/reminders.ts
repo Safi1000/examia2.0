@@ -2,6 +2,7 @@ import type { Database } from "@/lib/data/seed";
 import type { Student } from "@/types";
 import { absenceStreak, archivedCohortIds, extensionFor, isArchivedTest, liveStatus, testCoversStudent } from "@/lib/data/selectors";
 import { COMPANY_NAME } from "@/lib/config";
+import { inPersonIds } from "@/lib/in-person";
 import { awardedMarks, isFullyGraded, percent, totalMarks } from "@/lib/scoring";
 
 /** Results under this percentage are worth a word with the parents. */
@@ -45,7 +46,9 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
   const sent = new Set(db.remindersSent.map((r) => `${r.studentId}|${r.kind}|${r.ref}`));
   // Past students (switched-off cohorts) are never chased.
   const off = archivedCohortIds(db);
-  const students = db.students.filter((s) => !off.has(s.cohortId) && (cohortId ? s.cohortId === cohortId : true));
+  // In-person students are managed in class: no parent messages or monthly reports from here.
+  const inPerson = inPersonIds(db);
+  const students = db.students.filter((s) => !off.has(s.cohortId) && !inPerson.has(s.id) && (cohortId ? s.cohortId === cohortId : true));
   const out: Reminder[] = [];
 
   const add = (r: Reminder) => {

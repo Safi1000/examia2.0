@@ -6,6 +6,7 @@ import type { AttendanceStatus } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { attendancePercent, archivedCohortIds } from "@/lib/data/selectors";
+import { isInPersonStudent } from "@/lib/in-person";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Select, EmptyState, Icon } from "@/components/ui";
@@ -38,6 +39,8 @@ export default function AttendancePage() {
     () =>
       db.students
         .filter((s) => !archivedCohortIds(db).has(s.cohortId))
+        // In-person students have no register.
+        .filter((s) => !isInPersonStudent(db, s))
         .filter((s) => (cohortId ? s.cohortId === cohortId : true))
         // Their own classes, else their cohort's (the same rule the portal uses).
         .filter((s) => (classId ? (s.classIds.length ? s.classIds : (cohortById(db, s.cohortId)?.classIds ?? [])).includes(classId) : true))

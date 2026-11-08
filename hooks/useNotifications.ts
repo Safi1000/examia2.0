@@ -50,7 +50,9 @@ export function useNotifications() {
           (!userId || !a.clearedBy.includes(userId)) &&
           (!since || +new Date(a.createdAt) >= since) &&
           // A late window is the student's news; Hamza manages it on the test page.
-          (!!me || a.type !== "test_reopened"),
+          (!!me || a.type !== "test_reopened") &&
+          // In-person tags are bookkeeping, not news.
+          a.type !== "student_in_person",
       ), // already newest-first from the store
     [db.activities, userId, since, me],
   );

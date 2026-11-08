@@ -307,6 +307,8 @@ export type ActivityType =
   | "announcement_posted"
   /** Hamza opened a missed test again for one student (see TestExtension). */
   | "test_reopened"
+  /** Hamza-only tag: this student is taught in person (see lib/in-person.ts). */
+  | "student_in_person"
   | "system_alert";
 
 /** Who an activity is addressed to. Admins additionally see every entry. */

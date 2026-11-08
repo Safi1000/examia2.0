@@ -6,6 +6,7 @@ import { useDatabase, useStore } from "@/lib/data/store";
 import { useNow } from "@/hooks/useNow";
 import { useToast } from "@/components/toast";
 import { archivedCohortIds } from "@/lib/data/selectors";
+import { isInPersonStudent } from "@/lib/in-person";
 import { displayName } from "@/lib/display-name";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { GoogleConnect } from "@/components/admin/GoogleConnect";
@@ -61,7 +62,8 @@ export default function ClassesPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const slots = useMemo(() => slotsOn(db, date), [db, date, schedule]);
   const off = useMemo(() => archivedCohortIds(db), [db]);
-  const students = useMemo(() => db.students.filter((s) => !off.has(s.cohortId)), [db.students, off]);
+  // In-person students can join online classes but have no register, so they're left off it.
+  const students = useMemo(() => db.students.filter((s) => !off.has(s.cohortId) && !isInPersonStudent(db, s)), [db, off]);
   const enrolled = useMemo(() => {
     const m = new Map<string, Student[]>();
     for (const s of students) for (const sl of slotsForStudent(db, s, date)) m.set(slotKey(sl), [...(m.get(slotKey(sl)) ?? []), s]);

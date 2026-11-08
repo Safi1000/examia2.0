@@ -8,12 +8,14 @@ import { useAdminFilter } from "@/lib/admin-filter";
 import { cohortById } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
 import { isValidPhone, normalizePhone, waDigits } from "@/lib/phone";
+import { inPersonIds as tagged } from "@/lib/in-person";
+import { Checkbox } from "@/components/ui/Choice";
 import { squareThumbnail } from "@/lib/image";
 import { BulkBar, RowCheck } from "@/components/admin/BulkBar";
 import { uploadImage } from "@/lib/cloudinary";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { ArchiveTabs, archiveFromUrl, type ArchiveView } from "@/components/admin/ArchiveTabs";
-import { Card, Button, Input, Select, Label, CohortDot, Modal, EmptyState, Icon } from "@/components/ui";
+import { Card, Button, Input, Select, Label, CohortDot, Modal, EmptyState, Icon, Badge } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { cld } from "@/lib/cld";
 import { LoginDetails } from "@/components/admin/LoginDetails";
@@ -67,7 +69,7 @@ export default function RosterPage() {
 
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Student | "new" | null>(null);
-  const [form, setForm] = useState({ username: "", email: "", whatsapp: "", phone: "", photoUrl: "", cohortId: "", tempPassword: "", classIds: [] as string[], subjectIds: [] as string[], levelSubjects: {} as Record<string, string[]> });
+  const [form, setForm] = useState({ inPerson: false, username: "", email: "", whatsapp: "", phone: "", photoUrl: "", cohortId: "", tempPassword: "", classIds: [] as string[], subjectIds: [] as string[], levelSubjects: {} as Record<string, string[]> });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // The just-added student's login, for the ready-made welcome message.
@@ -105,15 +107,20 @@ export default function RosterPage() {
   }, []);
   const off = useMemo(() => new Set(db.cohorts.filter((c) => !c.active).map((c) => c.id)), [db.cohorts]);
   const pastCount = db.students.filter((s) => off.has(s.cohortId)).length;
+  // Physical students sit in the normal groups, tagged "In person".
+  const inPersonIds = useMemo(() => tagged(db), [db]);
+  const [bulkTag, setBulkTag] = useState<"" | "in" | "out">("");
+  const [mode, setMode] = useState<"all" | "online" | "inperson">("all");
 
   const students = useMemo(
     () =>
       db.students
         .filter((s) => (view === "archive") === off.has(s.cohortId))
         .filter((s) => (cohortId ? s.cohortId === cohortId : true))
+        .filter((s) => (mode === "all" ? true : (mode === "inperson") === inPersonIds.has(s.id)))
         .filter((s) => (search.trim() ? `${s.username} ${s.email ?? ""} ${s.phone ?? ""} ${s.whatsapp ?? ""}`.toLowerCase().includes(search.trim().toLowerCase()) : true))
         .sort((a, b) => a.username.localeCompare(b.username)),
-    [db.students, cohortId, search, view, off],
+    [db.students, cohortId, search, view, off, mode, inPersonIds],
   );
 
   // Classes/subjects available for the selected cohort in the form
@@ -154,12 +161,12 @@ export default function RosterPage() {
 
   function openNew() {
     setEditing("new");
-    setForm({ username: "", email: "", whatsapp: "", phone: "", photoUrl: "", cohortId: cohortId ?? db.cohorts[0]?.id ?? "", tempPassword: genPassword(), classIds: [], subjectIds: [], levelSubjects: {} });
+    setForm({ inPerson: false, username: "", email: "", whatsapp: "", phone: "", photoUrl: "", cohortId: cohortId ?? db.cohorts[0]?.id ?? "", tempPassword: genPassword(), classIds: [], subjectIds: [], levelSubjects: {} });
     setError(null);
   }
   function openEdit(s: Student) {
     setEditing(s);
-    setForm({ username: s.username, email: s.email ?? "", whatsapp: s.whatsapp ?? "", phone: s.phone ?? "", photoUrl: s.photoUrl ?? "", cohortId: s.cohortId, tempPassword: "", classIds: [...s.classIds], subjectIds: [...s.subjectIds], levelSubjects: Object.fromEntries(s.classIds.map((c) => [c, [...(s.levelSubjects?.[c] ?? s.subjectIds)]])) });
+    setForm({ inPerson: inPersonIds.has(s.id), username: s.username, email: s.email ?? "", whatsapp: s.whatsapp ?? "", phone: s.phone ?? "", photoUrl: s.photoUrl ?? "", cohortId: s.cohortId, tempPassword: "", classIds: [...s.classIds], subjectIds: [...s.subjectIds], levelSubjects: Object.fromEntries(s.classIds.map((c) => [c, [...(s.levelSubjects?.[c] ?? s.subjectIds)]])) });
     setError(null);
   }
   async function save() {
@@ -184,11 +191,13 @@ export default function RosterPage() {
     }
 
     // 0300 1234567 and 92300… are tidied into +92300…, same as Import.
-    const whatsapp = form.whatsapp.trim() ? (fixPhone(form.whatsapp) ?? "") : "";
+    // In-person students keep no numbers.
+    const noNumbers = form.inPerson;
+    const whatsapp = !noNumbers && form.whatsapp.trim() ? (fixPhone(form.whatsapp) ?? "") : "";
     if (whatsapp && !isValidPhone(whatsapp)) {
       return setError("Parent's WhatsApp must include the country code, e.g. +923001234567.");
     }
-    const phone = form.phone.trim() ? (fixPhone(form.phone) ?? "") : "";
+    const phone = !noNumbers && form.phone.trim() ? (fixPhone(form.phone) ?? "") : "";
     if (phone && !isValidPhone(phone)) {
       return setError("Student's number must include the country code, e.g. +923001234567.");
     }
@@ -216,11 +225,13 @@ export default function RosterPage() {
     setSaving(true);
     try {
       if (editing === "new") {
-        await store.addStudent(fields);
+        const id = await store.addStudent(fields);
+        if (form.inPerson) store.setInPerson(id, true);
         // Straight into the ready-made message with their login.
         setSent({ username: fields.username, password: fields.tempPassword, phone: fields.phone, parent: fields.whatsapp });
       } else if (editing) {
         await store.updateStudent(editing.id, fields);
+        store.setInPerson(editing.id, form.inPerson);
         // A new password: send it. Only a new username: send just that, the password stays.
         if (fields.tempPassword) setSent({ username: fields.username, password: fields.tempPassword, phone: fields.phone, parent: fields.whatsapp, kind: "reset" });
         else if (editing.username !== fields.username) setSent({ username: fields.username, password: "", phone: fields.phone, parent: fields.whatsapp, kind: "username" });
@@ -261,9 +272,14 @@ export default function RosterPage() {
           <option value="">{view === "archive" ? "Add to cohort…" : "Move to cohort…"}</option>
           {db.cohorts.filter((c) => c.active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select>
+        <Select value={bulkTag} onChange={(e) => setBulkTag(e.target.value as "" | "in" | "out")} className="h-9 w-auto min-w-36" aria-label="Tag as">
+          <option value="">Tag as…</option>
+          <option value="in">In person</option>
+          <option value="out">Online</option>
+        </Select>
         <Button
           size="sm"
-          disabled={!bulkClass && !bulkCohort}
+          disabled={!bulkClass && !bulkCohort && !bulkTag}
           onClick={async () => {
             // Wait for every save, then say how it went (never "moved" before it is).
             const results = await Promise.allSettled(
@@ -273,6 +289,7 @@ export default function RosterPage() {
                 // Moving class replaces the class list; the cohort is a straight swap.
                 if (bulkClass) await store.setStudentClasses(id, [bulkClass]);
                 if (bulkCohort) await store.updateStudent(id, { cohortId: bulkCohort, username: st.username });
+                if (bulkTag) store.setInPerson(id, bulkTag === "in");
               }),
             );
             const failed = results.filter((r) => r.status === "rejected").length;
@@ -282,13 +299,14 @@ export default function RosterPage() {
               toast(
                 view === "archive" && bulkCohort
                   ? `${ok} past student${ok === 1 ? "" : "s"} added. They can sign in again.`
-                  : `${ok} student${ok === 1 ? "" : "s"} moved.`,
+                  : `${ok} student${ok === 1 ? "" : "s"} ${bulkClass || bulkCohort ? "moved" : "updated"}.`,
                 "success",
               );
             setPicked([]);
+            setBulkTag("");
           }}
         >
-          Move
+          Apply
         </Button>
       </BulkBar>
 
@@ -328,8 +346,26 @@ export default function RosterPage() {
         </p>
       )}
 
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search students…" className="max-w-xs" aria-label="Search students" />
+        {inPersonIds.size > 0 && (
+          <div role="group" aria-label="Show students" className="inline-flex rounded-full border border-border bg-surface p-1">
+            {([["all", "All"], ["online", "Online"], ["inperson", "In person"]] as const).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={mode === k}
+                onClick={() => setMode(k)}
+                className={cn(
+                  "h-9 rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                  mode === k ? "bg-brand text-on-brand" : "text-ink-2 hover:text-ink",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {students.length === 0 ? (
@@ -365,7 +401,10 @@ export default function RosterPage() {
                     )}
                   </span>
                   <div className="min-w-0">
-                    <p className="truncate font-bold capitalize text-ink">{s.username}</p>
+                    <p className="flex min-w-0 items-center gap-2">
+                      <span className="truncate font-bold capitalize text-ink">{s.username}</span>
+                      {inPersonIds.has(s.id) && <Badge tone="neutral" className="shrink-0">In person</Badge>}
+                    </p>
                     <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm text-ink-2">
                       {cohort && <CohortDot color={cohort.color} />}
                       <span className="truncate">{cohort?.name ?? "No cohort"}</span>
@@ -401,7 +440,8 @@ export default function RosterPage() {
                       <Icon.Users className="h-4 w-4" />
                     </a>
                   )}
-                  {/* Straight to the report dialog, which is where the send lives. */}
+                  {/* Straight to the report dialog, which is where the send lives. In-person students get no monthly report. */}
+                  {!inPersonIds.has(s.id) && (
                   <Link
                     href={`/admin/roster/${s.id}?report=1`}
                     className={cn(
@@ -413,6 +453,7 @@ export default function RosterPage() {
                   >
                     <Icon.Megaphone className="h-4 w-4" />
                   </Link>
+                  )}
                   <button onClick={() => openEdit(s)} className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label={`Edit ${s.username}`}>
                     <Icon.Edit className="h-4 w-4" />
                   </button>
@@ -441,6 +482,17 @@ export default function RosterPage() {
         <div className="space-y-4">
           <Input label="Username" value={form.username} onChange={(e) => { setForm({ ...form, username: e.target.value }); setError(null); }} required autoCapitalize="none" />
           <Input label="Email (optional)" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <div className="rounded-md border border-border bg-surface-2 px-4 py-3">
+            <Checkbox
+              checked={form.inPerson}
+              onChange={(v) => setForm({ ...form, inPerson: v })}
+              label={<span className="font-semibold text-ink">Taught in person</span>}
+            />
+            <p className="mt-1.5 pl-[30px] text-xs text-ink-3">
+              A physical student: classes, recordings and tests in the portal. No phone numbers, register, monthly report or parent messages.
+            </p>
+          </div>
+          {form.inPerson ? null : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input
               label="Parent's WhatsApp"
@@ -463,6 +515,7 @@ export default function RosterPage() {
               hint="Country code required."
             />
           </div>
+          )}
 
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-ink-2">Profile photo</label>

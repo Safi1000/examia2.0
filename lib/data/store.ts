@@ -602,12 +602,17 @@ class Store {
     // Late windows (one student sits a missed test) live in the feed as
     // "test_reopened" rows. The feed below is capped at 100, so the recent
     // ones are read on their own too: none lasts longer than a day.
-    const lateReady = Promise.resolve(
-      sb.from("activities").select("*").eq("type", "test_reopened").gte("created_at", new Date(Date.now() - 2 * 86_400_000).toISOString()),
-    ).then(
-      (r) => (r.error ? [] : ((r.data as Row[]) ?? []).map(mapActivity)),
-      () => [] as Activity[],
-    );
+    // The in-person tags (students taught physically) are read in full, as
+    // Hamza-only rows; students can't read them, so theirs comes back empty.
+    const quiet = (q: PromiseLike<{ data: unknown; error: unknown }>) =>
+      Promise.resolve(q).then(
+        (r) => (r.error ? [] : ((r.data as Row[]) ?? []).map(mapActivity)),
+        () => [] as Activity[],
+      );
+    const lateReady = Promise.all([
+      quiet(sb.from("activities").select("*").eq("type", "test_reopened").gte("created_at", new Date(Date.now() - 2 * 86_400_000).toISOString())),
+      this.audience === "student" ? Promise.resolve([] as Activity[]) : quiet(sb.from("activities").select("*").eq("type", "student_in_person")),
+    ]).then(([a, b]) => [...a, ...b]);
     const [coh, stu, tst, sub, ann, bnk, keys, cls, subj, cCls, cSubj, sCls, sSubj, nts, nAssigns, asg, asgSubs, attD, attM, rep, rem, acts] = await Promise.all([
       sb.from("cohorts").select("*").order("created_at"),
       allRows((a, b) => sb.from("students").select("*").order("created_at").order("id").range(a, b)),
@@ -1114,13 +1119,15 @@ class Store {
     return data as Row;
   }
 
-  async addStudent(input: Omit<Student, "id" | "createdAt">) {
+  /** Creates the student and returns their new id. */
+  async addStudent(input: Omit<Student, "id" | "createdAt">): Promise<string> {
     if (DEMO) {
       // Preview only: no real sign-in account, just the roster row.
       const { tempPassword: _pw, ...rest } = input;
       void _pw;
-      this.commit((d) => d.students.push({ ...rest, id: genId(), createdAt: new Date().toISOString() }));
-      return;
+      const id = genId();
+      this.commit((d) => d.students.push({ ...rest, id, createdAt: new Date().toISOString() }));
+      return id;
     }
     const data = await this.callAdminUsers("addStudent", {
       action: "create",
@@ -1143,6 +1150,7 @@ class Store {
     if (input.classIds.length) await this.setStudentClasses(student.id, input.classIds);
     if (input.subjectIds.length) await this.setStudentSubjects(student.id, input.subjectIds);
     if (input.levelSubjects && Object.keys(input.levelSubjects).length) await this.setStudentLevels(student.id, input.levelSubjects);
+    return student.id;
   }
 
   /**
@@ -1915,6 +1923,41 @@ class Store {
       "Couldn't open the test for them",
     );
     return until;
+  }
+  /**
+   * Tags a student as taught in person, or removes the tag. A Hamza-only row
+   * in the activities table (see lib/in-person.ts); students never see it.
+   */
+  setInPerson(studentId: string, on: boolean) {
+    const isTag = (a: Activity) => a.type === "student_in_person" && a.studentId === studentId;
+    const has = this.state.activities.some(isTag);
+    if (on === has) return;
+    const sb = supabase();
+    if (on) {
+      const st = this.state.students.find((x) => x.id === studentId);
+      const row: Activity = {
+        id: genId(),
+        type: "student_in_person",
+        title: `${st?.username ?? "Student"} is taught in person`,
+        studentId,
+        audience: "admin",
+        readBy: [],
+        clearedBy: [],
+        createdAt: new Date().toISOString(),
+      };
+      this.commit((d) => {
+        d.activities = [row, ...d.activities];
+      });
+      this.run(
+        sb.from("activities").insert({ id: row.id, type: row.type, title: row.title, student_id: studentId, audience: "admin" }),
+        "Couldn't tag them as in person",
+      );
+    } else {
+      this.commit((d) => {
+        d.activities = d.activities.filter((a) => !isTag(a));
+      });
+      this.run(sb.from("activities").delete().eq("type", "student_in_person").eq("student_id", studentId), "Couldn't remove the in-person tag");
+    }
   }
   /** Ends a student's late window now. */
   endReopen(testId: string, studentId: string) {

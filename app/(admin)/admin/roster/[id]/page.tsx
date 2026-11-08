@@ -13,6 +13,7 @@ import { Suspense } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { attendancePercent, cohortById, studentById, submissionsForStudent, testById } from "@/lib/data/selectors";
+import { isInPersonStudent } from "@/lib/in-person";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Badge, CohortDot, EmptyState, Icon, Modal } from "@/components/ui";
 import { useToast } from "@/components/toast";
@@ -237,9 +238,12 @@ function StudentDetail() {
               </a>
             )}
             <ResetPassword studentId={student.id} username={student.username} phone={student.phone} parent={student.whatsapp} />
-            <Button variant="secondary" size="sm" onClick={openReport}>
-              <Icon.Download className="h-4 w-4" /> Monthly report
-            </Button>
+            {/* In-person students get no monthly report. */}
+            {!isInPersonStudent(db, student) && (
+              <Button variant="secondary" size="sm" onClick={openReport}>
+                <Icon.Download className="h-4 w-4" /> Monthly report
+              </Button>
+            )}
           </div>
         }
       />
@@ -259,7 +263,7 @@ function StudentDetail() {
         <Stat label="Average" value={`${data.avg}%`} />
         <Stat
           label="Attendance"
-          value={data.attendance != null ? `${data.attendance}%` : "None yet"}
+          value={isInPersonStudent(db, student) ? "In person" : data.attendance != null ? `${data.attendance}%` : "None yet"}
         />
       </div>
 

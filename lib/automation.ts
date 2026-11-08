@@ -77,7 +77,7 @@ async function catalogue(sb: SupabaseClient) {
  * cohort's (same rule as the portal), and only while their cohort is on.
  * `subjectIds` empty means any subject of that level.
  */
-export async function studentsIn(sb: SupabaseClient, classId: string, subjectIds: string[]): Promise<string[]> {
+export async function studentsIn(sb: SupabaseClient, classId: string, subjectIds: string[], opts: { skipInPerson?: boolean } = {}): Promise<string[]> {
   const [{ data: students }, { data: cohorts }, { data: sc }, { data: ss }, { data: cc }, { data: cs }] = await Promise.all([
     sb.from("students").select("id,cohort_id"),
     sb.from("cohorts").select("id,active"),
@@ -92,13 +92,19 @@ export async function studentsIn(sb: SupabaseClient, classId: string, subjectIds
     return m;
   };
   const off = new Set((cohorts ?? []).filter((c) => c.active === false).map((c) => c.id as string));
+  // For the register: students taught in person have none (lib/in-person.ts).
+  const inPerson = new Set<string>();
+  if (opts.skipInPerson) {
+    const { data: tags } = await sb.from("activities").select("student_id").eq("type", "student_in_person");
+    for (const t of (tags as Array<{ student_id: string | null }> | null) ?? []) if (t.student_id) inPerson.add(t.student_id);
+  }
   const levels = await levelSubjectsByStudent(sb);
   const ownC = group(sc, "student_id", "class_id");
   const ownS = group(ss, "student_id", "subject_id");
   const cohC = group(cc, "cohort_id", "class_id");
   const cohS = group(cs, "cohort_id", "subject_id");
   return (students ?? [])
-    .filter((s) => !(s.cohort_id && off.has(s.cohort_id)))
+    .filter((s) => !(s.cohort_id && off.has(s.cohort_id)) && !inPerson.has(s.id as string))
     .filter((s) => {
       const classes = ownC.get(s.id)?.size ? ownC.get(s.id)! : (cohC.get(s.cohort_id ?? "") ?? new Set<string>());
       if (!classes.has(classId)) return false;
@@ -159,7 +165,7 @@ async function autoAbsent(sb: SupabaseClient, now: number) {
     const joined = new Set(joins.map((j) => j.student_id as string));
     const { data: marks } = await sb.from("attendance_days").select("student_id").eq("on_date", today);
     const hasMark = new Set((marks ?? []).map((m) => m.student_id as string));
-    const who = (await studentsIn(sb, classId, block.map((s) => s.subjectId))).filter((id) => !joined.has(id) && !hasMark.has(id));
+    const who = (await studentsIn(sb, classId, block.map((s) => s.subjectId), { skipInPerson: true })).filter((id) => !joined.has(id) && !hasMark.has(id));
     if (!who.length) continue;
     const { error } = await sb
       .from("attendance_days")
