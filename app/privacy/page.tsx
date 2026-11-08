@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/privacy" },
 };
 
-const UPDATED = "18 October 2026";
+const UPDATED = "8 November 2026";
 
 export default function PrivacyPage() {
   const wa = (
@@ -103,6 +103,14 @@ export default function PrivacyPage() {
                 <strong className="text-foreground">In live classes.</strong> Classes run on Google Meet or Zoom and are recorded
                 so students can watch them again. Recordings are shared only with the students in that class.
               </p>
+              <p>
+                <strong className="text-foreground">In the phone app.</strong> The Hamza Teaches app for iPhone and Android shows
+                the same student portal and free tools as this website, with the same account. If you turn on notifications,
+                the app saves a code for your phone so Apple or Google can deliver my class, test and result reminders. Sign
+                out or switch notifications off and I delete that code. The app asks for your camera or photos only when you
+                choose to send me a photo of your work. The app has no ads and no analytics, and it does not track you across
+                other apps or websites.
+              </p>
             </>
           ),
         },
@@ -163,6 +171,8 @@ export default function PrivacyPage() {
                 <li><strong className="text-foreground">Google Meet and Zoom</strong>: live classes and their recordings.</li>
                 {GA_ID && <li><strong className="text-foreground">Google Analytics</strong>: counting visits to the public website.</li>}
                 <li><strong className="text-foreground">YouTube</strong>: plays videos on the site, in privacy-enhanced mode.</li>
+                <li><strong className="text-foreground">Expo</strong>: passes the phone app&apos;s notifications to Apple and Google.</li>
+                <li><strong className="text-foreground">Apple and Google</strong>: deliver notifications to your phone, and run the App Store and Google Play.</li>
               </ul>
               <p>I never sell your information, and I never share it with other tutors, schools or advertisers.</p>
             </>
