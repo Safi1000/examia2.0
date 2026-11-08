@@ -1,25 +1,50 @@
 /**
- * The portal's backdrop: a soft gold light at the top of every page and a
- * faint grid that fades out, echoing the sign-in door and the public site.
+ * The portal's backdrop, on phone and desktop.
+ *
+ * - Students: a soft wash of their Groundwork scene. For a photo, only the
+ *   small thumbnail is used, blurred until no detail is left; for a colour
+ *   scene, its own gradient. Both sit under charcoal so text stays easy to read.
+ * - The teacher console (no scene): an aurora of brand light, gold from the
+ *   top left and deep navy from the bottom right, over warm charcoal.
+ *
  * Purely decorative; sits behind everything and never takes clicks.
  */
-export function PortalAmbient() {
+export function PortalAmbient({ photo, sky }: { photo?: string; sky?: string }) {
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-      <div
-        className="absolute left-1/2 top-0 h-[640px] w-[1200px] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.10]"
-        // A soft gradient instead of a 110px blur filter: same glow, no repaint cost on phones.
-        style={{ background: "radial-gradient(closest-side, var(--color-brand), color-mix(in srgb, var(--color-brand) 40%, transparent) 45%, transparent)" }}
-      />
-      <div
-        className="absolute inset-x-0 top-0 h-[520px] opacity-[0.22]"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, color-mix(in srgb, var(--color-ink) 5%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in srgb, var(--color-ink) 5%, transparent) 1px, transparent 1px)",
-          backgroundSize: "56px 56px",
-          maskImage: "radial-gradient(ellipse 60% 100% at 50% 0%, #000 10%, transparent 75%)",
-        }}
-      />
+    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-paper">
+      {photo || sky ? (
+        <>
+          {/* The scene's own colours first, so there is never a flash of grey while the thumbnail loads. */}
+          {sky && <div className="absolute inset-0" style={{ background: sky }} />}
+          {photo && (
+            // eslint-disable-next-line @next/next/no-img-element -- a tiny blurred thumbnail, no optimisation needed
+            <img
+              key={photo}
+              src={photo}
+              alt=""
+              decoding="async"
+              className="absolute inset-0 h-full w-full scale-125 object-cover blur-[48px] saturate-[1.35]"
+            />
+          )}
+          {/* Charcoal over it, heavier at the bottom where most of the reading is. */}
+          <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(26,29,32,0.56) 0%, rgba(26,29,32,0.62) 40%, rgba(20,22,24,0.82) 100%)" }} />
+        </>
+      ) : (
+        <>
+          <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, #1f2226 0%, #1a1d20 50%, #141618 100%)" }} />
+          {/* Gold light, top left. */}
+          <div
+            className="absolute inset-0"
+            style={{ background: "radial-gradient(65% 60% at 10% -8%, color-mix(in srgb, var(--color-brand) 38%, transparent) 0%, color-mix(in srgb, var(--color-brand) 14%, transparent) 38%, transparent 72%)" }}
+          />
+          {/* Deep navy, bottom right (the colour of the reels and VSLs). */}
+          <div className="absolute inset-0" style={{ background: "radial-gradient(75% 70% at 100% 100%, rgba(40, 70, 150, 0.75) 0%, rgba(20, 34, 75, 0.5) 45%, transparent 78%)" }} />
+          {/* A faint warm band through the middle so the two lights meet softly. */}
+          <div className="absolute inset-0" style={{ background: "radial-gradient(45% 35% at 75% 30%, rgba(229, 140, 90, 0.12) 0%, transparent 70%)" }} />
+        </>
+      )}
+      {/* Soft edges. */}
+      <div className="absolute inset-0" style={{ background: "radial-gradient(120% 90% at 50% 30%, transparent 55%, rgba(0, 0, 0, 0.35) 100%)" }} />
     </div>
   );
 }

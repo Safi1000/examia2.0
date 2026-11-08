@@ -26,7 +26,7 @@ import { cohortById } from "@/lib/data/selectors";
 import { cn } from "@/lib/cn";
 import { displayName } from "@/lib/display-name";
 import { PortalAmbient } from "@/components/PortalAmbient";
-import { PortalBackdrop } from "@/components/student/PortalBackdrop";
+import { photoSrc, sceneFor } from "@/lib/groundwork";
 import { pageTitle, useDocumentTitle } from "@/hooks/usePageTitle";
 import { useRecoverFocus } from "@/components/student/focus-session";
 import { setActivityPath, startActivity } from "@/lib/activity-tracker";
@@ -54,8 +54,8 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const db = useDatabase();
   const ready = useDataReady();
   const nowMs = useNow();
-  // The header is see-through over the photo until the page scrolls (on
-  // Groundwork, until past its first screen), then gets its solid glass back.
+  // The header is see-through until the page scrolls (on Groundwork, until
+  // past its photo), then turns to frosted glass.
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > (pathname === "/groundwork" ? window.innerHeight - 160 : 12));
@@ -205,25 +205,20 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const isActive = (href: string) =>
     pathname === href || (href === "/tests" && pathname.startsWith("/results")) || (href === "/dashboard" && pathname === "/plan");
   const name = displayName(student.username);
-  // Groundwork's photo fills the window on every screen; on desktop every other
-  // page floats on it as a frosted sheet. The header stays see-through over the photo until the page scrolls.
-  const onGroundwork = pathname === "/groundwork";
-  const sheet = !inRunner && !onGroundwork;
+  // Every page sits on a soft wash of the student's Groundwork scene
+  // (PortalAmbient); Groundwork lays the full photo on top.
+  const scene = sceneFor(profile.scene, nowMs);
+  const wash = scene.photo ? photoSrc(scene, "thumb") : undefined;
   const signOut = () => { logout(); router.replace("/login"); };
 
   return (
     <div className="relative isolate min-h-dvh">
-      <PortalAmbient />
-      {sheet && <PortalBackdrop nowMs={nowMs} />}
+      <PortalAmbient photo={wash} sky={scene.sky} />
       {!inRunner && (
         <header
           className={cn(
             "sticky top-0 z-30 border-b transition-[background-color,border-color,backdrop-filter] duration-300",
-            onGroundwork && !scrolled
-              ? "border-transparent bg-transparent"
-              : !scrolled
-                ? "border-white/[0.05] bg-paper/95 md:border-transparent md:bg-transparent"
-                : "border-white/[0.05] bg-paper/95 md:bg-paper/60 md:backdrop-blur-xl",
+            scrolled ? "border-white/[0.06] bg-paper/70 backdrop-blur-xl" : "border-transparent bg-transparent",
           )}
         >
           <div className="mx-auto flex h-[68px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
@@ -295,14 +290,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           </ul>
         </nav>
       )}
-      <main id="main" className={cn(sheet && "relative md:mx-auto md:mb-10 md:mt-2 md:min-h-[calc(100dvh-68px-48px)] md:w-[calc(100%-2rem)] md:max-w-[50rem]")}>
-        {/* The frosted sheet sits behind the page as a sibling (a blur on <main> itself would break the page's pop-ups). */}
-        {sheet && (
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 -z-[1] hidden rounded-[28px] border border-white/[0.08] bg-paper/[0.86] shadow-[0_40px_100px_-40px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-2xl md:block"
-          />
-        )}
+      <main id="main">
         <ScheduleGate>{children}</ScheduleGate>
       </main>
       {!inRunner && !profile.onboarded && <WelcomeWhenFree db={db} student={student} />}
