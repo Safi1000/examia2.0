@@ -215,9 +215,10 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     <div className="relative isolate min-h-dvh">
       <PortalAmbient photo={wash} sky={scene.sky} />
       {!inRunner && (
+        // In the phone app, its own header and tab bar replace this bar and the dock below (web-only).
         <header
           className={cn(
-            "sticky top-0 z-30 border-b transition-[background-color,border-color,backdrop-filter] duration-300",
+            "web-only sticky top-0 z-30 border-b transition-[background-color,border-color,backdrop-filter] duration-300",
             scrolled ? "border-white/[0.06] bg-paper/70 backdrop-blur-xl" : "border-transparent bg-transparent",
           )}
         >
@@ -301,7 +302,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         <nav
           aria-label="Primary"
           data-tabbar
-          className="fixed inset-x-3 bottom-3 z-30 md:hidden"
+          className="web-only fixed inset-x-3 bottom-3 z-30 md:hidden"
           style={{ marginBottom: "env(safe-area-inset-bottom)" }}
         >
           <ul className="grid grid-cols-5 rounded-[22px] border border-white/[0.08] bg-[#1d2023]/[0.97] p-1.5 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.05)]">
