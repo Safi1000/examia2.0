@@ -25,6 +25,8 @@ declare global {
  * Every tap on a WhatsApp link anywhere on a public page is sent as a
  * `whatsapp_click` event with the page it came from, which is how the monthly
  * report answers "which pages bring students".
+ *
+ * Never inside the phone app (see MetaPixel.tsx): the app collects no analytics.
  */
 export function GoogleAnalytics() {
   const pathname = usePathname();
@@ -49,6 +51,7 @@ export function GoogleAnalytics() {
   return (
     <Script id="ga4" strategy="afterInteractive">
       {`(function(){
+if(document.documentElement.dataset.app==='1'||navigator.userAgent.indexOf('HamzaTeachesApp/')>-1){window.__htLoadGa=function(){};return;}
 var tz='';try{tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';}catch(e){}
 var choice=null;try{choice=localStorage.getItem('ht-cookies');}catch(e){}
 var needs=tz.indexOf('Europe')===0||/^Atlantic.(Reykjavik|Canary|Madeira|Azores|Faroe)/.test(tz);

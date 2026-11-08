@@ -25,6 +25,9 @@ import { isPublicPath } from "@/lib/public-paths";
  * few neighbours, which is the safe side) only get the pixel after they accept
  * the cookie banner (CookieBanner.tsx); everyone else gets it straight away.
  * No <noscript> image, so nothing is sent without that check.
+ *
+ * Never inside the phone app (html[data-app] / HamzaTeachesApp user agent):
+ * the app promises the stores no ads tracking, so no Apple tracking prompt is needed.
  */
 export function MetaPixel() {
   const pathname = usePathname();
@@ -44,6 +47,7 @@ export function MetaPixel() {
     <>
       <Script id="meta-pixel" strategy="afterInteractive">
         {`(function(){
+if(document.documentElement.dataset.app==='1'||navigator.userAgent.indexOf('HamzaTeachesApp/')>-1){window.__htLoadPixel=function(){};return;}
 var tz='';try{tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';}catch(e){}
 var choice=null;try{choice=localStorage.getItem('ht-cookies');}catch(e){}
 window.__htNeedsConsent=tz.indexOf('Europe')===0||/^Atlantic.(Reykjavik|Canary|Madeira|Azores|Faroe)/.test(tz);
