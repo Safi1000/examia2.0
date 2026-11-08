@@ -48,7 +48,7 @@ export function TestCard({
 
         {window === "open" && !submission && (
           <span className={closingSoon ? "text-sm font-semibold text-warning" : "text-sm text-ink-2"}>
-            Closes {formatRelative(test.closesAt, nowMs)}
+            {test.reopened ? "Opened for you, closes" : "Closes"} {formatRelative(test.closesAt, nowMs)}
           </span>
         )}
 

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAuth } from "@/lib/auth-context";
-import { joinedMs, studentById, submissionFor, testById } from "@/lib/data/selectors";
+import { joinedMs, studentById, submissionFor, testForStudent } from "@/lib/data/selectors";
 import { resolveActivityLink } from "@/lib/notifications";
 import type { Activity } from "@/types";
 
@@ -45,8 +45,14 @@ export function useNotifications() {
   const since = me ? joinedMs(me) : 0;
   const activities = useMemo(
     () =>
-      db.activities.filter((a) => (!userId || !a.clearedBy.includes(userId)) && (!since || +new Date(a.createdAt) >= since)), // already newest-first from the store
-    [db.activities, userId, since],
+      db.activities.filter(
+        (a) =>
+          (!userId || !a.clearedBy.includes(userId)) &&
+          (!since || +new Date(a.createdAt) >= since) &&
+          // A late window is the student's news; Hamza manages it on the test page.
+          (!!me || a.type !== "test_reopened"),
+      ), // already newest-first from the store
+    [db.activities, userId, since, me],
   );
 
   const isUnread = useCallback(
@@ -85,7 +91,7 @@ export function useNotifications() {
   const resolveLink = useCallback(
     (a: Activity): string | undefined => {
       const studentId = session?.studentId;
-      const test = a.testId ? testById(db, a.testId) : null;
+      const test = a.testId ? testForStudent(db, a.testId, studentId) : null;
       return resolveActivityLink(a, {
         test,
         submission: studentId && test ? submissionFor(db, studentId, test.id) : null,

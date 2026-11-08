@@ -182,8 +182,21 @@ async function autoRelease(sb: SupabaseClient, now: number) {
     const qs = (t.questions as Array<{ type: string }> | null) ?? [];
     return qs.length > 0 && qs.every((q) => q.type === "mcq");
   });
+  // A test reopened for one student stays unreleased until their window ends,
+  // so nobody can pass them the answers.
+  const { data: ext } = await sb
+    .from("activities")
+    .select("test_id,link")
+    .eq("type", "test_reopened")
+    .gte("created_at", new Date(now - 2 * 864e5).toISOString());
+  const reopened = new Set(
+    ((ext as Array<{ test_id: string; link: string | null }> | null) ?? [])
+      .filter((e) => +new Date(decodeURIComponent(e.link?.split("#until=")[1] ?? "")) > now)
+      .map((e) => e.test_id),
+  );
   let released = 0;
   for (const t of mcqOnly) {
+    if (reopened.has(t.id as string)) continue;
     const releasedAt = new Date().toISOString();
     const { data: rows, error } = await sb
       .from("submissions")

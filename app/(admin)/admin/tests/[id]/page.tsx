@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { QuestionModal, type QuestionDraft } from "@/components/admin/QuestionModal";
 import { ImportBankModal } from "@/components/admin/ImportBankModal";
 import { ImportDocModal } from "@/components/admin/ImportDocModal";
+import { LateWindowCard } from "@/components/admin/LateWindowCard";
 import { Card, CardHeader, CardBody, Button, Input, Select, Badge, Pill, Modal, Icon, EmptyState } from "@/components/ui";
 import { fromLocalInput, toLocalInput } from "@/lib/time";
 
@@ -207,7 +208,8 @@ export default function TestEditorPage() {
 
       <div className="grid gap-5 lg:grid-cols-5">
         {/* Settings */}
-        <Card className="lg:col-span-2">
+        <div className="space-y-5 lg:col-span-2">
+        <Card>
           <CardHeader><h2 className="font-bold text-ink">Details</h2></CardHeader>
           <CardBody className="space-y-4">
             <Input label="Title" value={form.title} onChange={(e) => set("title", e.target.value)} required />
@@ -294,6 +296,8 @@ export default function TestEditorPage() {
             </p>
           </CardBody>
         </Card>
+        {test.status !== "draft" && <LateWindowCard test={test} />}
+        </div>
 
         {/* Questions */}
         <Card className="lg:col-span-3">

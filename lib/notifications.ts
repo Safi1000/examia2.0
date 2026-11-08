@@ -140,6 +140,7 @@ export function categoryOf(type: ActivityType): Exclude<NotificationCategory, "a
     case "test_created":
     case "test_updated":
     case "test_deleted":
+    case "test_reopened":
       return "tests";
     case "notes_uploaded":
     case "notes_assigned":

@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter, useStickyFilter } from "@/lib/admin-filter";
-import { archivedCohortIds, cohortById, isArchivedSubmission } from "@/lib/data/selectors";
+import { archivedCohortIds, cohortById, inLateWindow, isArchivedSubmission } from "@/lib/data/selectors";
 import { displayName } from "@/lib/display-name";
 import { ArchiveTabs, archiveFromUrl, type ArchiveView } from "@/components/admin/ArchiveTabs";
 import { useToast } from "@/components/toast";
@@ -194,7 +194,12 @@ export default function SubmissionsPage() {
                       <Td>
                         {sub.status === "released" ? <Badge tone="success">Released</Badge> : <Badge tone="warning">Awaiting</Badge>}
                         {sub.autoSubmitted && <span className="ml-1 text-xs text-ink-3">auto</span>}
-                        {sub.late && <span className="ml-1 text-xs font-semibold text-error">late</span>}
+                        {sub.late &&
+                          (inLateWindow(db, sub) ? (
+                            <span className="ml-1 text-xs text-ink-3">late window</span>
+                          ) : (
+                            <span className="ml-1 text-xs font-semibold text-error">late</span>
+                          ))}
                       </Td>
                       <Td className="font-mono">{sub.status === "released" ? `${grade.percent}% · ${grade.letter}` : <span className="text-ink-3">Not yet</span>}</Td>
                       <Td className="hidden whitespace-nowrap text-ink-2 md:table-cell">{sub.submittedAt ? formatTimestamp(sub.submittedAt) : "Not yet"}</Td>

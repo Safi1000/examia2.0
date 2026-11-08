@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { Annotation, Answer, Question } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
-import { submissionById, studentById, testById, archivedCohortIds, isArchivedSubmission } from "@/lib/data/selectors";
+import { submissionById, studentById, testById, archivedCohortIds, isArchivedSubmission, asSeenBy, inLateWindow } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { AnnotatedImage, AnnotatorModal } from "@/components/Annotator";
@@ -46,7 +46,7 @@ export default function GradingPage() {
   // Writing time ended at start + duration (or when the test closed, if sooner).
   // Photos taken well after that are flagged gently; nothing is blocked.
   const writeEndMs = submission.startedAt
-    ? Math.min(new Date(submission.startedAt).getTime() + test.durationMinutes * 60_000, new Date(test.closesAt).getTime())
+    ? Math.min(new Date(submission.startedAt).getTime() + test.durationMinutes * 60_000, new Date(asSeenBy(db, test, submission.studentId).closesAt).getTime())
     : null;
   const pagePhotos = test.questions
     .filter((q) => q.type === "photo")
@@ -179,7 +179,7 @@ export default function GradingPage() {
       )}
 
       {pagePhotos.length > 0 && writeEndMs && (
-        <PhotoTimeline writeEndMs={writeEndMs} submittedAt={submission.submittedAt ?? null} late={!!submission.late} pages={pagePhotos} />
+        <PhotoTimeline writeEndMs={writeEndMs} submittedAt={submission.submittedAt ?? null} late={!!submission.late && !inLateWindow(db, submission)} lateWindow={inLateWindow(db, submission)} pages={pagePhotos} />
       )}
 
       <div className="space-y-3">
@@ -477,11 +477,14 @@ function PhotoTimeline({
   writeEndMs,
   submittedAt,
   late,
+  lateWindow = false,
   pages,
 }: {
   writeEndMs: number;
   submittedAt: string | null;
   late: boolean;
+  /** Sat in a late window Hamza opened for them. */
+  lateWindow?: boolean;
   pages: Array<{ label: string; taken: Date | null }>;
 }) {
   const flagged = pages.filter((p) => p.taken && p.taken.getTime() > writeEndMs + GRACE_MS).length;
@@ -519,7 +522,7 @@ function PhotoTimeline({
         {submittedAt && (
           <li className={late ? "rounded-full bg-warning-soft px-2.5 py-1 font-semibold text-warning" : "rounded-full bg-surface-2 px-2.5 py-1 font-semibold text-ink"}>
             Handed in {clock(new Date(submittedAt).getTime())}
-            {late ? " · late" : ""}
+            {late ? " · late" : lateWindow ? " · in the late window you opened" : ""}
           </li>
         )}
       </ol>

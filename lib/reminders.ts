@@ -1,6 +1,6 @@
 import type { Database } from "@/lib/data/seed";
 import type { Student } from "@/types";
-import { absenceStreak, archivedCohortIds, isArchivedTest, liveStatus, testCoversStudent } from "@/lib/data/selectors";
+import { absenceStreak, archivedCohortIds, extensionFor, isArchivedTest, liveStatus, testCoversStudent } from "@/lib/data/selectors";
 import { COMPANY_NAME } from "@/lib/config";
 import { awardedMarks, isFullyGraded, percent, totalMarks } from "@/lib/scoring";
 
@@ -64,6 +64,9 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
       if (!testCoversStudent(test, student)) continue;
       if (new Date(student.createdAt).getTime() > new Date(test.opensAt).getTime()) continue;
       if (db.submissions.some((s) => s.testId === test.id && s.studentId === student.id)) continue;
+      // Reopened just for them and still open: not missed (yet).
+      const ext = extensionFor(db, test.id, student.id);
+      if (ext && +new Date(ext.until) > nowMs) continue;
       add({
         kind: "missed_test",
         student,

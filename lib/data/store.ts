@@ -52,6 +52,7 @@ import type {
 } from "@/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createSeed, type Database } from "@/lib/data/seed";
+import { lateWindows } from "@/lib/data/selectors";
 import { DEMO } from "@/lib/demo";
 import { supabase } from "@/lib/supabase";
 import { cleanLevels, type LevelSubjects } from "@/lib/levels";
@@ -288,6 +289,13 @@ const mapAttendanceDay = (r: Row): AttendanceDay => ({
   date: r.on_date as string,
   status: r.status as AttendanceStatus,
 });
+
+/** The feed plus any late-window rows it was missing, newest first. */
+const withLate = (feed: Activity[], late: Activity[]) => {
+  const have = new Set(feed.map((a) => a.id));
+  const extra = late.filter((a) => !have.has(a.id));
+  return extra.length ? [...feed, ...extra].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)) : feed;
+};
 
 const mapAttendanceMonth = (r: Row): AttendanceMonth => ({
   id: r.id as string,
@@ -591,6 +599,15 @@ class Store {
     const staffOnly = <T,>(q: () => T) => (this.audience === "student" ? empty : q());
     // The admin's level list is its own request: start it now, alongside the rest.
     const levelsReady = this.readLevels([]);
+    // Late windows (one student sits a missed test) live in the feed as
+    // "test_reopened" rows. The feed below is capped at 100, so the recent
+    // ones are read on their own too: none lasts longer than a day.
+    const lateReady = Promise.resolve(
+      sb.from("activities").select("*").eq("type", "test_reopened").gte("created_at", new Date(Date.now() - 2 * 86_400_000).toISOString()),
+    ).then(
+      (r) => (r.error ? [] : ((r.data as Row[]) ?? []).map(mapActivity)),
+      () => [] as Activity[],
+    );
     const [coh, stu, tst, sub, ann, bnk, keys, cls, subj, cCls, cSubj, sCls, sSubj, nts, nAssigns, asg, asgSubs, attD, attM, rep, rem, acts] = await Promise.all([
       sb.from("cohorts").select("*").order("created_at"),
       allRows((a, b) => sb.from("students").select("*").order("created_at").order("id").range(a, b)),
@@ -701,6 +718,7 @@ class Store {
     }
 
     const studentClassMap = new Map<string, string[]>();
+    const late = await lateReady;
     await levelsReady;
     await this.readLevels((stu.data as Row[]) ?? []);
     const studentSubjectMap = new Map<string, string[]>();
@@ -716,7 +734,7 @@ class Store {
     }
 
     this.state = {
-      activities: keep(acts, () => ((acts.data as Row[]) ?? []).map(mapActivity), prev.activities),
+      activities: keep(acts, () => withLate(((acts.data as Row[]) ?? []).map(mapActivity), late), prev.activities),
       cohorts: keep(coh, () => ((coh.data as Row[]) ?? []).map((r) =>
         mapCohort(r, cohortClassMap.get(r.id as string) ?? [], cohortSubjectMap.get(r.id as string) ?? [])
       ), prev.cohorts),
@@ -1836,10 +1854,77 @@ class Store {
    */
   private stillOpen(testId: string | undefined): boolean {
     const t = testId ? this.state.tests.find((x) => x.id === testId) : undefined;
-    if (!t || Date.now() >= +new Date(t.closesAt)) return false;
-    const at = new Date(t.closesAt).toLocaleString("en-GB", { timeZone: "Asia/Karachi", weekday: "short", hour: "numeric", minute: "2-digit", hour12: true });
-    this.report(`"${t.title}" is still open until ${at}. Release results after it closes, so nobody still sitting it sees the answers.`);
+    if (!t) return false;
+    const now = Date.now();
+    const at = (iso: string) => new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Karachi", weekday: "short", hour: "numeric", minute: "2-digit", hour12: true });
+    if (now < +new Date(t.closesAt)) {
+      this.report(`"${t.title}" is still open until ${at(t.closesAt)}. Release results after it closes, so nobody still sitting it sees the answers.`);
+      return true;
+    }
+    // Reopened for one student: hold results until their window ends too.
+    const late = lateWindows(this.state)
+      .filter((e) => e.testId === t.id && +new Date(e.until) > now && !this.state.submissions.some((s) => s.testId === t.id && s.studentId === e.studentId))
+      .sort((a, b) => +new Date(b.until) - +new Date(a.until))[0];
+    if (!late) return false;
+    const st = this.state.students.find((x) => x.id === late.studentId);
+    this.report(`"${t.title}" is open for ${st ? st.username.charAt(0).toUpperCase() + st.username.slice(1) : "a student"} until ${at(late.until)}. Release results after that, or close their window first.`);
     return true;
+  }
+
+  // ---- Late windows (one student sits a missed test) --------------------
+  /**
+   * Opens a closed test again for one student only, for `hours` from now.
+   * Everyone else still sees it closed. Opening again replaces the old window.
+   */
+  reopenForStudent(testId: string, studentId: string, hours: number): string {
+    const until = new Date(Date.now() + hours * 3_600_000).toISOString();
+    const t = this.state.tests.find((x) => x.id === testId);
+    const when = new Date(until).toLocaleString("en-GB", { timeZone: "Asia/Karachi", weekday: "short", hour: "numeric", minute: "2-digit", hour12: true });
+    const row: Activity = {
+      id: genId(),
+      type: "test_reopened",
+      title: `${t?.title ?? "Your test"} is open for you`,
+      description: `I've opened it again just for you, until ${when}. Your ${t ? `${t.durationMinutes} minutes start` : "time starts"} when you press Begin.`,
+      studentId,
+      testId,
+      link: `/test/${testId}#until=${until}`,
+      audience: "student",
+      readBy: [],
+      clearedBy: [],
+      createdAt: new Date().toISOString(),
+    };
+    const sameWindow = (a: Activity) => a.type === "test_reopened" && a.testId === testId && a.studentId === studentId;
+    this.commit((d) => {
+      d.activities = [row, ...d.activities.filter((a) => !sameWindow(a))];
+    });
+    // One window per student per test: clear the old one, then add the new.
+    const sb = supabase();
+    this.run(
+      Promise.resolve(sb.from("activities").delete().eq("type", "test_reopened").eq("test_id", testId).eq("student_id", studentId)).then(() =>
+        sb.from("activities").insert({
+          id: row.id,
+          type: row.type,
+          title: row.title,
+          description: row.description,
+          student_id: studentId,
+          test_id: testId,
+          link: row.link,
+          audience: "student",
+        }),
+      ),
+      "Couldn't open the test for them",
+    );
+    return until;
+  }
+  /** Ends a student's late window now. */
+  endReopen(testId: string, studentId: string) {
+    this.commit((d) => {
+      d.activities = d.activities.filter((a) => !(a.type === "test_reopened" && a.testId === testId && a.studentId === studentId));
+    });
+    this.run(
+      supabase().from("activities").delete().eq("type", "test_reopened").eq("test_id", testId).eq("student_id", studentId),
+      "Couldn't close their window",
+    );
   }
   releaseSubmission(submissionId: string): boolean {
     const releasedAt = new Date().toISOString();

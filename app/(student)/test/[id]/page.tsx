@@ -7,7 +7,7 @@ import type { Answer, Student, Test } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { useAuth } from "@/lib/auth-context";
 import { useDatabase, useStore } from "@/lib/data/store";
-import { studentById, testById, submissionFor, testsForStudent } from "@/lib/data/selectors";
+import { studentById, testForStudent, submissionFor, testsForStudent } from "@/lib/data/selectors";
 import { useCountdown } from "@/hooks/useCountdown";
 import { useNow } from "@/hooks/useNow";
 import { useDraftAutosave, loadDraft, clearDraft } from "@/hooks/useDraftAutosave";
@@ -64,7 +64,7 @@ export default function TestRunnerPage() {
 
   const db = useDatabase();
   const nowMs = useNow();
-  const t = testById(db, id);
+  const t = testForStudent(db, id, studentId);
   const student = studentId ? studentById(db, studentId) : null;
   const opensMs = t ? new Date(t.opensAt).getTime() : null;
 
@@ -96,7 +96,7 @@ export default function TestRunnerPage() {
     let active = true;
     void store.refreshTest(id).finally(async () => {
       if (!active) return;
-      const fresh = testById(store.getSnapshot(), id);
+      const fresh = testForStudent(store.getSnapshot(), id, studentId);
       // Not open yet: nothing to set up. The page shows "Not open yet" and
       // this runs again the moment it opens. Booting now would build the
       // answer sheet from a paper that has no questions yet.
@@ -257,7 +257,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   const nowMs = Math.max(useNow(), boot.at);
 
   const student = session?.studentId ? studentById(db, session.studentId) : null;
-  const test = testById(db, id);
+  const test = testForStudent(db, id, session?.studentId);
   const visible = test && visibleTo(db, test, student);
   const existing = student && test ? submissionFor(db, student.id, test.id) : null;
   const window = test ? testWindow(test.opensAt, test.closesAt, nowMs) : "closed";

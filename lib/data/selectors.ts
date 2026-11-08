@@ -2,7 +2,7 @@
  * Pure selectors over the database snapshot, for display. Access itself is
  * enforced by row-level security in supabase/migrations.
  */
-import type { Announcement, Student, Submission, Test, TestStats, TestStatus } from "@/types";
+import type { Announcement, Student, Submission, Test, TestExtension, TestStats, TestStatus } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { awardedMarks, percent, totalMarks } from "@/lib/scoring";
 import { takesLevelSubject } from "@/lib/levels";
@@ -72,15 +72,71 @@ export const joinedMs = (s: Student) => +new Date(s.createdAt) || 0;
 /** Notices from the few days before joining still count (a welcome note, the session plan). */
 const NOTICE_GRACE_MS = 3 * 86_400_000;
 
-/** Tests a student can see: cohort + class + subject match, never drafts, nothing that closed before they joined (unless they sat it). */
+/** "/test/<id>#until=<ISO>" -> the ISO, or null. */
+const untilOf = (link: string | undefined) => {
+  const m = link?.match(/#until=([^&]+)$/);
+  return m && !Number.isNaN(+new Date(decodeURIComponent(m[1]))) ? decodeURIComponent(m[1]) : null;
+};
+
+/**
+ * Every late window, newest first. Each is a "test_reopened" notification
+ * addressed to the student, with the end time carried in its link.
+ */
+export function lateWindows(db: Database): TestExtension[] {
+  const out: TestExtension[] = [];
+  const seen = new Set<string>();
+  const rows = db.activities
+    .filter((a) => a.type === "test_reopened" && a.testId && a.studentId)
+    .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
+  for (const a of rows) {
+    const key = `${a.testId}|${a.studentId}`;
+    const until = untilOf(a.link);
+    if (!until || seen.has(key)) continue; // only the newest window counts
+    seen.add(key);
+    out.push({ testId: a.testId!, studentId: a.studentId!, until, createdAt: a.createdAt });
+  }
+  return out;
+}
+
+/** The late window Hamza opened for this student on this test, if any. */
+export function extensionFor(db: Database, testId: string, studentId: string): TestExtension | null {
+  return lateWindows(db).find((e) => e.testId === testId && e.studentId === studentId) ?? null;
+}
+
+/**
+ * Handed in during a late window Hamza opened. The database still flags these
+ * "late" (it only knows the normal close time), so screens say so kindly.
+ */
+export function inLateWindow(db: Database, sub: Submission): boolean {
+  const ext = extensionFor(db, sub.testId, sub.studentId);
+  return !!ext && !!sub.submittedAt && +new Date(sub.submittedAt) <= +new Date(ext.until) + 2 * 60_000;
+}
+
+/**
+ * The test as this student sees it: if Hamza reopened it just for them, it
+ * closes at their own later time (and is marked `reopened`). Everyone else's
+ * copy is unchanged.
+ */
+export function asSeenBy(db: Database, test: Test, studentId: string | null | undefined): Test {
+  if (!studentId || test.status === "draft") return test;
+  const ext = extensionFor(db, test.id, studentId);
+  if (!ext || +new Date(ext.until) <= +new Date(test.closesAt)) return test;
+  return { ...test, closesAt: ext.until, status: test.status === "closed" ? "active" : test.status, reopened: true };
+}
+
+/** One test by id, with this student's own late window applied. */
+export const testForStudent = (db: Database, id: string, studentId: string | null | undefined) => {
+  const t = testById(db, id);
+  return t ? asSeenBy(db, t, studentId) : null;
+};
+
+/** Tests a student can see: cohort + class + subject match, never drafts, nothing that closed before they joined (unless they sat it). Late windows applied. */
 export function testsForStudent(db: Database, student: Student): Test[] {
   const since = joinedMs(student);
-  return db.tests.filter(
-    (t) =>
-      t.status !== "draft" &&
-      testCoversStudent(t, student) &&
-      (+new Date(t.closesAt) > since || db.submissions.some((s) => s.testId === t.id && s.studentId === student.id)),
-  );
+  return db.tests
+    .filter((t) => t.status !== "draft" && testCoversStudent(t, student))
+    .map((t) => asSeenBy(db, t, student.id))
+    .filter((t) => +new Date(t.closesAt) > since || db.submissions.some((s) => s.testId === t.id && s.studentId === student.id));
 }
 
 /** Announcements visible to a student (cohort-scoped), from shortly before they joined onwards. */

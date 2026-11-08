@@ -155,6 +155,20 @@ export interface Test {
   status: TestStatus;
   questions: Question[];
   createdAt: string;
+  /** Student view only: this close time is a late window Hamza opened just for them. */
+  reopened?: boolean;
+}
+
+/**
+ * A missed test opened again for one student only, until `until`. Everyone
+ * else still sees it closed. Stored as a "test_reopened" notification
+ * addressed to that student (no extra table), which also tells them.
+ */
+export interface TestExtension {
+  testId: string;
+  studentId: string;
+  until: string; // ISO
+  createdAt: string;
 }
 
 // ----------------------------------------------------------------------------
@@ -291,6 +305,8 @@ export type ActivityType =
   | "test_deleted"
   | "result_released"
   | "announcement_posted"
+  /** Hamza opened a missed test again for one student (see TestExtension). */
+  | "test_reopened"
   | "system_alert";
 
 /** Who an activity is addressed to. Admins additionally see every entry. */

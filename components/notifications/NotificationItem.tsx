@@ -1,7 +1,8 @@
 "use client";
 
 import { useDatabase } from "@/lib/data/store";
-import { cohortById, studentById, submissionById, testById } from "@/lib/data/selectors";
+import { cohortById, studentById, submissionById, testById, testForStudent } from "@/lib/data/selectors";
+import { useAuth } from "@/lib/auth-context";
 import { useNow } from "@/hooks/useNow";
 import { Badge, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
@@ -27,6 +28,7 @@ export function ActivityIcon({ type, className }: { type: ActivityType; classNam
     case "test_completed":
     case "test_created":
     case "test_deleted":
+    case "test_reopened":
       return <Icon.Doc className={cls} />;
     case "result_released":
     case "submission_reviewed":
@@ -92,7 +94,9 @@ function WhenField({ label, iso }: { label: string; iso: string }) {
 function TestDetails({ testId, updatedAt }: { testId: string; updatedAt?: string }) {
   const db = useDatabase();
   const now = useNow();
-  const test = testById(db, testId);
+  const { session } = useAuth();
+  // A student sees their own late window, if Hamza opened one for them.
+  const test = testForStudent(db, testId, session?.studentId);
 
   // The test may have been deleted, or be outside what RLS lets this session
   // read — the notification still stands on its title alone.
