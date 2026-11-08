@@ -39,6 +39,17 @@ type Block = { kind: "focus" | "rest"; min: number };
 
 const restFor = (focus: number) => Math.max(3, Math.min(15, Math.round(focus / 5)));
 
+const LENGTHS = [15, 25, 45, 60] as const;
+const LENGTH_KEY = "gw_focus_min";
+function lastLength(): number | undefined {
+  try {
+    const v = Number(localStorage.getItem(LENGTH_KEY));
+    return v >= 5 && v <= 120 ? v : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export default function FocusMode({
   subjects,
   mission,
@@ -56,7 +67,16 @@ export default function FocusMode({
   const scene = sceneFor(profile.scene, openedAt);
   const today = pkDate(openedAt);
   const [subject, setSubject] = useState(mission?.subject ?? subjects[0] ?? "Study");
-  const [focusMin, setFocusMin] = useState(() => Math.max(5, Math.min(120, mission?.minutes ?? 25)));
+  const [focusMin, setFocusMinRaw] = useState(() => Math.max(5, Math.min(120, mission?.minutes ?? lastLength() ?? 25)));
+  // The length a student picks is remembered on this device for next time.
+  const setFocusMin = (next: number | ((m: number) => number)) =>
+    setFocusMinRaw((m) => {
+      const v = typeof next === "function" ? next(m) : next;
+      try {
+        localStorage.setItem(LENGTH_KEY, String(v));
+      } catch {}
+      return v;
+    });
   const restMin = restFor(focusMin);
   const [intention] = useState(() => mission?.topic ?? (profile.today?.date === today && !profile.today.done ? profile.today.text : ""));
   const [phase, setPhase] = useState<Phase>("setup");
@@ -497,7 +517,24 @@ export default function FocusMode({
               </button>
             </div>
             <p className="mt-3 text-[13px] text-white/45">then a {restMin} minute break</p>
-            <div role="radiogroup" aria-label="Sound" className="mt-10 flex items-center gap-1">
+            <div role="radiogroup" aria-label="Length" className="mt-5 flex items-center gap-1.5">
+              {LENGTHS.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={focusMin === m}
+                  onClick={() => setFocusMin(m)}
+                  className={cn(
+                    "min-h-11 min-w-14 rounded-full px-3 text-[13px] font-medium tabular-nums transition-colors active:scale-[0.97]",
+                    focusMin === m ? "bg-white/[0.16] text-white" : "text-white/50 hover:text-white/80",
+                  )}
+                >
+                  {m} min
+                </button>
+              ))}
+            </div>
+            <div role="radiogroup" aria-label="Sound" className="mt-6 flex items-center gap-1">
               {SOUNDS.map((x) => (
                 <button
                   key={x.id}

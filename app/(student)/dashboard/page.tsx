@@ -95,6 +95,8 @@ export default function DashboardPage() {
     ...newResults,
   ];
   const toDoCount = todo.filter((x) => !x.quiet).length;
+  // One gold button on the list: the most urgent item. The rest stay quiet.
+  const lead = todo.find((x) => !x.quiet)?.key;
 
   return (
     <div className="mx-auto max-w-3xl space-y-7 px-4 py-8 sm:px-6">
@@ -134,7 +136,7 @@ export default function DashboardPage() {
                   <span
                     className={cn(
                       "inline-flex h-10 shrink-0 items-center gap-1 rounded-full px-4 text-sm font-semibold",
-                      x.quiet ? "border border-border-strong text-ink" : "bg-brand text-on-brand",
+                      x.key === lead ? "bg-brand text-on-brand" : "border border-border-strong text-ink",
                     )}
                   >
                     {x.cta} <Icon.ChevronRight className="h-4 w-4" />
@@ -186,7 +188,7 @@ function PerformanceCard({ perf, targets, asOnly }: { perf: Snapshot | null; tar
       href="/progress"
       className="animate-fade-up flex flex-col rounded-lg border border-border bg-surface p-5 transition-colors hover:border-border-strong"
     >
-      <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-ink-3">Your performance</p>
+      <p className="font-semibold text-ink">Your performance</p>
       {!perf || perf.marked < 3 ? (
         <p className="mt-3 flex-1 text-sm text-ink-2">
           {perf ? `${perf.marked} of 3 tests marked. ` : ""}Your grade shows here after three marked tests.
@@ -251,13 +253,13 @@ function PlanCard({ week, daysLeft }: { week: PlanWeek | null; daysLeft: number 
       style={{ animationDelay: "40ms" }}
     >
       <div className="flex items-baseline justify-between gap-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-ink-3">This week</p>
+        <p className="font-semibold text-ink">This week</p>
         <span className="text-sm tabular-nums text-ink-2">
           <span className="font-bold text-brand">{daysLeft}</span> days to exams
         </span>
       </div>
       <div className="mt-3 flex-1">
-        <p className="font-semibold text-ink">{week ? PHASE_LABEL[week.phase] : "Your plan"}</p>
+        <p className="text-sm text-ink-2">{week ? PHASE_LABEL[week.phase] : "Your plan"}</p>
         {week && week.topics.length > 0 ? (
           <div className="mt-2.5 flex flex-wrap gap-2">
             {week.topics.map((t) => (

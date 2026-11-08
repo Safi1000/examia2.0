@@ -54,8 +54,8 @@ export default function TestsPage() {
 
       {groups.open.length > 0 && (
         <Section title="Open now" live>
-          {groups.open.map((t) => (
-            <TestCard key={t.id} test={t} submission={submissionFor(db, student.id, t.id)} nowMs={nowMs} />
+          {groups.open.map((t, i) => (
+            <TestCard key={t.id} test={t} submission={submissionFor(db, student.id, t.id)} nowMs={nowMs} lead={i === 0} />
           ))}
         </Section>
       )}

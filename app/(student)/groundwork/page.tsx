@@ -67,7 +67,7 @@ export default function GroundworkPage() {
       <CalmStart name={name} nowMs={nowMs} onStart={() => startItem(null)} />
 
       {/* The rest slides up over the photo as a frosted sheet. */}
-      <div id="groundwork-more" className="scroll-mt-[68px] rounded-t-[32px] border-t border-white/10 bg-paper/80 shadow-[0_-30px_60px_-30px_rgba(0,0,0,.6)] backdrop-blur-2xl">
+      <div id="groundwork-more" className="scroll-mt-[68px] rounded-t-[32px] border-t border-white/[0.08] bg-paper shadow-[0_-30px_60px_-30px_rgba(0,0,0,.6)]">
       <div className="mx-auto max-w-5xl space-y-10 px-4 pb-32 pt-8 sm:px-6 sm:pb-16 sm:pt-10">
         {sundayWeek && <SundayReview week={sundayWeek} nowMs={nowMs} name={name} />}
 
@@ -103,7 +103,7 @@ export default function GroundworkPage() {
                         <span className="block truncate text-[12px] text-ink-3">
                           {it.tag} · {it.subject}
                         </span>
-                        <span className="block truncate text-[16px] font-semibold text-ink">{it.title}</span>
+                        <span className="line-clamp-2 block text-[16px] font-semibold text-ink">{it.title}</span>
                       </span>
                       <span className="shrink-0 text-[13px] font-medium text-ink-2">{it.href ? "Open" : `${it.minutes} min`}</span>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-ink-3" aria-hidden>
@@ -119,7 +119,7 @@ export default function GroundworkPage() {
                         <span className="block truncate text-[12px] text-ink-3">
                           {p.fresh ? "Past papers · new this week" : "Past papers · keep it fresh"} · {p.subject}
                         </span>
-                        <span className="block truncate text-[16px] font-semibold text-ink">{p.chapter.name}</span>
+                        <span className="line-clamp-2 block text-[16px] font-semibold text-ink">{p.chapter.name}</span>
                       </span>
                       <span className="shrink-0 text-[13px] font-medium text-ink-2">{p.count} questions</span>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-ink-3" aria-hidden>

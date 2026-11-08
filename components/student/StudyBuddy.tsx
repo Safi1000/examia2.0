@@ -102,7 +102,7 @@ export function StudyBuddy({ db, student, nowMs, mission: given }: { db: Databas
             className="flex w-full items-center justify-between gap-3 border-b border-border bg-brand/[0.06] px-5 py-3.5 text-left transition-colors hover:bg-brand/[0.1]"
           >
             <span className="min-w-0">
-              <span className="block text-[11px] font-semibold uppercase tracking-[0.25em] text-brand">Today&apos;s mission</span>
+              <span className="block text-xs font-semibold text-brand">Today&apos;s mission</span>
               <span className="block truncate text-sm text-ink">
                 <span className="font-semibold">{mission.topic}</span> <span className="text-ink-3">· {mission.subject} · 25 min</span>
               </span>
@@ -116,7 +116,7 @@ export function StudyBuddy({ db, student, nowMs, mission: given }: { db: Databas
             {pct > 0 && <circle cx="28" cy="28" r={r} fill="none" stroke="var(--color-brand)" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${c * pct} ${c}`} />}
           </svg>
           <div className="min-w-0 flex-1">
-            <Link href="/groundwork" className="inline-flex min-h-11 items-center gap-1 whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.22em] text-ink-3 hover:text-brand">
+            <Link href="/groundwork" className="inline-flex min-h-11 items-center gap-1 whitespace-nowrap font-semibold text-ink hover:text-brand">
               {STUDY_NAME} <Icon.ChevronRight className="h-3 w-3" />
             </Link>
             <p className="mt-1 text-sm text-ink-2">
@@ -137,7 +137,7 @@ export function StudyBuddy({ db, student, nowMs, mission: given }: { db: Databas
         </div>
         {top && top.top.length > 0 && (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border px-5 py-3 text-sm">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.25em] text-ink-3">Top this week</span>
+            <span className="text-xs font-semibold text-ink-3">Top this week</span>
             {top.top.map((t, i) => (
               <span key={i} className="inline-flex items-center gap-1.5 text-ink-2">
                 <span aria-hidden>{medal[i]}</span>

@@ -26,7 +26,6 @@ import { cohortById } from "@/lib/data/selectors";
 import { cn } from "@/lib/cn";
 import { displayName } from "@/lib/display-name";
 import { PortalAmbient } from "@/components/PortalAmbient";
-import { photoSrc, sceneFor } from "@/lib/groundwork";
 import { pageTitle, useDocumentTitle } from "@/hooks/usePageTitle";
 import { useRecoverFocus } from "@/components/student/focus-session";
 import { setActivityPath, startActivity } from "@/lib/activity-tracker";
@@ -205,21 +204,19 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const isActive = (href: string) =>
     pathname === href || (href === "/tests" && pathname.startsWith("/results")) || (href === "/dashboard" && pathname === "/plan");
   const name = displayName(student.username);
-  // Every page sits on a soft wash of the student's Groundwork scene
-  // (PortalAmbient); Groundwork lays the full photo on top.
-  const scene = sceneFor(profile.scene, nowMs);
-  const wash = scene.photo ? photoSrc(scene, "thumb") : undefined;
+  // Every page sits on warm charcoal with a faint grid (PortalAmbient);
+  // Groundwork lays its full photo on top.
   const signOut = () => { logout(); router.replace("/login"); };
 
   return (
     <div className="relative isolate min-h-dvh">
-      <PortalAmbient photo={wash} sky={scene.sky} />
+      <PortalAmbient />
       {!inRunner && (
         // In the phone app, its own header and tab bar replace this bar and the dock below (web-only).
         <header
           className={cn(
             "web-only sticky top-0 z-30 border-b transition-[background-color,border-color,backdrop-filter] duration-300",
-            scrolled ? "border-white/[0.06] bg-paper/70 backdrop-blur-xl" : "border-transparent bg-transparent",
+            scrolled ? "border-white/[0.06] bg-paper/90 backdrop-blur-md" : "border-transparent bg-transparent",
           )}
         >
           <div className="mx-auto flex h-[68px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
@@ -276,11 +273,11 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                   <Link
                     href={href}
                     aria-current={on ? "page" : undefined}
-                    className={cn("flex h-11 items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition-colors", on ? "bg-brand text-on-brand" : "text-ink-2")}
+                    className={cn("flex h-11 items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition-colors", on ? "bg-white/[0.11] text-ink shadow-[0_1px_3px_rgba(0,0,0,0.35)]" : "text-ink-3 hover:text-ink")}
                   >
                     {label}
                     {!!counts[href] && (
-                      <span className={cn("min-w-5 rounded-full px-1.5 text-center text-xs font-bold leading-5 tabular-nums", on ? "bg-on-brand/15" : "bg-brand/15 text-brand")}>
+                      <span className={cn("min-w-5 rounded-full px-1.5 text-center text-xs font-bold leading-5 tabular-nums", "bg-brand/15 text-brand")}>
                         {counts[href]}
                       </span>
                     )}

@@ -11,10 +11,13 @@ export function TestCard({
   test,
   submission,
   nowMs,
+  lead = true,
 }: {
   test: Test;
   submission: Submission | null;
   nowMs: number;
+  /** The one gold button on the page; other open tests get a quiet one. */
+  lead?: boolean;
 }) {
   const window = testWindow(test.opensAt, test.closesAt, nowMs);
   const released = submission?.status === "released";
@@ -28,7 +31,7 @@ export function TestCard({
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <Pill>{test.testCode}</Pill>
-          <span className="text-xs font-semibold uppercase tracking-wide text-ink-3">{test.subject}</span>
+          <span className="text-xs font-medium text-ink-3">{test.subject}</span>
         </div>
         <h3 className="mt-1.5 text-lg font-bold text-ink">{test.title}</h3>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-ink-2">
@@ -53,7 +56,7 @@ export function TestCard({
         )}
 
         {window === "open" && !submission && (
-          <Link href={`/test/${test.id}`} className={buttonClasses({ className: "w-full sm:w-auto" })}>
+          <Link href={`/test/${test.id}`} className={buttonClasses({ variant: lead ? "primary" : "secondary", className: "w-full sm:w-auto" })}>
             Start test
           </Link>
         )}

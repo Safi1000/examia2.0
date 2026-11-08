@@ -82,7 +82,7 @@ export default function ProgressPage() {
           {/* 1. Where am I? */}
           <section className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-lg border border-brand/30 bg-[linear-gradient(135deg,rgba(251,193,89,0.14),rgba(251,193,89,0.03))] p-5 sm:col-span-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-brand">{snap.marked >= 3 ? "On track for" : "Your grade"}</p>
+              <p className="text-sm font-semibold text-brand">{snap.marked >= 3 ? "On track for" : "Your grade"}</p>
               {snap.marked < 3 ? (
                 <div className="mt-2">
                   <div className="flex gap-1.5" aria-hidden>
@@ -119,7 +119,7 @@ export default function ProgressPage() {
               )}
             </div>
             <div className="rounded-lg border border-border bg-surface p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-ink-3">Tests done</p>
+              <p className="text-sm font-semibold text-ink-3">Tests done</p>
               <p className="mt-2 text-3xl font-extrabold tabular-nums text-ink">
                 {data.handed}
                 <span className="text-lg font-semibold text-ink-3"> / {data.setCount}</span>

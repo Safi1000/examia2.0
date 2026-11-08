@@ -31,7 +31,7 @@ export function AnnouncementsPanel({ student }: { student: Student }) {
             <li key={a.id} className="flex items-start gap-3 py-3 pl-4 pr-2">
               {a.pinned ? <Icon.Flag className="mt-1 h-4 w-4 shrink-0 text-brand" /> : <Icon.Megaphone className="mt-1 h-4 w-4 shrink-0 text-ink-3" />}
               <button type="button" onClick={() => setOpen(isOpen ? null : a.id)} aria-expanded={isOpen} className="min-w-0 flex-1 text-left">
-                <p className={`text-[15px] text-ink ${isOpen ? "whitespace-pre-wrap" : "line-clamp-1"}`}>{a.body}</p>
+                <p className={`text-[15px] text-ink ${isOpen ? "whitespace-pre-wrap" : "line-clamp-2"}`}>{a.body}</p>
                 <p className="mt-0.5 text-xs text-ink-3">
                   {a.pinned ? "Pinned · " : ""}
                   {formatDate(a.createdAt)}
