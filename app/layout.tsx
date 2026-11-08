@@ -8,7 +8,6 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { MetaPixel } from "@/components/MetaPixel";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
-import { RouteProgress } from "@/components/RouteProgress";
 import { COMPANY_NAME, GSC_VERIFICATION } from "@/lib/config";
 import { SITE_URL } from "@/lib/seo";
 
@@ -70,7 +69,6 @@ export default function RootLayout({
             hydration, which kept the pixel out of the server HTML entirely. */}
         <MetaPixel />
         <GoogleAnalytics />
-        <RouteProgress />
         <Providers>{children}</Providers>
       </body>
     </html>
