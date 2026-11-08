@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Student } from "@/types";
 import type { Database } from "@/lib/data/seed";
-import { Icon } from "@/components/ui";
+import { Icon, Spinner } from "@/components/ui";
 import { formatRelative } from "@/lib/time";
 import { useSchedule, JOIN_EARLY_MIN, addDays, clockHere, span, joinClass, pkDate, slotKey, slotsForStudent, useClassLinks, type DaySlot } from "@/lib/classes";
 
@@ -116,7 +116,7 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
           </a>
         ) : (
           <p className="max-w-[16rem] text-sm text-ink-2">{ready === null ? (
-            <span className="inline-flex items-center gap-2"><span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-brand/30 border-t-brand" />Getting your class link…</span>
+            <span className="inline-flex items-center gap-2"><Spinner size={15} />Getting your class link…</span>
           ) : offline ? "No connection right now. Join shows up here when you're back online." : "The Join button appears here when I open the class."}</p>
         )}
       </div>

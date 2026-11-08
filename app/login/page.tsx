@@ -69,7 +69,7 @@ export default function StudentLoginPage() {
 
   // Checking for an earlier sign-in, or on the way in: no form to flash.
   if ((initializing && !busy) || session) {
-    return <Splash label="Opening your portal…" />;
+    return <Splash label="Opening your portal…" tips />;
   }
 
   return (

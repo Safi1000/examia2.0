@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Spinner } from "@/components/ui/Spinner";
 import { LogoTight } from "@/components/Brand";
 import { cn } from "@/lib/cn";
 
@@ -253,7 +254,7 @@ export function SubmitButton({ busy, disabled, children }: { busy: boolean; disa
       )}
     >
       {busy ? (
-        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-[#1a1d20]/25 border-t-[#1a1d20]" aria-label="Signing in" />
+        <Spinner size={16} className="text-[#1a1d20]" label="Signing in" />
       ) : (
         <>
           {children}

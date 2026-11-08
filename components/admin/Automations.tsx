@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { DEMO } from "@/lib/demo";
 import { useToast } from "@/components/toast";
-import { Card, CardBody, CardHeader } from "@/components/ui";
+import { Card, CardBody, CardHeader, Spinner } from "@/components/ui";
 
 /**
  * The hands-off jobs (lib/automation.ts): their switches for Settings, and the
@@ -134,7 +134,7 @@ export function AutomationSettings() {
           These run by themselves every 15 minutes. Meet links (1 pm), recordings and reminders are always on.
         </p>
         {!settings ? (
-          <p className="py-3 text-sm text-ink-3">Loading…</p>
+          <p className="flex items-center gap-2 py-3 text-sm text-ink-3"><Spinner size={16} className="text-brand" /> Loading…</p>
         ) : (
           <ul className="divide-y divide-border">
             {SWITCHES.map((s) => (

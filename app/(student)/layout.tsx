@@ -97,7 +97,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     );
   }
   if (initializing || !session || session.role !== "student") {
-    return <Splash />;
+    return <Splash tips />;
   }
   // Signed in, but no student record behind the account yet: waiting would
   // never end, so say so.
@@ -126,7 +126,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     );
   }
   if (!ready) {
-    return <Splash />;
+    return <Splash tips />;
   }
 
   const student = studentById(db, session.studentId);

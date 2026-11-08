@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { useToast } from "@/components/toast";
-import { Button, Card } from "@/components/ui";
+import { Button, Card, Spinner } from "@/components/ui";
 import { DEMO } from "@/lib/demo";
 import { INTERESTS, type Lead } from "@/lib/leads";
 import { waDigits } from "@/lib/phone";
@@ -65,7 +65,7 @@ export default function LeadsPage() {
         )}
       </div>
       {leads === null ? (
-        <p className="text-sm text-ink-3">Loading…</p>
+        <p className="flex items-center gap-2 text-sm text-ink-3"><Spinner size={16} className="text-brand" /> Loading…</p>
       ) : shown.length === 0 ? (
         <Card className="p-6 text-sm text-ink-2">No sign-ups yet. They appear here from the free tools pages.</Card>
       ) : (

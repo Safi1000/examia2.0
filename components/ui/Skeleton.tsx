@@ -1,7 +1,8 @@
 import { cn } from "@/lib/cn";
 
+/** A placeholder block with a soft gold shimmer passing over it (see .skeleton). */
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn("animate-pulse rounded-md bg-surface-2", className)} aria-hidden />;
+  return <div className={cn("skeleton rounded-md", className)} aria-hidden />;
 }
 
 export function CardSkeleton() {

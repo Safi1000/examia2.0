@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Spinner } from "@/components/ui/Spinner";
 import {
   COLORS,
   SIZES,
@@ -2716,7 +2717,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           <ToolButton label="Type (T starts typing where the mouse is). Enter finishes, Shift+Enter for a new line" active={tool === "text"} onClick={() => pickTool("text")}>{I.text}</ToolButton>
           <ToolButton label="Move (V): drag pictures, typed text or writing" active={tool === "move"} onClick={() => pickTool("move")}>{I.move}</ToolButton>
           <ToolButton label="Insert a picture or PDF" disabled={!!busy} onClick={() => fileRef.current?.click()}>
-            {busy ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-black/10 border-t-[#1A1D20]" /> : I.insert}
+            {busy ? <Spinner size={20} className="text-[#1A1D20]" /> : I.insert}
           </ToolButton>
           <Divider across={lead} />
           {COLORS.map((c) => (

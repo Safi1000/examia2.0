@@ -22,7 +22,7 @@ function Crop({ seg, night, alt }: { seg: Seg; night: boolean; alt: string }) {
   const [ready, setReady] = useState(false);
   return (
     <div
-      className={cn("relative w-full overflow-hidden transition-colors duration-500", !ready ? "animate-pulse bg-card-raised" : night ? "bg-[#1b1d20]" : "bg-white")}
+      className={cn("relative w-full overflow-hidden transition-colors duration-500", !ready ? "skeleton" : night ? "bg-[#1b1d20]" : "bg-white")}
       style={{ aspectRatio: `1 / ${h * seg.r * ZOOM}` }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}

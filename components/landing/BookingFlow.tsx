@@ -134,7 +134,7 @@ export function BookingFlow({
       <fieldset className="min-w-0">
         <legend className="text-sm font-semibold text-foreground">{n()} Pick a day</legend>
         {days === null ? (
-          <div className="mt-3 h-[72px] animate-pulse rounded-2xl bg-card-raised" aria-hidden />
+          <div className="skeleton mt-3 h-[72px] rounded-2xl" aria-hidden />
         ) : (
           <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-2 [scrollbar-width:thin]">
             {days.map((d) => (

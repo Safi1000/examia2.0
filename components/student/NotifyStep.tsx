@@ -40,7 +40,7 @@ export function NotifyStep() {
   }
 
   const box = "rounded-2xl border border-border bg-surface p-5";
-  if (status === "loading") return <div className={cn(box, "h-28 animate-pulse")} />;
+  if (status === "loading") return <div className={cn(box, "skeleton h-28")} />;
 
   if (status === "on")
     return (
