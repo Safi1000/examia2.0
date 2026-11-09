@@ -50,7 +50,7 @@ export default function WhiteboardPage() {
         <li>Open the board on the tablet from this page (or bookmark it to the home screen for one tap).</li>
         <li>If the laptop was opened late, it catches up with everything already drawn within a second or two.</li>
         <li>Typing: on the laptop, point where the words go and press T. On the tablet, pick the T tool and tap. Enter finishes, Shift+Enter starts a new line. Tap the words again to edit them.</li>
-        <li>Each class has its own page (&ldquo;A2 Economics&rdquo;) that opens by itself as the class starts, with everything from its last lesson still on it. It stays, day after day, until you delete it; delete it and the next lesson starts a fresh one. The arrows at the top left go back to other pages; + starts a blank one.</li>
+        <li>Every class has its own page (&ldquo;A2 Economics&rdquo;), always there, even before its first lesson: tap the page name at the top left to see them all, open one and write ahead. It opens by itself as the class starts, with everything still on it, and stays day after day until you delete it (deleting wipes it clean). The arrows step through the pages; + starts a blank one.</li>
         <li>Laptop keys: P pen, L line, A axes, E eraser, T type, V move pictures, H hide the tools, [ and ] pages, N new page, Ctrl+Z undo, Ctrl+Shift+Z redo.</li>
         <li>Diagrams: draw an L (or press A on the laptop) for clean x and y axes, with 0 at the origin and arrows at the ends.</li>
         <li>Moving things: the Move tool (V) drags pictures, typed text and writing. With the Type tool, a tap on words edits them and a drag moves them.</li>

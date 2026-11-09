@@ -58,7 +58,7 @@ import {
 import { boardDigest, connectBoard, Ledger, viewerRoom, type BoardLink, type BoardMsg } from "@/components/board/sync";
 import { deleteBoard, loadBoard, loadIndex, saveBoard, saveIndex, type BoardPage } from "@/components/board/storage";
 import { useDatabase } from "@/lib/data/store";
-import { LEVEL_LABEL, liveSlotsOn, pkDate, slotKey } from "@/lib/timetable";
+import { LEVEL_LABEL, classBoardPages, classPageId, liveSlotsOn, pkDate, slotKey } from "@/lib/timetable";
 import { useSchedule } from "@/lib/classes";
 import { cloudinaryConfigured, uploadImage, uploadPdfPages } from "@/lib/cloudinary";
 
@@ -697,6 +697,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const openPageRef = useRef<(p: BoardPage, announce: boolean) => void>(() => {});
   const [page, setPage] = useState<BoardPage>(MAIN_PAGE);
   const [pageList, setPageList] = useState<BoardPage[]>([MAIN_PAGE]);
+  // Has this device's saved list of pages been read yet? (Until then the list isn't saved.)
+  const indexReady = useRef(false);
+  const ensurePagesRef = useRef<() => void>(() => {});
   const keyFor = useCallback((id: string) => (id === MAIN_PAGE.id ? storeKey : `${storeKey}#${id}`), [storeKey]);
   // Pictures that only live in this browser (local preview) aren't kept. Saved compact
   // (points rounded to a tenth), so even a very full board saves in a moment.
@@ -788,14 +791,17 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         if (bg && BACKDROPS.includes(bg)) setPaperRef.current(bg, false);
       } catch {}
       if (idx?.pages.length && pageRef.current.id === MAIN_PAGE.id) {
-        pagesRef.current = idx.pages;
-        setPageList(idx.pages);
+        // Pages already listed here (each class's own) stay alongside the saved list.
+        pagesRef.current = [...idx.pages, ...pagesRef.current.filter((x) => !idx.pages.some((y) => y.id === x.id))];
+        setPageList(pagesRef.current);
         const cur = idx.pages.find((x) => x.id === idx.current);
         if (cur) {
           pageRef.current = cur;
           setPage(cur);
         }
       }
+      indexReady.current = true;
+      ensurePagesRef.current();
       const saved = await loadBoard(keyFor(pageRef.current.id));
       if (!alive) return;
       if (!(gotBoard.current && !lead)) loadedPageId.current = pageRef.current.id;
@@ -2203,11 +2209,20 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
 
   // ---- pages: one per class, so a new class never starts on the last one's writing
   /**
-   * Remember a page in the list (newest last), and where Hamza is. Pages are never let go on
-   * their own, however many there are: a page and its writing stay until Hamza deletes it.
+   * The order pages are listed in: "Board" first, then every class's page in timetable order
+   * (always there, written on or not), then blank pages, oldest first.
+   */
+  const classOrder = useRef<string[]>([]);
+  const ordered = (list: BoardPage[]) => {
+    const rank = (x: BoardPage) => (x.id === MAIN_PAGE.id ? -1 : classOrder.current.includes(x.id) ? classOrder.current.indexOf(x.id) : 1e6);
+    return [...list].sort((a, b) => rank(a) - rank(b) || a.at - b.at);
+  };
+  /**
+   * Remember a page in the list, and where Hamza is. Pages are never let go on their own,
+   * however many there are: a page and its writing stay until Hamza deletes it.
    */
   const rememberPage = (p: BoardPage) => {
-    const list = (pagesRef.current.some((x) => x.id === p.id) ? pagesRef.current.map((x) => (x.id === p.id ? { ...x, ...p } : x)) : [...pagesRef.current, p]).sort((a, b) => a.at - b.at);
+    const list = ordered(pagesRef.current.some((x) => x.id === p.id) ? pagesRef.current.map((x) => (x.id === p.id ? { ...x, ...p } : x)) : [...pagesRef.current, p]);
     pagesRef.current = list;
     setPageList(list);
     void saveIndex(storeKey, { pages: list, current: p.id });
@@ -2275,14 +2290,17 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   };
   // Delete the page on screen (after a confirm): its writing goes for good, on both devices, and the
   // page next to it opens. "Board" itself stays (it can be cleared instead). A class's page is
-  // made again, empty, at its next lesson.
+  // back straight away, empty (see ensureClassPages).
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [pagesOpen, setPagesOpen] = useState(false);
   const forgetPage = (id: string) => {
     const list = pagesRef.current.filter((x) => x.id !== id);
     pagesRef.current = list;
     setPageList(list);
     void deleteBoard(keyFor(id));
     void saveIndex(storeKey, { pages: list, current: pageRef.current.id });
+    // A class's page comes straight back, empty: deleting it wipes it clean.
+    ensurePagesRef.current();
   };
   const deletePage = () => {
     setConfirmDelete(false);
@@ -2333,12 +2351,33 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       lastAutoSlot.current = key;
       // One page per class (AS Accounting, AS Business…), kept from one lesson to the next, so each
       // class carries on where it left off. Moved to the end of the list each time it's used.
-      const id = `k-${slot.classId}-${slot.subjectId}`.replace(/[^a-z0-9-]/gi, "");
+      const id = classPageId(slot.classId, slot.subjectId);
       const had = pagesRef.current.find((x) => x.id === id);
       const p = { ...(had ?? { id, classId: slot.classId, subjectId: slot.subjectId }), title: `${LEVEL_LABEL[slot.level]} ${slot.subject}`, at: now };
       openPage(p, true);
     };
   });
+  // Every class's page is always in the list, so Hamza can open one and write on it before
+  // its lesson. One that's missing (never opened, or deleted) is added back, empty.
+  const ensureClassPages = () => {
+    const want = classBoardPages(db);
+    classOrder.current = want.map((x) => x.id);
+    const missing = want.filter((w) => !pagesRef.current.some((x) => x.id === w.id));
+    const list = ordered([...pagesRef.current, ...missing.map((w) => ({ ...w, at: 0 }))]);
+    const changed = missing.length > 0 || list.some((x, i) => x.id !== pagesRef.current[i]?.id);
+    if (!changed) return;
+    pagesRef.current = list;
+    setPageList(list);
+    // Saved only once this device's own list has loaded, so it never writes over pages it hasn't read yet.
+    if (indexReady.current) void saveIndex(storeKey, { pages: list, current: pageRef.current.id });
+  };
+  useEffect(() => {
+    ensurePagesRef.current = ensureClassPages;
+  });
+  useEffect(() => {
+    ensurePagesRef.current();
+  }, [db, schedule]);
+
   useEffect(() => {
     // A moment after opening (the saved page first), then every 20 seconds.
     const first = setTimeout(() => autoPage.current(), 3000);
@@ -2630,12 +2669,46 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       <div className={`transition-opacity duration-300 ${toolsHidden ? "hidden" : ""} ${quiet ? "pointer-events-none opacity-0" : inking ? "opacity-25" : ""}`}>
         {/* Top: who's linked (left), view controls (right). Small, so the board gets the room. */}
         <div ref={topBarRef} className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
-          {/* The page: each class has its own. Arrows go back to earlier ones, + starts a blank one. */}
-          <div className={`${PANEL} pointer-events-auto flex h-9 min-w-0 items-center gap-0.5 px-1`}>
+          {/* The page: each class has its own, always there. Tap the name for the list of pages;
+              the arrows step through them, + starts a blank one. */}
+          <div className={`${PANEL} pointer-events-auto relative z-30 flex h-9 min-w-0 items-center gap-0.5 px-1`}>
             <SmallButton label="Previous page ([)" onClick={() => stepPage(-1)} disabled={pageIndex <= 0}>{I.prev}</SmallButton>
-            <span className="max-w-[46vw] truncate px-1 text-xs font-semibold text-[#1A1D20]" title={page.title}>
-              {page.title}
-            </span>
+            <button
+              type="button"
+              onClick={() => setPagesOpen((v) => !v)}
+              aria-expanded={pagesOpen}
+              aria-haspopup="listbox"
+              title="All pages"
+              className="flex h-7 max-w-[46vw] items-center gap-1 rounded-lg px-1.5 text-xs font-semibold text-[#1A1D20] hover:bg-black/[0.05]"
+            >
+              <span className="truncate">{page.title}</span>
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-[#6B7280]" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            {pagesOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setPagesOpen(false)} aria-hidden />
+                <ul role="listbox" aria-label="Pages" className={`${PANEL} absolute left-0 top-11 z-50 max-h-[60vh] w-64 overflow-y-auto p-1`}>
+                  {pageList.map((x) => (
+                    <li key={x.id}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={x.id === page.id}
+                        onClick={() => {
+                          setPagesOpen(false);
+                          openPage(x, true);
+                        }}
+                        className={`flex h-10 w-full items-center rounded-xl px-3 text-left text-sm font-semibold transition-colors ${x.id === page.id ? "bg-[#1A1D20] text-white" : "text-[#1A1D20] hover:bg-black/[0.05]"}`}
+                      >
+                        <span className="truncate">{x.title}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
             <SmallButton label="Next page (])" onClick={() => stepPage(1)} disabled={pageIndex >= pageList.length - 1}>{I.next}</SmallButton>
             <SmallButton label="New blank page (N)" onClick={newPage}>{I.plus}</SmallButton>
             {page.id !== MAIN_PAGE.id && <SmallButton label="Delete this page" onClick={() => setConfirmDelete(true)}>{I.trash}</SmallButton>}
@@ -2776,7 +2849,11 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         <div className="absolute inset-0 flex items-center justify-center bg-[#1A1D20]/25 backdrop-blur-[2px]" onClick={() => setConfirmDelete(false)}>
           <div className={`${PANEL} w-[320px] p-5 text-center`} onClick={(e) => e.stopPropagation()}>
             <p className="text-lg font-bold">Delete &ldquo;{page.title}&rdquo;?</p>
-            <p className="mt-1 text-sm text-[#6B7280]">The page and its writing go for good, on your laptop too.</p>
+            <p className="mt-1 text-sm text-[#6B7280]">
+              {page.classId
+                ? "Its writing goes for good, on your laptop too. The class keeps its page, empty."
+                : "The page and its writing go for good, on your laptop too."}
+            </p>
             <div className="mt-5 flex gap-2">
               <button type="button" onClick={() => setConfirmDelete(false)} className="h-11 flex-1 rounded-xl bg-black/[0.05] text-sm font-semibold">
                 Cancel

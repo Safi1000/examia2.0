@@ -255,3 +255,43 @@ export const slotKey = (s: { date: string; classId: string; subjectId: string })
 
 /** Only links that are real https addresses get saved. */
 export const looksLikeLink = (v: string) => /^https:\/\/\S+$/.test(v.trim());
+
+/** A class's own whiteboard page: one per class and subject on the weekly timetable. */
+export interface ClassBoardPage {
+  id: string;
+  title: string;
+  classId: string;
+  subjectId: string;
+}
+
+/** Each class's whiteboard page id ("k-<class>-<subject>"), the same one its lessons open. */
+export const classPageId = (classId: string, subjectId: string) => `k-${classId}-${subjectId}`.replace(/[^a-z0-9-]/gi, "");
+
+/**
+ * Every class on the weekly timetable as a whiteboard page, in timetable order, so each one is
+ * there to write on before its first lesson. Classes with no match in the database are skipped.
+ */
+export function classBoardPages(db: Pick<Database, "classes" | "subjects">): ClassBoardPage[] {
+  const classId = new Map<LevelKey, string>();
+  for (const c of db.classes) {
+    const l = levelOf(c);
+    if (l && !classId.has(l)) classId.set(l, c.id);
+  }
+  const subjectId = new Map<SubjectKey, string>();
+  for (const s of db.subjects) {
+    const k = subjectOf(s);
+    if (k && !subjectId.has(k)) subjectId.set(k, s.id);
+  }
+  const out: ClassBoardPage[] = [];
+  const seen = new Set<string>();
+  for (const s of active.slots) {
+    const c = classId.get(s.level);
+    const sub = subjectId.get(s.subject);
+    if (!c || !sub) continue;
+    const id = classPageId(c, sub);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push({ id, title: `${LEVEL_LABEL[s.level]} ${s.subject}`, classId: c, subjectId: sub });
+  }
+  return out;
+}
