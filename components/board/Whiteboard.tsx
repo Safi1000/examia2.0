@@ -2298,6 +2298,18 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   // back straight away, empty (see ensureClassPages).
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pagesOpen, setPagesOpen] = useState(false);
+  // A tap or click anywhere outside the open page list closes it, and never draws on the board.
+  useEffect(() => {
+    if (!pagesOpen) return;
+    const down = (e: PointerEvent) => {
+      if ((e.target as Element | null)?.closest?.("[data-pages-menu]")) return;
+      e.stopPropagation();
+      e.preventDefault();
+      setPagesOpen(false);
+    };
+    window.addEventListener("pointerdown", down, true);
+    return () => window.removeEventListener("pointerdown", down, true);
+  }, [pagesOpen]);
   const forgetPage = (id: string) => {
     const list = pagesRef.current.filter((x) => x.id !== id);
     pagesRef.current = list;
@@ -2682,6 +2694,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               type="button"
               onClick={() => setPagesOpen((v) => !v)}
               aria-expanded={pagesOpen}
+              data-pages-menu
               aria-haspopup="listbox"
               title="All pages"
               className="flex h-7 max-w-[46vw] items-center gap-1 rounded-lg px-1.5 text-xs font-semibold text-[#1A1D20] hover:bg-black/[0.05]"
@@ -2693,8 +2706,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             </button>
             {pagesOpen && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setPagesOpen(false)} aria-hidden />
-                <ul role="listbox" aria-label="Pages" className={`${PANEL} absolute left-0 top-11 z-50 max-h-[60vh] w-64 overflow-y-auto p-1`}>
+                <ul data-pages-menu role="listbox" aria-label="Pages" className={`${PANEL} absolute left-0 top-11 z-50 max-h-[60vh] w-64 overflow-y-auto p-1`}>
                   {pageList.map((x) => (
                     <li key={x.id}>
                       <button

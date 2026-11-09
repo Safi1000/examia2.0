@@ -11,6 +11,7 @@ import { QuestionModal, type QuestionDraft } from "@/components/admin/QuestionMo
 import { ImportBankModal } from "@/components/admin/ImportBankModal";
 import { ImportDocModal } from "@/components/admin/ImportDocModal";
 import { LateWindowCard } from "@/components/admin/LateWindowCard";
+import { AnswerKeyModal } from "@/components/admin/AnswerKeyModal";
 import { Card, CardHeader, CardBody, Button, Input, Select, Badge, Pill, Modal, Icon, EmptyState } from "@/components/ui";
 import { fromLocalInput, toLocalInput } from "@/lib/time";
 
@@ -63,6 +64,7 @@ export default function TestEditorPage() {
   const [editingQ, setEditingQ] = useState<Question | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [docOpen, setDocOpen] = useState(false);
+  const [keyOpen, setKeyOpen] = useState(false);
   const [deleteQId, setDeleteQId] = useState<string | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
@@ -304,7 +306,12 @@ export default function TestEditorPage() {
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-bold text-ink">Questions <span className="text-ink-3">({questions.length})</span></h2>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                {questions.some((q) => q.type === "mcq") && (
+                  <Button variant="secondary" size="sm" onClick={() => setKeyOpen(true)}>
+                    <Icon.Check className="h-4 w-4" /> Answer key
+                  </Button>
+                )}
                 <Button variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
                   <Icon.Bank className="h-4 w-4" /> Import
                 </Button>
@@ -386,6 +393,8 @@ export default function TestEditorPage() {
           toast("Added. Next question.", "success");
         }}
       />
+
+      <AnswerKeyModal open={keyOpen} onClose={() => setKeyOpen(false)} title={test.title} code={test.testCode} questions={questions} />
 
       <ImportBankModal
         open={importOpen}
