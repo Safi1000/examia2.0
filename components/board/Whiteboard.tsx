@@ -90,6 +90,10 @@ const ERASER_PX = 14;
 const MAIN_PAGE: BoardPage = { id: "main", title: "Board", at: 0 };
 /** A class's page opens this long before it starts. */
 const PAGE_EARLY_MIN = 1;
+/** The tablet's hovering pen shown as a red dot on the laptop. Off at Hamza's request. */
+const HOVER_POINTER = false;
+/** Drawing a little ahead of the pen with the tablet's guessed points. Off: it made the ink tip blink. */
+const PREDICT_AHEAD = false;
 /** Messages that change a page's board (tagged with that page). */
 const PAGE_CHANGES = new Set<BoardMsg["t"]>(["add", "del", "img", "imgdel", "clear", "set", "live"]);
 /** Every change says which page it's for (see BoardMsg.pg). */
@@ -1765,8 +1769,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     if (e.pointerType === "pen") {
       pens.current.lastAt = Date.now();
       notePen(); // hovering counts: keeps palms locked out
-      // Hovering over the board (not writing): the laptop shows where the pen points.
-      if (lead && e.buttons === 0) {
+      // Hovering over the board: no pointer on the laptop (Hamza turned it off; it showed as a marker there).
+      if (HOVER_POINTER && lead && e.buttons === 0) {
         const t = performance.now();
         if (t - pointerSent.current > 50) {
           pointerSent.current = t;
@@ -1900,7 +1904,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         s.pts.push(next);
       }
       // Where the pen is about to be (the tablet's own guess): drawn ahead of it, never saved.
-      const ahead = e.nativeEvent.getPredictedEvents?.() ?? [];
+      // Off: the guessed points flickered at the pen tip (the writing looked like it blinked).
+      const ahead = PREDICT_AHEAD ? (e.nativeEvent.getPredictedEvents?.() ?? []) : [];
       predicted.current = ahead.slice(0, 3).map((ev) => {
         const [x, y] = local(ev);
         const [px, py] = toWorld(cam.current, x, y);
