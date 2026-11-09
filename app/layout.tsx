@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: `${COMPANY_NAME} · O Level, IGCSE and A Level tuition`,
   description: "Online O Level, IGCSE and A Level tuition in Accounting, Business and Economics, with free past papers. Book a free trial lesson.",
-  // Tab and home-screen icons come from app/icon.svg and app/apple-icon.tsx.
+  // Tab and home-screen icons come from app/icon.svg and app/apple-icon.tsx (Pencil Balance mark).
   ...(GSC_VERIFICATION ? { verification: { google: GSC_VERIFICATION } } : {}),
 };
 
