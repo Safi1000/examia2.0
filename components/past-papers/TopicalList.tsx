@@ -17,7 +17,7 @@ const MARGIN = 0.075;
 const ZOOM = 1 / (1 - 2 * MARGIN);
 
 /** One cut-out piece of a page. */
-function Crop({ seg, night, alt }: { seg: Seg; night: boolean; alt: string }) {
+export function Crop({ seg, night, alt }: { seg: Seg; night: boolean; alt: string }) {
   const h = seg.b - seg.t;
   const [ready, setReady] = useState(false);
   return (

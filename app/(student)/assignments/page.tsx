@@ -9,7 +9,8 @@ import { uploadAsImages } from "@/lib/cloudinary";
 import { useToast } from "@/components/toast";
 import { PageStack } from "@/components/PageStack";
 import { Card, Button, Badge, EmptyState, Icon } from "@/components/ui";
-import { formatTimestamp } from "@/lib/time";
+import { formatTimestamp, formatWhen } from "@/lib/time";
+import { cn } from "@/lib/cn";
 import { useNow } from "@/hooks/useNow";
 
 /**
@@ -163,16 +164,16 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
 
   return (
     <Card id={`a-${assignment.id}`} className="scroll-mt-24 p-4">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="min-w-0 truncate text-xs font-medium text-ink-3">{subjectName ?? "Homework"}</p>
         {mine ? (
           <Badge tone="success">{+new Date(mine.submittedAt) > +new Date(assignment.dueAt) ? "Handed in late" : "Handed in"}</Badge>
         ) : (
-          <Badge tone={overdue ? "warning" : "neutral"}>{overdue ? "Overdue" : "To do"}</Badge>
+          overdue && <Badge tone="warning">Overdue</Badge>
         )}
-        {subjectName && <Badge tone="neutral">{subjectName}</Badge>}
-        <span className="text-sm text-ink-2">Due {formatTimestamp(assignment.dueAt)}</span>
       </div>
       <h2 className="mt-1.5 text-lg font-bold text-ink">{assignment.title}</h2>
+      <p className={cn("mt-0.5 text-sm", overdue && !mine ? "font-semibold text-warning" : "text-ink-2")}>Due {formatWhen(assignment.dueAt)}</p>
       {assignment.instructions && <p className="mt-1 whitespace-pre-wrap text-sm text-ink-2">{assignment.instructions}</p>}
 
       {assignment.attachments.length > 0 && (

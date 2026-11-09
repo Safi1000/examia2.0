@@ -62,7 +62,7 @@ export default function PlanPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-4 py-8 sm:px-6">
       <header>
-        <h1 className="text-[1.75rem] font-bold tracking-tight text-ink sm:text-3xl">Your plan to the exams</h1>
+        <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink">Your plan to the exams</h1>
         <p className="mt-1.5 text-base text-ink-2">
           It rebuilds itself from your marks, so weak topics come round more often.
         </p>
@@ -71,8 +71,9 @@ export default function PlanPage() {
       {/* Countdown */}
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-lg border border-border bg-surface p-4">
-          <p className="text-sm text-ink-2">Days to {EXAMS.name}</p>
+          <p className="text-sm text-ink-2">Days to exams</p>
           <p className="mt-1 text-4xl font-bold tabular-nums tracking-tight text-brand">{plan.daysLeft}</p>
+          <p className="mt-1 text-xs text-ink-3">{EXAMS.name}</p>
         </div>
         <div className="rounded-lg border border-border bg-surface p-4">
           <p className="text-sm text-ink-2">Weeks left</p>

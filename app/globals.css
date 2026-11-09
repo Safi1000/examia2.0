@@ -437,23 +437,14 @@ textarea:-webkit-autofill:focus {
   position: absolute;
   inset: 0;
 }
-/* Portal backdrop (PortalAmbient): warm charcoal, a soft gold glow from the
-   top, and the homepage's faint grid fading out towards the bottom. Static,
-   so it costs nothing while scrolling. */
-.portal-glow {
-  background:
-    radial-gradient(70% 45% at 50% -10%, rgba(251, 193, 89, 0.10), transparent 70%),
-    radial-gradient(50% 40% at 100% 100%, rgba(251, 193, 89, 0.035), transparent 70%),
-    linear-gradient(180deg, #1c1f22 0%, #1a1d20 45%, #17191c 100%);
+/* Portal backdrop (PortalAmbient): the homepage's backdrop held still, with
+   its light and grid centred a little higher so page titles sit in the glow. */
+.portal-backdrop {
+  --ay: 12%;
 }
-.portal-grid {
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-size: 72px 72px;
-  background-position: center top;
-  mask-image: radial-gradient(90% 70% at 50% 0%, #000 0%, transparent 80%);
-  -webkit-mask-image: radial-gradient(90% 70% at 50% 0%, #000 0%, transparent 80%);
+.portal-backdrop .landing-backdrop__grid,
+.portal-backdrop .landing-backdrop__ambient {
+  transition: none;
 }
 
 .landing-backdrop__ambient {

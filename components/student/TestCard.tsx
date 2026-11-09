@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Submission, Test } from "@/types";
-import { Badge, Card, Pill, Icon } from "@/components/ui";
+import { Badge, Card, Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 import { testWindow, formatDate, formatRelative, formatWhen } from "@/lib/time";
 import { gradeSubmission } from "@/lib/grading";
@@ -29,10 +29,8 @@ export function TestCard({
   return (
     <Card ruled className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <Pill>{test.testCode}</Pill>
-          <span className="text-xs font-medium text-ink-3">{test.subject}</span>
-        </div>
+        {/* The test code is Hamza's own reference: students only need the subject. */}
+        <p className="text-xs font-medium text-ink-3">{test.subject}</p>
         <h3 className="mt-1.5 text-lg font-bold text-ink">{test.title}</h3>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-ink-2">
           <span className="inline-flex items-center gap-1"><Icon.Clock className="h-3.5 w-3.5" />{test.durationMinutes} min</span>

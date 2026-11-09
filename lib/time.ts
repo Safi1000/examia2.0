@@ -42,10 +42,13 @@ export function formatDuration(totalSeconds: number): string {
   return `${m}m ${String(rem).padStart(2, "0")}s`;
 }
 
-/** Friendly absolute timestamp in Pakistan time, e.g. "17 Jun 2026, 2:05 pm". */
+/** "2:05 pm" → "2:05 PM", so every time in the portal reads the same as the timetable. */
+const upperMeridiem = (s: string) => s.replace(/\s?(am|pm)\b/i, (_, m: string) => ` ${m.toUpperCase()}`);
+
+/** Friendly absolute timestamp in Pakistan time, e.g. "17 Jun 2026, 2:05 PM". */
 export function formatTimestamp(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleString("en-GB", {
+  return upperMeridiem(d.toLocaleString("en-GB", {
     timeZone: "Asia/Karachi",
     day: "numeric",
     month: "short",
@@ -53,12 +56,12 @@ export function formatTimestamp(iso: string): string {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-  });
+  }));
 }
 
-/** Short day and time in Pakistan time, e.g. "Mon 3 Nov, 5:30 pm". */
+/** Short day and time in Pakistan time, e.g. "Mon 3 Nov, 5:30 PM". */
 export function formatWhen(iso: string): string {
-  return new Date(iso).toLocaleString("en-GB", {
+  return upperMeridiem(new Date(iso).toLocaleString("en-GB", {
     timeZone: "Asia/Karachi",
     weekday: "short",
     day: "numeric",
@@ -66,12 +69,14 @@ export function formatWhen(iso: string): string {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-  });
+  }));
 }
 
+/** "2 Nov 2026", in Pakistan time. */
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", {
-    day: "2-digit",
+    timeZone: "Asia/Karachi",
+    day: "numeric",
     month: "short",
     year: "numeric",
   });

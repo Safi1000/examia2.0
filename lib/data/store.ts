@@ -594,7 +594,7 @@ class Store {
     const sb = supabase();
     const writesBefore = this.writeCount;
     // For a student these come back empty anyway (RLS) or are never shown on a
-    // student screen (attendance, reports): don't spend a round trip or data.
+    // student screen (reports, reminders): don't spend a round trip or data.
     const empty = Promise.resolve({ data: [] as Row[], error: null });
     const staffOnly = <T,>(q: () => T) => (this.audience === "student" ? empty : q());
     // The admin's level list is its own request: start it now, alongside the rest.
@@ -631,8 +631,9 @@ class Store {
       sb.from("note_assignments").select("*"),
       sb.from("assignments").select("*").order("due_at", { ascending: false }),
       allRows((a, b) => sb.from("assignment_submissions").select("*").order("id").range(a, b)),
-      staffOnly(() => allRows((a, b) => sb.from("attendance_days").select("*").order("id").range(a, b))),
-      staffOnly(() => allRows((a, b) => sb.from("attendance_months").select("*").order("id").range(a, b))),
+      // Students see their own register on Progress (RLS returns only their rows).
+      allRows((a, b) => sb.from("attendance_days").select("*").order("id").range(a, b)),
+      allRows((a, b) => sb.from("attendance_months").select("*").order("id").range(a, b)),
       staffOnly(() => allRows((a, b) => sb.from("reports").select("*").order("created_at", { ascending: false }).order("id").range(a, b))),
       staffOnly(() => allRows((a, b) => sb.from("reminders_sent").select("*").order("id").range(a, b))),
       // Feed is capped: the bell only ever shows recent history.

@@ -1,17 +1,19 @@
 /**
  * The portal's backdrop, on phone and desktop, for students and the teacher
- * console alike: warm charcoal, a very faint grid like the homepage, and a
- * soft gold glow from the top. No photo and no cool tints, so every page
- * reads warm and calm, and nothing heavy (blur, big images) slows phones down.
+ * console alike: the homepage's own background (warm charcoal, the faint grid
+ * with its wider gold lines, a soft gold glow and a gentle vignette), held
+ * still. No photo and no cool tints; the photo wallpapers belong to
+ * Groundwork only, which draws its own over this.
  *
- * Groundwork keeps its own full photo; this sits behind everything else.
- * Purely decorative; never takes clicks.
+ * Purely decorative; never takes clicks. Static, so it costs nothing while
+ * scrolling (the homepage's cursor drift is left out on purpose).
  */
 export function PortalAmbient() {
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-paper">
-      <div className="portal-glow absolute inset-0" />
-      <div className="portal-grid absolute inset-0" />
+    <div aria-hidden className="landing-backdrop portal-backdrop pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+      <div className="landing-backdrop__ambient" />
+      <div className="landing-backdrop__grid" />
+      <div className="landing-backdrop__vignette" />
     </div>
   );
 }

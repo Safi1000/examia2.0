@@ -104,8 +104,8 @@ export function NotificationsView() {
     <div className="mx-auto max-w-3xl px-4 py-6">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-ink">Notifications</h1>
-          <p className="mt-0.5 text-sm text-ink-2">
+          <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink">Notifications</h1>
+          <p className="mt-1.5 text-base text-ink-2">
             {unreadCount > 0
               ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}`
               : "You're all caught up."}
@@ -127,6 +127,8 @@ export function NotificationsView() {
         </div>
       </div>
 
+      {/* Search and filters only once there is enough to search through. */}
+      {(activities.length > 5 || query) && (
       <div className="relative mb-3">
         <Icon.Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" />
         <Input
@@ -139,7 +141,9 @@ export function NotificationsView() {
         />
       </div>
 
-      <Tabs tabs={tabs} active={filter} onChange={changeFilter} className="mb-4" />
+      )}
+
+      {tabs.length > 1 && <Tabs tabs={tabs} active={filter} onChange={changeFilter} className="mb-4" />}
 
       {!ready ? (
         <div className="space-y-3" aria-busy>

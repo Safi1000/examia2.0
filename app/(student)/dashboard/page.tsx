@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useNow } from "@/hooks/useNow";
 import { useDatabase } from "@/lib/data/store";
-import { studentById } from "@/lib/data/selectors";
+import { attendancePercent, studentById } from "@/lib/data/selectors";
 import { dueFor } from "@/lib/due";
 import { gradeSubmission } from "@/lib/grading";
 import { AnnouncementsPanel } from "@/components/student/AnnouncementsPanel";
@@ -17,6 +17,8 @@ import { formatRelative, formatWhen } from "@/lib/time";
 import { buildStudyPlan, type PlanWeek } from "@/lib/study-plan";
 import { GRADE_FLOOR, performanceSnapshot, sameSubject, type Snapshot } from "@/lib/performance";
 import { StudyBuddy, todaysMission } from "@/components/student/StudyBuddy";
+import { DailyFive } from "@/components/student/DailyFive";
+import { syllabusProgress } from "@/lib/syllabus-progress";
 import type { Profile } from "@/lib/profile";
 import { displayName } from "@/lib/display-name";
 import { isAsStudent } from "@/lib/grading";
@@ -53,9 +55,9 @@ export default function DashboardPage() {
   // out once per data change (or every 5 minutes), not on every tick.
   const hourBucket = Math.floor(nowMs / 300_000);
   const heavy = useMemo(() => {
-    if (!student) return { plan: null, perf: null, mission: null };
+    if (!student) return { plan: null, perf: null, mission: null, books: [] };
     const at = hourBucket * 300_000;
-    return { plan: buildStudyPlan(db, student, at), perf: performanceSnapshot(db, student), mission: todaysMission(db, student, at) };
+    return { plan: buildStudyPlan(db, student, at), perf: performanceSnapshot(db, student), mission: todaysMission(db, student, at), books: syllabusProgress(db, student) };
   }, [db, student, hourBucket]);
 
   if (!student || !heavy.plan) return null;
@@ -63,7 +65,13 @@ export default function DashboardPage() {
   const dueSoon = due?.dueSoon ?? [];
   const overdue = due?.overdue ?? [];
 
-  const { plan, perf, mission } = heavy;
+  const { plan, perf, mission, books } = heavy;
+  // This month's attendance (last month's until the first class is marked) and syllabus covered.
+  const ym = new Date(nowMs + 5 * 3_600_000).toISOString().slice(0, 7);
+  const prevYm = new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7) - 2, 1)).toISOString().slice(0, 7);
+  const attendance = attendancePercent(db, student.id, `${ym}-01`) ?? attendancePercent(db, student.id, `${prevYm}-01`);
+  const chapters = books.reduce((a, b) => ({ covered: a.covered + b.covered, total: a.total + b.total }), { covered: 0, total: 0 });
+  const syllabus = chapters.total ? Math.round((chapters.covered / chapters.total) * 100) : null;
   const week = plan.weeks.find((w) => w.isCurrent) ?? null;
 
   // One line that answers "what do I do now?".
@@ -163,10 +171,13 @@ export default function DashboardPage() {
       {/* Hamza's notices: high up, but one line each so the day's work stays in view. */}
       <AnnouncementsPanel student={student} />
 
+      {/* Five quick past paper questions from covered chapters, once a day. */}
+      <DailyFive books={books} />
+
       <StudyBuddy db={db} student={student} nowMs={nowMs} mission={mission} />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <PerformanceCard perf={perf} targets={profile.targets} asOnly={isAsStudent(student?.id)} />
+        <PerformanceCard perf={perf} targets={profile.targets} asOnly={isAsStudent(student?.id)} attendance={attendance} syllabus={syllabus} />
         <PlanCard week={week} daysLeft={plan.daysLeft} />
       </div>
 
@@ -174,7 +185,19 @@ export default function DashboardPage() {
   );
 }
 
-function PerformanceCard({ perf, targets, asOnly }: { perf: Snapshot | null; targets?: Profile["targets"]; asOnly?: boolean }) {
+function PerformanceCard({
+  perf,
+  targets,
+  asOnly,
+  attendance,
+  syllabus,
+}: {
+  perf: Snapshot | null;
+  targets?: Profile["targets"];
+  asOnly?: boolean;
+  attendance: number | null;
+  syllabus: number | null;
+}) {
   // Each subject against the student's own target, when they set one.
   const vsTarget = (perf?.bySubject ?? []).flatMap((s) => {
     const key = Object.keys(targets ?? {}).find((k) => sameSubject(k, s.subject));
@@ -188,7 +211,7 @@ function PerformanceCard({ perf, targets, asOnly }: { perf: Snapshot | null; tar
       href="/progress"
       className="animate-fade-up flex flex-col rounded-lg border border-border bg-surface p-5 transition-colors hover:border-border-strong"
     >
-      <p className="font-semibold text-ink">Your performance</p>
+      <p className="font-semibold text-ink">How you&apos;re doing</p>
       {!perf || perf.marked < 3 ? (
         <p className="mt-3 flex-1 text-sm text-ink-2">
           {perf ? `${perf.marked} of 3 tests marked. ` : ""}Your grade shows here after three marked tests.
@@ -237,6 +260,22 @@ function PerformanceCard({ perf, targets, asOnly }: { perf: Snapshot | null; tar
             </p>
           )}
         </div>
+      )}
+      {(attendance != null || syllabus != null) && (
+        <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4">
+          {attendance != null && (
+            <div>
+              <dt className="text-xs text-ink-3">Attendance</dt>
+              <dd className={cn("mt-0.5 text-lg font-bold tabular-nums", attendance >= 90 ? "text-success" : attendance >= 75 ? "text-ink" : "text-warning")}>{Math.round(attendance)}%</dd>
+            </div>
+          )}
+          {syllabus != null && (
+            <div>
+              <dt className="text-xs text-ink-3">Syllabus covered</dt>
+              <dd className="mt-0.5 text-lg font-bold tabular-nums text-ink">{syllabus}%</dd>
+            </div>
+          )}
+        </dl>
       )}
       <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand">
         Full progress <Icon.ChevronRight className="h-4 w-4" />
