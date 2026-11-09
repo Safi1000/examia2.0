@@ -9,8 +9,8 @@ import { useAdminFilter } from "@/lib/admin-filter";
 import { useNow } from "@/hooks/useNow";
 import { useToast } from "@/components/toast";
 import { absenceStreak, cohortById, eligibleStudents, testById, archivedCohortIds, isArchivedTest } from "@/lib/data/selectors";
-import { GRADE_ORDER, gradeSubmission, type GradeLetter } from "@/lib/grading";
-import { performanceSnapshot, sameSubject } from "@/lib/performance";
+import { gradeSubmission } from "@/lib/grading";
+import { LOW_SCORE } from "@/lib/reminders";
 import { useStudentProfiles } from "@/lib/student-profiles";
 import { StartCard } from "@/components/admin/StartCard";
 import { SlippingCard } from "@/components/admin/SlippingCard";
@@ -47,7 +47,7 @@ export default function TodayPage() {
   const { toast } = useToast();
   const { cohortId } = useAdminFilter();
   const nowMs = useNow();
-  const profiles = useStudentProfiles();
+  const profiles = useStudentProfiles(); // for the Groundwork card
   const todayPk = pkDate(nowMs);
   const { links: classLinks } = useClassLinks(todayPk, todayPk);
   useSchedule(); // re-render when the timetable loads or changes
@@ -129,26 +129,20 @@ export default function TodayPage() {
         const released = db.submissions
           .filter((x) => x.studentId === s.id && x.status === "released")
           .sort((a, b) => (b.submittedAt ?? "").localeCompare(a.submittedAt ?? ""))
-          .slice(0, 2)
+          .slice(0, 1)
           .flatMap((x) => {
             const t = testById(db, x.testId);
             return t ? [gradeSubmission(t, x).percent] : [];
           });
-        const lowAvg =
-          released.length === 2 ? Math.round((released[0] + released[1]) / 2) : null;
+        // Hamza's rules (2026-11-09): only a latest test under 70% or two classes
+        // missed in a row (plus a skipped test). Grade targets never put a student here.
+        const lastPct = released.length ? Math.round(released[0]) : null;
         const absent = absenceStreak(db, s.id);
         const reasons: string[] = [];
         if (missed.length) reasons.push(`Missed ${missed.map((t) => t.title).join(", ")}`);
-        if (lowAvg !== null && lowAvg < 50) reasons.push(`Last two tests averaged ${lowAvg}%`);
+        if (lastPct !== null && lastPct < LOW_SCORE) reasons.push(`Last test ${lastPct}%`);
         if (absent >= 2) reasons.push(`Absent ${absent} classes in a row`);
-        // Only a real gap counts: two or more grades under their own target.
-        const targets = profiles[s.id]?.targets ?? {};
-        for (const sub of performanceSnapshot(db, s)?.bySubject ?? []) {
-          const key = Object.keys(targets).find((k) => sameSubject(k, sub.subject));
-          if (key && typeof targets[key] === "string" && GRADE_ORDER.indexOf(sub.grade as GradeLetter) - GRADE_ORDER.indexOf(targets[key] as GradeLetter) >= 2)
-            reasons.push(`${sub.subject}: ${sub.grade}, aiming for ${targets[key]}`);
-        }
-        return { student: s, reasons, missed, lowAvg, absent };
+        return { student: s, reasons, missed, lastPct, absent };
       })
       // "Checked" hides a student for a week, so the same names don't nag daily.
       .filter((r) => r.reasons.length > 0 && !(checked[r.student.id] && tick - checked[r.student.id] < 7 * DAY))
@@ -166,7 +160,7 @@ export default function TodayPage() {
     const weak = weakTopics(db, cohortId).map((w) => ({ ...w, available: retestQuestions(db, w.subject, w.name).length }));
 
     return { toMark, toReply, closing, attention, avg30, weak };
-  }, [db, cohortId, tick, profiles, checked]);
+  }, [db, cohortId, tick, checked]);
 
   const cohortName = cohortId ? cohortById(db, cohortId)?.name : null;
 
@@ -332,18 +326,15 @@ export default function TodayPage() {
             <p className="mt-2 text-[15px] text-ink-2">Everyone is on track.</p>
           ) : (
             <ul className="mt-3 divide-y divide-border">
-              {(showAll ? data.attention : data.attention.slice(0, 5)).map(({ student: s, reasons, missed, lowAvg, absent }) => {
+              {(showAll ? data.attention : data.attention.slice(0, 5)).map(({ student: s, reasons, missed, lastPct, absent }) => {
                 // The message matches the reason they're on the list.
-                const gap = reasons.find((r) => r.includes("aiming for"));
                 const msg = missed.length
                   ? `Hi ${nameOf(s)}, I noticed you missed ${missed[0].title}. Is everything okay? Let me know if you need help catching up.`
-                  : lowAvg !== null && lowAvg < 50
-                    ? `Hi ${nameOf(s)}, your last two tests were tough. Let's fix it together. When can we do a quick call?`
+                  : lastPct !== null && lastPct < LOW_SCORE
+                    ? `Hi ${nameOf(s)}, your last test was a tough one. Let's fix it together. When can we do a quick call?`
                     : absent >= 2
                       ? `Hi ${nameOf(s)}, I noticed you've missed a few classes. Is everything okay?`
-                      : gap
-                        ? `Hi ${nameOf(s)}, you're aiming high and I want to get you there. ${gap.split(":")[0]} needs a bit more work. Shall we plan the next two weeks together?`
-                        : `Hi ${nameOf(s)}, just checking in. How are things going?`;
+                      : `Hi ${nameOf(s)}, just checking in. How are things going?`;
                 const studentLink = waTo(s.phone, msg);
                 const parentLink = waTo(s.whatsapp, `Assalam o Alaikum, a quick update about ${nameOf(s)}: ${reasons.join(". ")}. Happy to talk whenever suits you.`);
                 return (

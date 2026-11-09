@@ -12,9 +12,11 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#17191C",
     theme_color: "#1a1d20",
     icons: [
-      { src: "/app-icon/192", sizes: "192x192", type: "image/png" },
-      { src: "/app-icon/512", sizes: "512x512", type: "image/png" },
-      { src: "/app-icon/512-maskable", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      // New addresses (not /app-icon/...) so Chrome sees the icon changed and updates installed copies:
+      // the old "ht" icons were cached by browsers for a year under the old addresses.
+      { src: "/brand-icons/app-192.png?v=2", sizes: "192x192", type: "image/png" },
+      { src: "/brand-icons/app-512.png?v=2", sizes: "512x512", type: "image/png" },
+      { src: "/brand-icons/app-512-maskable.png?v=2", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }

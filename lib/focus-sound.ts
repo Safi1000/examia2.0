@@ -134,8 +134,8 @@ export function showOnLockScreen(info: { title: string; subject: string; totalMs
       artist: `Groundwork · ${info.subject}`,
       album: "Hamza Teaches",
       artwork: [
-        { src: "/app-icon/512", sizes: "512x512", type: "image/png" },
-        { src: "/app-icon/192", sizes: "192x192", type: "image/png" },
+        { src: "/brand-icons/app-512.png?v=2", sizes: "512x512", type: "image/png" },
+        { src: "/brand-icons/app-192.png?v=2", sizes: "192x192", type: "image/png" },
       ],
     });
     ms.playbackState = info.paused ? "paused" : "playing";

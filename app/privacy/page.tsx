@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/privacy" },
 };
 
-const UPDATED = "8 November 2026";
+const UPDATED = "9 November 2026";
 
 export default function PrivacyPage() {
   const wa = (
@@ -110,6 +110,12 @@ export default function PrivacyPage() {
                 out or switch notifications off and I delete that code. The app asks for your camera or photos only when you
                 choose to send me a photo of your work. The app has no ads and no analytics, and it does not track you across
                 other apps or websites.
+              </p>
+              <p>
+                <strong className="text-foreground">Practising in the app.</strong> Anyone can practise past paper questions
+                in the app without an account. Your practice answers, paper results, saved questions, exam plan, the subjects
+                you pick and any papers you download are saved on your phone only. I don&apos;t receive them. Deleting the app
+                deletes them.
               </p>
             </>
           ),
@@ -237,7 +243,36 @@ export default function PrivacyPage() {
           ),
         },
         {
-          h: "11. Changes",
+          h: "11. Deleting your account",
+          id: "delete",
+          body: (
+            <>
+              <p>
+                Your student account is the same on this website and in the Hamza Teaches app for iPhone and Android. To
+                delete it, message me on {wa} or email <a href={`mailto:${LANDING.email}`}>{LANDING.email}</a> with your
+                username. In the app you can also tap Me, then Request account deletion, which opens WhatsApp with the
+                message ready to send. A parent can ask for a student under 18.
+              </p>
+              <ul>
+                <li>
+                  <strong className="text-foreground">What I delete</strong>: your portal account, test answers, photos
+                  of your work, marks, feedback, reports, and the notification code for your phone.
+                </li>
+                <li>
+                  <strong className="text-foreground">What I keep</strong>: payment records, only where the law requires
+                  them (see section 3).
+                </li>
+                <li>
+                  <strong className="text-foreground">On your phone</strong>: practice in the app is stored on your phone
+                  only, so deleting the app removes it.
+                </li>
+              </ul>
+              <p>I delete your account within 30 days and tell you when it is done, usually much sooner.</p>
+            </>
+          ),
+        },
+        {
+          h: "12. Changes",
           body: (
             <p>
               If this policy changes, the new version goes on this page with a new date at the top. See also the{" "}

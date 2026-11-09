@@ -16,7 +16,7 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",
-      icon: "/app-icon/192",
+      icon: "/brand-icons/app-192.png?v=2",
       // Android draws the status-bar icon from the alpha channel only, so a
       // full-colour icon shows as a blank square: the badge is white on clear.
       badge: "/notification-badge.png",

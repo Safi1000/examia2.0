@@ -2,9 +2,9 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 /**
- * Home-screen icons for the installable portal (manifest.ts), notifications
- * (sw.js) and the focus-sound player: the Pencil Balance mark, the same as
- * the phone app's icon. "512-maskable" has extra space so Android can crop it
+ * The Pencil Balance mark at its old addresses, kept so older links still
+ * work. manifest.ts, sw.js and the focus-sound player now use
+ * /brand-icons/*.png?v=2 directly, so installed copies pick up the new icon. "512-maskable" has extra space so Android can crop it
  * to a circle or squircle without cutting the mark.
  */
 

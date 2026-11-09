@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Eyebrow, MarketingShell } from "./MarketingShell";
 
-export type LegalSection = { h: string; body: ReactNode };
+/** `id` gives a section a stable link (for example /privacy#delete); otherwise it is legal-<n>. */
+export type LegalSection = { h: string; body: ReactNode; id?: string };
 
 /** Shared layout for /privacy and /terms: a readable single column. */
 export function LegalPage({
@@ -35,8 +36,8 @@ export function LegalPage({
           <div className="mt-8 text-[17px] leading-relaxed text-muted-foreground">{intro}</div>
           <div className="mt-12 space-y-10">
             {sections.map((s, i) => (
-              <section key={s.h} aria-labelledby={`legal-${i}`} className="border-t border-hairline pt-8">
-                <h2 id={`legal-${i}`} className="text-xl font-bold text-foreground md:text-2xl">{s.h}</h2>
+              <section key={s.h} aria-labelledby={s.id ?? `legal-${i}`} className="border-t border-hairline pt-8">
+                <h2 id={s.id ?? `legal-${i}`} className="scroll-mt-32 text-xl font-bold text-foreground md:text-2xl">{s.h}</h2>
                 <div className="mt-4 space-y-4 text-[17px] leading-relaxed text-muted-foreground [&_a]:font-semibold [&_a]:text-gold [&_a:hover]:underline [&_li]:pl-1 [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5">
                   {s.body}
                 </div>
