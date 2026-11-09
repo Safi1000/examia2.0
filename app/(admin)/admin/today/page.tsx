@@ -144,7 +144,7 @@ export default function TodayPage() {
         if (absent >= 2) reasons.push(`Absent ${absent} classes in a row`);
         return { student: s, reasons, missed, lastPct, absent };
       })
-      // "Checked" hides a student for a week, so the same names don't nag daily.
+      // "Checked" (or messaging them from here) hides a student for a week, so the same names don't nag daily.
       .filter((r) => r.reasons.length > 0 && !(checked[r.student.id] && tick - checked[r.student.id] < 7 * DAY))
       .sort((a, b) => b.reasons.length - a.reasons.length);
 
@@ -349,12 +349,12 @@ export default function TodayPage() {
                     </div>
                     <div className="flex shrink-0 gap-2">
                       {studentLink && (
-                        <a href={studentLink} target="_blank" rel="noopener noreferrer" className={buttonClasses({ variant: "secondary", size: "sm" })}>
+                        <a href={studentLink} target="_blank" rel="noopener noreferrer" onClick={() => markChecked(s.id)} className={buttonClasses({ variant: "secondary", size: "sm" })}>
                           Message student
                         </a>
                       )}
                       {parentLink && (
-                        <a href={parentLink} target="_blank" rel="noopener noreferrer" className={buttonClasses({ variant: "secondary", size: "sm" })}>
+                        <a href={parentLink} target="_blank" rel="noopener noreferrer" onClick={() => markChecked(s.id)} className={buttonClasses({ variant: "secondary", size: "sm" })}>
                           Message parent
                         </a>
                       )}

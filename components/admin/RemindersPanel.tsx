@@ -53,8 +53,13 @@ export function RemindersPanel() {
     return `${window.location.origin}/reports/${record.token}`;
   }
 
-  /** Opens the parent's chat with the message (and link) ready to send. */
-  async function open(r: Reminder) {
+  /**
+   * Opens the parent's chat with the message (and link) ready to send. A single
+   * Send also clears the reminder (Hamza, 2026-11-09: opening the message is
+   * enough, no separate "Done" tap). The monthly report run keeps its own
+   * "Sent, next" / "Skip" buttons, so it passes clear = false.
+   */
+  async function open(r: Reminder, clear = true) {
     const number = r.student.whatsapp;
     if (!number) {
       toast(`${r.student.username} has no parent WhatsApp number saved.`, "error");
@@ -69,6 +74,7 @@ export function RemindersPanel() {
         if (link) text = `${text}\n\n${link}`;
       }
       tab.go(`https://wa.me/${waDigits(number)}?text=${encodeURIComponent(text)}`);
+      if (clear) confirmSent(r);
     } catch (err) {
       tab.cancel();
       console.error("Reminder failed:", err);
@@ -88,7 +94,7 @@ export function RemindersPanel() {
   async function startRun() {
     if (!reportRun.length) return;
     setRunIndex(0);
-    await open(reportRun[0]);
+    await open(reportRun[0], false);
   }
 
   async function nextInRun(markSent: boolean) {
@@ -103,7 +109,7 @@ export function RemindersPanel() {
       return;
     }
     setRunIndex(next);
-    await open(reportRun[next]);
+    await open(reportRun[next], false);
   }
 
   return (
