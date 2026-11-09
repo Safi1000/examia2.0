@@ -26,6 +26,7 @@ import { cohortById } from "@/lib/data/selectors";
 import { cn } from "@/lib/cn";
 import { displayName } from "@/lib/display-name";
 import { PortalAmbient } from "@/components/PortalAmbient";
+import { PortalManifest } from "@/components/PortalManifest";
 import { pageTitle, useDocumentTitle } from "@/hooks/usePageTitle";
 import { useRecoverFocus } from "@/components/student/focus-session";
 import { setActivityPath, startActivity } from "@/lib/activity-tracker";
@@ -211,6 +212,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   return (
     <div className="relative isolate min-h-dvh">
       <PortalAmbient />
+      <PortalManifest on />
       {!inRunner && (
         // In the phone app, its own header and tab bar replace this bar and the dock below (web-only).
         <header

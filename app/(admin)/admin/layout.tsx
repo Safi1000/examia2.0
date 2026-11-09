@@ -18,6 +18,7 @@ import { NavIcon } from "@/components/nav/NavIcons";
 import { cn } from "@/lib/cn";
 import { NotificationBell } from "@/components/NotificationBell";
 import { PortalAmbient } from "@/components/PortalAmbient";
+import { PortalManifest } from "@/components/PortalManifest";
 import { pageTitle, useDocumentTitle } from "@/hooks/usePageTitle";
 
 // Long enough to teach a block of back-to-back classes in Meet without being signed out.
@@ -92,6 +93,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <AdminFilterProvider>
       <div className="relative isolate flex min-h-dvh">
         <PortalAmbient />
+        <PortalManifest on />
         {/* Persistent sidebar — tablet narrower, desktop full */}
         <aside className="hidden w-60 shrink-0 border-r border-white/[0.06] md:block lg:w-64">
           <div className="sticky top-0 h-dvh">
