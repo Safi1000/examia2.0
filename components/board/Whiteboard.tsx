@@ -88,8 +88,6 @@ const PALM_SIZE_PX = 56;
 const ERASER_PX = 14;
 /** The board from before pages existed (and the page used outside class time). */
 const MAIN_PAGE: BoardPage = { id: "main", title: "Board", at: 0 };
-/** Pages kept on a device; older ones (and their boards) are let go. */
-const MAX_PAGES = 80;
 /** A class's page opens this long before it starts. */
 const PAGE_EARLY_MIN = 1;
 /** Messages that change a page's board (tagged with that page). */
@@ -2204,15 +2202,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   };
 
   // ---- pages: one per class, so a new class never starts on the last one's writing
-  /** Remember a page in the list (newest last), and where Hamza is. */
+  /**
+   * Remember a page in the list (newest last), and where Hamza is. Pages are never let go on
+   * their own, however many there are: a page and its writing stay until Hamza deletes it.
+   */
   const rememberPage = (p: BoardPage) => {
-    let list = pagesRef.current.some((x) => x.id === p.id) ? pagesRef.current.map((x) => (x.id === p.id ? { ...x, ...p } : x)) : [...pagesRef.current, p];
-    list = list.sort((a, b) => a.at - b.at);
-    if (list.length > MAX_PAGES) {
-      const drop = list.slice(0, list.length - MAX_PAGES).filter((x) => x.id !== p.id && x.id !== MAIN_PAGE.id);
-      for (const x of drop) void deleteBoard(keyFor(x.id));
-      list = list.filter((x) => !drop.includes(x));
-    }
+    const list = (pagesRef.current.some((x) => x.id === p.id) ? pagesRef.current.map((x) => (x.id === p.id ? { ...x, ...p } : x)) : [...pagesRef.current, p]).sort((a, b) => a.at - b.at);
     pagesRef.current = list;
     setPageList(list);
     void saveIndex(storeKey, { pages: list, current: p.id });

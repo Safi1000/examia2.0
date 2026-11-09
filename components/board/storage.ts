@@ -25,6 +25,9 @@ function db(): Promise<IDBDatabase> {
       opening = null;
       reject(req.error);
     };
+    // Ask the browser to keep the boards for good, so it never clears them to free up space.
+    // (Installed or often-used sites are usually allowed; a "no" changes nothing.)
+    void navigator.storage?.persist?.().catch(() => {});
   });
   return opening;
 }
@@ -105,7 +108,7 @@ export async function saveIndex(key: string, index: PageIndex): Promise<void> {
   } catch {}
 }
 
-/** A page dropped from the list (the oldest, once there are many): its board goes too. */
+/** A page Hamza deleted: its board goes too. */
 export async function deleteBoard(key: string): Promise<void> {
   try {
     const d = await db();

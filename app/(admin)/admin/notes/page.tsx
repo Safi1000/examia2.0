@@ -11,6 +11,7 @@ import { BulkBar, RowCheck } from "@/components/admin/BulkBar";
 import { uploadNote, notesConfigured } from "@/lib/cloudinary";
 import { cn } from "@/lib/cn";
 import { DEMO } from "@/lib/demo";
+import { setTitleOverride } from "@/hooks/usePageTitle";
 import {
   LEVEL_SHORT,
   NOTE_BOOKS,
@@ -154,7 +155,19 @@ export default function NotesPage() {
   const { toast } = useToast();
   const opts = useBookOptions(db);
 
-  const [viewing, setViewing] = useState<{ id: string; title: string } | null>(null);
+  // A note opened in its own tab arrives as /admin/notes?note=<id> and opens straight away.
+  const [viewing, setViewing] = useState<{ id: string; title: string } | null>(() => {
+    const id = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("note");
+    return id ? { id, title: "" } : null;
+  });
+  const viewingTitle = viewing ? viewing.title || db.notes.find((n) => n.id === viewing.id)?.title || "Note" : "";
+  // The tab is named after the note, so several open notes are easy to tell apart.
+  useEffect(() => {
+    if (!viewingTitle) return;
+    setTitleOverride(`${viewingTitle} · Notes`);
+    return () => setTitleOverride(null);
+  }, [viewingTitle]);
+  const closeViewer = () => setViewing(null);
   const [view, setView] = useState<"chapters" | "all">("chapters");
   const [bookKey, setBookKey] = useState<string>("");
   const [query, setQuery] = useState("");
@@ -332,7 +345,7 @@ export default function NotesPage() {
       >
         <p className="text-sm text-ink-2">This can&apos;t be undone. To keep it but stop students seeing it, hide it instead.</p>
       </Modal>
-      {viewing && <NoteViewer noteId={viewing.id} title={viewing.title} onClose={() => setViewing(null)} />}
+      {viewing && <NoteViewer noteId={viewing.id} title={viewingTitle} onClose={closeViewer} />}
     </div>
   );
 }
@@ -360,9 +373,29 @@ function NoteActions({
     <div className="flex flex-wrap items-center gap-1">
       {hidden && <Badge tone="warning">Hidden</Badge>}
       {searchable === false && <span className="px-1 text-xs text-ink-3">Not searchable</span>}
-      <button type="button" className={btn} onClick={onRead}>
+      {/* A real link: a click reads it here; Cmd, Ctrl or Shift-click, a middle click, or the
+          right-click menu opens it in its own tab, so several notes can be open side by side. */}
+      <a
+        href={`/admin/notes?note=${encodeURIComponent(note.id)}`}
+        className={btn}
+        onClick={(e) => {
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+          e.preventDefault();
+          onRead();
+        }}
+      >
         Read
-      </button>
+      </a>
+      <a
+        href={`/admin/notes?note=${encodeURIComponent(note.id)}`}
+        target="_blank"
+        rel="noopener"
+        title="Open in a new tab"
+        aria-label={`Open ${note.title} in a new tab`}
+        className="flex h-9 w-9 items-center justify-center rounded-full text-ink-3 hover:bg-surface-2 hover:text-ink"
+      >
+        <Icon.NewTab className="h-4 w-4" />
+      </a>
       <button type="button" className={btn} onClick={onAssign}>
         Who gets it
       </button>
