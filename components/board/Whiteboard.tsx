@@ -30,6 +30,7 @@ import {
   clearInset,
   fitView,
   hitStroke,
+  aliasImage,
   imageAt,
   imageSize,
   isPenEraser,
@@ -52,7 +53,6 @@ import {
   axesOfPair,
   snapLine,
   toWorld,
-  visibleView,
   zoomAt,
 } from "@/components/board/engine";
 import { boardDigest, connectBoard, Ledger, viewerRoom, type BoardLink, type BoardMsg } from "@/components/board/sync";
@@ -61,6 +61,7 @@ import { useDatabase } from "@/lib/data/store";
 import { LEVEL_LABEL, classBoardPages, classPageId, liveSlotsOn, pkDate, slotKey } from "@/lib/timetable";
 import { useSchedule } from "@/lib/classes";
 import { cloudinaryConfigured, uploadImage, uploadPdfPages } from "@/lib/cloudinary";
+import { shrinkImage } from "@/lib/shrink-image";
 
 /**
  * Hamza's live whiteboard.
@@ -103,6 +104,8 @@ function tagPage(m: BoardMsg, pg: string): BoardMsg {
 }
 const PAN_GAIN = 1.15;
 const HANDLE_PX = 22;
+/** A finger held still this long on typed words picks them up (then they follow the finger). */
+const LIFT_MS = 380;
 
 type Tool = "pen" | "line" | "axes" | "eraser" | "move" | "text";
 type Action =
@@ -146,30 +149,42 @@ function useCanvas(draw: (ctx: CanvasRenderingContext2D, w: number, h: number, a
 
   useEffect(() => {
     const c = canvasRef.current!;
+    // Opaque, and in step with the screen. (Not "desynchronized": on Android that can show the canvas
+    // part way through a frame, and every frame starts by painting the paper over everything, so the
+    // writing blinked.)
+    const paintNow = () => {
+      dirty.current = false;
+      const ctx = (c.getContext("2d", { alpha: false }) ?? c.getContext("2d"))!;
+      const { w, h, dpr } = size.current;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawRef.current(ctx, w, h, () => {
+        dirty.current = true;
+      });
+    };
     const resize = () => {
       const dpr = Math.min(3, window.devicePixelRatio || 1);
       const w = c.clientWidth;
       const h = c.clientHeight;
+      const pw = Math.round(w * dpr);
+      const ph = Math.round(h * dpr);
       size.current = { w, h, dpr };
-      c.width = Math.round(w * dpr);
-      c.height = Math.round(h * dpr);
-      dirty.current = true;
+      if (c.width === pw && c.height === ph) {
+        dirty.current = true;
+        return;
+      }
+      // A new size wipes the canvas (to black, as it's opaque): draw it again straight away, before
+      // the browser shows it, not a frame later.
+      c.width = pw;
+      c.height = ph;
+      if (w && h) paintNow();
+      else dirty.current = true;
     };
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(c);
     let raf = 0;
     const loop = () => {
-      if (dirty.current) {
-        dirty.current = false;
-        // Low-latency, opaque canvas: the ink shows a frame sooner on tablets that support it.
-        const ctx = (c.getContext("2d", { desynchronized: true, alpha: false }) ?? c.getContext("2d"))!;
-        const { w, h, dpr } = size.current;
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        drawRef.current(ctx, w, h, () => {
-          dirty.current = true;
-        });
-      }
+      if (dirty.current) paintNow();
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -291,7 +306,8 @@ function paint(
     L.strokes = strokes;
     L.images = images;
     L.cam = { ...cam };
-    L.m = Math.round(0.18 * Math.max(w, h));
+    // A whole number of device pixels, so the layer lines up pixel for pixel with the screen.
+    L.m = Math.round(0.18 * Math.max(w, h) * dpr) / dpr;
     const pw = Math.round((w + 2 * L.m) * dpr);
     const ph = Math.round((h + 2 * L.m) * dpr);
     if (L.c.width !== pw || L.c.height !== ph) {
@@ -339,7 +355,14 @@ function paint(
   } else if (f.k !== 1) onImage(); // keep drawing until the zoom settles, then sharpen
   ctx.fillStyle = look.bg;
   ctx.fillRect(0, 0, w, h);
-  ctx.drawImage(L.c, f.sx, f.sy, f.sw, f.sh);
+  if (f.k === 1) {
+    // Same zoom: copy the layer pixel for pixel. Stretched by a fraction of a pixel it went soft, so
+    // each stroke changed (sharp while drawn, softer once finished) the moment the pen lifted.
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(L.c, Math.round(f.sx * dpr), Math.round(f.sy * dpr));
+    ctx.restore();
+  } else ctx.drawImage(L.c, f.sx, f.sy, f.sw, f.sh);
   ctx.save();
   ctx.scale(cam.z, cam.z);
   ctx.translate(-cam.x, -cam.y);
@@ -457,19 +480,117 @@ const palmDown = (e: React.PointerEvent) => {
 };
 const palmBlocked = () => Date.now() < palmUntil;
 
-function ToolButton({ active, label, onClick, disabled, children }: { active?: boolean; label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
+// ---------------------------------------------------------------- chrome look
+// The bars float over the paper as calm dark glass (the brand charcoal), so the light board
+// stays the brightest thing on screen. Gold marks only the tool in hand and the one main action.
+
+/** Every floating bar: charcoal glass, a 1px hairline, a faint top highlight, a soft shadow. */
+const PANEL =
+  "rounded-[18px] border border-white/[0.08] bg-[#1B1E21]/[0.88] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_1px_2px_rgba(20,22,24,0.16),0_14px_34px_-14px_rgba(20,22,24,0.5)] backdrop-blur-xl";
+/** Press, hover and focus for every control on a bar (movement drops out with reduced motion). */
+const PRESS =
+  "relative transition-[background-color,color,transform,box-shadow,opacity] duration-150 ease-out active:scale-[0.94] motion-reduce:transition-none motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:pointer-events-none disabled:opacity-30";
+/** A quiet control: muted, lifts to white on hover. */
+const QUIET = "text-white/[0.68] hover:bg-white/[0.07] hover:text-white active:bg-white/[0.1]";
+/** A neutral "on" state (a toggle that is on, the size in use, the open page). */
+const ON = "bg-white/[0.12] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]";
+/** The tool in hand: the brand gold, as a tint, not a fill. */
+const GOLD_ON = "bg-[#FBC159]/[0.16] text-[#FBC159] shadow-[inset_0_0_0_1px_rgba(251,193,89,0.32)]";
+/** Makes a 36px control a 44px touch target without making it look bigger. */
+const HIT = "before:absolute before:-inset-y-1 before:inset-x-0 before:content-['']";
+
+// ---------------------------------------------------------------- tooltips (mouse only)
+// One small label for the whole board, kept in its own component so hovering never
+// re-renders the board. Touch and pen never show it.
+type Tip = { label: string; keys?: string; hint?: string; x: number; y: number; side: "right" | "top" | "bottom" };
+let showTipNow: ((t: Tip | null) => void) | null = null;
+let tipTimer: ReturnType<typeof setTimeout> | undefined;
+const hideTip = () => {
+  clearTimeout(tipTimer);
+  showTipNow?.(null);
+};
+/** Hover props for a control: its name, its keyboard shortcut, and an optional second line. */
+const tipOn = (label: string, keys?: string, hint?: string) => ({
+  onPointerEnter: (e: React.PointerEvent<HTMLElement>) => {
+    if (e.pointerType !== "mouse") return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const side: Tip["side"] = r.right < 120 && r.top > 64 ? "right" : r.top > window.innerHeight - 140 ? "top" : "bottom";
+    const x = side === "right" ? r.right + 10 : r.left + r.width / 2;
+    const y = side === "right" ? r.top + r.height / 2 : side === "top" ? r.top - 10 : r.bottom + 10;
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(() => showTipNow?.({ label, keys, hint, x, y, side }), 320);
+  },
+  onPointerLeave: hideTip,
+});
+
+function BoardTip() {
+  const [tip, setTip] = useState<Tip | null>(null);
+  useEffect(() => {
+    showTipNow = setTip;
+    window.addEventListener("pointerdown", hideTip, true);
+    window.addEventListener("keydown", hideTip, true);
+    return () => {
+      showTipNow = null;
+      clearTimeout(tipTimer);
+      window.removeEventListener("pointerdown", hideTip, true);
+      window.removeEventListener("keydown", hideTip, true);
+    };
+  }, []);
+  if (!tip) return null;
+  const place =
+    tip.side === "right" ? "-translate-y-1/2" : tip.side === "top" ? "-translate-x-1/2 -translate-y-full" : "-translate-x-1/2";
+  return (
+    <div role="tooltip" className={`pointer-events-none fixed z-[60] ${place}`} style={{ left: tip.x, top: tip.y }}>
+      <div className="max-w-[260px] animate-[scale-in_140ms_ease-out] rounded-[10px] border border-white/[0.08] bg-[#141618]/95 px-2.5 py-1.5 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_24px_-10px_rgba(20,22,24,0.55)] motion-reduce:animate-none">
+        <p className="flex items-center gap-2 whitespace-nowrap text-xs font-semibold">
+          {tip.label}
+          {tip.keys && (
+            <span className="flex gap-1">
+              {tip.keys.split(" ").map((k) => (
+                <kbd key={k} className="min-w-[18px] rounded-[5px] border border-white/[0.12] bg-white/[0.06] px-1 text-center font-sans text-[10.5px] font-semibold leading-[17px] text-white/75">
+                  {k}
+                </kbd>
+              ))}
+            </span>
+          )}
+        </p>
+        {tip.hint && <p className="mt-0.5 text-[11px] leading-snug text-white/55">{tip.hint}</p>}
+      </div>
+    </div>
+  );
+}
+
+function ToolButton({
+  active,
+  label,
+  tip,
+  keys,
+  hint,
+  onClick,
+  disabled,
+  children,
+}: {
+  active?: boolean;
+  /** The full name screen readers hear. */
+  label: string;
+  /** The short name in the tooltip (defaults to the label). */
+  tip?: string;
+  keys?: string;
+  hint?: string;
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
       aria-label={label}
       aria-pressed={active}
-      title={label}
+      {...tipOn(tip ?? label, keys, hint)}
       onPointerDown={palmDown}
       onClick={() => !palmBlocked() && onClick()}
       disabled={disabled}
-      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors duration-150 disabled:opacity-30 [&_svg]:h-[21px] [&_svg]:w-[21px] ${
-        active ? "bg-[#1A1D20] text-[#FBC159]" : "text-[#4B5563] hover:bg-black/[0.05] hover:text-[#1A1D20]"
-      }`}
+      className={`${PRESS} flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] [&_svg]:h-[22px] [&_svg]:w-[22px] ${active ? GOLD_ON : QUIET}`}
     >
       {children}
     </button>
@@ -478,8 +599,26 @@ function ToolButton({ active, label, onClick, disabled, children }: { active?: b
 
 /** `across`: a line across a vertical toolbar (the tablet's). */
 const Divider = ({ across = false }: { across?: boolean }) => (
-  <span className={across ? "my-1 h-px w-6 shrink-0 bg-black/[0.08]" : "mx-1 h-6 w-px shrink-0 bg-black/[0.08]"} aria-hidden />
+  <span className={across ? "my-1.5 h-px w-6 shrink-0 bg-white/[0.09]" : "mx-1.5 h-6 w-px shrink-0 bg-white/[0.09]"} aria-hidden />
 );
+
+/** One ink swatch: a hairline keeps the dark inks visible on the charcoal bar; the chosen one gets a white ring. */
+function Swatch({ ink, on, size = 18 }: { ink: string; on: boolean; size?: number }) {
+  return (
+    <span
+      className="block rounded-full transition-[transform,box-shadow] duration-150 ease-out motion-reduce:transition-none"
+      style={{
+        width: size,
+        height: size,
+        background: ink,
+        transform: on ? "scale(1.12)" : undefined,
+        boxShadow: on
+          ? "inset 0 0 0 1px rgba(255,255,255,0.28), 0 0 0 2px #1B1E21, 0 0 0 3.5px rgba(255,255,255,0.92)"
+          : "inset 0 0 0 1px rgba(255,255,255,0.3)",
+      }}
+    />
+  );
+}
 
 /** The text colour choices in the style bar (the same three inks as the pen). */
 function TextColors({ value, big, onPick }: { value: string; big: boolean; onPick: (c: string) => void }) {
@@ -489,34 +628,28 @@ function TextColors({ value, big, onPick }: { value: string; big: boolean; onPic
         <button
           key={c.value}
           type="button"
-          title={`${c.name} text`}
           aria-label={`${c.name} text`}
           aria-pressed={value === c.value}
+          {...tipOn(`${c.name} text`)}
           onClick={() => onPick(c.value)}
-          className={`flex items-center justify-center ${big ? "h-10 w-9" : "h-8 w-7"}`}
+          className={`${PRESS} flex items-center justify-center rounded-[10px] hover:bg-white/[0.07] ${big ? "h-11 w-10" : `h-9 w-8 ${HIT}`}`}
         >
-          <span
-            className={`block rounded-full transition-all ${value === c.value ? "h-[18px] w-[18px] ring-2 ring-[#1A1D20]/70 ring-offset-2 ring-offset-white" : "h-4 w-4"}`}
-            style={{ background: inkOf(c.value) }}
-          />
+          <Swatch ink={inkOf(c.value)} on={value === c.value} size={16} />
         </button>
       ))}
     </>
   );
 }
 
-/** The look of every floating bar: white, a hairline edge, a soft shadow. */
-const PANEL = "rounded-2xl border border-black/[0.07] bg-white/92 shadow-[0_1px_2px_rgba(16,24,40,0.06),0_10px_30px_-14px_rgba(16,24,40,0.25)] backdrop-blur-xl";
-
-function SmallButton({ label, onClick, disabled, children }: { label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
+function SmallButton({ label, keys, onClick, disabled, children }: { label: string; keys?: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
   return (
     <button
       type="button"
-      aria-label={label}
-      title={label}
+      aria-label={keys ? `${label} (${keys})` : label}
+      {...tipOn(label, keys)}
       onClick={onClick}
       disabled={disabled}
-      className="flex h-7 w-8 shrink-0 disabled:opacity-30 items-center justify-center rounded-lg text-[#6B7280] transition-colors hover:bg-black/[0.05] hover:text-[#1A1D20] [&_svg]:h-[18px] [&_svg]:w-[18px]"
+      className={`${PRESS} ${QUIET} ${HIT} flex h-9 w-10 shrink-0 items-center justify-center rounded-[10px] [&_svg]:h-5 [&_svg]:w-5`}
     >
       {children}
     </button>
@@ -604,8 +737,20 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const [ledger] = useState(() => new Ledger(lead ? 1 : 0));
   const remoteLiveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [toolsHidden, setToolsHidden] = useState(false);
-  // Pen down: the bars fade so they never cover the writing.
-  const [inking, setInking] = useState(false);
+  // Pen down: the bars fade so they never cover the writing. They come back only once the pen has
+  // rested a moment, so writing (many short strokes) never makes them pulse on every stroke.
+  const [inking, setInkingNow] = useState(false);
+  const inkingOff = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const setInking = useCallback((on: boolean) => {
+    if (inkingOff.current) clearTimeout(inkingOff.current);
+    inkingOff.current = null;
+    if (on) setInkingNow(true);
+    else
+      inkingOff.current = setTimeout(() => {
+        inkingOff.current = null;
+        setInkingNow(false);
+      }, 900);
+  }, []);
   // Laptop (what students see): the bars hide after a few seconds without the mouse.
   const [quiet, setQuiet] = useState(false);
   const topBarRef = useRef<HTMLDivElement>(null);
@@ -659,7 +804,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         pointer.current ? { id: "pointer", kind: "ink", color: "#F07A6A", size: 15 / cam.current.z, pts: [[pointer.current.x, pointer.current.y, 0.6]] } : null,
       ],
       again,
-      images.current.find((m) => m.id === selectedRef.current) ?? null,
+      null, // the selected picture's frame and handles are page elements over the board ("The selected picture")
     ),
   );
 
@@ -1325,7 +1470,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const s = typedStroke(t);
     const sameStyle =
       !!t.editing && !!t.editing.bold === !!s.bold && !!t.editing.italic === !!s.italic && !!t.editing.hl === !!s.hl && t.editing.size === s.size && t.editing.boxW === s.boxW;
-    if (t.editing && t.editing.text === s.text && t.editing.color === s.color && sameStyle) {
+    // Moved with the grip (even with the words unchanged): kept as a change, so undo puts it back.
+    const samePlace = !!t.editing && t.editing.pts[0][0] === t.wx && t.editing.pts[0][1] === t.wy;
+    if (t.editing && t.editing.text === s.text && t.editing.color === s.color && sameStyle && samePlace) {
       strokes.current = [...strokes.current, t.editing];
       send({ t: "add", s: packStroke(t.editing) });
     } else {
@@ -1378,49 +1525,153 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   };
 
   // ---- insert pictures and PDFs
+  /**
+   * Where new pictures land. The tablet: the part of its screen the bars leave clear. The laptop:
+   * the tablet's view while it's showing it (so the picture is on both screens), else its own.
+   */
+  const placeView = (): View => {
+    const { w, h } = screen.current;
+    if (lead) return writingView(w, h);
+    const own = areaView(cam.current, w, h, clearInset(h, [topBarRef.current, sidePanelRef.current], [toolbarRef.current]));
+    const tv = teacherView.current;
+    const cx = tv ? tv.x + tv.w / 2 : 0;
+    const cy = tv ? tv.y + tv.h / 2 : 0;
+    return tv && cx > own.x && cx < own.x + own.w && cy > own.y && cy < own.y + own.h ? tv : own;
+  };
+  /** A sensible size: inside the view, and a small picture is never blown up past 1.5 times. */
+  const fitIn = (n: { w: number; h: number }, v: View, maxW: number, maxH: number) => {
+    const k = Math.min((v.w * maxW) / n.w, (v.h * maxH) / n.h, 1.5 / cam.current.z);
+    return { w: n.w * k, h: n.h * k };
+  };
+  /** A new picture steps down and right of one already in the same spot, so it never hides it. */
+  const freeSpot = (x: number, y: number) => {
+    const step = 28 / cam.current.z;
+    const taken = (px: number, py: number) => images.current.some((m) => Math.abs(m.x - px) < step / 4 && Math.abs(m.y - py) < step / 4);
+    let i = 0;
+    while (i < 20 && taken(x + i * step, y + i * step)) i++;
+    return { x: x + i * step, y: y + i * step };
+  };
+  /**
+   * An uploaded picture gets its web address everywhere it's kept (the board, undo and redo), then
+   * goes to the other device and is saved. Where it is and its size stay as Hamza left them.
+   */
+  const swapUrl = (id: string, url: string) => {
+    const fix = (m: BoardImage) => (m.id === id ? { ...m, url } : m);
+    for (const a of [...undoStack.current, ...redoStack.current]) {
+      if (a.type === "img-add" || a.type === "clear") a.m = a.m.map(fix);
+      else if (a.type === "img-del") a.m = fix(a.m);
+      else if (a.type === "img-edit") {
+        a.before = fix(a.before);
+        a.after = fix(a.after);
+      }
+    }
+    const now = images.current.find((m) => m.id === id);
+    if (!now) return;
+    const after = { ...now, url };
+    images.current = images.current.map((m) => (m.id === id ? after : m));
+    send({ t: "img", m: after });
+    persist();
+    requestDraw();
+  };
   const insertFiles = async (files: File[]) => {
     const list = files.filter((f) => f.type.startsWith("image/") || f.type === "application/pdf");
     if (!list.length) return flash("Pictures or PDFs only.");
     const online = cloudinaryConfigured();
-    const urls: string[] = [];
+    const pageId = pageRef.current.id;
+    const pics = list.filter((f) => f.type !== "application/pdf");
+    const pdfs = list.filter((f) => f.type === "application/pdf");
+    let problem: string | null = null;
+    let added = 0;
     try {
-      for (let i = 0; i < list.length; i++) {
-        const f = list[i];
-        setBusy(list.length > 1 ? `Adding ${i + 1} of ${list.length}…` : "Adding…");
-        if (f.type === "application/pdf") {
-          if (!online) {
-            flash("PDFs need the live site (uploads aren't set up in this preview).");
-            continue;
-          }
-          urls.push(...(await uploadPdfPages(f)));
-        } else {
-          urls.push(online ? await uploadImage(f) : URL.createObjectURL(f));
+      // Pictures show at once, from this device. They upload while Hamza carries on (they can be
+      // moved and resized meanwhile) and reach the other device when the upload is done.
+      const v = placeView();
+      const placed: BoardImage[] = [];
+      const smalls: File[] = [];
+      if (pics.length) setBusy("Adding…");
+      for (const f of pics) {
+        const small = await shrinkImage(f);
+        const url = URL.createObjectURL(small);
+        try {
+          const n = await imageSize(url);
+          const { w, h } = fitIn(n, v, 0.8, 0.75);
+          const m: BoardImage = { id: newId(), url, w, h, ...freeSpot(v.x + (v.w - w) / 2, v.y + (v.h - h) / 2) };
+          images.current = [...images.current, m];
+          placed.push(m);
+          smalls.push(small);
+        } catch {
+          URL.revokeObjectURL(url);
+          problem = `"${f.name}" couldn't be opened. Try a JPG or PNG.`;
         }
       }
-      if (!urls.length) return;
-      setBusy(urls.length > 1 ? `Placing ${urls.length} pages…` : "Placing…");
-      const { w: sw, h: sh } = screen.current;
-      const v = visibleView(cam.current, sw, sh);
-      const width = v.w * 0.62;
-      const gap = 28 / cam.current.z;
-      let y = v.y + v.h * 0.15;
-      const placed: BoardImage[] = [];
-      for (const url of urls) {
-        const n = await imageSize(url);
-        const h = width * (n.h / n.w);
-        placed.push({ id: newId(), url, x: v.x + (v.w - width) / 2, y, w: width, h });
-        y += h + gap;
+      if (placed.length) {
+        commit({ type: "img-add", m: placed });
+        select(placed[0].id);
+        requestDraw();
       }
-      images.current = [...images.current, ...placed];
-      commit({ type: "img-add", m: placed });
-      for (const m of placed) if (!m.url.startsWith("blob:")) send({ t: "img", m });
-      // Ready to place: the first picture is selected. A finger moves it, the pen still writes.
-      select(placed[0].id);
-      // On the laptop the mouse is the hand: ready to drag straight away.
-      if (!lead) setTool("move");
-      requestDraw();
-      const how = lead ? "Drag with a finger to move" : "Drag to move";
-      flash(placed.length > 1 ? `${placed.length} pages added. ${how}.` : `${how}. Gold dot resizes.`);
+      if (online) {
+        for (let i = 0; i < placed.length; i++) {
+          const m = placed[i];
+          const label = placed.length > 1 ? `Uploading ${i + 1} of ${placed.length}…` : "Uploading…";
+          setBusy(label);
+          try {
+            const url = await uploadImage(smalls[i], (p) => setBusy(`${label} ${Math.round(p * 100)}%`));
+            if (pageRef.current.id !== pageId) {
+              problem = "The page changed before the picture finished uploading. Add it again here.";
+              break;
+            }
+            aliasImage(m.url, url); // the copy already on screen is used: no flicker, no second download
+            swapUrl(m.id, url);
+            added++;
+          } catch (err) {
+            // Not uploaded, it would only ever be on this screen (and never saved), so it comes off.
+            images.current = images.current.filter((x) => x.id !== m.id);
+            if (selectedRef.current === m.id) select(null);
+            requestDraw();
+            problem = err instanceof Error ? err.message : "That picture didn't upload. Try again.";
+          }
+        }
+      } else added += placed.length;
+      for (const f of pdfs) {
+        if (!online) {
+          problem = "PDFs need the live site (uploads aren't set up in this preview).";
+          continue;
+        }
+        setBusy("Uploading the PDF…");
+        const urls = await uploadPdfPages(f, (p) => setBusy(`Uploading the PDF… ${Math.round(p * 100)}%`));
+        if (pageRef.current.id !== pageId) {
+          problem = "The page changed before the PDF was ready. Add it again here.";
+          break;
+        }
+        setBusy(urls.length > 1 ? `Opening ${urls.length} pages…` : "Opening the page…");
+        // Every page at once, so one slow page doesn't hold up the rest. A page that won't open keeps
+        // an A4 shape (it fills in when it arrives) instead of losing the whole PDF.
+        const sizes = await Promise.allSettled(urls.map((u) => imageSize(u)));
+        // One under another at a readable page width, the first at the top of the view.
+        const pv = placeView();
+        const gap = 24 / cam.current.z;
+        const pages: BoardImage[] = [];
+        let x = 0;
+        let y = 0;
+        for (let i = 0; i < urls.length; i++) {
+          const sz = sizes[i];
+          const { w, h } = fitIn(sz.status === "fulfilled" ? sz.value : { w: 1000, h: 1414 }, pv, 0.9, Infinity);
+          if (i === 0) ({ x, y } = freeSpot(pv.x + (pv.w - w) / 2, pv.y + pv.h * 0.04));
+          pages.push({ id: newId(), url: urls[i], x, y, w, h });
+          y += h + gap;
+        }
+        images.current = [...images.current, ...pages];
+        commit({ type: "img-add", m: pages });
+        for (const m of pages) send({ t: "img", m });
+        if (!placed.length) select(pages[0].id);
+        requestDraw();
+        added += pages.length;
+      }
+      if (problem) flash(problem);
+      else if (added) {
+        const where = !online ? " Preview only: it stays on this screen." : partner ? (lead ? " It's on your laptop too." : " It's on your tablet too.") : "";
+        flash(`${added > 1 ? `${added} added.` : "Added."}${where}`);
+      }
     } catch (err) {
       flash(err instanceof Error ? err.message : "That file couldn't be added.");
     } finally {
@@ -1428,6 +1679,20 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       if (fileRef.current) fileRef.current.value = "";
     }
   };
+
+  // Paste a picture (Ctrl+V, e.g. a screenshot) straight onto the board, like the Insert button.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT" || el.isContentEditable)) return;
+      const files = Array.from(e.clipboardData?.files ?? []);
+      if (!files.length || busy) return;
+      e.preventDefault();
+      void insertFiles(files);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  });
 
   // ---- input
   const pens = useRef({ active: false, lastAt: 0, seen: false });
@@ -1620,11 +1885,135 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const hit = selectedOnly && under?.id !== selectedRef.current ? undefined : under;
     // A finger off every picture pans as usual (and keeps the selection).
     if (!hit && byFinger) return false;
+    // A big page (most of the screen) scrolls under a finger, so a pan never drags it by mistake:
+    // its Move grip moves it. (With the Move tool on, a finger still drags it.)
+    if (hit && byFinger && tool !== "move" && hit.w * hit.h * cam.current.z ** 2 > 0.45 * screen.current.w * screen.current.h) return false;
     select(hit?.id ?? null);
     if (hit) gesture.current = { mode: "drag", id, erased: [], straightened: false, img: { before: { ...hit }, ox: wx - hit.x, oy: wy - hit.y } };
     requestDraw();
     return !!hit;
   };
+
+  // ---- the selected picture: a Move grip and four big corner handles (page elements over the board,
+  // so they work with the pen, a finger or the mouse, whatever tool is in hand)
+  type PicGrip = "move" | "nw" | "ne" | "sw" | "se";
+  const picDrag = useRef<{ id: number; kind: PicGrip; before: BoardImage; sx: number; sy: number; sent: number } | null>(null);
+  const onPicDown = (kind: PicGrip, e: React.PointerEvent<HTMLElement>) => {
+    // A resting palm, or a touch while the pen is in use, does nothing (as on the board).
+    if (e.pointerType === "touch" && (pens.current.active || Date.now() - pens.current.lastAt < PALM_LOCK_MS || e.width > PALM_SIZE_PX || e.height > PALM_SIZE_PX)) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const m = images.current.find((x) => x.id === selectedRef.current);
+    if (!m || picDrag.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+    stopGlide();
+    picDrag.current = { id: e.pointerId, kind, before: { ...m }, sx: e.clientX, sy: e.clientY, sent: 0 };
+  };
+  const onCornerDown = (e: React.PointerEvent<HTMLElement>) => onPicDown(e.currentTarget.dataset.k as PicGrip, e);
+  const onPicMove = (e: React.PointerEvent<HTMLElement>) => {
+    const d = picDrag.current;
+    if (!d || d.id !== e.pointerId) return;
+    const z = cam.current.z;
+    const dx = (e.clientX - d.sx) / z;
+    const dy = (e.clientY - d.sy) / z;
+    const b = d.before;
+    let box = { x: b.x + dx, y: b.y + dy, w: b.w, h: b.h };
+    if (d.kind !== "move") {
+      // A corner: the opposite corner stays put and the picture keeps its shape.
+      const left = d.kind === "nw" || d.kind === "sw";
+      const top = d.kind === "nw" || d.kind === "ne";
+      const byX = b.w + (left ? -dx : dx);
+      const byY = (b.h + (top ? -dy : dy)) * (b.w / b.h);
+      const w = Math.max(60 / z, Math.abs(byX - b.w) >= Math.abs(byY - b.w) ? byX : byY);
+      const h = w * (b.h / b.w);
+      box = { x: left ? b.x + b.w - w : b.x, y: top ? b.y + b.h - h : b.y, w, h };
+    }
+    images.current = images.current.map((m) => (m.id === b.id ? { ...m, ...box } : m));
+    requestDraw();
+    // The other screen sees it glide, a few times a second, not jump when it's let go.
+    const now = performance.now();
+    const m = images.current.find((x) => x.id === b.id);
+    if (m && !m.url.startsWith("blob:") && now - d.sent > 90) {
+      d.sent = now;
+      send({ t: "img", m });
+    }
+  };
+  const onPicUp = (e: React.PointerEvent<HTMLElement>) => {
+    const d = picDrag.current;
+    if (!d || d.id !== e.pointerId) return;
+    picDrag.current = null;
+    const after = images.current.find((m) => m.id === d.before.id);
+    if (!after || (after.x === d.before.x && after.y === d.before.y && after.w === d.before.w)) return;
+    // To the front, as the other device puts it when it hears (so both screens stack alike).
+    images.current = [...images.current.filter((m) => m.id !== after.id), after];
+    commit({ type: "img-edit", before: { ...d.before, url: after.url }, after });
+    if (!after.url.startsWith("blob:")) send({ t: "img", m: after });
+    requestDraw();
+  };
+  /** Fit: zoom the view to the whole selected picture, every corner in reach. The laptop follows. */
+  const fitSelected = () => {
+    const m = images.current.find((x) => x.id === selectedRef.current);
+    if (!m) return;
+    const { w, h } = screen.current;
+    const z = cam.current.z;
+    const pad = 24 / z;
+    const inset = lead
+      ? clearInset(h, [topBarRef.current, sidePanelRef.current], [], 14, [toolbarRef.current])
+      : clearInset(h, [topBarRef.current, sidePanelRef.current], [toolbarRef.current]);
+    // A little more room above, for the picture's bar.
+    cam.current = fitView({ x: m.x - pad, y: m.y - pad - 60 / z, w: m.w + 2 * pad, h: m.h + 2 * pad + 60 / z }, w, h, inset);
+    refresh();
+  };
+  const frontSelected = () => {
+    const m = images.current.find((x) => x.id === selectedRef.current);
+    if (!m) return;
+    images.current = [...images.current.filter((x) => x.id !== m.id), m];
+    if (!m.url.startsWith("blob:")) send({ t: "img", m });
+    persist();
+    requestDraw();
+  };
+  // The frame and bar follow the picture every frame (pan, zoom, drag, the other device moving it),
+  // set straight on the page elements, so the board never re-renders for it.
+  const selFrameRef = useRef<HTMLDivElement>(null);
+  const selBarRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!selectedId) return;
+    let raf = 0;
+    let last = "";
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      const el = selFrameRef.current;
+      const bar = selBarRef.current;
+      const m = images.current.find((x) => x.id === selectedRef.current);
+      if (!el || !bar || !m) return;
+      const c = cam.current;
+      const { w: sw, h: sh } = screen.current;
+      const x = (m.x - c.x) * c.z;
+      const y = (m.y - c.y) * c.z;
+      const w = m.w * c.z;
+      const h = m.h * c.z;
+      const key = `${x}|${y}|${w}|${h}|${sw}|${sh}`;
+      if (key === last) return;
+      last = key;
+      Object.assign(el.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
+      // The bar: just above the picture (below it near the top), always on screen, clear of the bars.
+      const bw = bar.offsetWidth;
+      const bh = bar.offsetHeight;
+      const minY = 64;
+      const maxY = sh - bh - (lead ? 12 : 84);
+      const above = y - bh - 18;
+      const below = y + h + 18;
+      const by = Math.min(Math.max(minY, above >= minY ? above : below <= maxY ? below : minY), maxY);
+      const bx = Math.min(Math.max(lead ? 76 : 12, x + w / 2 - bw / 2), sw - bw - 12);
+      const off = x + w < 0 || y + h < 0 || x > sw || y > sh;
+      Object.assign(bar.style, { left: `${bx}px`, top: `${by}px`, visibility: off ? "hidden" : "visible" });
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [selectedId, screen, lead]);
 
   // ---- moving typed text and writing
   /** The topmost typed text (or, `anyStroke`, any writing) under a screen point. */
@@ -1634,11 +2023,121 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     return [...strokes.current].reverse().find((x) => (x.kind === "text" || anyStroke) && hitStroke(x, wx, wy, r));
   };
   const shifted = (s: Stroke, dx: number, dy: number): Stroke => ({ ...s, pts: s.pts.map((p) => [p[0] + dx, p[1] + dy, p[2]] as Pt) });
-  const grabStroke = (id: number, sx: number, sy: number, tapEdits: boolean) => {
-    const hit = strokeUnder(sx, sy, !tapEdits);
+  /** `anyStroke`: writing and lines too, not just typed text (the Move tool with the pen or mouse). */
+  const grabStroke = (id: number, sx: number, sy: number, tapEdits: boolean, anyStroke = !tapEdits) => {
+    const hit = strokeUnder(sx, sy, anyStroke);
     if (!hit) return false;
     gesture.current = { mode: "shift", id, erased: [], straightened: false, mv: { s: hit, x0: sx, y0: sy, moved: false, tapEdits, previewId: `${hit.id}~${Date.now().toString(36)}` } };
     return true;
+  };
+  // What was moved last: the laptop's arrow keys nudge it.
+  const lastMoved = useRef<string | null>(null);
+  /** A move ends: the moved words land (one undo step), or a tap with the type tool opens them to edit. */
+  const finishShift = (mv: NonNullable<typeof gesture.current.mv>, cancelled: boolean) => {
+    gesture.current = { mode: null, id: -1, erased: [], straightened: false };
+    setInking(false);
+    if (!mv.moved) {
+      // A tap on words with the type tool: open them to edit.
+      if (mv.tapEdits && !cancelled) startTyping(mv.x0, mv.y0);
+      return;
+    }
+    const after = cancelled ? mv.s : (moving.current ?? mv.s);
+    moving.current = null;
+    strokes.current = [...strokes.current, after];
+    if (after !== mv.s) {
+      commit({ type: "replace", before: [mv.s], after: [after] });
+      lastMoved.current = after.id;
+    }
+    // The preview goes and the moved one lands, together.
+    send({ t: "batch", ms: [{ t: "del", ids: [mv.previewId] }, { t: "add", s: packStroke(after) }] });
+    persist();
+    requestDraw();
+    syncMeta();
+  };
+  // Tablet: a finger held still on typed words picks them up (a small buzz), then they follow the
+  // finger, with any tool. A quick drag still pans, and the pen never moves text by accident.
+  const liftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const armLift = (id: number) => {
+    if (liftTimer.current) clearTimeout(liftTimer.current);
+    liftTimer.current = setTimeout(() => {
+      liftTimer.current = null;
+      const at = touches.current.get(id);
+      if (!at || touches.current.size !== 1 || panTrip.current.dist > 12 || gesture.current.mode) return;
+      if (pens.current.active || Date.now() - pens.current.lastAt < PALM_LOCK_MS) return;
+      if (!grabStroke(id, at.x, at.y, false, false)) return;
+      // From here this finger moves the words (the "shift" gesture), not the board.
+      touches.current.delete(id);
+      tap1.current = null;
+      velocity.current = { vx: 0, vy: 0 };
+      try {
+        navigator.vibrate?.(12);
+      } catch {}
+    }, LIFT_MS);
+  };
+  // The open text box's grip (left of the words): drag it to move the box; the keyboard stays open.
+  const gripping = useRef<{ x0: number; y0: number; wx0: number; wy0: number } | null>(null);
+  const onGripDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const t = typingRef.current;
+    if (!t) return;
+    e.preventDefault();
+    // A resting palm never drags the box.
+    if (e.pointerType === "touch" && (pens.current.active || Date.now() - pens.current.lastAt < PALM_LOCK_MS || e.width > PALM_SIZE_PX || e.height > PALM_SIZE_PX)) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    gripping.current = { x0: e.clientX, y0: e.clientY, wx0: t.wx, wy0: t.wy };
+  };
+  const onGripMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const g = gripping.current;
+    const t = typingRef.current;
+    if (!g || !t) return;
+    const z = cam.current.z;
+    t.wx = g.wx0 + (e.clientX - g.x0) / z;
+    t.wy = g.wy0 + (e.clientY - g.y0) / z;
+    placeTyping();
+    if (t.text.trim() && e.timeStamp - liveSend.current > 40) {
+      liveSend.current = e.timeStamp;
+      send({ t: "live", s: typedStroke(t) });
+    }
+  };
+  const onGripUp = () => {
+    const t = typingRef.current;
+    // Its last spot always reaches the other screen.
+    if (gripping.current && t?.text.trim()) send({ t: "live", s: typedStroke(t) });
+    gripping.current = null;
+    textRef.current?.focus({ preventScroll: true });
+  };
+  // Laptop: right after a move, the arrow keys nudge it (Shift: 10 at a time); a burst is one undo.
+  const nudgeAt = useRef(0);
+  const nudge = (dx: number, dy: number) => {
+    const id = lastMoved.current;
+    const s = id ? strokes.current.find((x) => x.id === id) : undefined;
+    if (!s) return false;
+    const z = cam.current.z;
+    const after = shifted(s, dx / z, dy / z);
+    strokes.current = [...strokes.current.filter((x) => x.id !== s.id), after];
+    const top = undoStack.current[undoStack.current.length - 1];
+    const now = performance.now();
+    if (top?.type === "replace" && top.after.length === 1 && top.after[0] === s && now - nudgeAt.current < 1500) {
+      undoStack.current[undoStack.current.length - 1] = { type: "replace", before: top.before, after: [after] };
+      redoStack.current = [];
+      persist();
+    } else commit({ type: "replace", before: [s], after: [after] });
+    nudgeAt.current = now;
+    send({ t: "add", s: packStroke(after) });
+    requestDraw();
+    return true;
+  };
+  // Laptop: the mouse is over something the Type or Move tool can drag (the cursor shows it).
+  const [overItem, setOverItem] = useState(false);
+  const overItemRef = useRef(false);
+  const noteHover = (x: number, y: number) => {
+    let over = false;
+    if (!gesture.current.mode && (tool === "text" || tool === "move")) {
+      const [wx, wy] = toWorld(cam.current, x, y);
+      over = !!strokeUnder(x, y, tool === "move") || (tool === "move" && !!imageAt(images.current, wx, wy));
+    }
+    if (over === overItemRef.current) return;
+    overItemRef.current = over;
+    setOverItem(over);
   };
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1648,6 +2147,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const isTouch = e.pointerType === "touch";
     logPen(e, "down");
     stopGlide();
+    lastMoved.current = null;
 
     if (isPen) {
       pens.current.seen = true;
@@ -1664,6 +2164,17 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     if (isTouch) {
       if (pens.current.active || Date.now() - pens.current.lastAt < PALM_LOCK_MS) return;
       if (e.width > PALM_SIZE_PX || e.height > PALM_SIZE_PX) return; // a resting hand, not a fingertip
+      // Move tool: one finger on typed words moves them, even on a picture or PDF page (not near the
+      // selected picture's gold dot, which still resizes it).
+      if (tool === "move" && touches.current.size === 0 && !gesture.current.mode) {
+        const sel = images.current.find((m) => m.id === selectedRef.current);
+        const [px, py] = toWorld(cam.current, sx, sy);
+        const onDot = !!sel && Math.hypot((sel.x + sel.w - px) * cam.current.z, (sel.y + sel.h - py) * cam.current.z) <= HANDLE_PX * 1.8;
+        if (!onDot && grabStroke(e.pointerId, sx, sy, false, false)) {
+          capture(canvasRef.current, e.pointerId);
+          return;
+        }
+      }
       // One finger on the selected picture (or any picture with Move on) moves it; its gold dot resizes it.
       if ((tool === "move" || selectedRef.current) && touches.current.size === 0 && !gesture.current.mode && grabImage(e.pointerId, sx, sy, true, tool !== "move")) {
         capture(canvasRef.current, e.pointerId);
@@ -1679,6 +2190,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           pinch.current = { d: Math.hypot(p1.x - p2.x, p1.y - p2.y), cx: (p1.x + p2.x) / 2, cy: (p1.y + p2.y) / 2 };
           tap2.current = { at: performance.now(), moved: 0 };
         }
+        if (touches.current.size === 1 && !gesture.current.mode) armLift(e.pointerId);
         capture(canvasRef.current, e.pointerId);
         return;
       }
@@ -1701,13 +2213,17 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       }
       gesture.current = { mode: null, id: -1, erased: [], straightened: false };
     }
+    // Same for a finger moving words: they land where they are, and the pen writes.
+    if (isPen && gesture.current.mode === "shift" && gesture.current.mv) finishShift(gesture.current.mv, false);
     if (gesture.current.mode) return;
 
     // Typing: the pen or mouse puts the text box here (focus stays in it).
     if (tool === "text" && !isPenEraser(e)) {
       e.preventDefault();
-      // On words already there: a drag moves them, a tap opens them to edit (on lifting).
-      if (!typingRef.current && grabStroke(e.pointerId, sx, sy, true)) {
+      // On words already there: a drag moves them, a tap opens them to edit (on lifting). An open box
+      // closes first, so pressing just around it picks it up too.
+      if (typingRef.current) commitTyping(true);
+      if (grabStroke(e.pointerId, sx, sy, true)) {
         capture(canvasRef.current, e.pointerId);
         return;
       }
@@ -1737,6 +2253,11 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       return;
     }
 
+    // Writing away from the selected picture lets it go (writing on it keeps it selected).
+    if (selectedRef.current) {
+      const sel = images.current.find((m) => m.id === selectedRef.current);
+      if (!sel || wx < sel.x || wx > sel.x + sel.w || wy < sel.y || wy > sel.y + sel.h) select(null);
+    }
     const p: Pt = [wx, wy, isPen ? e.pressure || 0.5 : 0.5];
     // Width stays the same on screen at any zoom.
     const w = size / cam.current.z;
@@ -1873,6 +2394,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         return { ...m, w, h: w * (before.h / before.w) };
       });
       requestDraw();
+      // The other screen sees it glide, a few times a second, not jump when it's let go.
+      const now = performance.now();
+      const moved = images.current.find((m) => m.id === before.id);
+      if (moved && !moved.url.startsWith("blob:") && now - liveSend.current > 90) {
+        liveSend.current = now;
+        send({ t: "img", m: moved });
+      }
       return;
     }
 
@@ -2126,23 +2654,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     clearHold();
     setAngle(null);
     if (g.mode === "shift" && g.mv) {
-      const mv = g.mv;
-      gesture.current = { mode: null, id: -1, erased: [], straightened: false };
-      setInking(false);
-      if (!mv.moved) {
-        // A tap on words with the type tool: open them to edit.
-        if (mv.tapEdits && !cancelled) startTyping(mv.x0, mv.y0);
-        return;
-      }
-      const after = cancelled ? mv.s : (moving.current ?? mv.s);
-      moving.current = null;
-      strokes.current = [...strokes.current, after];
-      if (after !== mv.s) commit({ type: "replace", before: [mv.s], after: [after] });
-      // The preview goes and the moved one lands, together.
-      send({ t: "batch", ms: [{ t: "del", ids: [mv.previewId] }, { t: "add", s: packStroke(after) }] });
-      persist();
-      requestDraw();
-      syncMeta();
+      finishShift(g.mv, cancelled);
       return;
     }
     if (g.mode === "erase") {
@@ -2154,7 +2666,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       const before = g.img.before;
       const after = images.current.find((m) => m.id === before.id);
       if (after && (after.x !== before.x || after.y !== before.y || after.w !== before.w)) {
-        commit({ type: "img-edit", before, after });
+        // To the front, as the other device puts it when it hears (so both screens stack alike).
+        images.current = [...images.current.filter((m) => m.id !== after.id), after];
+        commit({ type: "img-edit", before: { ...before, url: after.url }, after });
         if (!after.url.startsWith("blob:")) send({ t: "img", m: after });
       }
     } else if ((g.mode === "draw" || g.mode === "line" || g.mode === "box") && current.current) {
@@ -2419,6 +2933,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         return;
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Arrow keys nudge what was just moved (Shift: 10 at a time).
+      if (e.key.startsWith("Arrow") && lastMoved.current) {
+        const step = e.shiftKey ? 10 : 1;
+        const d = ({ ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] } as Record<string, [number, number]>)[e.key];
+        if (d && nudge(d[0], d[1])) e.preventDefault();
+        return;
+      }
       if (e.key === "p") pickTool("pen");
       if (e.key === "l") pickTool("line");
       if (e.key === "a") pickTool("axes");
@@ -2443,6 +2964,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       if (e.key === "]") stepPage(1);
       if (e.key === "n") newPage();
       if ((e.key === "Delete" || e.key === "Backspace") && selectedRef.current) deleteSelected();
+      if (e.key === "Escape" && selectedRef.current) {
+        select(null);
+        requestDraw();
+      }
     };
     const up = (e: KeyboardEvent) => {
       if (e.code === "Space") spaceDown.current = false;
@@ -2486,11 +3011,22 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const pageIndex = pageList.findIndex((x) => x.id === page.id);
 
   return (
-    <div data-board className="fixed inset-0 select-none overflow-hidden text-[#1A1D20] [-webkit-touch-callout:none]" style={{ fontFamily: "var(--font-sans)", background: THEMES[look].bg }}>
+    <div
+      data-board
+      className="fixed inset-0 select-none overflow-hidden text-[#1A1D20] [-webkit-touch-callout:none]"
+      style={{ fontFamily: "var(--font-sans)", background: THEMES[look].bg }}
+      // Files dragged in from the laptop's desktop or a folder land on the board, like Insert.
+      onDragOver={(e) => e.dataTransfer.types.includes("Files") && e.preventDefault()}
+      onDrop={(e) => {
+        if (!e.dataTransfer.files.length) return;
+        e.preventDefault();
+        if (!busy) void insertFiles(Array.from(e.dataTransfer.files));
+      }}
+    >
       <canvas
         ref={canvasRef}
         className="absolute inset-0 h-full w-full touch-none"
-        style={{ cursor: tool === "eraser" ? "none" : tool === "move" ? "grab" : tool === "text" ? "text" : penCursor(inkOf(color)) }}
+        style={{ cursor: tool === "eraser" ? "none" : (tool === "move" || tool === "text") && overItem ? "move" : tool === "move" ? "grab" : tool === "text" ? "text" : lead ? "auto" : penCursor(inkOf(color)) }}
         onPointerDown={onPointerDown}
         // Keeps the text box focused when the board is clicked or tapped to type.
         onMouseDown={(e) => tool === "text" && e.preventDefault()}
@@ -2498,6 +3034,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           if (e.pointerType === "mouse") {
             const [x, y] = local(e);
             hoverAt.current = { x, y };
+            noteHover(x, y);
           }
           onPointerMove(e);
         }}
@@ -2572,10 +3109,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         <div
           ref={styleBarRef}
           data-typing-ui
-          className={`${PANEL} absolute z-20 flex animate-[scale-in_140ms_ease-out] items-center gap-0.5 p-1`}
+          className={`${PANEL} absolute z-20 flex animate-[scale-in_140ms_ease-out] items-center gap-0.5 p-1 motion-reduce:animate-none`}
           // Above the words, or below them when there's no room above (near the top of the screen).
           style={{
-            left: Math.min(Math.max(8, typing.x - 6), Math.max(8, screen.current.w - 230)),
+            left: Math.min(Math.max(8, typing.x - 6), Math.max(8, screen.current.w - (lead ? 330 : 270))),
             top: typing.y - 60 > 64 ? typing.y - 60 : typing.y + typing.hPx + 14,
           }}
           onPointerDown={(e) => e.preventDefault()}
@@ -2590,34 +3127,49 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             <button
               key={k}
               type="button"
-              title={title}
               aria-label={title}
               aria-pressed={!!typing[k]}
+              {...tipOn(title.split(" (")[0], title.slice(title.indexOf("(") + 1, -1))}
               onClick={() => toggleStyle(k)}
-              className={`flex items-center justify-center rounded-lg text-[15px] transition-colors ${lead ? "h-10 w-10" : "h-8 w-8"} ${cls} ${typing[k] ? "bg-[#1A1D20] text-white" : "text-[#374151] hover:bg-black/[0.05]"}`}
+              className={`${PRESS} flex items-center justify-center rounded-[10px] text-[15px] ${lead ? "h-11 w-11" : `h-9 w-9 ${HIT}`} ${cls} ${typing[k] ? ON : QUIET}`}
             >
               {label}
             </button>
           ))}
           <button
             type="button"
-            title="Highlight (Ctrl+H)"
             aria-label="Highlight (Ctrl+H)"
             aria-pressed={!!typing.hl}
+            {...tipOn("Highlight", "Ctrl+H")}
             onClick={() => toggleStyle("hl")}
-            className={`flex items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-colors ${lead ? "h-10" : "h-8"} ${typing.hl ? "bg-[#1A1D20] text-white" : "text-[#374151] hover:bg-black/[0.05]"}`}
+            className={`${PRESS} flex items-center gap-2 rounded-[10px] px-3 text-xs font-semibold ${lead ? "h-11" : `h-9 ${HIT}`} ${typing.hl ? ON : QUIET}`}
           >
-            <span className="h-3.5 w-3.5 rounded-[4px]" style={{ background: "rgb(255, 213, 0)" }} />
+            <span className="h-3.5 w-3.5 rounded-[4px] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.15)]" style={{ background: "rgb(255, 213, 0)" }} />
             Highlight
           </button>
-          <span className="mx-1 h-5 w-px bg-black/[0.08]" aria-hidden />
+          <Divider />
           <TextColors value={typing.color} big={lead} onPick={setTextColor} />
         </div>
       )}
 
-      {/* Text box handles: the side sets the line width, the corner the size. */}
+      {/* Text box handles: the grip on the left moves the box, the side sets the line width, the corner the size. */}
       {typing && (
         <>
+          <button
+            type="button"
+            data-typing-ui
+            aria-label="Drag to move the text"
+            title="Drag to move"
+            onPointerDown={onGripDown}
+            onMouseDown={(e) => e.preventDefault()}
+            onPointerMove={onGripMove}
+            onPointerUp={onGripUp}
+            onPointerCancel={onGripUp}
+            className={`absolute z-20 flex cursor-move touch-none items-center justify-center rounded-full ${lead ? "h-11 w-11" : "h-9 w-9"}`}
+            style={{ left: Math.max(4, typing.x - (lead ? 52 : 42)), top: typing.y + Math.min(typing.hPx, typing.px * 1.25) / 2 - (lead ? 22 : 18) }}
+          >
+            <span className={`flex items-center justify-center rounded-full border border-black/15 bg-white text-[#1A1D20]/70 shadow-sm ${lead ? "h-8 w-8 [&>svg]:h-[18px] [&>svg]:w-[18px]" : "h-7 w-7 [&>svg]:h-4 [&>svg]:w-4"}`}>{I.move}</span>
+          </button>
           <button
             type="button"
             data-typing-ui
@@ -2676,37 +3228,112 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         <button
           type="button"
           onClick={() => setToolsHidden(false)}
-          className={`absolute bottom-3 left-3 h-8 rounded-lg px-2.5 text-[11px] font-semibold text-[#6B7280] transition-opacity duration-300 hover:bg-black/[0.04] hover:text-[#1A1D20] ${quiet ? "opacity-0" : "opacity-70"}`}
+          className={`absolute bottom-3 left-3 flex h-11 items-center gap-2 rounded-[12px] px-3 text-[11px] font-semibold text-[#6B7075] transition-[opacity,background-color,color] duration-300 hover:bg-black/[0.04] hover:text-[#1B1E21] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1B1E21]/40 motion-reduce:transition-none ${quiet ? "opacity-0" : "opacity-70"}`}
         >
-          Show tools (H)
+          Show tools
+          <kbd className="min-w-[18px] rounded-[5px] border border-black/[0.12] px-1 text-center font-sans text-[10.5px] leading-[17px]">H</kbd>
         </button>
       )}
 
       {/* Everything on top of the board fades while the pen is down, and on the laptop when the mouse rests. */}
       <div className={`transition-opacity duration-300 ${toolsHidden ? "hidden" : ""} ${quiet ? "pointer-events-none opacity-0" : inking ? "opacity-25" : ""}`}>
+        {/* The selected picture: a gold frame with a big handle at each corner (drag one to resize; it
+            keeps its shape), and a small bar just above it. The inside lets the pen write straight through. */}
+        {selectedId && (
+          <>
+            <div ref={selFrameRef} aria-hidden className="pointer-events-none absolute rounded-[3px] shadow-[0_0_0_2px_#FBC159,0_0_0_6px_rgba(251,193,89,0.16)]" style={{ left: -9999, top: -9999 }}>
+              {(["nw", "ne", "sw", "se"] as const).map((k) => (
+                <span
+                  key={k}
+                  data-k={k}
+                  onPointerDown={onCornerDown}
+                  onPointerMove={onPicMove}
+                  onPointerUp={onPicUp}
+                  onPointerCancel={onPicUp}
+                  onLostPointerCapture={onPicUp}
+                  className={`pointer-events-auto absolute flex h-11 w-11 touch-none items-center justify-center ${k === "nw" || k === "se" ? "cursor-nwse-resize" : "cursor-nesw-resize"}`}
+                  style={{ left: k[1] === "w" ? -22 : undefined, right: k[1] === "e" ? -22 : undefined, top: k[0] === "n" ? -22 : undefined, bottom: k[0] === "s" ? -22 : undefined }}
+                >
+                  <span className="block h-4 w-4 rounded-full border-2 border-[#FBC159] bg-white shadow-[0_1px_3px_rgba(20,22,24,0.35)]" />
+                </span>
+              ))}
+            </div>
+            <div ref={selBarRef} className={`${PANEL} absolute flex animate-[scale-in_140ms_ease-out] items-center gap-0.5 p-[3px] motion-reduce:animate-none`} style={{ left: -9999, top: -9999 }}>
+              <button
+                type="button"
+                aria-label="Move the picture: drag this"
+                {...tipOn("Move", undefined, "Drag this to move the picture.")}
+                onPointerDown={(e) => onPicDown("move", e)}
+                onPointerMove={onPicMove}
+                onPointerUp={onPicUp}
+                onPointerCancel={onPicUp}
+                onLostPointerCapture={onPicUp}
+                className={`${PRESS} ${GOLD_ON} flex cursor-grab touch-none items-center gap-1.5 rounded-[10px] px-3 text-xs font-semibold active:cursor-grabbing [&_svg]:h-4 [&_svg]:w-4 ${lead ? "h-11" : `h-9 ${HIT}`}`}
+              >
+                {I.move}
+                Move
+              </button>
+              <button type="button" {...tipOn("Fit", undefined, "Zoom to show the whole picture.")} onPointerDown={palmDown} onClick={() => !palmBlocked() && fitSelected()} className={`${PRESS} ${QUIET} flex items-center gap-1.5 rounded-[10px] px-3 text-xs font-semibold [&_svg]:h-4 [&_svg]:w-4 ${lead ? "h-11" : `h-9 ${HIT}`}`}>
+                {I.fit}
+                Fit
+              </button>
+              <button type="button" {...tipOn("Bring to front")} onPointerDown={palmDown} onClick={() => !palmBlocked() && frontSelected()} className={`${PRESS} ${QUIET} rounded-[10px] px-3 text-xs font-semibold ${lead ? "h-11" : `h-9 ${HIT}`}`}>
+                Front
+              </button>
+              <button type="button" {...tipOn("Remove the picture", "Delete")} onPointerDown={palmDown} onClick={() => !palmBlocked() && deleteSelected()} className={`${PRESS} flex items-center gap-1.5 rounded-[10px] bg-[#E5685A]/[0.14] px-3 text-xs font-semibold text-[#F4A397] hover:bg-[#E5685A]/[0.22] [&_svg]:h-4 [&_svg]:w-4 ${lead ? "h-11" : `h-9 ${HIT}`}`}>
+                {I.trash}
+                Remove
+              </button>
+              <Divider />
+              <button
+                type="button"
+                {...tipOn("Done", "Esc")}
+                onPointerDown={palmDown}
+                onClick={() => {
+                  if (palmBlocked()) return;
+                  select(null);
+                  requestDraw();
+                }}
+                className={`${PRESS} ${QUIET} rounded-[10px] px-3 text-xs font-semibold ${lead ? "h-11" : `h-9 ${HIT}`}`}
+              >
+                Done
+              </button>
+            </div>
+          </>
+        )}
+
         {/* Top: who's linked (left), view controls (right). Small, so the board gets the room. */}
         <div ref={topBarRef} className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
           {/* The page: each class has its own, always there. Tap the name for the list of pages;
               the arrows step through them, + starts a blank one. */}
-          <div className={`${PANEL} pointer-events-auto relative z-30 flex h-9 min-w-0 items-center gap-0.5 px-1`}>
-            <SmallButton label="Previous page ([)" onClick={() => stepPage(-1)} disabled={pageIndex <= 0}>{I.prev}</SmallButton>
+          <div className={`${PANEL} pointer-events-auto relative z-30 flex h-11 shrink-0 items-center gap-0.5 px-[3px]`}>
+            <SmallButton label="Previous page" keys="[" onClick={() => stepPage(-1)} disabled={pageIndex <= 0}>{I.prev}</SmallButton>
             <button
               type="button"
               onClick={() => setPagesOpen((v) => !v)}
               aria-expanded={pagesOpen}
               data-pages-menu
               aria-haspopup="listbox"
-              title="All pages"
-              className="flex h-7 max-w-[46vw] items-center gap-1 rounded-lg px-1.5 text-xs font-semibold text-[#1A1D20] hover:bg-black/[0.05]"
+              {...tipOn("All pages", undefined, pageList.length > 1 ? `Page ${pageIndex + 1} of ${pageList.length}` : undefined)}
+              className={`${PRESS} ${HIT} flex h-9 max-w-[30vw] items-center gap-1.5 rounded-[10px] pl-2.5 pr-2 sm:max-w-[46vw] text-[13px] font-semibold tracking-[-0.005em] ${pagesOpen ? ON : "text-white hover:bg-white/[0.07]"}`}
             >
               <span className="truncate">{page.title}</span>
-              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-[#6B7280]" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="m6 9 6 6 6-6" />
+              <svg
+                viewBox="0 0 24 24"
+                className={`h-4 w-4 shrink-0 text-white/50 transition-transform duration-200 ease-out motion-reduce:transition-none ${pagesOpen ? "rotate-180" : ""}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="m6.5 9.5 5.5 5.5 5.5-5.5" />
               </svg>
             </button>
             {pagesOpen && (
               <>
-                <ul data-pages-menu role="listbox" aria-label="Pages" className={`${PANEL} absolute left-0 top-11 z-50 max-h-[60vh] w-64 overflow-y-auto p-1`}>
+                <ul data-pages-menu role="listbox" aria-label="Pages" className={`${PANEL} absolute left-0 top-[52px] z-50 max-h-[60vh] w-72 origin-top-left animate-[scale-in_140ms_ease-out] overflow-y-auto p-1.5 [scrollbar-width:thin] motion-reduce:animate-none`}>
                   {pageList.map((x) => (
                     <li key={x.id}>
                       <button
@@ -2717,8 +3344,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                           setPagesOpen(false);
                           openPage(x, true);
                         }}
-                        className={`flex h-10 w-full items-center rounded-xl px-3 text-left text-sm font-semibold transition-colors ${x.id === page.id ? "bg-[#1A1D20] text-white" : "text-[#1A1D20] hover:bg-black/[0.05]"}`}
+                        className={`${PRESS} flex h-11 w-full items-center gap-2.5 rounded-[12px] px-3 text-left text-sm font-semibold active:scale-[0.98] ${x.id === page.id ? ON : QUIET}`}
                       >
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${x.id === page.id ? "bg-[#FBC159]" : "bg-white/20"}`} aria-hidden />
                         <span className="truncate">{x.title}</span>
                       </button>
                     </li>
@@ -2726,83 +3354,83 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                 </ul>
               </>
             )}
-            <SmallButton label="Next page (])" onClick={() => stepPage(1)} disabled={pageIndex >= pageList.length - 1}>{I.next}</SmallButton>
-            <SmallButton label="New blank page (N)" onClick={newPage}>{I.plus}</SmallButton>
+            <SmallButton label="Next page" keys="]" onClick={() => stepPage(1)} disabled={pageIndex >= pageList.length - 1}>{I.next}</SmallButton>
+            <SmallButton label="New blank page" keys="N" onClick={newPage}>{I.plus}</SmallButton>
             {page.id !== MAIN_PAGE.id && <SmallButton label="Delete this page" onClick={() => setConfirmDelete(true)}>{I.trash}</SmallButton>}
-            <span className="mx-1 h-4 w-px bg-black/[0.08]" />
+            <Divider />
             <span
-              className="flex items-center gap-1.5 pr-2 text-[11px] font-semibold text-[#6B7280]"
-              title={lead ? "Open /teach/present on your laptop: it draws too, and follows this tablet." : "Open the board on your tablet: when it pans or zooms, this screen follows."}
+              className="flex shrink-0 items-center gap-1.5 pl-0.5 pr-2.5 text-[11px] font-semibold text-white/60"
+              {...tipOn(
+                partner ? (lead ? "Laptop linked" : "Tablet linked") : lead ? "No laptop yet" : "No tablet yet",
+                undefined,
+                lead ? "Open /teach/present on your laptop: it draws too, and follows this tablet." : "Open the board on your tablet: when it pans or zooms, this screen follows.",
+              )}
             >
-              <span className={`h-2 w-2 rounded-full ${partner ? "bg-[#22A06B]" : "bg-[#C4C9CF]"}`} />
-              {partner ? (lead ? "Laptop" : "Tablet") : lead ? "No laptop" : "No tablet"}
+              <span className={`h-2 w-2 shrink-0 rounded-full ${partner ? "bg-[#6FBBA8] shadow-[0_0_0_3px_rgba(111,187,168,0.18)]" : "bg-white/25"}`} />
+              <span className="sr-only sm:not-sr-only">
+                {partner ? (lead ? "Laptop" : "Tablet") : lead ? "No laptop" : "No tablet"}
+              </span>
             </span>
           </div>
-          <div ref={sidePanelRef} className={`${PANEL} pointer-events-auto flex h-9 items-center gap-0.5 px-1`}>
+          <div ref={sidePanelRef} className={`${PANEL} pointer-events-auto flex h-11 min-w-0 items-center overflow-hidden`}>
+            {/* On a narrow phone the view controls slide sideways instead of crowding the page bar. */}
+            <div className="flex h-full min-w-0 items-center gap-0.5 overflow-x-auto whitespace-nowrap px-[3px] [scrollbar-width:none] [&>*]:shrink-0">
             {lead && (
               <button
                 type="button"
                 onClick={() => setFingerDraws((v) => !v)}
-                className={`h-7 rounded-lg px-2.5 text-xs font-semibold transition-colors ${fingerDraws ? "bg-[#1A1D20] text-white" : "text-[#6B7280] hover:bg-black/[0.05] hover:text-[#1A1D20]"}`}
-                title="For phones without a pen. On your tablet, leave this off: only the S Pen draws."
+                aria-pressed={fingerDraws}
+                {...tipOn(fingerDraws ? "Finger draws" : "Pen only", undefined, "For phones without a pen. On your tablet, leave this off: only the S Pen draws.")}
+                className={`${PRESS} ${HIT} h-9 rounded-[10px] px-3 text-xs font-semibold ${fingerDraws ? ON : QUIET}`}
               >
                 {fingerDraws ? "Finger draws" : "Pen only"}
               </button>
             )}
-            <button type="button" onClick={fit} title="Fit the whole board" className="h-7 w-14 rounded-lg text-center text-xs font-semibold tabular-nums text-[#6B7280] hover:bg-black/[0.05] hover:text-[#1A1D20]">
+            <button type="button" onClick={fit} aria-label={`Zoom ${zoom}%. Fit the whole board`} {...tipOn("Fit the whole board", undefined, "Shows everything on this page")} className={`${PRESS} ${QUIET} ${HIT} flex h-9 w-[60px] items-center justify-center gap-1 rounded-[10px] text-xs font-semibold tabular-nums`}>
               {zoom}%
             </button>
             <button
               type="button"
               onClick={() => setPaper(BACKDROPS[(BACKDROPS.indexOf(paper) + 1) % BACKDROPS.length], true)}
-              title="The board's paper: plain, or a faint grid (tap to switch). The laptop changes too."
-              className="h-7 rounded-lg px-2.5 text-xs font-semibold text-[#6B7280] transition-colors hover:bg-black/[0.05] hover:text-[#1A1D20]"
+              {...tipOn("Paper", undefined, "Plain, or a faint grid (tap to switch). The laptop changes too.")}
+              className={`${PRESS} ${QUIET} ${HIT} h-9 rounded-[10px] px-3 text-xs font-semibold`}
             >
               {BACKDROP_NAME[paper]}
             </button>
-            <SmallButton label="Hide the tools for a clean shared screen (H)" onClick={() => setToolsHidden(true)}>{I.hide}</SmallButton>
+            <SmallButton label="Hide the tools for a clean shared screen" keys="H" onClick={() => setToolsHidden(true)}>{I.hide}</SmallButton>
             {lead && (
               <button
                 type="button"
                 onClick={() => void copyLink()}
-                title="Copy the link for your laptop: open it there and share that screen in Meet."
-                className="ml-0.5 h-7 rounded-lg bg-[#1A1D20] px-2.5 text-xs font-semibold text-white transition-colors hover:bg-[#30353a]"
+                {...tipOn("Copy the laptop link", undefined, "Open it on your laptop and share that screen in Meet.")}
+                className={`${PRESS} ${HIT} ml-0.5 h-9 rounded-[10px] bg-[#FBC159] px-3.5 text-xs font-bold text-[#1B1E21] hover:bg-[#FFD07A] active:bg-[#E5A832]`}
               >
                 {copiedPresent ? "Copied" : "Laptop link"}
               </button>
             )}
+            </div>
           </div>
         </div>
 
-        {/* Picture actions, when one is selected */}
-        {selectedId && (
-          <div className={`${PANEL} absolute left-1/2 top-14 flex -translate-x-1/2 items-center gap-2 p-1 pl-3`}>
-            <span className="text-xs font-semibold text-[#4B5563]">{lead ? "Finger drags it · round handle resizes" : "Drag to move · round handle resizes"}</span>
-            <button type="button" onClick={deleteSelected} className="flex h-8 items-center gap-1.5 rounded-lg bg-[#FDECEA] px-2.5 text-xs font-bold text-[#B42318] [&_svg]:h-4 [&_svg]:w-4">
-              {I.trash}
-              Remove
-            </button>
-          </div>
-        )}
 
         {/* Main toolbar */}
         {/* The tablet: a column down the left edge, away from the writing hand's palm. The laptop:
             along the bottom. */}
         <div
           ref={toolbarRef}
-          className={`${PANEL} absolute flex items-center gap-0.5 p-1 [scrollbar-width:none] ${
+          className={`${PANEL} absolute flex items-center gap-0.5 p-[3px] [scrollbar-width:none] ${
             lead
               ? "left-3 top-1/2 max-h-[calc(100dvh-80px)] -translate-y-1/2 flex-col overflow-y-auto"
               : "bottom-4 left-1/2 max-w-[calc(100vw-16px)] -translate-x-1/2 overflow-x-auto"
           }`}
         >
-          <ToolButton label="Pen (P). Draw a T for a T account; hold still at the end to snap a line, box or circle" active={tool === "pen"} onClick={() => pickTool("pen")}>{I.pen}</ToolButton>
-          <ToolButton label="Straight line (L)" active={tool === "line"} onClick={() => pickTool("line")}>{I.line}</ToolButton>
-          <ToolButton label="Eraser (E), or hold the pen's side button" active={tool === "eraser"} onClick={() => pickTool("eraser")}>{I.eraser}</ToolButton>
-          <ToolButton label="Type (T starts typing where the mouse is). Enter finishes, Shift+Enter for a new line" active={tool === "text"} onClick={() => pickTool("text")}>{I.text}</ToolButton>
-          <ToolButton label="Move (V): drag pictures, typed text or writing" active={tool === "move"} onClick={() => pickTool("move")}>{I.move}</ToolButton>
-          <ToolButton label="Insert a picture or PDF" disabled={!!busy} onClick={() => fileRef.current?.click()}>
-            {busy ? <Spinner size={20} className="text-[#1A1D20]" /> : I.insert}
+          <ToolButton label="Pen (P). Draw a T for a T account; hold still at the end to snap a line, box or circle" tip="Pen" keys="P" hint="Draw a T for a T account. Hold still at the end to snap a line, box or circle." active={tool === "pen"} onClick={() => pickTool("pen")}>{I.pen}</ToolButton>
+          <ToolButton label="Straight line (L)" tip="Straight line" keys="L" active={tool === "line"} onClick={() => pickTool("line")}>{I.line}</ToolButton>
+          <ToolButton label="Eraser (E), or hold the pen's side button" tip="Eraser" keys="E" hint="Or hold the pen's side button." active={tool === "eraser"} onClick={() => pickTool("eraser")}>{I.eraser}</ToolButton>
+          <ToolButton label="Type (T starts typing where the mouse is). Enter finishes, Shift+Enter for a new line" tip="Type" keys="T" hint="Starts where the mouse is. Enter finishes, Shift+Enter for a new line." active={tool === "text"} onClick={() => pickTool("text")}>{I.text}</ToolButton>
+          <ToolButton label="Move (V): drag pictures, typed text or writing" tip="Move" keys="V" hint="Drag pictures, typed text or writing. With any tool, hold a finger on typed words, then drag." active={tool === "move"} onClick={() => pickTool("move")}>{I.move}</ToolButton>
+          <ToolButton label="Insert a picture or PDF" tip="Picture or PDF" hint={lead ? undefined : "Or paste one (Ctrl+V), or drop a file on the board."} disabled={!!busy} onClick={() => fileRef.current?.click()}>
+            {busy ? <Spinner size={20} className="text-white/80" /> : I.insert}
           </ToolButton>
           <Divider across={lead} />
           {COLORS.map((c) => (
@@ -2810,20 +3438,17 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               key={c.value}
               type="button"
               aria-label={c.name}
-              title={c.name}
               aria-pressed={color === c.value}
+              {...tipOn(`${c.name} ink`)}
               onPointerDown={palmDown}
               onClick={() => {
                 if (palmBlocked()) return;
                 setColor(c.value);
                 if (tool === "eraser" || tool === "move") pickTool("pen");
               }}
-              className={`flex shrink-0 items-center justify-center ${lead ? "h-8 w-10" : "h-10 w-8"}`}
+              className={`${PRESS} flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] hover:bg-white/[0.06]`}
             >
-              <span
-                className={`block rounded-full transition-all duration-150 ${color === c.value ? "h-[22px] w-[22px] ring-2 ring-[#1A1D20]/80 ring-offset-2 ring-offset-white" : "h-[18px] w-[18px] hover:scale-110"}`}
-                style={{ background: inkOf(c.value) }}
-              />
+              <Swatch ink={inkOf(c.value)} on={color === c.value} size={20} />
             </button>
           ))}
           <Divider across={lead} />
@@ -2832,26 +3457,43 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               key={s.value}
               type="button"
               aria-label={`${s.name} pen`}
-              title={`${s.name} pen`}
               aria-pressed={size === s.value}
+              {...tipOn(`${s.name} pen`)}
               onPointerDown={palmDown}
               onClick={() => !palmBlocked() && setSize(s.value)}
-              className={`flex shrink-0 items-center justify-center rounded-xl transition-colors ${lead ? "h-8 w-10" : "h-10 w-8"} ${size === s.value ? "bg-black/[0.06]" : "hover:bg-black/[0.04]"}`}
+              className={`${PRESS} flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] ${size === s.value ? ON : "hover:bg-white/[0.06]"}`}
             >
-              <span className="block rounded-full" style={{ width: s.value * 2.2, height: s.value * 2.2, background: size === s.value ? "#1A1D20" : "#9CA3AF" }} />
+              <span
+                className="block rounded-full transition-colors duration-150 motion-reduce:transition-none"
+                style={{ width: s.value * 2.2, height: s.value * 2.2, background: size === s.value ? "#FFFFFF" : "rgba(255,255,255,0.42)" }}
+              />
             </button>
           ))}
           <Divider across={lead} />
-          <ToolButton label="Undo (Ctrl+Z)" disabled={!meta.undo} onClick={undo}>{I.undo}</ToolButton>
-          <ToolButton label="Redo (Ctrl+Shift+Z)" disabled={!meta.redo} onClick={redo}>{I.redo}</ToolButton>
+          <ToolButton label="Undo (Ctrl+Z)" tip="Undo" keys="Ctrl+Z" disabled={!meta.undo} onClick={undo}>{I.undo}</ToolButton>
+          <ToolButton label="Redo (Ctrl+Shift+Z)" tip="Redo" keys="Ctrl+Shift+Z" disabled={!meta.redo} onClick={redo}>{I.redo}</ToolButton>
           <ToolButton label="Clear the board" disabled={!hasContent} onClick={() => setConfirmClear(true)}>{I.trash}</ToolButton>
-
         </div>
       </div>
 
+      {/* A blank page on the tablet: one quiet line in the middle, gone with the first stroke.
+          Not on the laptop, whose screen the class sees. */}
+      {lead && !hasContent && !typing && !inking && !toolsHidden && !quiet && (
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 text-center" aria-hidden>
+          <p className="text-[15px] font-semibold tracking-[-0.01em] text-[#1B1E21]/35">Write anywhere</p>
+          <p className="flex items-center gap-1.5 text-xs text-[#1B1E21]/30">
+            <span>Pen draws</span>
+            <span aria-hidden>·</span>
+            <span>{fingerDraws ? "fingers draw too" : "fingers move the board"}</span>
+          </p>
+        </div>
+      )}
+
+      <BoardTip />
+
       {/* Short messages: "Undone", upload progress, errors */}
       {(notice || busy) && (
-        <div className="pointer-events-none absolute bottom-20 left-1/2 -translate-x-1/2 rounded-full bg-[#1A1D20] px-4 py-2 text-xs font-semibold text-white shadow-lg">
+        <div className={`${PANEL} pointer-events-none absolute left-1/2 flex -translate-x-1/2 animate-[scale-in_140ms_ease-out] items-center rounded-full px-4 py-2.5 text-xs font-semibold motion-reduce:animate-none ${lead ? "bottom-6" : "bottom-20"}`} role="status">
           {busy ?? notice}
         </div>
       )}
@@ -2863,19 +3505,19 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
 
       {/* Delete page confirm */}
       {confirmDelete && (
-        <div className="absolute inset-0 flex items-center justify-center bg-[#1A1D20]/25 backdrop-blur-[2px]" onClick={() => setConfirmDelete(false)}>
-          <div className={`${PANEL} w-[320px] p-5 text-center`} onClick={(e) => e.stopPropagation()}>
-            <p className="text-lg font-bold">Delete &ldquo;{page.title}&rdquo;?</p>
-            <p className="mt-1 text-sm text-[#6B7280]">
+        <div className="absolute inset-0 z-[70] flex items-center justify-center bg-[#141618]/30 px-4 backdrop-blur-[2px]" onClick={() => setConfirmDelete(false)}>
+          <div role="alertdialog" aria-modal="true" aria-label="Delete this page" className={`${PANEL} w-[340px] max-w-full animate-[scale-in_160ms_ease-out] rounded-[22px] p-6 text-center motion-reduce:animate-none`} onClick={(e) => e.stopPropagation()}>
+            <p className="text-lg font-bold tracking-[-0.01em]">Delete &ldquo;{page.title}&rdquo;?</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-white/60">
               {page.classId
                 ? "Its writing goes for good, on your laptop too. The class keeps its page, empty."
                 : "The page and its writing go for good, on your laptop too."}
             </p>
             <div className="mt-5 flex gap-2">
-              <button type="button" onClick={() => setConfirmDelete(false)} className="h-11 flex-1 rounded-xl bg-black/[0.05] text-sm font-semibold">
+              <button type="button" onClick={() => setConfirmDelete(false)} className={`${PRESS} h-11 flex-1 rounded-[12px] bg-white/[0.07] text-sm font-semibold text-white hover:bg-white/[0.11]`}>
                 Cancel
               </button>
-              <button type="button" onClick={deletePage} className="h-11 flex-1 rounded-xl bg-[#B42318] text-sm font-bold text-white">
+              <button type="button" onClick={deletePage} className={`${PRESS} h-11 flex-1 rounded-[12px] bg-[#C2382C] text-sm font-bold text-white hover:bg-[#D0453A]`}>
                 Delete
               </button>
             </div>
@@ -2885,12 +3527,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
 
       {/* Clear confirm */}
       {confirmClear && (
-        <div className="absolute inset-0 flex items-center justify-center bg-[#1A1D20]/25 backdrop-blur-[2px]" onClick={() => setConfirmClear(false)}>
-          <div className={`${PANEL} w-[320px] p-5 text-center`} onClick={(e) => e.stopPropagation()}>
-            <p className="text-lg font-bold">Clear the whole board?</p>
-            <p className="mt-1 text-sm text-[#6B7280]">Writing and pictures go. Undo brings them back.</p>
+        <div className="absolute inset-0 z-[70] flex items-center justify-center bg-[#141618]/30 px-4 backdrop-blur-[2px]" onClick={() => setConfirmClear(false)}>
+          <div role="alertdialog" aria-modal="true" aria-label="Clear the whole board" className={`${PANEL} w-[340px] max-w-full animate-[scale-in_160ms_ease-out] rounded-[22px] p-6 text-center motion-reduce:animate-none`} onClick={(e) => e.stopPropagation()}>
+            <p className="text-lg font-bold tracking-[-0.01em]">Clear the whole board?</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-white/60">Writing and pictures go. Undo brings them back.</p>
             <div className="mt-5 flex gap-2">
-              <button type="button" onClick={() => setConfirmClear(false)} className="h-11 flex-1 rounded-xl bg-black/[0.05] text-sm font-semibold">
+              <button type="button" onClick={() => setConfirmClear(false)} className={`${PRESS} h-11 flex-1 rounded-[12px] bg-white/[0.07] text-sm font-semibold text-white hover:bg-white/[0.11]`}>
                 Cancel
               </button>
               <button
@@ -2899,7 +3541,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                   clearAll();
                   setConfirmClear(false);
                 }}
-                className="h-11 flex-1 rounded-xl bg-[#1A1D20] text-sm font-bold text-white"
+                className={`${PRESS} h-11 flex-1 rounded-[12px] bg-white text-sm font-bold text-[#1B1E21] hover:bg-white/90`}
               >
                 Clear
               </button>
@@ -3121,13 +3763,13 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
         </span>
       )}
       <div ref={viewerBarRef} className={`pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3 sm:p-4 ${present ? "hidden" : ""}`}>
-        <div className="flex items-center gap-3 rounded-2xl border border-white/[0.07] bg-[#1c1f22]/80 px-4 py-2.5 backdrop-blur-xl">
+        <div className={`${PANEL} flex h-11 items-center gap-3 px-4`}>
           <span style={{ fontFamily: "var(--font-caveat)" }} className="text-xl leading-none text-[#FBC159]">
             hamzateaches
           </span>
-          <span className="h-4 w-px bg-white/10" />
-          <span className="flex items-center gap-2 text-xs font-semibold text-[#b9bec3]">
-            <span className={`h-2 w-2 rounded-full ${teacherHere ? "bg-[#F07A6A] shadow-[0_0_8px_#F07A6A]" : "bg-[#5a6066]"}`} />
+          <span className="h-4 w-px bg-white/[0.12]" />
+          <span className="flex items-center gap-2 text-xs font-semibold text-white/70" role="status">
+            <span className={`h-2 w-2 rounded-full ${teacherHere ? "bg-[#F07A6A] shadow-[0_0_0_3px_rgba(240,122,106,0.2)]" : "bg-white/25"}`} />
             {teacherHere ? "Live" : "Waiting for Hamza"}
           </span>
         </div>
@@ -3135,7 +3777,7 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
 
       {!got && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <p className="text-sm text-[#80868c]">The board appears here as Hamza writes.</p>
+          <p className="text-[15px] font-medium tracking-[-0.01em] text-[#1B1E21]/45">The board appears here as Hamza writes.</p>
         </div>
       )}
 
@@ -3147,7 +3789,7 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
             setFollow(true);
             followFn.current();
           }}
-          className="absolute bottom-5 left-1/2 h-11 -translate-x-1/2 rounded-full bg-[#FBC159] px-5 text-sm font-bold text-[#141618] shadow-[0_12px_30px_-10px_rgba(251,193,89,0.6)]"
+          className={`absolute bottom-5 left-1/2 h-11 -translate-x-1/2 animate-[scale-in_160ms_ease-out] rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1B1E21]/40 focus-visible:ring-offset-2 bg-[#FBC159] px-5 text-sm font-bold text-[#1B1E21] shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_12px_28px_-12px_rgba(20,22,24,0.45)] hover:bg-[#FFD07A] active:bg-[#E5A832] motion-reduce:animate-none`}
         >
           Follow Hamza&apos;s board
         </button>

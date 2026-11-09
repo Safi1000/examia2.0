@@ -826,6 +826,12 @@ export function loadImage(url: string, onReady: () => void): HTMLImageElement | 
   return null;
 }
 
+/** A picture now known by another address (just uploaded): reuse the one already loaded (no flash, no second download). */
+export function aliasImage(from: string, to: string) {
+  const el = cache.get(from);
+  if (el && !cache.has(to)) cache.set(to, el);
+}
+
 /** Natural size of a picture (waits for it to load). */
 export function imageSize(url: string): Promise<{ w: number; h: number }> {
   return new Promise((res, rej) => {
