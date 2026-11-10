@@ -18,9 +18,9 @@ export function ProfileSettings({ db, student }: { db: Database; student: Studen
     cn("h-11 rounded-full border px-3 text-sm font-semibold transition-colors", on ? "border-brand bg-brand text-on-brand" : "border-border-strong text-ink-2 hover:text-ink");
 
   return (
-    <Card className="mt-5 space-y-6 p-5">
+    <Card className="space-y-6 p-5 sm:p-6">
       <div>
-        <h2 className="text-base font-semibold text-ink">Your portal</h2>
+        <h2 className="text-[17px] font-bold tracking-[-0.01em] text-ink">Your portal</h2>
         <p className="mt-1 text-sm text-ink-3">Saved as soon as you tap.</p>
       </div>
 

@@ -14,6 +14,7 @@ import { LOW_SCORE } from "@/lib/reminders";
 import { useStudentProfiles } from "@/lib/student-profiles";
 import { StartCard } from "@/components/admin/StartCard";
 import { SlippingCard } from "@/components/admin/SlippingCard";
+import { WellBuiltCard } from "@/components/admin/WellBuiltCard";
 import { HealthLine } from "@/components/admin/Automations";
 import { NotifyCoverage } from "@/components/admin/NotifyCoverage";
 import { RemindersPanel } from "@/components/admin/RemindersPanel";
@@ -24,6 +25,8 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { Badge, Button, Card, Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import { countPill, panelLink, panelTitle } from "@/components/admin/surface";
+import { PortalArt } from "@/components/student/PortalArt";
 
 const DAY = 86_400_000;
 const nameOf = (s: Student) => s.username.charAt(0).toUpperCase() + s.username.slice(1);
@@ -207,44 +210,51 @@ export default function TodayPage() {
       {/* The class to start, from 3 hours before until it ends. */}
       {heroClass && <StartCard slot={heroClass} url={classLinks.find((l) => slotKey(l) === slotKey(heroClass))?.meetUrl ?? null} nowMs={nowMs} />}
       {nextLabel && (
-        <Link href="/admin/classes" className="mb-6 flex items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3 text-[15px] text-ink-2 transition-colors hover:border-border-strong">
+        <Link href="/admin/classes" className={cn(panelLink, "mb-4 flex min-h-12 items-center justify-between gap-3 px-4 py-3 text-[15px] text-ink-2")}>
           <span>
             Next class: <span className="font-semibold text-ink">{nextLabel}</span>
           </span>
-          <span className="shrink-0 whitespace-nowrap text-sm text-ink-3">Classes →</span>
+          <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-sm text-ink-3">Classes <Icon.ChevronRight className="h-3.5 w-3.5" aria-hidden /></span>
         </Link>
       )}
 
       {/* At a glance */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((s) => (
-          <a key={s.label} href={s.href} className="rounded-lg border border-border bg-surface p-4 transition-colors hover:border-border-strong">
-            <p className="text-sm text-ink-2">{s.label}</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight text-ink">{s.value}</p>
+          <a key={s.label} href={s.href} className={cn(panelLink, "px-4 py-3.5")}>
+            <p className="text-[13px] text-ink-3">{s.label}</p>
+            <p className="mt-1 text-[1.75rem] font-semibold leading-tight tabular-nums tracking-[-0.02em] text-ink">{s.value}</p>
           </a>
         ))}
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+      <div className="mt-6 grid gap-4 lg:grid-cols-2 lg:gap-5">
         {/* To mark */}
         <Card id="to-mark" className="scroll-mt-24 p-5">
-          <h2 className="text-base font-semibold text-ink">To mark</h2>
+          <h2 className={panelTitle}>To mark</h2>
           {data.toMark.length === 0 ? (
-            <p className="mt-2 text-[15px] text-ink-2">{data.toReply.length ? "No test papers waiting." : "All marked. Nothing waiting."}</p>
+            <div className="mt-3 flex items-center gap-4">
+              <PortalArt group="scenes" name="empty-nothing-to-mark" width={72} height={72} sized className="-my-1 shrink-0" imgClassName="object-contain" />
+              <p className="text-[15px] text-ink-2">{data.toReply.length ? "No test papers waiting." : "All marked. Nothing waiting."}</p>
+            </div>
           ) : (
             <ul className="mt-3 divide-y divide-border">
               {data.toMark.slice(0, 6).map((sub) => {
                 const st = db.students.find((x) => x.id === sub.studentId);
                 const t = testById(db, sub.testId);
+                // Past 48 hours, the wait itself shows in amber so old papers stand out.
+                const waited = sub.submittedAt ? nowMs - +new Date(sub.submittedAt) : 0;
+                const days = waited > 2 * DAY ? Math.floor(waited / DAY) : 0;
                 return (
                   <li key={sub.id}>
-                    <Link href={`/admin/grading/${sub.id}`} className="flex min-h-12 items-center justify-between gap-3 py-2.5 hover:text-brand">
+                    <Link href={`/admin/grading/${sub.id}`} className="group -mx-2 flex min-h-12 items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-white/[0.025]">
                       <span className="min-w-0">
                         <span className="font-semibold text-ink">{st ? nameOf(st) : "Student"}</span>
                         <span className="block truncate text-sm text-ink-2">{t?.title}</span>
                       </span>
-                      <span className="shrink-0 text-sm text-ink-3">
+                      <span className="shrink-0 text-right text-sm tabular-nums text-ink-3">
                         {sub.submittedAt ? new Date(sub.submittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""}
+                        {days > 0 && <span className="block text-xs font-semibold text-warning">Waiting {days} days</span>}
                       </span>
                     </Link>
                   </li>
@@ -253,13 +263,13 @@ export default function TodayPage() {
             </ul>
           )}
           {data.toMark.length > 6 && (
-            <Link href="/admin/submissions" className="mt-3 inline-block text-sm font-semibold text-brand hover:underline">
-              See all {data.toMark.length} →
+            <Link href="/admin/submissions" className="mt-2 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-ink-2 hover:text-ink">
+              See all {data.toMark.length} <Icon.ChevronRight className="h-3.5 w-3.5" aria-hidden />
             </Link>
           )}
           {data.toReply.length > 0 && (
             <>
-              <h3 className="mt-5 text-sm font-semibold text-ink-2">Homework to reply to</h3>
+              <h3 className="mt-5 border-t border-border pt-4 text-[13px] font-semibold text-ink-3">Homework to reply to</h3>
               <ul className="mt-1 divide-y divide-border">
                 {Object.entries(
                   data.toReply.reduce<Record<string, number>>((m, x) => ((m[x.assignmentId] = (m[x.assignmentId] ?? 0) + 1), m), {}),
@@ -267,9 +277,9 @@ export default function TodayPage() {
                   .slice(0, 4)
                   .map(([aid, n]) => (
                     <li key={aid}>
-                      <Link href={`/admin/assignments?open=${aid}`} className="flex min-h-12 items-center justify-between gap-3 py-2.5 hover:text-brand">
+                      <Link href={`/admin/assignments?open=${aid}`} className="-mx-2 flex min-h-12 items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-white/[0.025]">
                         <span className="min-w-0 truncate font-semibold text-ink">{db.assignments.find((a) => a.id === aid)?.title ?? "Homework"}</span>
-                        <span className="shrink-0 rounded-full bg-brand/15 px-2.5 py-0.5 text-sm font-semibold text-brand tabular-nums">{n} to reply</span>
+                        <span className={countPill}>{n} to reply</span>
                       </Link>
                     </li>
                   ))}
@@ -280,18 +290,18 @@ export default function TodayPage() {
 
         {/* Closing soon */}
         <Card id="closing" className="scroll-mt-24 p-5">
-          <h2 className="text-base font-semibold text-ink">Closing in the next 48 hours</h2>
+          <h2 className={panelTitle}>Closing in the next 48 hours</h2>
           {data.closing.length === 0 ? (
             <p className="mt-2 text-[15px] text-ink-2">No tests closing soon.</p>
           ) : (
-            <ul className="mt-3 space-y-4">
+            <ul className="mt-2 divide-y divide-border">
               {data.closing.map(({ test, eligible, missing }) => (
-                <li key={test.id}>
+                <li key={test.id} className="py-3 first:pt-1">
                   <div className="flex items-baseline justify-between gap-3">
-                    <Link href={`/admin/tests/${test.id}`} className="inline-flex min-h-11 items-center font-semibold text-ink hover:text-brand">{test.title}</Link>
+                    <Link href={`/admin/tests/${test.id}`} className="inline-flex min-h-11 items-center font-semibold text-ink underline-offset-4 hover:underline">{test.title}</Link>
                     <span className="shrink-0 text-sm text-warning">Closes {formatRelative(test.closesAt, nowMs)}</span>
                   </div>
-                  <p className="mt-0.5 text-sm text-ink-2">
+                  <p className="text-sm tabular-nums text-ink-2">
                     {eligible.length - missing.length} of {eligible.length} handed in
                   </p>
                   {missing.length > 0 && (
@@ -302,11 +312,11 @@ export default function TodayPage() {
                           ? waTo(s.phone, `Hi ${nameOf(s)}, a reminder that ${test.title} closes ${formatRelative(test.closesAt, nowMs)}. Don't miss it!`)
                           : waTo(s.whatsapp, `Assalam o Alaikum, a quick reminder that ${nameOf(s)}'s test, ${test.title}, closes ${formatRelative(test.closesAt, nowMs)}. Thank you.`);
                         return link ? (
-                          <a key={s.id} href={link} target="_blank" rel="noopener noreferrer" className="rounded-full border border-border-strong px-3 py-1.5 text-sm font-semibold text-ink hover:border-brand">
+                          <a key={s.id} href={link} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center rounded-full border border-border-strong px-3 text-sm font-semibold text-ink transition-colors hover:border-ink-3 hover:bg-surface-2 max-md:min-h-11">
                             Remind {nameOf(s)}
                           </a>
                         ) : (
-                          <span key={s.id} className="rounded-full bg-surface-2 px-3 py-1.5 text-sm text-ink-2" title="No number saved">
+                          <span key={s.id} className="inline-flex min-h-9 items-center rounded-full bg-surface-2 px-3 text-sm text-ink-3" title="No number saved">
                             {nameOf(s)}
                           </span>
                         );
@@ -321,7 +331,7 @@ export default function TodayPage() {
 
         {/* Needs attention */}
         <Card id="attention" className="scroll-mt-24 p-5 lg:col-span-2">
-          <h2 className="text-base font-semibold text-ink">Students to check on</h2>
+          <h2 className={panelTitle}>Students to check on</h2>
           {data.attention.length === 0 ? (
             <p className="mt-2 text-[15px] text-ink-2">Everyone is on track.</p>
           ) : (
@@ -340,14 +350,14 @@ export default function TodayPage() {
                 return (
                   <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                     <div className="min-w-0">
-                      <Link href={`/admin/roster/${s.id}`} className="font-semibold text-ink hover:text-brand">{nameOf(s)}</Link>
+                      <Link href={`/admin/roster/${s.id}`} className="font-semibold text-ink underline-offset-4 hover:underline">{nameOf(s)}</Link>
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         {reasons.map((r) => (
                           <Badge key={r} tone={r.startsWith("Missed") ? "warning" : "error"}>{r}</Badge>
                         ))}
                       </div>
                     </div>
-                    <div className="flex shrink-0 gap-2">
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
                       {studentLink && (
                         <a href={studentLink} target="_blank" rel="noopener noreferrer" onClick={() => markChecked(s.id)} className={buttonClasses({ variant: "secondary", size: "sm" })}>
                           Message student
@@ -359,7 +369,7 @@ export default function TodayPage() {
                         </a>
                       )}
                       {!studentLink && !parentLink && (
-                        <Link href={`/admin/roster/${s.id}`} className="text-sm text-ink-3 hover:text-ink">Add a number →</Link>
+                        <Link href={`/admin/roster/${s.id}`} className="inline-flex min-h-11 items-center px-1 text-sm text-ink-3 transition-colors hover:text-ink">Add a number →</Link>
                       )}
                       <button type="button" onClick={() => markChecked(s.id)} className={buttonClasses({ variant: "ghost", size: "sm" })} title="Hide for a week">
                         Checked
@@ -371,7 +381,7 @@ export default function TodayPage() {
             </ul>
           )}
           {!showAll && data.attention.length > 5 && (
-            <button type="button" onClick={() => setShowAll(true)} className="mt-2 h-10 text-sm font-semibold text-brand hover:underline">
+            <button type="button" onClick={() => setShowAll(true)} className="mt-2 min-h-11 text-sm font-semibold text-ink-2 hover:text-ink">
               Show {data.attention.length - 5} more
             </button>
           )}
@@ -379,24 +389,24 @@ export default function TodayPage() {
 
         {/* Weak topics → retest */}
         <Card className="p-5 lg:col-span-2">
-          <h2 className="text-base font-semibold text-ink">Weakest topics</h2>
-          <p className="mt-1 text-sm text-ink-2">From released results{cohortName ? ` in ${cohortName}` : ""}. A retest is drafted from your question bank and past tests, and stays hidden until you publish it.</p>
+          <h2 className={panelTitle}>Weakest topics</h2>
+          <p className="mt-1 max-w-[65ch] text-sm text-ink-3">From released results{cohortName ? ` in ${cohortName}` : ""}. A retest is drafted from your question bank and past tests, and stays hidden until you publish it.</p>
           {data.weak.length === 0 ? (
             <p className="mt-3 text-[15px] text-ink-2">No topic is under 70%. Nice.</p>
           ) : (
-            <ul className="mt-4 grid gap-3 md:grid-cols-3">
+            <ul className="mt-4 grid divide-y divide-border border-t border-border md:grid-cols-3 md:divide-x md:divide-y-0">
               {data.weak.map((w) => (
-                <li key={`${w.subject}|${w.name}`} className="flex flex-col rounded-md border border-border bg-surface-2 p-4">
-                  <p className="text-sm text-ink-2">{w.subject}</p>
+                <li key={`${w.subject}|${w.name}`} className="flex flex-col py-4 md:px-5 md:first:pl-0 md:last:pr-0">
+                  <p className="text-[13px] text-ink-3">{w.subject}</p>
                   <p className="font-semibold text-ink">{w.name}</p>
-                  <div className="mt-3 h-1.5 rounded-full bg-paper" aria-hidden>
+                  <div className="mt-3 h-1 overflow-hidden rounded-full bg-surface-2" aria-hidden>
                     <div className={cn("h-full rounded-full", w.percent < 50 ? "bg-error" : "bg-warning")} style={{ width: `${Math.max(4, Math.round(w.percent))}%` }} />
                   </div>
-                  <p className="mt-1.5 text-sm tabular-nums text-ink-2">{Math.round(w.percent)}% of marks</p>
+                  <p className="mb-4 mt-1.5 text-sm tabular-nums text-ink-2">{Math.round(w.percent)}% of marks</p>
                   <Button
                     size="sm"
                     variant="secondary"
-                    className="mt-4"
+                    className="mt-auto self-start"
                     disabled={w.available === 0}
                     onClick={() => makeRetest(w.subject, w.name)}
                   >
@@ -409,6 +419,7 @@ export default function TodayPage() {
           )}
         </Card>
       </div>
+      <WellBuiltCard db={db} profiles={profiles} nowMs={nowMs} cohortId={cohortId} />
       <SlippingCard db={db} profiles={profiles} nowMs={nowMs} cohortId={cohortId} />
     </div>
   );

@@ -70,8 +70,8 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
   // The phone app has its own notification switches.
   if (app)
     return (
-      <Card className="mt-5 p-5">
-        <h2 className="text-base font-semibold text-ink">Phone notifications</h2>
+      <Card className="p-5 sm:p-6">
+        <h2 className="text-[17px] font-bold tracking-[-0.01em] text-ink">Phone notifications</h2>
         <p className="mt-1 text-sm text-ink-3">Notifications for the app are in the Me tab.</p>
       </Card>
     );
@@ -129,10 +129,10 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
   }
 
   return (
-    <Card className="mt-5 p-5">
+    <Card className="p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-ink">Phone notifications</h2>
+          <h2 className="text-[17px] font-bold tracking-[-0.01em] text-ink">Phone notifications</h2>
           <p className="mt-1 text-sm text-ink-3">Only what matters, never at night. At most 2 a day, plus class reminders.</p>
         </div>
         {status === "on" && (
@@ -162,7 +162,7 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
       {status === "notReady" && <p className="mt-4 text-sm text-ink-3">Notifications are coming soon.</p>}
 
       {status === "on" && (
-        <ul className="mt-4 divide-y divide-border">
+        <ul className="mt-4 divide-y divide-hairline">
           {/* The class reminder's switch is kept on the student's profile. */}
           <li className="flex items-center justify-between gap-4 py-3">
             <span>

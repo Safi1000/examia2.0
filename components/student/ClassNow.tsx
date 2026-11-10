@@ -61,15 +61,17 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
     return (
       <Link
         href="/classes"
-        className="animate-fade-up flex items-center justify-between gap-3 rounded-lg border border-border bg-surface px-5 py-4 transition-colors hover:border-border-strong"
+        className="surface surface-link flex items-center justify-between gap-3 rounded-xl px-5 py-4 sm:px-6"
       >
-        <span className="text-sm text-ink-2">
+        <span className="text-[15px] text-ink-2">
           Next class: <span className="font-semibold text-ink">{next.subject}</span>{" "}
           {next.date === today
-            ? `at ${clockHere(next.date, next.start)}`
+            ? "at "
             : next.date === addDays(today, 1)
-              ? `tomorrow at ${clockHere(next.date, next.start)}`
-              : `${new Date(`${next.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Karachi" })}, ${clockHere(next.date, next.start)}`}
+              ? "tomorrow at "
+              : `${new Date(`${next.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Karachi" })}, `}
+          {/* "7:30 PM" never breaks across two lines. */}
+          <span className="whitespace-nowrap">{clockHere(next.date, next.start)}</span>
         </span>
         <Icon.ChevronRight className="h-4 w-4 text-ink-3" />
       </Link>
@@ -92,15 +94,15 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
   }
 
   return (
-    <section className="animate-fade-up relative overflow-hidden rounded-lg border border-brand/30 bg-[linear-gradient(135deg,rgba(251,193,89,0.16),rgba(251,193,89,0.04))] p-5">
-      <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-brand">
+    <section className="relative overflow-hidden rounded-xl border border-brand/30 bg-surface bg-[linear-gradient(135deg,rgba(251,193,89,0.16),rgba(251,193,89,0.04)_60%)] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_18px_40px_-22px_rgba(251,193,89,0.35)] sm:p-6">
+      <p className="label-quiet flex items-center gap-2 text-brand">
         <span className="h-2 w-2 animate-low-pulse rounded-full bg-brand" />
         {started ? "Class is live" : `Starts ${formatRelative(new Date(current.startMs).toISOString(), nowMs)}`}
       </p>
       <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-extrabold tracking-[-0.01em] text-ink">{current.subject}</h2>
-          <p className="text-sm text-ink-2">{span(current.start, current.end)}</p>
+          <h2 className="text-[1.75rem] font-extrabold leading-tight tracking-[-0.025em] text-ink">{current.subject}</h2>
+          <p className="mt-0.5 text-[15px] text-ink-2 tabular-nums">{span(current.start, current.end)}</p>
         </div>
         {url ? (
           <a
@@ -110,7 +112,7 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
               e.preventDefault();
               void join(current, url);
             }}
-            className="inline-flex h-12 items-center gap-2 rounded-full bg-brand px-7 text-base font-semibold text-on-brand transition hover:brightness-110 active:scale-[0.98]"
+            className="inline-flex h-12 items-center gap-2 rounded-full bg-brand px-7 text-base font-semibold text-on-brand shadow-[0_10px_24px_-10px_rgba(251,193,89,0.75)] transition hover:brightness-110 active:scale-[0.98]"
           >
             {joining === slotKey(current) ? "Joining…" : <>{started && after ? "Rejoin" : "Join class"} <Icon.ChevronRight className="h-4 w-4" /></>}
           </a>
@@ -121,7 +123,7 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
         )}
       </div>
       {after && (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand/25 bg-surface/60 px-4 py-3">
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-brand/20 pt-4">
           <p className="text-sm text-ink-2">
             <span className="font-semibold text-ink">Next: {after.subject}</span> at {clockHere(after.date, after.start)}
             <span className="text-ink-3"> · starts {formatRelative(new Date(after.startMs).toISOString(), nowMs)}</span>

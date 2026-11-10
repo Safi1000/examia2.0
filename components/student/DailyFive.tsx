@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { BookProgress } from "@/lib/syllabus-progress";
 import type { DailyQuestion } from "@/app/api/daily-five/route";
 import { Crop } from "@/components/past-papers/TopicalList";
 import { recordAnswers } from "@/components/past-papers/progress";
 import { useBackToClose } from "@/components/student/useBackToClose";
+import { useFocusTrap } from "@/components/student/useFocusTrap";
 import { Icon } from "@/components/ui";
 import { PortalAmbient } from "@/components/PortalAmbient";
 import { cn } from "@/lib/cn";
@@ -105,7 +106,7 @@ export function DailyFive({ books }: { books: BookProgress[] }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="animate-fade-up group flex w-full items-center gap-4 rounded-lg border border-border bg-surface px-5 py-4 text-left transition-colors hover:border-border-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        className="surface surface-link group flex w-full items-center gap-4 rounded-xl px-5 py-4 text-left sm:px-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
       >
         <Dots total={total} picks={picks} questions={questions} />
         <span className="min-w-0 flex-1">
@@ -165,6 +166,9 @@ function Sheet({
   // Open on the next unanswered question, or the summary once all are done.
   const [i, setI] = useState(() => Math.min(picks.length, total));
   useBackToClose(onClose);
+  // Keyboard focus moves into the Daily 5, stays there, and returns on close.
+  const box = useRef<HTMLDivElement>(null);
+  useFocusTrap(box);
 
   // Fetch every question image now, so the next one is already there.
   useEffect(() => {
@@ -187,7 +191,7 @@ function Sheet({
   const score = questions.reduce((n, qq, k) => n + (picks[k] === qq.a ? 1 : 0), 0);
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Daily 5" className="fixed inset-0 z-[70] flex flex-col bg-paper text-ink">
+    <div ref={box} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Daily 5" className="fixed inset-0 z-[70] flex flex-col bg-paper text-ink outline-none">
       <PortalAmbient />
       <header className="mx-auto flex w-full max-w-xl items-center gap-3 px-4 pb-3 pt-[max(1rem,env(safe-area-inset-top))]">
         <button
@@ -279,7 +283,7 @@ function Sheet({
                     ? "Good work. The ones you missed come back in your past paper mistakes."
                     : "The ones you missed are worth a second look in your notes."}
               </p>
-              <ul className="mx-auto mt-8 max-w-sm divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface text-left">
+              <ul className="surface mx-auto mt-8 max-w-sm divide-y divide-hairline overflow-hidden rounded-xl text-left">
                 {questions.map((qq, k) => {
                   const ok = picks[k] === qq.a;
                   return (

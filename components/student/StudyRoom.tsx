@@ -138,7 +138,7 @@ export function StudyRoomStrip({ meId, onJoin, tone = "light", className }: { me
         <button
           type="button"
           onClick={onJoin}
-          className={cn("h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98]", light ? "bg-white/15 text-white backdrop-blur-md hover:bg-white/25" : "border border-border-strong text-ink")}
+          className={cn("h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98]", light ? "bg-white/15 text-white backdrop-blur-md hover:bg-white/25" : "border border-border-strong text-ink")}
         >
           Join them
         </button>

@@ -1,6 +1,5 @@
 "use client";
 
-import { cld } from "@/lib/cld";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Assignment } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
@@ -9,7 +8,9 @@ import { archivedCohortIds, studentById } from "@/lib/data/selectors";
 import { uploadAsImages } from "@/lib/cloudinary";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { PageStack } from "@/components/PageStack";
+import { PageStack, PaperImage } from "@/components/PageStack";
+import { PastPaperSheet, classHistoryIds, paperBuilder, type PastPaperBuild } from "@/components/admin/PastPaperSheet";
+import { familyOfCode, newSeed, parseId, withSourcesLine, type BuiltQuestion } from "@/lib/paper-builder";
 import { Card, Button, Input, Textarea, Select, Label, Badge, Modal, EmptyState, Icon } from "@/components/ui";
 import { formatTimestamp, toLocalInput, fromLocalInput } from "@/lib/time";
 import { useNow } from "@/hooks/useNow";
@@ -55,6 +56,64 @@ export default function AdminAssignmentsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // From past papers: the questions' pictures go on a normal homework, with a
+  // line naming their sources. Kept here while the form is open, for Swap and Remove.
+  const [papersOpen, setPapersOpen] = useState(false);
+  const [ppQs, setPpQs] = useState<BuiltQuestion[] | null>(null);
+  const [swapping, setSwapping] = useState<string | null>(null);
+  const urlsOf = (qs: BuiltQuestion[]) => [...new Set(qs.flatMap((q) => q.attachments))];
+
+  function fromPapers(b: PastPaperBuild) {
+    const topic = b.topicNames.length > 1 ? `${b.topicNames[0]} and ${b.topicNames.length - 1} more` : (b.topicNames[0] ?? "Past papers");
+    setPapersOpen(false);
+    setEditing("new");
+    setPpQs(b.questions);
+    setForm({
+      title: `${b.subjectName.replace(/ Studies$/, "")}: ${topic}`,
+      instructions: withSourcesLine("", b.questions.map((q) => q.id)),
+      attachments: urlsOf(b.questions),
+      dueAt: toLocalInput(b.closesAt),
+      cohortId: b.cohortId,
+      classId: b.classId ?? "",
+      subjectId: b.subjectId ?? "",
+    });
+  }
+
+  /** Puts a new list of past paper questions on the open form (pictures and the sources line). */
+  function setPapers(next: BuiltQuestion[]) {
+    if (!form || !ppQs) return;
+    const old = new Set(urlsOf(ppQs));
+    setForm({
+      ...form,
+      attachments: [...form.attachments.filter((u) => !old.has(u)), ...urlsOf(next)],
+      instructions: withSourcesLine(form.instructions, next.map((q) => q.id)),
+    });
+    setPpQs(next);
+  }
+
+  async function swapPaper(q: BuiltQuestion) {
+    if (!form || !ppQs) return;
+    const family = familyOfCode(parseId(q.id)?.code ?? "");
+    if (!family) return;
+    setSwapping(q.id);
+    try {
+      const { question } = await paperBuilder<{ question: BuiltQuestion | null }>({
+        action: "swap",
+        syllabus: family.syllabus,
+        codes: family.codes,
+        id: q.id,
+        exclude: [...classHistoryIds(db, form.cohortId || null, form.classId || null), ...ppQs.map((x) => x.id)],
+        seed: newSeed(),
+      });
+      if (!question) toast("Every other question on this topic has been set for this class already.");
+      else setPapers(ppQs.map((x) => (x.id === q.id ? { ...question, topic: q.topic } : x)));
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "That didn't work. Try again.", "error");
+    } finally {
+      setSwapping(null);
+    }
+  }
+
   const assignments = useMemo(
     () =>
       db.assignments
@@ -64,10 +123,12 @@ export default function AdminAssignmentsPage() {
   );
 
   function openNew() {
+    setPpQs(null);
     setEditing("new");
     setForm(blank(cohortId ?? db.cohorts[0]?.id ?? ""));
   }
   function openEdit(a: Assignment) {
+    setPpQs(null);
     setEditing(a);
     setForm({
       title: a.title,
@@ -113,9 +174,11 @@ export default function AdminAssignmentsPage() {
     else if (editing) store.updateAssignment(editing.id, payload);
     setEditing(null);
     setForm(null);
+    setPpQs(null);
     toast("Assignment saved.", "success");
   }
 
+  const ppUrls = new Set(ppQs ? urlsOf(ppQs) : []);
   const open = openId ? db.assignments.find((a) => a.id === openId) ?? null : null;
   const target = deleteId ? db.assignments.find((a) => a.id === deleteId) ?? null : null;
 
@@ -124,7 +187,12 @@ export default function AdminAssignmentsPage() {
       <PageHeader
         title="Homework"
         subtitle={`${assignments.length} posted`}
-        actions={<Button onClick={openNew}><Icon.Plus className="h-4 w-4" /> New homework</Button>}
+        actions={
+          <>
+            <Button variant="secondary" onClick={() => setPapersOpen(true)}><Icon.Layers className="h-4 w-4" /> From past papers</Button>
+            <Button onClick={openNew}><Icon.Plus className="h-4 w-4" /> New homework</Button>
+          </>
+        }
       />
 
       {assignments.length === 0 ? (
@@ -135,7 +203,7 @@ export default function AdminAssignmentsPage() {
           action={<Button onClick={openNew}><Icon.Plus className="h-4 w-4" /> New homework</Button>}
         />
       ) : (
-        <div className="space-y-3">
+        <Card className="divide-y divide-border overflow-hidden p-0">
           {assignments.map((a) => {
             const handIns = db.assignmentSubmissions.filter((s) => s.assignmentId === a.id);
             const overdue = +new Date(a.dueAt) < nowMs;
@@ -143,21 +211,21 @@ export default function AdminAssignmentsPage() {
             const cls = db.classes.find((c) => c.id === a.classId);
             const subj = db.subjects.find((x) => x.id === a.subjectId);
             return (
-              <Card key={a.id} ruled className="p-4">
+              <div key={a.id} className="px-4 py-4 transition-colors hover:bg-white/[0.018]">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge tone={overdue ? "warning" : "success"}>{overdue ? "Closed" : "Open"}</Badge>
-                      <span className="text-sm text-ink-2">Due {formatTimestamp(a.dueAt)}</span>
+                      <span className="text-sm tabular-nums text-ink-3">Due {formatTimestamp(a.dueAt)}</span>
                     </div>
-                    <h3 className="mt-1.5 text-lg font-bold text-ink">{a.title}</h3>
-                    <p className="mt-0.5 text-sm text-ink-3">
+                    <h3 className="mt-1.5 text-base font-semibold tracking-[-0.01em] text-ink">{a.title}</h3>
+                    <p className="mt-0.5 text-sm tabular-nums text-ink-3">
                       {[cohort?.name, cls?.name, subj?.name].filter(Boolean).join(" › ") || "All students"}
                       {" · "}
                       {handIns.length} handed in
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <Button variant="secondary" size="sm" onClick={() => setOpenId(a.id)}>
                       Hand-ins ({handIns.length})
                     </Button>
@@ -166,28 +234,28 @@ export default function AdminAssignmentsPage() {
                     </Button>
                     <button
                       onClick={() => setDeleteId(a.id)}
-                      className="flex h-10 w-10 items-center justify-center rounded-md text-ink-3 hover:bg-error-soft hover:text-error"
+                      className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error max-md:h-11 max-md:w-11"
                       aria-label={`Delete ${a.title}`}
                     >
                       <Icon.Trash className="h-[18px] w-[18px]" />
                     </button>
                   </div>
                 </div>
-              </Card>
+              </div>
             );
           })}
-        </div>
+        </Card>
       )}
 
       {/* Create / edit */}
       <Modal
         open={!!form}
-        onClose={() => { setForm(null); setEditing(null); }}
+        onClose={() => { setForm(null); setEditing(null); setPpQs(null); }}
         title={editing === "new" ? "New homework" : "Edit homework"}
         size="lg"
         footer={
           <>
-            <Button variant="secondary" onClick={() => { setForm(null); setEditing(null); }}>Cancel</Button>
+            <Button variant="secondary" onClick={() => { setForm(null); setEditing(null); setPpQs(null); }}>Cancel</Button>
             <Button onClick={save}>Save</Button>
           </>
         }
@@ -223,8 +291,51 @@ export default function AdminAssignmentsPage() {
               </Select>
             </div>
 
+            {ppQs && (
+              <div>
+                <Label>Past paper questions ({ppQs.length})</Label>
+                {ppQs.length === 0 ? (
+                  <p className="text-sm text-ink-3">All removed. Attach a worksheet below, or close and build again.</p>
+                ) : (
+                  <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+                    {ppQs.map((q) => (
+                      <li key={q.id} className="flex items-center gap-3 py-2 pl-2 pr-1">
+                        <div className="w-16 shrink-0 overflow-hidden rounded border border-border bg-white sm:w-20">
+                          <div className="max-h-14 overflow-hidden">
+                            <PaperImage url={q.attachments[0]} width={300} alt={`${q.label}, first page`} />
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-ink">{q.label}</p>
+                          <p className="truncate text-xs text-ink-3">{q.kind === "mcq" ? "Multiple choice" : "Written"} · {q.topic}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void swapPaper(q)}
+                          disabled={swapping !== null}
+                          className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-50"
+                          aria-label={`Swap ${q.label}`}
+                          title="Replace it with another past paper question on the same topic"
+                        >
+                          <Icon.Refresh className="h-4 w-4" /> <span className="hidden sm:inline">{swapping === q.id ? "Swapping…" : "Swap"}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPapers(ppQs.filter((x) => x.id !== q.id))}
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error"
+                          aria-label={`Remove ${q.label}`}
+                        >
+                          <Icon.Close className="h-4 w-4" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
             <div>
-              <Label>Worksheet (optional)</Label>
+              <Label>{ppQs ? "Your own worksheet (optional)" : "Worksheet (optional)"}</Label>
               <input
                 ref={fileRef}
                 type="file"
@@ -234,12 +345,13 @@ export default function AdminAssignmentsPage() {
                 onChange={(e) => void addFiles(Array.from(e.target.files ?? []))}
                 aria-label="Attach a PDF or images"
               />
-              {form.attachments.length > 0 && (
+              {form.attachments.some((u) => !ppUrls.has(u)) && (
                 <ul className="mb-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
-                  {form.attachments.map((url, i) => (
+                  {form.attachments.map((url, i) => ppUrls.has(url) ? null : (
                     <li key={url} className="relative">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={cld(url, 400)} loading="lazy" decoding="async" alt={`Page ${i + 1}`} className="h-24 w-full rounded border border-border bg-surface-2 object-cover" />
+                      <div className="h-24 w-full overflow-hidden rounded border border-border bg-surface-2">
+                        <PaperImage url={url} width={400} alt={`Page ${i + 1}`} className="h-24 w-full object-cover" />
+                      </div>
                       <button
                         type="button"
                         onClick={() => setForm({ ...form, attachments: form.attachments.filter((_, idx) => idx !== i) })}
@@ -253,12 +365,14 @@ export default function AdminAssignmentsPage() {
                 </ul>
               )}
               <Button variant="secondary" size="sm" type="button" loading={uploading} onClick={() => fileRef.current?.click()}>
-                {form.attachments.length ? "Add more pages" : "Attach PDF or image"}
+                {form.attachments.some((u) => !ppUrls.has(u)) ? "Add more pages" : "Attach PDF or image"}
               </Button>
             </div>
           </div>
         )}
       </Modal>
+
+      <PastPaperSheet open={papersOpen} onClose={() => setPapersOpen(false)} mode="homework" defaultCohortId={cohortId ?? null} onBuilt={fromPapers} />
 
       {/* Hand-ins + feedback */}
       <Modal

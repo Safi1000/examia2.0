@@ -12,6 +12,8 @@ import { Card, Button, Badge, EmptyState, Icon } from "@/components/ui";
 import { formatTimestamp, formatWhen } from "@/lib/time";
 import { cn } from "@/lib/cn";
 import { useNow } from "@/hooks/useNow";
+import { FocusOnThis } from "@/components/student/FocusOnThis";
+import { EmptyArt, PageHeader } from "@/components/student/PortalKit";
 
 /**
  * Weekly assignments. Work is handed in as photos or a PDF and answered with
@@ -55,27 +57,34 @@ export default function StudentAssignmentsPage() {
   if (!studentId) return null;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-      <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink">Homework</h1>
-      <p className="mb-6 mt-2 text-base text-ink-2">Hand in your work as photos or a PDF.</p>
+    <div className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+      <div className="rise space-y-8">
+      <PageHeader title="Homework">Hand in your work as photos or a PDF.</PageHeader>
 
       {assignments.length === 0 && done.length === 0 ? (
-        <EmptyState icon={<Icon.Doc />} title="No homework right now" message="When I set homework, it appears here with its due date." />
+        <EmptyState
+          icon={<Icon.Doc />}
+          art={<EmptyArt name="empty-all-caught-up" />}
+          title="No homework right now"
+          message="When I set homework, it appears here with its due date."
+        />
       ) : assignments.length === 0 ? (
-        <p className="text-sm text-ink-2">All handed in. Nothing to do right now.</p>
+        <div className="surface flex items-center gap-4 rounded-xl px-5 py-4 sm:px-6">
+          <p className="text-base font-semibold text-ink">All handed in. Nothing to do right now.</p>
+        </div>
       ) : (
         <div className="space-y-4">
           {assignments.map((a) => (
-            <AssignmentCard key={a.id} assignment={a} studentId={studentId} />
+            <AssignmentCard key={a.id} assignment={a} studentId={studentId} lead={a.id === assignments.find((x) => !handedIn(x))?.id} />
           ))}
         </div>
       )}
 
       {done.length > 0 && (
-        <details open={doneOpen} onToggle={(e) => setDoneOpen(e.currentTarget.open)} className="group mt-8">
-          <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
+        <details open={doneOpen} onToggle={(e) => setDoneOpen(e.currentTarget.open)} className="group">
+          <summary className="surface surface-link flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-5 text-[15px] font-semibold text-ink sm:px-6 [&::-webkit-details-marker]:hidden">
             <span>
-              Done <span className="font-normal text-ink-3">· {done.length}</span>
+              Done <span className="font-normal text-ink-3 tabular-nums">· {done.length}</span>
             </span>
             <Icon.ChevronRight className="h-4 w-4 text-ink-3 transition-transform group-open:rotate-90" />
           </summary>
@@ -88,11 +97,12 @@ export default function StudentAssignmentsPage() {
           )}
         </details>
       )}
+      </div>
     </div>
   );
 }
 
-function AssignmentCard({ assignment, studentId }: { assignment: Assignment; studentId: string }) {
+function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignment; studentId: string; lead?: boolean }) {
   const db = useDatabase();
   const store = useStore();
   const { toast } = useToast();
@@ -163,7 +173,7 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
   }
 
   return (
-    <Card id={`a-${assignment.id}`} className="scroll-mt-24 p-4">
+    <Card id={`a-${assignment.id}`} className="scroll-mt-24 p-5 sm:p-6">
       <div className="flex items-center justify-between gap-2">
         <p className="min-w-0 truncate text-xs font-medium text-ink-3">{subjectName ?? "Homework"}</p>
         {mine ? (
@@ -172,19 +182,19 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
           overdue && <Badge tone="warning">Overdue</Badge>
         )}
       </div>
-      <h2 className="mt-1.5 text-lg font-bold text-ink">{assignment.title}</h2>
-      <p className={cn("mt-0.5 text-sm", overdue && !mine ? "font-semibold text-warning" : "text-ink-2")}>Due {formatWhen(assignment.dueAt)}</p>
-      {assignment.instructions && <p className="mt-1 whitespace-pre-wrap text-sm text-ink-2">{assignment.instructions}</p>}
+      <h2 className="mt-1.5 text-xl font-bold leading-snug tracking-[-0.015em] text-ink">{assignment.title}</h2>
+      <p className={cn("mt-1 text-sm tabular-nums", overdue && !mine ? "font-semibold text-warning" : "text-ink-2")}>Due {formatWhen(assignment.dueAt)}</p>
+      {assignment.instructions && <p className="mt-3 max-w-[65ch] whitespace-pre-wrap text-base leading-relaxed text-ink-2">{assignment.instructions}</p>}
 
       {assignment.attachments.length > 0 && (
-        <div className="mt-3">
+        <div className="mt-4">
           <PageStack urls={assignment.attachments} label="Worksheet" />
         </div>
       )}
 
       {mine && mine.fileUrls.length > 0 && (
-        <div className="mt-4">
-          <p className="mb-1.5 text-xs font-semibold text-ink-3">
+        <div className="mt-5 border-t border-hairline pt-4">
+          <p className="mb-2 text-xs font-semibold text-ink-3 tabular-nums">
             Your work · {mine.fileUrls.length} {mine.fileUrls.length === 1 ? "page" : "pages"} · handed in {formatTimestamp(mine.submittedAt)}
           </p>
           <PageStack urls={mine.fileUrls} label="Your work" />
@@ -222,13 +232,13 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
       )}
 
       {mine?.feedback && (
-        <div className="mt-3 rounded-md border border-info/30 bg-info-soft/60 px-3 py-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-info">From Hamza</p>
-          <p className="mt-0.5 whitespace-pre-wrap text-sm text-ink">{mine.feedback}</p>
+        <div className="mt-4 rounded-lg border border-hairline bg-surface-2/70 px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <p className="label-quiet text-ink-3">From Hamza</p>
+          <p className="mt-1.5 whitespace-pre-wrap text-base leading-relaxed text-ink">{mine.feedback}</p>
         </div>
       )}
 
-      <div className="mt-4">
+      <div className="mt-5">
         <input
           ref={fileRef}
           type="file"
@@ -242,16 +252,19 @@ function AssignmentCard({ assignment, studentId }: { assignment: Assignment; stu
           }}
           aria-label="Upload your work"
         />
-        <Button
-          variant={mine ? "secondary" : "primary"}
-          loading={uploading}
-          onClick={() => {
-            replacing.current = false;
-            fileRef.current?.click();
-          }}
-        >
-          <Icon.Camera className="h-4 w-4" /> {mine ? "Add more pages" : overdue ? "Hand in late" : "Hand in work"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant={mine || !lead ? "secondary" : "primary"}
+            loading={uploading}
+            onClick={() => {
+              replacing.current = false;
+              fileRef.current?.click();
+            }}
+          >
+            <Icon.Camera className="h-4 w-4" /> {mine ? "Add more pages" : overdue ? "Hand in late" : "Hand in work"}
+          </Button>
+          {!mine && <FocusOnThis kind="homework" title={assignment.title} subject={subjectName} />}
+        </div>
         {uploading && (
           <div className="mt-2.5 flex items-center gap-2.5" role="status">
             <span className="h-1.5 w-40 overflow-hidden rounded-full bg-surface-2" aria-hidden>

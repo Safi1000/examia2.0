@@ -15,6 +15,8 @@ import { FilterChips } from "@/components/admin/FilterChips";
 import { BulkBar, RowCheck } from "@/components/admin/BulkBar";
 import { fromLocalInput } from "@/lib/time";
 import { buttonClasses } from "@/components/ui/Button";
+import { PastPaperSheet, type PastPaperBuild } from "@/components/admin/PastPaperSheet";
+import { questionFromBuilt, testMinutes } from "@/lib/paper-builder";
 
 const STATUS_TONE: Record<TestStatus, "neutral" | "success" | "warning"> = {
   draft: "neutral",
@@ -96,6 +98,36 @@ export default function AdminTestsPage() {
     router.push(`/admin/tests/${id}`);
   }
 
+  // From past papers: a draft test, questions and answers in, opened to check and publish.
+  const [papersOpen, setPapersOpen] = useState(false);
+  async function fromPapers(b: PastPaperBuild) {
+    const topic = b.topicNames.length > 1 ? `${b.topicNames[0]} and ${b.topicNames.length - 1} more` : (b.topicNames[0] ?? "Past papers");
+    const id = store.addTest({
+      title: `${b.subjectName.replace(/ Studies$/, "")}: ${topic}`,
+      subject: b.subjectName,
+      subjectId: b.subjectId,
+      classId: b.classId,
+      durationMinutes: testMinutes(b.questions),
+      // Written answers are photographed: a few minutes after the writing time.
+      uploadMinutes: b.questions.some((q) => q.kind === "written") ? 5 : 0,
+      cohortId: b.cohortId,
+      opensAt: b.opensAt,
+      closesAt: b.closesAt,
+      testCode: `PP-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+      status: "draft",
+    });
+    // Questions only once the test row is saved (they point at it).
+    await store.testSaved(id);
+    if (!store.getSnapshot().tests.some((t) => t.id === id)) {
+      setPapersOpen(false);
+      toast("The test didn't save. Try again.", "error");
+      return;
+    }
+    for (const q of b.questions) store.addQuestion(id, questionFromBuilt(q), { bank: false });
+    setPapersOpen(false);
+    router.push(`/admin/tests/${id}`);
+  }
+
   const target = deleteId ? db.tests.find((t) => t.id === deleteId) : null;
 
   return (
@@ -103,7 +135,12 @@ export default function AdminTestsPage() {
       <PageHeader
         title="Tests"
         subtitle={`${tests.length} ${tests.length === 1 ? "test" : "tests"}`}
-        actions={<Button onClick={createTest}><Icon.Plus className="h-4 w-4" /> New test</Button>}
+        actions={
+          <>
+            <Button variant="secondary" onClick={() => setPapersOpen(true)}><Icon.Layers className="h-4 w-4" /> From past papers</Button>
+            <Button onClick={createTest}><Icon.Plus className="h-4 w-4" /> New test</Button>
+          </>
+        }
       />
 
       {/* Admins land here, so this is where what-needs-chasing lives. */}
@@ -115,7 +152,7 @@ export default function AdminTestsPage() {
             type="datetime-local"
             value={bulkClose}
             onChange={(e) => setBulkClose(e.target.value)}
-            className="h-9 rounded-md border border-border-strong bg-surface px-2 text-sm text-ink"
+            className="h-10 rounded-lg border border-border-strong bg-surface px-2.5 text-sm tabular-nums text-ink"
             aria-label="New close date for the selected tests"
           />
         </label>
@@ -175,15 +212,13 @@ export default function AdminTestsPage() {
           action={<Button onClick={createTest}><Icon.Plus className="h-4 w-4" /> New test</Button>}
         />
       ) : (
-        <div className="space-y-3">
+        <Card className="divide-y divide-border overflow-hidden p-0">
           {tests.map((t) => {
             const stats = testStats(db, t);
             const cohort = cohortById(db, t.cohortId);
             return (
-              <Card key={t.id} ruled className="p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <span className="pt-1">
+              <div key={t.id} className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-3 px-4 py-4 transition-colors hover:bg-white/[0.018] lg:grid-cols-[auto_minmax(0,1fr)_19rem_auto] lg:items-center lg:gap-x-5">
+                    <span className="pt-0.5 lg:pt-0">
                       <RowCheck
                         checked={picked.includes(t.id)}
                         onChange={(on) => setPicked((prev) => (on ? [...prev, t.id] : prev.filter((x) => x !== t.id)))}
@@ -195,8 +230,10 @@ export default function AdminTestsPage() {
                       <Pill>{t.testCode}</Pill>
                       <Badge tone={STATUS_TONE[liveStatus(t)]} className="capitalize">{liveStatus(t)}</Badge>
                     </div>
-                    <h3 className="mt-1.5 text-lg font-bold text-ink">{t.title}</h3>
-                    <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-sm text-ink-2">
+                    <h3 className="mt-1.5 text-base font-semibold tracking-[-0.01em] text-ink">
+                      <Link href={`/admin/tests/${t.id}`} className="underline-offset-4 hover:underline">{t.title}</Link>
+                    </h3>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm tabular-nums text-ink-3">
                       <span>{t.subject}</span>
                       <span>·</span>
                       <span>{t.questions.length} Q</span>
@@ -205,15 +242,28 @@ export default function AdminTestsPage() {
                       {cohort ? <CohortTag color={cohort.color} name={cohort.name} className="text-xs" /> : <span className="text-xs text-ink-3">All cohorts</span>}
                     </p>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
+
+                <div className="col-span-2 grid grid-cols-3 gap-2 border-t border-border pt-3 lg:col-span-1 lg:border-0 lg:pt-0">
+                  <Stat label="Submissions" value={String(stats.submissionCount)} />
+                  {stats.averagePercent != null ? (
+                    <Stat label="Average" value={`${stats.averagePercent}%`} />
+                  ) : (
+                    <Stat
+                      label={stats.pendingCount > 0 ? "Awaiting" : "Average"}
+                      value={stats.pendingCount > 0 ? `${stats.pendingCount} to mark` : stats.submissionCount > 0 ? "All marked" : "None yet"}
+                    />
+                  )}
+                  <Stat label="Completion" value={`${stats.completionPercent}%`} />
+                </div>
+
+                  <div className="col-span-2 flex items-center justify-end gap-1.5 lg:col-span-1">
                     <Link href={`/admin/tests/${t.id}`} className={buttonClasses({ variant: "secondary", size: "sm" })}>
                       <Icon.Edit className="h-4 w-4" /> Edit
                     </Link>
                     <button
                       onClick={() => void duplicate(t.id)}
                       disabled={copying !== null}
-                      className="flex h-10 items-center gap-1.5 rounded-md px-2.5 text-sm font-semibold text-ink-2 hover:bg-surface-2 hover:text-ink disabled:opacity-50"
+                      className="flex h-10 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-50 max-md:h-11"
                       aria-label={`Duplicate ${t.title}`}
                       title="Make a copy to edit: same questions and answers, as a hidden draft"
                     >
@@ -222,31 +272,19 @@ export default function AdminTestsPage() {
                     </button>
                     <button
                       onClick={() => setDeleteId(t.id)}
-                      className="flex h-10 w-10 items-center justify-center rounded-md text-ink-3 hover:bg-error-soft hover:text-error"
+                      className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error max-md:h-11 max-md:w-11"
                       aria-label={`Delete ${t.title}`}
                     >
                       <Icon.Trash className="h-[18px] w-[18px]" />
                     </button>
                   </div>
-                </div>
-
-                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-3 text-center">
-                  <Stat label="Submissions" value={String(stats.submissionCount)} />
-                  {stats.averagePercent != null ? (
-                    <Stat label="Average" value={`${stats.averagePercent}%`} />
-                  ) : (
-                    <Stat
-                      label={stats.pendingCount > 0 ? "Awaiting" : "Average"}
-                      value={stats.pendingCount > 0 ? `${stats.pendingCount} to mark` : "All marked"}
-                    />
-                  )}
-                  <Stat label="Completion" value={`${stats.completionPercent}%`} />
-                </div>
-              </Card>
+              </div>
             );
           })}
-        </div>
+        </Card>
       )}
+
+      <PastPaperSheet open={papersOpen} onClose={() => setPapersOpen(false)} mode="test" defaultCohortId={cohortId ?? null} onBuilt={(b) => void fromPapers(b)} />
 
       {/* Closing stops students handing in, so it's confirmed, and it can be undone. */}
       <Modal
@@ -306,8 +344,8 @@ export default function AdminTestsPage() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <p className="font-mono text-lg font-bold text-ink">{value}</p>
+    <div className="lg:text-right">
+      <p className="text-[15px] font-semibold tabular-nums text-ink">{value}</p>
       <p className="text-xs text-ink-3">{label}</p>
     </div>
   );

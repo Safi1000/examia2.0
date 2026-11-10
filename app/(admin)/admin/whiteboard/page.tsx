@@ -31,14 +31,19 @@ export default function WhiteboardPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         {steps.map((s) => (
           <Card key={s.n} className="flex flex-col p-5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-sm font-bold text-on-brand">{s.n}</span>
-            <h2 className="mt-3 text-lg font-bold text-ink">{s.title}</h2>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-2 text-sm font-semibold tabular-nums text-ink ring-1 ring-inset ring-white/[0.08]">{s.n}</span>
+            <h2 className="mt-3 text-base font-semibold tracking-[-0.01em] text-ink">{s.title}</h2>
             <p className="mt-1 flex-1 text-sm text-ink-2">{s.body}</p>
             <a
               href={s.href}
               target="_blank"
               rel="noreferrer"
-              className="mt-4 inline-flex h-11 items-center justify-center rounded-full bg-brand px-5 text-sm font-semibold text-on-brand transition hover:brightness-110"
+              // One gold button per view: the tablet board leads, the laptop one is quieter.
+              className={
+                s.n === "1"
+                  ? "mt-4 inline-flex h-11 items-center justify-center rounded-full bg-brand px-5 text-sm font-semibold text-on-brand transition hover:brightness-110"
+                  : "mt-4 inline-flex h-11 items-center justify-center rounded-full border border-border-strong px-5 text-sm font-semibold text-ink transition-colors hover:bg-surface-2"
+              }
             >
               {s.cta}
             </a>

@@ -73,13 +73,25 @@ export function todaysMission(db: Database, student: Student, nowMs: number): Mi
 }
 
 const fmt = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`);
-const medal = ["🥇", "🥈", "🥉"];
 
 /**
  * Home card for the study space: today's mission, this week's time against the
  * student's goal, their level and streak, and the cohort's top 3 this week.
  */
-export function StudyBuddy({ db, student, nowMs, mission: given }: { db: Database; student: Student; nowMs: number; mission?: Mission | null }) {
+export function StudyBuddy({
+  db,
+  student,
+  nowMs,
+  mission: given,
+  quiet,
+}: {
+  db: Database;
+  student: Student;
+  nowMs: number;
+  mission?: Mission | null;
+  /** Something else on the page has the gold button: Start stays outlined. */
+  quiet?: boolean;
+}) {
   const { profile } = useAuth();
   const [open, setOpen] = useState<null | "free" | "mission">(null);
   const stats = currentStats(profile.focus, nowMs);
@@ -94,23 +106,23 @@ export function StudyBuddy({ db, student, nowMs, mission: given }: { db: Databas
 
   return (
     <>
-      <section className="animate-fade-up overflow-hidden rounded-lg border border-border bg-surface">
+      <section className="surface overflow-hidden rounded-xl">
         {mission && (
           <button
             type="button"
             onClick={() => setOpen("mission")}
-            className="flex w-full items-center justify-between gap-3 border-b border-border bg-brand/[0.06] px-5 py-3.5 text-left transition-colors hover:bg-brand/[0.1]"
+            className="flex w-full items-center justify-between gap-3 border-b border-hairline bg-brand/[0.05] px-5 py-4 text-left transition-colors hover:bg-brand/[0.09] sm:px-6"
           >
             <span className="min-w-0">
               <span className="block text-xs font-semibold text-brand">Today&apos;s mission</span>
-              <span className="block truncate text-sm text-ink">
+              <span className="mt-0.5 block truncate text-[15px] text-ink">
                 <span className="font-semibold">{mission.topic}</span> <span className="text-ink-3">· {mission.subject} · 25 min</span>
               </span>
             </span>
             <Icon.ChevronRight className="h-4 w-4 shrink-0 text-brand" />
           </button>
         )}
-        <div className="flex items-center gap-4 p-5">
+        <div className="flex items-center gap-4 p-5 sm:px-6">
           <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden className="shrink-0 -rotate-90">
             <circle cx="28" cy="28" r={r} fill="none" stroke="var(--color-surface-2)" strokeWidth="6" />
             {pct > 0 && <circle cx="28" cy="28" r={r} fill="none" stroke="var(--color-brand)" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${c * pct} ${c}`} />}
@@ -119,7 +131,7 @@ export function StudyBuddy({ db, student, nowMs, mission: given }: { db: Databas
             <Link href="/groundwork" className="inline-flex min-h-11 items-center gap-1 whitespace-nowrap font-semibold text-ink hover:text-brand">
               {STUDY_NAME} <Icon.ChevronRight className="h-3 w-3" />
             </Link>
-            <p className="mt-1 text-sm text-ink-2">
+            <p className="mt-1 text-sm text-ink-2 tabular-nums">
               <span className="font-semibold text-ink">{fmt(stats.weekMinutes)}</span> <span className="whitespace-nowrap">of {profile.weeklyGoal ?? 5} h this week</span>
             </p>
             <p className="text-xs text-ink-3">
@@ -130,18 +142,22 @@ export function StudyBuddy({ db, student, nowMs, mission: given }: { db: Databas
           <button
             type="button"
             onClick={() => setOpen("free")}
-            className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-brand px-5 text-sm font-semibold text-on-brand transition hover:brightness-110 active:scale-[0.98]"
+            className={
+              quiet
+                ? "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-border-strong px-5 text-sm font-semibold text-ink transition hover:border-ink-3 hover:bg-surface-2 active:scale-[0.98]"
+                : "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-brand px-5 text-sm font-semibold text-on-brand transition hover:brightness-110 active:scale-[0.98]"
+            }
           >
             Start <Icon.ChevronRight className="h-4 w-4" />
           </button>
         </div>
         {top && top.top.length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border px-5 py-3 text-sm">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-hairline px-5 py-3.5 text-sm sm:px-6">
             <span className="text-xs font-semibold text-ink-3">Top this week</span>
             {top.top.map((t, i) => (
-              <span key={i} className="inline-flex items-center gap-1.5 text-ink-2">
-                <span aria-hidden>{medal[i]}</span>
-                <Avatar id={t.avatar} initials={t.name[0]} className="h-5 w-5 text-[11px]" />
+              <span key={i} className="inline-flex items-center gap-1.5 text-ink-2 tabular-nums">
+                <span className="w-3 text-right text-xs font-bold text-ink-3">{i + 1}</span>
+                <Avatar id={t.avatar} initials={t.name[0]} className="h-5 w-5 text-xs" />
                 <span className="font-semibold text-ink">{t.name}</span> {fmt(t.minutes)}
               </span>
             ))}

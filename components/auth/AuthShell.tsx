@@ -107,7 +107,7 @@ export function AuthShell({
         </div>
 
         <p
-          className="auth-reveal mt-7 flex items-center justify-center gap-2 text-[10px] font-semibold uppercase tracking-[0.38em] text-ink-3"
+          className="auth-reveal mt-7 flex items-center justify-center gap-2 text-[12px] font-semibold uppercase tracking-[0.16em] text-ink-3"
           style={{ animationDelay: "260ms" }}
         >
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
@@ -131,7 +131,7 @@ export function AuthShell({
         </div>
 
         {footer && (
-          <div className="auth-reveal mt-10 text-center text-[12px] text-ink-3" style={{ animationDelay: "760ms" }}>
+          <div className="auth-reveal mt-10 text-center text-[14px] text-ink-3" style={{ animationDelay: "760ms" }}>
             {footer}
           </div>
         )}
@@ -140,13 +140,13 @@ export function AuthShell({
   );
 }
 
-/** Tiny tracked label above a field. */
-export const labelClass = "mb-2.5 block text-[10px] font-semibold uppercase tracking-[0.28em] text-ink-3";
+/** Quiet label above a field, readable at a glance. */
+export const labelClass = "mb-2 block text-[14px] font-semibold text-ink-2";
 
 export const fieldClass =
-  "w-full h-[52px] rounded-2xl border border-white/[0.07] bg-white/[0.035] px-4 text-[16px] tracking-wide text-ink " +
+  "w-full h-[52px] rounded-2xl border border-white/[0.16] bg-white/[0.035] px-4 text-[16px] tracking-wide text-ink " +
   "shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-sm placeholder:text-ink-3/50 " +
-  "transition-[border-color,background-color,box-shadow] duration-300 hover:border-white/[0.12] " +
+  "transition-[border-color,background-color,box-shadow] duration-300 hover:border-white/[0.24] " +
   "focus:border-brand/50 focus:bg-white/[0.05] focus:shadow-[0_0_0_4px_rgba(251,193,89,0.08)] focus:outline-none " +
   "disabled:cursor-not-allowed disabled:opacity-50 " +
   // Browser autofill paints its own square box: repaint it in the field's colour.
@@ -247,10 +247,10 @@ export function SubmitButton({ busy, disabled, children }: { busy: boolean; disa
       disabled={disabled || busy}
       className={cn(
         "auth-btn group relative mt-10 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-full px-4",
-        "bg-[linear-gradient(180deg,#ffd27e,#f2b44a)] text-[14px] font-semibold uppercase tracking-[0.2em] text-[#1a1d20]",
+        "bg-[linear-gradient(180deg,#ffd27e,#f2b44a)] text-[15px] font-semibold text-[#1a1d20]",
         "shadow-[0_8px_22px_-12px_rgba(251,193,89,0.6)] transition-[filter,transform,opacity] hover:brightness-105 active:scale-[0.99]",
         "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand",
-        "disabled:cursor-not-allowed disabled:border disabled:border-brand/25 disabled:bg-none disabled:bg-transparent disabled:text-brand/55 disabled:shadow-none",
+        "disabled:cursor-not-allowed disabled:border disabled:border-brand/30 disabled:bg-none disabled:bg-transparent disabled:text-brand/70 disabled:shadow-none",
       )}
     >
       {busy ? (

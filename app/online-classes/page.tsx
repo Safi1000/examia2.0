@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
+import "@/components/landing/public-calm.css";
 import { Crumbs, Section, Table, TrialBox } from "@/components/study/StudyBits";
 import { CITY_PAGES } from "@/lib/city-pages";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
@@ -52,9 +53,9 @@ export default function OnlineClassesPakistan() {
     <MarketingShell>
       <JsonLd data={breadcrumbLd([{ name: "Home", path: "/" }, { name: "Online classes", path: "/online-classes" }])} />
       <JsonLd data={faqLd(FAQ)} />
-      <div className="mx-auto max-w-3xl px-5 pb-20 pt-14 md:pt-20">
+      <div className="public-calm mx-auto max-w-3xl px-5 pb-24 pt-12 md:pt-20">
         <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Online classes" }]} />
-        <h1 className="mt-8 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">
+        <h1 className="mt-8 text-[2.25rem] leading-[1.08] md:text-5xl">
           Online O Level and A Level classes in Accounting, Business and Economics
         </h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
@@ -84,7 +85,7 @@ export default function OnlineClassesPakistan() {
           <ul className="grid gap-3 sm:grid-cols-3">
             {CITY_PAGES.map((c) => (
               <li key={c.slug}>
-                <Link href={`/online-classes/${c.slug}`} className="block rounded-[16px] border border-hairline bg-card px-5 py-4 text-foreground hover:border-gold-border">
+                <Link href={`/online-classes/${c.slug}`} className="pc-surface pc-surface-link flex min-h-14 items-center justify-between rounded-[16px] px-5 py-4 font-semibold text-[#f0ede8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
                   {c.city}
                 </Link>
               </li>

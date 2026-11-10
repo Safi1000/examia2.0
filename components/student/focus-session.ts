@@ -26,6 +26,8 @@ export interface RunningFocus {
   savedAt: number;
   /** Whole minutes of it already added to the week. */
   logged: number;
+  /** When they left Groundwork during it (stay to build); doneMs stops there. */
+  awayAt?: number;
 }
 
 const KEY = "ht_focus_running";

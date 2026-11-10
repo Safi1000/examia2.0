@@ -53,7 +53,7 @@ export default function LeadsPage() {
             type="button"
             onClick={() => setInterest(i.id)}
             aria-pressed={interest === i.id}
-            className={`h-9 rounded-full px-4 text-sm font-semibold ${interest === i.id ? "bg-brand text-on-brand" : "border border-border text-ink-2 hover:text-ink"}`}
+            className={`h-9 rounded-full px-4 text-sm font-semibold ${interest === i.id ? "border border-white/[0.16] bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "border border-border text-ink-3 hover:border-border-strong hover:text-ink"}`}
           >
             {i.label}
           </button>
@@ -72,7 +72,7 @@ export default function LeadsPage() {
         <Card className="overflow-hidden p-0">
           <ul className="divide-y divide-border">
             {shown.map((l) => (
-              <li key={l.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 text-sm">
+              <li key={l.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm transition-colors hover:bg-white/[0.018]">
                 <span className="min-w-0">
                   <span className="block font-semibold text-ink">
                     {l.name} <span className="font-normal text-ink-3">· {[l.level, ...l.subjects].filter(Boolean).join(", ")}</span>
@@ -81,7 +81,7 @@ export default function LeadsPage() {
                     {l.interests.map(label).join(" · ") || "No preference"} · from {l.source || "site"} · {new Date(l.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                   </span>
                 </span>
-                <a href={`https://wa.me/${waDigits(l.phone)}`} target="_blank" rel="noreferrer" className="shrink-0 text-sm font-semibold text-brand hover:underline">
+                <a href={`https://wa.me/${waDigits(l.phone)}`} target="_blank" rel="noreferrer" className="inline-flex h-10 shrink-0 items-center rounded-full border border-border-strong px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-2 max-md:h-11">
                   WhatsApp
                 </a>
               </li>

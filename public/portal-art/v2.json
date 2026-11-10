@@ -1,0 +1,224 @@
+{
+  "version": 2,
+  "generated": "2026-11-09",
+  "usage": {
+    "stone": "Showcase art, shown at 96px and up. Transparent WebP for the dark portal background (#212427).",
+    "glyphs": "Small and list use, under 96px. Monochrome SVG drawn with currentColor.",
+    "gradeRings": "Grades under 96px: plain type in a fine ring, built in CSS, no files.",
+    "bezel": "Avatar frames: see design-mockups/portal-art/v2/bezel-spec.md"
+  },
+  "stone": {
+    "size": {
+      "1x": 160,
+      "2x": 320
+    },
+    "minDisplay": 96,
+    "items": {
+      "subjects": {
+        "accounting": {
+          "alt": "Limestone square ring split on the diagonal, with gold seams",
+          "src": "/portal-art/stone/subjects/accounting.webp",
+          "src2x": "/portal-art/stone/subjects/accounting@2x.webp",
+          "bytes1x": 3610,
+          "bytes2x": 7344
+        },
+        "business": {
+          "alt": "Three stepped ceramic blocks with a gold top edge",
+          "src": "/portal-art/stone/subjects/business.webp",
+          "src2x": "/portal-art/stone/subjects/business@2x.webp",
+          "bytes1x": 3126,
+          "bytes2x": 6414
+        },
+        "economics": {
+          "alt": "A stone bar and a curved ceramic ribbon crossing on a basalt slab",
+          "src": "/portal-art/stone/subjects/economics.webp",
+          "src2x": "/portal-art/stone/subjects/economics@2x.webp",
+          "bytes1x": 4496,
+          "bytes2x": 9358
+        },
+        "general": {
+          "alt": "Honed river stone with a gold line",
+          "src": "/portal-art/stone/subjects/general.webp",
+          "src2x": "/portal-art/stone/subjects/general@2x.webp",
+          "bytes1x": 3214,
+          "bytes2x": 6848
+        }
+      },
+      "grades": {
+        "a-star": {
+          "alt": "Basalt tablet with A* inlaid in polished gold",
+          "src": "/portal-art/stone/grades/a-star.webp",
+          "src2x": "/portal-art/stone/grades/a-star@2x.webp",
+          "bytes1x": 3702,
+          "bytes2x": 7246
+        },
+        "a": {
+          "alt": "Limestone tablet engraved A, fine gold rim line",
+          "src": "/portal-art/stone/grades/a.webp",
+          "src2x": "/portal-art/stone/grades/a@2x.webp",
+          "bytes1x": 3998,
+          "bytes2x": 8352
+        },
+        "b": {
+          "alt": "Ceramic tablet engraved B",
+          "src": "/portal-art/stone/grades/b.webp",
+          "src2x": "/portal-art/stone/grades/b@2x.webp",
+          "bytes1x": 3564,
+          "bytes2x": 6850
+        },
+        "c": {
+          "alt": "Sandstone tablet engraved C",
+          "src": "/portal-art/stone/grades/c.webp",
+          "src2x": "/portal-art/stone/grades/c@2x.webp",
+          "bytes1x": 3704,
+          "bytes2x": 7186
+        },
+        "d": {
+          "alt": "Limestone tablet engraved D",
+          "src": "/portal-art/stone/grades/d.webp",
+          "src2x": "/portal-art/stone/grades/d@2x.webp",
+          "bytes1x": 3490,
+          "bytes2x": 6774
+        },
+        "e": {
+          "alt": "Grey stone tablet engraved E",
+          "src": "/portal-art/stone/grades/e.webp",
+          "src2x": "/portal-art/stone/grades/e@2x.webp",
+          "bytes1x": 3478,
+          "bytes2x": 6856
+        },
+        "u": {
+          "alt": "Slate tablet engraved U",
+          "src": "/portal-art/stone/grades/u.webp",
+          "src2x": "/portal-art/stone/grades/u@2x.webp",
+          "bytes1x": 3328,
+          "bytes2x": 6534
+        },
+        "personal-best": {
+          "alt": "Limestone stele with a gold line near the top",
+          "src": "/portal-art/stone/grades/personal-best.webp",
+          "src2x": "/portal-art/stone/grades/personal-best@2x.webp",
+          "bytes1x": 2634,
+          "bytes2x": 4512
+        }
+      },
+      "badges": {
+        "first-paper": {
+          "alt": "A folded ceramic sheet with a gold fold",
+          "src": "/portal-art/stone/badges/first-paper.webp",
+          "src2x": "/portal-art/stone/badges/first-paper@2x.webp",
+          "bytes1x": 3116,
+          "bytes2x": 6770
+        },
+        "streak-7": {
+          "alt": "Seven stacked stones, the top one gold",
+          "src": "/portal-art/stone/badges/streak-7.webp",
+          "src2x": "/portal-art/stone/badges/streak-7@2x.webp",
+          "bytes1x": 3064,
+          "bytes2x": 6260
+        },
+        "hours-25": {
+          "alt": "Stone sand-timer with a gold collar",
+          "src": "/portal-art/stone/badges/hours-25.webp",
+          "src2x": "/portal-art/stone/badges/hours-25@2x.webp",
+          "bytes1x": 3112,
+          "bytes2x": 5980
+        }
+      }
+    }
+  },
+  "glyphs": {
+    "grid": 24,
+    "stroke": 1.75,
+    "linecap": "round",
+    "linejoin": "round",
+    "color": "currentColor",
+    "goldOnly": [
+      "personal-best"
+    ],
+    "items": {
+      "accounting": {
+        "src": "/portal-art/glyphs/accounting.svg",
+        "bytes": 250
+      },
+      "business": {
+        "src": "/portal-art/glyphs/business.svg",
+        "bytes": 249
+      },
+      "economics": {
+        "src": "/portal-art/glyphs/economics.svg",
+        "bytes": 259
+      },
+      "general": {
+        "src": "/portal-art/glyphs/general.svg",
+        "bytes": 266
+      },
+      "first-paper": {
+        "src": "/portal-art/glyphs/first-paper.svg",
+        "bytes": 303
+      },
+      "streak-7": {
+        "src": "/portal-art/glyphs/streak-7.svg",
+        "bytes": 403
+      },
+      "hours-25": {
+        "src": "/portal-art/glyphs/hours-25.svg",
+        "bytes": 346
+      },
+      "personal-best": {
+        "src": "/portal-art/glyphs/personal-best.svg",
+        "bytes": 263
+      }
+    }
+  },
+  "gradeRings": {
+    "grades": [
+      "A*",
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "U"
+    ],
+    "font": "Inter Tight 600, letter-spacing -0.02em",
+    "sizes": {
+      "40": {
+        "ring": "1px",
+        "letter": "17px"
+      },
+      "64": {
+        "ring": "1px",
+        "letter": "26px"
+      },
+      "112": {
+        "ring": "1.25px",
+        "letter": "46px"
+      }
+    },
+    "ring": "inset box-shadow, rgba(240,237,232,.34), circle, no fill",
+    "letter": "#F0EDE8",
+    "aStar": {
+      "ring": "rgba(251,193,89,.75)",
+      "innerRing": "0.75px rgba(251,193,89,.32) at 7% inset (0.5px .35 at 9% for 40px)",
+      "letter": "#FBC159",
+      "asterisk": "superscript * at 0.55em, raised 0.55em"
+    },
+    "u": {
+      "ring": "rgba(240,237,232,.18)",
+      "letter": "rgba(240,237,232,.55)"
+    }
+  },
+  "bezel": {
+    "spec": "design-mockups/portal-art/v2/bezel-spec.md",
+    "levels": {
+      "Starter": null,
+      "Steady": "hairline",
+      "Sharp": "bronze",
+      "Scholar": "silver",
+      "Topper": "gold",
+      "Legend": "gold+inner+glow"
+    },
+    "gap": "#141618"
+  }
+}

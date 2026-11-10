@@ -13,7 +13,7 @@ import {
   nextSlot,
   reviewDone,
   reviewQueue,
-  sceneFor,
+  worldScene,
   slotLabel,
   sortSlots,
   weekDays,
@@ -24,8 +24,8 @@ import { ShareMoment } from "@/components/student/ShareMoment";
 import { Icon } from "@/components/ui";
 
 const fmt = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`);
-const card = "rounded-[22px] border border-border bg-surface p-5 sm:p-6";
-const kicker = "text-[11px] font-semibold uppercase tracking-[0.3em] text-brand";
+const card = "surface rounded-[22px] p-5 sm:p-6";
+const kicker = "text-xs font-semibold uppercase tracking-[0.3em] text-brand";
 
 /** This week: one dot per day, the days target, the weekly streak and hours. */
 export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
@@ -64,7 +64,7 @@ export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
             >
               {d.minutes > 0 ? "✓" : ""}
             </span>
-            <span className={`text-[11px] ${d.isToday ? "font-semibold text-ink" : "text-ink-3"}`}>{["M", "T", "W", "T", "F", "S", "S"][i]}</span>
+            <span className={`text-xs ${d.isToday ? "font-semibold text-ink" : "text-ink-3"}`}>{["M", "T", "W", "T", "F", "S", "S"][i]}</span>
           </li>
         ))}
       </ol>
@@ -74,7 +74,7 @@ export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
           <select
             value={target}
             onChange={(e) => updateProfile({ daysTarget: Number(e.target.value) })}
-            className="h-10 rounded-full border border-border bg-surface-2 px-3 text-sm font-semibold text-ink"
+            className="h-11 rounded-full border border-border bg-surface-2 px-3 text-sm font-semibold text-ink"
           >
             {DAYS_TARGETS.map((t) => (
               <option key={t} value={t}>
@@ -86,7 +86,7 @@ export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
         {streak.hit && (
           <ShareMoment
             label="Share my week"
-            moment={{ kicker: "Groundwork · this week", big: `${streak.thisWeek} study days`, sub: streak.weeks > 1 ? `${streak.weeks} weeks in a row` : `${fmt(stats.weekMinutes)} of study this week`, name, scene: sceneFor(profile.scene, nowMs) }}
+            moment={{ kicker: "Groundwork · this week", big: `${streak.thisWeek} study days`, sub: streak.weeks > 1 ? `${streak.weeks} weeks in a row` : `${fmt(stats.weekMinutes)} of study this week`, name, scene: worldScene(profile.world) }}
           />
         )}
       </div>
@@ -129,7 +129,7 @@ export function SlotsCard({ nowMs }: { nowMs: number }) {
           </p>
           <p className="text-sm text-ink-3">{next ? "Your phone reminds you at each one." : "A set time, every week, is what turns studying into a habit."}</p>
         </div>
-        <button type="button" onClick={startEdit} className="h-10 shrink-0 rounded-full bg-surface-2 px-4 text-sm font-semibold text-ink hover:bg-surface-2/70">
+        <button type="button" onClick={startEdit} className="h-11 shrink-0 rounded-full bg-surface-2 px-4 text-sm font-semibold text-ink hover:bg-surface-2/70">
           {slots.length ? "Edit" : "Set times"}
         </button>
       </div>
@@ -153,7 +153,7 @@ export function SlotsCard({ nowMs }: { nowMs: number }) {
                   type="button"
                   aria-pressed={days.includes(d)}
                   onClick={() => setDays(days.includes(d) ? days.filter((x) => x !== d) : [...days, d])}
-                  className={`h-10 min-w-12 rounded-full px-3 text-sm font-semibold ${days.includes(d) ? "bg-brand text-on-brand" : "border border-border text-ink-2"}`}
+                  className={`h-11 min-w-12 rounded-full px-3 text-sm font-semibold ${days.includes(d) ? "bg-brand text-on-brand" : "border border-border text-ink-2"}`}
                 >
                   {DAY_SHORT[d]}
                 </button>
@@ -178,7 +178,7 @@ export function SlotsCard({ nowMs }: { nowMs: number }) {
               Cancel
             </button>
           </div>
-          <p className="text-[11px] text-ink-3">
+          <p className="text-xs text-ink-3">
             Reminders need notifications on (<Link href="/settings" className="underline">Settings</Link>). No reminders after 10 pm.
           </p>
         </div>
@@ -215,7 +215,7 @@ export function ReviewCard({ weak, nowMs, onStudy }: { weak: Array<{ subject: st
               <button
                 type="button"
                 onClick={() => updateProfile((p) => ({ reviews: reviewDone(p.reviews, q.key, nowMs) }))}
-                className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border border-border-strong px-4 text-sm font-semibold text-ink hover:border-brand/60"
+                className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-border-strong px-4 text-sm font-semibold text-ink hover:border-brand/60"
               >
                 <Icon.Check className="h-4 w-4" /> Reviewed
               </button>
@@ -228,7 +228,7 @@ export function ReviewCard({ weak, nowMs, onStudy }: { weak: Array<{ subject: st
 }
 
 /** The Sunday review: the week in three numbers, then next week's plan. */
-export function SundayReview({ week, nowMs, name }: { week: string; nowMs: number; name: string }) {
+export function SundayReview({ week, name }: { week: string; nowMs: number; name: string }) {
   const { profile, updateProfile } = useAuth();
   const target = profile.daysTarget ?? DEFAULT_DAYS_TARGET;
   const days = Array.from({ length: 7 }, (_, i) => {
@@ -252,7 +252,7 @@ export function SundayReview({ week, nowMs, name }: { week: string; nowMs: numbe
           <div key={l} className="rounded-2xl bg-surface/70 px-2 py-3">
             <dt className="sr-only">{l}</dt>
             <dd className="text-lg font-extrabold text-ink">{v}</dd>
-            <dd className="text-[11px] text-ink-3">{l}</dd>
+            <dd className="text-xs text-ink-3">{l}</dd>
           </div>
         ))}
       </dl>
@@ -264,7 +264,7 @@ export function SundayReview({ week, nowMs, name }: { week: string; nowMs: numbe
           Done, plan set
         </button>
         {studied >= target && (
-          <ShareMoment label="Share my week" moment={{ kicker: "Groundwork · my week", big: `${studied} study days`, sub: `${fmt(minutes)} of study`, name, scene: sceneFor(profile.scene, nowMs) }} />
+          <ShareMoment label="Share my week" moment={{ kicker: "Groundwork · my week", big: `${studied} study days`, sub: `${fmt(minutes)} of study`, name, scene: worldScene(profile.world) }} />
         )}
       </div>
     </section>

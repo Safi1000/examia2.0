@@ -130,7 +130,7 @@ export function TimetableEditor({ onDirtyChange }: { onDirtyChange?: (dirty: boo
         return (
           <Card key={level} className="overflow-hidden">
             <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
-              <h3 className="font-bold text-ink">{LEVEL_LABEL[level]}</h3>
+              <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">{LEVEL_LABEL[level]}</h3>
               <Button size="sm" variant="ghost" onClick={() => addSlot(level)}>
                 <Icon.Plus className="h-4 w-4" /> Add class
               </Button>

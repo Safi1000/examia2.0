@@ -46,9 +46,13 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
       if (e.key === "Tab" && dialogRef.current) {
-        const nodes = dialogRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input:not([type=radio]), input[type=radio]:checked, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
+        // Only what is on screen: the folded "More details" choices are hidden, and
+        // a hidden last item would let Tab slip out of the dialog.
+        const nodes = [
+          ...dialogRef.current.querySelectorAll<HTMLElement>(
+            'button, [href], input:not([type=radio]), input[type=radio]:checked, select, textarea, [tabindex]:not([tabindex="-1"])',
+          ),
+        ].filter((n) => n.getClientRects().length > 0);
         if (!nodes.length) return;
         const first = nodes[0];
         const last = nodes[nodes.length - 1];

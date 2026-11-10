@@ -23,6 +23,11 @@ import type { Profile } from "@/lib/profile";
 import { displayName } from "@/lib/display-name";
 import { isAsStudent } from "@/lib/grading";
 import { cn } from "@/lib/cn";
+import { DEMO } from "@/lib/demo";
+import { FocusOnThis } from "@/components/student/FocusOnThis";
+import { IslandHeader } from "@/components/student/IslandHeader";
+import { SectionTitle } from "@/components/student/PortalKit";
+import { JOIN_EARLY_MIN, pkDate, slotsForStudent, useSchedule } from "@/lib/classes";
 
 function greeting(d = new Date()) {
   const h = d.getHours();
@@ -46,6 +51,7 @@ export default function DashboardPage() {
   const { session, profile } = useAuth();
   const db = useDatabase();
   const nowMs = useNow();
+  useSchedule(); // re-render when the timetable loads, so the class check below is current
   const student = session?.studentId ? studentById(db, session.studentId) : null;
 
   const due = useMemo(() => (student ? dueFor(db, student, nowMs) : null), [db, student, nowMs]);
@@ -95,93 +101,129 @@ export default function DashboardPage() {
       return t ? [{ key: `r-${x.id}`, href: `/results/${t.id}`, title: t.title, meta: `Result out · ${Math.round(gradeSubmission(t, x).percent)}%`, cta: "See result", quiet: true }] : [];
     });
 
-  const todo: Array<{ key: string; href: string; title: string; meta: string; cta: string; quiet?: boolean }> = [
-    ...tests.open.map((t) => ({ key: t.id, href: `/test/${t.id}`, title: t.title, meta: `Test · closes ${formatRelative(t.closesAt, nowMs)}`, cta: "Start" })),
+  const subjectOf = (id?: string | null) => (id ? db.subjects.find((x) => x.id === id)?.name : undefined);
+  type Todo = { key: string; href: string; title: string; meta: string; cta: string; quiet?: boolean; focus?: { kind: "test" | "homework"; subject?: string } };
+  const todo: Todo[] = [
+    ...tests.open.map((t) => ({ key: t.id, href: `/test/${t.id}`, title: t.title, meta: `Test · closes ${formatRelative(t.closesAt, nowMs)}`, cta: "Start", focus: { kind: "test" as const, subject: t.subject } })),
     // Straight to that homework on the Homework page, not the top of the list.
-    ...overdue.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · overdue since ${formatWhen(a.dueAt)}`, cta: "Hand in" })),
-    ...dueSoon.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · due ${formatWhen(a.dueAt)}`, cta: "Hand in" })),
+    ...overdue.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · overdue since ${formatWhen(a.dueAt)}`, cta: "Hand in", focus: { kind: "homework" as const, subject: subjectOf(a.subjectId) } })),
+    ...dueSoon.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · due ${formatWhen(a.dueAt)}`, cta: "Hand in", focus: { kind: "homework" as const, subject: subjectOf(a.subjectId) } })),
     ...newResults,
   ];
   const toDoCount = todo.filter((x) => !x.quiet).length;
-  // One gold button on the list: the most urgent item. The rest stay quiet.
-  const lead = todo.find((x) => !x.quiet)?.key;
+  // A class about to start or running turns the class card gold with its Join
+  // button: then that is the one gold action on Home, and everything else stays outlined.
+  const classOn = slotsForStudent(db, student, pkDate(nowMs)).some((sl) => nowMs >= sl.startMs - JOIN_EARLY_MIN * 60_000 && nowMs < sl.endMs);
+  // Otherwise one gold button on the list: the most urgent item. The rest stay quiet.
+  const lead = classOn ? undefined : todo.find((x) => !x.quiet)?.key;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-7 px-4 py-8 sm:px-6">
-      <header className="animate-fade-up">
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-brand">
-          {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
-        </p>
-        <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink sm:text-[2.5rem]">
-          {greeting()}, {displayName(student.username).split(" ")[0]}.
-        </h1>
-        <p className="mt-2.5 text-base text-ink-2">{status}</p>
-      </header>
+    <div className="mx-auto max-w-3xl px-4 pb-16 pt-4 sm:px-6 sm:pt-8">
+      {/* One entrance for the page: each block rises in, 70ms apart. */}
+      <div className="rise space-y-8">
+        <HomeHero name={displayName(student.username).split(" ")[0]} status={status} studentId={student.id} totalMinutes={profile.focus?.totalMinutes} />
 
-      <ClassNow db={db} student={student} nowMs={nowMs} />
-      <NotifyCard />
+        <ClassNow db={db} student={student} nowMs={nowMs} />
+        <NotifyCard />
 
-      {todo.length > 0 && (
-        <section className="animate-fade-up space-y-2.5">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-ink">
-            {toDoCount > 0 ? (
-              <>
-                <span className="h-2 w-2 animate-low-pulse rounded-full bg-brand" /> To do
-                <span className="text-sm font-medium text-ink-3 tabular-nums">{toDoCount}</span>
-              </>
-            ) : (
-              "New for you"
-            )}
-          </h2>
-          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
-            {todo.map((x) => (
-              <li key={x.key}>
-                <Link href={x.href} className="flex items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-surface-2 active:bg-surface-2">
-                  <span className="min-w-0">
-                    <span className="line-clamp-2 break-words font-semibold text-ink">{x.title}</span>
-                    <span className="block text-sm text-ink-3">{x.meta}</span>
-                  </span>
-                  <span
-                    className={cn(
-                      "inline-flex h-10 shrink-0 items-center gap-1 rounded-full px-4 text-sm font-semibold",
-                      x.key === lead ? "bg-brand text-on-brand" : "border border-border-strong text-ink",
-                    )}
+        {todo.length > 0 && (
+          <section aria-labelledby="todo-title">
+            <SectionTitle id="todo-title" live={toDoCount > 0} count={toDoCount}>
+              {toDoCount > 0 ? "To do" : "New for you"}
+            </SectionTitle>
+            <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
+              {todo.map((x) => (
+                // The whole row opens the item (a stretched link); "Focus on this" sits on top of it.
+                // Phones: the title gets the full width, with the date and buttons on the line under it.
+                // Wider screens: title and date on the left, buttons on the right.
+                <li
+                  key={x.key}
+                  className="row-link relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-5 py-4 [grid-template-areas:'title_title'_'meta_actions'] sm:gap-y-0.5 sm:px-6 sm:[grid-template-areas:'title_actions'_'meta_actions']"
+                >
+                  <Link
+                    href={x.href}
+                    className="line-clamp-2 break-words font-semibold text-ink [grid-area:title] after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-brand"
                   >
-                    {x.cta} <Icon.ChevronRight className="h-4 w-4" />
+                    {x.title}
+                    <span className="sr-only">, {x.cta}</span>
+                  </Link>
+                  <span className="block text-sm text-ink-3 tabular-nums [grid-area:meta]">{x.meta}</span>
+                  <span className="flex items-center gap-3 [grid-area:actions]">
+                    {x.focus && <FocusOnThis kind={x.focus.kind} title={x.title} subject={x.focus.subject} href={x.href} variant="icon" />}
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "inline-flex h-10 shrink-0 items-center gap-1 rounded-full px-4 text-sm font-semibold transition-colors",
+                        x.key === lead
+                          ? "bg-brand text-on-brand shadow-[0_8px_20px_-10px_rgba(251,193,89,0.7)]"
+                          : "border border-border-strong text-ink",
+                      )}
+                    >
+                      {x.cta} <Icon.ChevronRight className="h-4 w-4" />
+                    </span>
                   </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
-      {todo.length === 0 && (
-        <div className="animate-fade-up flex items-center gap-4 rounded-lg border border-border bg-surface px-5 py-4">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success-soft text-success">
-            <Icon.Check className="h-5 w-5" />
-          </span>
-          <p className="text-sm text-ink-2">
-            <span className="block font-semibold text-ink">Nothing due right now.</span>
-            {tests.next ? `Next test opens ${formatWhen(tests.next.opensAt)}.` : "New tests and homework show up here."}
-          </p>
+        {todo.length === 0 && (
+          <div className="surface flex items-center gap-4 rounded-xl px-5 py-4 sm:px-6">
+            <p className="text-base text-ink-2">
+              <span className="block font-semibold text-ink">Nothing due right now.</span>
+              {tests.next ? `Next test opens ${formatWhen(tests.next.opensAt)}.` : "New tests and homework show up here."}
+            </p>
+          </div>
+        )}
+
+        {/* Hamza's notices: high up, but one line each so the day's work stays in view. */}
+        <AnnouncementsPanel student={student} />
+
+        {/* Five quick past paper questions from covered chapters, once a day. */}
+        <DailyFive books={books} />
+
+        {/* Its Start button stays quiet while something above has the gold one. */}
+        <StudyBuddy db={db} student={student} nowMs={nowMs} mission={mission} quiet={toDoCount > 0 || classOn} />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <PerformanceCard perf={perf} targets={profile.targets} asOnly={isAsStudent(student?.id)} attendance={attendance} syllabus={syllabus} />
+          <PlanCard week={week} daysLeft={plan.daysLeft} />
         </div>
-      )}
-
-      {/* Hamza's notices: high up, but one line each so the day's work stays in view. */}
-      <AnnouncementsPanel student={student} />
-
-      {/* Five quick past paper questions from covered chapters, once a day. */}
-      <DailyFive books={books} />
-
-      <StudyBuddy db={db} student={student} nowMs={nowMs} mission={mission} />
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <PerformanceCard perf={perf} targets={profile.targets} asOnly={isAsStudent(student?.id)} attendance={attendance} syllabus={syllabus} />
-        <PlanCard week={week} daysLeft={plan.daysLeft} />
       </div>
-
     </div>
+  );
+}
+
+/** The part of the day, for the greeting and the header picture. */
+function partOfDay(d = new Date()) {
+  // Preview only (npm run dev:demo): ?tod=dawn|day|dusk|night shows that picture.
+  if (DEMO && typeof window !== "undefined") {
+    const t = new URLSearchParams(window.location.search).get("tod");
+    if (t === "dawn" || t === "day" || t === "dusk" || t === "night") return t;
+  }
+  const h = d.getHours();
+  if (h >= 5 && h < 8) return "dawn";
+  if (h >= 8 && h < 17) return "day";
+  if (h >= 17 && h < 20) return "dusk";
+  return "night";
+}
+
+/**
+ * The greeting band at the top of Home: the student's own island, which gains a
+ * piece for every full focus block (IslandHeader), lit for the time of day.
+ */
+function HomeHero({ name, status, studentId, totalMinutes }: { name: string; status: string; studentId: string; totalMinutes: number | undefined }) {
+  return (
+    <IslandHeader studentId={studentId} totalMinutes={totalMinutes} timeOfDay={partOfDay()}>
+      <p className="label-quiet text-ink-2">
+        {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+      </p>
+      <h1 className="mt-2.5 text-[2rem] font-extrabold leading-[1.04] tracking-[-0.03em] text-ink [text-shadow:0_2px_18px_rgba(0,0,0,0.35)] sm:text-[2.5rem] lg:text-[2.75rem]">
+        {greeting()}, {name}.
+      </h1>
+      <p className="mt-3 max-w-[40ch] text-base leading-relaxed text-pretty text-ink-2">{status}</p>
+    </IslandHeader>
   );
 }
 
@@ -207,30 +249,27 @@ function PerformanceCard({
     return target ? [{ ...s, target, gap: Math.max(0, Math.ceil(GRADE_FLOOR[target] - s.recent)) }] : [];
   });
   return (
-    <Link
-      href="/progress"
-      className="animate-fade-up flex flex-col rounded-lg border border-border bg-surface p-5 transition-colors hover:border-border-strong"
-    >
-      <p className="font-semibold text-ink">How you&apos;re doing</p>
+    <Link href="/progress" className="surface surface-link flex flex-col rounded-xl p-5 sm:p-6">
+      <p className="text-[17px] font-bold tracking-[-0.01em] text-ink">How you&apos;re doing</p>
       {!perf || perf.marked < 3 ? (
-        <p className="mt-3 flex-1 text-sm text-ink-2">
+        <p className="mt-3 flex-1 text-[15px] text-ink-2">
           {perf ? `${perf.marked} of 3 tests marked. ` : ""}Your grade shows here after three marked tests.
         </p>
       ) : (
         <div className="mt-3 flex-1">
           <div className="flex items-end justify-between gap-3">
             <div className="flex items-end gap-3">
-              <span className="text-5xl font-extrabold leading-none tracking-tight text-brand">{perf.grade}</span>
+              <span className="text-5xl font-extrabold leading-none tracking-[-0.03em] text-brand tabular-nums">{perf.grade}</span>
               <span className="pb-1 text-sm text-ink-2">
                 <span className="font-semibold tabular-nums text-ink">{Math.round(perf.recent)}%</span> avg
                 <br />
-                <span className="text-xs text-ink-3">last {Math.min(5, perf.marked)} tests</span>
+                <span className="text-xs text-ink-3 tabular-nums">last {Math.min(5, perf.marked)} tests</span>
               </span>
             </div>
             <Sparkline points={perf.points} />
           </div>
           {perf.delta != null && Math.abs(perf.delta) >= 1 && (
-            <p className={cn("mt-3 text-sm font-semibold", perf.delta > 0 ? "text-success" : "text-warning")}>
+            <p className={cn("mt-3 text-sm font-semibold tabular-nums", perf.delta > 0 ? "text-success" : "text-warning")}>
               {perf.delta > 0 ? "▲" : "▼"} {Math.abs(Math.round(perf.delta))}% vs the tests before
             </p>
           )}
@@ -262,7 +301,7 @@ function PerformanceCard({
         </div>
       )}
       {(attendance != null || syllabus != null) && (
-        <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4">
+        <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-hairline pt-4">
           {attendance != null && (
             <div>
               <dt className="text-xs text-ink-3">Attendance</dt>
@@ -277,7 +316,7 @@ function PerformanceCard({
           )}
         </dl>
       )}
-      <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand">
+      <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-ink-2">
         Full progress <Icon.ChevronRight className="h-4 w-4" />
       </span>
     </Link>
@@ -286,19 +325,15 @@ function PerformanceCard({
 
 function PlanCard({ week, daysLeft }: { week: PlanWeek | null; daysLeft: number }) {
   return (
-    <Link
-      href="/plan"
-      className="animate-fade-up flex flex-col rounded-lg border border-border bg-surface p-5 transition-colors hover:border-border-strong"
-      style={{ animationDelay: "40ms" }}
-    >
+    <Link href="/plan" className="surface surface-link flex flex-col rounded-xl p-5 sm:p-6">
       <div className="flex items-baseline justify-between gap-3">
-        <p className="font-semibold text-ink">This week</p>
+        <p className="text-[17px] font-bold tracking-[-0.01em] text-ink">This week</p>
         <span className="text-sm tabular-nums text-ink-2">
-          <span className="font-bold text-brand">{daysLeft}</span> days to exams
+          <span className="font-bold text-ink">{daysLeft}</span> days to exams
         </span>
       </div>
       <div className="mt-3 flex-1">
-        <p className="text-sm text-ink-2">{week ? PHASE_LABEL[week.phase] : "Your plan"}</p>
+        <p className="text-[15px] text-ink-2">{week ? PHASE_LABEL[week.phase] : "Your plan"}</p>
         {week && week.topics.length > 0 ? (
           <div className="mt-2.5 flex flex-wrap gap-2">
             {week.topics.map((t) => (
@@ -306,7 +341,7 @@ function PlanCard({ week, daysLeft }: { week: PlanWeek | null; daysLeft: number 
             ))}
           </div>
         ) : (
-          <p className="mt-1.5 text-sm text-ink-2">Revise this week&apos;s class topics from your notes.</p>
+          <p className="mt-1.5 text-[15px] text-ink-2">Revise this week&apos;s class topics from your notes.</p>
         )}
         {week && week.tests.length > 0 && (
           <p className="mt-2.5 text-sm text-ink-3">
@@ -314,7 +349,7 @@ function PlanCard({ week, daysLeft }: { week: PlanWeek | null; daysLeft: number 
           </p>
         )}
       </div>
-      <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand">
+      <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-ink-2">
         See your full plan <Icon.ChevronRight className="h-4 w-4" />
       </span>
     </Link>

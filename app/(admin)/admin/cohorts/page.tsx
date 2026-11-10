@@ -118,11 +118,11 @@ export default function CohortsPage() {
                     <CohortDot color={c.color} size={16} />
                   </span>
                   <div className="min-w-0">
-                    <p className="flex items-center gap-2 truncate font-bold text-ink">
+                    <p className="flex items-center gap-2 truncate font-semibold tracking-[-0.01em] text-ink">
                       {c.name}
                       {!c.active && <Badge tone="neutral">Off</Badge>}
                     </p>
-                    <p className="text-sm text-ink-2">{studentCount} students · {testCount} tests</p>
+                    <p className="text-sm tabular-nums text-ink-3">{studentCount} {studentCount === 1 ? "student" : "students"} · {testCount} {testCount === 1 ? "test" : "tests"}</p>
                     {!c.active && (
                       <p className="mt-1.5 flex flex-wrap gap-x-3 text-xs font-semibold">
                         <Link href="/admin/roster?archive=1" className="text-brand hover:underline">Students</Link>
@@ -136,7 +136,7 @@ export default function CohortsPage() {
                           <span key={n} className="rounded border border-border px-1.5 py-0.5 text-xs text-ink-2">{n}</span>
                         ))}
                         {subjectNames.map((n) => (
-                          <span key={n} className="rounded border border-brand/40 bg-brand-soft px-1.5 py-0.5 text-xs text-brand">{n}</span>
+                          <span key={n} className="rounded-md bg-surface-2 px-1.5 py-0.5 text-xs text-ink-2">{n}</span>
                         ))}
                       </div>
                     )}
@@ -158,16 +158,16 @@ export default function CohortsPage() {
                       store.setCohortActive(c.id, true);
                       toast(`${c.name} is back on. Its students, tests and work are out of the archive.`, "success");
                     }}
-                    className="flex h-9 items-center rounded px-2 text-xs font-semibold text-ink-3 hover:bg-surface-2 hover:text-ink"
+                    className="flex h-10 items-center rounded-full px-3 text-xs font-semibold text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11"
                     aria-label={c.active ? `Archive ${c.name}` : `Switch on ${c.name}`}
                     title={c.active ? "Archive: hide everything from this cohort and delete its notes" : "Switch back on"}
                   >
                     {c.active ? "Archive" : "Switch on"}
                   </button>
-                  <button onClick={() => openEdit(c)} className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label={`Edit ${c.name}`}>
+                  <button onClick={() => openEdit(c)} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors max-md:h-11 max-md:w-11 hover:bg-surface-2 hover:text-ink" aria-label={`Edit ${c.name}`}>
                     <Icon.Edit className="h-4 w-4" />
                   </button>
-                  <button onClick={() => { setDeleting(c); setReassignTo(""); }} disabled={db.cohorts.length < 2} className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-error-soft hover:text-error disabled:opacity-30" aria-label={`Delete ${c.name}`}>
+                  <button onClick={() => { setDeleting(c); setReassignTo(""); }} disabled={db.cohorts.length < 2} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors max-md:h-11 max-md:w-11 hover:bg-error-soft hover:text-error disabled:opacity-30" aria-label={`Delete ${c.name}`}>
                     <Icon.Trash className="h-4 w-4" />
                   </button>
                 </div>

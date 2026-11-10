@@ -51,7 +51,7 @@ export default async function SyllabusPage({ params }: Props) {
       <ChecklistProvider code={s.code}>
         <article className="mx-auto max-w-3xl px-5 pb-20 pt-14 md:pt-20">
           <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Syllabus checklists", href: "/syllabus" }, { name: s.name }]} />
-          <h1 className="mt-8 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{s.name} syllabus checklist</h1>
+          <h1 className="mt-8 text-balance text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{s.name} syllabus checklist</h1>
           <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
             The full Cambridge syllabus for exams in {s.exams}: {s.topics.length} topics, {subtopicCount(s)} subtopics and {pointCount(s)} learning
             points, word for word. Tap a subtopic to see exactly what you need to know, then mark it Not sure or Confident.
@@ -76,21 +76,24 @@ export default async function SyllabusPage({ params }: Props) {
               <h2 className="text-2xl font-bold leading-tight text-foreground md:text-3xl">
                 {t.num}. {t.name}
               </h2>
-              <ul className="mt-5 space-y-3">
+              <ul className="surface mt-5 divide-y divide-hairline overflow-hidden rounded-[20px]">
                 {t.subs.map((u) => {
                   const topical = topicalHrefFor(s.code, u.num);
                   const links = [...(topical ? [{ href: topical, label: "Past paper questions on this" }] : []), ...resourcesFor(`${t.name} ${u.name} ${u.parts.map((p) => p.name).join(" ")}`)];
                   return (
-                    <li key={u.num} id={`s-${u.num}`} className="scroll-mt-24 rounded-[16px] border border-hairline bg-card">
+                    <li key={u.num} id={`s-${u.num}`} className="scroll-mt-28">
                       <details className="group">
-                        <summary className="flex cursor-pointer list-none items-start justify-between gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
-                          <span className="min-w-0">
-                            <span className="text-sm tabular-nums text-faint">{u.num}</span>
-                            <span className="block font-semibold text-foreground">{u.name}</span>
-                            <span className="mt-0.5 block text-xs text-muted-foreground group-open:hidden">Tap to see what you need to know</span>
+                        <summary className="row-link flex min-h-14 cursor-pointer list-none items-start gap-4 px-5 pb-2 pt-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-gold [&::-webkit-details-marker]:hidden">
+                          <span className="w-9 shrink-0 pt-px text-[15px] tabular-nums text-muted-foreground">{u.num}</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[17px] font-semibold leading-snug text-foreground">{u.name}</span>
+                            <span className="mt-1 block text-[13px] text-muted-foreground group-open:hidden">Tap to see what you need to know</span>
                           </span>
+                          <svg aria-hidden viewBox="0 0 20 20" className="mt-1 h-4 w-4 shrink-0 text-faint transition-transform duration-300 group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m5 8 5 5 5-5" />
+                          </svg>
                         </summary>
-                        <div className="space-y-4 border-t border-hairline px-5 py-4">
+                        <div className="ml-[3.25rem] mr-5 mt-2 space-y-4 border-t border-hairline py-4">
                           {u.parts.map((p) => (
                             <div key={p.num + p.name}>
                               {p.name !== u.name && (
@@ -135,7 +138,7 @@ export default async function SyllabusPage({ params }: Props) {
                           )}
                         </div>
                       </details>
-                      <div className="flex justify-end border-t border-hairline px-5 py-3">
+                      <div className="flex justify-end px-5 pb-3">
                         <Rate num={u.num} name={u.name} />
                       </div>
                     </li>

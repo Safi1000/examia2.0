@@ -8,10 +8,12 @@ import { archivedCohortIds, cohortById, inLateWindow, isArchivedSubmission } fro
 import { displayName } from "@/lib/display-name";
 import { ArchiveTabs, archiveFromUrl, type ArchiveView } from "@/components/admin/ArchiveTabs";
 import { useToast } from "@/components/toast";
+import { stickyHead, tableBox } from "@/components/admin/surface";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Button, Badge, CohortDot, EmptyState, Icon, TableScroll, Table, Th, Td, Modal } from "@/components/ui";
 import { FilterChips } from "@/components/admin/FilterChips";
 import { BulkBar, RowCheck } from "@/components/admin/BulkBar";
+import { cn } from "@/lib/cn";
 import { buttonClasses } from "@/components/ui/Button";
 import { gradeSubmission, isAllMcq } from "@/lib/grading";
 import { isFullyGraded } from "@/lib/scoring";
@@ -150,9 +152,9 @@ export default function SubmissionsPage() {
       {rows.length === 0 ? (
         <EmptyState icon={<Icon.Inbox />} title="No submissions" message="Nothing matches the current filters." />
       ) : (
-        <Card className="p-0">
-          <TableScroll>
-            <Table stickyFirst>
+        <Card className="overflow-hidden p-0">
+          <TableScroll className={tableBox}>
+            <Table stickyFirst className={stickyHead}>
               <thead>
                 <tr>
                   <Th className="w-10">
@@ -165,10 +167,10 @@ export default function SubmissionsPage() {
                   <Th>Student</Th>
                   <Th>Test</Th>
                   <Th className="hidden lg:table-cell">Cohort</Th>
-                  <Th>Status</Th>
-                  <Th>Score</Th>
+                  <Th className="hidden md:table-cell">Status</Th>
+                  <Th className="hidden md:table-cell">Score</Th>
                   <Th className="hidden md:table-cell">Submitted</Th>
-                  <Th>Actions</Th>
+                  <Th><span className="max-md:sr-only">Actions</span></Th>
                 </tr>
               </thead>
               <tbody>
@@ -185,13 +187,25 @@ export default function SubmissionsPage() {
                       </Td>
                       <Td className="font-semibold capitalize">
                         {/* On a phone the actions sit off to the side: the name opens the paper too. */}
-                        <Link href={`/admin/grading/${sub.id}`} className="hover:text-brand">
+                        <Link href={`/admin/grading/${sub.id}`} className="underline-offset-4 hover:underline">
                           {student?.username ?? "Removed student"}
                         </Link>
                       </Td>
-                      <Td className="min-w-[10rem] text-ink-2">{test.title}<span className="block text-xs text-ink-3">{test.subject}</span></Td>
+                      <Td className="min-w-[8rem] text-ink-2 md:min-w-[10rem]">
+                        {/* On a phone the status and score sit here, so nothing scrolls sideways. */}
+                        <Link href={`/admin/grading/${sub.id}`} className="md:pointer-events-none">{test.title}</Link>
+                        <span className="block text-xs text-ink-3">{test.subject}</span>
+                        <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs md:hidden">
+                          {sub.status === "released" ? (
+                            <span className="font-semibold tabular-nums text-ink">{grade.percent}% · {grade.letter}</span>
+                          ) : (
+                            <Badge tone="warning">Awaiting</Badge>
+                          )}
+                          {sub.late && !inLateWindow(db, sub) && <span className="font-semibold text-error">late</span>}
+                        </span>
+                      </Td>
                       <Td className="hidden lg:table-cell">{cohort ? <span className="inline-flex items-center gap-1.5 text-ink-2"><CohortDot color={cohort.color} />{cohort.name}</span> : "No cohort"}</Td>
-                      <Td>
+                      <Td className="hidden md:table-cell">
                         {sub.status === "released" ? <Badge tone="success">Released</Badge> : <Badge tone="warning">Awaiting</Badge>}
                         {sub.autoSubmitted && <span className="ml-1 text-xs text-ink-3">auto</span>}
                         {sub.late &&
@@ -201,14 +215,14 @@ export default function SubmissionsPage() {
                             <span className="ml-1 text-xs font-semibold text-error">late</span>
                           ))}
                       </Td>
-                      <Td className="font-mono">{sub.status === "released" ? `${grade.percent}% · ${grade.letter}` : <span className="text-ink-3">Not yet</span>}</Td>
-                      <Td className="hidden whitespace-nowrap text-ink-2 md:table-cell">{sub.submittedAt ? formatTimestamp(sub.submittedAt) : "Not yet"}</Td>
+                      <Td className="hidden whitespace-nowrap font-semibold tabular-nums md:table-cell">{sub.status === "released" ? `${grade.percent}% · ${grade.letter}` : <span className="font-normal text-ink-3">Not yet</span>}</Td>
+                      <Td className="hidden whitespace-nowrap tabular-nums text-ink-2 md:table-cell">{sub.submittedAt ? formatTimestamp(sub.submittedAt) : "Not yet"}</Td>
                       <Td>
                         <div className="flex items-center gap-1.5">
-                          <Link href={`/admin/grading/${sub.id}`} className={buttonClasses({ variant: "secondary", size: "sm" })}>
+                          <Link href={`/admin/grading/${sub.id}`} className={cn(buttonClasses({ variant: "secondary", size: "sm" }), "max-md:hidden")}>
                             {sub.status === "released" ? "Review" : "Grade"}
                           </Link>
-                          <button onClick={() => setDeleteId(sub.id)} className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-error-soft hover:text-error" aria-label="Delete submission">
+                          <button onClick={() => setDeleteId(sub.id)} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error max-md:h-11 max-md:w-11" aria-label={`Delete ${student?.username ?? "this"} submission`}>
                             <Icon.Trash className="h-4 w-4" />
                           </button>
                         </div>
@@ -220,8 +234,8 @@ export default function SubmissionsPage() {
             </Table>
           </TableScroll>
           {rows.length > limit && (
-            <div className="flex justify-center p-3">
-              <button type="button" onClick={() => setLimit((n) => n + 100)} className="h-10 rounded-full px-5 text-sm font-semibold text-brand hover:bg-surface-2">
+            <div className="flex justify-center border-t border-border p-2">
+              <button type="button" onClick={() => setLimit((n) => n + 100)} className="h-11 rounded-full px-5 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink">
                 Show more ({rows.length - limit} left)
               </button>
             </div>

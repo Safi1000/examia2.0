@@ -9,6 +9,7 @@ import { uploadAsImages } from "@/lib/cloudinary";
 import { readPhotoTakenAt, withTakenTime } from "@/lib/photo-time";
 import { useToast } from "@/components/toast";
 import { PageStack } from "@/components/PageStack";
+import { withoutSources } from "@/lib/paper-builder";
 import { cn } from "@/lib/cn";
 
 /**
@@ -35,6 +36,9 @@ function QuestionViewInner({
    *  screen and only the upload control is left. */
   paperHidden?: boolean;
 }) {
+  // A past paper question's source ("Q3 · 0452/12 May/June 2024") stays hidden
+  // while the test is open, so the answer can't be looked up. Results show it.
+  const prompt = withoutSources(question.prompt);
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
@@ -42,8 +46,8 @@ function QuestionViewInner({
         <Pill>{question.marks} {question.marks === 1 ? "mark" : "marks"}</Pill>
         <span className="text-xs uppercase tracking-wide text-ink-3">{TYPE_LABEL[question.type] ?? question.type}</span>
       </div>
-      {!paperHidden && question.prompt.trim() && (
-        <p className="mt-3 whitespace-pre-wrap text-lg font-semibold leading-snug text-ink">{question.prompt}</p>
+      {!paperHidden && prompt && (
+        <p className="mt-3 whitespace-pre-wrap text-lg font-semibold leading-snug text-ink">{prompt}</p>
       )}
       {!paperHidden && question.attachments && question.attachments.length > 0 && (
         <div className="mt-3">
@@ -54,7 +58,7 @@ function QuestionViewInner({
       <div className="mt-5">
         {question.type === "mcq" && (
           <fieldset className="space-y-2.5">
-            <legend className="sr-only">{question.prompt}</legend>
+            <legend className="sr-only">{prompt || "Choose one answer"}</legend>
             {question.options.map((opt, i) => (
               <RadioCard
                 key={i}
@@ -194,7 +198,7 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
                 alt={`Answer image ${i + 1}`}
                 className="h-32 w-full rounded-lg border border-border bg-surface-2 object-cover"
               />
-              <span className="absolute left-1.5 top-1.5 rounded bg-paper/80 px-1.5 text-[11px] font-bold text-ink backdrop-blur tabular">
+              <span className="absolute left-1.5 top-1.5 rounded bg-paper/80 px-1.5 text-xs font-bold text-ink backdrop-blur tabular">
                 {i + 1}
               </span>
               <button
@@ -232,12 +236,12 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
             )}
           >
             <Icon.Camera className="h-7 w-7" />
-            <span className="text-sm font-semibold">
+            <span className="text-base font-semibold">
               {uploading
                 ? `Uploading ${batchLabel(progress)}`
                 : urls.length
                   ? "Add more pages"
-                  : "Take photos, upload a PDF, or drag them here"}
+                  : "Take photos or upload a PDF"}
             </span>
             {uploading && (
               <span className="h-1.5 w-44 overflow-hidden rounded-full bg-surface-2" aria-hidden>
@@ -247,7 +251,7 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
             <span className="text-xs text-ink-3">
               {urls.length
                 ? `${urls.length} of ${MAX_PHOTOS} pages added`
-                : "Your handwritten working, please: photos or a PDF."}
+                : "One clear photo for each page of your working."}
             </span>
           </button>
         </div>

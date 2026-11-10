@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import { PillButton } from "./PillButton";
 import { VideoPlayer } from "./VideoPlayer";
 import { useBooking } from "./BookingModal";
@@ -11,7 +11,7 @@ import { SUBJECT_PAGES } from "@/lib/subjects";
 
 function Eyebrow({ children }: { children: string }) {
   return (
-    <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gold">{children}</p>
+    <p className="pc-label">{children}</p>
   );
 }
 
@@ -63,30 +63,30 @@ export function FreeLesson() {
   };
 
   return (
-    <section id="picker" className="py-14 md:py-20">
+    <section id="picker" className="py-16 md:py-24">
       <div className="mx-auto max-w-6xl px-5">
         <div className="text-center">
           <Eyebrow>Your free lesson</Eyebrow>
-          <h2 className="mx-auto mt-4 max-w-[22ch] text-3xl text-foreground md:text-5xl">
+          <h2 className="mx-auto mt-4 max-w-[22ch] text-[2rem] leading-[1.08] md:text-5xl">
             Pick your subject and level.
           </h2>
-          <p className="mx-auto mt-4 max-w-3xl text-balance text-[17px] text-muted-foreground">
+          <p className="mx-auto mt-4 max-w-3xl text-balance text-[17px] leading-relaxed text-muted-foreground">
             Free trial lesson in O Level, IGCSE, AS or A Level Accounting, Business or Economics.
           </p>
         </div>
 
         {/* Steps */}
         <div className="mt-10 flex items-center justify-center gap-3 text-sm">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gold text-xs font-bold text-[#1b1e21]">1</span>
+          <span className="flex h-7 w-7 items-center justify-center rounded-full border border-gold-border text-xs font-bold text-gold">1</span>
           <span className="font-semibold text-foreground">Subject</span>
           <span className="h-px w-10 bg-hairline-strong" />
-          <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${pickedOnce ? "bg-gold text-[#1b1e21]" : "border border-hairline-strong text-faint"}`}>2</span>
+          <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${pickedOnce ? "border border-gold-border text-gold" : "border border-hairline-strong text-faint"}`}>2</span>
           <span className={pickedOnce ? "font-semibold text-foreground" : "text-faint"}>Level</span>
         </div>
 
         {/* Tablist */}
         <div className="mt-8 flex justify-center">
-          <div role="tablist" aria-label="Subject" className="inline-flex rounded-full border border-hairline bg-band-c p-1">
+          <div role="tablist" aria-label="Subject" className="inline-flex rounded-full border border-hairline bg-[rgba(20,22,24,0.6)] p-1 shadow-[inset_0_1px_2px_rgba(0,0,0,0.3)]">
             {SUBJECTS.map((s, i) => {
               const active = s === subject;
               return (
@@ -103,9 +103,9 @@ export function FreeLesson() {
                     setSubject(s);
                     setPickedOnce(true);
                   }}
-                  className={`rounded-full px-6 py-2.5 text-sm font-semibold transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold ${
+                  className={`min-h-11 rounded-full px-5 text-sm font-semibold transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:px-6 ${
                     active
-                      ? "bg-gold text-[#1b1e21] shadow-[0_0_30px_rgba(251,193,89,0.35)]"
+                      ? "bg-[#33373c] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_1px_2px_rgba(0,0,0,0.35)]"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -117,30 +117,25 @@ export function FreeLesson() {
         </div>
 
 
-        {/* Keyed on subject so the level cards remount and replay `float-in` */}
-        <div key={subject} className="mt-8 grid gap-3 md:mt-10 md:grid-cols-3 md:gap-5">
-          {cards.map((c, i) => {
+        <div className="mt-8 grid gap-3 md:mt-10 md:grid-cols-3 md:gap-5">
+          {cards.map((c) => {
             return (
               <button
                 key={c.level}
                 type="button"
                 aria-haspopup="dialog"
                 onClick={() => open({ from: "home_picker", subject, level: c.level })}
-                data-spot className="group float-in relative flex flex-col overflow-hidden rounded-[18px] border border-hairline bg-card p-5 text-left transition-all md:rounded-[20px] md:p-7 hover:-translate-y-1 hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
-                style={{ animationDelay: `${0.05 + i * 0.09}s` }}
+                className="pc-surface pc-surface-link group relative flex flex-col overflow-hidden rounded-[16px] p-5 text-left md:rounded-[20px] md:p-7 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
               >
-                <span aria-hidden className="pointer-events-none absolute right-4 top-2 select-none text-[80px] font-bold leading-none text-white opacity-[0.03] md:text-[120px]">
-                  {i + 1}
-                </span>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gold">{c.label}</span>
+                <span className="pc-label">{c.label}</span>
                 <span className="mt-1 text-xs tabular-nums text-faint">
                   Cambridge {SUBJECT_PAGES.find((p) => p.subject === subject)?.levels.find((l) => l.level === c.level)?.codes.replace(/O Level |IGCSE |AS Level |A Level /g, "")}
                 </span>
-                <span className="mt-2 text-lg font-bold text-foreground md:mt-3 md:text-xl">{c.title}</span>
-                <span className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground md:mt-2 md:text-[15px]">{c.body}</span>
-                <span className="mt-4 flex items-center justify-between border-t border-hairline pt-3 text-[15px] font-semibold text-gold md:mt-6 md:pt-4">
+                <span className="mt-3 text-lg font-extrabold tracking-[-0.02em] text-[#f0ede8] md:text-xl">{c.title}</span>
+                <span className="mt-1.5 text-[15px] leading-relaxed text-muted-foreground md:mt-2">{c.body}</span>
+                <span className="mt-5 flex items-center justify-between border-t border-hairline pt-4 text-[15px] font-semibold text-gold md:mt-6">
                   Pick a time
-                  <span aria-hidden className="transition-transform group-hover:translate-x-1">→</span>
+                  <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transform-none">→</span>
                 </span>
               </button>
             );
@@ -166,7 +161,7 @@ function Mark({ ok }: { ok: boolean }) {
     <span
       aria-hidden
       className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full sm:h-6 sm:w-6 ${
-        ok ? "bg-gold text-[#1b1e21]" : "border border-[rgba(224,133,133,0.45)] text-[#e08585]"
+        ok ? "border border-gold-border bg-gold-tint text-gold" : "border border-[rgba(224,133,133,0.45)] text-[#e08585]"
       }`}
     >
       <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -212,35 +207,35 @@ function Tick() {
 
 export function Difference() {
   return (
-    <section id="compare" className="py-14 md:py-20">
+    <section id="compare" className="py-16 md:py-24">
       <div className="mx-auto max-w-6xl px-5">
         <div className="text-center">
           <Eyebrow>How it&apos;s different</Eyebrow>
-          <h2 className="mx-auto mt-4 max-w-[22ch] text-3xl text-foreground md:text-5xl">
+          <h2 className="mx-auto mt-4 max-w-[22ch] text-[2rem] leading-[1.08] md:text-5xl">
             Most classes vs my class.
           </h2>
         </div>
 
         {/* Phones: side-by-side table */}
-        <div className="mt-8 overflow-hidden rounded-[18px] border border-hairline bg-card/80 backdrop-blur-sm md:hidden">
+        <div className="pc-surface mt-10 overflow-hidden rounded-[16px] md:hidden">
           <table className="w-full table-fixed border-collapse text-left">
             <thead>
               <tr>
-                <th scope="col" className="px-3 py-3 text-sm font-bold text-muted-foreground">Most classes</th>
-                <th scope="col" className="border-l border-gold-border bg-gold-tint px-3 py-3 text-sm font-bold text-foreground">My class</th>
+                <th scope="col" className="px-3.5 py-3.5 text-sm font-bold text-muted-foreground">Most classes</th>
+                <th scope="col" className="border-l border-hairline bg-[rgba(251,193,89,0.06)] px-3.5 py-3.5 text-sm font-bold text-[#f0ede8]">My class</th>
               </tr>
             </thead>
             <tbody>
               {COMPARE.map(([now, here]) => (
                 <tr key={now} className="border-t border-hairline">
-                  <td className="px-3 py-3 align-top">
-                    <span className="flex items-start gap-2 text-[13px] leading-snug text-muted-foreground">
+                  <td className="px-3.5 py-3.5 align-top">
+                    <span className="flex items-start gap-2 text-[14px] leading-snug text-muted-foreground">
                       <Mark ok={false} />
                       {now}
                     </span>
                   </td>
-                  <td className="border-l border-gold-border bg-gold-tint/60 px-3 py-3 align-top">
-                    <span className="flex items-start gap-2 text-[13px] font-medium leading-snug text-foreground">
+                  <td className="border-l border-hairline bg-[rgba(251,193,89,0.06)] px-3.5 py-3.5 align-top">
+                    <span className="flex items-start gap-2 text-[14px] font-medium leading-snug text-[#f0ede8]">
                       <Mark ok />
                       {here}
                     </span>
@@ -252,32 +247,32 @@ export function Difference() {
         </div>
 
         {/* Desktop: two cards */}
-        <div className="relative mt-10 hidden gap-5 md:grid md:grid-cols-2">
-          <div data-spot className="rounded-[20px] border border-hairline bg-card">
+        <div className="relative mt-12 hidden gap-5 md:grid md:grid-cols-2">
+          <div className="pc-surface overflow-hidden rounded-[20px]">
             <div className="border-b border-hairline px-6 py-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-faint">What you have now</p>
-              <h3 className="mt-2 text-2xl font-bold text-foreground">Most classes</h3>
+              <p className="pc-label">What you have now</p>
+              <h3 className="mt-2 text-2xl">Most classes</h3>
             </div>
             <ul className="divide-y divide-hairline">
               {nowRows.map((r) => (
                 <li key={r} className="flex items-start gap-4 px-6 py-4">
                   <Cross />
-                  <span className="text-[15px] leading-relaxed text-body">{r}</span>
+                  <span className="text-base leading-relaxed text-muted-foreground">{r}</span>
                 </li>
               ))}
             </ul>
           </div>
 
-          <div data-spot className="relative rounded-[20px] border border-gold-border bg-card-raised">
-            <div className="border-b border-gold-border bg-gold-tint px-6 py-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-gold">What you get here</p>
-              <h3 className="mt-2 text-2xl font-bold text-foreground">My class</h3>
+          <div className="pc-surface relative overflow-hidden rounded-[20px] border-gold-border!">
+            <div className="border-b border-hairline bg-[rgba(251,193,89,0.06)] px-6 py-5">
+              <p className="pc-label text-gold!">What you get here</p>
+              <h3 className="mt-2 text-2xl">My class</h3>
             </div>
             <ul className="divide-y divide-hairline">
               {hereRows.map((r) => (
                 <li key={r} className="flex items-start gap-4 px-6 py-4">
                   <Tick />
-                  <span className="text-[15px] leading-relaxed text-body">{r}</span>
+                  <span className="text-base leading-relaxed text-body">{r}</span>
                 </li>
               ))}
             </ul>
@@ -292,11 +287,10 @@ export function Difference() {
 export function MeetHamza() {
   const { open } = useBooking();
   return (
-    <section id="meet" className="relative overflow-hidden py-14 md:py-20">
+    <section id="meet" className="relative overflow-hidden py-16 md:py-24">
       <div className="mx-auto grid max-w-6xl gap-12 px-5 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:items-center md:gap-16">
         <div className="relative mx-auto w-full max-w-[240px] sm:max-w-xs md:mx-0 md:max-w-sm">
-          <div className="absolute -inset-4 -z-10 rounded-[28px] bg-gold-tint blur-2xl" aria-hidden />
-          <div className="relative aspect-[3/4] w-full overflow-hidden rounded-[24px] border border-hairline-strong bg-card">
+          <div className="pc-frame relative aspect-[3/4] w-full overflow-hidden rounded-[20px] bg-card">
             <div
               aria-hidden
               className="absolute inset-0 bg-linear-to-br from-[#2a2d31] via-[#1b1e21] to-[#141618]"
@@ -308,17 +302,15 @@ export function MeetHamza() {
               sizes="(max-width: 768px) 90vw, 384px"
               className="object-cover object-top"
             />
-            <span className="absolute bottom-4 left-4 rounded-full border border-gold-border bg-[rgba(20,22,24,0.75)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold backdrop-blur">
+            <span className="absolute bottom-4 left-4 rounded-full border border-hairline-strong bg-[rgba(20,22,24,0.8)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#f0ede8]">
               ACCA Affiliate
             </span>
           </div>
         </div>
 
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gold">
-            Your teacher
-          </p>
-          <h2 className="mt-4 max-w-[22ch] text-3xl leading-[1.05] text-foreground md:text-5xl">
+          <p className="pc-label">Your teacher</p>
+          <h2 className="mt-4 max-w-[22ch] text-[2rem] leading-[1.08] md:text-5xl">
             I teach the way I wish someone had taught me.
           </h2>
           <div className="mt-6 space-y-4 text-[17px] leading-relaxed text-body">
@@ -328,23 +320,23 @@ export function MeetHamza() {
             </p>
           </div>
 
-          <dl className="mt-8 grid grid-cols-3 gap-3 sm:gap-4">
+          <dl className="pc-surface mt-8 grid grid-cols-3 divide-x divide-hairline rounded-[16px]">
             {[
               { k: "In these subjects", v: "Straight As" },
               { k: "Students taught", v: "100+" },
               { k: "Years teaching", v: "4+" },
             ].map((s) => (
-              <div key={s.k} className="flex flex-col-reverse rounded-2xl border border-hairline bg-card p-3.5 sm:p-4">
-                <dt className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-faint sm:text-[11px] sm:tracking-[0.2em]">
+              <div key={s.k} className="flex flex-col-reverse px-3 py-4 sm:px-5">
+                <dt className="mt-1 text-xs leading-snug text-faint">
                   {s.k}
                 </dt>
-                <dd className={`text-lg font-bold leading-tight sm:text-2xl ${s.v === "Straight As" ? "text-gold" : "text-foreground"}`}>{s.v}</dd>
+                <dd className="whitespace-nowrap text-base font-extrabold leading-tight tracking-[-0.02em] tabular-nums text-[#f0ede8] sm:text-2xl">{s.v}</dd>
               </div>
             ))}
           </dl>
 
           <div className="mt-8">
-            <PillButton magnetic onClick={() => open({ from: "meet" })}>
+            <PillButton className="max-sm:w-full" onClick={() => open({ from: "meet" })}>
               Book your free trial lesson
               <span aria-hidden>→</span>
             </PillButton>
@@ -368,8 +360,8 @@ function sized(ratio: number) {
 function ReviewCaption({ name, meta }: { name: string; meta: string }) {
   return (
     <figcaption className="flex flex-col gap-0.5 px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:px-3.5 sm:py-2.5">
-      <span className="truncate text-xs font-semibold text-foreground sm:text-sm">{name || "Student"}</span>
-      <span className="shrink-0 truncate text-[9px] uppercase tracking-[0.16em] text-faint sm:text-[10px] sm:tracking-[0.2em]">{meta}</span>
+      <span className="truncate text-xs font-semibold text-[#f0ede8] sm:text-sm">{name || "Student"}</span>
+      <span className="shrink-0 truncate text-xs text-faint">{meta}</span>
     </figcaption>
   );
 }
@@ -377,9 +369,8 @@ function ReviewCaption({ name, meta }: { name: string; meta: string }) {
 export function VideoReviewCard({ r }: { r: VideoReview }) {
   return (
     <figure
-      data-spot
       style={sized(r.ratio)}
-      className="max-w-full overflow-hidden rounded-[12px] border border-hairline bg-card/80 transition-[border-color,transform] duration-300 hover:-translate-y-1 hover:border-gold-border sm:rounded-[18px]"
+      className="pc-surface max-w-full overflow-hidden rounded-[12px] transition-[border-color] duration-200 hover:border-[rgba(255,255,255,0.16)]! sm:rounded-[16px]"
     >
       <div className="relative w-full overflow-hidden bg-band-c" style={{ aspectRatio: r.ratio }}>
         <VideoPlayer
@@ -398,9 +389,8 @@ export function VideoReviewCard({ r }: { r: VideoReview }) {
 function ShotCard({ s }: { s: (typeof shots)[number] }) {
   return (
     <figure
-      data-spot
       style={sized(SHOT_RATIO)}
-      className="max-w-full overflow-hidden rounded-[12px] border border-hairline bg-card/80 transition-[border-color,transform] duration-300 hover:-translate-y-1 hover:border-gold-border sm:rounded-[18px]"
+      className="pc-surface max-w-full overflow-hidden rounded-[12px] transition-[border-color] duration-200 hover:border-[rgba(255,255,255,0.16)]! sm:rounded-[16px]"
     >
       <a
         href={s.src}
@@ -423,16 +413,16 @@ export function Reviews() {
   const voices = videoReviews.filter((v) => v.kind === "voice");
 
   return (
-    <section id="reviews" className="py-14 md:py-20">
+    <section id="reviews" className="py-16 md:py-24">
       <div className="mx-auto max-w-6xl px-5">
         <div className="text-center">
           <Eyebrow>Reviews</Eyebrow>
-          <h2 className="mx-auto mt-4 text-3xl text-foreground md:text-5xl">What my students say.</h2>
+          <h2 className="mx-auto mt-4 text-[2rem] leading-[1.08] md:text-5xl">What my students say.</h2>
         </div>
 
         {/* Phones: three tidy runs (videos 3 across, voice notes, messages 3 across),
             each with its own height. Larger screens: one mixed wall at one height. */}
-        <div className="mt-8 flex flex-wrap items-start justify-center gap-2 sm:gap-4 sm:[--rh:280px] md:mt-12 md:[--rh:320px]">
+        <div className="mt-10 flex flex-wrap items-start justify-center gap-2.5 sm:gap-4 sm:[--rh:280px] md:mt-12 md:[--rh:320px]">
           {videos.map((r) => (
             <div key={r.src} className="max-sm:[--rh:178px]">
               <VideoReviewCard r={r} />
@@ -458,21 +448,23 @@ export function Reviews() {
 
 export function FaqItem({ q, a, defaultOpen, last }: { q: string; a: string; defaultOpen?: boolean; last?: boolean }) {
   const [open, setOpen] = useState(!!defaultOpen);
+  const panel = useId();
   return (
     <div className={last ? "" : "border-b border-hairline"}>
       <button
         type="button"
         aria-expanded={open}
+        aria-controls={panel}
         onClick={() => setOpen((v) => !v)}
-        className="group flex w-full items-center justify-between gap-4 py-4 text-left md:gap-6 md:py-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
+        className="group flex min-h-14 w-full items-center justify-between gap-4 py-4 text-left md:gap-6 md:py-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
       >
-        <span className="min-w-0 text-base font-semibold text-foreground md:text-lg">{q}</span>
+        <span className="min-w-0 text-base font-semibold text-[#f0ede8] md:text-lg">{q}</span>
         <span
           aria-hidden
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-hairline-strong transition-all ${
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-[transform,border-color,color] duration-300 ease-out motion-reduce:transition-none ${
             open
-              ? "rotate-45 border-gold-border bg-gold-tint text-gold"
-              : "text-faint group-hover:border-gold-border group-hover:text-gold"
+              ? "rotate-45 border-hairline-strong text-[#f0ede8]"
+              : "border-hairline text-faint group-hover:border-hairline-strong group-hover:text-[#f0ede8]"
           }`}
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -480,13 +472,17 @@ export function FaqItem({ q, a, defaultOpen, last }: { q: string; a: string; def
           </svg>
         </span>
       </button>
+      {/* Folded answers stay in the page (search engines read them) but are out of
+          reach for screen readers and the keyboard until opened. */}
       <div
-        className={`grid transition-all duration-300 ease-out ${
+        id={panel}
+        inert={!open}
+        className={`grid transition-[grid-template-rows,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${
           open ? "grid-rows-[1fr] pb-6 opacity-100" : "grid-rows-[0fr] opacity-0"
         }`}
       >
         <div className="overflow-hidden">
-          <p className="max-w-[62ch] pr-10 text-[15px] leading-relaxed text-muted-foreground md:pr-12 md:text-[17px]">{a}</p>
+          <p className="max-w-[62ch] pr-10 text-base leading-relaxed text-muted-foreground md:pr-12 md:text-[17px]">{a}</p>
         </div>
       </div>
     </div>
@@ -495,15 +491,15 @@ export function FaqItem({ q, a, defaultOpen, last }: { q: string; a: string; def
 
 export function Faq() {
   return (
-    <section id="faq" className="py-14 md:py-20">
+    <section id="faq" className="py-16 md:py-24">
       <div className="mx-auto max-w-3xl px-5">
         <div className="text-center">
           <Eyebrow>FAQ</Eyebrow>
-          <h2 className="mx-auto mt-4 max-w-[22ch] text-3xl leading-[1.05] text-foreground md:text-5xl">
+          <h2 className="mx-auto mt-4 max-w-[22ch] text-[2rem] leading-[1.08] md:text-5xl">
             Questions people ask me.
           </h2>
         </div>
-        <div data-spot className="mt-10 rounded-[24px] border border-hairline bg-card/60 px-6 backdrop-blur-sm md:px-10">
+        <div className="pc-surface mt-10 rounded-[20px] px-5 md:mt-12 md:px-10">
           {faqs.map((f, i) => (
             <FaqItem key={f.q} q={f.q} a={f.a} defaultOpen={i === 0} last={i === faqs.length - 1} />
           ))}
@@ -522,14 +518,14 @@ export function Faq() {
 export function Closing() {
   const { open } = useBooking();
   return (
-    <section className="py-14 md:py-20">
+    <section className="py-20 md:py-28">
       <div className="mx-auto max-w-3xl px-5 text-center">
         <Eyebrow>Free trial lesson</Eyebrow>
-        <h2 className="mx-auto mt-4 max-w-[18ch] text-4xl text-foreground md:text-6xl">
+        <h2 className="mx-auto mt-4 max-w-[18ch] text-[2.25rem] leading-[1.06] md:text-6xl">
           Try a lesson before you decide.
         </h2>
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-          <PillButton magnetic onClick={() => open({ from: "closing" })}>
+          <PillButton onClick={() => open({ from: "closing" })}>
             Book your free trial lesson
           </PillButton>
 

@@ -18,8 +18,9 @@ export function Card({
     <Tag
       id={id}
       className={cn(
-        // A faint light along the top edge gives cards depth without heavy shadows.
-        "rounded-xl border border-border bg-surface bg-[linear-gradient(180deg,rgba(255,255,255,0.028),rgba(255,255,255,0)_42%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.045),var(--shadow-sm)]",
+        // The portal surface (globals.css): one step lighter, a hairline, a
+        // faint light along the top edge and a soft contact shadow.
+        "surface rounded-xl",
         ruled && "ruled-margin",
         className,
       )}
@@ -30,7 +31,7 @@ export function Card({
 }
 
 export function CardHeader({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("border-b border-border px-5 py-4", className)}>{children}</div>;
+  return <div className={cn("border-b border-hairline px-5 py-4", className)}>{children}</div>;
 }
 
 export function CardBody({ children, className }: { children: React.ReactNode; className?: string }) {

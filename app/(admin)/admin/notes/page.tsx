@@ -103,11 +103,11 @@ function Chip({ on, onClick, children, disabled }: { on: boolean; onClick: () =>
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "inline-flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-[13px] font-semibold transition-colors disabled:opacity-40",
-        on ? "border-brand bg-brand-soft text-ink" : "border-border text-ink-2 hover:border-border-strong hover:text-ink",
+        "inline-flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-[13px] font-semibold transition-colors disabled:opacity-40 max-md:min-h-11",
+        on ? "border-white/[0.16] bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "border-border text-ink-3 hover:border-border-strong hover:text-ink",
       )}
     >
-      {on && <Icon.Check className="h-3.5 w-3.5 text-brand" />}
+      {on && <Icon.Check className="h-3.5 w-3.5 text-ink-2" />}
       {children}
     </button>
   );
@@ -265,7 +265,7 @@ export default function NotesPage() {
               role="tab"
               aria-selected={view === v}
               onClick={() => setView(v)}
-              className={cn("h-9 rounded-full px-4 text-sm font-semibold", view === v ? "bg-brand-soft text-ink" : "text-ink-3 hover:text-ink")}
+              className={cn("h-9 rounded-full px-4 text-sm font-semibold", view === v ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink")}
             >
               {v === "chapters" ? "By chapter" : "All notes"}
             </button>
@@ -368,7 +368,7 @@ function NoteActions({
   onDelete: () => void;
 }) {
   const hidden = isHidden(note.fileType);
-  const btn = "inline-flex h-9 items-center rounded-full px-3 text-[13px] font-semibold text-ink-2 hover:bg-surface-2 hover:text-ink";
+  const btn = "inline-flex h-9 items-center rounded-full px-3 text-[13px] font-semibold text-ink-2 hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:px-2.5";
   return (
     <div className="flex flex-wrap items-center gap-1">
       {hidden && <Badge tone="warning">Hidden</Badge>}
@@ -392,7 +392,8 @@ function NoteActions({
         rel="noopener"
         title="Open in a new tab"
         aria-label={`Open ${note.title} in a new tab`}
-        className="flex h-9 w-9 items-center justify-center rounded-full text-ink-3 hover:bg-surface-2 hover:text-ink"
+        // A new tab means little on a phone; leaving it out keeps the row on one line.
+        className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:hidden"
       >
         <Icon.NewTab className="h-4 w-4" />
       </a>
@@ -402,7 +403,7 @@ function NoteActions({
       <button type="button" className={btn} onClick={() => onHide(!hidden)}>
         {hidden ? "Show" : "Hide"}
       </button>
-      <button type="button" onClick={onDelete} className="flex h-9 w-9 items-center justify-center rounded-full text-ink-3 hover:bg-error-soft hover:text-error" aria-label={`Delete ${note.title}`}>
+      <button type="button" onClick={onDelete} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors max-md:h-11 max-md:w-11 hover:bg-error-soft hover:text-error" aria-label={`Delete ${note.title}`}>
         <Icon.Trash className="h-4 w-4" />
       </button>
     </div>
@@ -998,6 +999,7 @@ function AssignModal({ db, store, opts, note, onClose }: { db: Db; store: Store;
   const firstBook = onBooks[0]?.book ?? null;
   const [slot, setSlot] = useState(() => (firstBook ? (slotIn(firstBook, note) ?? "") : ""));
   const [title, setTitle] = useState(note.title);
+  const [renaming, setRenaming] = useState(false);
 
   const label = (a: NoteAssignment) =>
     [db.cohorts.find((c) => c.id === a.cohortId)?.name, a.classId ? db.classes.find((c) => c.id === a.classId)?.name : "all classes", a.subjectId ? db.subjects.find((s) => s.id === a.subjectId)?.name : "all subjects"]
@@ -1027,13 +1029,16 @@ function AssignModal({ db, store, opts, note, onClose }: { db: Db; store: Store;
 
   async function rename() {
     const next = (firstBook && slotTitle(firstBook, slot)) || title.trim();
-    if (!next || next === note.title) return;
+    if (!next || next === note.title || renaming) return;
+    setRenaming(true);
     try {
       await store.updateNote(note.id, { title: next });
       setTitle(next);
       toast("Saved.", "success");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Couldn't save that.", "error");
+    } finally {
+      setRenaming(false);
     }
   }
 
@@ -1086,7 +1091,7 @@ function AssignModal({ db, store, opts, note, onClose }: { db: Db; store: Store;
             <SlotSelect book={firstBook} value={slot} onChange={setSlot} label="Chapter" />
           ) : null}
           {(!firstBook || !slot) && <Input label="Title" value={title} onChange={(e) => setTitle(e.target.value)} />}
-          <Button className="mt-3" size="sm" variant="secondary" onClick={() => void rename()}>
+          <Button className="mt-3" size="sm" variant="secondary" loading={renaming} onClick={() => void rename()}>
             Save
           </Button>
         </section>

@@ -77,10 +77,12 @@ export default function AttendancePage() {
           {(["daily", "monthly"] as Mode[]).map((m) => (
             <button
               key={m}
+              type="button"
               onClick={() => setMode(m)}
+              aria-pressed={mode === m}
               className={cn(
-                "rounded-md px-3 py-1.5 text-xs font-semibold capitalize transition-colors",
-                mode === m ? "bg-brand text-on-brand" : "text-ink-2 hover:text-ink",
+                "min-h-9 rounded-md px-3 py-1.5 text-xs font-semibold capitalize transition-colors max-md:min-h-10",
+                mode === m ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink",
               )}
             >
               {m}
@@ -99,7 +101,7 @@ export default function AttendancePage() {
           type={mode === "daily" ? "date" : "month"}
           value={mode === "daily" ? date : date.slice(0, 7)}
           onChange={(e) => setDate(mode === "daily" ? e.target.value : `${e.target.value}-01`)}
-          className="h-10 rounded-md border border-border-strong bg-surface px-3 text-sm text-ink"
+          className="h-10 rounded-md border border-border-strong bg-surface px-3 text-sm text-ink max-md:h-11"
           aria-label={mode === "daily" ? "Date" : "Month"}
         />
       </div>
@@ -107,9 +109,11 @@ export default function AttendancePage() {
       {students.length === 0 ? (
         <EmptyState icon={<Icon.Users />} title="Nobody in this class" message="Pick another class or cohort." />
       ) : mode === "daily" ? (
-        <DailyRegister students={students} classId={classId || null} date={date} />
+        // Called as functions, not <Components />: declared inside this page, they would
+        // remount on every save and drop the focus from the next field.
+        DailyRegister({ students, classId: classId || null, date })
       ) : (
-        <MonthlySheet students={students} month={month} onSaved={() => toast("Attendance saved.", "success")} />
+        MonthlySheet({ students, month, onSaved: () => toast("Attendance saved.", "success") })
       )}
     </div>
   );
@@ -147,25 +151,25 @@ export default function AttendancePage() {
         <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
           <span className="font-semibold text-success">{count("present")} present</span>
           <span className="font-semibold text-warning">{count("late")} late</span>
-          <span className="font-semibold text-error">{count("absent")} absent</span>
-          <span className="text-ink-3">{unmarked.length} not marked</span>
+          <span className="font-semibold tabular-nums text-error">{count("absent")} absent</span>
+          <span className="tabular-nums text-ink-3">{unmarked.length} not marked</span>
           {unmarked.length > 0 && (
             <span className="ml-auto flex gap-1.5">
-              <button type="button" onClick={() => markRest("present")} className="h-9 rounded-md border border-border-strong bg-surface px-3 text-xs font-semibold text-ink-2 hover:bg-surface-2">
+              <button type="button" onClick={() => markRest("present")} className="h-10 rounded-full border border-border-strong px-3.5 text-xs font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11">
                 Mark the rest present
               </button>
-              <button type="button" onClick={() => markRest("absent")} className="h-9 rounded-md border border-border-strong bg-surface px-3 text-xs font-semibold text-ink-2 hover:bg-surface-2">
+              <button type="button" onClick={() => markRest("absent")} className="h-10 rounded-full border border-border-strong px-3.5 text-xs font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11">
                 Mark the rest absent
               </button>
             </span>
           )}
         </div>
-        <Card className="divide-y divide-border p-0">
+        <Card className="divide-y divide-border overflow-hidden p-0">
           {rows.map(({ s, mark, join }) => (
-            <div key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+            <div key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 transition-colors hover:bg-white/[0.018]">
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold capitalize text-ink">{s.username}</span>
-                <span className="block text-xs text-ink-3">
+                <span className="block text-xs tabular-nums text-ink-3">
                   {join ? `Joined ${clock(join.joinedAt)}` : "Didn't tap Join"}
                   {!mark && " · not marked yet"}
                 </span>
@@ -177,7 +181,7 @@ export default function AttendancePage() {
                     onClick={() => store.setAttendance(s.id, mark ? mark.classId : classId, date, opt.value)}
                     aria-pressed={mark?.status === opt.value}
                     className={cn(
-                      "h-10 min-w-[4.5rem] rounded-md border px-3 text-sm font-semibold transition-colors",
+                      "h-10 min-w-[4.5rem] rounded-lg border px-3 text-sm font-semibold transition-colors duration-150 max-md:h-11",
                       mark?.status === opt.value ? opt.tone : "border-border-strong bg-surface text-ink-2 hover:bg-surface-2",
                     )}
                   >
@@ -215,6 +219,7 @@ export default function AttendancePage() {
                 <span className="text-xs text-ink-3">from the register</span>
               )}
               <input
+                key={`${s.id}-${month}`}
                 type="number"
                 min={0}
                 max={100}
@@ -228,7 +233,7 @@ export default function AttendancePage() {
                 }}
                 placeholder="%"
                 aria-label={`${s.username} attendance percent`}
-                className="h-10 w-24 rounded-md border border-border-strong bg-surface px-3 text-center font-mono text-sm font-semibold text-ink"
+                className="h-11 w-24 rounded-lg border border-border-strong bg-surface px-3 text-center text-base font-semibold tabular-nums text-ink sm:text-sm"
               />
               <span className="text-sm text-ink-3">%</span>
             </div>

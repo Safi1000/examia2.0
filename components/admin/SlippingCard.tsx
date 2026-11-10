@@ -14,6 +14,9 @@ import { Card } from "@/components/ui";
  */
 export function SlippingCard({ db, profiles, nowMs, cohortId }: { db: Database; profiles: Record<string, Profile>; nowMs: number; cohortId: string | null }) {
   const today = pkDate(nowMs);
+  // Until the study stats have loaded there is nothing to judge: without this,
+  // everyone briefly shows as "never" on every visit.
+  if (!Object.keys(profiles).length) return null;
   // Nothing to flag before term; "never studied" only counts from week two.
   const term = getSchedule().termStarts;
   if (today < term) return null;
@@ -29,17 +32,17 @@ export function SlippingCard({ db, profiles, nowMs, cohortId }: { db: Database; 
   if (!list.length) return null;
   const ago = (d: string) => Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${d}T12:00:00Z`)) / 864e5);
   return (
-    <Card className="mt-6 p-5">
+    <Card className="mt-4 p-5 lg:mt-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-bold text-ink">Slipping in Groundwork</h2>
+        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Slipping in Groundwork</h2>
         <span className="text-xs text-ink-3">No study in 5 days or more · only you see this</span>
       </div>
       <ul className="mt-3 flex flex-wrap gap-2">
         {list.slice(0, 24).map(({ s, last }) => (
           <li key={s.id}>
-            <Link href={`/admin/roster/${s.id}`} className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-ink hover:border-border-strong">
+            <Link href={`/admin/roster/${s.id}`} className="inline-flex min-h-9 items-center gap-2 rounded-full border border-border px-3 text-sm text-ink transition-colors hover:border-border-strong hover:bg-surface-2 max-md:min-h-11">
               {displayName(s.username)}
-              <span className="text-xs text-ink-3">{last ? `${ago(last)} days` : "never"}</span>
+              <span className="text-xs tabular-nums text-ink-3">{last ? `${ago(last)} days` : "never"}</span>
             </Link>
           </li>
         ))}

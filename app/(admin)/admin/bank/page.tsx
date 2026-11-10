@@ -6,7 +6,8 @@ import { useDatabase, useStore } from "@/lib/data/store";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { QuestionModal, type QuestionDraft } from "@/components/admin/QuestionModal";
-import { Card, Button, Input, Select, Badge, Pill, Checkbox, Modal, EmptyState, Icon } from "@/components/ui";
+import { Card, Button, Input, Select, Badge, Pill, Modal, EmptyState, Icon } from "@/components/ui";
+import { RowCheck } from "@/components/admin/BulkBar";
 
 export default function QuestionBankPage() {
   const db = useDatabase();
@@ -74,8 +75,8 @@ export default function QuestionBankPage() {
       </div>
 
       {selected.size > 0 && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-brand/30 bg-brand-soft px-4 py-2.5">
-          <span className="text-sm font-semibold text-brand">{selected.size} selected</span>
+        <div className="sticky top-[4.5rem] z-20 mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border-strong bg-surface-2/95 px-4 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_12px_28px_-14px_rgba(0,0,0,0.7)] backdrop-blur">
+          <span className="text-sm font-semibold tabular-nums text-ink">{selected.size} selected</span>
           <div className="flex gap-2">
             <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
             <Button size="sm" onClick={() => setImportOpen(true)}><Icon.Doc className="h-4 w-4" /> Import into test</Button>
@@ -86,30 +87,30 @@ export default function QuestionBankPage() {
       {items.length === 0 ? (
         <EmptyState icon={<Icon.Bank />} title="No questions found" message="Adjust filters or add a new reusable question." />
       ) : (
-        <ul className="space-y-2">
+        <Card as="ul" className="divide-y divide-border overflow-hidden p-0">
           {items.map((b) => (
-            <Card as="li" key={b.id} className="flex items-start gap-3 p-3">
-              <div className="pt-0.5"><Checkbox checked={selected.has(b.id)} onChange={() => toggle(b.id)} /></div>
+            <li key={b.id} className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-white/[0.018]">
+              <div className="pt-0.5"><RowCheck checked={selected.has(b.id)} onChange={() => toggle(b.id)} label={`Select: ${b.prompt.slice(0, 60)}`} /></div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone="neutral">{b.subject}</Badge>
-                  <Badge tone="brand">{b.topic}</Badge>
-                  <span className="text-xs uppercase tracking-wide text-ink-3">{b.type}</span>
+                  <Badge tone="neutral">{b.topic}</Badge>
+                  <span className="text-xs text-ink-3">{b.type === "mcq" ? "Choice" : b.type === "photo" ? "Photo" : "Written"}</span>
                   <Pill>{b.marks}m</Pill>
                 </div>
-                <p className="mt-1.5 text-sm text-ink">{b.prompt}</p>
+                <p className="mt-1.5 max-w-[75ch] text-pretty text-sm leading-relaxed text-ink">{b.prompt}</p>
               </div>
               <div className="flex shrink-0 gap-1">
-                <button onClick={() => { setEditing(b); setModalOpen(true); }} className="flex h-10 w-10 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Edit question">
+                <button onClick={() => { setEditing(b); setModalOpen(true); }} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11" aria-label="Edit question">
                   <Icon.Edit className="h-4 w-4" />
                 </button>
-                <button onClick={() => setDeleteId(b.id)} className="flex h-10 w-10 items-center justify-center rounded text-ink-3 hover:bg-error-soft hover:text-error" aria-label="Delete question">
+                <button onClick={() => setDeleteId(b.id)} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error max-md:h-11 max-md:w-11" aria-label="Delete question">
                   <Icon.Trash className="h-4 w-4" />
                 </button>
               </div>
-            </Card>
+            </li>
           ))}
-        </ul>
+        </Card>
       )}
 
       <QuestionModal

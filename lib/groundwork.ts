@@ -8,6 +8,7 @@
 import type { FocusStats } from "@/lib/profile";
 import { addDays, pkDate } from "@/lib/timetable";
 import { mondayOf } from "@/lib/focus";
+import { worldFor } from "@/lib/groundwork-worlds/list";
 
 /** A planned study time: weekday (0 = Sunday … 6) and "HH:MM" Pakistan time. */
 export interface StudySlot {
@@ -157,10 +158,13 @@ export interface Scene {
   calm?: boolean;
   /** HD photo in public/wallpapers-hd (x.webp 2560 wide, x-m.webp 1080x1920, x-t.webp thumbnail). */
   hd?: boolean;
+  /** One image for every size (a 3D world's still in public/groundwork/worlds). */
+  img?: string;
 }
 
 /** The photo file for a scene: wide for desktops, tall for phones, or the tray thumbnail. */
 export function photoSrc(s: Scene, size: "wide" | "tall" | "thumb" = "wide"): string {
+  if (s.img) return s.img;
   if (s.hd) return `/wallpapers-hd/${s.photo}${size === "tall" ? "-m" : size === "thumb" ? "-t" : ""}.webp`;
   return `/wallpapers/${s.photo}${size === "wide" ? "" : "-m"}.jpg`;
 }
@@ -273,6 +277,16 @@ export function sceneFor(id: string | undefined, nowMs: number): Scene {
   const ids = BY_TIME.find(([until]) => h < until)![1];
   const day = Math.floor(Date.parse(`${pkDate(nowMs)}T00:00:00Z`) / 864e5);
   return SCENES.find((s) => s.id === ids[day % ids.length])!;
+}
+
+/**
+ * The student's 3D world as a scene, for share images: its still as the
+ * picture and its colours as the sky. The photo wallpapers above are no
+ * longer shown in Groundwork (the files stay in public/ for now).
+ */
+export function worldScene(worldId: string | undefined): Scene {
+  const w = worldFor(worldId);
+  return { id: `world-${w.id}`, name: w.title, sky: w.sky, hills: ["#000", "#000", "#000"], glow: "rgba(251,193,89,.35)", photo: w.id, img: w.still };
 }
 
 /** Quotes of the day: well sourced, short, one a day. */

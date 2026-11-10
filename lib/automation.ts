@@ -14,7 +14,7 @@ import { levelSubjectsByStudent } from "@/lib/push-server";
  *  - Auto-late: a Join tapped more than LATE_MINUTES after the class started
  *    turns that day's automatic "present" into "late". A mark Hamza set by
  *    hand is never changed.
- *  - Auto-release (off unless Hamza turns it on): once a multiple-choice-only
+ *  - Auto-release (on unless Hamza turns it off): once a multiple-choice-only
  *    test closes, its handed-in papers are released (they mark themselves),
  *    and the usual "result is out" notification follows.
  *  - Health: the timer records that it ran, so Today can warn when it stops,
@@ -26,7 +26,7 @@ export interface AutomationSettings {
   autoAbsent: boolean;
   autoRelease: boolean;
 }
-export const DEFAULT_AUTOMATION: AutomationSettings = { autoAbsent: true, autoRelease: false };
+export const DEFAULT_AUTOMATION: AutomationSettings = { autoAbsent: true, autoRelease: true };
 
 interface AutomationMeta extends Partial<AutomationSettings> {
   /** When the 15-minute timer last ran. */

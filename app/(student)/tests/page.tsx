@@ -9,6 +9,7 @@ import { TestCard } from "@/components/student/TestCard";
 import { AddToCalendar } from "@/components/student/AddToCalendar";
 import { EmptyState, Icon } from "@/components/ui";
 import { testWindow } from "@/lib/time";
+import { EmptyArt, PageHeader, SectionTitle } from "@/components/student/PortalKit";
 
 /** Every test in one place: open now, coming up, and past (with results). */
 export default function TestsPage() {
@@ -38,19 +39,24 @@ export default function TestsPage() {
   const empty = !groups.open.length && !groups.upcoming.length && !groups.past.length;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-9 px-4 py-8 sm:px-6">
-      <header>
-        <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink">Tests</h1>
-        <p className="mt-2 text-base text-ink-2">
+    <div className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+      <div className="rise space-y-10">
+      <PageHeader title="Tests">
           {groups.open.length
             ? `${groups.open.length === 1 ? "One test is" : `${groups.open.length} tests are`} open now.`
             : groups.upcoming.length
               ? "Nothing open right now. Your next tests are below."
               : "Nothing to sit right now."}
-        </p>
-      </header>
+      </PageHeader>
 
-      {empty && <EmptyState icon={<Icon.Doc />} title="No tests yet" message="Tests I set for you will appear here." />}
+      {empty && (
+        <EmptyState
+          icon={<Icon.Doc />}
+          art={<EmptyArt name="empty-no-tests-yet" />}
+          title="No tests yet"
+          message="Tests I set for you will appear here."
+        />
+      )}
 
       {groups.open.length > 0 && (
         <Section title="Open now" live>
@@ -65,7 +71,7 @@ export default function TestsPage() {
           {groups.upcoming.map((t) => (
             <div key={t.id}>
               <TestCard test={t} submission={submissionFor(db, student.id, t.id)} nowMs={nowMs} />
-              <div className="mt-1.5 flex justify-end pr-1">
+              <div className="mt-1 flex justify-end pr-1">
                 <AddToCalendar test={t} />
               </div>
             </div>
@@ -80,18 +86,16 @@ export default function TestsPage() {
           ))}
         </Section>
       )}
+      </div>
     </div>
   );
 }
 
 function Section({ title, live, children }: { title: string; live?: boolean; children: React.ReactNode }) {
   return (
-    <section className="space-y-3">
-      <h2 className="flex items-center gap-2 text-base font-semibold text-ink">
-        {live && <span className="h-2 w-2 animate-low-pulse rounded-full bg-brand" />}
-        {title}
-      </h2>
-      {children}
+    <section>
+      <SectionTitle live={live}>{title}</SectionTitle>
+      <div className="space-y-3">{children}</div>
     </section>
   );
 }

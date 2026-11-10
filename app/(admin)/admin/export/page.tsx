@@ -85,7 +85,7 @@ export default function ExportPage() {
       <PageHeader title="Data export" subtitle="Download a snapshot of your portal data." />
 
       <Card className="mb-5 max-w-2xl p-5">
-        <h2 className="text-base font-semibold text-ink">Marks spreadsheet</h2>
+        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Marks spreadsheet</h2>
         <p className="mt-1 text-sm text-ink-2">Every current student, every released test as a percentage, and their average. Opens in Excel or Google Sheets.</p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button onClick={downloadMarks}>
@@ -98,7 +98,7 @@ export default function ExportPage() {
       </Card>
 
       <Card className="max-w-2xl p-5">
-        <h2 className="text-base font-semibold text-ink">Choose entities</h2>
+        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Choose entities</h2>
         <ul className="mt-3 divide-y divide-border">
           {ALL.map((key) => (
             <li key={key} className="flex items-center justify-between gap-3 py-3">
@@ -109,7 +109,7 @@ export default function ExportPage() {
                 </span>
               } />
               {TABULAR.includes(key) && (
-                <button onClick={() => downloadCsv(key)} className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold text-ink-2 hover:bg-surface-2 hover:text-ink">
+                <button onClick={() => downloadCsv(key)} className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink">
                   <Icon.Download className="h-3.5 w-3.5" /> CSV
                 </button>
               )}

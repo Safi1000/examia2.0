@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useDatabase } from "@/lib/data/store";
-import { studentById, testById, submissionFor } from "@/lib/data/selectors";
+import { studentById, testById, submissionFor, submissionsForStudent, testsForStudent, liveStatus } from "@/lib/data/selectors";
+import type { Database } from "@/lib/data/seed";
+import type { Student } from "@/types";
 import { Card, Badge, Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 import { formatDuration, formatTimestamp } from "@/lib/time";
@@ -23,61 +25,107 @@ export default function SubmittedPage() {
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center text-ink-2">
         Nothing to show here.{" "}
-        <Link href="/dashboard" className="font-semibold text-brand underline">Back to Home</Link>
+        <Link href="/dashboard" className="inline-flex min-h-11 items-center font-semibold text-brand underline">Back to Home</Link>
       </div>
     );
   }
+
+  const days = usualTurnaround(db, student.id);
+  const next = nextOpenTest(db, student, test.id);
 
   const answered = submission.answers.filter((a) =>
     a.type === "mcq" ? typeof a.selectedIndex === "number" : a.type === "text" ? !!a.text?.trim() : !!a.photoDataUrl,
   ).length;
 
   return (
-    <div className="mx-auto max-w-md px-4 py-10">
-      <div className="animate-fade-up text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success-soft text-success">
+    <div className="mx-auto max-w-md px-4 pb-16 pt-12">
+      <div className="rise">
+      <div className="text-center">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-success/25 bg-success-soft text-success shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_30px_-14px_rgba(111,187,168,0.45)]">
           <Icon.Check className="h-8 w-8" />
         </div>
-        <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-ink">Done.</h1>
-        <p className="mt-1 text-sm text-ink-2">Your answers are saved. Sit tight.</p>
+        <h1 className="mt-5 text-[2rem] font-extrabold leading-none tracking-[-0.03em] text-ink">Done.</h1>
+        <p className="mt-2.5 text-base text-ink-2">
+          {submission.autoSubmitted ? "Time ran out, so I handed it in for you." : "Your answers are saved. Sit tight."}
+        </p>
       </div>
 
-      <Card ruled className="mt-6 animate-fade-up divide-y divide-border">
+      <Card className="mt-8 divide-y divide-hairline">
 {/* After a reload the answers stay hidden until results are out: only show a real count. */}
         {submission.answers.length > 0 && (
         <Row label="Questions answered">
-          <span className="font-mono font-semibold text-ink">{answered} / {test.questions.length}</span>
+          <span className="font-semibold text-ink tabular-nums">{answered} / {test.questions.length}</span>
         </Row>
         )}
         <Row label="Submitted at">
-          <span className="text-ink">{submission.submittedAt ? formatTimestamp(submission.submittedAt) : "Not yet"}</span>
+          <span className="text-right text-ink tabular-nums">{submission.submittedAt ? formatTimestamp(submission.submittedAt) : "Not yet"}</span>
         </Row>
         <Row label="Time taken">
-          <span className="font-mono text-ink">{formatDuration(submission.durationSeconds ?? 0)}</span>
+          <span className="text-ink tabular-nums">{formatDuration(submission.durationSeconds ?? 0)}</span>
         </Row>
         <Row label="Submission">
           {submission.autoSubmitted ? (
-            <Badge tone="warning">Time ran out, so I handed it in for you.</Badge>
+            <Badge tone="warning">Handed in at time up</Badge>
           ) : (
             <Badge tone="success">Submitted</Badge>
           )}
         </Row>
       </Card>
 
-      <p className="mt-5 animate-fade-up text-center text-sm text-ink-2">
+      <p className="mt-6 text-center text-base text-ink-2">
         I&apos;ll mark this and release your result soon.
+        {days != null && (
+          <span className="mt-1 block font-semibold text-ink">
+            Results usually within {days} {days === 1 ? "day" : "days"}.
+          </span>
+        )}
       </p>
 
-      <Link href="/dashboard" className={buttonClasses({ fullWidth: true, className: "mt-4" })}>
+      {next ? (
+        <Link href={`/test/${next.id}`} className={buttonClasses({ fullWidth: true, className: "mt-4" })}>
+          Next: {next.title}
+        </Link>
+      ) : (
+        <Link href="/notes" className={buttonClasses({ fullWidth: true, className: "mt-4" })}>
+          Revise in Notes while you wait
+        </Link>
+      )}
+      <Link href="/dashboard" className={buttonClasses({ variant: "ghost", fullWidth: true, className: "mt-2" })}>
         Back to Home
       </Link>
+      </div>
     </div>
   );
 }
 
+/**
+ * How long results usually take, from this student's own last released
+ * results (hand in to release). Needs at least three to say anything, so
+ * the line is never a guess.
+ */
+function usualTurnaround(db: Database, studentId: string): number | null {
+  const waits = submissionsForStudent(db, studentId)
+    .filter((s) => s.status === "released" && s.submittedAt && s.releasedAt)
+    .sort((a, b) => (b.releasedAt ?? "").localeCompare(a.releasedAt ?? ""))
+    .slice(0, 10)
+    .map((s) => +new Date(s.releasedAt!) - +new Date(s.submittedAt!))
+    .filter((ms) => ms >= 0);
+  if (waits.length < 3) return null;
+  const avg = waits.reduce((a, b) => a + b, 0) / waits.length;
+  return Math.max(1, Math.ceil(avg / 86_400_000));
+}
+
+/** One open test this student still has to do, soonest closing first. */
+function nextOpenTest(db: Database, student: Student, currentId: string) {
+  const now = Date.now();
+  return testsForStudent(db, student)
+    .filter((t) => t.id !== currentId && liveStatus(t, now) === "active" && +new Date(t.opensAt) <= now && (submissionFor(db, student.id, t.id)?.status ?? "in_progress") === "in_progress")
+    .sort((a, b) => a.closesAt.localeCompare(b.closesAt))[0] ?? null;
+}
+
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between px-5 py-3.5 text-sm">
+    <div className="flex items-center justify-between gap-4 px-5 py-4 text-[15px]">
       <span className="text-ink-2">{label}</span>
       {children}
     </div>

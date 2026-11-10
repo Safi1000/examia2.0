@@ -106,7 +106,7 @@ export default function ActivityPage() {
               role="tab"
               aria-selected={range === r}
               onClick={() => setRange(r)}
-              className={cn("h-9 rounded-full px-4 text-sm font-semibold", range === r ? "bg-brand-soft text-ink" : "text-ink-3 hover:text-ink")}
+              className={cn("h-9 rounded-full px-4 text-sm font-semibold", range === r ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink")}
             >
               Last {r} days
             </button>

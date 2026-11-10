@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
+import "@/components/landing/public-calm.css";
 import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
 import { GULF_CITY_PAGES, GULF_ZONES, levelBlocks, shiftHours } from "@/lib/gulf-pages";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
@@ -76,9 +77,9 @@ export default function OnlineClassesGulf() {
         ])}
       />
       <JsonLd data={faqLd(FAQ)} />
-      <div className="mx-auto max-w-3xl px-5 pb-20 pt-14 md:pt-20">
+      <div className="public-calm mx-auto max-w-3xl px-5 pb-24 pt-12 md:pt-20">
         <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Online classes", href: "/online-classes" }, { name: "Gulf" }]} />
-        <h1 className="mt-8 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">
+        <h1 className="mt-8 text-[2.25rem] leading-[1.08] md:text-5xl">
           O Level and A Level Accounting, Business and Economics classes for students in the Gulf
         </h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
@@ -89,7 +90,7 @@ export default function OnlineClassesGulf() {
         <Section title="The times, in your time zone" intro={<p>Monday to Friday. You join the block for your level.</p>}>
           <div className="space-y-4">
             {GULF_ZONES.map((z) => (
-              <div key={z.countries} className="rounded-[16px] border border-hairline bg-card px-5 py-4">
+              <div key={z.countries} className="pc-surface rounded-[16px] px-5 py-4">
                 <p className="font-semibold text-foreground">{z.countries}</p>
                 <ul className="mt-3 space-y-1.5 text-[15px] text-body">
                   {blocks.map((b) => (
@@ -159,7 +160,7 @@ export default function OnlineClassesGulf() {
           <ul className="grid gap-3 sm:grid-cols-3">
             {GULF_CITY_PAGES.map((c) => (
               <li key={c.slug}>
-                <Link href={`/online-classes/${c.slug}`} className="block rounded-[16px] border border-hairline bg-card px-5 py-4 text-foreground hover:border-gold-border">
+                <Link href={`/online-classes/${c.slug}`} className="pc-surface pc-surface-link flex min-h-14 items-center justify-between rounded-[16px] px-5 py-4 font-semibold text-[#f0ede8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
                   {c.city}
                 </Link>
               </li>

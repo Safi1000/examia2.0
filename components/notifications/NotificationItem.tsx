@@ -44,6 +44,8 @@ export function ActivityIcon({ type, className }: { type: ActivityType; classNam
     case "student_joined_class":
     case "student_left_class":
       return <Icon.Users className={cls} />;
+    case "well_built":
+      return <Icon.Flag className={cls} />;
     default:
       return <Icon.Bell className={cls} />;
   }
@@ -60,7 +62,7 @@ const STATUS_TONE: Record<TestNotificationStatus, "info" | "success" | "warning"
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[11px] font-bold uppercase tracking-wider text-ink-3">{label}</dt>
+      <dt className="text-xs font-bold uppercase tracking-wider text-ink-3">{label}</dt>
       <dd className="mt-1 truncate text-sm font-semibold text-ink">{value}</dd>
     </div>
   );
@@ -71,7 +73,7 @@ function WhenField({ label, iso }: { label: string; iso: string }) {
   const d = new Date(iso);
   return (
     <div className="min-w-0">
-      <dt className="text-[11px] font-bold uppercase tracking-wider text-ink-3">{label}</dt>
+      <dt className="text-xs font-bold uppercase tracking-wider text-ink-3">{label}</dt>
       <dd className="mt-1">
         <span className="block truncate text-sm font-semibold text-ink">
           {d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
@@ -127,7 +129,7 @@ function TestDetails({ testId, updatedAt }: { testId: string; updatedAt?: string
         <Field label="Duration" value={formatTestDuration(test.durationMinutes)} />
         {countdown ? (
           <div className="min-w-0">
-            <dt className="text-[11px] font-bold uppercase tracking-wider text-ink-3">
+            <dt className="text-xs font-bold uppercase tracking-wider text-ink-3">
               {countdown.label}
             </dt>
             <dd
@@ -306,7 +308,7 @@ export function NotificationItem({
 
         {/* Relative stamp, with the exact time on hover as the brief asks. */}
         <span
-          className="mt-1 block text-[11px] text-ink-3 tabular"
+          className="mt-1 block text-xs text-ink-3 tabular"
           title={formatDateTime(activity.createdAt)}
         >
           {relativeTime(activity.createdAt, now)}

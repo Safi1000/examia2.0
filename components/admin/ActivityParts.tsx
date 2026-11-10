@@ -115,7 +115,7 @@ export function AreaBars({ areas }: { areas: Partial<Record<Area, number>> }) {
         <li key={k} className="grid grid-cols-[minmax(0,7.5rem)_1fr_auto] items-center gap-3 text-sm sm:grid-cols-[minmax(0,9rem)_1fr_auto]">
           <span className="truncate text-ink-2">{AREA_LABEL[k]}</span>
           <span className="h-2 overflow-hidden rounded-full bg-surface-2">
-            <span className="block h-full rounded-full bg-brand" style={{ width: `${Math.max(3, (v / max) * 100)}%` }} />
+            <span className="block h-full rounded-full bg-ink-3" style={{ width: `${Math.max(3, (v / max) * 100)}%` }} />
           </span>
           <span className="whitespace-nowrap text-right font-semibold text-ink tabular-nums">{fmtTime(v)}</span>
         </li>
@@ -143,11 +143,11 @@ export function NotesRead({ notes, limit = 50 }: { notes: Record<string, NoteAct
           <li key={id} className="py-3 first:pt-0 last:pb-0">
             <div className="flex items-baseline justify-between gap-3">
               <p className="min-w-0 truncate text-sm font-semibold text-ink">{titles.get(id) ?? "A note you've since removed"}</p>
-              <span className="shrink-0 text-xs text-ink-3">{dayLabel(pkDate(n.at))}</span>
+              <span className="shrink-0 text-xs tabular-nums text-ink-3">{dayLabel(pkDate(n.at))}</span>
             </div>
             <div className="mt-1.5 flex items-center gap-3">
               <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
-                <span className="block h-full rounded-full bg-brand" style={{ width: `${Math.max(2, pct)}%` }} />
+                <span className="block h-full rounded-full bg-ink-3" style={{ width: `${Math.max(2, pct)}%` }} />
               </span>
               <span className="shrink-0 text-xs text-ink-2 tabular-nums">
                 {n.t ? `${seen} of ${n.t} pages` : `${seen} ${seen === 1 ? "page" : "pages"}`} · {fmtTime(n.s)}
@@ -162,9 +162,9 @@ export function NotesRead({ notes, limit = 50 }: { notes: Record<string, NoteAct
 
 export function Tile({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
-    <Card className="p-4">
-      <p className="text-xs font-medium text-ink-3">{label}</p>
-      <p className="mt-1 font-display text-2xl font-extrabold leading-tight text-ink tabular-nums">{value}</p>
+    <Card className="px-4 py-3.5">
+      <p className="text-[13px] text-ink-3">{label}</p>
+      <p className="mt-1 text-2xl font-semibold leading-tight tabular-nums tracking-[-0.02em] text-ink">{value}</p>
       {note && <p className="mt-0.5 text-xs text-ink-3">{note}</p>}
     </Card>
   );
@@ -180,9 +180,9 @@ export function StudentActivitySection({ studentId }: { studentId: string }) {
   const a = data?.[studentId];
 
   return (
-    <section id="activity" className="mt-7 scroll-mt-20">
+    <section id="activity" className="mt-8 scroll-mt-20">
       <div className="mb-2.5 flex items-baseline justify-between gap-3">
-        <h2 className="text-base font-semibold text-ink">Activity</h2>
+        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Activity</h2>
         <span className="text-xs text-ink-3">Only you see this</span>
       </div>
       {error ? (

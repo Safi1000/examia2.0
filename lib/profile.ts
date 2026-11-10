@@ -48,8 +48,10 @@ export interface Profile {
   reviews?: Record<string, { step: number; due: string }>;
   /** Groundwork: today's one thing, from the start screen. */
   today?: { date: string; text: string; done?: boolean };
-  /** Groundwork: the chosen scene (blank = a new one each day). */
+  /** Groundwork: the chosen photo scene. No longer offered (the 3D worlds replaced the photos); kept so old profiles still read. */
   scene?: string;
+  /** Groundwork: the chosen 3D world (tower, bridge, summit, astar). Blank = The Summit. */
+  world?: string;
   /** Monday of the last week the student reviewed on Sunday. */
   weekReviewed?: string;
   /** False when they switched off study time or missed recording reminders. */

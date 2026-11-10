@@ -14,6 +14,7 @@ import { addDays, getSchedule, pkDate, slotsForStudent, spanHere } from "@/lib/t
 import { useNow } from "@/hooks/useNow";
 import { isAsStudent } from "@/lib/grading";
 import { useBackToClose } from "@/components/student/useBackToClose";
+import { useFocusTrap } from "@/components/student/useFocusTrap";
 import { useInApp } from "@/lib/in-app";
 
 /** The subjects a student takes: their own, else their cohort's, else all. */
@@ -46,6 +47,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
   const first = name.split(" ")[0];
   const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   const heading = useRef<HTMLHeadingElement>(null);
+  const dialog = useRef<HTMLDivElement>(null);
 
   const finish = () =>
     updateProfile({
@@ -65,6 +67,14 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
   useEffect(() => {
     heading.current?.focus();
   }, [step]);
+  // Tab stays inside the welcome, and focus returns when it closes.
+  useFocusTrap(dialog);
+  // Escape skips, the same as Skip.
+  function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    finish();
+  }
 
   // For the summary: their classes on the next class day (still to come).
   const today = pkDate(nowMs);
@@ -199,13 +209,13 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
           </div>
           {picked.length > 0 && (
             <div className="rounded-2xl border border-border bg-surface p-4 text-sm">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-ink-3">Aiming for</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink-3">Aiming for</p>
               <p className="mt-1.5 text-ink">{picked.map((sub) => `${targets[sub]} in ${sub}`).join(" · ")}</p>
             </div>
           )}
           {nextDay && (
             <div className="rounded-2xl border border-border bg-surface p-4 text-sm">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-ink-3">Your classes</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink-3">Your classes</p>
               <p className="mt-1.5 text-ink">
                 <span className="font-semibold">{nextDayLabel}:</span> {nextDay.slots.map((sl) => sl.subject).join(", ")},{" "}
                 {spanHere(nextDay.date, nextDay.slots[0].start, nextDay.slots[nextDay.slots.length - 1].end)}
@@ -220,7 +230,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
   const last = step === steps.length - 1;
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="welcome-title" className="fixed inset-0 z-[60] overflow-y-auto bg-paper/97 backdrop-blur-xl">
+    <div ref={dialog} tabIndex={-1} onKeyDown={onKeyDown} role="dialog" aria-modal="true" aria-labelledby="welcome-title" className="fixed inset-0 z-[60] overflow-y-auto outline-none bg-paper/97 backdrop-blur-xl">
       <div className="mx-auto flex min-h-dvh max-w-md flex-col px-6 py-10">
         <div className="flex items-center justify-between">
           <div className="flex gap-1.5" aria-hidden>
@@ -228,7 +238,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
               <span key={i} className={cn("h-1.5 rounded-full transition-all", i === step ? "w-8 bg-brand" : i < step ? "w-4 bg-brand/50" : "w-4 bg-surface-2")} />
             ))}
           </div>
-          <button type="button" onClick={finish} className="h-10 px-2 text-sm font-semibold text-ink-3 hover:text-ink">
+          <button type="button" onClick={finish} className="h-11 px-3 text-sm font-semibold text-ink-3 hover:text-ink">
             Skip
           </button>
         </div>

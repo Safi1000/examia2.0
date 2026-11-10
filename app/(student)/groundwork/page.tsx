@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { freeTime, planToday, type PlanItem } from "@/lib/groundwork-plan";
 import dynamic from "next/dynamic";
@@ -10,7 +10,7 @@ import { useDatabase } from "@/lib/data/store";
 import { useNow } from "@/hooks/useNow";
 import { studentById } from "@/lib/data/selectors";
 import { displayName } from "@/lib/display-name";
-import { reviewWeekDue, sceneFor } from "@/lib/groundwork";
+import { reviewWeekDue, worldScene } from "@/lib/groundwork";
 import { pkDate } from "@/lib/timetable";
 import { useTopThree } from "@/components/student/StudyBuddy";
 import { StudyStats } from "@/components/student/StudyStats";
@@ -24,12 +24,13 @@ import { practiceToday, syllabusProgress } from "@/lib/syllabus-progress";
 import Link from "next/link";
 import type { Mission } from "@/components/student/FocusMode";
 
-const FocusMode = dynamic(() => import("@/components/student/FocusMode"), { ssr: false });
+const loadFocusMode = () => import("@/components/student/FocusMode");
+const FocusMode = dynamic(loadFocusMode, { ssr: false });
 const fmt = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`);
 
 /**
  * Groundwork: the student's study space outside class. One calm screen first
- * (their scene, a greeting, the next thing, Start), then a few quiet sections:
+ * (their 3D world, a greeting, the next thing, Start), then a few quiet sections:
  * the week, the rest of today, study times and their class. History folds away.
  */
 export default function GroundworkPage() {
@@ -48,6 +49,16 @@ export default function GroundworkPage() {
   const books = useMemo(() => (student ? syllabusProgress(db, student) : []), [db, student]);
   const index = useTopicalIndex();
   const practice = useMemo(() => practiceToday(books, index, step * 300_000), [books, index, step]);
+  // Fetch the focus room's code once the page is idle, so Start opens it at once.
+  useEffect(() => {
+    const go = () => void loadFocusMode().catch(() => {});
+    if ("requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(go, { timeout: 5000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const t = setTimeout(go, 2000);
+    return () => clearTimeout(t);
+  }, []);
   if (!student || !free) return null;
 
   const name = displayName(student.username).split(" ")[0];
@@ -57,16 +68,16 @@ export default function GroundworkPage() {
     setOpen({ mission: it ? { subject: it.subject, topic: it.title, noteHref: it.noteHref, minutes: it.minutes, tag: it.tag } : null });
   };
   const sundayWeek = reviewWeekDue(profile.weekReviewed, nowMs);
-  const scene = sceneFor(profile.scene, nowMs);
+  const scene = worldScene(profile.world);
   // Goals and plans live here, below the quiet first screen.
   const oneThing = profile.today?.date === pkDate(nowMs) ? profile.today : null;
   const later = plan;
 
   return (
     <div>
-      <CalmStart name={name} nowMs={nowMs} onStart={() => startItem(null)} />
+      <CalmStart name={name} nowMs={nowMs} onStart={() => startItem(null)} away={!!open} />
 
-      {/* The rest slides up over the photo as a frosted sheet. */}
+      {/* The rest slides up over the world as a frosted sheet. */}
       <div id="groundwork-more" className="scroll-mt-[68px] rounded-t-[32px] border-t border-white/[0.08] bg-paper shadow-[0_-30px_60px_-30px_rgba(0,0,0,.6)]">
       <div className="mx-auto max-w-5xl space-y-10 px-4 pb-32 pt-8 sm:px-6 sm:pb-16 sm:pt-10">
         {sundayWeek && <SundayReview week={sundayWeek} nowMs={nowMs} name={name} />}
@@ -78,7 +89,7 @@ export default function GroundworkPage() {
 
           {(later.length > 0 || oneThing || practice.length > 0) && (
             <Group title="Today">
-              <ul className="divide-y divide-border overflow-hidden rounded-[22px] border border-border bg-surface">
+              <ul className="surface divide-y divide-hairline overflow-hidden rounded-[22px]">
                 {oneThing && (
                   <li className="flex items-center gap-4 px-5 py-4">
                     <span className="min-w-0 flex-1">
@@ -98,7 +109,7 @@ export default function GroundworkPage() {
                 )}
                 {later.map((it) => (
                   <li key={it.key}>
-                    <button type="button" onClick={() => startItem(it)} className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-surface-2/50 active:bg-surface-2">
+                    <button type="button" onClick={() => startItem(it)} className="row-link flex w-full items-center gap-4 px-5 py-4 text-left">
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[12px] text-ink-3">
                           {it.tag} · {it.subject}
@@ -114,7 +125,7 @@ export default function GroundworkPage() {
                 ))}
                 {practice.map((p) => (
                   <li key={p.key}>
-                    <Link href={p.href} className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-surface-2/50 active:bg-surface-2">
+                    <Link href={p.href} className="row-link flex w-full items-center gap-4 px-5 py-4 text-left">
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[12px] text-ink-3">
                           {p.fresh ? "Past papers · new this week" : "Past papers · keep it fresh"} · {p.subject}
@@ -141,7 +152,7 @@ export default function GroundworkPage() {
         )}
 
         <details className="group">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-[22px] border border-border bg-surface px-5 py-4 text-[15px] font-semibold text-ink [&::-webkit-details-marker]:hidden">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between surface surface-link rounded-[22px] px-5 py-4 text-[15px] font-semibold text-ink [&::-webkit-details-marker]:hidden">
             More: study times, your class, history
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-ink-3 transition-transform group-open:rotate-90" aria-hidden>
               <path d="m9 6 6 6-6 6" />
@@ -163,7 +174,7 @@ export default function GroundworkPage() {
               ) : null
             }
           >
-            <div className="rounded-[22px] border border-border bg-surface p-2">
+            <div className="surface rounded-[22px] p-2">
               {top && top.top.length > 0 ? (
                 <ol>
                   {top.top.map((t, i) => (
@@ -179,7 +190,7 @@ export default function GroundworkPage() {
                 <p className="px-3 py-3 text-sm text-ink-2">Nobody yet this week. One session puts you at the top.</p>
               )}
               {top?.me && top.me.rank > 3 && (
-                <p className="border-t border-border px-3 pb-2 pt-3 text-sm text-ink-2">
+                <p className="border-t border-hairline px-3 pb-2 pt-3 text-sm text-ink-2">
                   You&apos;re <span className="font-semibold text-ink">#{top.me.rank}</span> with {fmt(top.me.minutes)}.
                 </p>
               )}

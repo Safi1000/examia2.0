@@ -27,7 +27,7 @@ async function call(method: "GET" | "POST", path: string, body?: object) {
 }
 
 function useAutomation() {
-  const [settings, setSettings] = useState<Settings | null>(DEMO ? { autoAbsent: true, autoRelease: false } : null);
+  const [settings, setSettings] = useState<Settings | null>(DEMO ? { autoAbsent: true, autoRelease: true } : null);
   const [issues, setIssues] = useState<Issue[]>([]);
   const load = useCallback(() => {
     if (DEMO) return;
@@ -65,7 +65,7 @@ export function HealthLine() {
   }
 
   return (
-    <div className="mb-6 space-y-2 rounded-lg border border-warning/40 bg-warning-soft px-5 py-4" role="status">
+    <div className="mb-4 space-y-2 rounded-xl border border-warning/30 bg-warning-soft px-5 py-4" role="status">
       {issues.map((i) => (
         <div key={i.kind} className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-ink">{i.text}</p>
@@ -127,7 +127,7 @@ export function AutomationSettings() {
   return (
     <Card className="max-w-2xl">
       <CardHeader>
-        <h2 className="font-bold text-ink">Automations</h2>
+        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Automations</h2>
       </CardHeader>
       <CardBody>
         <p className="mb-2 text-sm text-ink-3">
@@ -149,9 +149,9 @@ export function AutomationSettings() {
                   aria-checked={settings[s.key]}
                   aria-label={s.label}
                   onClick={() => void flip(s.key)}
-                  className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${settings[s.key] ? "bg-brand" : "bg-surface-2 ring-1 ring-inset ring-border-strong"}`}
+                  className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 after:absolute after:-inset-2 after:content-[''] ${settings[s.key] ? "bg-brand" : "bg-surface-2 ring-1 ring-inset ring-border-strong"}`}
                 >
-                  <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${settings[s.key] ? "left-6" : "left-1"}`} />
+                  <span className={`absolute top-1 h-5 w-5 rounded-full bg-ink shadow-[0_1px_3px_rgba(0,0,0,0.45)] transition-[left] duration-200 ease-[var(--ease-out)] ${settings[s.key] ? "left-6" : "left-1"}`} />
                 </button>
               </li>
             ))}

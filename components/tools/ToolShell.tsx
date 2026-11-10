@@ -50,8 +50,8 @@ export function ToolShell({
       <JsonLd data={faqLd(faq)} />
       <div className="mx-auto max-w-3xl px-5 pb-20 pt-14 md:pt-20">
         <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Free tools", href: "/tools" }, { name }]} />
-        <h1 className="mt-8 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{h1}</h1>
-        <p className="mt-5 text-lg leading-relaxed text-muted-foreground">{intro}</p>
+        <h1 className="mt-8 text-balance text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{h1}</h1>
+        <p className="mt-5 max-w-[62ch] text-lg leading-relaxed text-muted-foreground">{intro}</p>
         <div className="mt-10">{children}</div>
         <Section title="How it works">{how}</Section>
         <TrialBox
@@ -67,11 +67,15 @@ export function ToolShell({
         <WaitlistBox source={path} />
         {related && related.length > 0 && (
           <Section title="Read next">
-            <ul className="space-y-2 text-[17px]">
+            <ul className="divide-y divide-hairline border-y border-hairline text-[17px]">
               {related.map((r) => (
                 <li key={r.href}>
-                  <Link href={r.href} className="text-gold hover:underline">
+                  <Link
+                    href={r.href}
+                    className="group flex min-h-14 items-center justify-between gap-4 py-3 font-semibold text-foreground transition-colors hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+                  >
                     {r.label}
+                    <span aria-hidden className="text-faint transition-colors group-hover:text-gold">→</span>
                   </Link>
                 </li>
               ))}

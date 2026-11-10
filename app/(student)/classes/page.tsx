@@ -11,6 +11,7 @@ import type { Database } from "@/lib/data/seed";
 import { useSchedule, LEVEL_LABEL, RECORDING_HOURS, getSchedule, addDays, isClassDay, pkDate, slotKey, slotsForStudent, slotsOn, span, useClassLinks } from "@/lib/classes";
 import { cn } from "@/lib/cn";
 import { subjectsAtLevel } from "@/lib/levels";
+import { PageHeader, SectionTitle } from "@/components/student/PortalKit";
 
 /**
  * The student's classes that were called off on a date. `slotsForStudent`
@@ -81,38 +82,36 @@ export default function ClassesPage() {
   if (!student) return null;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-9 px-4 py-8 sm:px-6">
-      <header className="animate-fade-up">
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-brand">{dayRange(schedule.days)} · Pakistan time</p>
-        <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink sm:text-[2.5rem]">Classes</h1>
-        {today < getSchedule().termStarts && <p className="mt-2.5 text-base text-ink-2">
+    <div className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+      <div className="rise space-y-10">
+      <PageHeader title="Classes" eyebrow={`${dayRange(schedule.days)} · Pakistan time`}>
+        {today < getSchedule().termStarts && (
+          <p>
             Classes start on {new Date(`${getSchedule().termStarts}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.
-          </p>}
-      </header>
+          </p>
+        )}
+      </PageHeader>
 
       <ClassNow db={db} student={student} nowMs={nowMs} />
 
-      <section className="space-y-3">
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-base font-semibold text-ink">Your timetable</h2>
-          <p className="text-sm font-semibold text-ink-2">{day === today ? "Today" : dayName(day)}</p>
-        </div>
+      <section>
+        <SectionTitle action={<span className="font-semibold text-ink-2">{day === today ? "Today" : dayName(day)}</span>}>Your timetable</SectionTitle>
         {slots.length ? (
-          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
+          <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
             {slots.map((s) => (
-              <li key={slotKey(s)} className="flex items-center justify-between gap-3 px-5 py-3.5">
+              <li key={slotKey(s)} className="flex items-center justify-between gap-4 px-5 py-4 sm:px-6">
                 <span className="min-w-0">
                   <span className="flex flex-wrap items-center gap-2">
                     <span className={cn("font-semibold", s.cancelled ? "text-ink-3 line-through" : "text-ink")}>{s.subject}</span>
                     {s.cancelled ? (
-                      <Badge className="px-2 text-[11px]">Cancelled</Badge>
+                      <Badge className="px-2 text-xs">Cancelled</Badge>
                     ) : s.extra ? (
-                      <Badge tone="brand" className="px-2 text-[11px]">Extra</Badge>
+                      <Badge tone="brand" className="px-2 text-xs">Extra</Badge>
                     ) : s.changed ? (
-                      <Badge tone="warning" className="px-2 text-[11px]">Moved</Badge>
+                      <Badge tone="warning" className="px-2 text-xs">Moved</Badge>
                     ) : null}
                   </span>
-                  <span className="block text-xs text-ink-3">{LEVEL_LABEL[s.level]}</span>
+                  <span className="mt-0.5 block text-xs text-ink-3">{LEVEL_LABEL[s.level]}</span>
                 </span>
                 <span className={cn("shrink-0 text-sm tabular-nums", s.cancelled ? "text-ink-3 line-through" : "text-ink-2")}>
                   {span(s.start, s.end)}
@@ -121,22 +120,20 @@ export default function ClassesPage() {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-ink-3">Your timetable shows here once I add your level and subjects.</p>
+          <p className="surface-quiet rounded-xl px-5 py-4 text-base text-ink-2">Your timetable shows here once I add your level and subjects.</p>
         )}
       </section>
 
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-base font-semibold text-ink">Recordings</h2>
-          <p className="mt-0.5 text-sm text-ink-3">Each recording stays open for 2 days after class, then it closes.</p>
-        </div>
+      <section>
+        <SectionTitle sub="Each recording stays open for 2 days after class, then it closes.">Recordings</SectionTitle>
+        <div className="space-y-2.5">
         {pending.length > 0 && (
-          <ul className="space-y-2">
+          <ul className="space-y-2.5">
             {pending.map((p) => (
-              <li key={slotKey(p)} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border border-dashed border-border bg-surface/50 px-5 py-3.5">
-                <span>
+              <li key={slotKey(p)} className="surface-quiet flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl px-5 py-4 sm:px-6">
+                <span className="min-w-0">
                   <span className="block font-semibold text-ink">{p.subject}</span>
-                  <span className="block text-xs text-ink-3">Today, {span(p.start, p.end)}</span>
+                  <span className="mt-0.5 block text-xs text-ink-3 tabular-nums">Today, {span(p.start, p.end)}</span>
                 </span>
                 <span className="text-xs font-medium text-ink-3">Recording on its way, usually within an hour</span>
               </li>
@@ -144,7 +141,7 @@ export default function ClassesPage() {
           </ul>
         )}
         {recordings.length ? (
-          <ul className="space-y-2">
+          <ul className="space-y-2.5">
             {recordings.map((r) => (
               <li key={slotKey(r)}>
                 <a
@@ -153,11 +150,11 @@ export default function ClassesPage() {
                   rel="noreferrer"
                   onClick={() => updateProfile((p) => ({ watched: [...(p.watched ?? []).filter((k) => k !== slotKey(r)), slotKey(r)].slice(-60) }))}
                   className={cn(
-                    "flex items-center justify-between gap-3 rounded-lg border bg-surface px-5 py-3.5 transition-colors hover:border-border-strong",
-                    !watched.has(slotKey(r)) && r.closesAt - nowMs < 6 * 3_600_000 ? "border-warning/50" : "border-border",
+                    "surface surface-link flex items-center justify-between gap-4 rounded-xl px-5 py-4 sm:px-6",
+                    !watched.has(slotKey(r)) && r.closesAt - nowMs < 6 * 3_600_000 && "border-warning/50!",
                   )}
                 >
-                  <span>
+                  <span className="min-w-0">
                     <span className="block font-semibold text-ink">{r.subject}</span>
                     <span className="block text-xs text-ink-3">
                       {new Date(`${r.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} · open
@@ -170,12 +167,12 @@ export default function ClassesPage() {
                       <Icon.Check className="h-4 w-4" /> Watched
                     </span>
                   ) : (
-                    <span className="flex flex-col items-end">
-                      <span className="inline-flex items-center gap-1 text-sm font-semibold text-brand">
+                    <span className="flex shrink-0 flex-col items-end">
+                      <span className="inline-flex items-center gap-1 text-sm font-semibold text-ink">
                         Watch <Icon.ChevronRight className="h-4 w-4" />
                       </span>
                       {r.closesAt - nowMs < 6 * 3_600_000 && (
-                        <span className="text-[11px] font-semibold text-warning">Closes in {Math.max(1, Math.round((r.closesAt - nowMs) / 3_600_000))} h</span>
+                        <span className="text-xs font-semibold text-warning">Closes in {Math.max(1, Math.round((r.closesAt - nowMs) / 3_600_000))} h</span>
                       )}
                     </span>
                   )}
@@ -190,7 +187,9 @@ export default function ClassesPage() {
             message="Each class recording appears here after class."
           />
         )}
+        </div>
       </section>
+      </div>
     </div>
   );
 }

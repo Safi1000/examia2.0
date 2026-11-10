@@ -67,11 +67,11 @@ export function NotifyCard() {
         : { title: "Reminders are blocked on this phone", body: "Allow notifications for this site in your browser settings, then reload." };
 
   return (
-    <section className="animate-fade-up rounded-lg border border-border bg-surface px-5 py-4" aria-label="Class reminders">
+    <section className="surface rounded-xl px-5 py-5 sm:px-6" aria-label="Class reminders">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-ink">{copy.title}</p>
-          <p className="mt-0.5 text-sm text-ink-2">{copy.body}</p>
+          <p className="mt-1 text-[15px] text-pretty text-ink-2">{copy.body}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {status === "off" ? (

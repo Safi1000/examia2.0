@@ -13,16 +13,16 @@ export function PageHeader({
   back?: { href: string; label: string };
 }) {
   return (
-    <div className="mb-8">
+    <div className="mb-7 sm:mb-8">
       {back && (
-        <Link href={back.href} className="mb-2 inline-flex items-center gap-1.5 text-sm font-semibold text-ink-2 hover:text-ink">
+        <Link href={back.href} className="-ml-1 mb-2 inline-flex min-h-11 items-center gap-1.5 rounded-md px-1 text-sm font-semibold text-ink-3 transition-colors hover:text-ink">
           <Icon.ArrowLeft className="h-4 w-4" /> {back.label}
         </Link>
       )}
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-[1.85rem] font-extrabold leading-[1.1] tracking-[-0.02em] text-ink sm:text-[2.25rem]">{title}</h1>
-          {subtitle && <p className="mt-2 text-[15px] text-ink-3">{subtitle}</p>}
+        <div className="min-w-0">
+          <h1 className="text-balance text-[1.75rem] font-bold leading-[1.1] tracking-[-0.025em] text-ink sm:text-[2.125rem]">{title}</h1>
+          {subtitle && <p className="mt-1.5 text-pretty text-[15px] text-ink-3">{subtitle}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>

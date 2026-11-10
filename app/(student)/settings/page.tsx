@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Button, Card, Input } from "@/components/ui";
-import { ThemeSettings } from "@/components/ThemeSettings";
 import { useToast } from "@/components/toast";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
@@ -10,27 +9,22 @@ import { NotificationSettings } from "@/components/student/NotificationSettings"
 import { ProfileSettings } from "@/components/student/ProfileSettings";
 import { useDatabase } from "@/lib/data/store";
 import { studentById } from "@/lib/data/selectors";
+import { PageHeader } from "@/components/student/PortalKit";
 
 export default function StudentSettingsPage() {
   const studentId = useAuth().session?.studentId;
   const db = useDatabase();
   const student = studentId ? studentById(db, studentId) : null;
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
-      <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink">Settings</h1>
-      <p className="mt-2 text-base text-ink-2">Your password, notifications and how your portal looks.</p>
+    <div className="mx-auto max-w-2xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+      <div className="rise space-y-5">
+      <PageHeader title="Settings" className="mb-3">Your password, notifications and how your portal looks.</PageHeader>
 
       {student && <ProfileSettings db={db} student={student} />}
       {studentId && <NotificationSettings studentId={studentId} />}
       <ChangePassword />
 
-      <Card className="mt-5 p-5">
-        <h2 className="text-base font-semibold text-ink">Accent colour</h2>
-        <p className="mb-4 mt-1 text-sm text-ink-3">
-          Choose the highlight colour used across your app. Saved to your account.
-        </p>
-        <ThemeSettings />
-      </Card>
+      </div>
     </div>
   );
 }
@@ -81,8 +75,8 @@ function ChangePassword() {
   }
 
   return (
-    <Card className="mt-5 p-5">
-      <h2 className="text-base font-semibold text-ink">Change password</h2>
+    <Card className="p-5 sm:p-6">
+      <h2 className="text-[17px] font-bold tracking-[-0.01em] text-ink">Change password</h2>
       <p className="mt-1 text-sm text-ink-3">Replace the password I gave you with your own.</p>
       <form onSubmit={onSubmit} className="mt-4 space-y-4" noValidate>
         <Input

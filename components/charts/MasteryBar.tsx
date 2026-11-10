@@ -20,7 +20,7 @@ const bandText: Record<MasteryBand, string> = {
 };
 
 /**
- * Horizontal mastery bar with the spec's 50% / 60% banding markers.
+ * Horizontal mastery bar with the spec's 50% / 70% banding markers.
  * Fill color follows the band; markers stay fixed so the banding reads.
  */
 export function MasteryBar({
@@ -45,11 +45,11 @@ export function MasteryBar({
           className={cn("h-full rounded-full transition-[width] duration-700 ease-[var(--ease-out)]", bandColor[band])}
           style={{ width: `${Math.max(2, Math.min(100, percent))}%` }}
         />
-        {/* Banding thresholds at 50% and 60% */}
+        {/* Banding thresholds at 50% and 70% */}
         <span className="absolute inset-y-0" style={{ left: "50%" }}>
           <span className="block h-full w-px bg-ink/25" />
         </span>
-        <span className="absolute inset-y-0" style={{ left: "60%" }}>
+        <span className="absolute inset-y-0" style={{ left: "70%" }}>
           <span className="block h-full w-px bg-ink/25" />
         </span>
       </div>

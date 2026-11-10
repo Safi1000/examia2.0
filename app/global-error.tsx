@@ -25,13 +25,13 @@ export default function GlobalError({ retry }: { error: unknown; retry: () => vo
         }}
       >
         <title>Something went wrong</title>
-        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Something went wrong.</h1>
-        <p style={{ margin: 0, fontSize: 14, color: "#b9b6ae" }}>Check your internet, then try again.</p>
+        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: "-0.01em" }}>Something went wrong.</h1>
+        <p style={{ margin: 0, fontSize: 16, lineHeight: 1.6, color: "#b9b6ae" }}>Check your internet, then try again.</p>
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
           <button
             type="button"
             onClick={() => retry()}
-            style={{ height: 44, padding: "0 22px", borderRadius: 999, border: 0, background: "#FBC159", color: "#1a1d20", fontWeight: 600, fontSize: 14 }}
+            style={{ height: 44, padding: "0 22px", borderRadius: 999, border: 0, background: "#FBC159", color: "#1a1d20", fontWeight: 600, fontSize: 15, cursor: "pointer" }}
           >
             Try again
           </button>
@@ -39,7 +39,7 @@ export default function GlobalError({ retry }: { error: unknown; retry: () => vo
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a
             href="/"
-            style={{ display: "inline-flex", alignItems: "center", height: 44, padding: "0 22px", borderRadius: 999, border: "1px solid #4a4f55", color: "#f2f0eb", fontWeight: 600, fontSize: 14, textDecoration: "none" }}
+            style={{ display: "inline-flex", alignItems: "center", height: 44, padding: "0 22px", borderRadius: 999, border: "1px solid #4a4f55", color: "#f2f0eb", fontWeight: 600, fontSize: 15, textDecoration: "none" }}
           >
             Home
           </a>

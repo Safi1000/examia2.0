@@ -10,11 +10,14 @@ import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { AnnotatedImage, AnnotatorModal } from "@/components/Annotator";
 import { PageStack } from "@/components/PageStack";
+import { MarkSchemePanel } from "@/components/admin/MarkSchemePanel";
+import { idsInText } from "@/lib/paper-builder";
 import { Card, Button, Badge, Pill, Textarea, EmptyState, Icon } from "@/components/ui";
 import { awardedMarks, isFullyGraded, totalMarks } from "@/lib/scoring";
 import { gradeSubmission } from "@/lib/grading";
 import { takenTimeOf } from "@/lib/photo-time";
 import { cn } from "@/lib/cn";
+import { panel } from "@/components/admin/surface";
 
 export default function GradingPage() {
   const params = useParams();
@@ -119,7 +122,7 @@ export default function GradingPage() {
           ) : (
             <>
               {nextId && (
-                <Link href={`/admin/grading/${nextId}`} className="text-sm font-semibold text-ink-2 hover:text-ink">
+                <Link href={`/admin/grading/${nextId}`} className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-ink-2 hover:text-ink">
                   Skip to next →
                 </Link>
               )}
@@ -135,15 +138,15 @@ export default function GradingPage() {
       {/* Running total */}
       <Card ruled className="mb-5 flex flex-wrap items-center justify-between gap-3 p-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-ink-3">Running total</p>
-          <p className="font-mono text-2xl font-bold text-ink">{awarded}<span className="text-base text-ink-3">/{total}</span></p>
+          <p className="text-[13px] font-medium text-ink-3">Running total</p>
+          <p className="text-2xl font-semibold tabular-nums tracking-[-0.02em] text-ink">{awarded}<span className="text-base font-normal text-ink-3">/{total}</span></p>
         </div>
         <div className="text-right">
-          <p className="font-mono text-lg font-semibold text-ink">{grade.percent}%</p>
-          <p className="text-sm text-ink-2">Grade {grade.letter}</p>
+          <p className="text-lg font-semibold tabular-nums text-ink">{grade.percent}%</p>
+          <p className="text-sm text-ink-3">Grade {grade.letter}</p>
         </div>
         {!fullyGraded && !released && (
-          <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-warning">
+          <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/25 bg-warning-soft px-3 py-2 text-sm text-warning">
             <span>Score every written and photo answer before releasing.</span>
             {blanks.length > 0 && (
               <button
@@ -152,7 +155,7 @@ export default function GradingPage() {
                   for (const q of blanks) store.gradeAnswer(subId, q.id, 0);
                   toast(`Gave 0 to ${blanks.length === 1 ? "1 blank answer" : `${blanks.length} blank answers`}.`, "success");
                 }}
-                className="h-9 rounded-full border border-warning/40 px-3 text-xs font-semibold text-ink hover:bg-warning/10"
+                className="h-9 rounded-full border border-warning/40 px-3 text-xs font-semibold text-ink hover:bg-warning/10 max-md:h-11"
               >
                 0 for {blanks.length === 1 ? "the blank answer" : `the ${blanks.length} blank answers`}
               </button>
@@ -162,15 +165,15 @@ export default function GradingPage() {
       </Card>
 
       {mcqs.length > 0 && mcqs.length < test.questions.length && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-surface px-4 py-3 text-sm text-ink-2">
+        <div className={cn(panel, "mb-3 flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm text-ink-2")}>
           <span>
             {mcqs.length} multiple choice {mcqs.length === 1 ? "question" : "questions"} marked automatically:{" "}
-            <span className="font-mono font-semibold text-ink">{mcqAwarded}/{mcqTotal}</span>
+            <span className="font-semibold tabular-nums text-ink">{mcqAwarded}/{mcqTotal}</span>
           </span>
           <button
             type="button"
             onClick={() => setShowAuto((v) => !v)}
-            className="font-semibold text-brand hover:underline"
+            className="inline-flex min-h-11 items-center font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline"
             aria-expanded={showAuto}
           >
             {showAuto ? "Hide them" : "Show them"}
@@ -192,9 +195,9 @@ export default function GradingPage() {
 
       {/* Always in reach at the bottom (no scrolling back up on the iPad). */}
       {!released && (
-        <div className="sticky bottom-3 z-20 mt-6 flex items-center justify-between gap-3 rounded-full border border-border bg-surface/95 py-2 pl-5 pr-2 shadow-[var(--shadow-lg)]">
-          <span className="font-mono text-sm font-semibold text-ink">
-            {awarded}/{total} <span className="font-sans font-normal text-ink-3">· {grade.percent}%</span>
+        <div className="sticky bottom-3 z-20 mt-6 flex items-center justify-between gap-3 rounded-full border border-border-strong bg-surface/95 py-2 pl-5 pr-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),var(--shadow-lg)] backdrop-blur max-md:bottom-24">
+          <span className="text-sm font-semibold tabular-nums text-ink">
+            {awarded}/{total} <span className="font-normal text-ink-3">· {grade.percent}%</span>
           </span>
           <Button disabled={!fullyGraded} onClick={() => release(!!nextId)}>
             {nextId ? "Release & next" : "Release result"}
@@ -284,21 +287,23 @@ function GradeCard({
     <Card className="p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-xs text-ink-3">Q{index + 1}</span>
-          <Badge tone="neutral" className="uppercase">{question.type}</Badge>
-          <Badge tone="brand">{question.topic}</Badge>
+          <span className="text-xs font-semibold tabular-nums text-ink-3">Q{index + 1}</span>
+          <Badge tone="neutral">{question.type === "mcq" ? "Choice" : question.type === "photo" ? "Photo" : "Written"}</Badge>
+          <Badge tone="neutral">{question.topic}</Badge>
           <Pill>{question.marks}m</Pill>
           {locked && <span className="inline-flex items-center gap-1 text-xs text-ink-3"><Icon.Lock className="h-3 w-3" /> marked automatically</span>}
         </div>
       </div>
-      <p className="mt-2 font-semibold text-ink">{question.prompt}</p>
+      <p className="mt-2 text-pretty font-semibold leading-snug text-ink">{question.prompt}</p>
       {question.attachments && question.attachments.length > 0 && (
         <div className="mt-3">
           <PageStack urls={question.attachments} label="Question paper" />
         </div>
       )}
 
-      <div className="mt-3">
+      {/* A written past paper question: its mark scheme beside the answer. */}
+      <div className={cn("mt-3", question.type !== "mcq" && idsInText(question.prompt).length > 0 && "grid grid-cols-1 items-start gap-4 lg:grid-cols-2")}>
+      <div className="min-w-0">
         {question.type === "mcq" && (
           <ul className="space-y-1.5">
             {question.options.map((opt, oi) => {
@@ -318,7 +323,7 @@ function GradeCard({
           </ul>
         )}
         {question.type === "text" && (
-          <div className="rounded-md border border-border bg-surface-2/60 p-3 text-sm text-ink">
+          <div className="rounded-lg bg-surface-2/60 p-3 text-sm leading-relaxed text-ink">
             {answer?.text || <span className="italic text-ink-3">No answer given</span>}
           </div>
         )}
@@ -348,7 +353,7 @@ function GradeCard({
                     <button
                       onClick={() => setPage(Math.max(0, shown - 1))}
                       disabled={shown === 0}
-                      className="h-8 rounded-md border border-border-strong px-2.5 text-ink-2 disabled:opacity-40"
+                      className="h-9 min-w-9 rounded-full border border-border-strong px-3 text-ink-2 transition-colors hover:bg-surface-2 disabled:opacity-40 max-md:h-11 max-md:min-w-11"
                       aria-label="Previous page"
                     >
                       ‹
@@ -357,14 +362,14 @@ function GradeCard({
                     <button
                       onClick={() => setPage(Math.min(photos.length - 1, shown + 1))}
                       disabled={shown === photos.length - 1}
-                      className="h-8 rounded-md border border-border-strong px-2.5 text-ink-2 disabled:opacity-40"
+                      className="h-9 min-w-9 rounded-full border border-border-strong px-3 text-ink-2 transition-colors hover:bg-surface-2 disabled:opacity-40 max-md:h-11 max-md:min-w-11"
                       aria-label="Next page"
                     >
                       ›
                     </button>
                   </>
                 )}
-                <button onClick={() => setAnnotating(shown)} className="font-semibold text-brand hover:underline">
+                <button onClick={() => setAnnotating(shown)} className="inline-flex min-h-11 items-center font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline">
                   Open to annotate
                 </button>
               </div>
@@ -384,11 +389,13 @@ function GradeCard({
           );
         })()}
       </div>
+      {question.type !== "mcq" && idsInText(question.prompt).length > 0 && <MarkSchemePanel prompt={question.prompt} />}
+      </div>
 
       {/* Scoring */}
       <div className="mt-4 border-t border-border pt-3">
         {locked ? (
-          <p className="text-sm text-ink-2">Awarded <span className="font-mono font-semibold text-ink">{awarded ?? 0}/{question.marks}</span> automatically.</p>
+          <p className="text-sm text-ink-2">Awarded <span className="font-semibold tabular-nums text-ink">{awarded ?? 0}/{question.marks}</span> automatically.</p>
         ) : (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-3">
@@ -396,7 +403,7 @@ function GradeCard({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setMarks((awarded ?? 0) - 1)}
-                  className="h-10 w-10 rounded-md border border-border-strong bg-surface text-lg font-semibold text-ink-2 hover:bg-surface-2"
+                  className="h-11 w-11 rounded-lg border border-border-strong bg-surface text-lg font-semibold text-ink-2 transition-colors hover:bg-surface-2"
                   aria-label="One mark less"
                 >
                   −
@@ -409,11 +416,11 @@ function GradeCard({
                   onChange={(e) => setMarks(e.target.value === "" ? 0 : Number(e.target.value))}
                   placeholder="0"
                   aria-label={`Marks out of ${question.marks}`}
-                  className="h-10 w-20 rounded-md border border-border-strong bg-surface px-3 text-center font-mono text-base font-semibold text-ink"
+                  className="h-11 w-20 rounded-lg border border-border-strong bg-surface px-3 text-center text-base font-semibold tabular-nums text-ink"
                 />
                 <button
                   onClick={() => setMarks((awarded ?? 0) + 1)}
-                  className="h-10 w-10 rounded-md border border-border-strong bg-surface text-lg font-semibold text-ink-2 hover:bg-surface-2"
+                  className="h-11 w-11 rounded-lg border border-border-strong bg-surface text-lg font-semibold text-ink-2 transition-colors hover:bg-surface-2"
                   aria-label="One mark more"
                 >
                   +
@@ -429,9 +436,9 @@ function GradeCard({
                     onClick={() => setMarks(v)}
                     aria-pressed={awarded === v}
                     className={cn(
-                      "h-10 min-w-10 rounded-md border px-3 text-sm font-semibold",
+                      "h-11 min-w-11 rounded-lg border px-3 text-sm font-semibold tabular-nums transition-colors duration-150",
                       awarded === v
-                        ? "border-brand bg-brand-soft text-brand"
+                        ? "border-ink/40 bg-white/[0.09] text-ink"
                         : "border-border-strong bg-surface text-ink-2 hover:bg-surface-2",
                     )}
                   >
@@ -491,7 +498,7 @@ function PhotoTimeline({
   return (
     <Card className="mb-5 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-ink-3">Photo timeline</p>
+        <p className="text-[13px] font-medium text-ink-3">Photo timeline</p>
         {flagged > 0 ? (
           <p className="text-xs font-semibold text-warning">
             {flagged} page{flagged === 1 ? "" : "s"} photographed more than 2 min after time was up

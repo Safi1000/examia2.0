@@ -1,7 +1,7 @@
 /**
  * Whiteboard engine: the drawing model and the maths, no React.
  *
- * World space is an infinite plane. The camera maps it to the screen:
+ * World space is a fixed sheet per page (see BOARD). The camera maps it to the screen:
  *   screen = (world - camera.xy) * camera.z
  * Strokes are stored in world units, so zooming never blurs them.
  */
@@ -165,6 +165,92 @@ export function clearInset(h: number, top: (Element | null)[], bottom: (Element 
     if (r && r.height) b = Math.max(b, h - r.top + margin);
   }
   return { t, r: margin, b, l };
+}
+
+// ---------------------------------------------------------------- the board's edges
+
+/**
+ * Every page is a fixed sheet, not an endless plane: 4440 x 3700 world units, which is about
+ * 3 tablet screens wide and 4 tall at 100% (the S10 Ultra shows about 1480 x 920 in Chrome).
+ * Taller than wide because a lesson grows down the page. The same size on every device, so
+ * the tablet, the laptop and the students all see the same sheet. The sheet starts just above
+ * and left of where a new page opens (the camera starts at -60, -60).
+ */
+export const BOARD: View = { x: -60, y: -60, w: 4440, h: 3700 };
+
+/** Room shown past the sheet's edge (screen px), so the edge is visible and soft, never a wall you hit blind. */
+export const EDGE_SLACK = 36;
+
+const pageBoxes = new WeakMap<Stroke[], WeakMap<object, View>>();
+/**
+ * The page's sheet: the standard size, grown to take in anything already outside it (older
+ * pages written on before the edges existed, or a picture placed near the edge), so nothing is
+ * ever out of reach. Cached per strokes/images pair, so it costs nothing per frame.
+ */
+export function pageBounds(strokes: Stroke[], images: { x: number; y: number; w: number; h: number }[]): View {
+  let byImages = pageBoxes.get(strokes);
+  const hit = byImages?.get(images);
+  if (hit) return hit;
+  let x0 = BOARD.x, y0 = BOARD.y, x1 = BOARD.x + BOARD.w, y1 = BOARD.y + BOARD.h;
+  const pad = 120;
+  for (const s of strokes) {
+    const b = strokeBox(s);
+    if (b.x < x0 + pad) x0 = b.x - pad;
+    if (b.y < y0 + pad) y0 = b.y - pad;
+    if (b.x + b.w > x1 - pad) x1 = b.x + b.w + pad;
+    if (b.y + b.h > y1 - pad) y1 = b.y + b.h + pad;
+  }
+  for (const m of images) {
+    if (m.x < x0 + pad) x0 = m.x - pad;
+    if (m.y < y0 + pad) y0 = m.y - pad;
+    if (m.x + m.w > x1 - pad) x1 = m.x + m.w + pad;
+    if (m.y + m.h > y1 - pad) y1 = m.y + m.h + pad;
+  }
+  const v = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  if (!byImages) pageBoxes.set(strokes, (byImages = new WeakMap()));
+  byImages.set(images, v);
+  return v;
+}
+
+/**
+ * Keeps a camera on the sheet: no zooming out much past the whole sheet, and no panning more
+ * than a strip past its edges (`pad`: the toolbars' space, so the edge can sit just clear of
+ * them). A sheet smaller than the screen sits in the middle.
+ */
+export function clampCam(cam: Camera, w: number, h: number, b: View, pad: Inset = NO_INSET): Camera {
+  if (!w || !h) return cam;
+  const iw = Math.max(80, w - pad.l - pad.r);
+  const ih = Math.max(80, h - pad.t - pad.b);
+  const fitZ = Math.min(iw / b.w, ih / b.h);
+  const z = Math.min(MAX_Z, Math.max(cam.z, Math.max(MIN_Z, Math.min(1, fitZ * 0.92))));
+  const axis = (pos: number, start: number, len: number, screen: number, lo: number, hi: number) => {
+    const view = screen / z;
+    const min = start - (lo + EDGE_SLACK) / z;
+    const max = start + len + (hi + EDGE_SLACK) / z - view;
+    if (max <= min) return (min + max) / 2; // all of it fits: centred
+    return Math.min(max, Math.max(min, pos));
+  };
+  const x = axis(cam.x, b.x, b.w, w, pad.l, pad.r);
+  const y = axis(cam.y, b.y, b.h, h, pad.t, pad.b);
+  return x === cam.x && y === cam.y && z === cam.z ? cam : { x, y, z };
+}
+
+/** The soft edge: a faint tint past the sheet and a hairline along it (on a context in world space). */
+export function drawEdge(ctx: CanvasRenderingContext2D, cam: Camera, w: number, h: number, b: View) {
+  const v = visibleView(cam, w, h);
+  // The view is all on the sheet: no edge to show.
+  if (v.x >= b.x && v.y >= b.y && v.x + v.w <= b.x + b.w && v.y + v.h <= b.y + b.h) return;
+  const dark = getTheme().bg === "#141618";
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(v.x - 1, v.y - 1, v.w + 2, v.h + 2);
+  ctx.rect(b.x, b.y, b.w, b.h);
+  ctx.fillStyle = dark ? "rgba(0,0,0,0.28)" : "rgba(28,32,35,0.055)";
+  ctx.fill("evenodd");
+  ctx.lineWidth = 1 / cam.z;
+  ctx.strokeStyle = dark ? "rgba(255,255,255,0.12)" : "rgba(28,32,35,0.16)";
+  ctx.strokeRect(b.x, b.y, b.w, b.h);
+  ctx.restore();
 }
 
 /** Zoom by `factor` keeping the screen point (sx, sy) still. */

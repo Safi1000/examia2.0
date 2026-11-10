@@ -92,6 +92,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <AdminFilterProvider>
       <div className="relative isolate flex min-h-dvh">
+        {/* Keyboard users can jump past the sidebar straight to the page. */}
+        <a
+          href="#admin-main"
+          className="fixed left-3 top-3 z-[60] inline-flex h-11 -translate-y-24 items-center rounded-full border border-border-strong bg-surface-2 px-4 text-sm font-semibold text-ink opacity-0 focus:translate-y-0 focus:opacity-100 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-brand"
+        >
+          Skip to content
+        </a>
         <PortalAmbient />
         <PortalManifest on />
         {/* Persistent sidebar — tablet narrower, desktop full */}
@@ -129,13 +136,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </header>
 
-          <main className="flex-1 pb-24 md:pb-0"><ScheduleGate>{children}</ScheduleGate></main>
+          <main id="admin-main" tabIndex={-1} className="flex-1 pb-28 outline-none md:pb-0"><ScheduleGate>{children}</ScheduleGate></main>
         </div>
 
         {/* Phones: the four everyday jobs at the thumb; everything else under More. */}
         {!/^\/admin\/whiteboard/.test(pathname) && (
           <nav aria-label="Quick" className="fixed inset-x-3 bottom-3 z-40 md:hidden" style={{ marginBottom: "env(safe-area-inset-bottom)" }}>
-            <ul className="grid grid-cols-5 rounded-[22px] border border-white/[0.08] bg-[#1d2023]/[0.97] p-1.5 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75)]">
+            <ul className="grid grid-cols-5 rounded-[22px] border border-white/[0.08] bg-surface/[0.97] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_18px_40px_-12px_rgba(0,0,0,0.75)]">
               {[
                 { href: "/admin/today", label: "Today", I: NavIcon.Today },
                 { href: "/admin/classes", label: "Classes", I: NavIcon.Classes },
@@ -149,7 +156,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <Link
                       href={href}
                       aria-current={on ? "page" : undefined}
-                      className={cn("flex h-[52px] flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-semibold transition-colors active:scale-95", on ? "bg-brand/[0.12] text-brand" : "text-ink-3")}
+                      className={cn("flex h-[52px] flex-col items-center justify-center gap-1 rounded-2xl text-xs font-semibold transition-[background-color,color,transform] duration-150 active:scale-95", on ? "bg-white/[0.07] text-ink [&_svg]:text-brand" : "text-ink-3")}
                     >
                       <I active={on} className="h-5 w-5" />
                       {label}
@@ -161,7 +168,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <button
                   onClick={() => setMobileOpen(true)}
                   aria-haspopup="dialog"
-                  className="flex h-[52px] w-full flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-semibold text-ink-3 active:scale-95"
+                  className="flex h-[52px] w-full flex-col items-center justify-center gap-1 rounded-2xl text-xs font-semibold text-ink-3 active:scale-95"
                 >
                   <Icon.Menu className="h-5 w-5" />
                   More

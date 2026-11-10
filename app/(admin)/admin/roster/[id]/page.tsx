@@ -272,11 +272,11 @@ function StudentDetail() {
       {data.released.length > 0 ? (
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
           <Card className="p-5">
-            <h2 className="mb-2 text-base font-semibold text-ink">Score trend</h2>
+            <h2 className="mb-2 text-[15px] font-semibold tracking-[-0.01em] text-ink">Score trend</h2>
             <LineChart points={data.points} />
           </Card>
           <Card className="p-5">
-            <h2 className="mb-3 text-base font-semibold text-ink">Topic mastery</h2>
+            <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em] text-ink">Topic mastery</h2>
             <div className="space-y-3.5">
               {data.mastery.map((m) => <MasteryBar key={m.topic} topic={m.topic} percent={m.percent} band={m.band} />)}
             </div>
@@ -288,23 +288,23 @@ function StudentDetail() {
 
       <StudentActivitySection studentId={student.id} />
 
-      <h2 className="mb-2.5 mt-7 text-base font-semibold text-ink">Submissions</h2>
+      <h2 className="mb-2.5 mt-8 text-[15px] font-semibold tracking-[-0.01em] text-ink">Submissions</h2>
       {data.subs.length === 0 ? (
         <EmptyState icon={<Icon.Inbox />} title="No submissions" />
       ) : (
-        <div className="space-y-2">
+        <Card className="divide-y divide-border overflow-hidden p-0">
           {data.subs.map((s) => {
             const test = testById(db, s.testId);
             const grade = test ? gradeSubmission(test, s) : null;
             return (
-              <Card key={s.id} className="flex items-center justify-between gap-3 p-3.5">
+              <div key={s.id} className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-white/[0.018]">
                 <div className="min-w-0">
                   <p className="truncate font-semibold text-ink">{test?.title ?? "Deleted test"}</p>
-                  <p className="text-sm text-ink-2">{s.submittedAt ? formatTimestamp(s.submittedAt) : "Not submitted"}</p>
+                  <p className="text-sm tabular-nums text-ink-3">{s.submittedAt ? formatTimestamp(s.submittedAt) : "Not submitted"}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   {s.status === "released" && grade ? (
-                    <Badge tone="success">{grade.percent}% · {grade.letter}</Badge>
+                    <Badge tone="success" className="tabular-nums">{grade.percent}% · {grade.letter}</Badge>
                   ) : (
                     <Badge tone="warning">Awaiting</Badge>
                   )}
@@ -312,10 +312,10 @@ function StudentDetail() {
                     {s.status === "released" ? "Review" : "Grade"}
                   </Link>
                 </div>
-              </Card>
+              </div>
             );
           })}
-        </div>
+        </Card>
       )}
 
       {/* Monthly Report Modal */}
@@ -343,14 +343,14 @@ function StudentDetail() {
       >
         <div className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-2">Month</label>
+            <label className="mb-1.5 block text-sm font-semibold text-ink-2">Month</label>
             {data.months.length === 0 ? (
               <p className="text-sm text-ink-3">No released results yet.</p>
             ) : (
               <select
                 value={reportMonth || data.months[data.months.length - 1]}
                 onChange={(e) => setReportMonth(e.target.value)}
-                className="h-10 w-full rounded-lg border border-border bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+                className="h-11 w-full rounded-lg border border-border-strong bg-surface px-3 text-base text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand sm:text-sm"
               >
                 {data.months.map((m) => (
                   <option key={m} value={m}>{formatMonthLabel(m)}</option>
@@ -359,8 +359,8 @@ function StudentDetail() {
             )}
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-2">
-              Teacher note <span className="font-normal normal-case text-ink-3">(optional)</span>
+            <label className="mb-1.5 block text-sm font-semibold text-ink-2">
+              Teacher note <span className="font-normal text-ink-3">(optional)</span>
             </label>
             <textarea
               value={teacherNote}
@@ -368,9 +368,9 @@ function StudentDetail() {
               placeholder="Add a personal note for the parent..."
               rows={4}
               maxLength={260}
-              className="w-full resize-none rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-brand"
+              className="w-full resize-none rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-base text-ink placeholder:text-ink-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand sm:text-sm"
             />
-            <p className="mt-1 text-right text-xs text-ink-3">{teacherNote.length}/260 · keeps the report to one page</p>
+            <p className="mt-1 text-right text-xs tabular-nums text-ink-3">{teacherNote.length}/260 · keeps the report to one page</p>
           </div>
         </div>
       </Modal>
@@ -380,9 +380,9 @@ function StudentDetail() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <Card className="p-4 text-center">
-      <p className="font-display text-2xl font-extrabold text-ink">{value}</p>
-      <p className="text-xs text-ink-3">{label}</p>
+    <Card className="px-4 py-3.5">
+      <p className="text-[13px] text-ink-3">{label}</p>
+      <p className="mt-1 text-2xl font-semibold leading-tight tabular-nums tracking-[-0.02em] text-ink">{value}</p>
     </Card>
   );
 }

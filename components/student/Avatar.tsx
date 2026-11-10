@@ -5,8 +5,10 @@ import { AvatarFrame } from "@/components/student/AvatarFrame";
 /** A student's portal avatar (or their initials until they pick one). */
 export function Avatar({ id, initials, className, level, still }: { id?: string; initials?: string; className?: string; level?: number; still?: boolean }) {
   const a = AVATARS.find((x) => x.id === id);
-  // The Groundwork level frame, applied automatically (level 0 has none).
-  if (level && level > 0)
+  // The Groundwork level frame (a watch bezel), applied wherever a level is
+  // known. Starter draws no band but keeps the inset, so the photo never
+  // changes size between levels.
+  if (level !== undefined && level >= 0)
     return (
       <AvatarFrame level={level} still={still} className={className}>
         <Avatar id={id} initials={initials} className="h-full w-full" />

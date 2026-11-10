@@ -53,11 +53,11 @@ export function NotifyCoverage() {
     `Hi ${name}, please turn on reminders in your portal so you never miss a class. Open the portal, go to Settings, then Phone notifications, and tap Turn on. On an iPhone, add the portal to your Home Screen first. Thank you.`;
 
   return (
-    <Card className="mb-6 p-5">
+    <Card className="mb-4 p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-ink">Class reminders</h2>
-          <p className="mt-0.5 text-sm text-ink-2">
+          <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Class reminders</h2>
+          <p className="mt-0.5 text-sm tabular-nums text-ink-3">
             On for {have} of {total} students. {missing.length} {missing.length === 1 ? "has" : "have"} not turned them on yet.
           </p>
         </div>
@@ -65,8 +65,8 @@ export function NotifyCoverage() {
           {open ? "Hide" : "Who and how to remind"}
         </Button>
       </div>
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-2" aria-hidden>
-        <div className="h-full rounded-full bg-brand" style={{ width: `${Math.round((have / total) * 100)}%` }} />
+      <div className="mt-3 h-1 overflow-hidden rounded-full bg-surface-2" aria-hidden>
+        <div className="h-full rounded-full bg-ink-3" style={{ width: `${Math.round((have / total) * 100)}%` }} />
       </div>
       {open && (
         <ul className="mt-4 divide-y divide-border">
@@ -74,14 +74,14 @@ export function NotifyCoverage() {
             const number = s.phone ?? s.whatsapp;
             const name = displayName(s.username).split(" ")[0];
             return (
-              <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
+              <li key={s.id} className="flex min-h-11 flex-wrap items-center justify-between gap-2 py-1.5 text-sm">
                 <span className="font-medium text-ink">{displayName(s.username)}</span>
                 {number ? (
                   <a
                     href={`https://wa.me/${waDigits(number)}?text=${encodeURIComponent(message(name))}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-semibold text-brand hover:underline"
+                    className="inline-flex min-h-11 items-center font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline"
                   >
                     Remind on WhatsApp{s.phone ? "" : " (parent)"}
                   </a>

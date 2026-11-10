@@ -26,7 +26,7 @@ export function NumberField({
       <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-foreground">
         {label}
       </label>
-      <div className="flex h-12 items-center rounded-[12px] border border-hairline-strong bg-card px-4 focus-within:border-gold-border">
+      <div className="flex h-12 items-center rounded-[12px] border border-hairline-strong bg-card px-4 transition-colors hover:border-gold-border/60 focus-within:border-gold-border focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-gold">
         {prefix && <span className="mr-2 text-muted-foreground">{prefix}</span>}
         <input
           id={id}
@@ -38,7 +38,7 @@ export function NumberField({
         />
         {suffix && <span className="ml-2 text-muted-foreground">{suffix}</span>}
       </div>
-      {hint && <p className="mt-1 text-xs text-faint">{hint}</p>}
+      {hint && <p className="mt-1.5 text-[13px] leading-snug text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -66,7 +66,7 @@ export function AskHamza({ tool, summary }: { tool: string; summary: string }) {
       <TrackedLink
         href={waTextLink(`Hi, I used your ${tool}. ${summary} Can you help me with this?`)}
         props={{ from: `tool:${tool}` }}
-        className="mt-4 inline-flex min-h-12 items-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] hover:bg-[#ffd07a]"
+        className="mt-4 inline-flex min-h-12 items-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] transition-colors hover:bg-[#ffd07a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
       >
         Ask on WhatsApp
       </TrackedLink>

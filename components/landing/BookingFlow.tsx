@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { Magnetic } from "./Magnetic";
-import { track, type LevelName, type SubjectName } from "@/lib/landing";
+import { track, waLink, type LevelName, type SubjectName } from "@/lib/landing";
 import {
   bookingLink,
   hourLabel,
@@ -86,6 +86,9 @@ export function BookingFlow({
   const [abroad, setAbroad] = useState(false);
   const [dayKey, setDayKey] = useState<string | null>(null);
   const [hour, setHour] = useState<number | null>(null);
+  // Board and "who is booking" keep their defaults and sit behind a toggle, so
+  // the form shows only what's needed to pick a class.
+  const [more, setMore] = useState(false);
 
   // Dates depend on the visitor's clock, so they are worked out after load
   // (the page itself is pre-built and would otherwise show the build day).
@@ -128,8 +131,6 @@ export function BookingFlow({
         </div>
       </fieldset>
       <Choice legend={`${n()} Level`} name={`${uid}-l`} options={LEVELS} value={level} onChange={setLevel} />
-      <Choice legend={`${n()} Exam board`} name={`${uid}-b`} options={BOARDS} value={board} onChange={setBoard} />
-      <Choice legend={`${n()} Who is booking?`} name={`${uid}-w`} options={WHO} value={who} onChange={setWho} />
 
       <fieldset className="min-w-0">
         <legend className="text-sm font-semibold text-foreground">{n()} Pick a day</legend>
@@ -186,6 +187,37 @@ export function BookingFlow({
           cols="grid grid-cols-3 gap-2 sm:grid-cols-5 [&_label]:whitespace-nowrap [&_label]:px-2"
         />
       )}
+
+      <div className="-mt-4">
+        <a
+          href={waLink({ subject: subjects.length === 1 ? subjects[0] : undefined, level: level ?? undefined, trial: true })}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => track("whatsapp_click", { from: `${from}:no_time`, subject: subjects.join(", "), level })}
+          className="inline-flex min-h-11 items-center text-sm text-muted-foreground underline decoration-hairline-strong underline-offset-4 transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+        >
+          Can&apos;t find a time? Message me
+        </a>
+      </div>
+
+      <div>
+        <button
+          type="button"
+          onClick={() => setMore((v) => !v)}
+          aria-expanded={more}
+          aria-controls={`${uid}-more`}
+          className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-foreground transition-colors hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+        >
+          More details <span className="font-normal text-faint">(optional)</span>
+          <svg viewBox="0 0 16 16" aria-hidden className={`h-4 w-4 transition-transform ${more ? "rotate-180" : ""}`}>
+            <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <div id={`${uid}-more`} hidden={!more} className="mt-4 space-y-8">
+          <Choice legend="Exam board" name={`${uid}-b`} options={BOARDS} value={board} onChange={setBoard} />
+          <Choice legend="Who is booking?" name={`${uid}-w`} options={WHO} value={who} onChange={setWho} />
+        </div>
+      </div>
 
       <div className="border-t border-hairline pt-6">
         {ready ? (

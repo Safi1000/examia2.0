@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { useProgress } from "./progress";
 
@@ -33,9 +33,20 @@ const SERIES = [
 ] as const;
 
 
-/** A quiet drop-down: one row of three fits a phone. */
+/** A quiet drop-down: one row of three fits a phone. Gold edge once it is narrowing the list. */
 const SELECT =
-  "h-11 w-full min-w-0 appearance-none rounded-full border border-hairline-strong bg-card bg-[url(\"data:image/svg+xml;utf8,<svg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 20 20%27 fill=%27none%27 stroke=%27%23969ca2%27 stroke-width=%272%27><path d=%27m5 8 5 5 5-5%27/></svg>\")] bg-[length:12px] bg-[right_14px_center] bg-no-repeat pl-4 pr-8 text-[15px] font-semibold text-foreground focus:border-gold-border focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gold";
+  "h-11 w-full min-w-0 cursor-pointer appearance-none truncate rounded-full border bg-card pl-4 pr-9 text-[15px] font-semibold text-foreground transition-colors hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
+
+function Pick({ on, children }: { on: boolean; children: ReactNode }) {
+  return (
+    <span className={cn("relative block min-w-0 [&>select]:border-hairline-strong", on && "[&>select]:border-gold-border [&>select]:bg-gold-tint")}>
+      {children}
+      <svg aria-hidden viewBox="0 0 20 20" className={cn("pointer-events-none absolute right-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2", on ? "text-gold" : "text-faint")} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m5 8 5 5 5-5" />
+      </svg>
+    </span>
+  );
+}
 
 const time = (m: number) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}`);
 
@@ -79,36 +90,42 @@ export function SyllabusBrowser({ series, papers }: { series: BrowserSeries[]; p
 
   return (
     <div>
-      <div className="sticky top-[84px] z-20 -mx-5 border-b border-hairline bg-[color-mix(in_srgb,var(--color-band-b)_92%,transparent)] px-5 py-3 backdrop-blur-xl sm:top-[96px]">
+      <div className="sticky top-[84px] z-20 -mx-5 border-b border-hairline bg-[color-mix(in_srgb,var(--color-band-b)_92%,transparent)] px-5 py-3 backdrop-blur-xl sm:top-[96px] sm:mx-0 sm:px-0">
         <div className="grid grid-cols-3 gap-2 sm:max-w-xl">
           <label className="sr-only" htmlFor="f-paper">Paper</label>
-          <select id="f-paper" value={paper ?? ""} onChange={(e) => setPaper(e.target.value || null)} className={SELECT}>
-            <option value="">Paper</option>
-            {papers.map((p) => (
-              <option key={p.num} value={p.num}>
-                Paper {p.num}
-                {p.title ? `: ${p.title}` : ""}
-              </option>
-            ))}
-          </select>
+          <Pick on={!!paper}>
+            <select id="f-paper" value={paper ?? ""} onChange={(e) => setPaper(e.target.value || null)} className={SELECT}>
+              <option value="">Paper</option>
+              {papers.map((p) => (
+                <option key={p.num} value={p.num}>
+                  Paper {p.num}
+                  {p.title ? `: ${p.title}` : ""}
+                </option>
+              ))}
+            </select>
+          </Pick>
           <label className="sr-only" htmlFor="f-year">Year</label>
-          <select id="f-year" value={year ?? ""} onChange={(e) => setYear(Number(e.target.value) || null)} className={SELECT}>
-            <option value="">Year</option>
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
+          <Pick on={!!year}>
+            <select id="f-year" value={year ?? ""} onChange={(e) => setYear(Number(e.target.value) || null)} className={SELECT}>
+              <option value="">Year</option>
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </Pick>
           <label className="sr-only" htmlFor="f-series">Series</label>
-          <select id="f-series" value={ser ?? ""} onChange={(e) => setSer(e.target.value || null)} className={SELECT}>
-            <option value="">Series</option>
-            {SERIES.map((x) => (
-              <option key={x.id} value={x.id}>
-                {x.label}
-              </option>
-            ))}
-          </select>
+          <Pick on={!!ser}>
+            <select id="f-series" value={ser ?? ""} onChange={(e) => setSer(e.target.value || null)} className={SELECT}>
+              <option value="">Series</option>
+              {SERIES.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.label}
+                </option>
+              ))}
+            </select>
+          </Pick>
         </div>
       </div>
 
@@ -136,7 +153,7 @@ export function SyllabusBrowser({ series, papers }: { series: BrowserSeries[]; p
               <h2 id={`s-${s.id}`} className="text-xl font-bold text-foreground md:text-2xl">
                 {s.label}
               </h2>
-              <p className="flex gap-1 text-[14px]">
+              <p className="-ml-3 flex gap-1 text-[14px] sm:-mr-3 sm:ml-0">
                 {s.er && (
                   <a href={s.er} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center rounded-full px-3 font-semibold text-muted-foreground hover:text-gold">
                     Examiner report

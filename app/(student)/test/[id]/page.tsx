@@ -203,35 +203,36 @@ function ReadyScreen({ test, nowMs, busy, onBegin }: { test: Test; nowMs: number
     { k: "Marks", v: String(marks) },
   ];
   return (
-    <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-brand">{test.subject}</p>
-      <h1 className="mt-2 text-[1.9rem] font-extrabold leading-tight tracking-tight text-ink">{test.title}</h1>
+    <div className="rise mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
+      <p className="text-sm font-semibold text-ink-2">{test.subject}</p>
+      <h1 className="mt-2 text-[2rem] font-extrabold leading-[1.08] tracking-[-0.03em] text-ink">{test.title}</h1>
 
-      <dl className="mt-7 grid grid-cols-3 gap-3">
+      {/* One surface, three facts split by hairlines. */}
+      <dl className="surface mt-8 grid grid-cols-3 divide-x divide-hairline rounded-xl">
         {facts.map((f) => (
-          <div key={f.k} className="rounded-xl border border-border bg-surface px-3 py-3 text-center">
-            <dd className="text-xl font-extrabold tabular-nums text-ink">{f.v}</dd>
-            <dt className="mt-0.5 text-[11px] font-semibold uppercase tracking-wider text-ink-3">{f.k}</dt>
+          <div key={f.k} className="flex flex-col-reverse px-3 py-4 text-center">
+            <dt className="label-quiet mt-1.5 text-ink-3">{f.k}</dt>
+            <dd className="text-2xl font-extrabold tracking-[-0.02em] tabular-nums text-ink">{f.v}</dd>
           </div>
         ))}
       </dl>
 
-      <ul className="mt-6 space-y-2.5 text-[15px] text-ink-2">
-        <li className="flex gap-2.5">
-          <Icon.Clock className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+      <ul className="mt-7 space-y-3 text-base text-ink-2">
+        <li className="flex gap-3">
+          <Icon.Clock className="mt-1 h-4 w-4 shrink-0 text-ink-3" />
           {short ? (
             <span>The test closes at {closes}, so you get <b className="text-ink">{minutes} minutes</b> instead of {test.durationMinutes}.</span>
           ) : (
             <span>The clock starts when you tap Begin, not before.</span>
           )}
         </li>
-        <li className="flex gap-2.5">
-          <Icon.Check className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+        <li className="flex gap-3">
+          <Icon.Check className="mt-1 h-4 w-4 shrink-0 text-ink-3" />
           <span>Your typed answers and choices are kept on this phone as you go, even if the internet drops.</span>
         </li>
         {test.questions.some((q) => q.type === "photo") && (
-          <li className="flex gap-2.5">
-            <Icon.Camera className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+          <li className="flex gap-3">
+            <Icon.Camera className="mt-1 h-4 w-4 shrink-0 text-ink-3" />
             <span>Some answers are photos of your working. Keep paper, a pen and your camera ready. Photos need internet to upload.</span>
           </li>
         )}
@@ -422,6 +423,11 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   useEffect(() => {
     if (submitError) retryRef.current?.focus();
   }, [submitError]);
+  // Same for "Pens down": its one button takes focus when it appears.
+  const pensRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (pensDown) pensRef.current?.focus();
+  }, [pensDown]);
 
   useDraftAutosave({
     studentId: student?.id ?? "",
@@ -505,7 +511,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   return (
     <div className="flex min-h-dvh flex-col">
       {/* Focus-mode header with the live countdown */}
-      <header className="sticky top-0 z-30 border-b border-border bg-paper/[0.97]">
+      <header className="sticky top-0 z-30 border-b border-hairline bg-paper/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
             <div className="min-w-0">
@@ -528,7 +534,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
                     aria-label={`Question ${i + 1}${done ? ", answered" : ""}`}
                     aria-current={i === at ? "step" : undefined}
                     className={cn(
-                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums transition-all",
+                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold tabular-nums transition-all",
                       done ? "bg-brand text-on-brand" : "border border-border-strong text-ink-3 hover:text-ink",
                       i === at && "ring-2 ring-brand ring-offset-2 ring-offset-paper",
                     )}
@@ -552,7 +558,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
 
       {finishingAt != null && photosBusy > 0 && (
         <div role="status" className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-paper/95 px-6 text-center backdrop-blur">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-brand">Time&apos;s up</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand">Time&apos;s up</p>
           <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-ink">Saving your last photos…</h2>
           <p className="mt-3 max-w-xs text-[15px] text-ink-2">Keep this screen open. Your paper is handed in as soon as they finish.</p>
         </div>
@@ -560,12 +566,12 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
 
       {pensDown && (
         <div role="alertdialog" aria-modal="true" aria-labelledby="pens-down" className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-paper/95 px-6 text-center backdrop-blur">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-brand">Time&apos;s up</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand">Time&apos;s up</p>
           <h2 id="pens-down" className="mt-3 text-4xl font-extrabold tracking-tight text-ink">Pens down.</h2>
           <p className="mt-3 max-w-xs text-[15px] text-ink-2">
             You have {uploadMins} {uploadMins === 1 ? "minute" : "minutes"} to photograph and upload your pages.
           </p>
-          <Button size="lg" className="mt-8 min-w-60" onClick={() => { setPensDown(false); globalThis.scrollTo({ top: 0 }); }}>
+          <Button ref={pensRef} size="lg" className="mt-8 min-w-60" onClick={() => { setPensDown(false); globalThis.scrollTo({ top: 0 }); }}>
             <Icon.Camera className="h-5 w-5" /> Take photos now
           </Button>
         </div>
@@ -574,7 +580,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
       <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
         {uploading ? (
           <div className="animate-fade-up space-y-6">
-            <div className="rounded-lg border border-warning/40 bg-warning-soft px-4 py-3">
+            <div className="rounded-xl border border-warning/35 bg-warning-soft px-5 py-4">
               <p className="font-bold text-ink">Writing time is over.</p>
               <p className="mt-0.5 text-sm text-ink-2">
                 Photograph your pages now and upload them before this timer runs out. Whatever is
@@ -602,7 +608,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
         )}
       </div>
 
-      <footer className="sticky bottom-0 border-t border-border bg-paper/[0.97]">
+      <footer className="sticky bottom-0 border-t border-hairline bg-paper/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
           {uploading ? (
             <Button className="w-full" disabled={photosBusy > 0} onClick={() => setConfirmOpen(true)}>

@@ -14,6 +14,12 @@ import { LateWindowCard } from "@/components/admin/LateWindowCard";
 import { AnswerKeyModal } from "@/components/admin/AnswerKeyModal";
 import { Card, CardHeader, CardBody, Button, Input, Select, Badge, Pill, Modal, Icon, EmptyState } from "@/components/ui";
 import { fromLocalInput, toLocalInput } from "@/lib/time";
+import { PageStack } from "@/components/PageStack";
+import { classHistoryIds, paperBuilder } from "@/components/admin/PastPaperSheet";
+import { familyOfCode, idsInText, newSeed, parseId, questionFromBuilt, type BuiltQuestion } from "@/lib/paper-builder";
+
+/** The same words the marking screen uses. */
+const TYPE_LABEL: Record<Question["type"], string> = { mcq: "Choice", text: "Written", photo: "Photo" };
 
 function stripDraft(d: QuestionDraft): Omit<Question, "id" | "order"> {
   const { subject: _s, ...rest } = d;
@@ -67,6 +73,9 @@ export default function TestEditorPage() {
   const [keyOpen, setKeyOpen] = useState(false);
   const [deleteQId, setDeleteQId] = useState<string | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  // Past paper questions: look at one, or swap it for another on the same topic.
+  const [viewing, setViewing] = useState<string | null>(null);
+  const [swapping, setSwapping] = useState<string | null>(null);
 
   const questions = useMemo(() => (test ? [...test.questions].sort((a, b) => a.order - b.order) : []), [test]);
 
@@ -81,7 +90,48 @@ export default function TestEditorPage() {
 
   // Details can be saved any time; publishing needs at least one question.
   const canSave = form.title.trim().length > 0;
-  const canPublish = canSave && questions.length > 0;
+  // Written past paper questions whose marks the paper didn't make certain: typed once here.
+  const noMarks = questions.filter((q) => q.marks <= 0).length;
+  const canPublish = canSave && questions.length > 0 && noMarks === 0;
+
+  async function swap(q: Question) {
+    if (!test) return;
+    const from = idsInText(q.prompt)[0];
+    const family = from ? familyOfCode(parseId(from)?.code ?? "") : null;
+    if (!from || !family) return;
+    setSwapping(q.id);
+    try {
+      const exclude = [...classHistoryIds(db, test.cohortId, test.classId), ...questions.flatMap((x) => idsInText(x.prompt))];
+      const { question } = await paperBuilder<{ question: BuiltQuestion | null }>({
+        action: "swap",
+        syllabus: family.syllabus,
+        codes: family.codes,
+        id: from,
+        exclude,
+        seed: newSeed(),
+      });
+      if (!question) {
+        toast("Every other question on this topic has been set for this class already.");
+        return;
+      }
+      const before = { ...q };
+      const { id: _qid, order: _o, ...was } = before;
+      void _qid; void _o;
+      store.updateQuestion(id, q.id, questionFromBuilt(question));
+      if (viewing === q.id) setViewing(null);
+      toast(`Swapped for ${question.label}.`, "success", { label: "Undo", onClick: () => store.updateQuestion(id, q.id, was as Omit<Question, "id" | "order">) });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "That didn't work. Try again.", "error");
+    } finally {
+      setSwapping(null);
+    }
+  }
+
+  function setQuestionMarks(q: Question, marks: number) {
+    const { id: _qid, order: _o, ...rest } = q;
+    void _qid; void _o;
+    store.updateQuestion(id, q.id, { ...rest, marks: Math.max(0, Math.min(100, Math.floor(marks) || 0)) } as Omit<Question, "id" | "order">);
+  }
 
   /** Saves the details; false (with the reason shown) if they can't be saved. */
   function saveSettings(quiet = false, override?: { opensAt: string; closesAt: string }): boolean {
@@ -204,15 +254,19 @@ export default function TestEditorPage() {
       )}
       {!canPublish && (
         <p className="mb-4 rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-warning">
-          {canSave ? "Add at least one question before publishing." : "Give the test a title to save it."}
+          {!canSave
+            ? "Give the test a title to save it."
+            : questions.length === 0
+              ? "Add at least one question before publishing."
+              : `Type the marks for ${noMarks === 1 ? "1 written question" : `${noMarks} written questions`} below, then publish. The paper didn't show them clearly.`}
         </p>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
         {/* Settings */}
         <div className="space-y-5 lg:col-span-2">
         <Card>
-          <CardHeader><h2 className="font-bold text-ink">Details</h2></CardHeader>
+          <CardHeader><h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Details</h2></CardHeader>
           <CardBody className="space-y-4">
             <Input label="Title" value={form.title} onChange={(e) => set("title", e.target.value)} required />
             <div className="grid grid-cols-2 gap-3">
@@ -252,8 +306,10 @@ export default function TestEditorPage() {
             </Select>
             {(() => {
               const cohort = db.cohorts.find((c) => c.id === form.cohortId);
-              const classes = cohort ? db.classes.filter((cl) => cohort.classIds.includes(cl.id)) : [];
-              const subjects = cohort ? db.subjects.filter((s) => cohort.subjectIds.includes(s.id)) : db.subjects;
+              // A cohort that names no classes or subjects offers all of them (as the
+              // past paper builder reads it). The test's own picks always stay listed.
+              const classes = cohort ? db.classes.filter((cl) => !cohort.classIds.length || cohort.classIds.includes(cl.id) || cl.id === form.classId) : [];
+              const subjects = cohort?.subjectIds.length ? db.subjects.filter((s) => cohort.subjectIds.includes(s.id) || s.id === form.subjectId) : db.subjects;
               return (
                 <>
                   {classes.length > 0 && (
@@ -302,10 +358,10 @@ export default function TestEditorPage() {
         </div>
 
         {/* Questions */}
-        <Card className="lg:col-span-3">
+        <Card className="min-w-0 lg:col-span-3">
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="font-bold text-ink">Questions <span className="text-ink-3">({questions.length})</span></h2>
+              <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Questions <span className="tabular-nums text-ink-3">({questions.length})</span></h2>
               <div className="flex flex-wrap gap-2">
                 {questions.some((q) => q.type === "mcq") && (
                   <Button variant="secondary" size="sm" onClick={() => setKeyOpen(true)}>
@@ -318,7 +374,7 @@ export default function TestEditorPage() {
                 <Button variant="secondary" size="sm" onClick={() => setDocOpen(true)}>
                   <Icon.Doc className="h-4 w-4" /> Paste or upload
                 </Button>
-                <Button size="sm" onClick={() => { setEditingQ(null); setQModalOpen(true); }}>
+                <Button size="sm" variant={questions.length ? "secondary" : "primary"} onClick={() => { setEditingQ(null); setQModalOpen(true); }}>
                   <Icon.Plus className="h-4 w-4" /> Add
                 </Button>
               </div>
@@ -336,38 +392,82 @@ export default function TestEditorPage() {
                     onDragStart={() => setDragIndex(i)}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={() => onDrop(i)}
-                    className="flex items-start gap-2 rounded-md border border-border bg-surface p-3"
+                    className="rounded-md border border-border bg-surface p-3"
                   >
-                    <span className="mt-1 cursor-grab text-ink-3" aria-hidden><Icon.Grip className="h-4 w-4" /></span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-xs text-ink-3">Q{i + 1}</span>
-                        <Badge tone="neutral" className="uppercase">{q.type}</Badge>
-                        {q.topic.trim() && <Badge tone="brand">{q.topic}</Badge>}
+                    {/* One line of labels and tools, then the question at full width (roomy on a phone). */}
+                    <div className="flex items-start gap-2">
+                      <span className="mt-2.5 hidden cursor-grab text-ink-3 sm:block" aria-hidden><Icon.Grip className="h-4 w-4" /></span>
+                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 pt-2">
+                        <span className="text-xs font-semibold tabular-nums text-ink-3">Q{i + 1}</span>
+                        <Badge tone="neutral">{TYPE_LABEL[q.type]}</Badge>
+                        {q.topic.trim() && <Badge tone="neutral" className="max-w-full truncate">{q.topic}</Badge>}
                         <Pill>{q.marks}m</Pill>
                       </div>
+                      <div className="-mr-1 flex shrink-0 items-center">
+                        <button onClick={() => move(i, -1)} disabled={i === 0} className="flex h-9 w-9 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-30 max-md:h-11 max-md:w-10" aria-label={`Move question ${i + 1} up`}>
+                          <Icon.ChevronLeft className="h-4 w-4 rotate-90" />
+                        </button>
+                        <button onClick={() => move(i, 1)} disabled={i === questions.length - 1} className="flex h-9 w-9 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-30 max-md:h-11 max-md:w-10" aria-label={`Move question ${i + 1} down`}>
+                          <Icon.ChevronRight className="h-4 w-4 rotate-90" />
+                        </button>
+                        <button onClick={() => { setEditingQ(q); setQModalOpen(true); }} className="flex h-9 w-9 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-10" aria-label={`Edit question ${i + 1}`}>
+                          <Icon.Edit className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => setDeleteQId(q.id)} className="flex h-9 w-9 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error max-md:h-11 max-md:w-10" aria-label={`Delete question ${i + 1}`}>
+                          <Icon.Trash className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="min-w-0 sm:pl-6">
                       {q.prompt.trim() ? (
                         <p className="mt-1.5 text-sm text-ink">{q.prompt}</p>
                       ) : (
                         <p className="mt-1.5 text-sm italic text-ink-3">Answer the attached paper</p>
                       )}
+                      {q.marks <= 0 && (
+                        <label className="mt-2 flex items-center gap-2 text-sm text-ink-2">
+                          Marks
+                          <input
+                            type="number"
+                            min={1}
+                            inputMode="numeric"
+                            placeholder="?"
+                            onBlur={(e) => { if (Number(e.target.value) > 0) setQuestionMarks(q, Number(e.target.value)); }}
+                            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                            className="h-11 w-20 rounded-lg border border-warning/50 bg-surface px-3 text-center text-base font-semibold tabular-nums text-ink"
+                            aria-label={`Marks for question ${i + 1}`}
+                          />
+                          <span className="text-xs text-ink-3">from the paper</span>
+                        </label>
+                      )}
+                      {idsInText(q.prompt).length > 0 && (
+                        <div className="-ml-2 mt-1 flex flex-wrap items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setViewing(viewing === q.id ? null : q.id)}
+                            aria-expanded={viewing === q.id}
+                            className="inline-flex min-h-11 items-center rounded-full px-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
+                          >
+                            {viewing === q.id ? "Hide question" : "View question"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void swap(q)}
+                            disabled={swapping !== null}
+                            className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-50"
+                            title="Replace it with another past paper question on the same topic"
+                          >
+                            <Icon.Refresh className={`h-4 w-4 ${swapping === q.id ? "animate-spin motion-reduce:animate-none" : ""}`} /> {swapping === q.id ? "Swapping…" : "Swap"}
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex shrink-0 flex-col items-center gap-0.5">
-                      <button onClick={() => move(i, -1)} disabled={i === 0} className="flex h-7 w-7 items-center justify-center rounded text-ink-3 hover:bg-surface-2 disabled:opacity-30" aria-label="Move up">
-                        <Icon.ChevronLeft className="h-4 w-4 rotate-90" />
-                      </button>
-                      <button onClick={() => move(i, 1)} disabled={i === questions.length - 1} className="flex h-7 w-7 items-center justify-center rounded text-ink-3 hover:bg-surface-2 disabled:opacity-30" aria-label="Move down">
-                        <Icon.ChevronRight className="h-4 w-4 rotate-90" />
-                      </button>
-                    </div>
-                    <div className="flex shrink-0 gap-1">
-                      <button onClick={() => { setEditingQ(q); setQModalOpen(true); }} className="flex h-8 w-8 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Edit question">
-                        <Icon.Edit className="h-4 w-4" />
-                      </button>
-                      <button onClick={() => setDeleteQId(q.id)} className="flex h-8 w-8 items-center justify-center rounded text-ink-3 hover:bg-error-soft hover:text-error" aria-label="Delete question">
-                        <Icon.Trash className="h-4 w-4" />
-                      </button>
-                    </div>
+                    {/* The question itself, full width under the row (readable on a phone). */}
+                    {viewing === q.id && q.attachments && q.attachments.length > 0 && (
+                      <div className="mt-1 sm:pl-6">
+                        <PageStack urls={q.attachments} label={q.prompt} />
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

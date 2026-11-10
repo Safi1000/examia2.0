@@ -23,14 +23,14 @@ export function FilterChips({
 
   return (
     <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={label}>
-      <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-ink-3">{label}</span>
+      <span className="mr-1 w-16 shrink-0 text-xs font-semibold text-ink-3">{label}</span>
       <Chip active={selected.length === 0} onClick={() => onChange([])}>
         All
       </Chip>
       {options.map((o) => (
         <Chip key={o.value} active={selected.includes(o.value)} onClick={() => toggle(o.value)}>
           {o.label}
-          {o.count !== undefined && <span className="ml-1 font-mono text-xs opacity-70">{o.count}</span>}
+          {o.count !== undefined && <span className="ml-1.5 text-xs tabular-nums opacity-60">{o.count}</span>}
         </Chip>
       ))}
     </div>
@@ -44,10 +44,10 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "h-9 rounded-full border px-3.5 text-sm font-semibold transition-colors",
+        "h-9 rounded-full border px-3.5 text-sm font-semibold transition-colors duration-150 max-md:h-11",
         active
-          ? "border-brand bg-brand text-on-brand"
-          : "border-border-strong bg-surface text-ink-2 hover:bg-surface-2 hover:text-ink",
+          ? "border-white/[0.16] bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+          : "border-border bg-transparent text-ink-3 hover:border-border-strong hover:text-ink",
       )}
     >
       {children}

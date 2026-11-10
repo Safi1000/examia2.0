@@ -35,9 +35,9 @@ export function StudyStats({ nowMs }: { nowMs: number }) {
   return (
     <Card className="space-y-6 p-5">
       <div className="flex items-center gap-4">
-        <Avatar id={profile.avatar} initials={initials} level={level.index} className="m-4 h-16 w-16 text-xl" />
+        <Avatar id={profile.avatar} initials={initials} level={level.index} className="h-16 w-16 text-xl" />
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-ink-3">{STUDY_NAME}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink-3">{STUDY_NAME}</p>
           <p className="text-lg font-extrabold text-ink">
             {level.name} <span className="text-sm font-medium text-ink-3">· {Math.round(total / 6) / 10} h studied</span>
           </p>
@@ -47,7 +47,7 @@ export function StudyStats({ nowMs }: { nowMs: number }) {
                 <div className="h-full rounded-full bg-brand" style={{ width: `${Math.max(3, level.progress * 100)}%` }} />
               </div>
               <p className="mt-1.5 text-xs text-ink-3">
-                {Math.ceil(level.toNext)} h to {level.next.name}, which unlocks a new avatar frame
+                {Math.ceil(level.toNext)} h to {level.next.name}, and a new avatar frame
               </p>
             </>
           ) : (

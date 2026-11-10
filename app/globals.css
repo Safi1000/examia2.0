@@ -43,20 +43,6 @@
   --color-info: #6a9fd8;
   --color-info-soft: #182436;
 
-  /* ---- Cohort dots (vibrant on dark) ---- */
-  --color-cohort-1: #4db8a7;
-  --color-cohort-2: #6b8fdb;
-  --color-cohort-3: #e8845e;
-  --color-cohort-4: #d4a534;
-  --color-cohort-5: #8ab54e;
-  --color-cohort-6: #7a9dba;
-  --color-cohort-7: #d46b5a;
-  --color-cohort-8: #4aa0c8;
-  --color-cohort-9: #3bbaa6;
-  --color-cohort-10: #d9903f;
-  --color-cohort-11: #5aaa6e;
-  --color-cohort-12: #b08060;
-
   /* ---- Radii ---- */
   --radius-xs: 0.375rem;
   --radius-sm: 0.5rem;
@@ -70,9 +56,30 @@
 
   /* ---- Animations (referenced as Tailwind `animate-*`) ---- */
   --animate-fade-up: fade-up 0.32s var(--ease-out) both;
+  /* The page entrance: 14px up over 640ms (see .rise for the staggered version). */
+  --animate-rise: rise 0.64s var(--ease-out) both;
   --animate-scale-in: scale-in 0.15s var(--ease-out) both;
   --animate-slide-in: slide-in 0.25s var(--ease-out) both;
   --animate-low-pulse: low-pulse 1s ease-in-out infinite;
+}
+
+/* Cohort dots: their names are built at runtime (lib/tokens.ts cohortVar), so
+   Tailwind can't see them in the code and would drop all but the ones written
+   out literally. `static` keeps every one in the stylesheet. */
+@theme static {
+  --color-cohort-1: #4db8a7;
+  --color-cohort-2: #6b8fdb;
+  --color-cohort-3: #e8845e;
+  --color-cohort-4: #d4a534;
+  --color-cohort-5: #8ab54e;
+  --color-cohort-6: #7a9dba;
+  --color-cohort-7: #d46b5a;
+  --color-cohort-8: #4aa0c8;
+  --color-cohort-9: #3bbaa6;
+  --color-cohort-10: #d9903f;
+  --color-cohort-11: #5aaa6e;
+  --color-cohort-12: #b08060;
+
 }
 
 /*
@@ -156,6 +163,13 @@ html:has(.landing) { scroll-behavior: smooth; }
   stroke-dashoffset: 1;
   animation: hamza-draw 0.9s ease-out 0.7s forwards;
 }
+/* Reduced motion: the underline is simply there, no drawing. */
+@media (prefers-reduced-motion: reduce) {
+  .landing .draw-underline {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
 
 @keyframes hamza-draw {
   to { stroke-dashoffset: 0; }
@@ -194,6 +208,10 @@ html:has(.landing) { scroll-behavior: smooth; }
 
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }
 }
 @keyframes scale-in {
@@ -371,6 +389,162 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---- Portal surface ladder ------------------------------------------------
+   One way to lift a thing off the page, everywhere in the portal:
+     page (paper) → surface (one step lighter, 1px hairline, a faint light
+     along the top edge and a soft contact shadow underneath) → rows inside
+     a surface are divided by hairlines, never boxed again.
+   `surface-quiet` is the step for secondary blocks (notes, empty states).
+   `surface-link` adds the hover lift for a whole surface that is a link. */
+@utility surface {
+  background-color: var(--color-surface);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.032), rgba(255, 255, 255, 0) 38%);
+  border: 1px solid var(--color-hairline);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 1px 2px rgba(0, 0, 0, 0.25),
+    0 14px 32px -20px rgba(0, 0, 0, 0.7);
+}
+@utility surface-quiet {
+  background-color: color-mix(in srgb, var(--color-surface) 55%, transparent);
+  border: 1px solid var(--color-hairline);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+@utility surface-link {
+  transition:
+    border-color 0.2s var(--ease-out),
+    background-color 0.2s var(--ease-out),
+    transform 0.2s var(--ease-out);
+  &:hover {
+    border-color: var(--color-hairline-strong);
+    background-color: color-mix(in srgb, var(--color-surface) 82%, var(--color-surface-2));
+  }
+  &:active {
+    transform: scale(0.995);
+  }
+}
+/* A row inside a surface that is itself a link or button. */
+@utility row-link {
+  transition: background-color 0.18s var(--ease-out);
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.025);
+  }
+  &:active {
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+}
+/* The small muted label above a group of numbers or a heading. */
+@utility label-quiet {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* ---- Page entrance (one per page) -------------------------------------------
+   The direct children of `.rise` come up 14px and fade in, 70ms apart, once.
+   Visible by default where animations don't run; reduced motion shows all. */
+.rise > * {
+  animation: rise 0.64s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.rise > :nth-child(2) { animation-delay: 70ms; }
+.rise > :nth-child(3) { animation-delay: 140ms; }
+.rise > :nth-child(4) { animation-delay: 210ms; }
+.rise > :nth-child(5) { animation-delay: 280ms; }
+.rise > :nth-child(6) { animation-delay: 350ms; }
+.rise > :nth-child(n + 7) { animation-delay: 420ms; }
+@media (prefers-reduced-motion: reduce) {
+  .rise > * { animation: none !important; }
+  /* The animate-* entrances (question changes, sheets, toasts) appear in place. */
+  .animate-fade-up, .animate-rise, .animate-scale-in, .animate-slide-in { animation: none !important; }
+}
+
+/* Portal art (components/student/PortalArt.tsx): images fade in once loaded,
+   so a slow phone never shows a half-painted picture. */
+.art-img {
+  opacity: 0;
+  transition: opacity 0.6s var(--ease-out);
+}
+.art-img[data-loaded] {
+  opacity: 1;
+}
+/* An empty state shows its small icon only until its picture is there. */
+.empty-state:has(.art-img) > .empty-state__icon {
+  display: none;
+}
+
+/* ---- Avatar frames: the watch bezel (components/student/AvatarFrame.tsx) -----
+   Sizes follow the frame box S through container units (1cqw = S/100):
+   inset max(3px, 7.5% of S), band widths per level, all inside the box.
+   No filters and no animation: it costs nothing per frame. */
+/* In the components layer, so a utility on the avatar (margin, size) still wins. */
+@layer components {
+.bezel {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  container-type: inline-size;
+  --w: 0px;
+  --metal: none;
+}
+.bezel[data-level="2"] {
+  --w: max(1.25px, 1.875cqw);
+  --metal: conic-gradient(from 210deg, #8e5f39, #c99467 14%, #a8754b 28%, #d4a57a 44%, #95653f 60%, #c18b5e 76%, #9a6941 90%, #8e5f39);
+}
+.bezel[data-level="3"] {
+  --w: max(1.5px, 2.34cqw);
+  --metal: conic-gradient(from 210deg, #8f959a, #dfe3e6 14%, #aeb4b9 28%, #eceef0 44%, #9da3a8 60%, #d3d7db 76%, #a3a9ae 90%, #8f959a);
+}
+.bezel[data-level="4"],
+.bezel[data-level="5"] {
+  --w: max(1.75px, 2.81cqw);
+  --metal: conic-gradient(from 210deg, #b98a3c, #f7d690 14%, #d5a653 28%, #fbe2a8 44%, #c4943f 60%, #f2cd7f 76%, #c9984a 90%, #b98a3c);
+}
+.bezel[data-level="5"] { --w: max(2px, 3.28cqw); }
+.bezel > span { position: absolute; border-radius: 9999px; }
+.bezel__glow {
+  inset: 0;
+  box-shadow: 0 0 calc(12.5cqw + 4px) rgba(251, 193, 89, 0.16);
+}
+.bezel__hair {
+  inset: 0;
+  box-shadow: inset 0 0 0 clamp(0.75px, 1.6cqw, 1px) rgba(240, 237, 232, 0.42);
+}
+.bezel__band {
+  inset: 0;
+  background: var(--metal);
+  /* A hairline shadow on the band's outer edge, so it reads as a raised rim. */
+  box-shadow: inset 0 0 0 max(0.5px, 0.47cqw) rgba(0, 0, 0, 0.35);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--w)), #000 calc(100% - var(--w) + 0.6px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - var(--w)), #000 calc(100% - var(--w) + 0.6px));
+}
+/* Deep charcoal between the metal and the photo: gold never touches a yellow avatar. */
+.bezel__gap {
+  inset: var(--w);
+  background: #141618;
+}
+.bezel[data-level="1"] .bezel__gap { inset: clamp(0.75px, 1.6cqw, 1px); }
+.bezel__photo {
+  inset: max(3px, 7.5cqw);
+  overflow: hidden;
+}
+.bezel__photo > * {
+  width: 100%;
+  height: 100%;
+}
+/* Legend: a fine gold line floating in the gap, from 64px up. */
+.bezel__inner {
+  inset: calc(var(--w) + max(1.2px, 1.72cqw));
+  box-shadow: inset 0 0 0 0.9px rgba(251, 193, 89, 0.8);
+  pointer-events: none;
+}
+@container (max-width: 63.5px) {
+  .bezel__inner { display: none; }
+}
+}
+
 /* Signature: exam-booklet ruled margin */
 .ruled-margin { position: relative; }
 .ruled-margin::before {
@@ -417,6 +591,10 @@ textarea:-webkit-autofill:focus {
 @media (max-width: 767px) {
   body:has([data-tabbar]) {
     padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+  }
+  /* A link reached with the keyboard scrolls clear of the bar, never under it (WCAG 2.4.11). */
+  html:has([data-tabbar]) {
+    scroll-padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
   }
 }
 
@@ -550,14 +728,14 @@ textarea:-webkit-autofill:focus {
   justify-content: center;
   background: radial-gradient(60% 50% at 50% 45%, #26292d 0%, #1c1f22 60%, #16181a 100%);
   pointer-events: none;
-  animation: intro-out 0.45s cubic-bezier(0.7, 0, 0.3, 1) 0.6s forwards;
+  animation: intro-out 0.4s cubic-bezier(0.7, 0, 0.3, 1) 0.5s forwards;
 }
 .intro-splash__mark {
   clip-path: inset(0 100% 0 0);
   filter: drop-shadow(0 0 22px rgba(251, 193, 89, 0.35));
   animation:
-    intro-write 0.55s cubic-bezier(0.65, 0, 0.35, 1) 0.05s forwards,
-    intro-lift 0.45s cubic-bezier(0.7, 0, 0.3, 1) 0.6s forwards;
+    intro-write 0.45s cubic-bezier(0.65, 0, 0.35, 1) 0.05s forwards,
+    intro-lift 0.4s cubic-bezier(0.7, 0, 0.3, 1) 0.5s forwards;
 }
 @keyframes intro-write {
   to {
@@ -576,13 +754,14 @@ textarea:-webkit-autofill:focus {
     visibility: hidden;
   }
 }
-/* Hero content rises in as the cover lifts. */
+/* Hero content rises in as the cover lifts. Movement only, never hidden: the
+   headline paints in the very first frame (under the cover), so it counts as
+   the page's first big paint instead of waiting for the intro to finish. */
 .intro-rise {
-  animation: intro-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.75s both;
+  animation: intro-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both;
 }
 @keyframes intro-rise {
   from {
-    opacity: 0;
     transform: translateY(14px);
   }
 }
@@ -596,7 +775,7 @@ textarea:-webkit-autofill:focus {
 /* Reduced motion keeps the write-in (a reveal, no movement) and drops the lift and rise. */
 @media (prefers-reduced-motion: reduce) {
   .intro-splash__mark {
-    animation: intro-write 0.55s cubic-bezier(0.65, 0, 0.35, 1) 0.05s forwards;
+    animation: intro-write 0.45s cubic-bezier(0.65, 0, 0.35, 1) 0.05s forwards;
   }
   .intro-rise {
     animation: none;

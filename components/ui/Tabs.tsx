@@ -42,7 +42,7 @@ export function Tabs({
             {typeof t.count === "number" && (
               <span
                 className={cn(
-                  "ml-1.5 rounded-full px-1.5 py-0.5 text-[11px] font-bold",
+                  "ml-1.5 rounded-full px-1.5 py-0.5 text-xs font-bold",
                   selected ? "bg-brand-soft text-brand" : "bg-surface-2 text-ink-3",
                 )}
               >

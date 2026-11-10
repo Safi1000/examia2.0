@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Database } from "@/lib/data/seed";
 import { attendancePercent } from "@/lib/data/selectors";
 import { cn } from "@/lib/cn";
@@ -45,6 +45,7 @@ export function AttendanceCard({ db, studentId, nowMs }: { db: Pick<Database, "a
       recent: days.slice(-20),
     };
   }, [db, studentId, nowMs]);
+  const [picked, setPicked] = useState<string | null>(null);
 
   if (data.percent == null || !data.headMonth) return null;
   const pct = Math.round(data.percent);
@@ -52,10 +53,10 @@ export function AttendanceCard({ db, studentId, nowMs }: { db: Pick<Database, "a
   const tone = pct >= 90 ? "text-success" : pct >= 75 ? "text-ink" : "text-warning";
 
   return (
-    <section className="rounded-lg border border-border bg-surface p-5" aria-labelledby="att-h">
+    <section className="surface rounded-xl p-5 sm:p-6" aria-labelledby="att-h">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 id="att-h" className="text-base font-semibold text-ink">Attendance</h2>
+          <h2 id="att-h" className="text-[17px] font-bold tracking-[-0.01em] text-ink">Attendance</h2>
           <p className="text-sm text-ink-3">{monthName(data.headMonth)}</p>
         </div>
         <div className="text-right">
@@ -70,19 +71,45 @@ export function AttendanceCard({ db, studentId, nowMs }: { db: Pick<Database, "a
 
       {data.recent.length > 0 && (
         <>
-          <ol className="mt-5 grid auto-cols-fr grid-flow-col gap-1" aria-label="Your last classes">
-            {data.recent.map((x) => (
-              <li key={x.id} title={`${dayLabel(x.date)}: ${STATUS[x.status].label}`} className="flex justify-center">
-                <span className={cn("h-7 w-full max-w-3 rounded-full", STATUS[x.status].dot, x.status === "present" && "opacity-75")} />
-                <span className="sr-only">{`${dayLabel(x.date)}: ${STATUS[x.status].label}`}</span>
-              </li>
-            ))}
+          <ol className="mt-4 grid auto-cols-fr grid-flow-col gap-1" aria-label="Your last classes">
+            {data.recent.map((x) => {
+              const text = `${dayLabel(x.date)}: ${STATUS[x.status].label}`;
+              const on = picked === x.id;
+              return (
+                <li key={x.id} className="flex justify-center">
+                  {/* Tap a mark to see its day; the button is full height so it's easy to hit. */}
+                  <button
+                    type="button"
+                    onClick={() => setPicked(on ? null : x.id)}
+                    aria-pressed={on}
+                    aria-label={text}
+                    title={text}
+                    className="flex h-11 w-full items-center justify-center rounded-md"
+                  >
+                    <span
+                      className={cn(
+                        "h-7 w-full max-w-3 rounded-full transition",
+                        STATUS[x.status].dot,
+                        x.status === "present" && !on && "opacity-75",
+                        on && "ring-2 ring-ink ring-offset-2 ring-offset-surface",
+                      )}
+                    />
+                  </button>
+                </li>
+              );
+            })}
           </ol>
-          <p className="mt-1.5 text-xs text-ink-3">Your last {data.recent.length} classes, oldest first</p>
+          <p className="mt-1 text-xs text-ink-3" aria-live="polite">
+            {(() => {
+              const x = data.recent.find((r) => r.id === picked);
+              return x ? <span className="font-semibold text-ink-2">{`${dayLabel(x.date)}: ${STATUS[x.status].label}`}</span> : `Your last ${data.recent.length} classes, oldest first. Tap one to see its day.`;
+            })()}
+          </p>
         </>
       )}
 
-      <dl className="mt-5 grid grid-cols-3 gap-2 border-t border-border pt-4 text-center">
+      <p className="label-quiet mt-5 border-t border-hairline pt-4 text-ink-3">In {monthName(data.headMonth)}</p>
+      <dl className="mt-2 grid grid-cols-3 gap-2 text-center">
         {(["present", "late", "absent"] as const).map((k) => (
           <div key={k}>
             <dt className="flex items-center justify-center gap-1.5 text-xs text-ink-3">

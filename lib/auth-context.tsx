@@ -1,13 +1,14 @@
 "use client";
 
 import type { Profile } from "@/lib/profile";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import type { Role, Session } from "@/types";
+import type { Session } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { readSnapshot } from "@/lib/data/snapshot";
 import { getStore } from "@/lib/data/store";
 import { studentEmail } from "@/lib/config";
+import { AuthContext, type AuthContextValue } from "@/lib/auth-core";
 import { DEMO, DEMO_STUDENT_ID, demoRole, setDemoRole, type DemoRole } from "@/lib/demo";
 import { inApp } from "@/lib/in-app";
 import {
@@ -18,27 +19,6 @@ import {
   themeUserKey,
 } from "@/lib/theme";
 
-interface AuthContextValue {
-  session: Session | null;
-  /** True while a session is being brought up (initial load or login). */
-  initializing: boolean;
-  /** Signed in, but the portal couldn't load (weak signal). `retryLoad` tries again. */
-  loadFailed: boolean;
-  retryLoad: () => void;
-  loginStudent: (username: string, password: string) => Promise<boolean>;
-  loginAdmin: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
-  isRole: (role: Role) => boolean;
-  /** Current accent theme id; persists per user (server + local cache). */
-  themeId: string;
-  setTheme: (id: string) => void;
-  /** The student's own settings (avatar, targets, exam session, study stats). */
-  profile: Profile;
-  /** A patch, or a function of the latest saved profile (use that for counters like study time). */
-  updateProfile: (patch: Partial<Profile> | ((latest: Profile) => Partial<Profile>)) => void;
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null);
 const DEMO_PROFILE_KEY = "ht_demo_profile";
 
 /** Resolve a Supabase user into the app's session shape (role + studentId). */
@@ -340,9 +320,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 /** For surfaces that may render outside AuthProvider (the public pages). */
-export function useOptionalAuth(): AuthContextValue | null {
-  return useContext(AuthContext);
-}
+export { useOptionalAuth } from "@/lib/auth-core";
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);

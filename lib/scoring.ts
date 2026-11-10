@@ -5,9 +5,9 @@ import type { Answer, Question, Submission, Test } from "@/types";
 
 export type MasteryBand = "mastery" | "weak" | "critical";
 
-/** Spec banding: >60% mastery, 50–60% weak, <50% critical. */
+/** Banding: 70% and up strong (matches Today, where under 70% is weak), 50 to 70% weak, under 50% critical. */
 export function masteryBand(percent: number): MasteryBand {
-  if (percent > 60) return "mastery";
+  if (percent >= 70) return "mastery";
   if (percent >= 50) return "weak";
   return "critical";
 }

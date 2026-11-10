@@ -314,7 +314,7 @@ function MiniTimer({ view, actions }: { view: FloatView; actions: Actions }) {
   return (
     <div className="flex h-full select-none flex-col justify-between bg-[#0f1214] p-5 text-white" style={{ fontFamily: "inherit" }}>
       <div className="flex items-center justify-between gap-3">
-        <p className={`truncate text-[11px] font-semibold uppercase tracking-[0.22em] ${rest ? "text-[#7FD1A6]" : "text-[#FBC159]"}`}>
+        <p className={`truncate text-xs font-semibold uppercase tracking-[0.22em] ${rest ? "text-[#7FD1A6]" : "text-[#FBC159]"}`}>
           {view.paused ? "Paused" : rest ? "Break" : `Focus · ${view.subject}`}
         </p>
       </div>

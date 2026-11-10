@@ -11,14 +11,14 @@ export function ArticleList({ articles, dates }: { articles: Article[]; dates: R
           <Link
             href={`/blog/${a.slug}`}
             data-spot
-            className="group flex h-full flex-col rounded-[20px] border border-hairline bg-card/80 p-7 backdrop-blur-sm transition-[border-color,transform] duration-300 hover:-translate-y-1 hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
+            className="group flex h-full flex-col rounded-[20px] border border-hairline bg-card/80 p-7 backdrop-blur-sm transition-colors duration-300 hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
           >
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gold">
+            <p className="text-[13px] font-semibold text-gold">
               {a.subject} · {a.level}
             </p>
             <h2 className="mt-3 text-xl font-bold leading-snug text-foreground group-hover:text-gold">{a.title}</h2>
             <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">{a.description}</p>
-            <p className="mt-auto pt-6 text-sm text-faint">
+            <p className="mt-auto pt-6 text-sm tabular-nums text-muted-foreground">
               {dates[a.slug]} · {a.minutes} min read
             </p>
           </Link>

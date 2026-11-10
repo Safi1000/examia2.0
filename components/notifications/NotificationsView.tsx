@@ -8,6 +8,7 @@ import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { Button, EmptyState, Icon, Input, Modal, Skeleton, Tabs, type TabItem } from "@/components/ui";
 import { categoryOf, matchesQuery, type NotificationCategory } from "@/lib/notifications";
 import type { Activity } from "@/types";
+import { EmptyArt } from "@/components/student/PortalKit";
 
 /** Rows added each time the sentinel scrolls into view. */
 const PAGE_SIZE = 20;
@@ -101,11 +102,11 @@ export function NotificationsView() {
   }));
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <div className="rise mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-4 pt-2">
         <div>
-          <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink">Notifications</h1>
-          <p className="mt-1.5 text-base text-ink-2">
+          <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.03em] text-ink sm:text-[2.5rem]">Notifications</h1>
+          <p className="mt-3 text-base text-ink-2 tabular-nums">
             {unreadCount > 0
               ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}`
               : "You're all caught up."}
@@ -129,7 +130,7 @@ export function NotificationsView() {
 
       {/* Search and filters only once there is enough to search through. */}
       {(activities.length > 5 || query) && (
-      <div className="relative mb-3">
+      <div className="relative mb-4">
         <Icon.Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" />
         <Input
           type="search"
@@ -143,17 +144,18 @@ export function NotificationsView() {
 
       )}
 
-      {tabs.length > 1 && <Tabs tabs={tabs} active={filter} onChange={changeFilter} className="mb-4" />}
+      {tabs.length > 1 && <Tabs tabs={tabs} active={filter} onChange={changeFilter} className="mb-5" />}
 
       {!ready ? (
         <div className="space-y-3" aria-busy>
           {Array.from({ length: 5 }, (_, i) => (
-            <Skeleton key={i} className="h-20 w-full rounded-lg" />
+            <Skeleton key={i} className="h-20 w-full rounded-xl" />
           ))}
         </div>
       ) : shown.length === 0 ? (
         <EmptyState
           icon={<Icon.Bell className="h-5 w-5" />}
+          art={query || filter !== "all" ? undefined : <EmptyArt name="empty-all-caught-up" />}
           title={query || filter !== "all" ? "No matches" : "Nothing yet"}
           message={
             query || filter !== "all"
@@ -173,7 +175,7 @@ export function NotificationsView() {
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border bg-surface">
+        <div className="surface overflow-hidden rounded-xl">
           {shown.map((a) => (
             <NotificationItem
               key={a.id}

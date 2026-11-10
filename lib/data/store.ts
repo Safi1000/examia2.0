@@ -612,7 +612,11 @@ class Store {
     const lateReady = Promise.all([
       quiet(sb.from("activities").select("*").eq("type", "test_reopened").gte("created_at", new Date(Date.now() - 2 * 86_400_000).toISOString())),
       this.audience === "student" ? Promise.resolve([] as Activity[]) : quiet(sb.from("activities").select("*").eq("type", "student_in_person")),
-    ]).then(([a, b]) => [...a, ...b]);
+      // This week's "Well built" notes, so Today never offers to send one twice.
+      this.audience === "student"
+        ? Promise.resolve([] as Activity[])
+        : quiet(sb.from("activities").select("*").eq("type", "well_built").gte("created_at", new Date(Date.now() - 8 * 86_400_000).toISOString())),
+    ]).then(([a, b, c]) => [...a, ...b, ...c]);
     const [coh, stu, tst, sub, ann, bnk, keys, cls, subj, cCls, cSubj, sCls, sSubj, nts, nAssigns, asg, asgSubs, attD, attM, rep, rem, acts] = await Promise.all([
       sb.from("cohorts").select("*").order("created_at"),
       allRows((a, b) => sb.from("students").select("*").order("created_at").order("id").range(a, b)),
@@ -1264,6 +1268,12 @@ class Store {
   }
 
   // ---- Tests + questions ----------------------------------------------
+  /** Each new test's row write, so questions added straight away can wait for it (questions.test_id is a foreign key). */
+  private testSaves = new Map<string, Promise<void>>();
+  /** Resolves once a test made with addTest is in the database (at once in demo, or for older tests). */
+  testSaved(id: string): Promise<void> {
+    return this.testSaves.get(id) ?? Promise.resolve();
+  }
   addTest(input: Omit<Test, "id" | "createdAt" | "questions"> & { questions?: Question[] }): string {
     const id = genId();
     const createdAt = new Date().toISOString();
@@ -1276,7 +1286,7 @@ class Store {
     // insert fails with activities_test_id_fkey — which is what surfaced as an
     // error the moment "+ New Test" was clicked. Sequence the two writes, the
     // same way addQuestion sequences its question_keys insert.
-    void (async () => {
+    const saved = (async () => {
       const { error } = await supabase().from("tests").insert({
         id,
         title: input.title,
@@ -1305,6 +1315,7 @@ class Store {
       // students "New test: 'Untitled test'". The announcement waits until the
       // test is actually ready — named, with questions (see announceTestCreated).
     })();
+    this.testSaves.set(id, saved);
     return id;
   }
 
@@ -1558,7 +1569,8 @@ class Store {
       });
     }
   }
-  addQuestion(testId: string, q: Omit<Question, "id" | "order">) {
+  /** `bank: false` skips the bank copy (past paper questions: the papers are the bank). */
+  addQuestion(testId: string, q: Omit<Question, "id" | "order">, opts?: { bank?: boolean }) {
     const id = genId();
     let order = 0;
     this.commit((d) => {
@@ -1581,7 +1593,7 @@ class Store {
         if (kErr) this.report(`addQuestion/key: ${kErr.message}`);
       }
     })();
-    this.mirrorToBank(testId, q);
+    if (opts?.bank !== false) this.mirrorToBank(testId, q);
   }
   /** Every question authored on a test is kept in the bank for reuse. */
   private mirrorToBank(testId: string, q: Omit<Question, "id" | "order">) {
@@ -1878,6 +1890,46 @@ class Store {
     const st = this.state.students.find((x) => x.id === late.studentId);
     this.report(`"${t.title}" is open for ${st ? st.username.charAt(0).toUpperCase() + st.username.slice(1) : "a student"} until ${at(late.until)}. Release results after that, or close their window first.`);
     return true;
+  }
+
+  // ---- "Well built" (Hamza praises a strong Groundwork week) --------------
+  /**
+   * Sends one student a short note from Hamza. It lands in their notification
+   * bell (an activity addressed to them alone) and opens Groundwork. Shown on
+   * this screen straight away; if saving fails it comes off again and throws.
+   */
+  async sendWellBuilt(studentId: string, note: string): Promise<void> {
+    const row: Activity = {
+      id: genId(),
+      type: "well_built",
+      title: "Well built",
+      description: note.trim(),
+      studentId,
+      link: "/groundwork",
+      audience: "student",
+      readBy: [],
+      clearedBy: [],
+      createdAt: new Date().toISOString(),
+    };
+    this.commit((d) => {
+      d.activities = [row, ...d.activities];
+    });
+    if (DEMO) return;
+    const { error } = await supabase().from("activities").insert({
+      id: row.id,
+      type: row.type,
+      title: row.title,
+      description: row.description,
+      student_id: studentId,
+      link: row.link,
+      audience: "student",
+    });
+    if (error) {
+      this.commit((d) => {
+        d.activities = d.activities.filter((a) => a.id !== row.id);
+      });
+      throw new Error("Couldn't send it. Check your internet and try again.");
+    }
   }
 
   // ---- Late windows (one student sits a missed test) --------------------

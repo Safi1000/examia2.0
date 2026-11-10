@@ -84,12 +84,12 @@ export function StudyCoach({
   const first = displayName(student.username).split(" ")[0];
 
   return (
-    <Card className="p-5">
+    <Card className="p-5 sm:p-6">
       <h2 className="text-lg font-bold text-ink">
         {test ? "What to work on next" : "Your next three steps"}
       </h2>
       {steps.length === 0 ? (
-        <p className="mt-2 text-[15px] text-ink-2">
+        <p className="mt-2 text-base text-pretty text-ink-2">
           {test ? "Full marks on this one. Nothing to fix here." : "No weak topics right now. Keep doing the weekly tests to stay sharp."}
         </p>
       ) : (
@@ -98,10 +98,10 @@ export function StudyCoach({
             const note = noteFor(s.name);
             const pct = s.overall != null ? Math.round(s.overall) : undefined;
             return (
-              <li key={`${s.subject}|${s.name}`} className="border-t border-border pt-4 first:border-t-0 first:pt-0">
+              <li key={`${s.subject}|${s.name}`} className="border-t border-hairline pt-4 first:border-t-0 first:pt-0">
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="font-semibold text-ink">
-                    <span className="mr-2 font-mono text-sm text-ink-3">{i + 1}</span>
+                    <span className="mr-2 text-sm font-bold text-ink-3 tabular-nums">{i + 1}</span>
                     {s.name}
                   </p>
                   {pct != null && (

@@ -11,6 +11,7 @@ import { CookieBanner } from "./CookieBanner";
 import { BookingProvider } from "./BookingModal";
 import { Backdrop } from "./Backdrop";
 import { IntroLogo } from "./IntroLogo";
+import "./public-calm.css";
 
 /**
  * Public homepage: one funnel, ordered for a first-time visitor (see the
@@ -28,8 +29,8 @@ export function LandingPage() {
         >
           Skip to content
         </a>
-        <Nav />
-        <main id="main">
+        <Nav heroCta />
+        <main id="main" className="public-calm">
           {/* A first-time visitor's path: what is this → can I trust it → how is it
               different → do students like it → what do I get → who is the teacher →
               pick my class → last doubts → book. */}

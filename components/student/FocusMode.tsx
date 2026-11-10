@@ -6,18 +6,23 @@ import { useAuth } from "@/lib/auth-context";
 import { STUDY_NAME, MIN_COUNTED, currentStats, quoteFor, recordFocus } from "@/lib/focus";
 import { clearRunning, loadRunning, minutesToAdd, ownRunning, saveRunning } from "@/components/student/focus-session";
 import { useBackToClose } from "@/components/student/useBackToClose";
+import { AWAY_GRACE_MS, awayFor, awayLabel, creditedAway, hideTip, setFocusRoomOpen, tipHidden } from "@/components/student/focus-away";
 import { cn } from "@/lib/cn";
-import { TRAY_SCENES as SCENES, photoSrc, sceneFor, reviewDone, topicKey } from "@/lib/groundwork";
+import { worldScene, reviewDone, topicKey } from "@/lib/groundwork";
+import { worldFor, type WorldPhase } from "@/lib/groundwork-worlds";
 import { pkDate, addDays } from "@/lib/timetable";
 import { setStudying } from "@/components/student/StudyRoom";
 import { SOUNDS, backgroundTicker, chime, clearLockScreen, pauseSound, playSound, showOnLockScreen, stopSound, wakeChime, type Sound } from "@/lib/focus-sound";
 import { clock, useFloatTimer } from "@/components/student/FloatTimer";
-import { BrickTimer } from "@/components/student/BrickTimer";
+import { GroundworkWorld } from "@/components/student/GroundworkWorld";
+import { WorldGlyph, WorldPicker } from "@/components/student/WorldPicker";
 import { Receipt, ShareReceipt, receiptId, type ReceiptData } from "@/components/student/StudyReceipt";
 import { setTitleOverride } from "@/hooks/usePageTitle";
 
 /**
- * The focus room: the student's scene, full screen, with one big timer.
+ * The focus room: the student's 3D world, full screen, building as they
+ * focus, with one big timer on top. The world follows this timer exactly
+ * (see worldPhase and worldProgress below).
  *
  * Controls fade away while they work and come back on a touch. The timer can
  * float over other apps (picture-in-picture), sits on the lock screen while a
@@ -32,6 +37,11 @@ export interface Mission {
   minutes?: number;
   /** "Test prep", "Review 2 of 4"... shown above the topic. */
   tag?: string;
+  /**
+   * A test or homework this block is for ("Focus on this" on a To do row).
+   * The summary names it, and the review check is skipped (it isn't a topic).
+   */
+  item?: { kind: "test" | "homework"; title: string; href?: string };
 }
 
 type Phase = "setup" | "focus" | "rest" | "done";
@@ -64,7 +74,9 @@ export default function FocusMode({
 }) {
   const { updateProfile, profile } = useAuth();
   const [openedAt] = useState(() => Date.now());
-  const scene = sceneFor(profile.scene, openedAt);
+  const world = worldFor(profile.world);
+  // The share image uses the world's still.
+  const scene = worldScene(world.id);
   const today = pkDate(openedAt);
   const [subject, setSubject] = useState(mission?.subject ?? subjects[0] ?? "Study");
   const [focusMin, setFocusMinRaw] = useState(() => Math.max(5, Math.min(120, mission?.minutes ?? lastLength() ?? 25)));
@@ -92,12 +104,34 @@ export default function FocusMode({
   const [fs, setFs] = useState(false);
   const [quote] = useState(() => quoteFor(Math.floor(Date.now() / 60_000)));
   const [sessionAt, setSessionAt] = useState<number | null>(null);
+  const [picker, setPicker] = useState(false);
+  /** How far the last focus block got (1 = finished): what the world shows on the receipt. */
+  const [builtFrac, setBuiltFrac] = useState(0);
+  /** Back after more than the grace away: the "builder waited" sheet (away time, and what was left when they went). */
+  const [away, setAway] = useState<{ ms: number; left: number } | null>(null);
+  const [tip, setTip] = useState(() => !tipHidden());
   const startedAt = useRef<number | null>(null);
   const logged = useRef(0);
   const panel = useRef<HTMLDivElement>(null);
+  const resumeBtn = useRef<HTMLButtonElement>(null);
+  /** What had focus when the room opened (Start focus, a Focus on this button): it gets focus back on close. */
+  const [opener] = useState(() => (typeof document !== "undefined" ? (document.activeElement as HTMLElement | null) : null));
+  /** When they left Groundwork during a running focus block, and what was left of it then. */
+  const leftAt = useRef<{ at: number; left: number } | null>(null);
+  /** The same, for drawing (the clock, lock screen, title and float hold still once they are away past the grace). */
+  const [gone, setGone] = useState<{ at: number; left: number } | null>(null);
+  const markGone = (v: { at: number; left: number } | null) => {
+    leftAt.current = v;
+    setGone(v);
+  };
+  /** The timer is floating over another app on purpose: leaving doesn't make the builder wait. */
+  const floating = useRef(false);
 
   const running = phase === "focus" || phase === "rest";
-  const left = pausedLeft ?? (endsAt ? Math.max(0, endsAt - now) : 0);
+  // Away past the grace: the builder waits, so everything shows the time left when they went.
+  const waiting = phase === "focus" && pausedLeft == null && gone != null && now - gone.at > AWAY_GRACE_MS;
+  const held = pausedLeft != null || waiting;
+  const left = pausedLeft ?? (waiting && gone ? gone.left : endsAt ? Math.max(0, endsAt - now) : 0);
   const total = (phase === "rest" ? restMin : focusMin) * 60_000;
   const focusedMin = blocks.filter((b) => b.kind === "focus").reduce((a, b) => a + b.min, 0);
 
@@ -107,19 +141,32 @@ export default function FocusMode({
     live.current = { phase, subject, planned: focusMin, endsAt, pausedLeft, sound };
   });
 
+  /** Time left in the block at `at`. Once they have been away past the grace, the builder stopped when they left. */
+  const remainingAt = (at: number) => {
+    const l = live.current;
+    if (l.pausedLeft != null) return l.pausedLeft;
+    const gone = leftAt.current;
+    if (l.phase === "focus" && gone && awayFor(gone.at, at)) return gone.left;
+    return l.endsAt ? Math.max(0, l.endsAt - at) : 0;
+  };
+
   /** Focused time in the current block, in ms. */
   const doneMs = (at: number) => {
     const l = live.current;
     if (l.phase !== "focus" || startedAt.current == null) return 0;
-    const remaining = l.pausedLeft ?? (l.endsAt ? Math.max(0, l.endsAt - at) : 0);
-    return Math.max(0, l.planned * 60_000 - remaining);
+    return Math.max(0, l.planned * 60_000 - remainingAt(at));
   };
+
+  /** How much of the current focus block is done, 0 to 1. */
+  const blockFrac = () => Math.min(1, doneMs(Date.now()) / (live.current.planned * 60_000));
 
   /** Keep the running block on the phone (instant, works while the page is closing). */
   const persist = () => {
     if (live.current.phase !== "focus" || startedAt.current == null) return;
     const at = Date.now();
-    saveRunning({ subject: live.current.subject, planned: live.current.planned, startedAt: startedAt.current, doneMs: doneMs(at), savedAt: at, logged: logged.current });
+    // Away: save only the time before they left (and when), so a tab closed while away never counts it.
+    const awayAt = leftAt.current?.at;
+    saveRunning({ subject: live.current.subject, planned: live.current.planned, startedAt: startedAt.current, doneMs: doneMs(awayAt != null ? Math.min(at, awayAt) : at), savedAt: at, logged: logged.current, awayAt });
   };
 
   /** Count the minutes actually focused (each minute once). Returns the block's counted minutes. */
@@ -137,6 +184,7 @@ export default function FocusMode({
     let counted = 0;
     if (live.current.phase === "focus" && startedAt.current != null) counted = logFocus(doneMs(Date.now()) / 60_000, live.current.subject);
     startedAt.current = null;
+    markGone(null);
     clearRunning();
     return counted;
   };
@@ -177,6 +225,33 @@ export default function FocusMode({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, minuteMark, pausedLeft, endsAt]);
 
+  // ---- Stay to build. Leaving during a focus block notes when they went. Back
+  // within the grace: nothing happens. Back later: the builder stopped when they
+  // left, and a sheet asks whether that time was study on paper.
+  useEffect(() => {
+    const onVis = () => {
+      const l = live.current;
+      const at = Date.now();
+      if (document.visibilityState === "hidden") {
+        if (l.phase === "focus" && l.pausedLeft == null && l.endsAt && !floating.current) markGone({ at, left: Math.max(0, l.endsAt - at) });
+        return;
+      }
+      const gone = leftAt.current;
+      if (!gone) return;
+      const ms = awayFor(gone.at, at);
+      if (!ms || l.phase !== "focus" || l.pausedLeft != null) {
+        markGone(null);
+        return;
+      }
+      // Kept until they choose, so the block can't finish on its own in the meantime.
+      setPausedLeft(gone.left);
+      setAway({ ms, left: gone.left });
+      pauseSound();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
+
   useEffect(() => {
     const onHide = () => persist();
     const onVis = () => document.visibilityState === "hidden" && persist();
@@ -192,11 +267,13 @@ export default function FocusMode({
   // Opening: focus moves into the room, the phone's top bar goes dark. Closing from outside: count what was done.
   useEffect(() => {
     panel.current?.focus();
+    setFocusRoomOpen(true);
     const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
     const prevTheme = meta?.content;
     if (meta) meta.content = "#0b0d0f";
     return () => {
       flush();
+      setFocusRoomOpen(false);
       ownRunning(false);
       stopSound();
       clearLockScreen();
@@ -204,6 +281,7 @@ export default function FocusMode({
       if (meta && prevTheme) meta.content = prevTheme;
       setTitleOverride(null);
       if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+      if (opener && opener !== document.body && opener.isConnected) opener.focus({ preventScroll: true });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -211,9 +289,13 @@ export default function FocusMode({
   // Block end: focus → chime, count, break; break → the receipt.
   useEffect(() => {
     if (pausedLeft != null || !endsAt || now < endsAt) return;
+    // Away past the grace: the block waits for them to come back and choose.
+    const gone = leftAt.current;
+    if (phase === "focus" && gone && awayFor(gone.at, Date.now())) return;
     const t = setTimeout(() => {
       chime();
       if (phase === "focus") {
+        setBuiltFrac(1);
         const counted = logFocus(focusMin, subject);
         setBlocks((b) => [...b, { kind: "focus", min: counted }]);
         startedAt.current = null;
@@ -244,6 +326,8 @@ export default function FocusMode({
     setSessionAt((v) => v ?? at);
     logged.current = 0;
     startedAt.current = at;
+    markGone(null);
+    setAway(null);
     ownRunning(true);
     saveRunning({ subject, planned: focusMin, startedAt: at, doneMs: 0, savedAt: at, logged: 0 });
     setPhase("focus");
@@ -258,6 +342,7 @@ export default function FocusMode({
   const end = (): boolean => {
     const ph = live.current.phase;
     if (ph === "focus") {
+      setBuiltFrac(blockFrac());
       const counted = flush();
       if (counted > 0) setBlocks((b) => [...b, { kind: "focus", min: counted }]);
       const all = focusedMin + counted;
@@ -299,13 +384,15 @@ export default function FocusMode({
   const pause = useCallback(() => {
     const l = live.current;
     if (l.pausedLeft != null || !l.endsAt) return;
-    setPausedLeft(Math.max(0, l.endsAt - Date.now()));
+    setPausedLeft(remainingAt(Date.now()));
     setPauses((n) => n + 1);
     pauseSound();
   }, []);
   const resume = useCallback(() => {
     const l = live.current;
     if (l.pausedLeft == null) return;
+    markGone(null);
+    setAway(null);
     const at = Date.now();
     setEndsAt(at + l.pausedLeft);
     setPausedLeft(null);
@@ -313,6 +400,29 @@ export default function FocusMode({
     if (l.phase === "focus" && l.sound !== "off") playSound(l.sound);
   }, []);
   const togglePause = () => (pausedLeft != null ? resume() : pause());
+
+  // ---- Back after the builder waited: Resume (away time not counted), or count it as study on paper.
+  const sheet = phase === "focus" && pausedLeft != null ? away : null;
+  const sheetOn = !!sheet;
+  useEffect(() => {
+    if (sheetOn) resumeBtn.current?.focus();
+  }, [sheetOn]);
+  const backAndResume = () => {
+    setPauses((n) => n + 1);
+    resume();
+  };
+  const backFromPaper = () => {
+    if (!away) return;
+    markGone(null);
+    setAway(null);
+    const at = Date.now();
+    // Counted up to what was left; if that is all of it, the block finishes now.
+    const rest = away.left - creditedAway(away.ms, away.left);
+    setEndsAt(at + rest);
+    setPausedLeft(null);
+    setNow(at);
+    if (rest > 0 && sound !== "off") playSound(sound);
+  };
   const skipBreak = () => {
     const restDone = Math.round((total - left) / 60_000);
     if (restDone > 0) setBlocks((b) => [...b, { kind: "rest", min: restDone }]);
@@ -323,29 +433,28 @@ export default function FocusMode({
     if (phase === "focus" && pausedLeft == null) playSound(s);
     else if (s === "off") stopSound();
   };
-  const nextScene = () => {
-    const i = SCENES.findIndex((s) => s.id === scene.id);
-    updateProfile({ scene: SCENES[(i + 1) % SCENES.length].id });
-  };
 
   // ---- Floating timer (picture-in-picture).
-  const view = { leftMs: left, totalMs: total, phase: phase === "rest" ? ("rest" as const) : ("focus" as const), paused: pausedLeft != null, subject, intention: intention.trim() || undefined };
+  const view = { leftMs: left, totalMs: total, phase: phase === "rest" ? ("rest" as const) : ("focus" as const), paused: held, subject, intention: intention.trim() || undefined };
   const float = useFloatTimer(view, { pause, resume }, running);
+  useEffect(() => {
+    floating.current = float.active;
+  });
 
   // ---- Lock screen and the tab title, once a minute and on every change.
   const minsLeft = Math.ceil(left / 60_000);
   useEffect(() => {
     if (!running) return;
     showOnLockScreen(
-      { title: pausedLeft != null ? "Paused" : phase === "rest" ? `Break · ${minsLeft} min left` : `${minsLeft} min left`, subject, totalMs: total, leftMs: left, paused: pausedLeft != null },
+      { title: held ? "Paused" : phase === "rest" ? `Break · ${minsLeft} min left` : `${minsLeft} min left`, subject, totalMs: total, leftMs: left, paused: held },
       { play: resume, pause, stop: () => void end() },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, minsLeft, pausedLeft, phase, subject]);
+  }, [running, minsLeft, held, phase, subject]);
   useEffect(() => {
     if (!running) return setTitleOverride(null);
-    setTitleOverride(`${clock(left)} · ${pausedLeft != null ? "Paused" : phase === "rest" ? "Break" : subject}`);
-  }, [running, left, phase, subject, pausedLeft]);
+    setTitleOverride(`${clock(left)} · ${held ? "Paused" : phase === "rest" ? "Break" : subject}`);
+  }, [running, left, phase, subject, held]);
 
   // ---- Controls fade away while they work; any touch brings them back.
   useEffect(() => {
@@ -381,11 +490,19 @@ export default function FocusMode({
     else void panel.current?.requestFullscreen?.().catch(() => {});
   };
 
-  // ---- Keyboard: Space pauses, F full screen, P floats.
+  // ---- Keyboard: Space pauses, F full screen, P floats, Escape closes (like Back: a running block ends to its receipt).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.defaultPrevented) {
+        // The world picker closes itself first; the "builder waited" sheet needs an answer.
+        if (picker || sheet) return;
+        e.preventDefault();
+        if (running) void end();
+        else close();
+        return;
+      }
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === " " && running) {
+      if (e.key === " " && running && !sheet) {
         e.preventDefault();
         if (phase === "rest") skipBreak();
         else togglePause();
@@ -395,6 +512,28 @@ export default function FocusMode({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
+
+  // ---- Focus stays in the room (it covers the page): Tab wraps around inside it.
+  useEffect(() => {
+    const onTab = (e: KeyboardEvent) => {
+      const el = panel.current;
+      if (e.key !== "Tab" || !el) return;
+      const items = Array.from(el.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), select, input, textarea, [tabindex]:not([tabindex="-1"])')).filter(
+        (x) => x.tabIndex >= 0 && x.getClientRects().length > 0,
+      );
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const at = document.activeElement;
+      const inside = at instanceof Node && el.contains(at);
+      if (!inside || (e.shiftKey && (at === first || at === el)) || (!e.shiftKey && at === last)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      }
+    };
+    document.addEventListener("keydown", onTab, true);
+    return () => document.removeEventListener("keydown", onTab, true);
+  }, []);
 
   // ---- The receipt.
   const stats = currentStats(profile.focus, now);
@@ -417,7 +556,14 @@ export default function FocusMode({
         }
       : null;
 
-  const done = running ? Math.min(1, Math.max(0, 1 - left / total)) : 0;
+  // ---- The world follows the timer. Progress is the exact fraction of the
+  // current focus block done (it moves every tick of the clock above).
+  // Before a block: idle. Focusing: building (paused while paused). The break
+  // after a finished block: done. The receipt: done if the last block was
+  // finished, otherwise held where it stopped.
+  const worldPhase: WorldPhase =
+    phase === "setup" ? "idle" : phase === "focus" ? (pausedLeft != null ? "paused" : "building") : phase === "rest" ? "done" : builtFrac >= 1 ? "done" : "paused";
+  const worldProgress = phase === "setup" ? 0 : phase === "focus" ? Math.min(1, Math.max(0, 1 - left / total)) : phase === "rest" ? 1 : builtFrac;
   const accent = phase === "rest" ? "#7FD1A6" : "#FBC159";
   const hide = running && idle && pausedLeft == null;
   const fade = cn("transition-opacity duration-700", hide ? "pointer-events-none opacity-0" : "opacity-100");
@@ -433,22 +579,16 @@ export default function FocusMode({
       aria-label={STUDY_NAME}
       className={cn("focus-dark fixed inset-0 z-[70] overflow-hidden bg-[#0b0d0f] text-white outline-none", hide && "cursor-none")}
     >
-      {/* Their scene, slowly drifting, dimmed more while they focus. */}
-      <div className="pointer-events-none absolute inset-0" aria-hidden style={{ background: scene.sky }}>
-        {scene.photo && (
-          <picture key={scene.id}>
-            <source media="(min-width: 768px)" srcSet={photoSrc(scene)} />
-            <img src={photoSrc(scene, "tall")} alt="" className="room-drift h-full w-full object-cover" decoding="async" />
-          </picture>
-        )}
+      {/* Their world, building as they focus. While timing, only the top (clock) and bottom (buttons) are shaded so the build shows; around the setup and the receipt it is dimmed so the text reads. */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <GroundworkWorld world={world.id} progress={worldProgress} phase={worldPhase} className="absolute inset-0 overflow-hidden" />
         <div
-          className="absolute inset-0 transition-[background] duration-1000"
-          style={{
-            background:
-              phase === "focus"
-                ? "linear-gradient(180deg,rgba(8,10,12,.72),rgba(8,10,12,.58) 45%,rgba(8,10,12,.82))"
-                : "linear-gradient(180deg,rgba(8,10,12,.55),rgba(8,10,12,.35) 45%,rgba(8,10,12,.78))",
-          }}
+          className="absolute inset-0 transition-opacity duration-1000"
+          style={{ opacity: running ? 1 : 0, background: "linear-gradient(180deg,rgba(8,10,12,.6),rgba(8,10,12,.12) 34%,rgba(8,10,12,0) 50%,rgba(8,10,12,0) 72%,rgba(8,10,12,.6))" }}
+        />
+        <div
+          className="absolute inset-0 transition-opacity duration-1000"
+          style={{ opacity: running ? 0 : 1, background: "linear-gradient(180deg,rgba(8,10,12,.62),rgba(8,10,12,.45) 45%,rgba(8,10,12,.75))" }}
         />
       </div>
 
@@ -464,10 +604,12 @@ export default function FocusMode({
           <p className="min-w-0 truncate text-[11px] font-semibold uppercase tracking-[0.3em] text-white/70">
             {running ? (phase === "rest" ? "Break" : subject) : STUDY_NAME}
           </p>
-          <div className="flex shrink-0 items-center gap-2">
-            <button type="button" onClick={nextScene} className={roundBtn} aria-label={`Scene: ${scene.name}. Change scene`} title={scene.name}>
-              <Glyph.Scene />
+          {/* The picker hangs from the whole group (right aligned), so on a phone it stays on screen. */}
+          <div className="relative flex shrink-0 items-center gap-2">
+            <button type="button" onClick={() => setPicker((v) => !v)} aria-expanded={picker} className={roundBtn} aria-label={`World: ${world.title}. Change world`} title={world.title}>
+              <WorldGlyph size={20} />
             </button>
+            {picker && <WorldPicker current={world.id} placement="below" onPick={(id) => updateProfile({ world: id })} onClose={() => setPicker(false)} />}
             {running && float.kind && (
               <button type="button" onClick={() => void (float.active ? float.close() : float.open())} className={roundBtn} aria-label={float.active ? "Stop floating the timer" : "Float the timer over other apps"} title="Float (P)">
                 <Glyph.Float />
@@ -556,30 +698,68 @@ export default function FocusMode({
                 Open the notes first
               </Link>
             )}
+            {tip && (
+              <p className="mt-4 flex max-w-xs items-center gap-1 text-left text-[12px] leading-snug text-white/50">
+                <span>Tip: turn on Do Not Disturb or a Focus mode before you start.</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    hideTip();
+                    setTip(false);
+                  }}
+                  aria-label="Dismiss tip"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/50 transition-colors hover:text-white"
+                >
+                  <Glyph.X />
+                </button>
+              </p>
+            )}
           </div>
         )}
 
         {running && (
-          <div className="flex flex-1 flex-col items-center justify-center" onClick={() => setIdle(false)}>
-            <div className="aspect-[13/9] w-[min(80vw,46dvh,420px)] lg:w-[min(42vw,56dvh,540px)]">
-              <BrickTimer progress={done} phase={phase === "rest" ? "rest" : "focus"} paused={pausedLeft != null} />
-            </div>
-            <p className={cn("room-clock mt-10 font-extralight leading-none tabular-nums tracking-[-0.04em]", pausedLeft != null ? "text-white/50" : "text-white")} role="timer" aria-live="off">
+          <div className="flex flex-1 flex-col items-center justify-start pt-[4dvh] sm:pt-[7dvh]" onClick={() => setIdle(false)}>
+            <p className={cn("room-clock font-light leading-none tabular-nums tracking-[-0.045em] [text-shadow:0_2px_24px_rgba(0,0,0,.35)]", pausedLeft != null ? "text-white/60" : "text-white")} role="timer" aria-live="off">
               {clock(left)}
             </p>
-            <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.3em]" style={{ color: accent }}>
+            <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.3em] [text-shadow:0_1px_10px_rgba(0,0,0,.5)]" style={{ color: accent }}>
               {pausedLeft != null ? "Paused" : phase === "rest" ? "Break · stand up, drink some water" : "Building"}
             </p>
             {phase === "rest" && (
-              <figure className="mt-8 max-w-sm px-6 text-center">
-                <blockquote className="text-[15px] leading-snug text-white/70 [text-wrap:balance]">“{quote.text}”</blockquote>
+              <figure className="mb-4 mt-auto max-w-sm px-6 pt-6 text-center [text-shadow:0_1px_10px_rgba(0,0,0,.55)]">
+                <blockquote className="text-[15px] leading-snug text-white/80 [text-wrap:balance]">“{quote.text}”</blockquote>
                 {quote.by && <figcaption className="mt-1 text-xs text-white/40">{quote.by}</figcaption>}
               </figure>
             )}
           </div>
         )}
 
-        {running && (
+        {sheet && (
+          <div className="shrink-0 pb-2">
+            <div role="alertdialog" aria-labelledby="gw-away-title" className={cn("away-in mx-auto w-full max-w-sm rounded-[24px] p-5 text-center", glass)}>
+              <p id="gw-away-title" className="text-[15px] font-medium leading-snug text-white [text-wrap:balance]">
+                You were away {awayLabel(sheet.ms)}. The builder waited.
+              </p>
+              <button
+                ref={resumeBtn}
+                type="button"
+                onClick={backAndResume}
+                className="mt-4 h-12 w-full rounded-full bg-brand text-[15px] font-semibold text-black transition hover:bg-brand-strong active:scale-[0.98]"
+              >
+                Resume
+              </button>
+              <button
+                type="button"
+                onClick={backFromPaper}
+                className="mt-2 h-12 w-full rounded-full border border-white/25 text-[15px] font-semibold text-white transition hover:bg-white/10 active:scale-[0.98]"
+              >
+                I was studying on paper
+              </button>
+            </div>
+          </div>
+        )}
+
+        {running && !sheet && (
           <div className={cn("shrink-0 pb-2", fade)}>
             <div className="mx-auto flex max-w-sm items-center justify-between">
               <div className="flex w-20 flex-col items-center gap-1.5">
@@ -616,8 +796,15 @@ export default function FocusMode({
             <div className="text-center">
               <h2 className="text-[1.75rem] font-semibold tracking-[-0.02em]">Nicely done.</h2>
               <p className="mt-1 text-sm text-white/70">
-                {receipt.focusedMin} minutes of {subject} added to your week.
+                {mission?.item
+                  ? `${receipt.focusedMin} ${receipt.focusedMin === 1 ? "minute" : "minutes"} on ${mission.item.title}. Added to your week.`
+                  : `${receipt.focusedMin} minutes of ${subject} added to your week.`}
               </p>
+              {mission?.item?.href && (
+                <Link href={mission.item.href} className="mt-2 inline-flex min-h-11 items-center text-[13px] font-medium text-white/60 underline-offset-4 hover:text-white hover:underline">
+                  {mission.item.kind === "test" ? "Go to the test" : "Go to the homework"}
+                </Link>
+              )}
             </div>
 
             {receipt.intention && finished == null && (
@@ -634,7 +821,7 @@ export default function FocusMode({
               </div>
             )}
 
-            {mission && subject === mission.subject && (
+            {mission && !mission.item && subject === mission.subject && (
               <div className={cn("w-full max-w-[340px] rounded-[22px] p-4 text-center", glass)}>
                 <p className="text-sm text-white/80">How did {mission.topic} go?</p>
                 {checked ? (
@@ -691,11 +878,10 @@ export default function FocusMode({
       <style>{`
         .room-time { font-size: clamp(3.25rem, min(16vw, 10dvh), 8rem); }
         .no-scrollbar { scrollbar-width: none; } .no-scrollbar::-webkit-scrollbar { display: none; }
-        .room-clock { font-size: clamp(2.75rem, 13vw, 4.25rem); }
-        @media (min-width: 1024px) { .room-clock { font-size: 4.5rem; } }
-        .room-drift { animation: room-drift 60s ease-in-out infinite alternate; transform-origin: 50% 60%; }
-        @keyframes room-drift { from { transform: scale(1.02); } to { transform: scale(1.1) translate3d(-1.5%, -1%, 0); } }
-        @media (prefers-reduced-motion: reduce) { .room-drift { animation: none; } }
+        .room-clock { font-size: clamp(4rem, min(21vw, 11dvh), 6.5rem); }
+        @media (min-width: 1024px) { .room-clock { font-size: clamp(5rem, 12dvh, 7rem); } }
+        @keyframes away-in { from { opacity: 0; transform: translateY(8px); } }
+        @media (prefers-reduced-motion: no-preference) { .away-in { animation: away-in .4s ease-out both; } }
       `}</style>
     </div>
   );
@@ -733,13 +919,6 @@ const Glyph = {
   Shrink: () => (
     <svg {...S}>
       <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />
-    </svg>
-  ),
-  Scene: () => (
-    <svg {...S}>
-      <rect x="3" y="4" width="18" height="16" rx="2.5" />
-      <path d="m3 16 5-5 4 4 3-3 6 6" />
-      <circle cx="16" cy="8.5" r="1.5" />
     </svg>
   ),
   Sound: ({ off }: { off?: boolean }) => (

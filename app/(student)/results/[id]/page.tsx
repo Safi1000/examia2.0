@@ -6,20 +6,27 @@ import { useParams } from "next/navigation";
 import type { Answer, Question } from "@/types";
 import { useAuth } from "@/lib/auth-context";
 import { useDatabase } from "@/lib/data/store";
-import { studentById, testById, submissionFor } from "@/lib/data/selectors";
+import { studentById, testById, submissionFor, submissionsForStudent } from "@/lib/data/selectors";
 import { Card, Badge, Pill, Icon, EmptyState } from "@/components/ui";
 import { AnnotatedImage } from "@/components/Annotator";
 import { PageStack } from "@/components/PageStack";
 import { buttonClasses } from "@/components/ui/Button";
-import { gradeSubmission, gradeLetter, gradeRole } from "@/lib/grading";
+import { gradeSubmission } from "@/lib/grading";
 import { formatDuration, formatTimestamp } from "@/lib/time";
 import { cn } from "@/lib/cn";
 import { StudyCoach } from "@/components/student/StudyCoach";
+import { ShareMoment } from "@/components/student/ShareMoment";
+import { sameSubject } from "@/lib/performance";
+import { displayName } from "@/lib/display-name";
+import { worldScene } from "@/lib/groundwork";
+import type { Database } from "@/lib/data/seed";
+import { PortalArt } from "@/components/student/PortalArt";
+import { GradeMedallion, MilestoneBadge, SectionTitle } from "@/components/student/PortalKit";
 
 export default function ResultsPage() {
   const params = useParams();
   const id = String(params.id);
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const db = useDatabase();
 
   const student = session?.studentId ? studentById(db, session.studentId) : null;
@@ -31,54 +38,116 @@ export default function ResultsPage() {
   }
   if (!submission || submission.status !== "released") {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-8">
+      <div className="mx-auto max-w-2xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
         <BackLink />
-        <EmptyState
-          className="mt-4"
-          icon={<Icon.Clock />}
-          title="Results pending"
-          message="I haven't released this result yet. It shows up here as soon as it's ready."
-        />
+        {submission ? (
+          <EmptyState
+            className="mt-4"
+            icon={<Icon.Clock />}
+            title="Results pending"
+            message={`${submission.submittedAt ? `Handed in ${formatTimestamp(submission.submittedAt)}. ` : ""}I haven't released this result yet. It shows up here as soon as it's ready.`}
+          />
+        ) : (
+          // Never handed in (or not sat yet): there is no result to wait for.
+          <EmptyState
+            className="mt-4"
+            icon={<Icon.Clock />}
+            title="No result for this test"
+            message="You haven't handed this test in, so there's nothing to mark. Check Tests for what's open."
+          />
+        )}
       </div>
     );
   }
 
   const grade = gradeSubmission(test, submission);
-  const role = gradeRole(gradeLetter(grade.percent));
+  // Questions that lost marks, in paper order, so a phone can jump straight to them.
+  const lost = test.questions
+    .map((q, i) => {
+      const a = submission.answers.find((x) => x.questionId === q.id);
+      return { n: i + 1, lost: q.marks - (a?.marksAwarded ?? 0) };
+    })
+    .filter((x) => x.lost > 0);
+  const best = personalBest(db, student.id, test, submission, grade.percent);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6">
+    <div className="mx-auto max-w-2xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+      <div className="rise">
       <BackLink />
 
-      <Card ruled className="mt-4 animate-fade-up p-5">
-        <div className="flex flex-wrap items-center gap-2">
+      <Card className="relative isolate mt-4 overflow-hidden p-5 sm:p-7">
+        {/* A personal best or a top grade gets the celebration picture behind the score. */}
+        {(best || grade.letter === "A*" || grade.letter === "A") && (
+          <>
+            {/* A quiet strip of the picture across the top right, fading into the card. */}
+            <PortalArt
+              group="scenes"
+              name="celebrate-top-result"
+              eager
+              className="pointer-events-none absolute inset-y-0 right-0 -z-20 w-[70%] [mask-image:linear-gradient(90deg,transparent_0%,#000_60%)] sm:w-[78%]"
+              imgClassName="object-cover object-right opacity-30 sm:opacity-60"
+            />
+            <span aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(34,37,40,0.35)_0%,rgba(34,37,40,0.75)_45%,var(--color-surface)_78%)]" />
+          </>
+        )}
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold text-ink-2">{test.subject}</span>
           <Pill>{test.testCode}</Pill>
-          <span className="text-xs font-semibold uppercase tracking-wide text-ink-3">{test.subject}</span>
         </div>
-        <h1 className="mt-1.5 text-2xl font-extrabold tracking-tight text-ink">{test.title}</h1>
+        <h1 className="mt-4 text-[1.75rem] font-extrabold leading-tight tracking-[-0.03em] text-ink sm:text-[2rem]">{test.title}</h1>
 
-        <div className="mt-5 flex items-end justify-between gap-4">
+        <div className="mt-6 flex items-end justify-between gap-4">
           <div>
-            <p className="font-mono text-4xl font-bold tabular-nums text-ink">
+            <p className="text-[3.25rem] font-extrabold leading-none tracking-[-0.035em] tabular-nums text-ink">
               {grade.awarded}
-              <span className="text-xl text-ink-3">/{grade.total}</span>
+              <span className="text-2xl font-bold tracking-[-0.02em] text-ink-3">/{grade.total}</span>
             </p>
-            <p className="mt-1 text-sm text-ink-2">{Math.round(grade.percent)}% overall</p>
-          </div>
-          <div
-            className={cn(
-              "flex h-20 w-20 flex-col items-center justify-center rounded-xl border-2",
-              role === "success" && "border-success/40 bg-success-soft text-success",
-              role === "warning" && "border-warning/40 bg-warning-soft text-warning",
-              role === "error" && "border-error/40 bg-error-soft text-error",
+            <p className="mt-2 text-[15px] text-ink-2 tabular-nums">{Math.round(grade.percent)}% overall</p>
+            {best && (
+              <p className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-brand">
+                <MilestoneBadge name="personal-best" size={28} />
+                {best.line}
+              </p>
             )}
-          >
-            <span className="font-display text-4xl font-extrabold leading-none">{grade.letter}</span>
-            <span className="mt-1 text-[11px] font-semibold uppercase tracking-wide">Grade</span>
           </div>
+          <GradeMedallion grade={grade.letter} size={96} />
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-x-5 gap-y-1 border-t border-border pt-4 text-sm text-ink-2">
+        {best && (
+          <div className="mt-4">
+            <ShareMoment
+              label="Share this"
+              moment={{
+                kicker: `${test.subject} · ${test.testCode}`,
+                big: best.big,
+                sub: best.sub,
+                name: displayName(student.username).split(" ")[0],
+                scene: worldScene(profile.world),
+              }}
+            />
+          </div>
+        )}
+
+        {lost.length > 0 && (
+          <nav aria-label="Where marks went" className="mt-6 border-t border-hairline pt-5">
+            <p className="label-quiet text-ink-3">Where marks went</p>
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {lost.map((x) => (
+                <li key={x.n}>
+                  <a
+                    href={`#q-${x.n}`}
+                    aria-label={`Question ${x.n}, ${x.lost} ${x.lost === 1 ? "mark" : "marks"} lost`}
+                    className="inline-flex min-h-11 items-center rounded-full border border-hairline bg-surface-2/70 px-3.5 text-sm font-semibold tabular-nums text-ink-2 transition hover:border-hairline-strong hover:text-ink"
+                  >
+                    Q{x.n} <span className="ml-1.5 text-warning">−{x.lost}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
+
+        <div className="mt-6 flex flex-wrap gap-x-5 gap-y-1 border-t border-hairline pt-4 text-sm text-ink-2 tabular-nums">
           <span className="inline-flex items-center gap-1.5">
             <Icon.Check className="h-4 w-4 text-ink-3" />
             Submitted {submission.submittedAt ? formatTimestamp(submission.submittedAt) : "not yet"}
@@ -94,14 +163,15 @@ export default function ResultsPage() {
         <StudyCoach db={db} student={student} test={test} submission={submission} />
       </div>
 
-      <h2 className="mb-3 mt-9 text-base font-semibold text-ink">
-        Question breakdown
-      </h2>
-      <div className="space-y-3">
-        {test.questions.map((q, i) => {
-          const a = submission.answers.find((x) => x.questionId === q.id);
-          return <BreakdownCard key={q.id} index={i} question={q} answer={a} />;
-        })}
+      <section className="mt-10">
+        <SectionTitle count={test.questions.length}>Question breakdown</SectionTitle>
+        <div className="space-y-3">
+          {test.questions.map((q, i) => {
+            const a = submission.answers.find((x) => x.questionId === q.id);
+            return <BreakdownCard key={q.id} index={i} question={q} answer={a} />;
+          })}
+        </div>
+      </section>
       </div>
     </div>
   );
@@ -114,24 +184,24 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
   const [big, setBig] = useState<string | null>(null);
 
   return (
-    <Card id={`q-${index + 1}`} className="scroll-mt-24 p-4">
+    <Card id={`q-${index + 1}`} className="scroll-mt-24 p-5 sm:p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-xs text-ink-3">Q{index + 1}</span>
+          <span className="text-sm font-bold text-ink-3 tabular-nums">Q{index + 1}</span>
           {question.topic?.trim() && <Badge tone="neutral">{question.topic}</Badge>}
         </div>
-        <Badge tone={full ? "success" : zero ? "error" : "warning"}>
+        <Badge tone={full ? "success" : zero ? "error" : "warning"} className="tabular-nums">
           {awarded}/{question.marks} marks
         </Badge>
       </div>
-      <p className="mt-2 whitespace-pre-wrap font-semibold text-ink">{question.prompt}</p>
+      <p className="mt-3 whitespace-pre-wrap text-base font-semibold leading-relaxed text-ink">{question.prompt}</p>
       {question.attachments && question.attachments.length > 0 && (
         <div className="mt-3">
           <PageStack urls={question.attachments} label="Question paper" />
         </div>
       )}
 
-      <div className="mt-3">
+      <div className="mt-4">
         {question.type === "mcq" && (() => {
           // The question's own key is withheld from the student client; the
           // answer row carries it once the result is released, so a wrong pick
@@ -147,12 +217,12 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
                 <li
                   key={oi}
                   className={cn(
-                    "flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
+                    "flex items-center gap-2.5 rounded-lg border px-3.5 py-2.5 text-base",
                     correct
-                      ? "border-success/40 bg-success-soft text-success"
+                      ? "border-success/35 bg-success-soft text-success"
                       : chosen
-                        ? "border-error/40 bg-error-soft text-error"
-                        : "border-border bg-surface text-ink-2",
+                        ? "border-error/35 bg-error-soft text-error"
+                        : "border-hairline bg-surface-2/40 text-ink-2",
                   )}
                 >
                   {correct ? (
@@ -163,9 +233,9 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
                     <span className="h-4 w-4 shrink-0" />
                   )}
                   <span className="whitespace-pre-wrap">{opt}</span>
-                  {chosen && <span className="ml-auto text-xs font-semibold">Your pick</span>}
+                  {chosen && <span className="ml-auto shrink-0 text-xs font-semibold">Your pick</span>}
                   {correct && !chosen && (
-                    <span className="ml-auto text-xs font-semibold">Correct answer</span>
+                    <span className="ml-auto shrink-0 text-xs font-semibold">Correct answer</span>
                   )}
                 </li>
               );
@@ -175,7 +245,7 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
         })()}
 
         {question.type === "text" && (
-          <div className="whitespace-pre-wrap rounded-md border border-border bg-surface-2/60 p-3 text-sm text-ink">
+          <div className="whitespace-pre-wrap rounded-lg border border-hairline bg-surface-2/50 p-4 text-base leading-relaxed text-ink">
             {answer?.text ? answer.text : <span className="italic text-ink-3">(blank)</span>}
           </div>
         )}
@@ -203,13 +273,39 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
       </div>
 
       {answer?.feedback && (
-        <div className="mt-3 rounded-md border border-info/30 bg-info-soft/60 px-3 py-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-info">From Hamza</p>
-          <p className="mt-0.5 whitespace-pre-wrap text-sm text-ink">{answer.feedback}</p>
+        <div className="mt-4 rounded-lg border border-hairline bg-surface-2/70 px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <p className="label-quiet text-ink-3">From Hamza</p>
+          <p className="mt-1.5 whitespace-pre-wrap text-base leading-relaxed text-ink">{answer.feedback}</p>
         </div>
       )}
     </Card>
   );
+}
+
+/**
+ * A personal best, or a rise on the last test, measured only against this
+ * student's own earlier released results in the same subject. Never other
+ * students. Nothing shows on a first result or when the score went down.
+ */
+function personalBest(db: Database, studentId: string, test: { id: string; subject: string }, submission: { submittedAt?: string; startedAt: string }, percent: number) {
+  const when = (s: { submittedAt?: string; startedAt: string }) => +new Date(s.submittedAt ?? s.startedAt);
+  const now = when(submission);
+  const earlier = submissionsForStudent(db, studentId)
+    .filter((s) => s.status === "released" && s.testId !== test.id && when(s) < now)
+    .map((s) => ({ s, t: testById(db, s.testId) }))
+    .filter((x): x is { s: typeof x.s; t: NonNullable<typeof x.t> } => !!x.t && sameSubject(x.t.subject, test.subject))
+    .map((x) => ({ at: when(x.s), pct: Math.round(gradeSubmission(x.t, x.s).percent) }))
+    .sort((a, b) => b.at - a.at);
+  if (!earlier.length) return null;
+  const mine = Math.round(percent);
+  if (mine > Math.max(...earlier.map((e) => e.pct))) {
+    return { line: `Personal best in ${test.subject}`, big: "Personal best", sub: `${mine}% in ${test.subject}` };
+  }
+  const rise = mine - earlier[0].pct;
+  if (rise >= 1) {
+    return { line: `+${rise}% on your last test`, big: `+${rise}%`, sub: `on my last ${test.subject} test` };
+  }
+  return null;
 }
 
 function BackLink() {
@@ -222,9 +318,9 @@ function BackLink() {
 
 function PendingShell({ title, message }: { title: string; message: string }) {
   return (
-    <div className="mx-auto max-w-md px-4 py-16 text-center">
-      <h1 className="text-xl font-bold text-ink">{title}</h1>
-      <p className="mt-1 text-sm text-ink-2">{message}</p>
+    <div className="mx-auto max-w-md px-4 py-20 text-center">
+      <h1 className="text-2xl font-extrabold tracking-[-0.025em] text-ink">{title}</h1>
+      <p className="mt-2 text-base text-ink-2">{message}</p>
       <Link href="/dashboard" className={buttonClasses({ variant: "secondary", className: "mt-5" })}>
         Back to home
       </Link>

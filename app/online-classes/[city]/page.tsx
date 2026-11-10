@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
+import "@/components/landing/public-calm.css";
 import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
 import { CITY_PAGES, cityPage } from "@/lib/city-pages";
 import { GULF_CITY_PAGES, GULF_SOURCES, GULF_ZONES, gulfCityPage, localDay, type GulfCityPage } from "@/lib/gulf-pages";
@@ -53,9 +54,9 @@ export default async function CityClassesPage({ params }: Props) {
         ])}
       />
       <JsonLd data={faqLd(faq)} />
-      <div className="mx-auto max-w-3xl px-5 pb-20 pt-14 md:pt-20">
+      <div className="public-calm mx-auto max-w-3xl px-5 pb-24 pt-12 md:pt-20">
         <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Online classes", href: "/online-classes" }, { name: c.city }]} />
-        <h1 className="mt-8 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{c.heading}</h1>
+        <h1 className="mt-8 text-[2.25rem] leading-[1.08] md:text-5xl">{c.heading}</h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">{c.intro}</p>
 
         {c.local.map((l) => (
@@ -97,7 +98,7 @@ function GulfCity({ c }: { c: GulfCityPage }) {
         ])}
       />
       <JsonLd data={faqLd(c.faq)} />
-      <div className="mx-auto max-w-3xl px-5 pb-20 pt-14 md:pt-20">
+      <div className="public-calm mx-auto max-w-3xl px-5 pb-24 pt-12 md:pt-20">
         <Crumbs
           trail={[
             { name: "Home", href: "/" },
@@ -106,7 +107,7 @@ function GulfCity({ c }: { c: GulfCityPage }) {
             { name: c.city },
           ]}
         />
-        <h1 className="mt-8 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{c.heading}</h1>
+        <h1 className="mt-8 text-[2.25rem] leading-[1.08] md:text-5xl">{c.heading}</h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">{c.intro}</p>
 
         <Section
@@ -115,7 +116,7 @@ function GulfCity({ c }: { c: GulfCityPage }) {
         >
           <div className="space-y-4">
             {localDay(zone.behindPk).map((d) => (
-              <div key={d.level} className="rounded-[16px] border border-hairline bg-card px-5 py-4">
+              <div key={d.level} className="pc-surface rounded-[16px] px-5 py-4">
                 <p className="font-semibold text-foreground">
                   {d.level} <span className="font-normal text-muted-foreground">· {d.time}</span>
                 </p>

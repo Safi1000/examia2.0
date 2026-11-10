@@ -11,7 +11,8 @@ import { Backdrop } from "./Backdrop";
  * nav, footer and tokens as `/`, without the homepage's grain, vignette and
  * scroll bar, so the inner pages stay calm and fast.
  */
-export function MarketingShell({ children }: { children: ReactNode }) {
+/** `heroCta`: the page has its own gold button (marked data-hero-cta) in the first view. */
+export function MarketingShell({ children, heroCta }: { children: ReactNode; heroCta?: boolean }) {
   return (
     <BookingProvider>
     <div className="landing relative isolate">
@@ -24,7 +25,7 @@ export function MarketingShell({ children }: { children: ReactNode }) {
       </a>
       {/* The phone app brings its own navigation and privacy link: see web-only in app/globals.css. */}
       <div className="web-only contents">
-        <Nav />
+        <Nav heroCta={heroCta} />
       </div>
       <main id="main">{children}</main>
       <div className="web-only contents">

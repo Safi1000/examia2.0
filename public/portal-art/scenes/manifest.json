@@ -1,0 +1,257 @@
+{
+  "assets": {
+    "header-dawn-desktop": {
+      "kind": "header",
+      "timeOfDay": "dawn",
+      "layout": "desktop",
+      "width": 1200,
+      "height": 360,
+      "src": "/portal-art/scenes/header-dawn-desktop.webp",
+      "src2x": "/portal-art/scenes/header-dawn-desktop@2x.webp",
+      "bytes1x": 21972,
+      "bytes2x": 58431,
+      "transparent": false,
+      "textZone": {
+        "x0": 0.03,
+        "x1": 0.46,
+        "y0": 0.18,
+        "y1": 0.82
+      },
+      "whiteTextContrast": {
+        "p99": 8.9,
+        "worst": 8.2
+      }
+    },
+    "header-dawn-phone": {
+      "kind": "header",
+      "timeOfDay": "dawn",
+      "layout": "phone",
+      "width": 390,
+      "height": 210,
+      "src": "/portal-art/scenes/header-dawn-phone.webp",
+      "src2x": "/portal-art/scenes/header-dawn-phone@2x.webp",
+      "bytes1x": 7200,
+      "bytes2x": 19980,
+      "transparent": false,
+      "textZone": {
+        "x0": 0.04,
+        "x1": 0.62,
+        "y0": 0.06,
+        "y1": 0.42
+      },
+      "whiteTextContrast": {
+        "p99": 8.57,
+        "worst": 7.86
+      }
+    },
+    "header-day-desktop": {
+      "kind": "header",
+      "timeOfDay": "day",
+      "layout": "desktop",
+      "width": 1200,
+      "height": 360,
+      "src": "/portal-art/scenes/header-day-desktop.webp",
+      "src2x": "/portal-art/scenes/header-day-desktop@2x.webp",
+      "bytes1x": 26724,
+      "bytes2x": 76620,
+      "transparent": false,
+      "textZone": {
+        "x0": 0.03,
+        "x1": 0.46,
+        "y0": 0.18,
+        "y1": 0.82
+      },
+      "whiteTextContrast": {
+        "p99": 7.44,
+        "worst": 6.41
+      }
+    },
+    "header-day-phone": {
+      "kind": "header",
+      "timeOfDay": "day",
+      "layout": "phone",
+      "width": 390,
+      "height": 210,
+      "src": "/portal-art/scenes/header-day-phone.webp",
+      "src2x": "/portal-art/scenes/header-day-phone@2x.webp",
+      "bytes1x": 8922,
+      "bytes2x": 24687,
+      "transparent": false,
+      "textZone": {
+        "x0": 0.04,
+        "x1": 0.62,
+        "y0": 0.06,
+        "y1": 0.42
+      },
+      "whiteTextContrast": {
+        "p99": 5.55,
+        "worst": 4.99
+      }
+    },
+    "header-dusk-desktop": {
+      "kind": "header",
+      "timeOfDay": "dusk",
+      "layout": "desktop",
+      "width": 1200,
+      "height": 360,
+      "src": "/portal-art/scenes/header-dusk-desktop.webp",
+      "src2x": "/portal-art/scenes/header-dusk-desktop@2x.webp",
+      "bytes1x": 25890,
+      "bytes2x": 69438,
+      "transparent": false,
+      "textZone": {
+        "x0": 0.03,
+        "x1": 0.46,
+        "y0": 0.18,
+        "y1": 0.82
+      },
+      "whiteTextContrast": {
+        "p99": 8.35,
+        "worst": 7.67
+      }
+    },
+    "header-dusk-phone": {
+      "kind": "header",
+      "timeOfDay": "dusk",
+      "layout": "phone",
+      "width": 390,
+      "height": 210,
+      "src": "/portal-art/scenes/header-dusk-phone.webp",
+      "src2x": "/portal-art/scenes/header-dusk-phone@2x.webp",
+      "bytes1x": 8445,
+      "bytes2x": 23286,
+      "transparent": false,
+      "textZone": {
+        "x0": 0.04,
+        "x1": 0.62,
+        "y0": 0.06,
+        "y1": 0.42
+      },
+      "whiteTextContrast": {
+        "p99": 7.91,
+        "worst": 7.2
+      }
+    },
+    "header-night-desktop": {
+      "kind": "header",
+      "timeOfDay": "night",
+      "layout": "desktop",
+      "width": 1200,
+      "height": 360,
+      "src": "/portal-art/scenes/header-night-desktop.webp",
+      "src2x": "/portal-art/scenes/header-night-desktop@2x.webp",
+      "bytes1x": 16758,
+      "bytes2x": 50856,
+      "transparent": false,
+      "textZone": {
+        "x0": 0.03,
+        "x1": 0.46,
+        "y0": 0.18,
+        "y1": 0.82
+      },
+      "whiteTextContrast": {
+        "p99": 17.79,
+        "worst": 17.42
+      }
+    },
+    "header-night-phone": {
+      "kind": "header",
+      "timeOfDay": "night",
+      "layout": "phone",
+      "width": 390,
+      "height": 210,
+      "src": "/portal-art/scenes/header-night-phone.webp",
+      "src2x": "/portal-art/scenes/header-night-phone@2x.webp",
+      "bytes1x": 5598,
+      "bytes2x": 16149,
+      "transparent": false,
+      "textZone": {
+        "x0": 0.04,
+        "x1": 0.62,
+        "y0": 0.06,
+        "y1": 0.42
+      },
+      "whiteTextContrast": {
+        "p99": 17.45,
+        "worst": 11.73
+      }
+    },
+    "empty-all-caught-up": {
+      "kind": "empty",
+      "variant": "all-caught-up",
+      "width": 160,
+      "height": 160,
+      "src": "/portal-art/scenes/empty-all-caught-up.webp",
+      "src2x": "/portal-art/scenes/empty-all-caught-up@2x.webp",
+      "bytes1x": 7020,
+      "bytes2x": 16335,
+      "transparent": true
+    },
+    "empty-no-tests-yet": {
+      "kind": "empty",
+      "variant": "no-tests-yet",
+      "width": 160,
+      "height": 160,
+      "src": "/portal-art/scenes/empty-no-tests-yet.webp",
+      "src2x": "/portal-art/scenes/empty-no-tests-yet@2x.webp",
+      "bytes1x": 6462,
+      "bytes2x": 16014,
+      "transparent": true
+    },
+    "empty-nothing-to-mark": {
+      "kind": "empty",
+      "variant": "nothing-to-mark",
+      "width": 160,
+      "height": 160,
+      "src": "/portal-art/scenes/empty-nothing-to-mark.webp",
+      "src2x": "/portal-art/scenes/empty-nothing-to-mark@2x.webp",
+      "bytes1x": 7026,
+      "bytes2x": 16452,
+      "transparent": true
+    },
+    "empty-no-notes-yet": {
+      "kind": "empty",
+      "variant": "no-notes-yet",
+      "width": 160,
+      "height": 160,
+      "src": "/portal-art/scenes/empty-no-notes-yet.webp",
+      "src2x": "/portal-art/scenes/empty-no-notes-yet@2x.webp",
+      "bytes1x": 6132,
+      "bytes2x": 14664,
+      "transparent": true
+    },
+    "empty-offline": {
+      "kind": "empty",
+      "variant": "offline",
+      "width": 160,
+      "height": 160,
+      "src": "/portal-art/scenes/empty-offline.webp",
+      "src2x": "/portal-art/scenes/empty-offline@2x.webp",
+      "bytes1x": 4434,
+      "bytes2x": 9369,
+      "transparent": true
+    },
+    "celebrate-top-result": {
+      "kind": "celebrate",
+      "width": 1200,
+      "height": 630,
+      "src": "/portal-art/scenes/celebrate-top-result.webp",
+      "src2x": "/portal-art/scenes/celebrate-top-result@2x.webp",
+      "bytes1x": 41820,
+      "bytes2x": 119478,
+      "transparent": false,
+      "textZone": {
+        "x0": 0.04,
+        "x1": 0.4,
+        "y0": 0.2,
+        "y1": 0.8
+      },
+      "whiteTextContrast": {
+        "p99": 10.85,
+        "worst": 10.06
+      }
+    }
+  },
+  "generated": "2026-11-09",
+  "notes": "Rendered 3D vignettes (three.js r160) in the Groundwork world style. Headers: dashboard greeting band, one per time of day; white greeting text sits inside textZone (fractions of width/height), whiteTextContrast = contrast of white text against the brightest pixels there (p99 and worst). Empty states are transparent and read at 160px. Celebration doubles as a 1200x630 share background (text on the left)."
+}

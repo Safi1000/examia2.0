@@ -79,7 +79,7 @@ export function LateWindowCard({ test }: { test: Test }) {
   return (
     <Card>
       <CardHeader>
-        <h2 className="font-bold text-ink">Let one student sit it late</h2>
+        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Let one student sit it late</h2>
         <p className="mt-1 text-sm text-ink-3">For a student who missed it. Only they see it open; everyone else still sees it closed.</p>
       </CardHeader>
       <CardBody className="space-y-4">

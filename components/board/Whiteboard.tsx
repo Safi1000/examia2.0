@@ -54,6 +54,9 @@ import {
   snapLine,
   toWorld,
   zoomAt,
+  pageBounds,
+  clampCam,
+  drawEdge,
 } from "@/components/board/engine";
 import { boardDigest, connectBoard, Ledger, viewerRoom, type BoardLink, type BoardMsg } from "@/components/board/sync";
 import { deleteBoard, loadBoard, loadIndex, saveBoard, saveIndex, type BoardPage } from "@/components/board/storage";
@@ -68,7 +71,10 @@ import { shrinkImage } from "@/lib/shrink-image";
  *
  * Teacher: draws with the S Pen. Palm rejection is built in: only the pen (or
  * a mouse on a laptop) draws; fingers move and zoom the board, and touches
- * are ignored while the pen is on or hovering over the screen. Hold the pen
+ * are ignored while the pen is on or hovering over the screen. Once the pen
+ * has been used on a device (pen mode), fingers never write, rub out, select
+ * or zoom: only two fingers placed together pan ("Fingers: pan"), or nothing
+ * ("Fingers: off"). Each page is a fixed sheet with a soft edge (see BOARD). Hold the pen
  * still at the end of a stroke and it straightens into a line, snapping to
  * 0°, 45° or 90°. The pen's side button erases. Pictures and PDF pages can be
  * dropped in and written on.
@@ -260,6 +266,7 @@ function paint(
   extra: (Stroke | null)[],
   onImage: () => void,
   selected?: BoardImage | null,
+  bounds?: View | null,
 ) {
   const look = getTheme();
   // The finished board (paper, grid, pictures, every stroke) lives in its own layer:
@@ -335,17 +342,75 @@ function paint(
     }
   };
 
+  // Strokes taken off (rubbed out, undone, moved away): only the patch they covered is drawn
+  // again, not the whole board, so rubbing out stays smooth on a page full of writing.
+  const patchRemoved = (): boolean => {
+    const old = L.strokes;
+    if (!old || strokes.length >= old.length) return false;
+    const kept = new Set(strokes);
+    // Strokes kept must be the old ones in the same order (only removals), else draw it all again.
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, j = 0, gone = 0;
+    for (const s of old) {
+      if (kept.has(s)) {
+        if (strokes[j] !== s) return false;
+        j++;
+        continue;
+      }
+      gone++;
+      const bx = strokeBox(s);
+      x0 = Math.min(x0, bx.x);
+      y0 = Math.min(y0, bx.y);
+      x1 = Math.max(x1, bx.x + bx.w);
+      y1 = Math.max(y1, bx.y + bx.h);
+    }
+    if (j !== strokes.length || !gone) return false;
+    const lc = L.cam!;
+    const ox = lc.x - L.m / lc.z;
+    const oy = lc.y - L.m / lc.z;
+    const vw = (w + 2 * L.m) / lc.z;
+    const vh = (h + 2 * L.m) / lc.z;
+    // A patch bigger than half the layer: cheaper to draw everything.
+    const pad = 2 / lc.z;
+    const r = { x: Math.max(ox, x0 - pad), y: Math.max(oy, y0 - pad), x1: Math.min(ox + vw, x1 + pad), y1: Math.min(oy + vh, y1 + pad) };
+    if (r.x1 <= r.x || r.y1 <= r.y) {
+      L.strokes = strokes;
+      return true; // all of it was outside the layer
+    }
+    if ((r.x1 - r.x) * (r.y1 - r.y) > vw * vh * 0.5) return false;
+    const b = layerCtx(lc);
+    b.save();
+    b.beginPath();
+    b.rect(r.x, r.y, r.x1 - r.x, r.y1 - r.y);
+    b.clip();
+    b.fillStyle = look.bg;
+    b.fillRect(r.x, r.y, r.x1 - r.x, r.y1 - r.y);
+    drawGrid(b, { x: ox, y: oy, z: lc.z }, w + 2 * L.m, h + 2 * L.m);
+    drawImages(b, images, () => {
+      imageVersion++;
+      onImage();
+    });
+    for (const s of strokes) {
+      const bx = strokeBox(s);
+      if (bx.x > r.x1 || bx.y > r.y1 || bx.x + bx.w < r.x || bx.y + bx.h < r.y) continue;
+      drawStroke(b, s);
+    }
+    b.restore();
+    L.strokes = strokes;
+    return true;
+  };
+
   if (!L.cam || !sameContent) rebuild();
   else if (L.strokes !== strokes) {
-    // New strokes only: add them to the layer. Anything else (erased, undone, moved): draw again.
+    // New strokes only: add them to the layer. Strokes taken off: redraw just their patch.
     if (onlyAdded(L.strokes, strokes)) {
       const b = layerCtx(L.cam);
       for (let i = L.strokes!.length; i < strokes.length; i++) drawStroke(b, strokes[i]);
       L.strokes = strokes;
-    } else if (strokes.length < (L.strokes?.length ?? 0) && now - L.builtAt < 50) {
-      // Rubbing out: the board is drawn again at most 20 times a second, not on every pen move.
-      onImage();
-    } else rebuild();
+    } else if (!patchRemoved()) {
+      if (strokes.length < (L.strokes?.length ?? 0) && now - L.builtAt < 50) onImage();
+      // (a big removal: the board is drawn again at most 20 times a second, not on every pen move)
+      else rebuild();
+    }
   }
   let f = fits(L.cam!);
   if (!f.covers || (f.k !== 1 && !settling)) {
@@ -366,6 +431,7 @@ function paint(
   ctx.save();
   ctx.scale(cam.z, cam.z);
   ctx.translate(-cam.x, -cam.y);
+  if (bounds) drawEdge(ctx, cam, w, h, bounds);
   for (const s of extra) if (s) drawStroke(ctx, s);
   if (selected) {
     const px = 1 / cam.z;
@@ -656,6 +722,87 @@ function SmallButton({ label, keys, onClick, disabled, children }: { label: stri
   );
 }
 
+// ---------------------------------------------------------------- pen check (?pendebug=1)
+
+/**
+ * A small live readout of what the tablet reports for the pen, for a 10 second check on the real
+ * device: open /teach/board?pendebug=1, write, hold the side button, rest a palm. It reads the
+ * events only (never changes them) and updates its text directly, a few times a second.
+ */
+function PenDebug() {
+  const outRef = useRef<HTMLPreElement>(null);
+  useEffect(() => {
+    let last: PointerEvent | null = null;
+    let kind = "";
+    let raw = 0;
+    let moves = 0;
+    let menus = 0;
+    let since = performance.now();
+    let rate = { raw: 0, moves: 0 };
+    let queued = 0;
+    const show = () => {
+      queued = 0;
+      const el = outRef.current;
+      if (!el) return;
+      const now = performance.now();
+      if (now - since > 1000) {
+        rate = { raw: Math.round((raw * 1000) / (now - since)), moves: Math.round((moves * 1000) / (now - since)) };
+        raw = 0;
+        moves = 0;
+        since = now;
+      }
+      const e = last;
+      let penMode = "?";
+      let fingers = "?";
+      try {
+        penMode = localStorage.getItem("ht-board-pen") === "1" ? "on" : "off";
+        fingers = localStorage.getItem("ht-board-fingers") ?? "pan";
+      } catch {}
+      el.textContent = e
+        ? [
+            `${kind}  type ${e.pointerType}  id ${e.pointerId}${e.isPrimary ? " (primary)" : ""}`,
+            `button ${e.button}  buttons ${e.buttons}  pressure ${e.pressure.toFixed(2)}`,
+            `size ${Math.round(e.width)}x${Math.round(e.height)}  tilt ${e.tiltX}/${e.tiltY}`,
+            `side button/eraser end: ${isPenEraser(e) ? "YES (erases)" : "no"}`,
+            `moves ${rate.moves}/s  raw ${"onpointerrawupdate" in window ? `${rate.raw}/s` : "n/a"}  menus blocked ${menus}`,
+            `pen mode ${penMode}  fingers ${fingers}`,
+          ].join("\n")
+        : "Touch the board with the pen.";
+    };
+    const note = (k: string) => (e: Event) => {
+      if (k === "contextmenu") menus++;
+      else {
+        last = e as PointerEvent;
+        kind = k;
+        if (k === "move") moves++;
+        if (k === "raw") raw++;
+      }
+      queued ||= requestAnimationFrame(show);
+    };
+    const on: [string, (e: Event) => void][] = [
+      ["pointerdown", note("down")],
+      ["pointermove", note("move")],
+      ["pointerup", note("up")],
+      ["pointercancel", note("cancel")],
+      ["pointerrawupdate", note("raw")],
+      ["contextmenu", note("contextmenu")],
+    ];
+    for (const [t, f] of on) window.addEventListener(t, f, { capture: true, passive: true });
+    show();
+    return () => {
+      cancelAnimationFrame(queued);
+      for (const [t, f] of on) window.removeEventListener(t, f, { capture: true });
+    };
+  }, []);
+  return (
+    <pre
+      ref={outRef}
+      aria-hidden
+      className="pointer-events-none fixed bottom-4 right-4 z-[80] max-w-[92vw] whitespace-pre rounded-xl border border-white/10 bg-[#141618]/90 px-3.5 py-2.5 font-mono text-[12px] leading-[1.55] text-[#E8F3EC] shadow-lg"
+    />
+  );
+}
+
 // ---------------------------------------------------------------- sync helpers
 
 /** Numbers a change before it goes out (see Ledger), and remembers it here too. */
@@ -730,6 +877,44 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const lastRaw = useRef<Pt | null>(null);
   const [size, setSize] = useState(SIZES[0].value);
   const [fingerDraws, setFingerDraws] = useState(false);
+  // Pen mode: once the S Pen has touched the board on this device (remembered), fingers never
+  // write, rub out, select, tap or zoom on the board. "pan": two fingers placed together move it;
+  // "off": fingers do nothing on the board. The toolbars always work with a finger.
+  const [penMode, setPenMode] = useState(false);
+  const penModeRef = useRef(false);
+  const [fingers, setFingersState] = useState<"off" | "pan">("pan");
+  const fingersRef = useRef<"off" | "pan">("pan");
+  const enterPenMode = () => {
+    if (penModeRef.current) return;
+    penModeRef.current = true;
+    setPenMode(true);
+    try {
+      localStorage.setItem("ht-board-pen", "1");
+    } catch {}
+  };
+  const setFingers = (f: "off" | "pan") => {
+    fingersRef.current = f;
+    setFingersState(f);
+    try {
+      localStorage.setItem("ht-board-fingers", f);
+    } catch {}
+  };
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        if (localStorage.getItem("ht-board-pen") === "1") {
+          penModeRef.current = true;
+          setPenMode(true);
+        }
+        const f = localStorage.getItem("ht-board-fingers");
+        if (f === "off" || f === "pan") {
+          fingersRef.current = f;
+          setFingersState(f);
+        }
+      } catch {}
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
   // The other device (laptop or tablet) on the private room.
   const [partner, setPartner] = useState(false);
   // Light (paper) or dark (night) board: shared with the other device and students.
@@ -766,8 +951,31 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const textRef = useRef<HTMLTextAreaElement>(null);
   // What the other device is drawing or typing right now.
   const remoteLive = useRef<Stroke | null>(null);
-  const [angle, setAngle] = useState<{ x: number; y: number; deg: number } | null>(null);
-  const [eraserAt, setEraserAt] = useState<{ x: number; y: number } | null>(null);
+  // The eraser ring and the angle readout follow the pen on every move: they are moved directly
+  // (no React update), so rubbing out or ruling a line never re-renders the whole board.
+  const ringRef = useRef<HTMLSpanElement>(null);
+  const angleRef = useRef<HTMLSpanElement>(null);
+  const setEraserAt = useCallback((p: { x: number; y: number } | null) => {
+    const el = ringRef.current;
+    if (!el) return;
+    if (!p) {
+      el.style.display = "none";
+      return;
+    }
+    el.style.display = "block";
+    el.style.transform = `translate3d(${p.x - ERASER_PX}px, ${p.y - ERASER_PX}px, 0)`;
+  }, []);
+  const setAngle = useCallback((a: { x: number; y: number; deg: number } | null) => {
+    const el = angleRef.current;
+    if (!el) return;
+    if (!a) {
+      el.style.display = "none";
+      return;
+    }
+    el.style.display = "block";
+    el.style.transform = `translate3d(${a.x + 18}px, ${a.y - 34}px, 0)`;
+    el.textContent = `${a.deg}°`;
+  }, []);
   const [zoom, setZoom] = useState(100);
   // What the toolbar needs to know, mirrored from the refs after each change.
   const [meta, setMeta] = useState({ undo: 0, redo: 0, content: 0 });
@@ -778,6 +986,23 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [debug, setDebug] = useState<string | null>(null);
+  // The S Pen's side button can open the browser's menu (it reads as a long press or a right
+  // click): never on the board, anywhere it lands.
+  useEffect(() => {
+    const noMenu = (e: Event) => {
+      const el = e.target as Element | null;
+      // (Typing keeps its own menu on the laptop: paste, spelling.)
+      if (el?.closest?.("[data-board]") && !el.closest("textarea, input")) e.preventDefault();
+    };
+    window.addEventListener("contextmenu", noMenu, { capture: true });
+    return () => window.removeEventListener("contextmenu", noMenu, { capture: true });
+  }, []);
+  // ?pendebug=1: the live pen readout (see PenDebug).
+  const [penDebug, setPenDebug] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setPenDebug(new URL(window.location.href).searchParams.get("pendebug") === "1"), 0);
+    return () => clearTimeout(t);
+  }, []);
   const showDebug = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -805,6 +1030,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       ],
       again,
       null, // the selected picture's frame and handles are page elements over the board ("The selected picture")
+      pageBounds(strokes.current, images.current),
     ),
   );
 
@@ -1016,6 +1242,19 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     if (typingRef.current) placeTyping();
   }, [requestDraw, shareView, placeTyping]);
 
+  /**
+   * Keeps the view on the page's sheet (see BOARD): called after Hamza pans or zooms, never while
+   * the laptop follows the tablet (that view is the tablet's, already on the sheet). Returns
+   * whether it had to stop the view at an edge.
+   */
+  const keepOn = () => {
+    const { w, h } = screen.current;
+    const pad = clearInset(h, [topBarRef.current, sidePanelRef.current], lead ? [] : [toolbarRef.current], 0, lead ? [toolbarRef.current] : []);
+    const before = cam.current;
+    cam.current = clampCam(before, w, h, pageBounds(strokes.current, images.current), pad);
+    return cam.current !== before;
+  };
+
   // The laptop glides to wherever the tablet is looking, at screen speed.
   useEffect(() => {
     const step = () => {
@@ -1061,10 +1300,16 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   useEffect(() => {
     if (lead) return;
     let t: ReturnType<typeof setTimeout> | null = null;
+    let asleep = false;
     const wake = () => {
-      setQuiet(false);
+      // Only a real change re-renders the board (this runs on every mouse move).
+      if (asleep) setQuiet(false);
+      asleep = false;
       if (t) clearTimeout(t);
-      t = setTimeout(() => setQuiet(true), 3000);
+      t = setTimeout(() => {
+        asleep = true;
+        setQuiet(true);
+      }, 3000);
     };
     wake();
     window.addEventListener("pointermove", wake);
@@ -1408,6 +1653,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const t = typingRef.current;
     if (!t) return;
     e.preventDefault();
+    if (e.pointerType === "touch" && penModeRef.current) return; // pen mode: a palm never resizes the words
     e.currentTarget.setPointerCapture(e.pointerId);
     resizing.current = { kind, x0: e.clientX, w0: Math.max(1, (typing?.wPx ?? 100) / cam.current.z), size0: t.size, box0: t.boxW };
   };
@@ -1696,6 +1942,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
 
   // ---- input
   const pens = useRef({ active: false, lastAt: 0, seen: false });
+  // Pen mode: every finger or palm now on the board (even ones that were ignored), and whether the
+  // two fingers down landed together (a deliberate two finger pan, not a hand settling).
+  const allTouches = useRef(new Set<number>());
+  const pairPan = useRef(false);
   const touches = useRef(new Map<number, { x: number; y: number; t: number }>());
   const pinch = useRef<{ d: number; cx: number; cy: number } | null>(null);
   const tap2 = useRef<{ at: number; moved: number } | null>(null);
@@ -1779,7 +2029,15 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const from = lastErase.current ?? [wx, wy];
     lastErase.current = [wx, wy];
     const steps = Math.min(40, Math.max(1, Math.ceil(Math.hypot(wx - from[0], wy - from[1]) / (r * 0.6))));
+    // Only strokes whose box is near the eraser's path get the exact (slow) test: on a full page
+    // that skips almost all of them.
+    const bx0 = Math.min(from[0], wx) - r;
+    const by0 = Math.min(from[1], wy) - r;
+    const bx1 = Math.max(from[0], wx) + r;
+    const by1 = Math.max(from[1], wy) + r;
     const hit = strokes.current.filter((s) => {
+      const b = strokeBox(s);
+      if (b.x > bx1 || b.y > by1 || b.x + b.w < bx0 || b.y + b.h < by0) return false;
       for (let i = 1; i <= steps; i++) {
         const t = i / steps;
         if (hitStroke(s, from[0] + (wx - from[0]) * t, from[1] + (wy - from[1]) * t, r)) return true;
@@ -1850,8 +2108,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       cam.current = { ...cam.current, x: cam.current.x - (g.vx * 16) / cam.current.z, y: cam.current.y - (g.vy * 16) / cam.current.z };
       g.vx *= 0.92;
       g.vy *= 0.92;
+      const stopped = keepOn(); // the slide ends softly at the sheet's edge
       refresh();
-      if (Math.hypot(g.vx, g.vy) < 0.03) glide.current = null;
+      if (stopped || Math.hypot(g.vx, g.vy) < 0.03) glide.current = null;
       else g.raf = requestAnimationFrame(step);
     };
     glide.current = { vx, vy, raf: requestAnimationFrame(step) };
@@ -1900,7 +2159,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const picDrag = useRef<{ id: number; kind: PicGrip; before: BoardImage; sx: number; sy: number; sent: number } | null>(null);
   const onPicDown = (kind: PicGrip, e: React.PointerEvent<HTMLElement>) => {
     // A resting palm, or a touch while the pen is in use, does nothing (as on the board).
-    if (e.pointerType === "touch" && (pens.current.active || Date.now() - pens.current.lastAt < PALM_LOCK_MS || e.width > PALM_SIZE_PX || e.height > PALM_SIZE_PX)) return;
+    if (e.pointerType === "touch" && (penModeRef.current || pens.current.active || Date.now() - pens.current.lastAt < PALM_LOCK_MS || e.width > PALM_SIZE_PX || e.height > PALM_SIZE_PX)) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     const m = images.current.find((x) => x.id === selectedRef.current);
     if (!m || picDrag.current) return;
@@ -2080,8 +2339,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const t = typingRef.current;
     if (!t) return;
     e.preventDefault();
-    // A resting palm never drags the box.
-    if (e.pointerType === "touch" && (pens.current.active || Date.now() - pens.current.lastAt < PALM_LOCK_MS || e.width > PALM_SIZE_PX || e.height > PALM_SIZE_PX)) return;
+    // A resting palm never drags the box (in pen mode, no finger does).
+    if (e.pointerType === "touch" && (penModeRef.current || pens.current.active || Date.now() - pens.current.lastAt < PALM_LOCK_MS || e.width > PALM_SIZE_PX || e.height > PALM_SIZE_PX)) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     gripping.current = { x0: e.clientX, y0: e.clientY, wx0: t.wx, wy0: t.wy };
   };
@@ -2151,6 +2410,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
 
     if (isPen) {
       pens.current.seen = true;
+      enterPenMode();
+      pairPan.current = false;
       pens.current.active = true;
       // A hand already resting on the screen must not pan the board under the pen.
       touches.current.clear();
@@ -2158,6 +2419,30 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       tap1.current = null;
       pens.current.lastAt = Date.now();
       notePen();
+    }
+
+    // Pen mode: fingers and palms never write, rub out, select or zoom. Only two fingers placed
+    // together (and only with "Fingers: pan") move the board.
+    if (isTouch && penModeRef.current) {
+      if (e.isPrimary) {
+        // A new hand on the screen: forget any touch whose lift never reached the board.
+        allTouches.current.clear();
+        touches.current.clear();
+      }
+      allTouches.current.add(e.pointerId);
+      tap1.current = null;
+      pinch.current = null;
+      panTrip.current = { dist: 0, at: performance.now() };
+      const palm = e.width > PALM_SIZE_PX || e.height > PALM_SIZE_PX;
+      if (fingersRef.current === "off" || palm || pens.current.active || Date.now() - pens.current.lastAt < PALM_LOCK_MS) {
+        pairPan.current = false;
+        return;
+      }
+      touches.current.set(e.pointerId, { x: sx, y: sy, t: performance.now() });
+      const both = [...touches.current.values()];
+      pairPan.current = allTouches.current.size === 2 && both.length === 2 && Math.abs(both[0].t - both[1].t) < 160;
+      capture(canvasRef.current, e.pointerId);
+      return;
     }
 
     // Palm rejection: while the pen is down or was just near the screen, touches do nothing.
@@ -2299,7 +2584,11 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           send({ t: "pt", x: Math.round(px * 10) / 10, y: Math.round(py * 10) / 10 });
         }
       }
-      if (e.buttons === 0 && isPenEraser(e)) setEraserAt({ x: sx, y: sy });
+      // Hovering with the side button held: show the eraser ring, so Hamza sees it will rub out.
+      if (!(e.buttons & 1) && !gesture.current.mode) {
+        if (isPenEraser(e)) setEraserAt({ x: sx, y: sy });
+        else if (tool !== "eraser") setEraserAt(null);
+      }
     }
 
     // Touch pan / pinch.
@@ -2309,6 +2598,15 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       const prev = touches.current.get(e.pointerId)!;
       const now = performance.now();
       touches.current.set(e.pointerId, { x: sx, y: sy, t: now });
+      if (penModeRef.current) {
+        // Two fingers together: the board follows the point between them (half of each finger's
+        // move). Never a zoom, and nothing at all with one finger or a third touch.
+        if (!pairPan.current || touches.current.size !== 2 || allTouches.current.size !== 2) return;
+        cam.current = { ...cam.current, x: cam.current.x - ((sx - prev.x) * 0.5) / cam.current.z, y: cam.current.y - ((sy - prev.y) * 0.5) / cam.current.z };
+        keepOn();
+        refresh();
+        return;
+      }
       if (tap2.current) tap2.current.moved += Math.hypot(sx - prev.x, sy - prev.y);
       if (touches.current.size === 1 || gesture.current.mode === "pan") {
         const dx = (sx - prev.x) * PAN_GAIN;
@@ -2328,6 +2626,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         pinch.current = { d, cx, cy };
         velocity.current = { vx: 0, vy: 0 };
       }
+      keepOn();
       refresh();
       return;
     }
@@ -2560,7 +2859,16 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     if (scrolling.current) return;
     const { h } = screen.current;
     const from = cam.current.y;
-    const to = from + (h * 0.45) / cam.current.z;
+    // Not past the bottom of the sheet: at the end, say so (a new page has all the room).
+    const start = cam.current;
+    cam.current = { ...start, y: from + (h * 0.45) / start.z };
+    keepOn();
+    const to = cam.current.y;
+    cam.current = start;
+    if (to - from < 4 / start.z) {
+      flash("End of this page. Tap + for a new page.");
+      return;
+    }
     const t0 = performance.now();
     scrolling.current = true;
     const step = () => {
@@ -2619,6 +2927,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
 
   const endGesture = (e: React.PointerEvent<HTMLCanvasElement>, cancelled = false) => {
     logPen(e, cancelled ? "cancel" : "up");
+    if (e.pointerType === "touch") {
+      allTouches.current.delete(e.pointerId);
+      if (penModeRef.current) {
+        touches.current.delete(e.pointerId);
+        pairPan.current = false; // lifting a finger ends the pan; both go down together again to pan
+        return;
+      }
+    }
     if (e.pointerType === "pen") {
       pens.current.active = false;
       pens.current.lastAt = Date.now();
@@ -2715,6 +3031,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const [sx, sy] = local(e);
     if (e.ctrlKey || e.metaKey) cam.current = zoomAt(cam.current, Math.exp(-e.deltaY * 0.01), sx, sy);
     else cam.current = { ...cam.current, x: cam.current.x + e.deltaX / cam.current.z, y: cam.current.y + e.deltaY / cam.current.z };
+    keepOn();
     refresh();
   };
 
@@ -2992,6 +3309,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       const y1 = Math.max(...all.map((r) => r.y + r.h));
       cam.current = fitView({ x: x0 - 40, y: y0 - 90, w: x1 - x0 + 80, h: y1 - y0 + 200 }, w, h);
     }
+    keepOn();
     refresh();
   };
 
@@ -3204,24 +3522,20 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       )}
 
       {/* Eraser ring */}
-      {eraserAt && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute rounded-full border"
-          style={{ left: eraserAt.x - ERASER_PX, top: eraserAt.y - ERASER_PX, width: ERASER_PX * 2, height: ERASER_PX * 2, borderColor: THEMES[look].ring.border, background: THEMES[look].ring.fill }}
-        />
-      )}
+      <span
+        ref={ringRef}
+        aria-hidden
+        className="pointer-events-none absolute left-0 top-0 rounded-full border will-change-transform"
+        style={{ display: "none", width: ERASER_PX * 2, height: ERASER_PX * 2, borderColor: THEMES[look].ring.border, background: THEMES[look].ring.fill }}
+      />
 
       {/* Angle readout while drawing a line */}
-      {angle && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute rounded-full bg-[#1A1D20] px-2.5 py-1 text-xs font-bold tabular-nums text-white shadow-lg"
-          style={{ left: angle.x + 18, top: angle.y - 34 }}
-        >
-          {angle.deg}°
-        </span>
-      )}
+      <span
+        ref={angleRef}
+        aria-hidden
+        className="pointer-events-none absolute left-0 top-0 rounded-full bg-[#1B1E21] px-2.5 py-1 text-xs font-bold tabular-nums text-white shadow-lg"
+        style={{ display: "none" }}
+      />
 
       {/* Tools hidden (clean screen for sharing): just a way back, in the corner. */}
       {toolsHidden && (
@@ -3375,7 +3689,24 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           <div ref={sidePanelRef} className={`${PANEL} pointer-events-auto flex h-11 min-w-0 items-center overflow-hidden`}>
             {/* On a narrow phone the view controls slide sideways instead of crowding the page bar. */}
             <div className="flex h-full min-w-0 items-center gap-0.5 overflow-x-auto whitespace-nowrap px-[3px] [scrollbar-width:none] [&>*]:shrink-0">
-            {lead && (
+            {lead && penMode && (
+              <button
+                type="button"
+                onClick={() => setFingers(fingers === "pan" ? "off" : "pan")}
+                aria-label={`Fingers: ${fingers === "pan" ? "pan only" : "off"}. Tap to switch`}
+                {...tipOn(
+                  fingers === "pan" ? "Fingers: pan only" : "Fingers: off",
+                  undefined,
+                  fingers === "pan"
+                    ? "Only the pen writes. Two fingers placed together move the board; a resting hand does nothing."
+                    : "Only the pen writes. Fingers do nothing on the board (the buttons still work).",
+                )}
+                className={`${PRESS} ${HIT} h-9 rounded-[10px] px-3 text-xs font-semibold ${QUIET}`}
+              >
+                {fingers === "pan" ? "Fingers: pan" : "Fingers: off"}
+              </button>
+            )}
+            {lead && !penMode && (
               <button
                 type="button"
                 onClick={() => setFingerDraws((v) => !v)}
@@ -3484,7 +3815,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           <p className="flex items-center gap-1.5 text-xs text-[#1B1E21]/30">
             <span>Pen draws</span>
             <span aria-hidden>·</span>
-            <span>{fingerDraws ? "fingers draw too" : "fingers move the board"}</span>
+            <span>{penMode ? (fingers === "pan" ? "two fingers move the board" : "fingers are off") : fingerDraws ? "fingers draw too" : "fingers move the board"}</span>
           </p>
         </div>
       )}
@@ -3497,6 +3828,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           {busy ?? notice}
         </div>
       )}
+
+      {penDebug && <PenDebug />}
 
       {/* Pen diagnostics (?debug=1): what the tablet reports for the pen and its button */}
       {debug && (
@@ -3569,7 +3902,7 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
   const [ledger] = useState(() => new Ledger(0));
 
   const { canvasRef, size: screen, requestDraw } = useCanvas((ctx, w, h, again) =>
-    paint(ctx, w, h, cam.current, images.current, strokes.current, [live.current], again),
+    paint(ctx, w, h, cam.current, images.current, strokes.current, [live.current], again, null, pageBounds(strokes.current, images.current)),
   );
 
   // Following the tablet: each position update sets a target, and the camera
@@ -3705,6 +4038,11 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
     const r = canvasRef.current!.getBoundingClientRect();
     return [e.clientX - r.left, e.clientY - r.top] as const;
   };
+  // Looking around on their own: the view stays on the sheet, as on Hamza's screens.
+  const keepOn = () => {
+    const { w, h } = screen.current;
+    cam.current = clampCam(cam.current, w, h, pageBounds(strokes.current, images.current), clearInset(h, [viewerBarRef.current], [], 0));
+  };
 
   return (
     <div className="fixed inset-0 select-none overflow-hidden text-[#f0ede8]" style={{ background: THEMES[look].bg }}>
@@ -3739,6 +4077,7 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
             cam.current = c;
             pinch.current = { d, cx, cy };
           }
+          keepOn();
           requestDraw();
         }}
         onPointerUp={(e) => {
@@ -3752,6 +4091,7 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
           const [x, y] = local(e);
           if (e.ctrlKey || e.metaKey) cam.current = zoomAt(cam.current, Math.exp(-e.deltaY * 0.01), x, y);
           else cam.current = { ...cam.current, x: cam.current.x + e.deltaX / cam.current.z, y: cam.current.y + e.deltaY / cam.current.z };
+          keepOn();
           requestDraw();
         }}
       />

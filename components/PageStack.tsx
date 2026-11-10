@@ -5,6 +5,56 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/ui";
 import { useBackToClose } from "@/components/student/useBackToClose";
+import { parseCrop } from "@/lib/paper-builder";
+
+/** Cambridge pages have wide white margins: a cropped question is shown without them, so it fills the width. */
+const MARGIN = 0.075;
+const ZOOM = 1 / (1 - 2 * MARGIN);
+
+/**
+ * One attached page. A past paper question is the paper's page image with a
+ * crop on its link (#crop=top,bottom,ratio, see lib/paper-builder.ts): only
+ * that part of the page is shown, at its own shape, from the full size image
+ * so it stays sharp. Every other link is shown as it is.
+ */
+export function PaperImage({
+  url,
+  width,
+  alt,
+  className,
+  loading = "lazy",
+  onLoad,
+}: {
+  url: string;
+  width: number;
+  alt: string;
+  className?: string;
+  loading?: "lazy" | "eager";
+  onLoad?: (e: React.SyntheticEvent<HTMLImageElement>) => void;
+}) {
+  const crop = parseCrop(url);
+  if (!crop) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={cld(url, width)} loading={loading} decoding="async" alt={alt} className={className ?? "block w-full"} onLoad={onLoad} />;
+  }
+  const h = crop.b - crop.t;
+  return (
+    <div className={`relative w-full overflow-hidden bg-white ${className ?? ""}`} style={{ aspectRatio: `1 / ${h * crop.r * ZOOM}` }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={crop.src}
+        alt={alt}
+        loading={loading}
+        decoding="async"
+        width={1100}
+        height={Math.round(1100 * crop.r)}
+        onLoad={onLoad}
+        className="absolute max-w-none"
+        style={{ top: `${(-crop.t / h) * 100}%`, width: `${ZOOM * 100}%`, left: `${-MARGIN * ZOOM * 100}%`, height: "auto" }}
+      />
+    </div>
+  );
+}
 
 /**
  * Read-only viewer for attached pages.
@@ -31,8 +81,7 @@ export function PageStack({ urls, label }: { urls: string[]; label: string }) {
         className="block max-h-[32rem] w-full overflow-auto bg-surface-2 text-left"
         aria-label={`Open ${label} full screen`}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={cld(url, 1000)} loading="lazy" decoding="async" alt={`${label}, page ${shown + 1}`} className="block w-full" />
+        <PaperImage url={url} width={1000} alt={`${label}, page ${shown + 1}`} />
       </button>
       <figcaption className="flex flex-wrap items-center gap-2 border-t border-border px-3 py-2 text-xs text-ink-3">
         {urls.length > 1 && (
@@ -59,7 +108,7 @@ export function PageStack({ urls, label }: { urls: string[]; label: string }) {
         <button onClick={() => setOpen(true)} className="inline-flex min-h-11 items-center font-semibold text-brand hover:underline">
           Open full screen
         </button>
-        <a href={url} target="_blank" rel="noreferrer" className="ml-auto inline-flex min-h-11 items-center font-semibold text-brand hover:underline">
+        <a href={parseCrop(url)?.src ?? url} target="_blank" rel="noreferrer" className="ml-auto inline-flex min-h-11 items-center font-semibold text-brand hover:underline">
           Open in new tab
         </a>
       </figcaption>
@@ -139,14 +188,12 @@ function PageViewerModal({
                 <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-3">Page {i + 1} of {urls.length}</p>
               )}
               <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-sm)]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={cld(u, 1800)}
+                <PaperImage
+                  url={u}
+                  width={1800}
                   loading={i === startAt ? "eager" : "lazy"}
-                  decoding="async"
                   alt={`${label}, page ${i + 1}`}
-                  className="block w-full"
-                  onLoad={i === startAt ? (e) => e.currentTarget.scrollIntoView({ block: "start" }) : undefined}
+                  onLoad={i === startAt ? (e) => (e.currentTarget.closest("[data-page]") ?? e.currentTarget).scrollIntoView({ block: "start" }) : undefined}
                 />
               </div>
             </div>

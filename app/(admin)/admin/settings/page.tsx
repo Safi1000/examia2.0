@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Button, Card, CardHeader, CardBody, Icon } from "@/components/ui";
-import { ThemeSettings } from "@/components/ThemeSettings";
 import { AutomationSettings } from "@/components/admin/Automations";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useToast } from "@/components/toast";
@@ -17,21 +16,12 @@ export default function AdminSettingsPage() {
       <AutomationSettings />
       <LevelsAndSubjects />
       <Card className="max-w-2xl">
-        <CardHeader><h2 className="font-bold text-ink">Waitlist</h2></CardHeader>
+        <CardHeader><h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Waitlist</h2></CardHeader>
         <CardBody>
           <p className="mb-4 text-sm text-ink-3">People who joined the waitlist from the website. Kept here, out of the menu, until it&apos;s busy.</p>
           <Link href="/admin/leads" className="inline-flex h-10 items-center rounded-lg border border-border-strong px-4 text-sm font-semibold text-ink hover:bg-surface-2">
             Open the waitlist
           </Link>
-        </CardBody>
-      </Card>
-      <Card className="max-w-2xl">
-        <CardHeader><h2 className="font-bold text-ink">Accent colour</h2></CardHeader>
-        <CardBody>
-          <p className="mb-4 text-sm text-ink-3">
-            Choose the highlight colour used across the console. Saved on this device.
-          </p>
-          <ThemeSettings />
         </CardBody>
       </Card>
     </div>
@@ -53,7 +43,7 @@ function LevelsAndSubjects() {
   ];
   return (
     <Card className="max-w-2xl">
-      <CardHeader><h2 className="font-bold text-ink">Levels and subjects</h2></CardHeader>
+      <CardHeader><h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Levels and subjects</h2></CardHeader>
       <CardBody className="space-y-6">
         <p className="text-sm text-ink-3">
           Used for students, tests, notes and the class timetable. The timetable recognises levels by A2, AS or IGCSE / O Level in the name, and

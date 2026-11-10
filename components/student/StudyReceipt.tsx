@@ -105,7 +105,7 @@ export function Receipt({ r, className }: { r: ReceiptData; className?: string }
       <div className="px-6 pb-6 pt-5 text-[13px] leading-[1.65]" style={{ background: PAPER, color: INK, fontFamily: MONO }}>
         <div className="text-center">
           <p className="text-[15px] font-bold tracking-[0.18em]">HAMZA TEACHES</p>
-          <p className="text-[11px] tracking-[0.22em] opacity-70">GROUNDWORK · STUDY RECEIPT</p>
+          <p className="text-xs tracking-[0.22em] opacity-70">GROUNDWORK · STUDY RECEIPT</p>
         </div>
         <Rule />
         <Row l={L.date} r={L.time} />
@@ -135,9 +135,9 @@ export function Receipt({ r, className }: { r: ReceiptData; className?: string }
             <span key={i} style={{ width: w, background: i % 2 ? "transparent" : INK }} />
           ))}
         </div>
-        <p className="mt-1.5 text-center text-[11px] tracking-[0.2em] opacity-70">{r.id}</p>
+        <p className="mt-1.5 text-center text-xs tracking-[0.2em] opacity-70">{r.id}</p>
         <p className="mt-3 text-center text-[12px] font-bold tracking-[0.16em]">THANK YOU FOR STUDYING</p>
-        <p className="text-center text-[11px] opacity-60">{SITE.toUpperCase()}</p>
+        <p className="text-center text-xs opacity-60">{SITE.toUpperCase()}</p>
       </div>
       <Edge />
       <style>{`@keyframes receipt-in { from { opacity: 0; transform: translateY(-24px) scaleY(.96); transform-origin: top; } to { opacity: 1; transform: none; } } @media (prefers-reduced-motion: reduce) { figure[aria-label="Study receipt"] { animation: none !important; } }`}</style>

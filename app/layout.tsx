@@ -25,7 +25,10 @@ const caveat = Caveat({
   weight: ["700"],
   variable: "--font-caveat",
   display: "swap",
-  preload: false, // only the Groundwork timer uses it
+  // Not preloaded: only the homepage's handwritten line, two small homepage labels and
+  // the Groundwork timer use it, so other pages never download it, and on the
+  // homepage it swaps in without competing with the first paint.
+  preload: false,
 });
 
 const splineMono = Spline_Sans_Mono({

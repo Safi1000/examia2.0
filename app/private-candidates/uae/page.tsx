@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
+import "@/components/landing/public-calm.css";
 import { Crumbs, Section, Table, TrialBox } from "@/components/study/StudyBits";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 
@@ -66,9 +67,9 @@ export default function PrivateCandidatesUae() {
       />
       <JsonLd data={faqLd(FAQ)} />
 
-      <article className="mx-auto max-w-3xl px-5 pb-20 pt-14 md:pt-20">
+      <article className="public-calm mx-auto max-w-3xl px-5 pb-24 pt-12 md:pt-20">
         <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Private candidate guide, UAE" }]} />
-        <h1 className="mt-8 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">
+        <h1 className="mt-8 text-[2.25rem] leading-[1.08] md:text-5xl">
           Sitting IGCSE or A Level as a private candidate in the UAE
         </h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">

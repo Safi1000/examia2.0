@@ -64,7 +64,7 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
     return (
       <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center px-6 text-center">
         <h1 className="font-display text-2xl font-bold text-ink">This link has expired</h1>
-        <p className="mt-2 text-sm text-ink-2">
+        <p className="mt-3 text-[16px] leading-relaxed text-ink-2">
           Report links stay live for 90 days. Ask {COMPANY_NAME} for a fresh one.
         </p>
       </main>
@@ -75,28 +75,28 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
   const downloadHref = signDownloadUrl(report.pdf_url, `report-${report.student_name}-${report.month.slice(0, 7)}.pdf`);
 
   return (
-    <main className="mx-auto min-h-dvh max-w-2xl px-4 py-10">
-      <header className="border-b border-border pb-5">
-        <p className="font-display text-sm font-bold uppercase tracking-[0.2em] text-brand">{COMPANY_NAME}</p>
-        <h1 className="mt-2 font-display text-3xl font-bold capitalize text-ink">{report.student_name}</h1>
-        <p className="mt-1 text-sm text-ink-2">Monthly Progress Report · {monthLabel(report.month)}</p>
+    <main className="mx-auto min-h-dvh max-w-2xl px-5 py-12 md:py-16">
+      <header className="border-b border-hairline pb-6">
+        <p className="text-[14px] font-semibold text-brand">{COMPANY_NAME}</p>
+        <h1 className="mt-2 font-display text-3xl font-bold capitalize tracking-tight text-ink md:text-4xl">{report.student_name}</h1>
+        <p className="mt-2 text-[15px] tabular-nums text-ink-2">Monthly Progress Report · {monthLabel(report.month)}</p>
       </header>
 
       {report.teacher_note && (
-        <section className="mt-6 rounded-lg border border-brand/30 bg-brand-soft/40 px-4 py-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-brand">From the teacher</h2>
-          <p className="mt-1 whitespace-pre-wrap text-sm text-ink">{report.teacher_note}</p>
+        <section className="surface mt-8 rounded-[20px] px-5 py-5">
+          <h2 className="text-[14px] font-semibold text-brand">From the teacher</h2>
+          <p className="mt-2 max-w-[68ch] whitespace-pre-wrap text-[16px] leading-relaxed text-ink">{report.teacher_note}</p>
         </section>
       )}
 
-      <section className="mt-6">
+      <section className="mt-8">
         <a
           href={downloadHref}
-          className="inline-flex h-12 items-center justify-center rounded-md bg-brand px-6 text-sm font-semibold text-on-brand"
+          className="inline-flex h-12 items-center justify-center rounded-full bg-brand px-6 text-[15px] font-semibold text-on-brand transition-colors hover:bg-[#ffd07a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         >
           Download PDF
         </a>
-        <p className="mt-3 text-xs text-ink-3">
+        <p className="mt-3 text-[13px] text-ink-3">
           This link is private and stops working on{" "}
           {new Date(report.expires_at).toLocaleDateString("default", { day: "numeric", month: "long", year: "numeric" })}.
         </p>
@@ -105,7 +105,7 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
       <iframe
         src={`${downloadHref}&inline=1#toolbar=0`}
         title="Monthly report"
-        className="mt-6 h-[70vh] w-full rounded-lg border border-border bg-surface"
+        className="mt-8 h-[70vh] w-full rounded-[20px] border border-hairline bg-surface"
       />
     </main>
   );

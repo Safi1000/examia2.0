@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
 import { GradePredictor } from "@/components/landing/GradePredictor";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
-import { Crumbs, Section, Table, TrialBox } from "@/components/study/StudyBits";
+import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
+import { ScrollTable as Table } from "./ScrollTable";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 import {
   THRESHOLD_PAGES,
@@ -209,9 +210,9 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
                     const vs = Object.entries(s.sessions[sess]!.variants).sort(([x], [y]) => x.localeCompare(y));
                     return (
                       <div key={sess}>
-                        <h3 className="mb-3 text-lg font-semibold text-foreground">
+                        <h3 className="mb-2 flex flex-wrap items-center gap-x-3 text-lg font-semibold text-foreground">
                           {sess}{" "}
-                          <a href={s.sessions[sess]!.source} className="ml-2 text-sm font-normal text-gold hover:underline" rel="noopener">
+                          <a href={s.sessions[sess]!.source} className="inline-flex min-h-11 items-center text-sm font-normal text-gold underline-offset-4 hover:underline" rel="noopener">
                             Official table (PDF)
                           </a>
                         </h3>

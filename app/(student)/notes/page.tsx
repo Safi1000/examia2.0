@@ -9,6 +9,7 @@ import { EmptyState, Icon, Spinner } from "@/components/ui";
 import { useNow } from "@/hooks/useNow";
 import { NoteViewer } from "@/components/NoteViewer";
 import { cn } from "@/lib/cn";
+import { EmptyArt, PageHeader } from "@/components/student/PortalKit";
 import type { Note, Student } from "@/types";
 import { shelvesFor, type Shelf } from "@/lib/note-shelves";
 import { DEMO } from "@/lib/demo";
@@ -106,7 +107,7 @@ function StudentNotes() {
   const shown = viewing ?? (linked ? { id: linked.id, title: linked.title, page: openPage } : null);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pb-16 pt-8 sm:px-6">
+    <div className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
       <Library db={db} student={student} positions={positions} onOpen={open} />
       {shown && (
         <NoteViewer
@@ -187,13 +188,13 @@ function Library({ db, student, positions, onOpen }: { db: Db; student: Student;
     return (
       <>
         <Header ready={0} />
-        <EmptyState icon={<Icon.Doc />} title="No notes yet" message="Your chapters show up here, in the order we cover them." />
+        <EmptyState icon={<Icon.Doc />} art={<EmptyArt name="empty-no-notes-yet" />} title="No notes yet" message="Your chapters show up here, in the order we cover them." />
       </>
     );
   }
 
   return (
-    <>
+    <div className="rise">
       <Header ready={ready} />
       <SearchBox value={query} onChange={setQuery} />
       {query.trim().length >= 2 ? (
@@ -208,11 +209,11 @@ function Library({ db, student, positions, onOpen }: { db: Db; student: Student;
                 <button
                   type="button"
                   onClick={() => onOpen({ id: r.note.id, title: r.note.title, page: p.page })}
-                  className="mb-6 flex w-full items-center gap-4 rounded-2xl bg-surface p-4 text-left ring-1 ring-border transition active:scale-[0.99] hover:ring-brand/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  className="surface surface-link mb-8 flex w-full items-center gap-4 rounded-xl px-5 py-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:px-6"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[13px] font-semibold text-brand">Continue reading</span>
-                    <span className="mt-1 block truncate text-[15px] font-semibold text-ink">{r.chapter ? r.chapter.name : r.note.title}</span>
+                    <span className="block text-[13px] font-semibold text-ink-3">Continue reading</span>
+                    <span className="mt-1 block truncate text-base font-semibold text-ink">{r.chapter ? r.chapter.name : r.note.title}</span>
                     <span className="mt-2 flex items-center gap-3">
                       <span className="h-1 flex-1 overflow-hidden rounded-full bg-surface-2">
                         <span
@@ -235,7 +236,7 @@ function Library({ db, student, positions, onOpen }: { db: Db; student: Student;
           {books.length > 1 &&
             (books.length <= 3 ? (
               // Two or three subjects: one segmented control, like iOS.
-              <div role="tablist" aria-label="Subjects" className="mb-6 grid auto-cols-fr grid-flow-col gap-1 rounded-xl bg-surface-2 p-1">
+              <div role="tablist" aria-label="Subjects" className="mb-8 grid auto-cols-fr grid-flow-col gap-1 rounded-full border border-hairline bg-surface p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                 {books.map((s) => (
                   <button
                     key={s.key}
@@ -243,7 +244,7 @@ function Library({ db, student, positions, onOpen }: { db: Db; student: Student;
                     aria-selected={active.key === s.key}
                     onClick={() => pick(s.key)}
                     className={cn(
-                      "min-h-10 min-w-0 truncate rounded-[9px] px-2 text-[14px] font-semibold transition-all",
+                      "min-h-11 min-w-0 truncate rounded-full px-2 text-[14px] font-semibold transition-all",
                       active.key === s.key ? "bg-white/[0.11] text-ink shadow-[0_1px_3px_rgba(0,0,0,0.35)]" : "text-ink-3 hover:text-ink",
                     )}
                   >
@@ -260,7 +261,7 @@ function Library({ db, student, positions, onOpen }: { db: Db; student: Student;
                     aria-selected={active.key === s.key}
                     onClick={() => pick(s.key)}
                     className={cn(
-                      "flex min-h-10 shrink-0 items-center whitespace-nowrap rounded-full px-4 text-[14px] font-semibold transition-colors",
+                      "flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-full px-4 text-[14px] font-semibold transition-colors",
                       active.key === s.key ? "bg-ink text-surface" : "bg-surface-2 text-ink-2 hover:text-ink",
                     )}
                   >
@@ -272,28 +273,27 @@ function Library({ db, student, positions, onOpen }: { db: Db; student: Student;
 
           <ShelfView shelf={active} positions={positions} nowMs={nowMs} onOpen={onOpen} />
           {general && general !== active && general.more.length > 0 && (
-            <div className="mt-8">
+            <div className="mt-10">
               <ShelfView shelf={{ ...general, label: "For everyone" }} positions={positions} nowMs={nowMs} onOpen={onOpen} />
             </div>
           )}
         </>
       )}
-    </>
+    </div>
   );
 }
 
 function Header({ ready }: { ready: number }) {
   return (
-    <div className="mb-5">
-      <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink">Notes</h1>
-      <p className="mt-2 text-base text-ink-2">{ready ? "Every chapter, in the order we cover it." : "Your chapters, in the order we cover them."}</p>
+    <div className="mb-7">
+      <PageHeader title="Notes">{ready ? "Every chapter, in the order we cover it." : "Your chapters, in the order we cover them."}</PageHeader>
     </div>
   );
 }
 
 function SearchBox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <div role="search" className="relative mb-5">
+    <div role="search" className="relative mb-7">
       <Icon.Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-ink-3" />
       <label htmlFor="notes-q" className="sr-only">
         Search your notes
@@ -306,7 +306,7 @@ function SearchBox({ value, onChange }: { value: string; onChange: (v: string) =
         placeholder="Search inside your notes"
         autoComplete="off"
         enterKeyHint="search"
-        className="h-11 w-full rounded-xl border border-transparent bg-surface-2 pl-11 pr-11 text-base text-ink placeholder:text-ink-3 transition-colors focus:border-brand/60 focus:bg-surface focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+        className="h-12 w-full rounded-full border border-hairline bg-surface pl-11 shadow-[inset_0_1px_2px_rgba(0,0,0,0.25)] pr-11 text-base text-ink placeholder:text-ink-3 transition-colors focus:border-brand/60 focus:bg-surface focus:outline-none [&::-webkit-search-cancel-button]:hidden"
       />
       {value && (
         <button
@@ -336,8 +336,8 @@ function ShelfView({ shelf, positions, nowMs, onOpen }: { shelf: Shelf; position
   return (
     <div className="space-y-4">
       {book && (
-        <div className="flex items-baseline justify-between gap-3 px-1">
-          <h2 className="text-[20px] font-bold tracking-tight text-ink">
+        <div className="flex items-center justify-between gap-3 px-1 pb-1">
+          <h2 className="min-w-0 truncate text-[20px] font-bold tracking-[-0.02em] text-ink">
             {LEVEL_SHORT[book.level]} {book.subject}
           </h2>
           <span className="shrink-0 text-[13px] tabular-nums text-ink-3">
@@ -352,13 +352,13 @@ function ShelfView({ shelf, positions, nowMs, onOpen }: { shelf: Shelf; position
         const has = ready > 0;
         const isOpen = openUnits[u.num] ?? has;
         return (
-          <section key={u.num} aria-labelledby={`u-${shelf.key}-${u.num}`} className="overflow-hidden rounded-2xl bg-surface ring-1 ring-border">
+          <section key={u.num} aria-labelledby={`u-${shelf.key}-${u.num}`} className="surface overflow-hidden rounded-xl">
             <h3 id={`u-${shelf.key}-${u.num}`}>
               <button
                 type="button"
                 aria-expanded={isOpen}
                 onClick={() => setOpenUnits((m) => ({ ...m, [u.num]: !isOpen }))}
-                className="flex min-h-16 w-full items-center gap-3 px-4 py-3.5 text-left transition-colors active:bg-surface-2 hover:bg-surface-2/60"
+                className="row-link flex min-h-16 w-full items-center gap-3 px-5 py-4 text-left"
               >
                 <span className="min-w-0 flex-1">
                   <span className="block text-[13px] text-ink-3">
@@ -370,7 +370,7 @@ function ShelfView({ shelf, positions, nowMs, onOpen }: { shelf: Shelf; position
               </button>
             </h3>
             {isOpen && (
-              <ul className="ml-4 divide-y divide-border border-t border-border">
+              <ul className="ml-5 divide-y divide-hairline border-t border-hairline">
                 {unitNotes.map((n) => (
                   <li key={n.id}>
                     <NoteRow
@@ -397,7 +397,7 @@ function ShelfView({ shelf, positions, nowMs, onOpen }: { shelf: Shelf; position
                               title: unitNotes[0].title,
                             })
                           }
-                          className="-ml-4 flex min-h-12 w-[calc(100%+1rem)] items-center gap-3 py-2.5 pl-4 pr-4 text-left transition-colors active:bg-surface-2 hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none"
+                          className="row-link -ml-5 flex min-h-12 w-[calc(100%+1.25rem)] items-center gap-3 py-2.5 pl-5 pr-5 text-left focus-visible:bg-surface-2 focus-visible:outline-none"
                         >
                           <span className="w-10 shrink-0 text-[13px] tabular-nums text-ink-3">{num}</span>
                           <span className="min-w-0 flex-1 text-[15px] leading-snug text-ink-2">{name}</span>
@@ -407,7 +407,7 @@ function ShelfView({ shelf, positions, nowMs, onOpen }: { shelf: Shelf; position
                     );
                   if (!notes)
                     return (
-                      <li key={num} className="flex min-h-12 items-center gap-3 py-2.5 pr-4 text-ink-3">
+                      <li key={num} className="flex min-h-12 items-center gap-3 py-2.5 pr-5 text-ink-3">
                         <span className="w-10 shrink-0 text-[13px] tabular-nums opacity-70">{num}</span>
                         <span className="min-w-0 flex-1 text-[15px] leading-snug opacity-70">{name}</span>
                         <span className="shrink-0 text-[13px]">Soon</span>
@@ -438,7 +438,7 @@ function ShelfView({ shelf, positions, nowMs, onOpen }: { shelf: Shelf; position
           <h3 id={`more-${shelf.key}`} className="mb-2 px-1 text-[13px] font-semibold text-ink-3">
             {book ? "More notes" : shelf.label}
           </h3>
-          <ul className="divide-y divide-border overflow-hidden rounded-2xl bg-surface ring-1 ring-border">
+          <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
             {shelf.more.map((n) => (
               <li key={n.id}>
                 <NoteRow
@@ -496,11 +496,11 @@ function NoteRow({
       onClick={onOpen}
       aria-label={`Read ${title}`}
       className={cn(
-        "flex min-h-14 w-full items-center gap-3 py-3 pr-4 text-left transition-colors active:bg-surface-2 hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none",
-        inset ? "" : "pl-4",
+        "row-link flex min-h-14 w-full items-center gap-3 py-3 pr-5 text-left focus-visible:bg-surface-2 focus-visible:outline-none",
+        inset ? "" : "pl-5",
       )}
     >
-      {num !== "" || !showDate ? <span className="w-10 shrink-0 text-[13px] font-semibold tabular-nums text-brand">{num}</span> : null}
+      {num !== "" || !showDate ? <span className="w-10 shrink-0 text-[13px] font-semibold tabular-nums text-ink-3">{num}</span> : null}
       <span className="min-w-0 flex-1">
         <span className="line-clamp-2 text-[16px] font-semibold leading-snug text-ink">{title}</span>
         {(showDate || fresh || k || pos) && (
@@ -616,8 +616,8 @@ function SearchResults({ q, readable, onOpen, nowMs }: { q: string; readable: Re
     <div className="space-y-7" aria-live="polite">
       {titleHits.length > 0 && (
         <section>
-          <h2 className="mb-2.5 text-sm font-semibold text-ink-2">Chapters</h2>
-          <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
+          <h2 className="mb-3 px-1 text-[17px] font-bold tracking-[-0.01em] text-ink">Chapters</h2>
+          <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
             {titleHits.slice(0, 8).map(({ note, chapter, shelf }) => (
               <li key={note.id}>
                 <NoteRow
@@ -635,7 +635,7 @@ function SearchResults({ q, readable, onOpen, nowMs }: { q: string; readable: Re
       )}
 
       <section>
-        <h2 className="mb-2.5 text-sm font-semibold text-ink-2">Inside your notes</h2>
+        <h2 className="mb-3 px-1 text-[17px] font-bold tracking-[-0.01em] text-ink">Inside your notes</h2>
         {loading ? (
           <p className="flex items-center gap-2 py-4 text-sm text-ink-3">
             <Spinner size={16} /> Searching every page…
@@ -647,12 +647,12 @@ function SearchResults({ q, readable, onOpen, nowMs }: { q: string; readable: Re
         ) : (
           <ul className="space-y-3">
             {[...groups].map(([id, hits]) => (
-              <li key={id} className="overflow-hidden rounded-2xl border border-border bg-surface">
-                <p className="border-b border-border px-4 py-3 text-[15px] font-semibold leading-snug text-ink">
+              <li key={id} className="surface overflow-hidden rounded-xl">
+                <p className="border-b border-hairline px-5 py-3.5 text-base font-semibold leading-snug text-ink">
                   {name(id)}
                   <span className="ml-2 text-xs font-medium text-ink-3">{readable.get(id)?.shelf.label}</span>
                 </p>
-                <ul className="divide-y divide-border">
+                <ul className="divide-y divide-hairline">
                   {hits.map((h) => (
                     <li key={h.page}>
                       <button
@@ -665,10 +665,10 @@ function SearchResults({ q, readable, onOpen, nowMs }: { q: string; readable: Re
                             highlight: terms,
                           })
                         }
-                        className="flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none"
+                        className="row-link flex w-full gap-3 px-5 py-3.5 text-left focus-visible:bg-surface-2 focus-visible:outline-none"
                       >
-                        <span className="w-14 shrink-0 pt-0.5 text-xs font-semibold tabular-nums text-brand">Page {h.page}</span>
-                        <span className="min-w-0 flex-1 text-[14px] leading-relaxed text-ink-2">
+                        <span className="w-14 shrink-0 pt-0.5 text-xs font-semibold tabular-nums text-ink-3">Page {h.page}</span>
+                        <span className="min-w-0 flex-1 text-[15px] leading-relaxed text-ink-2">
                           <Marked text={h.snippet} terms={terms} />
                         </span>
                       </button>

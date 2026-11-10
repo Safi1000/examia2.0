@@ -58,7 +58,7 @@ export default function ToolsHub() {
   return (
     <MarketingShell>
       <JsonLd data={breadcrumbLd([{ name: "Home", path: "/" }, { name: "Free tools", path: "/tools" }])} />
-      <div className="mx-auto max-w-4xl px-5 pb-20 pt-14 md:pt-20">
+      <div className="mx-auto max-w-3xl px-5 pb-20 pt-14 md:pt-20">
         <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Free tools" }]} />
         <h1 className="mt-8 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">
           Free tools for Accounting, Business and Economics
@@ -68,12 +68,20 @@ export default function ToolsHub() {
         </p>
         {GROUPS.map((g) => (
           <Section key={g.title} title={g.title}>
-            <ul className="grid gap-3 sm:grid-cols-2">
+            <ul className="surface divide-y divide-hairline overflow-hidden rounded-[20px]">
               {g.tools.map((t) => (
                 <li key={t.href}>
-                  <Link href={t.href} className="block h-full rounded-[16px] border border-hairline bg-card px-5 py-4 hover:border-gold-border">
-                    <span className="block font-semibold text-foreground">{t.name}</span>
-                    <span className="mt-1 block text-[15px] text-muted-foreground">{t.what}</span>
+                  <Link
+                    href={t.href}
+                    className="row-link group flex min-h-16 items-center gap-4 px-5 py-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-gold"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[17px] font-semibold text-foreground transition-colors group-hover:text-gold">{t.name}</span>
+                      <span className="mt-1 block text-[15px] leading-relaxed text-muted-foreground">{t.what}</span>
+                    </span>
+                    <svg aria-hidden viewBox="0 0 20 20" className="h-5 w-5 shrink-0 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-gold" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m8 5 5 5-5 5" />
+                    </svg>
                   </Link>
                 </li>
               ))}

@@ -113,7 +113,9 @@ export default function AnalyticsPage() {
     return { students, studentIds, relevantTests, setTests, relevantTestIds, released, awaiting, allMonths };
   }, [db, cohortId]);
 
-  const activeMonth = selectedMonth || base.allMonths[base.allMonths.length - 1] || "";
+  // Opens on the latest month; "all" is the All time choice. The menu always
+  // shows the month the numbers are for (it used to say All time over November).
+  const activeMonth = selectedMonth === "all" ? "" : selectedMonth || base.allMonths[base.allMonths.length - 1] || "";
   const prevMonth = activeMonth ? (base.allMonths[base.allMonths.indexOf(activeMonth) - 1] ?? "") : "";
 
   const monthSubs = useMemo(
@@ -260,7 +262,7 @@ export default function AnalyticsPage() {
               onClick={() => setView(v)}
               className={cn(
                 "rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
-                view === v ? "bg-brand text-on-brand" : "text-ink-2 hover:text-ink",
+                view === v ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink",
               )}
             >
               {v === "class" ? "Class view" : "Student view"}
@@ -270,11 +272,11 @@ export default function AnalyticsPage() {
 
         <select
           aria-label="Month"
-          value={selectedMonth}
+          value={selectedMonth === "all" ? "all" : activeMonth}
           onChange={(e) => setSelectedMonth(e.target.value)}
           className="h-9 rounded-lg border border-border bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
         >
-          {base.allMonths.length > 1 && <option value="">All time</option>}
+          {base.allMonths.length > 1 && <option value="all">All time</option>}
           {base.allMonths.map((m) => (
             <option key={m} value={m}>{formatMonth(m)}</option>
           ))}
@@ -321,36 +323,36 @@ function ClassView({
   prevMonth: string;
   activeMonth: string;
 }) {
-  const monthLabel = activeMonth ? formatMonth(activeMonth).split(" ")[0] : "This month";
+  const monthLabel = activeMonth ? formatMonth(activeMonth).split(" ")[0] : "All time";
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className={cn("grid grid-cols-2 gap-3 sm:grid-cols-3", data.attendanceAvg != null ? "xl:grid-cols-6" : "lg:grid-cols-5")}>
         <MetricCard label="All-time average" value={`${data.overall}%`} />
         <MetricCard label={`Average (${monthLabel})`} value={`${data.monthly}%`} delta={data.delta} />
-        <MetricCard label="A/A* this month" value={String(data.topStudents)} note="students" />
+        <MetricCard label={`A/A* (${monthLabel})`} value={String(data.topStudents)} note="students" />
         <MetricCard label="Needs support" value={String(data.strugglingStudents)} note="students at E or U" />
         <MetricCard label="Waiting to be marked" value={String(data.toMark)} note="scripts" />
         {data.attendanceAvg != null && (
-          <MetricCard label="Attendance" value={`${data.attendanceAvg}%`} note={`${monthLabel} average`} />
+          <MetricCard label="Attendance" value={`${data.attendanceAvg}%`} note={`${activeMonth ? monthLabel : "This month"} average`} />
         )}
       </div>
 
       {data.trendPoints.length >= 2 && (
         <Card className="p-5">
-          <h2 className="mb-3 text-base font-semibold text-ink">Class average trend</h2>
+          <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em] text-ink">Class average trend</h2>
           <LineChart points={data.trendPoints} height={160} />
         </Card>
       )}
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card className="p-5">
-          <h2 className="mb-3 text-base font-semibold text-ink">Grade distribution</h2>
+          <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em] text-ink">Grade distribution</h2>
           <BarChart bars={data.bars} />
         </Card>
 
         <Card className="p-5">
-          <h2 className="mb-3 text-base font-semibold text-ink">Weak topics</h2>
+          <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em] text-ink">Weak topics</h2>
           <div className="space-y-3.5">
             {data.mastery.length === 0 ? (
               <p className="text-sm text-ink-3">No graded topics yet.</p>
@@ -362,7 +364,7 @@ function ClassView({
 
         {prevMonth && (
           <Card className="p-5">
-            <h2 className="mb-3 text-base font-semibold text-ink">Most improved</h2>
+            <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em] text-ink">Most improved</h2>
             {data.improved.length === 0 ? (
               <p className="text-sm text-ink-3">No comparable data yet.</p>
             ) : (
@@ -376,7 +378,7 @@ function ClassView({
                           <p className="truncate text-sm font-semibold capitalize text-ink">{student.username}</p>
                           {cohort && <p className="flex items-center gap-1 text-xs text-ink-3"><CohortDot color={cohort.color} />{cohort.name}</p>}
                         </div>
-                        <span className="font-mono text-sm text-ink">{curAvg}%</span>
+                        <span className="text-sm font-semibold tabular-nums text-ink">{curAvg}%</span>
                         <Badge tone="success">+{delta}%</Badge>
                       </Link>
                     </li>
@@ -389,7 +391,7 @@ function ClassView({
 
         {prevMonth && (
           <Card className="p-5">
-            <h2 className="mb-3 text-base font-semibold text-ink">Needs attention</h2>
+            <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em] text-ink">Needs attention</h2>
             {data.slipping.length === 0 ? (
               <p className="text-sm text-ink-3">No notable drops this month.</p>
             ) : (
@@ -403,7 +405,7 @@ function ClassView({
                           <p className="truncate text-sm font-semibold capitalize text-ink">{student.username}</p>
                           {cohort && <p className="flex items-center gap-1 text-xs text-ink-3"><CohortDot color={cohort.color} />{cohort.name}</p>}
                         </div>
-                        <span className="font-mono text-sm text-ink">{curAvg}%</span>
+                        <span className="text-sm font-semibold tabular-nums text-ink">{curAvg}%</span>
                         <Badge tone="error">{delta}%</Badge>
                       </Link>
                     </li>
@@ -417,7 +419,7 @@ function ClassView({
 
       <Card className="p-0">
         <div className="border-b border-border px-5 py-3.5">
-          <h2 className="text-base font-semibold text-ink">Per-test stats</h2>
+          <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Per-test stats</h2>
         </div>
         <TableScroll>
           <Table stickyFirst>
@@ -429,8 +431,8 @@ function ClassView({
                 <tr key={test.id}>
                   <Td className="font-semibold">{test.title}</Td>
                   <Td className="text-ink-2">{test.subject}</Td>
-                  <Td className="font-mono">{count}</Td>
-                  <Td className="font-mono">
+                  <Td className="tabular-nums">{count}</Td>
+                  <Td className="tabular-nums">
                     {avg != null ? (
                       `${avg}%`
                     ) : pending > 0 ? (
@@ -450,14 +452,14 @@ function ClassView({
       {data.cohortCompletion.length > 0 && (
         <Card className="p-0">
           <div className="border-b border-border px-5 py-3.5">
-            <h2 className="text-base font-semibold text-ink">Completion by cohort</h2>
+            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Completion by cohort</h2>
           </div>
           <ul className="divide-y divide-border">
             {data.cohortCompletion.map(({ cohort, pct, submitted, expected }) => (
               <li key={cohort.id} className="flex items-center gap-3 px-5 py-3">
                 <CohortDot color={cohort.color} />
                 <span className="flex-1 text-sm font-semibold text-ink">{cohort.name}</span>
-                <span className="font-mono text-sm text-ink-2">{submitted}/{expected}</span>
+                <span className="text-sm tabular-nums text-ink-2">{submitted}/{expected}</span>
                 <Badge tone={pct >= 75 ? "success" : pct >= 50 ? "warning" : "error"}>{pct}%</Badge>
               </li>
             ))}
@@ -515,11 +517,11 @@ function MetricCard({
 }) {
   const toneClass = tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : tone === "error" ? "text-error" : "text-ink";
   return (
-    <Card ruled className="p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-ink-3">{label}</p>
-      <p className={cn("mt-1 font-display text-3xl font-extrabold", toneClass)}>{value}</p>
+    <Card className="px-4 py-3.5">
+      <p className="text-[13px] text-ink-3">{label}</p>
+      <p className={cn("mt-1 text-[1.75rem] font-semibold leading-tight tabular-nums tracking-[-0.02em]", toneClass)}>{value}</p>
       {delta != null && (
-        <p className={cn("mt-0.5 text-xs font-semibold", delta > 0 ? "text-success" : delta < 0 ? "text-error" : "text-ink-3")}>
+        <p className={cn("mt-0.5 text-xs font-semibold tabular-nums", delta > 0 ? "text-success" : delta < 0 ? "text-error" : "text-ink-3")}>
           {delta > 0 ? "+" : ""}{delta}% vs last month
         </p>
       )}

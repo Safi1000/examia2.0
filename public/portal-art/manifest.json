@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "generated": "2026-11-09",
+  "note": "Transparent WebP renders for dark backgrounds (#212427). 1x is 160x160, @2x is 320x320. Source: design-mockups/portal-art.",
+  "size": {
+    "1x": 160,
+    "2x": 320
+  },
+  "items": {
+    "emblems": {
+      "accounting": {
+        "label": "Accounting",
+        "alt": "A gold balance scale on a limestone base",
+        "src": "/portal-art/emblems/accounting.webp",
+        "src2x": "/portal-art/emblems/accounting@2x.webp"
+      },
+      "business": {
+        "label": "Business",
+        "alt": "Three stacked blocks in wood, stone and gold",
+        "src": "/portal-art/emblems/business.webp",
+        "src2x": "/portal-art/emblems/business@2x.webp"
+      },
+      "economics": {
+        "label": "Economics",
+        "alt": "Gold supply and stone demand curves crossing on a limestone slab",
+        "src": "/portal-art/emblems/economics.webp",
+        "src2x": "/portal-art/emblems/economics@2x.webp"
+      },
+      "general": {
+        "label": "General",
+        "alt": "A gold sphere on a limestone plinth",
+        "src": "/portal-art/emblems/general.webp",
+        "src2x": "/portal-art/emblems/general@2x.webp"
+      }
+    },
+    "grades": {
+      "a-star": {
+        "label": "A*",
+        "alt": "Polished gold A* medallion",
+        "src": "/portal-art/grades/a-star.webp",
+        "src2x": "/portal-art/grades/a-star@2x.webp"
+      },
+      "a": {
+        "label": "A",
+        "alt": "Warm gold A medallion",
+        "src": "/portal-art/grades/a.webp",
+        "src2x": "/portal-art/grades/a@2x.webp"
+      },
+      "b": {
+        "label": "B",
+        "alt": "Brushed silver B medallion",
+        "src": "/portal-art/grades/b.webp",
+        "src2x": "/portal-art/grades/b@2x.webp"
+      },
+      "c": {
+        "label": "C",
+        "alt": "Bronze C medallion",
+        "src": "/portal-art/grades/c.webp",
+        "src2x": "/portal-art/grades/c@2x.webp"
+      },
+      "d": {
+        "label": "D",
+        "alt": "Pale limestone D medallion",
+        "src": "/portal-art/grades/d.webp",
+        "src2x": "/portal-art/grades/d@2x.webp"
+      },
+      "e": {
+        "label": "E",
+        "alt": "Warm grey stone E medallion",
+        "src": "/portal-art/grades/e.webp",
+        "src2x": "/portal-art/grades/e@2x.webp"
+      },
+      "u": {
+        "label": "U",
+        "alt": "Dark stone U medallion",
+        "src": "/portal-art/grades/u.webp",
+        "src2x": "/portal-art/grades/u@2x.webp"
+      },
+      "personal-best": {
+        "label": "Personal best",
+        "alt": "Gold seal with a star on ivory ribbons",
+        "src": "/portal-art/grades/personal-best.webp",
+        "src2x": "/portal-art/grades/personal-best@2x.webp"
+      }
+    },
+    "badges": {
+      "first-paper": {
+        "label": "First paper",
+        "alt": "Gold paper sheet on a dark stone medallion",
+        "src": "/portal-art/badges/first-paper.webp",
+        "src2x": "/portal-art/badges/first-paper@2x.webp"
+      },
+      "streak-7": {
+        "label": "7 day streak",
+        "alt": "Gold flame with seven studs on a dark stone medallion",
+        "src": "/portal-art/badges/streak-7.webp",
+        "src2x": "/portal-art/badges/streak-7@2x.webp"
+      },
+      "hours-25": {
+        "label": "25 hours focused",
+        "alt": "Gold hourglass on a dark stone medallion",
+        "src": "/portal-art/badges/hours-25.webp",
+        "src2x": "/portal-art/badges/hours-25@2x.webp"
+      }
+    }
+  }
+}

@@ -113,10 +113,10 @@ export function RemindersPanel() {
   }
 
   return (
-    <Card className="mb-4 p-0">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-4 py-3">
-        <h2 className="whitespace-nowrap text-base font-semibold text-ink">
-          Tell parents <span className="text-ink-3">({reminders.length})</span>
+    <Card className="mb-4 overflow-hidden p-0">
+      <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3", (!collapsed || !!running) && "border-b border-border")}>
+        <h2 className="whitespace-nowrap text-[15px] font-semibold tracking-[-0.01em] text-ink">
+          Tell parents <span className="tabular-nums text-ink-3">({reminders.length})</span>
         </h2>
         {reportRun.length > 0 && !running && (
           <Button size="sm" variant="secondary" className="order-last whitespace-nowrap sm:order-none" onClick={() => void startRun()}>
@@ -125,15 +125,15 @@ export function RemindersPanel() {
         )}
         <button
           onClick={() => setCollapsed((c) => !c)}
-          className="ml-auto flex h-11 w-11 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink"
+          className="ml-auto flex h-11 w-11 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink"
           aria-label={collapsed ? "Show reminders" : "Hide reminders"}
         >
-          <Icon.ChevronRight className={cn("h-4 w-4 transition-transform", collapsed ? "" : "rotate-90")} />
+          <Icon.ChevronRight className={cn("h-4 w-4 transition-transform duration-200", collapsed ? "" : "rotate-90")} />
         </button>
       </div>
 
       {running && (
-        <div className="flex flex-wrap items-center gap-3 border-b border-border bg-brand-soft/40 px-4 py-3">
+        <div className={cn("flex flex-wrap items-center gap-3 bg-surface-2/60 px-4 py-3", !collapsed && "border-b border-border")}>
           <span className="text-sm font-semibold text-ink">
             {running.student.username}: report {(runIndex ?? 0) + 1} of {reportRun.length}. Sent?
           </span>

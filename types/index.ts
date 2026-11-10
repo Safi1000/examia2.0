@@ -309,6 +309,8 @@ export type ActivityType =
   | "test_reopened"
   /** Hamza-only tag: this student is taught in person (see lib/in-person.ts). */
   | "student_in_person"
+  /** Hamza's "Well built" note to one student for a strong Groundwork week. */
+  | "well_built"
   | "system_alert";
 
 /** Who an activity is addressed to. Admins additionally see every entry. */

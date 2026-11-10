@@ -17,11 +17,12 @@ import { EmptyState, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { ShareMoment } from "@/components/student/ShareMoment";
 import { displayName } from "@/lib/display-name";
-import { sceneFor } from "@/lib/groundwork";
+import { worldScene } from "@/lib/groundwork";
 import { isAsStudent } from "@/lib/grading";
 import { syllabusProgress, type BookProgress } from "@/lib/syllabus-progress";
 import { AttendanceCard } from "@/components/student/AttendanceCard";
 import type { Mission } from "@/components/student/FocusMode";
+import { EmptyArt, GradeMedallion, PageHeader, SectionTitle } from "@/components/student/PortalKit";
 
 const FocusMode = dynamic(() => import("@/components/student/FocusMode"), { ssr: false });
 
@@ -82,11 +83,12 @@ export default function ProgressPage() {
   );
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8 px-4 py-8 sm:px-6">
-      <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink">My progress</h1>
+    <div className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+      <div className="rise space-y-10">
+      <PageHeader title="My progress" />
 
       {!snap && (
-        <EmptyState icon={<Icon.Chart />} title="Your grade starts with your first marked test" message="Once I release a result, your grade, subjects and topics show up here." />
+        <EmptyState icon={<Icon.Chart />} art={<EmptyArt name="empty-no-tests-yet" />} title="Your grade starts with your first marked test" message="Once I release a result, your grade, subjects and topics show up here." />
       )}
 
       {/* Showing up and keeping pace: attendance and how much of the syllabus is done. */}
@@ -96,7 +98,7 @@ export default function ProgressPage() {
         <>
           {/* 1. Where am I? */}
           <section className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg border border-brand/30 bg-[linear-gradient(135deg,rgba(251,193,89,0.14),rgba(251,193,89,0.03))] p-5 sm:col-span-2">
+            <div className="relative overflow-hidden rounded-xl border border-brand/25 bg-surface bg-[linear-gradient(135deg,rgba(251,193,89,0.13),rgba(251,193,89,0.02)_65%)] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_18px_40px_-24px_rgba(251,193,89,0.3)] sm:col-span-2 sm:p-6">
               <p className="text-sm font-semibold text-brand">{snap.marked >= 3 ? "On track for" : "Your grade"}</p>
               {snap.marked < 3 ? (
                 <div className="mt-2">
@@ -111,8 +113,8 @@ export default function ProgressPage() {
                   <p className="text-sm text-ink-3">Your grade shows after three, so one test can’t decide it.</p>
                 </div>
               ) : (
-              <div className="mt-2 flex items-end gap-4">
-                <span className="text-6xl font-extrabold leading-none tracking-tight text-brand">{snap.grade}</span>
+              <div className="mt-3 flex items-end gap-4">
+                <GradeMedallion grade={snap.grade} size={96} />
                 <div className="pb-1">
                   <p className="text-lg font-semibold tabular-nums text-ink">{Math.round(snap.recent)}%</p>
                   <p className="text-xs text-ink-3">average of your last {Math.min(5, snap.marked)} tests</p>
@@ -120,7 +122,7 @@ export default function ProgressPage() {
               </div>
               )}
               {snap.delta != null && Math.abs(snap.delta) >= 1 && (
-                <p className={cn("mt-3 text-sm font-semibold", snap.delta > 0 ? "text-success" : "text-warning")}>
+                <p className={cn("mt-3 text-sm font-semibold tabular-nums", snap.delta > 0 ? "text-success" : "text-warning")}>
                   {snap.delta > 0 ? "▲ Up" : "▼ Down"} {Math.abs(Math.round(snap.delta))}% on the tests before
                 </p>
               )}
@@ -128,17 +130,17 @@ export default function ProgressPage() {
                 <div className="mt-4">
                   <ShareMoment
                     label="Share my grade"
-                    moment={{ kicker: "Working at", big: `${snap.grade} grade`, sub: `${Math.round(snap.recent)}% across my last ${Math.min(5, snap.marked)} tests`, name: displayName(student.username).split(" ")[0], scene: sceneFor(profile.scene, nowMs) }}
+                    moment={{ kicker: "Working at", big: `${snap.grade} grade`, sub: `${Math.round(snap.recent)}% across my last ${Math.min(5, snap.marked)} tests`, name: displayName(student.username).split(" ")[0], scene: worldScene(profile.world) }}
                   />
                 </div>
               )}
             </div>
-            <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-surface px-5 py-4 sm:block sm:p-5">
+            <div className="surface flex items-center justify-between gap-4 rounded-xl px-5 py-4 sm:block sm:p-6">
               <div>
                 <p className="text-sm font-semibold text-ink-3">Tests done</p>
                 <p className="mt-0.5 text-xs text-ink-3 sm:hidden">{data.setCount - data.handed > 0 ? `${data.setCount - data.handed} missed` : "None missed"}</p>
               </div>
-              <p className="text-3xl font-extrabold tabular-nums text-ink sm:mt-2">
+              <p className="text-3xl font-extrabold tracking-[-0.02em] tabular-nums text-ink sm:mt-2">
                 {data.handed}
                 <span className="text-lg font-semibold text-ink-3"> / {data.setCount}</span>
               </p>
@@ -147,19 +149,20 @@ export default function ProgressPage() {
           </section>
 
           {/* 2. Which subject needs me? */}
-          <section className="space-y-3">
-            <h2 className="text-base font-semibold text-ink">By subject</h2>
-            <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
+          <section>
+            <SectionTitle>By subject</SectionTitle>
+            <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
               {snap.bySubject.map((s) => {
                 const target = targetFor(s.subject);
                 const gap = target ? Math.max(0, Math.ceil(GRADE_FLOOR[target] - s.recent)) : null;
                 return (
-                  <li key={s.subject} className="px-5 py-4">
+                  <li key={s.subject} className="px-5 py-5 sm:px-6">
+                    <div>
                     <div className="flex items-baseline justify-between gap-3">
                       <p className="min-w-0 truncate font-semibold text-ink">{s.subject}</p>
                       <p className="flex shrink-0 items-baseline gap-2">
                         <span className="text-sm tabular-nums text-ink-3">{Math.round(s.recent)}%</span>
-                        <span className="w-8 text-right text-2xl font-extrabold leading-none text-ink">{s.grade}</span>
+                        <span className="w-9 text-right text-2xl font-extrabold leading-none tracking-[-0.02em] text-ink">{s.grade}</span>
                       </p>
                     </div>
                     <div className="relative mt-3 h-1.5 rounded-full bg-white/[0.07]" aria-hidden>
@@ -171,6 +174,7 @@ export default function ProgressPage() {
                         {gap ? `${gap}% to your ${target}` : `On track for ${target}`}
                       </p>
                     )}
+                    </div>
                   </li>
                 );
               })}
@@ -182,17 +186,17 @@ export default function ProgressPage() {
           {/* 3. Which topics? */}
           {(data.weak.length > 0 || data.strong.length > 0) && (
             <section className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border border-border bg-surface p-5">
-                <h2 className="text-base font-semibold text-ink">Fix these next</h2>
+              <div className="surface rounded-xl p-5 sm:p-6">
+                <h2 className="text-[17px] font-bold tracking-[-0.01em] text-ink">Fix these next</h2>
                 {data.weak.length === 0 ? (
                   <p className="mt-2 text-sm text-ink-2">No weak topics right now. Nice.</p>
                 ) : (
-                  <ul className="mt-3 space-y-2.5">
+                  <ul className="mt-3 space-y-3">
                     {data.weak.map((m, i) => (
                       <li key={m.topic} className="flex items-center justify-between gap-3">
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-semibold text-ink">{m.name}</span>
-                          <span className="block text-xs text-ink-3">
+                          <span className="block text-xs text-ink-3 tabular-nums">
                             {m.subject} · {Math.round(m.percent)}%
                           </span>
                         </span>
@@ -215,14 +219,14 @@ export default function ProgressPage() {
                   </ul>
                 )}
               </div>
-              <div className="rounded-lg border border-border bg-surface p-5">
-                <h2 className="text-base font-semibold text-ink">Your strengths</h2>
+              <div className="surface rounded-xl p-5 sm:p-6">
+                <h2 className="text-[17px] font-bold tracking-[-0.01em] text-ink">Your strengths</h2>
                 {data.strong.length === 0 ? (
                   <p className="mt-2 text-sm text-ink-2">Topics at 75% or more show here.</p>
                 ) : (
                   <ul className="mt-3 flex flex-wrap gap-2">
                     {data.strong.map((m) => (
-                      <li key={m.topic} className="rounded-full bg-success-soft px-3 py-1.5 text-xs font-semibold text-success">
+                      <li key={m.topic} className="rounded-full border border-success/20 bg-success-soft px-3 py-1.5 text-xs font-semibold text-success tabular-nums">
                         {m.name} {Math.round(m.percent)}%
                       </li>
                     ))}
@@ -233,16 +237,16 @@ export default function ProgressPage() {
           )}
 
           {/* 4. How did each test go? */}
-          <section className="space-y-3">
-            <h2 className="text-base font-semibold text-ink">Results</h2>
-            <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
+          <section>
+            <SectionTitle count={results.length}>Results</SectionTitle>
+            <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
               {results.map(({ test, sub, pct }) => (
                 <li key={sub.id}>
-                  <Link href={`/results/${test.id}`} className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-surface-2">
-                    <span className="w-10 shrink-0 text-center text-lg font-extrabold text-brand">{gradeSubmission(test, sub).letter}</span>
+                  <Link href={`/results/${test.id}`} className="row-link flex items-center gap-4 px-5 py-4 sm:px-6">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-hairline bg-surface-2 text-base font-extrabold tracking-[-0.02em] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">{gradeSubmission(test, sub).letter}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold text-ink">{test.title}</span>
-                      <span className="block text-xs text-ink-3">
+                      <span className="mt-0.5 block text-xs text-ink-3 tabular-nums">
                         {test.subject}
                         {sub.submittedAt ? ` · ${formatDate(sub.submittedAt)}` : ""}
                       </span>
@@ -257,13 +261,14 @@ export default function ProgressPage() {
         </>
       )}
 
-      <Link href="/groundwork" className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface px-5 py-4 text-sm text-ink-2 transition-colors hover:border-border-strong">
+      <Link href="/groundwork" className="surface-quiet surface-link flex items-center justify-between gap-3 rounded-xl px-5 py-4 text-[15px] text-ink-2 sm:px-6">
         <span>
           Your study time, level and streak are in <span className="font-semibold text-ink">Groundwork</span>
         </span>
         <Icon.ChevronRight className="h-4 w-4 shrink-0 text-ink-3" />
       </Link>
 
+      </div>
       {practise &&
         createPortal(<FocusMode subjects={studentSubjects(db, student)} mission={practise} onClose={() => setPractise(null)} />, document.body)}
     </div>
@@ -274,10 +279,10 @@ export default function ProgressPage() {
 function SyllabusDone({ books }: { books: BookProgress[] }) {
   if (!books.length) return null;
   return (
-    <section className="rounded-lg border border-border bg-surface p-5" aria-labelledby="syl-h">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 id="syl-h" className="text-base font-semibold text-ink">Syllabus covered</h2>
-        <Link href="/notes" className="text-sm font-semibold text-brand hover:underline">
+    <section className="surface rounded-xl p-5 sm:p-6" aria-labelledby="syl-h">
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="syl-h" className="text-[17px] font-bold tracking-[-0.01em] text-ink">Syllabus covered</h2>
+        <Link href="/notes" className="-my-3 -mr-2 inline-flex min-h-11 items-center px-2 text-sm font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline">
           Notes
         </Link>
       </div>

@@ -67,7 +67,7 @@ export function SyllabusCard({ books, index }: { books: BookProgress[]; index: T
                   {next && <span className="hidden sm:inline"> · next up: {next.name}</span>}
                 </p>
                 {latest && (
-                  <Link href={latest.href} className="inline-flex min-h-9 shrink-0 items-center rounded-full bg-brand/12 px-3.5 text-[13px] font-semibold text-brand transition hover:bg-brand/20">
+                  <Link href={latest.href} className="inline-flex min-h-11 shrink-0 items-center rounded-full bg-brand/12 px-3.5 text-[13px] font-semibold text-brand transition hover:bg-brand/20">
                     {latest.count} past paper questions
                   </Link>
                 )}
@@ -78,7 +78,7 @@ export function SyllabusCard({ books, index }: { books: BookProgress[]; index: T
 
             {done.length > 1 && (
               <>
-                <button type="button" onClick={() => setOpenKey(open ? null : b.key)} aria-expanded={open} className="mt-2 inline-flex min-h-9 items-center gap-1 text-[13px] font-medium text-ink-2 hover:text-ink">
+                <button type="button" onClick={() => setOpenKey(open ? null : b.key)} aria-expanded={open} className="mt-1 inline-flex min-h-11 items-center gap-1 text-[13px] font-medium text-ink-2 hover:text-ink">
                   {open ? "Hide chapters" : `All ${done.length} chapters covered`}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`transition-transform ${open ? "rotate-90" : ""}`} aria-hidden>
                     <path d="m9 6 6 6-6 6" />
@@ -93,7 +93,7 @@ export function SyllabusCard({ books, index }: { books: BookProgress[]; index: T
                           <span className="w-10 shrink-0 tabular-nums text-ink-3">{c.num}</span>
                           <span className="min-w-0 flex-1 truncate text-ink">{c.name}</span>
                           {t ? (
-                            <Link href={t.href} className="shrink-0 text-[13px] font-medium text-brand hover:underline">
+                            <Link href={t.href} className="inline-flex min-h-11 shrink-0 items-center text-[13px] font-medium text-brand hover:underline">
                               {t.count} questions
                             </Link>
                           ) : (

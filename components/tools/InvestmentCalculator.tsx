@@ -57,7 +57,7 @@ export function InvestmentCalculator() {
             <NumberField key={i} label={`Year ${i + 1}`} value={f} onChange={(x) => setFlows((s) => s.map((y, j) => (j === i ? x : y)))} />
           ))}
         </div>
-        <button type="button" onClick={() => setFlows((s) => [...s, ""])} className="mt-3 text-sm font-semibold text-gold hover:underline">
+        <button type="button" onClick={() => setFlows((s) => [...s, ""])} className="mt-1 inline-flex min-h-11 items-center rounded-md text-sm font-semibold text-gold underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
           Add a year
         </button>
       </div>

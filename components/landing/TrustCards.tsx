@@ -24,19 +24,16 @@ function Card({
   className?: string;
 }) {
   return (
-    <div
-      data-spot
-      className={`group flex flex-col overflow-hidden rounded-[16px] border border-hairline bg-card/80 backdrop-blur-sm transition-[border-color,transform] duration-300 hover:-translate-y-1 hover:border-gold-border md:rounded-[22px] ${className}`}
-    >
-      <div aria-hidden className="relative flex items-center justify-center overflow-hidden bg-band-c/80 px-2 py-3 md:h-40 md:px-5 md:py-0">
-        <div className="transition-transform duration-500 group-hover:scale-[1.04] max-md:[zoom:var(--z)]" style={{ ["--z" as string]: zoom }}>
+    <div className={`pc-surface flex flex-col overflow-hidden rounded-[16px] md:rounded-[20px] ${className}`}>
+      <div aria-hidden className="relative flex items-center justify-center overflow-hidden border-b border-hairline bg-[rgba(20,22,24,0.55)] px-2 py-3 md:h-40 md:px-5 md:py-0">
+        <div className="max-md:[zoom:var(--z)]" style={{ ["--z" as string]: zoom }}>
           {art}
         </div>
       </div>
-      <div className="p-3.5 md:p-6">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold md:text-[12px] md:tracking-[0.22em]">{label}</p>
-        <h3 className="mt-1 text-sm font-bold leading-snug text-foreground md:mt-2 md:text-lg">{title}</h3>
-        <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground md:mt-1.5 md:text-[15px]">{text}</p>
+      <div className="p-4 md:p-6">
+        <p className="pc-label max-md:tracking-[0.1em]">{label}</p>
+        <h3 className="mt-1.5 text-[15px] leading-snug md:mt-2 md:text-lg">{title}</h3>
+        <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground md:mt-1.5 md:text-[15px]">{text}</p>
       </div>
     </div>
   );
@@ -49,7 +46,7 @@ function TeacherArt() {
         <Image src="/hamza.jpg" alt="" fill sizes="80px" className="object-cover object-top" />
       </div>
       <div className="flex flex-col items-start gap-1.5">
-        <span className="rounded-full bg-gold px-3 py-1 text-[12px] font-bold text-[#1b1e21] shadow-[0_8px_20px_-8px_rgba(251,193,89,0.7)]">
+        <span className="rounded-full bg-gold px-3 py-1 text-[12px] font-bold text-[#1b1e21]">
           Straight As
         </span>
         <span className="rounded-full border border-gold-border bg-gold-tint px-3 py-1 text-[11px] font-bold tracking-wide text-gold">
@@ -119,7 +116,7 @@ function WhyArt() {
         <text x="6" y="14" fill="rgba(255,255,255,0.5)" fontSize="9">P</text>
         <text x="182" y="106" fill="rgba(255,255,255,0.5)" fontSize="9">Q</text>
       </svg>
-      <span className="absolute -right-2 -top-3 rotate-[-6deg] rounded-md bg-gold px-2 py-0.5 font-hand text-lg font-bold leading-tight text-[#1b1e21] shadow-lg">
+      <span className="absolute -top-3 right-3 rounded-md border border-hairline-strong bg-[#17191b] px-2 font-hand text-lg font-bold leading-tight text-gold">
         why?
       </span>
     </div>
@@ -128,7 +125,7 @@ function WhyArt() {
 
 export function TrustBar() {
   return (
-    <section aria-labelledby="why-title" className="py-8 md:py-12">
+    <section aria-labelledby="why-title" className="py-6 md:py-10">
       <h2 id="why-title" className="sr-only">
         Why students choose Hamza Teaches for O Level and A Level Accounting, Business and Economics
       </h2>

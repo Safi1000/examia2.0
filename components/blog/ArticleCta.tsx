@@ -45,7 +45,7 @@ export function ArticleCta({
 
   return (
     <aside className="mt-16 rounded-[24px] border border-gold-border bg-card-raised p-7 md:p-10">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gold">
+      <p className="text-[14px] font-semibold text-gold">
         {subject} · {level}
       </p>
       <h2 className="mt-3 max-w-[22ch] text-2xl font-bold leading-tight text-foreground md:text-3xl">

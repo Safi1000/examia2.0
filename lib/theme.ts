@@ -9,13 +9,9 @@ export interface ThemeOption {
   onBrand: string;
 }
 
+/** Gold is the only accent (Hamza, 10 Nov 2026): any colour saved before falls back to gold. */
 export const THEMES: ThemeOption[] = [
-  { id: "gold",   name: "Gold",      brand: "#FBC159", brandStrong: "#e5a832", brandSoft: "#2e2510", onBrand: "#1a1d20" },
-  { id: "teal",   name: "Teal",      brand: "#6FBBA8", brandStrong: "#53a18e", brandSoft: "#162926", onBrand: "#1a1d20" },
-  { id: "coral",  name: "Coral",     brand: "#E5685A", brandStrong: "#cc4e40", brandSoft: "#2c1512", onBrand: "#f0ede8" },
-  { id: "blue",   name: "Sky Blue",  brand: "#6a9fd8", brandStrong: "#5288c2", brandSoft: "#182436", onBrand: "#1a1d20" },
-  { id: "indigo", name: "Indigo",    brand: "#8b9de8", brandStrong: "#7080d4", brandSoft: "#1e2040", onBrand: "#1a1d20" },
-  { id: "slate",  name: "Slate",     brand: "#7a9dba", brandStrong: "#608399", brandSoft: "#1e2b35", onBrand: "#1a1d20" },
+  { id: "gold", name: "Gold", brand: "#FBC159", brandStrong: "#e5a832", brandSoft: "#2e2510", onBrand: "#1a1d20" },
 ];
 
 export const DEFAULT_THEME_ID = "gold";

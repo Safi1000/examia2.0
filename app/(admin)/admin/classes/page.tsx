@@ -16,6 +16,7 @@ import { saveDayChange } from "@/components/ScheduleGate";
 import type { Exception, SubjectKey } from "@/lib/timetable";
 import { Button, Card, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
+import { panel } from "@/components/admin/surface";
 import {
   LEVEL_LABEL,
   getSchedule,
@@ -134,7 +135,7 @@ export default function ClassesPage() {
               setView(v);
             }}
             aria-pressed={view === v}
-            className={`h-9 rounded-full px-4 text-sm font-semibold transition-colors ${view === v ? "bg-brand text-on-brand" : "text-ink-2 hover:text-ink"}`}
+            className={`h-9 rounded-full px-4 text-sm font-semibold transition-colors ${view === v ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink"}`}
           >
             {v === "day" ? "Day" : "Weekly timetable"}
           </button>
@@ -153,7 +154,7 @@ export default function ClassesPage() {
             </Button>
             <div className="text-center">
               {/* Tap the date to jump to any day (e.g. to add a weekend revision class). */}
-              <label className="relative inline-block cursor-pointer text-base font-semibold text-ink hover:text-brand">
+              <label className="relative inline-block cursor-pointer text-base font-semibold text-ink underline-offset-4 hover:underline">
                 {dayName}
                 <input
                   type="date"
@@ -206,7 +207,7 @@ export default function ClassesPage() {
                               : phase === "live" && date === today
                                 ? `Live now · ${joined} of ${who.length} joined`
                                 : phase === "done" || date < today
-                                  ? `${joined} of ${who.length} joined${link?.recordingUrl ? " · recording ready" : ""}`
+                                  ? `${who.length ? `${joined} of ${who.length} joined` : "No students in this level"}${link?.recordingUrl ? " · recording ready" : ""}`
                                   : `${span(s.start, s.end)}${s.extra ? " · extra class" : s.changed ? " · changed for this day" : ""}${link?.meetUrl ? " · link ready" : ""}`}
                           </span>
                         </span>
@@ -300,7 +301,7 @@ export default function ClassesPage() {
           )}
 
           {noShows.map((n) => (
-            <div key={n.level} className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface px-5 py-3">
+            <div key={n.level} className={cn(panel, "mt-3 flex flex-wrap items-center justify-between gap-3 px-5 py-3")}>
               <p className="text-sm text-ink-2">
                 {LEVEL_LABEL[n.level]}: {n.who.length === 1 ? "1 student" : `${n.who.length} students`} didn&apos;t join any class today.
               </p>

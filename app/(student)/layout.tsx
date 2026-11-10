@@ -32,6 +32,7 @@ import { useRecoverFocus } from "@/components/student/focus-session";
 import { setActivityPath, startActivity } from "@/lib/activity-tracker";
 import { supabase } from "@/lib/supabase";
 import { DEMO } from "@/lib/demo";
+import { EmptyArt } from "@/components/student/PortalKit";
 
 const TITLES: Record<string, string> = {
   "/dashboard": "Home",
@@ -85,6 +86,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   if (loadFailed) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
+        <EmptyArt name="empty-offline" className="mb-2" />
         <p className="font-semibold text-ink">Couldn&apos;t load your portal.</p>
         <p className="text-sm text-ink-2">Check your internet.</p>
         <button
@@ -133,6 +135,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   if (!student) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
+        <EmptyArt name="empty-offline" className="mb-2" />
         <p className="font-semibold text-ink">Your portal didn&apos;t load.</p>
         <p className="max-w-xs text-sm text-ink-2">Usually a weak signal. Check your internet and try again.</p>
         <button
@@ -201,9 +204,10 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     { href: workHref, label: "Work", short: "Work", Icon: NavIcon.Tests, work: true, badge: testsDue + homeworkDue },
     links[6],
   ];
-  // Results belong to Tests; the full plan opens from Home.
+  // Results and the Done screen after a test belong to Tests; the full plan opens from Home.
+  const inTests = pathname.startsWith("/results") || /^\/test\/[^/]+\/submitted$/.test(pathname);
   const isActive = (href: string) =>
-    pathname === href || (href === "/tests" && pathname.startsWith("/results")) || (href === "/dashboard" && pathname === "/plan");
+    pathname === href || (href === "/tests" && inTests) || (href === "/dashboard" && pathname === "/plan");
   const name = displayName(student.username);
   // Every page sits on warm charcoal with a faint grid (PortalAmbient);
   // Groundwork lays its full photo on top.
@@ -211,6 +215,14 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
   return (
     <div className="relative isolate min-h-dvh">
+      {!inRunner && (
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-[70] focus:inline-flex focus:h-11 focus:items-center focus:rounded-full focus:bg-surface focus:px-5 focus:text-sm focus:font-semibold focus:text-ink focus:shadow-lg"
+        >
+          Skip to content
+        </a>
+      )}
       <PortalAmbient />
       <PortalManifest on />
       {!inRunner && (
@@ -269,7 +281,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
               ["/assignments", "Homework"],
               ["/notes", "Notes"],
             ].map(([href, label]) => {
-              const on = pathname === href || (href === "/tests" && pathname.startsWith("/results"));
+              const on = isActive(href);
               return (
                 <li key={href}>
                   <Link
@@ -290,7 +302,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           </ul>
         </nav>
       )}
-      <main id="main">
+      <main id="main" tabIndex={-1} className="focus:outline-none">
         <ScheduleGate>{children}</ScheduleGate>
       </main>
       {!inRunner && !profile.onboarded && <WelcomeWhenFree db={db} student={student} />}
@@ -330,14 +342,14 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                     href={l.href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex h-[52px] flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-semibold tracking-wide transition-colors duration-300 active:scale-95",
+                      "flex h-[52px] flex-col items-center justify-center gap-1 rounded-2xl text-xs font-semibold tracking-wide transition-colors duration-300 active:scale-95",
                       active ? "bg-brand/[0.12] text-brand" : "text-ink-3",
                     )}
                   >
                     <span className="relative">
                       <l.Icon active={active} className="h-[20px] w-[20px]" />
                       {"badge" in l && !!l.badge && (
-                        <span aria-label={`${l.badge} to do`} className="absolute -right-2.5 -top-1.5 min-w-[18px] rounded-full bg-brand px-1 text-center text-[11px] font-bold leading-[18px] text-on-brand tabular-nums ring-2 ring-[#1d2023]">
+                        <span aria-label={`${l.badge} to do`} className="absolute -right-2.5 -top-1.5 min-w-[18px] rounded-full bg-brand px-1 text-center text-xs font-bold leading-[18px] text-on-brand tabular-nums ring-2 ring-[#1d2023]">
                           {l.badge}
                         </span>
                       )}

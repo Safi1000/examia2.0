@@ -110,6 +110,7 @@ export default function RosterPage() {
   // Physical students sit in the normal groups, tagged "In person".
   const inPersonIds = useMemo(() => tagged(db), [db]);
   const [bulkTag, setBulkTag] = useState<"" | "in" | "out">("");
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [mode, setMode] = useState<"all" | "online" | "inperson">("all");
 
   const students = useMemo(
@@ -254,7 +255,7 @@ export default function RosterPage() {
       )}
       <PageHeader
         title="Roster"
-        subtitle={`${students.length} students`}
+        subtitle={`${students.length} ${students.length === 1 ? "student" : "students"}`}
         actions={
           <>
             <Button variant="secondary" onClick={() => setBulk(true)} disabled={db.cohorts.length === 0}>Import students</Button>
@@ -280,7 +281,10 @@ export default function RosterPage() {
         <Button
           size="sm"
           disabled={!bulkClass && !bulkCohort && !bulkTag}
+          loading={bulkBusy}
           onClick={async () => {
+            if (bulkBusy) return;
+            setBulkBusy(true);
             // Wait for every save, then say how it went (never "moved" before it is).
             const results = await Promise.allSettled(
               picked.map(async (id) => {
@@ -304,6 +308,7 @@ export default function RosterPage() {
               );
             setPicked([]);
             setBulkTag("");
+            setBulkBusy(false);
           }}
         >
           Apply
@@ -315,13 +320,13 @@ export default function RosterPage() {
         const unset = db.students.filter((s) => !off.has(s.cohortId) && (!s.classIds.length || !s.subjectIds.length));
         if (!unset.length || !db.classes.length) return null;
         return (
-          <div className="mb-4 rounded-lg border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink">
+          <div className="mb-4 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm leading-relaxed text-ink">
             {unset.length === 1 ? "1 student has" : `${unset.length} students have`} no level or subjects set, so subject tests, notes and assignments
             don&apos;t reach them. Tap a name to pick them:{" "}
             {unset.slice(0, 12).map((s, i) => (
               <span key={s.id}>
                 {i > 0 && ", "}
-                <button type="button" onClick={() => openEdit(s)} className="font-semibold capitalize text-brand hover:underline">
+                <button type="button" onClick={() => openEdit(s)} className="font-semibold capitalize text-ink underline decoration-warning/60 underline-offset-4 hover:decoration-warning">
                   {s.username}
                 </button>
               </span>
@@ -358,7 +363,7 @@ export default function RosterPage() {
                 onClick={() => setMode(k)}
                 className={cn(
                   "h-9 rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                  mode === k ? "bg-brand text-on-brand" : "text-ink-2 hover:text-ink",
+                  mode === k ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink",
                 )}
               >
                 {label}
@@ -371,7 +376,7 @@ export default function RosterPage() {
       {students.length === 0 ? (
         <EmptyState icon={<Icon.Users />} title="No students" message="Add a student to get started." />
       ) : (
-        <div className="grid gap-2.5 sm:grid-cols-2">
+        <Card className="divide-y divide-border overflow-hidden p-0">
           {students.map((s) => {
             const cohort = cohortById(db, s.cohortId);
             const released = db.submissions.filter((x) => x.studentId === s.id && x.status === "released").length;
@@ -383,15 +388,15 @@ export default function RosterPage() {
               ? db.classes.filter((c) => s.classIds.includes(c.id)).map((c) => c.id).map((cid) => `${db.classes.find((x) => x.id === cid)?.name ?? ""}: ${(s.levelSubjects?.[cid] ?? s.subjectIds).map(nameOf).filter(Boolean).join(", ")}`)
               : null;
             return (
-              <Card key={s.id} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 p-4 sm:flex-nowrap">
-                <span className="pt-1">
+              <div key={s.id} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-white/[0.018] sm:flex-nowrap sm:items-center">
+                <span className="pt-2.5 sm:pt-0">
                   <RowCheck
                     checked={picked.includes(s.id)}
                     onChange={(on) => setPicked((prev) => (on ? [...prev, s.id] : prev.filter((x) => x !== s.id)))}
                     label={`Select ${s.username}`}
                   />
                 </span>
-                <Link href={`/admin/roster/${s.id}`} className="flex min-w-0 flex-1 basis-[calc(100%-2.5rem)] items-start gap-3 hover:opacity-80 sm:basis-auto">
+                <Link href={`/admin/roster/${s.id}`} className="group flex min-w-0 flex-1 basis-[calc(100%-2.5rem)] items-start gap-3 sm:basis-auto sm:items-center">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-2 font-display text-sm font-bold uppercase text-ink-2">
                     {s.photoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -402,24 +407,24 @@ export default function RosterPage() {
                   </span>
                   <div className="min-w-0">
                     <p className="flex min-w-0 items-center gap-2">
-                      <span className="truncate font-bold capitalize text-ink">{s.username}</span>
+                      <span className="truncate font-semibold capitalize text-ink underline-offset-4 group-hover:underline">{s.username}</span>
                       {inPersonIds.has(s.id) && <Badge tone="neutral" className="shrink-0">In person</Badge>}
                     </p>
                     <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm text-ink-2">
                       {cohort && <CohortDot color={cohort.color} />}
                       <span className="truncate">{cohort?.name ?? "No cohort"}</span>
-                      <span className="text-ink-3">· {released} results</span>
+                      <span className="tabular-nums text-ink-3">· {released} {released === 1 ? "result" : "results"}</span>
                     </p>
                     {(classNames.length > 0 || subjectNames.length > 0) && (
                       <div className="mt-1.5 flex flex-wrap gap-1">
                         {perLevel ? perLevel.map((n) => (
-                          <span key={n} className="rounded border border-brand/40 bg-brand-soft px-1.5 py-0.5 text-xs text-brand">{n}</span>
+                          <span key={n} className="rounded-md bg-surface-2 px-1.5 py-0.5 text-xs text-ink-2">{n}</span>
                         )) : <>
                         {classNames.map((n) => (
-                          <span key={n} className="rounded border border-border px-1.5 py-0.5 text-xs text-ink-2">{n}</span>
+                          <span key={n} className="rounded-md border border-border px-1.5 py-0.5 text-xs text-ink-2">{n}</span>
                         ))}
                         {subjectNames.map((n) => (
-                          <span key={n} className="rounded border border-brand/40 bg-brand-soft px-1.5 py-0.5 text-xs text-brand">{n}</span>
+                          <span key={n} className="rounded-md bg-surface-2 px-1.5 py-0.5 text-xs text-ink-2">{n}</span>
                         ))}
                         </>}
                       </div>
@@ -433,7 +438,7 @@ export default function RosterPage() {
                       href={`https://wa.me/${waDigits(s.phone)}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink"
+                      className="flex h-10 w-10 items-center justify-center rounded-full transition-colors max-md:h-11 max-md:w-11 text-ink-3 hover:bg-surface-2 hover:text-ink"
                       aria-label={`WhatsApp ${s.username}`}
                       title={`Chat with ${s.username}: ${s.phone}`}
                     >
@@ -445,7 +450,7 @@ export default function RosterPage() {
                   <Link
                     href={`/admin/roster/${s.id}?report=1`}
                     className={cn(
-                      "flex h-9 w-9 items-center justify-center rounded",
+                      "flex h-10 w-10 items-center justify-center rounded-full transition-colors max-md:h-11 max-md:w-11",
                       s.whatsapp ? "text-success hover:bg-success-soft" : "pointer-events-none text-ink-3/40",
                     )}
                     aria-label={s.whatsapp ? `Send ${s.username}'s report on WhatsApp` : `${s.username} has no WhatsApp number`}
@@ -454,17 +459,17 @@ export default function RosterPage() {
                     <Icon.Megaphone className="h-4 w-4" />
                   </Link>
                   )}
-                  <button onClick={() => openEdit(s)} className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label={`Edit ${s.username}`}>
+                  <button onClick={() => openEdit(s)} className="flex h-10 w-10 items-center justify-center rounded-full transition-colors max-md:h-11 max-md:w-11 text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label={`Edit ${s.username}`}>
                     <Icon.Edit className="h-4 w-4" />
                   </button>
-                  <button onClick={() => setDeleting(s)} className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-error-soft hover:text-error" aria-label={`Delete ${s.username}`}>
+                  <button onClick={() => setDeleting(s)} className="flex h-10 w-10 items-center justify-center rounded-full transition-colors max-md:h-11 max-md:w-11 text-ink-3 hover:bg-error-soft hover:text-error" aria-label={`Delete ${s.username}`}>
                     <Icon.Trash className="h-4 w-4" />
                   </button>
                 </div>
-              </Card>
+              </div>
             );
           })}
-        </div>
+        </Card>
       )}
 
       <Modal

@@ -68,7 +68,7 @@ export default function AnnouncementsPage() {
       {sorted.length === 0 ? (
         <EmptyState icon={<Icon.Megaphone />} title="No announcements" action={<Button onClick={openNew}>Post one</Button>} />
       ) : (
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           {sorted.map((a) => {
             const cohort = cohortById(db, a.cohortId);
             return (
@@ -78,21 +78,21 @@ export default function AnnouncementsPage() {
                     <div className="mb-1.5 flex flex-wrap items-center gap-2">
                       {a.pinned && <Badge tone="info"><Icon.Flag className="h-3 w-3" /> Pinned</Badge>}
                       {cohort ? <CohortTag color={cohort.color} name={cohort.name} className="text-xs" /> : <span className="text-xs text-ink-3">All cohorts</span>}
-                      <span className="text-xs text-ink-3">{formatDate(a.createdAt)}</span>
+                      <span className="text-xs tabular-nums text-ink-3">{formatDate(a.createdAt)}</span>
                     </div>
-                    <p className="text-sm text-ink">{a.body}</p>
+                    <p className="max-w-[75ch] text-pretty text-sm leading-relaxed text-ink">{a.body}</p>
                     {!a.pinned && (
                       <p className="mt-1.5 text-xs text-ink-3">Dismissed by {a.dismissedBy.length} {a.dismissedBy.length === 1 ? "student" : "students"}</p>
                     )}
                   </div>
                   <div className="flex shrink-0 gap-1">
-                    <button onClick={() => store.updateAnnouncement(a.id, { pinned: !a.pinned })} className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label={a.pinned ? "Unpin" : "Pin"} title={a.pinned ? "Unpin" : "Pin"}>
+                    <button onClick={() => store.updateAnnouncement(a.id, { pinned: !a.pinned })} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11" aria-label={a.pinned ? "Unpin" : "Pin"} title={a.pinned ? "Unpin" : "Pin"}>
                       <Icon.Flag className={a.pinned ? "h-4 w-4 text-info" : "h-4 w-4"} />
                     </button>
-                    <button onClick={() => openEdit(a)} className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Edit">
+                    <button onClick={() => openEdit(a)} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11" aria-label="Edit">
                       <Icon.Edit className="h-4 w-4" />
                     </button>
-                    <button onClick={() => setDeleting(a)} className="flex h-9 w-9 items-center justify-center rounded text-ink-3 hover:bg-error-soft hover:text-error" aria-label="Delete">
+                    <button onClick={() => setDeleting(a)} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error max-md:h-11 max-md:w-11" aria-label="Delete">
                       <Icon.Trash className="h-4 w-4" />
                     </button>
                   </div>

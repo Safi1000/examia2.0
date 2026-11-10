@@ -50,7 +50,7 @@ export function Rate({ num, name }: { num: string; name: string }) {
   const r = ratings[num] ?? "new";
   const btn = (on: boolean, tone: "warn" | "ok") =>
     cn(
-      "min-h-9 rounded-full border px-3 text-xs font-semibold transition-colors",
+      "min-h-11 rounded-full border px-4 text-[13px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
       on ? (tone === "ok" ? "border-[#7FD1A6] bg-[#7FD1A6] text-[#13261c]" : "border-gold bg-gold text-[#1b1e21]") : "border-hairline-strong text-muted-foreground hover:text-foreground",
     );
   return (
@@ -92,7 +92,7 @@ export function Progress({
             {sure} of {total} subtopics confident{weak.length ? ` · ${weak.length} not sure` : ""}
           </p>
         </div>
-        <p className="max-w-[30ch] text-sm text-faint">Saved on this device. Rate each subtopic below as you revise.</p>
+        <p className="max-w-[30ch] text-sm text-muted-foreground">Saved on this device. Rate each subtopic below as you revise.</p>
       </div>
       <div className="mt-4 h-2 overflow-hidden rounded-full bg-card" aria-hidden>
         <div className="h-full rounded-full bg-gold transition-all" style={{ width: `${pct}%` }} />
