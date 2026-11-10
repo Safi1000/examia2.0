@@ -1153,6 +1153,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const following = useRef(false);
   const onRemote = useRef<(m: BoardMsg) => void>(() => {});
   const follow = useRef<(jump?: boolean) => void>(() => {});
+  // Both ways: the laptop moving the view takes the tablet there too (see pushView).
+  const glideTo = useRef<(t: Camera) => void>(() => {});
+  const handsBusy = useRef<() => boolean>(() => false);
+  const ownMoveAt = useRef(0);
+  const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     showDebug.current = new URL(window.location.href).searchParams.get("debug") === "1";
@@ -1247,11 +1253,48 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
    * the laptop follows the tablet (that view is the tablet's, already on the sheet). Returns
    * whether it had to stop the view at an edge.
    */
+  /**
+   * The laptop moved the view itself (wheel, drag, Fit): the tablet goes there too, so both
+   * screens always show the same place. Sent a few times a second (the last one always goes);
+   * while it moves, the laptop leads, then it settles on exactly what the tablet shows.
+   */
+  const pushView = () => {
+    if (lead) return;
+    ownMoveAt.current = performance.now();
+    followTarget.current = null; // a glide towards the tablet's old view stops here
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => {
+      settleTimer.current = null;
+      follow.current();
+    }, 450);
+    if (pushTimer.current) return;
+    pushTimer.current = setTimeout(() => {
+      pushTimer.current = null;
+      const { w, h } = screen.current;
+      const tv = teacherView.current;
+      if (!w || !h || !tv) return;
+      // The same fit the laptop uses to follow, turned around: what the tablet must show for
+      // this laptop view (the tablet's own shape, around the same middle).
+      const pad = clearInset(h, [topBarRef.current, sidePanelRef.current], [toolbarRef.current]);
+      const iw = Math.max(80, w - pad.l - pad.r);
+      const ih = Math.max(80, h - pad.t - pad.b);
+      const c = cam.current;
+      const shape = tv.w / tv.h;
+      const vh = Math.min(ih, iw / shape) / c.z;
+      const vw = shape * vh;
+      const cx = c.x + (pad.l + iw / 2) / c.z;
+      const cy = c.y + (pad.t + ih / 2) / c.z;
+      const v = { x: cx - vw / 2, y: cy - vh / 2, w: vw, h: vh };
+      teacherView.current = v;
+      link.current?.send({ t: "view", v });
+    }, 70);
+  };
   const keepOn = () => {
     const { w, h } = screen.current;
     const pad = clearInset(h, [topBarRef.current, sidePanelRef.current], lead ? [] : [toolbarRef.current], 0, lead ? [toolbarRef.current] : []);
     const before = cam.current;
     cam.current = clampCam(before, w, h, pageBounds(strokes.current, images.current), pad);
+    pushView();
     return cam.current !== before;
   };
 
@@ -1271,6 +1314,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       refresh();
       if (done) following.current = false;
       else requestAnimationFrame(step);
+    };
+    glideTo.current = (t: Camera) => {
+      followTarget.current = t;
+      if (!following.current) {
+        following.current = true;
+        requestAnimationFrame(step);
+      }
     };
     follow.current = (jump = false) => {
       const v = teacherView.current;
@@ -1476,10 +1526,17 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           openPageRef.current(m.p, false);
           return;
         case "view":
-          // Only the laptop follows; a tablet pan always brings the laptop back to it.
           if (!lead) {
+            // The laptop follows the tablet (not while its own wheel or drag is moving the view:
+            // then it leads, and settles on the tablet's view a moment after).
             teacherView.current = m.v;
-            follow.current();
+            if (performance.now() - ownMoveAt.current > 400) follow.current();
+          } else if (!handsBusy.current()) {
+            // The laptop moved the view: the tablet goes there too (never under a pen or finger at work).
+            const { w, h } = screen.current;
+            if (!w || !h) return;
+            const pad = clearInset(h, [topBarRef.current, sidePanelRef.current], [], 0, [toolbarRef.current]);
+            glideTo.current(clampCam(fitView(m.v, w, h, pad), w, h, pageBounds(strokes.current, images.current), pad));
           }
           return;
         case "rev": {
@@ -1968,6 +2025,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const hold = useRef<{ x: number; y: number; timer: ReturnType<typeof setTimeout> | null; path: number }>({ x: 0, y: 0, timer: null, path: 0 });
   const liveSend = useRef(0);
   const spaceDown = useRef(false);
+  // The tablet never slides to the laptop's view while the pen or a finger is at work on it.
+  useEffect(() => {
+    handsBusy.current = () => pens.current.active || !!gesture.current.mode || touches.current.size > 0;
+  });
 
   const local = (e: { clientX: number; clientY: number }) => {
     const r = canvasRef.current!.getBoundingClientRect();
@@ -2406,6 +2467,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const isTouch = e.pointerType === "touch";
     logPen(e, "down");
     stopGlide();
+    // A touch on the tablet stops any slide towards the laptop's view: the hand here leads.
+    if (lead) followTarget.current = null;
     lastMoved.current = null;
 
     if (isPen) {
@@ -2440,7 +2503,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       }
       touches.current.set(e.pointerId, { x: sx, y: sy, t: performance.now() });
       const both = [...touches.current.values()];
-      pairPan.current = allTouches.current.size === 2 && both.length === 2 && Math.abs(both[0].t - both[1].t) < 160;
+      pairPan.current = allTouches.current.size === 2 && both.length === 2 && Math.abs(both[0].t - both[1].t) < 450; // down within about half a second of each other
       capture(canvasRef.current, e.pointerId);
       return;
     }
