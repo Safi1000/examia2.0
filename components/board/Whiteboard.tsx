@@ -73,7 +73,7 @@ import { shrinkImage } from "@/lib/shrink-image";
  * a mouse on a laptop) draws; fingers move and zoom the board, and touches
  * are ignored while the pen is on or hovering over the screen. Once the pen
  * has been used on a device (pen mode), fingers never write, rub out, select
- * or zoom: only two fingers placed together pan ("Fingers: pan"), or nothing
+ * or zoom: a finger (or two) only pans ("Fingers: pan"), or does nothing
  * ("Fingers: off"). Each page is a fixed sheet with a soft edge (see BOARD). Hold the pen
  * still at the end of a stroke and it straightens into a line, snapping to
  * 0°, 45° or 90°. The pen's side button erases. Pictures and PDF pages can be
@@ -2484,8 +2484,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       notePen();
     }
 
-    // Pen mode: fingers and palms never write, rub out, select or zoom. Only two fingers placed
-    // together (and only with "Fingers: pan") move the board.
+    // Pen mode: fingers and palms never write, rub out, select or zoom. One finger (or two) moves
+    // the board, and only with "Fingers: pan"; a palm, or the pen at work, stops that.
     if (isTouch && penModeRef.current) {
       if (e.isPrimary) {
         // A new hand on the screen: forget any touch whose lift never reached the board.
@@ -2662,10 +2662,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       const now = performance.now();
       touches.current.set(e.pointerId, { x: sx, y: sy, t: now });
       if (penModeRef.current) {
-        // Two fingers together: the board follows the point between them (half of each finger's
-        // move). Never a zoom, and nothing at all with one finger or a third touch.
-        if (!pairPan.current || touches.current.size !== 2 || allTouches.current.size !== 2) return;
-        cam.current = { ...cam.current, x: cam.current.x - ((sx - prev.x) * 0.5) / cam.current.z, y: cam.current.y - ((sy - prev.y) * 0.5) / cam.current.z };
+        // One finger moves the board, or two together (it follows the point between them). Never a
+        // zoom, and nothing while anything else is touching: a resting palm, or a third finger.
+        const n = touches.current.size;
+        if (n < 1 || n > 2 || allTouches.current.size !== n) return;
+        // A fingertip only resting never nudges the board: it has to travel a little first.
+        panTrip.current = { dist: panTrip.current.dist + Math.hypot(sx - prev.x, sy - prev.y), at: now };
+        if (panTrip.current.dist < 10) return;
+        cam.current = { ...cam.current, x: cam.current.x - (sx - prev.x) / n / cam.current.z, y: cam.current.y - (sy - prev.y) / n / cam.current.z };
         keepOn();
         refresh();
         return;
@@ -3761,7 +3765,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                   fingers === "pan" ? "Fingers: pan only" : "Fingers: off",
                   undefined,
                   fingers === "pan"
-                    ? "Only the pen writes. Two fingers placed together move the board; a resting hand does nothing."
+                    ? "Only the pen writes. A finger moves the board; a resting hand does nothing."
                     : "Only the pen writes. Fingers do nothing on the board (the buttons still work).",
                 )}
                 className={`${PRESS} ${HIT} h-9 rounded-[10px] px-3 text-xs font-semibold ${QUIET}`}
@@ -3878,7 +3882,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           <p className="flex items-center gap-1.5 text-xs text-[#1B1E21]/30">
             <span>Pen draws</span>
             <span aria-hidden>·</span>
-            <span>{penMode ? (fingers === "pan" ? "two fingers move the board" : "fingers are off") : fingerDraws ? "fingers draw too" : "fingers move the board"}</span>
+            <span>{penMode ? (fingers === "pan" ? "a finger moves the board" : "fingers are off") : fingerDraws ? "fingers draw too" : "fingers move the board"}</span>
           </p>
         </div>
       )}
