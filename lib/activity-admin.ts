@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { DEMO } from "@/lib/demo";
 import { addDays, pkDate } from "@/lib/timetable";
 import type { Database } from "@/lib/data/seed";
-import type { Area, DayActivity, NoteActivity, StudentActivity } from "@/lib/activity";
+import { TRACKING_SINCE, type Area, type DayActivity, type NoteActivity, type StudentActivity } from "@/lib/activity";
 
 export type ActivityState = { data: Record<string, StudentActivity> | null; error: boolean; reload: () => void };
 
@@ -60,7 +60,8 @@ function demoActivity(db: Database, from: string, only?: string): Record<string,
     const quietFor = i % 5 === 3 ? 9 : 0;
     const days: Record<string, DayActivity> = {};
     const notes: Record<string, NoteActivity> = {};
-    for (let d = from; d <= today; d = addDays(d, 1)) {
+    // Nothing before tracking began, as with real data, so the preview tells the truth about the counts.
+    for (let d = from < TRACKING_SINCE ? TRACKING_SINCE : from; d <= today; d = addDays(d, 1)) {
       const back = Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${d}T12:00:00Z`)) / 864e5);
       if (back < quietFor || rnd() > keen) continue;
       const s: Partial<Record<Area, number>> = {
@@ -82,7 +83,9 @@ function demoActivity(db: Database, from: string, only?: string): Record<string,
       }
     }
     const last = Object.values(days).reduce((m, v) => Math.max(m, v.b ?? 0), 0);
-    out[st.id] = { days, notes, signIn: last ? new Date(last).toISOString() : null };
+    // A quiet student last signed in before they went quiet (sign-ins predate activity tracking).
+    const signIn = last || (quietFor ? Date.now() - quietFor * 864e5 : 0);
+    out[st.id] = { days, notes, signIn: signIn ? new Date(signIn).toISOString() : null };
   });
   return out;
 }

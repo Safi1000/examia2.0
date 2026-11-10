@@ -16,7 +16,7 @@ import { formatDuration, formatTimestamp } from "@/lib/time";
 import { cn } from "@/lib/cn";
 import { StudyCoach } from "@/components/student/StudyCoach";
 import { ShareMoment } from "@/components/student/ShareMoment";
-import { sameSubject } from "@/lib/performance";
+import { sameSubject, shownPercent } from "@/lib/performance";
 import { displayName } from "@/lib/display-name";
 import { worldScene } from "@/lib/groundwork";
 import type { Database } from "@/lib/data/seed";
@@ -62,12 +62,14 @@ export default function ResultsPage() {
 
   const grade = gradeSubmission(test, submission);
   // Questions that lost marks, in paper order, so a phone can jump straight to them.
+  // An answer still waiting for my marking hasn't lost anything yet.
   const lost = test.questions
     .map((q, i) => {
       const a = submission.answers.find((x) => x.questionId === q.id);
-      return { n: i + 1, lost: q.marks - (a?.marksAwarded ?? 0) };
+      return { n: i + 1, lost: awaitingMarks(a) ? 0 : q.marks - (a?.marksAwarded ?? 0) };
     })
     .filter((x) => x.lost > 0);
+  const waiting = test.questions.filter((q) => awaitingMarks(submission.answers.find((x) => x.questionId === q.id))).length;
   const best = personalBest(db, student.id, test, submission, grade.percent);
 
   return (
@@ -102,7 +104,12 @@ export default function ResultsPage() {
               {grade.awarded}
               <span className="text-2xl font-bold tracking-[-0.02em] text-ink-3">/{grade.total}</span>
             </p>
-            <p className="mt-2 text-[15px] text-ink-2 tabular-nums">{Math.round(grade.percent)}% overall</p>
+            <p className="mt-2 text-[15px] text-ink-2 tabular-nums">{shownPercent(grade.percent)}% overall</p>
+            {waiting > 0 && (
+              <p className="mt-1 text-sm text-ink-3">
+                {waiting === 1 ? "1 answer is" : `${waiting} answers are`} still waiting for my marking.
+              </p>
+            )}
             {best && (
               <p className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-brand">
                 <MilestoneBadge name="personal-best" size={28} />
@@ -152,10 +159,13 @@ export default function ResultsPage() {
             <Icon.Check className="h-4 w-4 text-ink-3" />
             Submitted {submission.submittedAt ? formatTimestamp(submission.submittedAt) : "not yet"}
           </span>
-          <span className="inline-flex items-center gap-1.5">
-            <Icon.Clock className="h-4 w-4 text-ink-3" />
-            {formatDuration(submission.durationSeconds ?? 0)}
-          </span>
+          {/* Unknown on older papers: say nothing rather than "0s". */}
+          {!!submission.durationSeconds && submission.durationSeconds > 0 && (
+            <span className="inline-flex items-center gap-1.5">
+              <Icon.Clock className="h-4 w-4 text-ink-3" />
+              {formatDuration(submission.durationSeconds)}
+            </span>
+          )}
         </div>
       </Card>
 
@@ -177,8 +187,17 @@ export default function ResultsPage() {
   );
 }
 
+/** Something was handed in for it, but I haven't put a mark on it yet. */
+function awaitingMarks(a: Answer | undefined): boolean {
+  if (!a || a.marksAwarded !== undefined) return false;
+  if (a.type === "mcq") return typeof a.selectedIndex === "number";
+  if (a.type === "text") return !!a.text?.trim();
+  return !!(a.photoUrls?.length || a.photoDataUrl);
+}
+
 function BreakdownCard({ index, question, answer }: { index: number; question: Question; answer?: Answer }) {
   const awarded = answer?.marksAwarded ?? 0;
+  const pending = awaitingMarks(answer);
   const full = awarded >= question.marks;
   const zero = awarded === 0;
   const [big, setBig] = useState<string | null>(null);
@@ -190,9 +209,15 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
           <span className="text-sm font-bold text-ink-3 tabular-nums">Q{index + 1}</span>
           {question.topic?.trim() && <Badge tone="neutral">{question.topic}</Badge>}
         </div>
-        <Badge tone={full ? "success" : zero ? "error" : "warning"} className="tabular-nums">
-          {awarded}/{question.marks} marks
-        </Badge>
+        {pending ? (
+          <Badge tone="neutral" className="tabular-nums">
+            Not marked yet · {question.marks} {question.marks === 1 ? "mark" : "marks"}
+          </Badge>
+        ) : (
+          <Badge tone={full ? "success" : zero ? "error" : "warning"} className="tabular-nums">
+            {awarded}/{question.marks} marks
+          </Badge>
+        )}
       </div>
       <p className="mt-3 whitespace-pre-wrap text-base font-semibold leading-relaxed text-ink">{question.prompt}</p>
       {question.attachments && question.attachments.length > 0 && (
@@ -206,9 +231,15 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
           // The question's own key is withheld from the student client; the
           // answer row carries it once the result is released, so a wrong pick
           // can still be shown next to the right one.
-          const correctIndex =
-            question.correctIndex >= 0 ? question.correctIndex : answer?.correctIndex ?? -1;
+          const key = question.correctIndex >= 0 ? question.correctIndex : answer?.correctIndex ?? -1;
+          const picked = typeof answer?.selectedIndex === "number" ? answer.selectedIndex : -1;
+          // No key on this phone: the marks still say whether the pick was right.
+          const pickedRight = picked >= 0 && question.marks > 0 && (answer?.marksAwarded ?? 0) >= question.marks;
+          const correctIndex = key >= 0 ? key : pickedRight ? picked : -1;
+          // Only call a pick wrong when that is actually known.
+          const pickedWrong = picked >= 0 && picked !== correctIndex && (key >= 0 || answer?.marksAwarded === 0);
           return (
+          <>
           <ul className="space-y-1.5">
             {question.options.map((opt, oi) => {
               const chosen = answer?.selectedIndex === oi;
@@ -220,14 +251,16 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
                     "flex items-center gap-2.5 rounded-lg border px-3.5 py-2.5 text-base",
                     correct
                       ? "border-success/35 bg-success-soft text-success"
-                      : chosen
+                      : chosen && pickedWrong
                         ? "border-error/35 bg-error-soft text-error"
-                        : "border-hairline bg-surface-2/40 text-ink-2",
+                        : chosen
+                          ? "border-border-strong bg-surface-2/70 text-ink"
+                          : "border-hairline bg-surface-2/40 text-ink-2",
                   )}
                 >
                   {correct ? (
                     <Icon.Check className="h-4 w-4 shrink-0" />
-                  ) : chosen ? (
+                  ) : chosen && pickedWrong ? (
                     <Icon.Close className="h-4 w-4 shrink-0" />
                   ) : (
                     <span className="h-4 w-4 shrink-0" />
@@ -241,6 +274,8 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
               );
             })}
           </ul>
+          {picked < 0 && <p className="mt-2 text-sm italic text-ink-3">(no answer picked)</p>}
+          </>
           );
         })()}
 
@@ -294,10 +329,10 @@ function personalBest(db: Database, studentId: string, test: { id: string; subje
     .filter((s) => s.status === "released" && s.testId !== test.id && when(s) < now)
     .map((s) => ({ s, t: testById(db, s.testId) }))
     .filter((x): x is { s: typeof x.s; t: NonNullable<typeof x.t> } => !!x.t && sameSubject(x.t.subject, test.subject))
-    .map((x) => ({ at: when(x.s), pct: Math.round(gradeSubmission(x.t, x.s).percent) }))
+    .map((x) => ({ at: when(x.s), pct: shownPercent(gradeSubmission(x.t, x.s).percent) }))
     .sort((a, b) => b.at - a.at);
   if (!earlier.length) return null;
-  const mine = Math.round(percent);
+  const mine = shownPercent(percent);
   if (mine > Math.max(...earlier.map((e) => e.pct))) {
     return { line: `Personal best in ${test.subject}`, big: "Personal best", sub: `${mine}% in ${test.subject}` };
   }

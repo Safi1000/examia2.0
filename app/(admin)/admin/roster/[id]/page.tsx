@@ -88,10 +88,12 @@ function StudentDetail() {
       if (!t) return [];
       return [{ label: (s.submittedAt ?? "").slice(5, 10), value: gradeSubmission(t, s).percent }];
     });
-    const avg = points.length ? Math.round((points.reduce((a, p) => a + p.value, 0) / points.length) * 10) / 10 : 0;
+    // No results is "none yet", never a 0% average.
+    const avg = points.length ? Math.round((points.reduce((a, p) => a + p.value, 0) / points.length) * 10) / 10 : null;
     const months = Array.from(new Set(released.map((s) => monthOf(s.submittedAt)).filter(Boolean))).sort();
     // This month's attendance, typed or from the daily register.
-    const thisMonth = `${new Date().toISOString().slice(0, 7)}-01`;
+    // The month in Pakistan: on the 1st, before 5 am, UTC is still in last month.
+    const thisMonth = `${new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date()).slice(0, 7)}-01`;
     const attendance = attendancePercent(db, student.id, thisMonth);
     return { subs, released, mastery: topicMastery(tests, released), points, avg, months, attendance };
   }, [db, student]);
@@ -128,7 +130,8 @@ function StudentDetail() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    // Not straight away: some browsers have not started reading the file yet.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
   }
 
   async function downloadReport() {
@@ -260,9 +263,9 @@ function StudentDetail() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Submissions" value={String(data.subs.length)} />
         <Stat label="Released" value={String(data.released.length)} />
-        <Stat label="Average" value={`${data.avg}%`} />
+        <Stat label="Average" value={data.avg === null ? "None yet" : `${data.avg}%`} />
         <Stat
-          label="Attendance"
+          label="Attendance this month"
           value={isInPersonStudent(db, student) ? "In person" : data.attendance != null ? `${data.attendance}%` : "None yet"}
         />
       </div>
@@ -305,6 +308,8 @@ function StudentDetail() {
                 <div className="flex shrink-0 items-center gap-2">
                   {s.status === "released" && grade ? (
                     <Badge tone="success" className="tabular-nums">{grade.percent}% · {grade.letter}</Badge>
+                  ) : s.status === "in_progress" ? (
+                    <Badge tone="neutral">In progress</Badge>
                   ) : (
                     <Badge tone="warning">Awaiting</Badge>
                   )}
@@ -343,11 +348,12 @@ function StudentDetail() {
       >
         <div className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-ink-2">Month</label>
+            <label htmlFor="report-month" className="mb-1.5 block text-sm font-semibold text-ink-2">Month</label>
             {data.months.length === 0 ? (
               <p className="text-sm text-ink-3">No released results yet.</p>
             ) : (
               <select
+                id="report-month"
                 value={reportMonth || data.months[data.months.length - 1]}
                 onChange={(e) => setReportMonth(e.target.value)}
                 className="h-11 w-full rounded-lg border border-border-strong bg-surface px-3 text-base text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand sm:text-sm"
@@ -359,10 +365,11 @@ function StudentDetail() {
             )}
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-ink-2">
+            <label htmlFor="report-note" className="mb-1.5 block text-sm font-semibold text-ink-2">
               Teacher note <span className="font-normal text-ink-3">(optional)</span>
             </label>
             <textarea
+              id="report-note"
               value={teacherNote}
               onChange={(e) => setTeacherNote(e.target.value)}
               placeholder="Add a personal note for the parent..."
@@ -391,6 +398,10 @@ function Stat({ label, value }: { label: string; value: string }) {
 function TheirPortal({ profile }: { profile: Profile }) {
   const nowMs = useNow();
   const focus = currentStats(profile.focus, nowMs);
+  // The student's own saved data could hold anything: only real, believable numbers are shown (70 h a week at most, as on Today).
+  const weekHours = Math.round(Math.min(70 * 60, Math.max(0, Number(focus.weekMinutes) || 0)) / 6) / 10;
+  const goal = Number(profile.weeklyGoal) > 0 ? Number(profile.weeklyGoal) : 0;
+  const streak = Math.max(0, Number(focus.streak) || 0);
   // Only real grades (the student's own data could hold anything).
   const targets = Object.entries(profile.targets ?? {}).filter(([, t]) => typeof t === "string" && ["A*", "A", "B", "C"].includes(t));
   return (
@@ -408,9 +419,9 @@ function TheirPortal({ profile }: { profile: Profile }) {
         </p>
       )}
       <p className="text-sm text-ink-2">
-        Groundwork: <span className="font-semibold text-ink">{Math.round(focus.weekMinutes / 6) / 10} h</span> this week
-        {profile.weeklyGoal ? ` of ${profile.weeklyGoal} h` : ""}
-        {focus.streak > 1 ? ` · ${focus.streak} day streak` : ""}
+        Groundwork: <span className="font-semibold text-ink">{weekHours} h</span> this week
+        {goal ? ` of ${goal} h` : ""}
+        {streak > 1 ? ` · ${streak} day streak` : ""}
       </p>
     </Card>
   );
@@ -471,7 +482,19 @@ function ResetPassword({ studentId, username, phone, parent }: { studentId: stri
       >
         {null}
       </Modal>
-      <LoginDetails open={step === "done"} onClose={() => setStep("idle")} kind={kind} username={username} password={pw} phone={phone} parent={parent} />
+      {/* Closing it forgets the password: it is not kept in the page once the message is dealt with. */}
+      <LoginDetails
+        open={step === "done"}
+        onClose={() => {
+          setStep("idle");
+          setPw("");
+        }}
+        kind={kind}
+        username={username}
+        password={pw}
+        phone={phone}
+        parent={parent}
+      />
     </>
   );
 }

@@ -35,9 +35,10 @@ export async function POST(req: NextRequest) {
   const { data: got, error: readErr } = await sb.auth.admin.getUserById(userId);
   if (readErr || !got.user) return NextResponse.json({ error: "no account" }, { status: 404 });
   // Keep everything else on the account (the admin role, anything set later) as it is.
-  const meta = { ...(got.user.app_metadata ?? {}) } as Record<string, unknown>;
-  if (Object.keys(levels).length) meta.levels = levels;
-  else delete meta.levels;
+  // Clearing is sent as an explicit null: the sign-in service merges what it is
+  // sent into what it has, so a key that is simply left out stays as it was
+  // (a removed AS and A2 split used to come back on the next visit).
+  const meta = { ...(got.user.app_metadata ?? {}), levels: Object.keys(levels).length ? levels : null } as Record<string, unknown>;
   const { error } = await sb.auth.admin.updateUserById(userId, { app_metadata: meta });
   if (error) return NextResponse.json({ error: "could not save" }, { status: 500 });
   return NextResponse.json({ levels });

@@ -7,21 +7,25 @@ import { Label } from "@/components/ui/Input";
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
+  /** Classes for the outer wrapper. When given, it replaces the default full width, so a page can size the field. */
+  wrapperClassName?: string;
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { label, error, className, id, children, ...rest },
+  { label, error, className, wrapperClassName, id, children, ...rest },
   ref,
 ) {
   const autoId = useId();
   const fieldId = id ?? autoId;
   return (
-    <div className="w-full">
+    <div className={wrapperClassName ?? "w-full"}>
       {label && <Label htmlFor={fieldId}>{label}</Label>}
       <div className="relative">
         <select
           ref={ref}
           id={fieldId}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${fieldId}-err` : undefined}
           className={cn(
             "h-12 w-full appearance-none rounded-md border bg-surface pl-3.5 pr-10 text-ink",
             "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
@@ -44,7 +48,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
           <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
-      {error && <p className="mt-1.5 text-sm font-medium text-error">{error}</p>}
+      {error && <p id={`${fieldId}-err`} className="mt-1.5 text-sm font-medium text-error">{error}</p>}
     </div>
   );
 });

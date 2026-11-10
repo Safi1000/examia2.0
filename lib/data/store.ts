@@ -423,6 +423,12 @@ class Store {
   private pendingWrites = 0;
   private writeCount = 0;
   private staleSkips = 0;
+  /**
+   * Goes up on every sign-out. Anything still loading for the person who just
+   * left checks it before touching the cache, so on a shared phone their rows
+   * can never land in the next person's portal (or its saved copy).
+   */
+  private epoch = 0;
 
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -475,12 +481,21 @@ class Store {
     this.writeCount++;
     Promise.resolve(p)
       .then(({ error }) => {
-        if (error) this.report(`${label}: ${error.message}`);
+        if (error) this.failed(`${label}: ${error.message}`);
       })
-      .catch((e) => this.report(`${label}: ${String(e)}`))
+      .catch((e) => this.failed(`${label}: ${String(e)}`))
       .finally(() => {
         this.pendingWrites--;
       });
+  }
+  /**
+   * A save didn't reach the database. Say so, and on Hamza's side re-read
+   * shortly after, so the screen goes back to what is really saved instead of
+   * showing a mark or a tick that would vanish on the next visit.
+   */
+  private failed(msg: string) {
+    this.report(msg);
+    if (this.audience === "admin" && this.ready) this.softRefresh(3000);
   }
 
   // ---- Lifecycle -------------------------------------------------------
@@ -504,10 +519,12 @@ class Store {
    */
   async refresh(): Promise<void> {
     if (this.refreshing) return this.refreshing;
-    this.refreshing = this.hydrate(false).finally(() => {
-      this.refreshing = null;
+    const run: Promise<void> = this.hydrate(false).finally(() => {
+      // Only clear our own: a sign-out in between may have started a new one.
+      if (this.refreshing === run) this.refreshing = null;
     });
-    return this.refreshing;
+    this.refreshing = run;
+    return run;
   }
   private refreshing: Promise<void> | null = null;
 
@@ -541,10 +558,12 @@ class Store {
   async refreshTest(testId: string): Promise<void> {
     if (DEMO) return;
     const sb = supabase();
+    const epoch = this.epoch;
     const [tst, keys] = await Promise.all([
       sb.from("tests").select("*, questions(*)").eq("id", testId).maybeSingle(),
       sb.from("question_keys").select("*"), // admin-only; empty for students
     ]);
+    if (epoch !== this.epoch) return; // signed out meanwhile
     if (tst.error) {
       this.report(`refreshTest: ${tst.error.message}`);
       return;
@@ -592,6 +611,7 @@ class Store {
       return;
     }
     const sb = supabase();
+    const epoch = this.epoch;
     const writesBefore = this.writeCount;
     // For a student these come back empty anyway (RLS) or are never shown on a
     // student screen (reports, reminders): don't spend a round trip or data.
@@ -643,6 +663,8 @@ class Store {
       // Feed is capped: the bell only ever shows recent history.
       sb.from("activities").select("*").order("created_at", { ascending: false }).limit(100),
     ]);
+    // Signed out while this was loading: these rows belong to the person who left.
+    if (epoch !== this.epoch) return;
 
     // Every slice is checked — not just the first six. A query that fails is
     // reported and keeps its previously cached value (see `keep` below), so a
@@ -731,6 +753,7 @@ class Store {
     const late = await lateReady;
     await levelsReady;
     await this.readLevels((stu.data as Row[]) ?? []);
+    if (epoch !== this.epoch) return;
     const studentSubjectMap = new Map<string, string[]>();
     for (const r of (sCls.data as Row[]) ?? []) {
       const sid = r.student_id as string;
@@ -780,8 +803,18 @@ class Store {
     this.ready = false;
     this.restored = false;
     this.owner = null;
+    this.epoch++;
     if (this.saveTimer) clearTimeout(this.saveTimer);
     this.saveTimer = null;
+    // Nothing queued for the person who left may run for the next one.
+    if (this.softTimer) clearTimeout(this.softTimer);
+    this.softTimer = null;
+    if (this.notesTimer) clearTimeout(this.notesTimer);
+    this.notesTimer = null;
+    this.refreshing = null;
+    this.staleSkips = 0;
+    this.levelMap = new Map();
+    this.levelsRead = false;
     // A shared phone must not keep the last student's portal.
     if (!DEMO) void clearSnapshot();
     // Signing out must not leave a live socket streaming the previous user's
@@ -1188,12 +1221,13 @@ class Store {
   private levelsRead = false;
   private async readLevels(studentRows: Row[]): Promise<void> {
     if (DEMO) return;
+    const epoch = this.epoch;
     try {
       const sb = supabase();
       // The session's copy is enough (no extra request); a change reaches a student within the hour.
       const { data: sess } = await sb.auth.getSession();
       const user = sess.session?.user;
-      if (!user) return;
+      if (!user || epoch !== this.epoch) return;
       const meta = user.app_metadata as { role?: string; levels?: unknown } | undefined;
       if (meta?.role === "admin") {
         // Hamza: everyone's, once per visit (and kept current by his own saves).
@@ -1201,6 +1235,7 @@ class Store {
         const res = await fetch("/api/admin/levels", { headers: { Authorization: `Bearer ${sess.session?.access_token ?? ""}` } });
         if (!res.ok) return;
         const all = (await res.json()) as Record<string, unknown>;
+        if (epoch !== this.epoch) return;
         this.levelMap = new Map(Object.entries(all).map(([k, v]) => [k, cleanLevels(v)]));
         this.levelsRead = true;
       } else {
@@ -1633,16 +1668,46 @@ class Store {
         const { error: kErr } = await sb.from("question_keys").delete().eq("question_id", questionId);
         if (kErr) this.report(`updateQuestion/key-clear: ${kErr.message}`);
       }
+      // The database has just re-marked this question's MCQ answers.
+      void this.refreshTestPapers(testId);
     })();
+  }
+  /**
+   * Re-read the handed-in papers of one test. The database re-marks MCQ
+   * answers when a question's key, marks or type change (and drops answers of
+   * a deleted question), but the cached answers keep their old marks, so the
+   * totals on screen would stay wrong until the next full load.
+   */
+  private async refreshTestPapers(testId: string): Promise<void> {
+    if (DEMO) return;
+    const epoch = this.epoch;
+    const writesBefore = this.writeCount;
+    const res = await allRows((a, b) =>
+      supabase().from("submissions").select("*, answers(*)").eq("test_id", testId).order("id").range(a, b),
+    );
+    if (epoch !== this.epoch) return; // signed out meanwhile
+    if (res.error) return this.softRefresh();
+    // A mark was saved meanwhile: these rows may be older than it. The full
+    // re-read has its own guard for that.
+    if (this.writeCount !== writesBefore || this.pendingWrites > 0) return this.softRefresh(8000);
+    const fresh = ((res.data as Row[]) ?? []).map(mapSubmission);
+    this.commit((d) => {
+      d.submissions = [...d.submissions.filter((s) => s.testId !== testId), ...fresh];
+    });
   }
   deleteQuestion(testId: string, questionId: string) {
     this.commit((d) => {
       const t = d.tests.find((x) => x.id === testId);
       if (t) t.questions = t.questions.filter((q) => q.id !== questionId).map((q, i) => ({ ...q, order: i }));
     });
-    // question_keys row cascades on delete.
-    this.run(supabase().from("questions").delete().eq("id", questionId), "deleteQuestion");
+    // question_keys row cascades on delete. Resolved once: a query is sent again on every `.then`.
+    const del = Promise.resolve(supabase().from("questions").delete().eq("id", questionId));
+    this.run(del, "deleteQuestion");
     this.persistReorder(testId);
+    // Totals change with the question gone; re-read once the order saves have had a moment.
+    void del.then(({ error }) => {
+      if (!error) setTimeout(() => void this.refreshTestPapers(testId), 1500);
+    }, () => {});
   }
   reorderQuestions(testId: string, orderedIds: string[]) {
     this.commit((d) => {
@@ -2026,19 +2091,43 @@ class Store {
     const releasedAt = new Date().toISOString();
     const sub = this.state.submissions.find((s) => s.id === submissionId);
     if (this.stillOpen(sub?.testId)) return false;
+    // Already out (a second tap): the student was told once; don't tell them again.
+    if (sub?.status === "released") return true;
     this.commit((d) => {
       const s = d.submissions.find((x) => x.id === submissionId);
       if (s) { s.status = "released"; s.releasedAt = releasedAt; }
     });
+    const tell = () => {
+      if (sub) {
+        // Addressed to the student: their result is now visible.
+        this.announceResult(sub.studentId, sub.testId, submissionId);
+      }
+      this.queueResultPush(submissionId);
+    };
+    if (DEMO) {
+      this.run(
+        supabase().from("submissions").update({ status: "released", released_at: releasedAt }).eq("id", submissionId),
+        "releaseSubmission",
+      );
+      tell();
+      return true;
+    }
+    // Only a paper this call actually released tells the student: another tab
+    // (or the auto-release timer) may have released it a moment ago.
     this.run(
-      supabase().from("submissions").update({ status: "released", released_at: releasedAt }).eq("id", submissionId),
+      Promise.resolve(
+        supabase()
+          .from("submissions")
+          .update({ status: "released", released_at: releasedAt })
+          .eq("id", submissionId)
+          .neq("status", "released")
+          .select("id"),
+      ).then((r) => {
+        if (!r.error && ((r.data as Row[] | null) ?? []).length) tell();
+        return r;
+      }),
       "releaseSubmission",
     );
-    if (sub) {
-      // Addressed to the student: their result is now visible.
-      this.announceResult(sub.studentId, sub.testId, submissionId);
-    }
-    this.queueResultPush(submissionId);
     return true;
   }
   // Phone notification for released results. Batched for a moment so
@@ -2162,6 +2251,8 @@ class Store {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ id, cohortId: input.cohortId, text: input.body }),
       });
+      // A refused or failed send is "couldn't go out", not "no phones to notify".
+      if (!res.ok) return null;
       return ((await res.json()) as { sent?: number }).sent ?? 0;
     } catch {
       return null;
@@ -2522,9 +2613,23 @@ class Store {
       d.notes = d.notes.filter((n) => n.id !== id);
       d.noteAssignments = d.noteAssignments.filter((na) => na.noteId !== id);
     });
-    this.run(supabase().from("notes").delete().eq("id", id), "deleteNote");
-    // No noteId: the FK would cascade this entry away with the note itself.
-    this.logActivity({ type: "notes_deleted", title: `Notes deleted: "${title ?? "Untitled"}"` });
+    if (DEMO) {
+      this.logActivity({ type: "notes_deleted", title: `Notes deleted: "${title ?? "Untitled"}"` });
+      return;
+    }
+    // A delete the database refuses (sign-in expired, a rule) comes back with
+    // no error and no rows: that is a failure too, so it is said, and the
+    // screen re-reads instead of showing a note gone that is still there.
+    this.run(
+      Promise.resolve(supabase().from("notes").delete().eq("id", id).select("id")).then((r) => {
+        if (r.error) return r;
+        if (!((r.data as Row[] | null) ?? []).length) return { error: { message: "nothing was deleted" } };
+        // No noteId: the FK would cascade this entry away with the note itself.
+        this.logActivity({ type: "notes_deleted", title: `Notes deleted: "${title ?? "Untitled"}"` });
+        return r;
+      }),
+      "deleteNote",
+    );
   }
   /** Rename a note, or hide/show it for students (a marker on its file type). Throws on failure. */
   async updateNote(id: string, patch: { title?: string; fileType?: string }): Promise<void> {
@@ -2723,10 +2828,12 @@ class Store {
     this.notesTimer = setTimeout(async () => {
       this.notesTimer = null;
       const sb = supabase();
+      const epoch = this.epoch;
       const [nts, na] = await Promise.all([
         sb.from("notes").select("*").order("created_at", { ascending: false }),
         sb.from("note_assignments").select("*"),
       ]);
+      if (epoch !== this.epoch) return; // signed out meanwhile
       if (nts.error || na.error) return this.softRefresh();
       this.commit((d) => {
         d.notes = ((nts.data as Row[]) ?? []).map(mapNote);
@@ -2738,8 +2845,9 @@ class Store {
   /** Re-read one paper (with its answers) and swap it into the cache. */
   async refreshSubmission(id: string): Promise<void> {
     if (DEMO) return;
+    const epoch = this.epoch;
     const { data, error } = await supabase().from("submissions").select("*, answers(*)").eq("id", id).maybeSingle();
-    if (error || !data) return;
+    if (error || !data || epoch !== this.epoch) return;
     const fresh = mapSubmission(data as Row);
     // A student learns the right MCQ options only from their released answers.
     const correct = new Map<string, number>();

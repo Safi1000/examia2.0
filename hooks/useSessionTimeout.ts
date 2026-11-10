@@ -6,7 +6,8 @@ const ACTIVITY_EVENTS = ["mousedown", "keydown", "scroll", "touchstart", "pointe
 
 /**
  * Fires onTimeout after `timeoutMs` of no user activity. Used for the admin's
- * 30-minute idle session timeout. Any tracked interaction resets the clock.
+ * idle session timeout (3 hours, set in the admin layout). Any tracked
+ * interaction resets the clock.
  */
 export function useSessionTimeout(
   onTimeout: () => void,

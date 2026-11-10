@@ -58,6 +58,44 @@ export function recordFocus(f: FocusStats | undefined, minutes: number, subject:
   };
 }
 
+/**
+ * Add focus that was done earlier (a session cut off by a closed app, counted
+ * on a later visit) to the day it was done, not the day it is counted. The
+ * same day goes through recordFocus. An earlier day gets its minutes, counts
+ * towards this week only if it is in it, and can only lengthen the streak.
+ */
+export function recordFocusOn(f: FocusStats | undefined, minutes: number, subject: string, whenMs: number, nowMs: number): FocusStats {
+  const today = pkDate(nowMs);
+  const day = pkDate(whenMs);
+  if (!(day < today)) return recordFocus(f, minutes, subject, nowMs);
+  const base: FocusStats = f ?? { streak: 0, lastDay: null, weekOf: null, weekMinutes: 0, bySubject: {} };
+  const cutoff = addDays(today, -120);
+  const days = Object.fromEntries(Object.entries({ ...base.days, [day]: (base.days?.[day] ?? 0) + minutes }).filter(([d]) => d >= cutoff));
+  // This week's numbers only move when that day is in this week.
+  const cur = currentStats(f, nowMs);
+  const inWeek = mondayOf(day) === cur.weekOf;
+  // The streak: that day becomes the last day studied, or joins the run that ends on a later one.
+  let streak = base.streak;
+  let lastDay = base.lastDay;
+  if (!lastDay || lastDay < day) {
+    streak = lastDay === addDays(day, -1) ? base.streak + 1 : 1;
+    lastDay = day;
+  } else {
+    let run = 0;
+    for (let d = lastDay; (days[d] ?? 0) > 0; d = addDays(d, -1)) run++;
+    streak = Math.max(1, base.streak, run);
+  }
+  return {
+    streak,
+    lastDay,
+    weekOf: inWeek ? cur.weekOf : base.weekOf,
+    weekMinutes: inWeek ? cur.weekMinutes + minutes : base.weekMinutes,
+    bySubject: inWeek ? { ...cur.bySubject, [subject]: (cur.bySubject[subject] ?? 0) + minutes } : base.bySubject,
+    totalMinutes: (base.totalMinutes ?? base.weekMinutes ?? 0) + minutes,
+    days,
+  };
+}
+
 /** Levels by all-time study hours. Each unlocks a richer avatar frame (components/student/AvatarFrame.tsx). */
 export const LEVELS = [
   { name: "Starter", hours: 0, frame: null },

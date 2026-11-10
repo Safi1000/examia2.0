@@ -16,7 +16,7 @@ import {
   type Schedule,
 } from "@/lib/timetable";
 import { syncCalendar, syncCalendarDay } from "@/lib/class-automation";
-import { loadSchedule, saveSchedule } from "@/lib/schedule-server";
+import { loadSchedule, loadScheduleForSave, saveSchedule } from "@/lib/schedule-server";
 import { studentsIn } from "@/lib/automation";
 
 /**
@@ -40,10 +40,18 @@ export async function POST(req: NextRequest) {
     | ({ op: "weekly" } & Pick<Schedule, "termStarts" | "days" | "slots">)
     | ({ op: "day"; notify?: boolean } & DayChange)
     | null;
-  if (!body) return NextResponse.json({ error: "Nothing to save." }, { status: 400 });
+  if (!body || typeof body !== "object" || (body.op !== "weekly" && body.op !== "day")) return NextResponse.json({ error: "Nothing to save." }, { status: 400 });
   const sb = serviceClient();
   // Always start from the latest saved timetable, never the browser's copy.
-  const cur = await loadSchedule(sb, true);
+  // If it can't be read right now, stop: carrying on would save this change
+  // on top of the built-in default and wipe the real timetable.
+  let cur: Schedule;
+  try {
+    cur = await loadScheduleForSave(sb);
+  } catch (e) {
+    console.error("[schedule] load for save", e);
+    return NextResponse.json({ error: "Couldn't load the timetable just now. Nothing was changed. Try again." }, { status: 503 });
+  }
   const today = pkDate(Date.now());
   const next = cleanSchedule(
     body.op === "weekly"
@@ -51,7 +59,12 @@ export async function POST(req: NextRequest) {
       : applyDayChange(cur, body, today),
   );
   if (!next) return NextResponse.json({ error: "That timetable has a mistake in it." }, { status: 400 });
-  await saveSchedule(sb, adminId, next);
+  try {
+    await saveSchedule(sb, adminId, next);
+  } catch (e) {
+    console.error("[schedule] save", e);
+    return NextResponse.json({ error: "Couldn't save the timetable. Try again." }, { status: 502 });
+  }
   if (body.op === "day") {
     await syncCalendar(sb, next, body).catch((e) => console.error("[schedule] calendar", e));
     if (body.notify && body.date >= today) await tellStudents(sb, body).catch((e) => console.error("[schedule] notify", e));
@@ -84,6 +97,20 @@ async function tellStudents(sb: ReturnType<typeof serviceClient>, c: DayChange) 
     day,
     clock(c.change?.start ?? ""),
   );
+  // A double tap (or a retry) sends the same change twice: if the newest class
+  // note one of these students got in the last two minutes is this very note,
+  // they have it already. Only the newest counts, so "cancelled, back,
+  // cancelled" still tells them each time.
+  const { data: last } = await sb
+    .from("activities")
+    .select("title,description")
+    .eq("type", "announcement_posted")
+    .eq("student_id", [...who].sort()[0])
+    .eq("link", "/classes")
+    .gte("created_at", new Date(Date.now() - 2 * 60_000).toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (last?.[0] && last[0].title === title && last[0].description === body) return;
   await sb.from("activities").insert(
     who.map((student_id) => ({ type: "announcement_posted", title, description: body, student_id, link: "/classes", audience: "student" })),
   );

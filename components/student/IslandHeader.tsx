@@ -58,6 +58,8 @@ export function IslandHeader({
   const handle = useRef<IslandHandle | null>(null);
   const shown = useRef<{ studentId: string; pieces: number } | null>(null);
   const [live, setLive] = useState(false);
+  /** Bumped when the phone gives the drawing back after taking it away: the island starts again on a fresh canvas. */
+  const [restarts, setRestarts] = useState(0);
   const latest = useRef({ studentId, pieces, timeOfDay, covered });
   useEffect(() => {
     latest.current = { studentId, pieces, timeOfDay, covered };
@@ -79,6 +81,15 @@ export function IslandHeader({
       const r = el.getBoundingClientRect();
       if (h && r.width > 0 && r.height > 0) h.resize(r.width, r.height);
     };
+    // Back from another app (Meet, WhatsApp), a phone can take the 3D drawing away and the canvas goes black.
+    // The still picture shows meanwhile; when the drawing comes back the island starts again.
+    const lost = (e: Event) => {
+      e.preventDefault();
+      setLive(false);
+    };
+    const restored = () => setRestarts((n) => n + 1);
+    el.addEventListener("webglcontextlost", lost);
+    el.addEventListener("webglcontextrestored", restored);
     loadIsland()
       .then((mount) => {
         if (gone) return;
@@ -112,6 +123,8 @@ export function IslandHeader({
       .catch((e) => console.warn("[island] could not load", e));
     return () => {
       gone = true;
+      el.removeEventListener("webglcontextlost", lost);
+      el.removeEventListener("webglcontextrestored", restored);
       cancelAnimationFrame(raf);
       ro?.disconnect();
       handle.current = null;
@@ -120,7 +133,7 @@ export function IslandHeader({
       } catch {}
       el.remove();
     };
-  }, [quality, reduceMotion]);
+  }, [quality, reduceMotion, restarts]);
 
   useEffect(() => {
     handle.current?.hold(covered);

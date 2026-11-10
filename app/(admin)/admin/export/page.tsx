@@ -13,6 +13,8 @@ import {
   exportFilename,
   marksSheet,
   toCsv,
+  todayStamp,
+  CSV_BOM,
   TABULAR,
   ENTITY_LABEL,
   type EntityKey,
@@ -29,13 +31,16 @@ function download(content: string, filename: string, mime: string) {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
+  // Not at once: Safari and Samsung Internet drop a big download if its link dies in the same tick.
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 export default function ExportPage() {
   const db = useDatabase();
   const { toast } = useToast();
   const [selected, setSelected] = useState<Set<EntityKey>>(new Set(ALL));
+  // Read once: the file name shown under the button is today's, in Pakistan time.
+  const [today] = useState(() => todayStamp(Date.now()));
 
   function toggle(key: EntityKey) {
     setSelected((prev) => {
@@ -53,30 +58,30 @@ export default function ExportPage() {
       organisation: COMPANY_SLUG,
       data: buildExport(db, keys),
     };
-    const name = exportFilename(COMPANY_SLUG, new Date().toISOString(), "json");
+    const name = exportFilename(COMPANY_SLUG, todayStamp(Date.now()), "json");
     download(JSON.stringify(payload, null, 2), name, "application/json");
     toast(`Exported ${keys.length} ${keys.length === 1 ? "entity" : "entities"} as JSON.`, "success");
   }
 
   function downloadCsv(key: EntityKey) {
     const csv = toCsv(entityRows(db, key));
-    if (!csv) return;
-    const name = `${COMPANY_SLUG}-${key}-${new Date().toISOString().slice(0, 10)}.csv`;
-    download(csv, name, "text/csv");
+    if (!csv) return toast(`No ${ENTITY_LABEL[key].toLowerCase()} to export yet.`, "info");
+    const name = `${COMPANY_SLUG}-${key}-${todayStamp(Date.now())}.csv`;
+    // The byte-order mark makes Excel read names in any script correctly.
+    download(CSV_BOM + csv, name, "text/csv;charset=utf-8");
     toast(`Exported ${ENTITY_LABEL[key]} as CSV.`, "success");
   }
 
   function downloadMarks() {
     const csv = toCsv(marksSheet(db));
     if (!csv) return toast("No students to export yet.", "info");
-    // The byte-order mark makes Excel read names in any script correctly.
-    download("\uFEFF" + csv, `${COMPANY_SLUG}-marks-${new Date().toISOString().slice(0, 10)}.csv`, "text/csv");
+    download(CSV_BOM + csv, `${COMPANY_SLUG}-marks-${todayStamp(Date.now())}.csv`, "text/csv;charset=utf-8");
     toast("Marks spreadsheet downloaded.", "success");
   }
 
   function downloadBackup() {
     const payload = { exportedAt: new Date().toISOString(), organisation: COMPANY_SLUG, data: db };
-    download(JSON.stringify(payload), `${COMPANY_SLUG}-full-backup-${new Date().toISOString().slice(0, 10)}.json`, "application/json");
+    download(JSON.stringify(payload), `${COMPANY_SLUG}-full-backup-${todayStamp(Date.now())}.json`, "application/json");
     toast("Full backup downloaded. Keep it somewhere safe.", "success");
   }
 
@@ -101,15 +106,16 @@ export default function ExportPage() {
         <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Choose entities</h2>
         <ul className="mt-3 divide-y divide-border">
           {ALL.map((key) => (
-            <li key={key} className="flex items-center justify-between gap-3 py-3">
-              <Checkbox checked={selected.has(key)} onChange={() => toggle(key)} label={
+            // Same height with or without a CSV button, and the whole label is a 44px tap target.
+            <li key={key} className="flex min-h-16 items-center justify-between gap-3 py-2.5">
+              <Checkbox className="min-h-11" checked={selected.has(key)} onChange={() => toggle(key)} label={
                 <span className="flex items-center gap-2">
                   <span className="font-semibold text-ink">{ENTITY_LABEL[key]}</span>
                   <Badge tone="neutral">{entityCount(db, key)}</Badge>
                 </span>
               } />
               {TABULAR.includes(key) && (
-                <button onClick={() => downloadCsv(key)} className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink">
+                <button onClick={() => downloadCsv(key)} aria-label={`Download ${ENTITY_LABEL[key]} as CSV`} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink">
                   <Icon.Download className="h-3.5 w-3.5" /> CSV
                 </button>
               )}
@@ -121,8 +127,8 @@ export default function ExportPage() {
           <Button onClick={downloadJson} disabled={selected.size === 0}>
             <Icon.Download className="h-4 w-4" /> Download JSON
           </Button>
-          <p className="font-mono text-xs text-ink-3">
-            {exportFilename(COMPANY_SLUG, new Date().toISOString(), "json")}
+          <p className="min-w-0 break-all font-mono text-xs text-ink-3">
+            {exportFilename(COMPANY_SLUG, today, "json")}
           </p>
         </div>
         <p className="mt-3 text-xs text-ink-3">

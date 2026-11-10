@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Splash } from "@/components/Splash";
 import { useParams, useRouter } from "next/navigation";
-import type { Answer, Student, Test } from "@/types";
+import type { Answer, Question, Student, Test } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { useAuth } from "@/lib/auth-context";
 import { useDatabase, useStore } from "@/lib/data/store";
@@ -13,7 +13,7 @@ import { useNow } from "@/hooks/useNow";
 import { useDraftAutosave, loadDraft, clearDraft } from "@/hooks/useDraftAutosave";
 import { useToast } from "@/components/toast";
 import { CountdownTimer } from "@/components/student/CountdownTimer";
-import { QuestionView } from "@/components/student/QuestionView";
+import { QuestionView, type AnswerChange } from "@/components/student/QuestionView";
 import { useUploadsInProgress } from "@/lib/upload-tracker";
 import { Button, Modal, Pill, Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
@@ -28,6 +28,8 @@ function isAnswered(a: Answer): boolean {
   if (a.type === "text") return (a.text ?? "").trim().length > 0;
   return !!a.photoDataUrl;
 }
+
+const blankAnswer = (q: Question): Answer => ({ questionId: q.id, type: q.type });
 
 /**
  * Resume point for an attempt: a saved draft, or a fresh start. `at` is when
@@ -267,14 +269,20 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   // array length: if a teacher edited the paper mid-attempt, a draft answer for
   // a removed/retyped question must be dropped rather than silently applied to
   // whatever question now sits at that position.
-  const [answers, setAnswers] = useState<Answer[]>(() => {
-    if (!test) return [];
-    const draft = new Map((boot.answers ?? []).map((a) => [a.questionId, a]));
-    return test.questions.map((q) => {
-      const saved = draft.get(q.id);
-      return saved && saved.type === q.type ? saved : ({ questionId: q.id, type: q.type } as Answer);
+  const [saved, setAnswers] = useState<Answer[]>(() => boot.answers ?? []);
+  // The same check keeps running while they sit it: the answer sheet is always
+  // one answer per question on the paper as it is now, in paper order. A
+  // question removed mid-test drops out (handing in an answer to a question
+  // that no longer exists fails on the server, every time), and a new one
+  // gets a blank instead of breaking the page.
+  const questions = test?.questions;
+  const answers = useMemo(() => {
+    const byId = new Map(saved.map((a) => [a.questionId, a]));
+    return (questions ?? []).map((q) => {
+      const mine = byId.get(q.id);
+      return mine && mine.type === q.type ? mine : blankAnswer(q);
     });
-  });
+  }, [questions, saved]);
   const [index, setIndex] = useState(boot.index);
   // A new question starts at its top (not halfway down, where the last one
   // was left), and its number stays in view in the question map.
@@ -340,9 +348,17 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   const [pensDown, setPensDown] = useState(false);
   const endMs = uploading ? uploadEndMs : writeEndMs;
 
+  // The timer, and the hand-in it does at zero, only run for a real sitting:
+  // the test was open while this page was up, or answers saved on this phone
+  // are still waiting to go. Opening the link of a test that is over or
+  // already handed in (an old notification) must never hand in a blank paper.
+  const [wasOpen, setWasOpen] = useState(window === "open");
+  if (window === "open" && !wasOpen) setWasOpen(true);
+  const armed = !existing && (wasOpen || !!boot.answers);
+
   const doSubmit = useCallback(
     async (auto: boolean) => {
-      if (submittedRef.current || !test || !student) return;
+      if (submittedRef.current || !test || !student || existing) return;
       submittedRef.current = true;
       setSubmitting(true);
       setSubmitError(false);
@@ -372,7 +388,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
       clearDraft(student.id, test.id);
       router.replace(`/test/${test.id}/submitted`);
     },
-    [test, student, answers, store, router, boot.startedAt],
+    [test, student, existing, answers, store, router, boot.startedAt],
   );
 
   // Writing time up: slide into the upload window if there is one, otherwise
@@ -402,7 +418,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
     return () => clearTimeout(t);
   }, [finishingAt, photosBusy, doSubmit]);
 
-  const { remaining, state } = useCountdown(endMs, onExpire);
+  const { remaining, state } = useCountdown(armed ? endMs : null, onExpire);
 
   // Awake screen, leave warning, online status.
   const sitting = !!test && !!student && !existing && window === "open";
@@ -440,13 +456,13 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
 
   // Final-five and final-minute warnings (announced once each).
   useEffect(() => {
-    // Only while they're actually sitting it (not on a "test unavailable" screen).
-    if (state !== prevState.current && test && visible && !existing) {
+    // Only while they're actually sitting it (not on a "test closed" or "unavailable" screen).
+    if (state !== prevState.current && test && visible && armed) {
       if (state === "warning") toast(uploading ? "5 minutes left to upload." : "5 minutes left. Wrap it up.", "info");
       if (state === "critical") toast("Last 60 seconds.", "error");
       prevState.current = state;
     }
-  }, [state, toast, uploading, test, visible, existing]);
+  }, [state, toast, uploading, test, visible, armed]);
 
   // Already submitted, or not open → bounce out.
   useEffect(() => {
@@ -457,14 +473,22 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   if (!student || !test || !visible) {
     return <RunnerNotice title="Test unavailable" message="This test isn't open to you. It may have been moved or removed. Check Tests for what's open." />;
   }
-  if (existing) return <RunnerNotice title="Already submitted" message="You've already done this one." />;
+  // Just handed in here: hold "Handing in…" until the Done screen opens, never
+  // a flash of "Already submitted".
+  if (existing) {
+    return submitting
+      ? <RunnerNotice icon="warn" title="Handing in…" message="Keep this page open until you see Done." />
+      : <RunnerNotice title="Already submitted" message="You've already done this one." />;
+  }
   if (window === "future") return <RunnerNotice title="Not open yet" message={`It opens ${formatWhen(test.opensAt)}. Come back then.`} />;
   // Never while photos are still being handed in after time ran out.
   if (window === "closed" && finishingAt == null && photosBusy === 0) {
     // Answers saved on this phone that never reached the server (a hand-in
     // that failed on a weak signal at the deadline, then a refresh): offer to
     // send them, rather than calling it missed.
-    if (submitting || submitError || boot.answers) {
+    // (`wasOpen`: they were sitting it when it closed, and the hand-in at the
+    // deadline is about to start, so never flash "Test closed" at them.)
+    if (submitting || submitError || boot.answers || wasOpen) {
       return (
         <RunnerNotice
           icon="warn"
@@ -500,18 +524,19 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   const isLast = at === test.questions.length - 1;
   const uploadMins = Math.max(1, Math.ceil(((uploadEndMs ?? nowMs) - nowMs) / 60_000));
 
-  function update(next: Answer) {
-    setAnswers((prev) => prev.map((a, i) => (i === at ? next : a)));
-  }
-
-  function updateAt(at: number, next: Answer) {
-    setAnswers((prev) => prev.map((a, i) => (i === at ? next : a)));
+  // By question, never by position: the paper can change under a sitting.
+  function change(question: Question, next: AnswerChange) {
+    setAnswers((prev) => {
+      const current = prev.find((a) => a.questionId === question.id && a.type === question.type) ?? blankAnswer(question);
+      const value = typeof next === "function" ? next(current) : next;
+      return [...prev.filter((a) => a.questionId !== question.id), value];
+    });
   }
 
   return (
     <div className="flex min-h-dvh flex-col">
       {/* Focus-mode header with the live countdown */}
-      <header className="sticky top-0 z-30 border-b border-hairline bg-paper/90 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-hairline bg-paper/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-2">
             <div className="min-w-0">
@@ -593,7 +618,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
                   key={qq.id}
                   question={qq}
                   answer={answers[i]}
-                  onChange={(next) => updateAt(i, next)}
+                  onChange={(next) => change(qq, next)}
                   paperHidden
                 />
               ) : null,
@@ -602,13 +627,13 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
         ) : (
           q && (
             <div key={q.id} className="animate-fade-up">
-              <QuestionView question={q} answer={answer} onChange={update} />
+              <QuestionView question={q} answer={answer} onChange={(next) => change(q, next)} />
             </div>
           )
         )}
       </div>
 
-      <footer className="sticky bottom-0 border-t border-hairline bg-paper/90 backdrop-blur-md">
+      <footer className="sticky bottom-0 border-t border-hairline bg-paper/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
           {uploading ? (
             <Button className="w-full" disabled={photosBusy > 0} onClick={() => setConfirmOpen(true)}>
@@ -678,7 +703,9 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
           <Button ref={retryRef} size="lg" className="mt-8 min-w-60" loading={submitting} onClick={() => void doSubmit(lastAuto)}>
             Try again
           </Button>
-          {!lastAuto && !submitting && (
+          {/* Once time is up there is nothing to go back to: the timer has
+              already fired, so the answers would sit there unsent. */}
+          {!lastAuto && !submitting && remaining > 0 && (
             <button
               type="button"
               onClick={() => setSubmitError(false)}

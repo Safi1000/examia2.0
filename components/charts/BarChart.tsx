@@ -21,10 +21,12 @@ const roleBg: Record<NonNullable<Bar["role"]>, string> = {
  * Vertical bar chart (e.g. grade distribution A–F). CSS-driven heights so the
  * bars grow in on first paint. Hand-rolled, no chart library.
  */
-export function BarChart({ bars, height = 180 }: { bars: Bar[]; height?: number }) {
+export function BarChart({ bars, height = 180, label }: { bars: Bar[]; height?: number; label?: string }) {
   const max = Math.max(1, ...bars.map((b) => b.value));
+  // Says what the bars show, not just "Bar chart".
+  const summary = bars.map((b) => `${b.label}: ${b.value}`).join(", ");
   return (
-    <div className="flex gap-2" style={{ height }} role="img" aria-label="Bar chart">
+    <div className="flex gap-2" style={{ height }} role="img" aria-label={label ? `${label}. ${summary}` : summary}>
       {bars.map((b) => {
         const pct = (b.value / max) * 100;
         return (

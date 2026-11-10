@@ -306,8 +306,9 @@ export const QUOTES: Array<{ q: string; by: string }> = [
 ];
 export const quoteFor = (nowMs: number) => QUOTES[Math.floor(Date.parse(`${pkDate(nowMs)}T00:00:00Z`) / 864e5) % QUOTES.length];
 
-/** Greeting by Pakistan time of day. */
+/** Greeting by the time of day on the phone. */
 export function greeting(nowMs: number): string {
-  const h = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", hour: "numeric", hour12: false }).format(nowMs));
+  // The phone's own hour, like the clock shown beside it (a Gulf student's evening is not Pakistan's).
+  const h = new Date(nowMs).getHours();
   return h < 5 ? "Still up" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 }

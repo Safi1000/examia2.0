@@ -62,6 +62,20 @@ export const slotOf = (r: Pick<ChapterRef, "num" | "unit">) => (r.unit ? `U${r.n
  * chapter (they show under "More notes").
  */
 export function matchChapter(book: NoteBook, title: string, fileName = ""): ChapterRef | null {
+  // Every list of notes asks this for every note on each change, so answers are kept.
+  let memo = matchMemo.get(book);
+  if (!memo) matchMemo.set(book, (memo = new Map()));
+  const key = `${title}\u0000${fileName}`;
+  const hit = memo.get(key);
+  if (hit !== undefined) return hit;
+  if (memo.size > 2000) memo.clear();
+  const found = findChapter(book, title, fileName);
+  memo.set(key, found);
+  return found;
+}
+const matchMemo = new WeakMap<NoteBook, Map<string, ChapterRef | null>>();
+
+function findChapter(book: NoteBook, title: string, fileName: string): ChapterRef | null {
   const all = book.units.flatMap((u) => u.chapters);
   const ref = (ch: [string, string]): ChapterRef => ({ book, num: ch[0], name: ch[1] });
   const strip = (t: string) => t.replace(/^\s*\d{1,2}(?:\.\d{1,2}){1,2}[\s.:)-]*/, "");

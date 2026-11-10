@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import type { Question } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
-import { testById } from "@/lib/data/selectors";
+import { liveStatus, submissionsForTest, testById } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { QuestionModal, type QuestionDraft } from "@/components/admin/QuestionModal";
@@ -13,8 +13,9 @@ import { ImportDocModal } from "@/components/admin/ImportDocModal";
 import { LateWindowCard } from "@/components/admin/LateWindowCard";
 import { AnswerKeyModal } from "@/components/admin/AnswerKeyModal";
 import { Card, CardHeader, CardBody, Button, Input, Select, Badge, Pill, Modal, Icon, EmptyState } from "@/components/ui";
-import { fromLocalInput, toLocalInput } from "@/lib/time";
+import { formatWhen, fromLocalInput, toLocalInput } from "@/lib/time";
 import { PageStack } from "@/components/PageStack";
+import { useNow } from "@/hooks/useNow";
 import { classHistoryIds, paperBuilder } from "@/components/admin/PastPaperSheet";
 import { familyOfCode, idsInText, newSeed, parseId, questionFromBuilt, type BuiltQuestion } from "@/lib/paper-builder";
 
@@ -35,6 +36,7 @@ export default function TestEditorPage() {
   const { toast } = useToast();
 
   const test = testById(db, id);
+  const now = useNow();
 
   // Settings form (local until Save).
   const [form, setForm] = useState(() =>
@@ -63,7 +65,23 @@ export default function TestEditorPage() {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
+    // In-app links (the sidebar, "Tests") do not fire beforeunload, so they
+    // are caught here, before Next.js handles the click.
+    const onLink = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as Element | null)?.closest?.("a[href]");
+      if (!(a instanceof HTMLAnchorElement) || a.target === "_blank" || a.hasAttribute("download")) return;
+      if (a.origin !== window.location.origin || a.pathname === window.location.pathname) return;
+      if (window.confirm("You have unsaved changes to this test's details. Leave without saving?")) return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    window.addEventListener("beforeunload", warn);
+    document.addEventListener("click", onLink, true);
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      document.removeEventListener("click", onLink, true);
+    };
   }, [dirty]);
 
   const [qModalOpen, setQModalOpen] = useState(false);
@@ -93,6 +111,9 @@ export default function TestEditorPage() {
   // Written past paper questions whose marks the paper didn't make certain: typed once here.
   const noMarks = questions.filter((q) => q.marks <= 0).length;
   const canPublish = canSave && questions.length > 0 && noMarks === 0;
+  // Scripts already handed in: editing a question now changes their marks.
+  const sat = submissionsForTest(db, id).filter((x) => x.status !== "in_progress").length;
+  const totalMarks = questions.reduce((n, q) => n + Math.max(0, q.marks), 0);
 
   async function swap(q: Question) {
     if (!test) return;
@@ -146,18 +167,30 @@ export default function TestEditorPage() {
       toast("The closing time must be after the opening time.", "error");
       return false;
     }
-    store.updateTest(id, {
+    // Whole minutes only (the database stores whole numbers), and the form is
+    // set to exactly what was saved, so it does not stay "unsaved" after a
+    // trailing space or an emptied minutes box.
+    const saved = {
       title: form.title.trim(),
       subject: form.subject || "General",
-      subjectId: form.subjectId || null,
-      classId: form.classId || null,
-      durationMinutes: Math.max(1, form.durationMinutes),
-      uploadMinutes: Math.max(0, form.uploadMinutes),
-      cohortId: form.cohortId || null,
+      subjectId: form.subjectId,
+      classId: form.classId,
+      durationMinutes: Math.max(1, Math.round(form.durationMinutes) || 1),
+      uploadMinutes: Math.max(0, Math.round(form.uploadMinutes) || 0),
+      cohortId: form.cohortId,
+      opensAt: opens,
+      closesAt: closes,
+      testCode: form.testCode.trim(),
+    };
+    store.updateTest(id, {
+      ...saved,
+      subjectId: saved.subjectId || null,
+      classId: saved.classId || null,
+      cohortId: saved.cohortId || null,
       opensAt: fromLocalInput(opens),
       closesAt: fromLocalInput(closes),
-      testCode: form.testCode.trim(),
     });
+    setForm(saved);
     if (!quiet) toast("Test saved.", "success");
     return true;
   }
@@ -177,7 +210,7 @@ export default function TestEditorPage() {
     const opensMs = new Date(fromLocalInput(override?.opensAt ?? form.opensAt)).getTime();
     toast(
       opensMs > now
-        ? `Published. Students see it from ${new Date(opensMs).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}.`
+        ? `Published. Students see it from ${formatWhen(new Date(opensMs).toISOString())}.`
         : "Published. Students can see it now.",
       "success",
     );
@@ -222,7 +255,7 @@ export default function TestEditorPage() {
                   const closesAt = new Date(Math.max(Date.now(), was) + 86_400_000).toISOString();
                   store.updateTest(id, { closesAt, status: "active" });
                   set("closesAt", toLocalInput(closesAt));
-                  const when = new Date(closesAt).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+                  const when = formatWhen(closesAt);
                   toast(closed ? `Reopened until ${when}.` : `Now closes ${when}.`, "success", {
                     label: "Undo",
                     onClick: () => {
@@ -232,7 +265,7 @@ export default function TestEditorPage() {
                   });
                 }}
               >
-                {test.status === "closed" ? "Reopen for 1 day" : "Extend 1 day"}
+                {liveStatus(test, now) === "closed" ? "Reopen for 1 day" : "Extend 1 day"}
               </Button>
             )}
             <Button variant={test.status === "draft" ? "secondary" : "primary"} onClick={() => saveSettings()} disabled={!canSave}>Save</Button>
@@ -337,20 +370,21 @@ export default function TestEditorPage() {
                 </>
               );
             })()}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/* Stacked while the column is narrow (tablet), so the time is not cut off. */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               <div>
                 <label htmlFor="test-opens" className="mb-1.5 block text-sm font-semibold text-ink-2">Opens</label>
-                <input id="test-opens" type="datetime-local" value={form.opensAt} onChange={(e) => set("opensAt", e.target.value)} className="h-12 w-full rounded-md border border-border-strong bg-surface px-3 text-ink" />
+                <input id="test-opens" type="datetime-local" value={form.opensAt} onChange={(e) => set("opensAt", e.target.value)} className="h-12 w-full min-w-0 rounded-md border border-border-strong bg-surface px-3 text-base tabular-nums text-ink" />
               </div>
               <div>
                 <label htmlFor="test-closes" className="mb-1.5 block text-sm font-semibold text-ink-2">Closes</label>
-                <input id="test-closes" type="datetime-local" value={form.closesAt} onChange={(e) => set("closesAt", e.target.value)} className="h-12 w-full rounded-md border border-border-strong bg-surface px-3 text-ink" />
+                <input id="test-closes" type="datetime-local" value={form.closesAt} onChange={(e) => set("closesAt", e.target.value)} className="h-12 w-full min-w-0 rounded-md border border-border-strong bg-surface px-3 text-base tabular-nums text-ink" />
               </div>
             </div>
             <p className="text-xs text-ink-3">
               {test.status === "draft"
-                ? "Goes live when you press Publish; closes on its own at the close time above."
-                : "Live from the moment it is created; closes on its own at the close time above."}
+                ? "Pakistan time. Goes live when you press Publish; closes on its own at the close time."
+                : "Pakistan time. Students see it from the open time; it closes on its own at the close time."}
             </p>
           </CardBody>
         </Card>
@@ -361,7 +395,10 @@ export default function TestEditorPage() {
         <Card className="min-w-0 lg:col-span-3">
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Questions <span className="tabular-nums text-ink-3">({questions.length})</span></h2>
+              <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
+                Questions <span className="tabular-nums text-ink-3">({questions.length})</span>
+                {totalMarks > 0 && <span className="ml-2 text-sm font-normal tabular-nums text-ink-3">{totalMarks} mark{totalMarks === 1 ? "" : "s"}</span>}
+              </h2>
               <div className="flex flex-wrap gap-2">
                 {questions.some((q) => q.type === "mcq") && (
                   <Button variant="secondary" size="sm" onClick={() => setKeyOpen(true)}>
@@ -381,6 +418,11 @@ export default function TestEditorPage() {
             </div>
           </CardHeader>
           <CardBody>
+            {sat > 0 && questions.length > 0 && (
+              <p className="mb-3 text-sm text-ink-2">
+                {sat === 1 ? "1 student has" : `${sat} students have`} already handed this in. Changing or deleting a question changes their marks.
+              </p>
+            )}
             {questions.length === 0 ? (
               <EmptyState icon={<Icon.Doc />} title="No questions yet" message="Add a question or import from the bank." />
             ) : (
@@ -404,16 +446,16 @@ export default function TestEditorPage() {
                         <Pill>{q.marks}m</Pill>
                       </div>
                       <div className="-mr-1 flex shrink-0 items-center">
-                        <button onClick={() => move(i, -1)} disabled={i === 0} className="flex h-9 w-9 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-30 max-md:h-11 max-md:w-10" aria-label={`Move question ${i + 1} up`}>
+                        <button onClick={() => move(i, -1)} disabled={i === 0} className="flex h-11 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-30" aria-label={`Move question ${i + 1} up`}>
                           <Icon.ChevronLeft className="h-4 w-4 rotate-90" />
                         </button>
-                        <button onClick={() => move(i, 1)} disabled={i === questions.length - 1} className="flex h-9 w-9 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-30 max-md:h-11 max-md:w-10" aria-label={`Move question ${i + 1} down`}>
+                        <button onClick={() => move(i, 1)} disabled={i === questions.length - 1} className="flex h-11 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-30" aria-label={`Move question ${i + 1} down`}>
                           <Icon.ChevronRight className="h-4 w-4 rotate-90" />
                         </button>
-                        <button onClick={() => { setEditingQ(q); setQModalOpen(true); }} className="flex h-9 w-9 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-10" aria-label={`Edit question ${i + 1}`}>
+                        <button onClick={() => { setEditingQ(q); setQModalOpen(true); }} className="flex h-11 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink" aria-label={`Edit question ${i + 1}`}>
                           <Icon.Edit className="h-4 w-4" />
                         </button>
-                        <button onClick={() => setDeleteQId(q.id)} className="flex h-9 w-9 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error max-md:h-11 max-md:w-10" aria-label={`Delete question ${i + 1}`}>
+                        <button onClick={() => setDeleteQId(q.id)} className="flex h-11 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error" aria-label={`Delete question ${i + 1}`}>
                           <Icon.Trash className="h-4 w-4" />
                         </button>
                       </div>
@@ -517,6 +559,7 @@ export default function TestEditorPage() {
         open={!!deleteQId}
         onClose={() => setDeleteQId(null)}
         title="Delete question?"
+        description={sat > 0 ? `${sat === 1 ? "1 student has" : `${sat} students have`} answered it. Their answer and marks for it go too.` : undefined}
         footer={
           <>
             <Button variant="secondary" onClick={() => setDeleteQId(null)}>Cancel</Button>

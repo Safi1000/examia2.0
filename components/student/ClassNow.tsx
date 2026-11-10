@@ -7,7 +7,7 @@ import type { Student } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { Icon, Spinner } from "@/components/ui";
 import { formatRelative } from "@/lib/time";
-import { useSchedule, JOIN_EARLY_MIN, addDays, clockHere, span, joinClass, pkDate, slotKey, slotsForStudent, useClassLinks, type DaySlot } from "@/lib/classes";
+import { useSchedule, JOIN_EARLY_MIN, addDays, clockHere, spanHere, joinClass, pkDate, slotKey, slotsForStudent, useClassLinks, type DaySlot } from "@/lib/classes";
 
 /**
  * Home-screen class card. Quiet unless a class is close: from 5 minutes
@@ -102,7 +102,8 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
       <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-[1.75rem] font-extrabold leading-tight tracking-[-0.025em] text-ink">{current.subject}</h2>
-          <p className="mt-0.5 text-[15px] text-ink-2 tabular-nums">{span(current.start, current.end)}</p>
+          {/* In the Gulf this reads "2:30 PM to 3:10 PM your time (3:30 to 4:10 PM Pakistan)", like the "Next class" line. */}
+          <p className="mt-0.5 text-[15px] text-ink-2 tabular-nums">{spanHere(current.date, current.start, current.end)}</p>
         </div>
         {url ? (
           <a

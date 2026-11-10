@@ -28,7 +28,7 @@ export interface TopThree {
 /** This week's top 3 study hours in the student's cohort (first names only). */
 const TOP_KEY = "ht_top3";
 export function useTopThree(): TopThree | null {
-  // Shown straight from the last copy (kept 5 minutes), so Home doesn't wait or jump.
+  // Shown straight from the last copy (fetched again after 30 minutes), so Home doesn't wait or jump.
   const [data, setData] = useState<TopThree | null>(() => {
     try {
       const c = JSON.parse(sessionStorage.getItem(TOP_KEY) ?? "null") as { at: number; v: TopThree } | null;

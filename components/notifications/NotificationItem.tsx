@@ -68,7 +68,11 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-/** Date on one line, time under it — the schedule is the thing being scanned. */
+/**
+ * Date on one line, time under it — the schedule is the thing being scanned.
+ * In Pakistan time, like every other test time in the portal: on a phone in
+ * the Gulf this card used to show an hour earlier than the Tests page did.
+ */
 function WhenField({ label, iso }: { label: string; iso: string }) {
   const d = new Date(iso);
   return (
@@ -76,10 +80,10 @@ function WhenField({ label, iso }: { label: string; iso: string }) {
       <dt className="text-xs font-bold uppercase tracking-wider text-ink-3">{label}</dt>
       <dd className="mt-1">
         <span className="block truncate text-sm font-semibold text-ink">
-          {d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+          {d.toLocaleDateString("en-GB", { timeZone: "Asia/Karachi", day: "numeric", month: "long", year: "numeric" })}
         </span>
         <span className="block text-xs font-semibold text-ink-2 tabular">
-          {d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: true }).toUpperCase()}
+          {d.toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit", hour12: true }).toUpperCase()}
         </span>
       </dd>
     </div>
@@ -113,7 +117,7 @@ function TestDetails({ testId, updatedAt }: { testId: string; updatedAt?: string
       {/* Header: the test name always shows, whatever the notification is titled. */}
       <div className="flex items-center justify-between gap-3 border-b border-border bg-surface/60 px-3.5 py-2.5">
         <p className="flex min-w-0 items-center gap-1.5 text-sm font-bold text-ink">
-          <span aria-hidden>{updatedAt ? "✏️" : "📝"}</span>
+          {updatedAt ? <Icon.Edit className="h-4 w-4 shrink-0 text-ink-3" /> : <Icon.Doc className="h-4 w-4 shrink-0 text-ink-3" />}
           <span className="truncate">{test.title}</span>
         </p>
         <Badge tone={STATUS_TONE[status]} className="shrink-0">
@@ -158,7 +162,7 @@ function TestDetails({ testId, updatedAt }: { testId: string; updatedAt?: string
         <span className="flex items-center gap-1 text-xs font-bold text-brand">
           {/* The row itself is the click target, so this is a cue, not a button
               nested inside another button. */}
-          {status === "closed" ? "View Details" : "Open Test"}
+          {status === "closed" ? "View details" : "Open test"}
           <Icon.ChevronRight className="h-3.5 w-3.5" />
         </span>
       </div>
@@ -199,7 +203,7 @@ function SubmissionDetails({ submissionId }: { submissionId: string }) {
     <div className="mt-2.5 overflow-hidden rounded-lg border border-border bg-surface-2/40">
       <div className="flex items-center justify-between gap-3 border-b border-border bg-surface/60 px-3.5 py-2.5">
         <p className="flex min-w-0 items-center gap-1.5 text-sm font-bold text-ink">
-          <span aria-hidden>📝</span>
+          <Icon.Doc className="h-4 w-4 shrink-0 text-ink-3" />
           <span className="truncate">{test?.title ?? "Test submitted"}</span>
         </p>
         <Badge tone={status.tone} className="shrink-0">{status.label}</Badge>
@@ -283,7 +287,10 @@ export function NotificationItem({
             {activity.title}
           </span>
           {unread && (
-            <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
+            <>
+              <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
+              <span className="sr-only">, unread</span>
+            </>
           )}
         </span>
 
@@ -352,8 +359,9 @@ export function NotificationItem({
             "mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-ink-3",
             "hover:bg-error-soft hover:text-error focus-visible:outline-2 focus-visible:outline-offset-2",
             full ? "mt-2" : "mt-1",
-            // Always visible on touch, where there is no hover to reveal it.
-            "sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100",
+            // Always visible on touch, where there is no hover to reveal it: a
+            // tablet is as wide as a laptop, so this asks for a mouse, not a width.
+            "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:transition-opacity [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100",
           )}
         >
           <Icon.Trash className="h-4 w-4" />

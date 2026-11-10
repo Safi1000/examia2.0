@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { isCronRequest } from "@/lib/admin-auth";
 import { runClassReminders } from "@/lib/push-server";
 
 /**
@@ -12,9 +13,6 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  if (!isCronRequest(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   return NextResponse.json(await runClassReminders().catch((e) => ({ error: String(e) })));
 }

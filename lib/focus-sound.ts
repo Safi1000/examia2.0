@@ -180,6 +180,13 @@ export function wakeChime() {
   } catch {}
 }
 
+/** Leaving the room: let the chime's audio go (after any last chime has rung), so nothing stays open behind the portal. */
+export function restChime() {
+  const c = ctx;
+  ctx = null;
+  if (c && c.state !== "closed") setTimeout(() => void c.close().catch(() => {}), 1500);
+}
+
 /** A soft two-note chime and a buzz, at the end of a focus block or a break. */
 export function chime() {
   try {

@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useDatabase } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
-import { attendancePercent, cohortById, testCoversStudent } from "@/lib/data/selectors";
+import { attendancePercent, cohortById, eligibleStudents, testsForStudent } from "@/lib/data/selectors";
+import { useNow } from "@/hooks/useNow";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Badge, CohortDot, EmptyState, Icon, TableScroll, Table, Th, Td } from "@/components/ui";
 import { BarChart, type Bar } from "@/components/charts/BarChart";
@@ -18,15 +19,42 @@ import { cn } from "@/lib/cn";
 
 type View = "class" | "student";
 
+const PKT_MS = 5 * 3_600_000; // Pakistan is UTC+5, no daylight saving
+
+/** "2026-11" in Pakistan time: a script handed in at 1 am on the 1st belongs to the new month, not the old. */
 function monthOf(iso: string | null | undefined): string {
-  return iso ? iso.slice(0, 7) : "";
+  return iso ? new Date(+new Date(iso) + PKT_MS).toISOString().slice(0, 7) : "";
 }
+
+/** The calendar month before "2026-11": "2026-10". */
+function monthBefore(m: string): string {
+  const [y, mo] = m.split("-").map(Number);
+  return mo === 1 ? `${y - 1}-12` : `${y}-${String(mo - 1).padStart(2, "0")}`;
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const LONG_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 function formatMonth(m: string): string {
   if (!m) return "All time";
   const [y, mo] = m.split("-");
-  return new Date(Number(y), Number(mo) - 1, 1).toLocaleString("default", { month: "long", year: "numeric" });
+  return `${LONG_MONTHS[Number(mo) - 1]} ${y}`;
 }
+
+/** Chart label for a month: "Oct", or "Oct 25" when the chart spans more than one year. */
+function shortMonth(m: string, withYear: boolean): string {
+  const [y, mo] = m.split("-");
+  return withYear ? `${MONTHS[Number(mo) - 1]} ${y.slice(2)}` : MONTHS[Number(mo) - 1];
+}
+
+/** "3 Nov", the Pakistan date of a hand in. */
+function shortDay(iso: string): string {
+  const d = new Date(+new Date(iso) + PKT_MS);
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+}
+
+/** Fewer marks than this on a topic is too little to call it weak or strong with confidence. */
+const SMALL_SAMPLE_MARKS = 6;
 
 function calcAvg(subs: Submission[], testById: Map<string, Test>): number {
   if (!subs.length) return 0;
@@ -83,6 +111,7 @@ export default function AnalyticsPage() {
   const [view, setView] = useState<View>("class");
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
+  const nowMs = useNow();
 
   const testById = useMemo(() => new Map(db.tests.map((t) => [t.id, t])), [db.tests]);
 
@@ -116,7 +145,9 @@ export default function AnalyticsPage() {
   // Opens on the latest month; "all" is the All time choice. The menu always
   // shows the month the numbers are for (it used to say All time over November).
   const activeMonth = selectedMonth === "all" ? "" : selectedMonth || base.allMonths[base.allMonths.length - 1] || "";
-  const prevMonth = activeMonth ? (base.allMonths[base.allMonths.indexOf(activeMonth) - 1] ?? "") : "";
+  // "vs last month" is the calendar month before, or nothing: comparing with
+  // whichever older month happened to have results was misleading.
+  const prevMonth = activeMonth && base.allMonths.includes(monthBefore(activeMonth)) ? monthBefore(activeMonth) : "";
 
   const monthSubs = useMemo(
     () => (activeMonth ? base.released.filter((s) => monthOf(s.submittedAt) === activeMonth) : base.released),
@@ -133,8 +164,9 @@ export default function AnalyticsPage() {
     const prevMonthAvg = calcAvg(prevMonthSubs, testById);
     const delta = prevMonthSubs.length ? Math.round((monthly - prevMonthAvg) * 10) / 10 : null;
 
+    const manyYears = new Set(base.allMonths.map((m) => m.slice(0, 4))).size > 1;
     const trendPoints: LinePoint[] = base.allMonths.map((m) => ({
-      label: m.slice(5),
+      label: shortMonth(m, manyYears),
       value: calcAvg(base.released.filter((s) => monthOf(s.submittedAt) === m), testById),
     }));
 
@@ -157,6 +189,8 @@ export default function AnalyticsPage() {
     const strugglingStudents = perStudentGrade.filter((g) => g === "E" || g === "U").length;
     const toMark = base.awaiting.length;
 
+    // Only tests with something to show: rows of "0 / None" for every test
+    // ever made buried the ones that mattered.
     const perTest: PerTestRow[] = base.relevantTests.map((t) => {
       const ts = monthSubs.filter((s) => s.testId === t.id);
       const avg = ts.length ? calcAvg(ts, testById) : null;
@@ -166,7 +200,7 @@ export default function AnalyticsPage() {
       // Sat but not yet marked: such a test reads "2 to mark", never "0%".
       const pending = base.awaiting.filter((x) => x.testId === t.id).length;
       return { test: t, count: ts.length, avg, top, pending };
-    }).sort((a, b) => (b.avg ?? -1) - (a.avg ?? -1));
+    }).filter((r) => r.count > 0 || r.pending > 0).sort((a, b) => (b.avg ?? -1) - (a.avg ?? -1));
 
     const movement = base.students.map((st) => {
       const cur = monthSubs.filter((s) => s.studentId === st.id);
@@ -185,28 +219,36 @@ export default function AnalyticsPage() {
     // Attendance for the month in view, averaged over the students who have it
     // recorded — nothing recorded means the card stays hidden rather than 0%.
     const attendanceValues = base.students
-      .map((st) => attendancePercent(db, st.id, `${(activeMonth || new Date().toISOString().slice(0, 7))}-01`))
+      .map((st) => attendancePercent(db, st.id, `${activeMonth || monthOf(new Date(nowMs).toISOString())}-01`))
       .filter((v): v is number => v != null);
     const attendanceAvg = attendanceValues.length
       ? Math.round((attendanceValues.reduce((a, b) => a + b, 0) / attendanceValues.length) * 10) / 10
       : null;
 
     // Switched-off cohorts are finished business: out of analytics entirely.
+    // Expected = each test that has opened, times the students it was set for
+    // (its class and subject, and not those who joined after it closed).
+    // Handed in = those same students' finished scripts, so it can never pass
+    // 100%: tests not open yet, half-started scripts and scripts from students
+    // outside the test's class used to count.
+    const handedIn = new Set(db.submissions.filter((x) => x.status !== "in_progress").map((x) => `${x.testId}|${x.studentId}`));
     const cohortCompletion: CohortCompletion[] = db.cohorts.filter((c) => c.active).map((c) => {
-      const cs = base.students.filter((s) => s.cohortId === c.id);
-      const ct = base.setTests.filter((t) => t.cohortId === c.id || t.cohortId === null);
-      // A test set for one class is not expected of the whole cohort, so the
-      // denominator counts only the students each test actually covers.
-      const expected = ct.reduce((n, t) => n + cs.filter((st) => testCoversStudent(t, st)).length, 0);
-      const submitted = db.submissions.filter(
-        (s) => cs.some((st) => st.id === s.studentId) && ct.some((t) => t.id === s.testId),
-      ).length;
-      const pct = expected > 0 ? Math.round((submitted / expected) * 100) : 0;
+      const ct = base.setTests.filter((t) => (t.cohortId === c.id || t.cohortId === null) && +new Date(t.opensAt) <= nowMs);
+      let expected = 0;
+      let submitted = 0;
+      for (const t of ct) {
+        for (const st of eligibleStudents(db, t)) {
+          if (st.cohortId !== c.id || !base.studentIds.has(st.id)) continue;
+          expected++;
+          if (handedIn.has(`${t.id}|${st.id}`)) submitted++;
+        }
+      }
+      const pct = expected > 0 ? Math.min(100, Math.round((submitted / expected) * 100)) : 0;
       return { cohort: c, pct, submitted, expected };
     }).filter((x) => x.expected > 0);
 
     return { overall, monthly, delta, trendPoints, bars, perTest, improved, slipping, mastery, cohortCompletion, topStudents, strugglingStudents, toMark, attendanceAvg };
-  }, [base, monthSubs, prevMonthSubs, testById, db, activeMonth]);
+  }, [base, monthSubs, prevMonthSubs, testById, db, activeMonth, nowMs]);
 
   const studentData = useMemo((): StudentViewData | null => {
     const student = db.students.find((s) => s.id === selectedStudentId);
@@ -227,7 +269,7 @@ export default function AnalyticsPage() {
       .flatMap((s) => {
         const t = testById.get(s.testId);
         if (!t) return [];
-        return [{ label: (s.submittedAt ?? "").slice(5, 10), value: gradeSubmission(t, s).percent }];
+        return [{ label: s.submittedAt ? shortDay(s.submittedAt) : "", value: gradeSubmission(t, s).percent }];
       });
 
     const perTest: StudentPerTest[] = curSubs
@@ -239,12 +281,16 @@ export default function AnalyticsPage() {
       .sort((a, b) => b.result.percent - a.result.percent);
 
     const mastery = topicMastery(base.relevantTests, curSubs);
-    const total = base.relevantTests.length;
-    const completed = allSubs.length;
+    // Out of the tests set for this student that have opened (their class and
+    // subject, since they joined), not every test in the portal.
+    const theirs = testsForStudent(db, student).filter((t) => base.relevantTestIds.has(t.id) && +new Date(t.opensAt) <= nowMs);
+    const done = new Set(db.submissions.filter((x) => x.studentId === student.id && x.status !== "in_progress").map((x) => x.testId));
+    const total = theirs.length;
+    const completed = theirs.filter((t) => done.has(t.id)).length;
     const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
     return { student, avg, delta, grade, trendPoints, perTest, mastery, completionPct, completed, total };
-  }, [base, monthSubs, prevMonthSubs, testById, selectedStudentId, db.students]);
+  }, [base, monthSubs, prevMonthSubs, testById, selectedStudentId, db, nowMs]);
 
   const scopeCohort = cohortId ? cohortById(db, cohortId) : null;
   const hasData = base.released.length > 0;
@@ -260,8 +306,9 @@ export default function AnalyticsPage() {
             <button
               key={v}
               onClick={() => setView(v)}
+              aria-pressed={view === v}
               className={cn(
-                "rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
+                "min-h-10 rounded-md px-4 text-sm font-semibold transition-colors",
                 view === v ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink",
               )}
             >
@@ -274,7 +321,7 @@ export default function AnalyticsPage() {
           aria-label="Month"
           value={selectedMonth === "all" ? "all" : activeMonth}
           onChange={(e) => setSelectedMonth(e.target.value)}
-          className="h-9 rounded-lg border border-border bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+          className="h-11 rounded-lg border border-border bg-surface px-3 text-base text-ink focus:outline-none focus:ring-2 focus:ring-brand"
         >
           {base.allMonths.length > 1 && <option value="all">All time</option>}
           {base.allMonths.map((m) => (
@@ -287,7 +334,7 @@ export default function AnalyticsPage() {
             aria-label="Student"
             value={selectedStudentId}
             onChange={(e) => setSelectedStudentId(e.target.value)}
-            className="h-9 flex-1 min-w-[180px] rounded-lg border border-border bg-surface px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+            className="h-11 min-w-0 flex-1 basis-48 rounded-lg border border-border bg-surface px-3 text-base text-ink focus:outline-none focus:ring-2 focus:ring-brand"
           >
             <option value="">Pick a student</option>
             {base.students.map((s) => (
@@ -354,11 +401,21 @@ function ClassView({
         <Card className="p-5">
           <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em] text-ink">Weak topics</h2>
           <div className="space-y-3.5">
-            {data.mastery.length === 0 ? (
-              <p className="text-sm text-ink-3">No graded topics yet.</p>
-            ) : (
-              data.mastery.slice(0, 6).map((m) => <MasteryBar key={m.topic} topic={m.topic} percent={m.percent} band={m.band} />)
-            )}
+            {(() => {
+              // Below 70% only: 70% and up is Strong, so it does not belong here.
+              const weak = data.mastery.filter((m) => m.percent < 70);
+              if (data.mastery.length === 0) return <p className="text-sm text-ink-3">No graded topics yet.</p>;
+              if (weak.length === 0) return <p className="text-sm text-ink-3">Every topic is at 70% or above.</p>;
+              return weak.slice(0, 6).map((m) => (
+                <MasteryBar
+                  key={m.topic}
+                  // Two questions are not enough to call a topic weak: say so.
+                  topic={m.available < SMALL_SAMPLE_MARKS ? `${m.topic} (only ${m.available} mark${m.available === 1 ? "" : "s"} so far)` : m.topic}
+                  percent={m.percent}
+                  band={m.band}
+                />
+              ));
+            })()}
           </div>
         </Card>
 
@@ -427,6 +484,9 @@ function ClassView({
               <tr><Th>Test</Th><Th>Subject</Th><Th>Results</Th><Th>Average</Th><Th>Top grade</Th></tr>
             </thead>
             <tbody>
+              {data.perTest.length === 0 && (
+                <tr><td colSpan={5} className="border-b border-border px-3 py-3.5 text-sm text-ink-3">No results {activeMonth ? `in ${formatMonth(activeMonth)}` : "yet"}.</td></tr>
+              )}
               {data.perTest.map(({ test, count, avg, top, pending }) => (
                 <tr key={test.id}>
                   <Td className="font-semibold">{test.title}</Td>

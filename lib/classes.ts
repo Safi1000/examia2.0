@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { supabase } from "@/lib/supabase";
 import { DEMO } from "@/lib/demo";
-import { DEFAULT_SCHEDULE, getSchedule, slotKey, subscribeSchedule, type DaySlot, type Schedule } from "@/lib/timetable";
+import { DEFAULT_SCHEDULE, getSchedule, scheduleLoaded, slotKey, subscribeSchedule, type DaySlot, type Schedule } from "@/lib/timetable";
 
 export * from "@/lib/timetable";
 
@@ -172,4 +172,9 @@ export async function joinClass(slot: DaySlot, fallbackUrl: string | null): Prom
 /** The timetable in use; components re-render when Hamza's saved one arrives or changes. */
 export function useSchedule(): Schedule {
   return useSyncExternalStore(subscribeSchedule, getSchedule, () => DEFAULT_SCHEDULE);
+}
+
+/** True once Hamza's saved timetable has arrived (re-renders when it does), so nothing is saved over it before then. */
+export function useScheduleLoaded(): boolean {
+  return useSyncExternalStore(subscribeSchedule, scheduleLoaded, () => false);
 }

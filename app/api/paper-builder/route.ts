@@ -35,11 +35,21 @@ const M = meta as unknown as MetaLike;
 const T = tags as unknown as TagsLike;
 const HELD = new Set(M.x ?? []);
 
+/**
+ * Built pools, a few at a time. This route needs no sign in, so the list of
+ * codes is put in one order with repeats removed (the pool is the same either
+ * way) and the oldest pool is dropped past the cap: sending the same codes
+ * shuffled or repeated can no longer fill the server's memory.
+ */
+const MAX_POOLS = 24;
 const pools = new Map<string, PoolItem[]>();
 function poolFor(codes: string[]) {
   const key = codes.join(",");
   let p = pools.get(key);
-  if (!p) pools.set(key, (p = buildPool(M, T, codes)));
+  if (!p) {
+    if (pools.size >= MAX_POOLS) pools.delete(pools.keys().next().value!);
+    pools.set(key, (p = buildPool(M, T, codes)));
+  }
   return p;
 }
 
@@ -138,7 +148,7 @@ export async function POST(req: Request) {
     return Response.json({ ms: { name, start: Math.min(start, pages), pages, ratios: M.r?.[name] ?? null } });
   }
 
-  const codes = Array.isArray(b.codes) ? b.codes.filter((c): c is string => typeof c === "string" && ALL_CODES.has(c)) : [];
+  const codes = Array.isArray(b.codes) ? [...new Set(b.codes.slice(0, 100).filter((c): c is string => typeof c === "string" && ALL_CODES.has(c)))].sort() : [];
   const syllabus = typeof b.syllabus === "string" && SYLLABI.some((s) => s.code === b.syllabus) ? b.syllabus : "";
   if (!codes.length || !syllabus) return Response.json({ error: "bad request" }, { status: 400 });
   const pool = poolFor(codes);

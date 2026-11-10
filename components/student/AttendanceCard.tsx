@@ -71,7 +71,8 @@ export function AttendanceCard({ db, studentId, nowMs }: { db: Pick<Database, "a
 
       {data.recent.length > 0 && (
         <>
-          <ol className="mt-4 grid auto-cols-fr grid-flow-col gap-1" aria-label="Your last classes">
+          {/* Phones: two rows of ten, so each mark stays wide enough to see and tap. */}
+          <ol className="mt-4 grid grid-cols-10 gap-1 sm:grid-flow-col sm:grid-cols-none sm:auto-cols-fr" aria-label="Your last classes">
             {data.recent.map((x) => {
               const text = `${dayLabel(x.date)}: ${STATUS[x.status].label}`;
               const on = picked === x.id;

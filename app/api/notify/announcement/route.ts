@@ -16,8 +16,14 @@ export async function POST(req: NextRequest) {
   if ((data.user?.app_metadata as { role?: string } | undefined)?.role !== "admin") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
-  const { id, cohortId, text } = (await req.json().catch(() => ({}))) as { id?: string; cohortId?: string | null; text?: string };
-  if (typeof id !== "string" || typeof text !== "string" || !text.trim()) return NextResponse.json({ error: "bad request" }, { status: 400 });
-  const sent = await notifyAnnouncement(id, typeof cohortId === "string" ? cohortId : null, text.trim());
-  return NextResponse.json({ sent });
+  const { id, cohortId, text } = ((await req.json().catch(() => null)) ?? {}) as { id?: string; cohortId?: string | null; text?: string };
+  if (typeof id !== "string" || !/^[\w-]{1,64}$/.test(id) || typeof text !== "string" || !text.trim()) return NextResponse.json({ error: "bad request" }, { status: 400 });
+  try {
+    // Only the first lines reach a phone anyway; the rest is never needed here.
+    const sent = await notifyAnnouncement(id, typeof cohortId === "string" ? cohortId : null, text.trim().slice(0, 2000));
+    return NextResponse.json({ sent });
+  } catch (e) {
+    console.error("[notify] announcement", e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: "could not send" }, { status: 502 });
+  }
 }

@@ -15,6 +15,9 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, CohortDot, EmptyState, Icon, Spinner } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
+// "7 Nov 2026", from the same date the counts start at.
+const trackedFrom = new Date(`${TRACKING_SINCE}T12:00:00+05:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Karachi" });
+
 type Sort = "most" | "least" | "recent" | "name";
 const SORTS: Array<[Sort, string]> = [
   ["most", "Most time"],
@@ -103,22 +106,23 @@ export default function ActivityPage() {
           {([7, 30] as const).map((r) => (
             <button
               key={r}
+              type="button"
               role="tab"
               aria-selected={range === r}
               onClick={() => setRange(r)}
-              className={cn("h-9 rounded-full px-4 text-sm font-semibold", range === r ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink")}
+              className={cn("h-9 rounded-full px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-md:h-11", range === r ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink")}
             >
               Last {r} days
             </button>
           ))}
         </div>
-        {from < TRACKING_SINCE && <span className="text-xs text-ink-3">Counted from 7 Nov 2026, when tracking began</span>}
+        {from < TRACKING_SINCE && <span className="text-xs text-ink-3">Counted from {trackedFrom}, when tracking began</span>}
       </div>
 
       {error ? (
         <Card className="p-6 text-sm text-ink-2">
           Activity didn&apos;t load.{" "}
-          <button type="button" onClick={reload} className="font-semibold text-brand underline-offset-2 hover:underline">
+          <button type="button" onClick={reload} className="inline-flex min-h-11 items-center font-semibold text-brand underline-offset-2 hover:underline">
             Try again
           </button>
         </Card>
@@ -148,7 +152,7 @@ export default function ActivityPage() {
                   <li key={s.id}>
                     <Link
                       href={`/admin/roster/${s.id}#activity`}
-                      className="inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-full border border-border bg-surface px-3 text-sm text-ink hover:border-border-strong"
+                      className="inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-full border border-border bg-surface px-3 text-sm text-ink hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-md:h-11"
                     >
                       {displayName(s.username)}
                       <span className="text-xs text-ink-3">{seen ? fmtAgo(seen, nowMs) : "never signed in"}</span>
@@ -194,7 +198,7 @@ export default function ActivityPage() {
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Find a student"
                 aria-label="Find a student"
-                className="h-10 w-full rounded-full border border-border bg-surface pl-9 pr-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none"
+                className="h-10 w-full rounded-full border border-border bg-surface pl-9 pr-3 text-base text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none max-md:h-11 sm:text-sm"
               />
             </label>
             <label className="flex items-center gap-2 text-sm text-ink-3">
@@ -202,7 +206,7 @@ export default function ActivityPage() {
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value as Sort)}
-                className="h-10 rounded-full border border-border bg-surface px-3 text-sm font-semibold text-ink focus:border-brand focus:outline-none"
+                className="h-10 rounded-full border border-border bg-surface px-3 text-base font-semibold text-ink focus:border-brand focus:outline-none max-md:h-11 sm:text-sm"
               >
                 {SORTS.map(([v, l]) => (
                   <option key={v} value={v}>

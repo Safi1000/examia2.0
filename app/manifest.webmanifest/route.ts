@@ -14,7 +14,8 @@ const MANIFEST = {
   start_url: "/dashboard",
   scope: "/",
   display: "standalone",
-  background_color: "#17191C",
+  // The page background (--color-paper), so the launch screen does not change shade as the app opens.
+  background_color: "#1a1d20",
   theme_color: "#1a1d20",
   icons: [
     // New addresses (not /app-icon/...) so Chrome sees the icon changed and updates installed copies:

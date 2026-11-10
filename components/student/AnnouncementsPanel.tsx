@@ -30,14 +30,16 @@ export function AnnouncementsPanel({ student }: { student: Student }) {
             <li key={a.id} className="flex items-start gap-3 py-3.5 pl-5 pr-2 sm:pl-6">
               {a.pinned ? <Icon.Flag className="mt-1 h-4 w-4 shrink-0 text-ink-2" /> : <Icon.Megaphone className="mt-1 h-4 w-4 shrink-0 text-ink-3" />}
               <button type="button" onClick={() => setOpen(isOpen ? null : a.id)} aria-expanded={isOpen} className="min-w-0 flex-1 text-left">
-                <p className={`text-base text-ink ${isOpen ? "whitespace-pre-wrap" : "line-clamp-2"}`}>{a.body}</p>
-                <p className="mt-0.5 text-xs text-ink-3">
+                {/* Spans, not paragraphs (a button can't hold one). A long link wraps instead of running off the card. */}
+                <span className={`block whitespace-pre-line break-words text-base text-ink [overflow-wrap:anywhere] ${isOpen ? "" : "line-clamp-2"}`}>{a.body}</span>
+                <span className="mt-0.5 block text-xs text-ink-3">
                   {a.pinned ? "Pinned · " : ""}
                   {formatDate(a.createdAt)}
-                </p>
+                </span>
               </button>
               {!a.pinned && (
                 <button
+                  type="button"
                   onClick={() => dismiss(a.id)}
                   aria-label="Dismiss announcement"
                   className="flex h-11 w-11 -mr-2 -mt-1 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink"

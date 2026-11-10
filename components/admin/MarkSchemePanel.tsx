@@ -14,7 +14,9 @@ type Ms = { name: string; start: number; pages: number };
  */
 export function MarkSchemePanel({ prompt }: { prompt: string }) {
   const id = idsInText(prompt)[0] ?? null;
-  const [ms, setMs] = useState<Ms | null | "none">(null);
+  // "none": the paper has no mark scheme on file; "failed": it could not be loaded.
+  const [ms, setMs] = useState<Ms | null | "none" | "failed">(null);
+  const [attempt, setAttempt] = useState(0);
   const [page, setPageRaw] = useState(1);
   const box = useRef<HTMLDivElement>(null);
   // A new page starts at its top, not wherever the last one was scrolled to.
@@ -32,13 +34,35 @@ export function MarkSchemePanel({ prompt }: { prompt: string }) {
         setMs(r.ms ?? "none");
         if (r.ms) setPageRaw(r.ms.start);
       })
-      .catch(() => live && setMs("none"));
+      .catch(() => live && setMs("failed"));
     return () => {
       live = false;
     };
-  }, [id]);
+  }, [id, attempt]);
 
-  if (!id || ms === "none") return null;
+  if (!id) return null;
+  // Said plainly, instead of leaving an empty half of the screen beside the answer.
+  if (ms === "none" || ms === "failed") {
+    return (
+      <section aria-label="Mark scheme" className="min-w-0 rounded-md border border-border bg-surface-2/40 p-4 text-sm text-ink-2">
+        <p className="font-semibold text-ink">Mark scheme</p>
+        {ms === "none" ? (
+          <p className="mt-1">There is no mark scheme on file for {sourceLabel(id)}.</p>
+        ) : (
+          <>
+            <p className="mt-1">The mark scheme didn&apos;t load. Check the connection and try again.</p>
+            <button
+              type="button"
+              onClick={() => { setMs(null); setAttempt((n) => n + 1); }}
+              className="mt-2 inline-flex min-h-11 items-center rounded-full border border-border-strong px-4 font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
+            >
+              Try again
+            </button>
+          </>
+        )}
+      </section>
+    );
+  }
   const url = ms ? `/papers/img/${ms.name}/${page}.jpg` : "";
 
   return (

@@ -167,7 +167,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         </p>
         <button
           onClick={() => { logout(); router.replace("/login"); }}
-          className="text-sm font-semibold text-brand hover:underline"
+          className="inline-flex h-11 items-center px-4 text-sm font-semibold text-brand hover:underline"
         >
           Sign out
         </button>
@@ -251,7 +251,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                         aria-label={l.label}
                         title={l.label}
                         className={cn(
-                          "flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-semibold transition-all duration-300",
+                          "relative flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-semibold transition-all duration-300 before:absolute before:inset-x-0 before:-inset-y-1 before:content-['']",
                           active
                             ? "bg-[linear-gradient(180deg,rgba(251,193,89,0.18),rgba(251,193,89,0.08))] text-brand shadow-[inset_0_0_0_1px_rgba(251,193,89,0.25)]"
                             : "text-ink-3 hover:bg-white/[0.04] hover:text-ink",
@@ -328,8 +328,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                       aria-label={l.label}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "-mt-5 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-brand text-on-brand shadow-[0_10px_24px_-8px_rgba(251,193,89,0.6)] ring-4 ring-paper transition-transform active:scale-95",
-                        active && "ring-brand/30",
+                        "-mt-5 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-brand text-on-brand shadow-[0_10px_24px_-8px_rgba(251,193,89,0.6)] ring-4 transition-transform active:scale-95",
+                        // One ring colour at a time: two together and the page colour always won.
+                        active ? "ring-brand/30" : "ring-paper",
                       )}
                     >
                       <l.Icon active className="h-[22px] w-[22px] [&_g]:fill-current [&_g]:stroke-current" />
@@ -382,12 +383,18 @@ function AccountMenu({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open) return;
     // pointerdown, not mousedown: iPhone may not send a mouse event for a tap
     // on a blank area, which left the menu stuck open.
     const close = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    // Escape closes and hands focus back to the button, so the keyboard isn't left on a menu item that has gone.
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      button.current?.focus();
+    };
     document.addEventListener("pointerdown", close);
     document.addEventListener("keydown", esc);
     return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", esc); };
@@ -395,8 +402,15 @@ function AccountMenu({
   const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
-    <div ref={ref} className="relative">
+    <div
+      ref={ref}
+      className="relative"
+      // Tabbing on past the last item closes the menu rather than leaving it open behind the page.
+      onBlur={(e) => { if (e.relatedTarget instanceof Node && !e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}
+    >
       <button
+        ref={button}
+        type="button"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -435,6 +449,7 @@ function AccountMenu({
             Message Hamza
           </a>
           <button
+            type="button"
             role="menuitem"
             onClick={onSignOut}
             className="mt-1 flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink"

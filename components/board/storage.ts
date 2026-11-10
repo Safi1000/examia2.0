@@ -32,7 +32,8 @@ function db(): Promise<IDBDatabase> {
   return opening;
 }
 
-export async function saveBoard(key: string, board: SavedBoard): Promise<void> {
+/** Saves a board. False when it could not be kept anywhere (storage full or blocked). */
+export async function saveBoard(key: string, board: SavedBoard): Promise<boolean> {
   try {
     const d = await db();
     await new Promise<void>((resolve, reject) => {
@@ -40,16 +41,22 @@ export async function saveBoard(key: string, board: SavedBoard): Promise<void> {
       tx.objectStore(STORE).put(board, key);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
+      // Out of room: the browser aborts without an error event, and the save would never settle.
+      tx.onabort = () => reject(tx.error);
     });
     // Saved the new way: the old copy only takes up the small store.
     try {
       localStorage.removeItem(key);
     } catch {}
+    return true;
   } catch {
     // No database (a private window): fall back to the small store.
     try {
       localStorage.setItem(key, JSON.stringify(board));
-    } catch {}
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 
@@ -113,5 +120,9 @@ export async function deleteBoard(key: string): Promise<void> {
   try {
     const d = await db();
     d.transaction(STORE, "readwrite").objectStore(STORE).delete(key);
+  } catch {}
+  // A copy saved the old way would be read back as if the page were still there.
+  try {
+    localStorage.removeItem(key);
   } catch {}
 }

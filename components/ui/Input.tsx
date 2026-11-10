@@ -8,6 +8,8 @@ interface FieldProps {
   hint?: string;
   error?: string;
   required?: boolean;
+  /** Classes for the outer wrapper. When given, it replaces the default full width, so a page can size the field. */
+  wrapperClassName?: string;
 }
 
 const fieldShell =
@@ -18,16 +20,18 @@ const fieldShell =
 export const Input = forwardRef<
   HTMLInputElement,
   React.InputHTMLAttributes<HTMLInputElement> & FieldProps
->(function Input({ label, hint, error, required, className, id, ...rest }, ref) {
+>(function Input({ label, hint, error, required, className, wrapperClassName, id, ...rest }, ref) {
   const autoId = useId();
   const fieldId = id ?? autoId;
   return (
-    <div className="w-full">
+    <div className={wrapperClassName ?? "w-full"}>
       {label && <Label htmlFor={fieldId} required={required}>{label}</Label>}
       <input
         ref={ref}
         id={fieldId}
         aria-invalid={!!error}
+        // Announced as required without turning on the browser's own validation popups.
+        aria-required={required || undefined}
         aria-describedby={error ? `${fieldId}-err` : hint ? `${fieldId}-hint` : undefined}
         className={cn(
           fieldShell,
@@ -49,16 +53,18 @@ export const Input = forwardRef<
 export const Textarea = forwardRef<
   HTMLTextAreaElement,
   React.TextareaHTMLAttributes<HTMLTextAreaElement> & FieldProps
->(function Textarea({ label, hint, error, required, className, id, ...rest }, ref) {
+>(function Textarea({ label, hint, error, required, className, wrapperClassName, id, ...rest }, ref) {
   const autoId = useId();
   const fieldId = id ?? autoId;
   return (
-    <div className="w-full">
+    <div className={wrapperClassName ?? "w-full"}>
       {label && <Label htmlFor={fieldId} required={required}>{label}</Label>}
       <textarea
         ref={ref}
         id={fieldId}
         aria-invalid={!!error}
+        // Announced as required without turning on the browser's own validation popups.
+        aria-required={required || undefined}
         aria-describedby={error ? `${fieldId}-err` : hint ? `${fieldId}-hint` : undefined}
         className={cn(
           fieldShell,

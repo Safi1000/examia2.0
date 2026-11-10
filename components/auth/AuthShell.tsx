@@ -165,6 +165,8 @@ export function PasswordField({
   onChange,
   disabled,
   autoComplete = "current-password",
+  name = "password",
+  enterKeyHint = "go",
 }: {
   id: string;
   label: string;
@@ -172,6 +174,9 @@ export function PasswordField({
   onChange: (v: string) => void;
   disabled?: boolean;
   autoComplete?: string;
+  /** Lets password managers recognise the field. */
+  name?: string;
+  enterKeyHint?: React.InputHTMLAttributes<HTMLInputElement>["enterKeyHint"];
 }) {
   const [shown, setShown] = useState(false);
   const [caps, setCaps] = useState(false);
@@ -192,6 +197,11 @@ export function PasswordField({
           onKeyUp={checkCaps}
           onBlur={() => setCaps(false)}
           autoComplete={autoComplete}
+          name={name}
+          enterKeyHint={enterKeyHint}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           required
           disabled={disabled}
           aria-describedby={caps ? `${id}-caps` : undefined}
@@ -202,7 +212,7 @@ export function PasswordField({
           onClick={() => setShown((s) => !s)}
           aria-label={shown ? "Hide password" : "Show password"}
           aria-pressed={shown}
-          className="absolute right-1.5 top-1.5 flex h-10 w-10 items-center justify-center rounded-md text-ink-3 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-brand"
+          className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-md text-ink-3 transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-brand"
         >
           {shown ? (
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

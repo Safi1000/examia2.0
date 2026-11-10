@@ -5,7 +5,7 @@ import { useNow } from "@/hooks/useNow";
 import { useDatabase } from "@/lib/data/store";
 import { joinedMs, studentById } from "@/lib/data/selectors";
 import { ClassNow } from "@/components/student/ClassNow";
-import { Badge, EmptyState, Icon } from "@/components/ui";
+import { Badge, EmptyState, Icon, Skeleton } from "@/components/ui";
 import type { Student } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { useSchedule, LEVEL_LABEL, RECORDING_HOURS, getSchedule, addDays, isClassDay, pkDate, slotKey, slotsForStudent, slotsOn, span, useClassLinks } from "@/lib/classes";
@@ -30,6 +30,14 @@ function cancelledFor(db: Database, student: Student, date: string) {
 
 const dayName = (ymd: string) => new Date(`${ymd}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 
+/** True on a phone set to another time zone (the Gulf). Pakistan is five hours ahead of UTC all year. */
+const away = (ms: number) => new Date(ms).getTimezoneOffset() !== -300;
+/** A moment on the phone's own clock: "6:30 PM". */
+const ownClock = (ms: number) => new Date(ms).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+/** When a recording closes, on the phone's own clock: "Wed, 9:30 PM" (the same as Pakistan time in Pakistan). */
+const closesLabel = (ms: number) =>
+  `${new Date(ms).toLocaleDateString("en-GB", { weekday: "short" })}, ${ownClock(ms)}${away(ms) ? " your time" : ""}`;
+
 /** The student's daily timetable and the recordings of past classes. */
 export default function ClassesPage() {
   const { session, profile, updateProfile } = useAuth();
@@ -42,17 +50,28 @@ export default function ClassesPage() {
   const from = addDays(today, -3);
   // Check for fresh links only around class time, not every 20 s all day.
   const nearClass = !!student && slotsForStudent(db, student, today).some((s) => nowMs >= s.startMs - 20 * 60_000 && nowMs < s.endMs);
-  const { links } = useClassLinks(from, today, false, nearClass);
+  const { links, ready } = useClassLinks(from, today, false, nearClass);
   const schedule = useSchedule(); // re-render when the timetable loads or changes
 
   // The timetable is the same every class day, so show one (the next) day's slots.
   // Once today's last class has ended, tomorrow's is what matters.
   const doneToday = !!student && slotsForStudent(db, student, today).length > 0 && slotsForStudent(db, student, today).every((s) => s.endMs <= nowMs);
   let day = today < schedule.termStarts ? schedule.termStarts : doneToday ? addDays(today, 1) : today;
-  for (let i = 0; i < 7 && !isClassDay(day); i++) day = addDays(day, 1);
-  const slots = student
-    ? [...slotsForStudent(db, student, day), ...cancelledFor(db, student, day)].sort((a, b) => a.startMs - b.startMs)
-    : [];
+  const mine = (d: string) => (student ? [...slotsForStudent(db, student, d), ...cancelledFor(db, student, d)].sort((a, b) => a.startMs - b.startMs) : []);
+  // The next day this student has a class. Any class day would do when everyone
+  // sits every day, but a subject that runs on some days only left its students
+  // looking at "once I add your level and subjects" on the days in between.
+  let slots = mine(day);
+  for (let i = 1, d = day; !slots.length && i <= 14; i++) {
+    d = addDays(d, 1);
+    const found = mine(d);
+    if (found.length) {
+      day = d;
+      slots = found;
+    }
+  }
+  // Nothing in the next two weeks: fall back to the next class day (and the note below).
+  if (!slots.length) for (let i = 0; i < 7 && !isClassDay(day); i++) day = addDays(day, 1);
 
   const recordings = (() => {
     if (!student) return [];
@@ -113,8 +132,10 @@ export default function ClassesPage() {
                   </span>
                   <span className="mt-0.5 block text-xs text-ink-3">{LEVEL_LABEL[s.level]}</span>
                 </span>
-                <span className={cn("shrink-0 text-sm tabular-nums", s.cancelled ? "text-ink-3 line-through" : "text-ink-2")}>
-                  {span(s.start, s.end)}
+                <span className="shrink-0 text-right">
+                  <span className={cn("block text-sm tabular-nums", s.cancelled ? "text-ink-3 line-through" : "text-ink-2")}>{span(s.start, s.end)}</span>
+                  {/* The page is in Pakistan time; a phone set to another zone gets its own start time too. */}
+                  {!s.cancelled && away(s.startMs) && <span className="mt-0.5 block text-xs text-ink-3 tabular-nums">{ownClock(s.startMs)} your time</span>}
                 </span>
               </li>
             ))}
@@ -156,10 +177,8 @@ export default function ClassesPage() {
                 >
                   <span className="min-w-0">
                     <span className="block font-semibold text-ink">{r.subject}</span>
-                    <span className="block text-xs text-ink-3">
-                      {new Date(`${r.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} · open
-                      until{" "}
-                      {new Date(r.closesAt).toLocaleString("en-GB", { timeZone: "Asia/Karachi", weekday: "short", hour: "numeric", minute: "2-digit", hour12: true })}
+                    <span className="block text-xs text-ink-3 tabular-nums">
+                      {dayName(r.date)} · open until {closesLabel(r.closesAt)}
                     </span>
                   </span>
                   {watched.has(slotKey(r)) ? (
@@ -180,7 +199,12 @@ export default function ClassesPage() {
               </li>
             ))}
           </ul>
-        ) : pending.length ? null : (
+        ) : pending.length ? null : ready === null ? (
+          // Still fetching: a placeholder, not "No recordings" for a moment and then a list.
+          <Skeleton className="h-[72px] w-full rounded-xl" />
+        ) : ready === false ? (
+          <p className="surface-quiet rounded-xl px-5 py-4 text-base text-ink-2">Couldn&apos;t load your recordings. Check your internet, then open this page again.</p>
+        ) : (
           <EmptyState
             icon={<Icon.Doc />}
             title="No recordings right now"

@@ -44,7 +44,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "h-9 rounded-full border px-3.5 text-sm font-semibold transition-colors duration-150 max-md:h-11",
+        "h-11 rounded-full border px-3.5 text-sm font-semibold transition-colors duration-150 xl:h-9",
         active
           ? "border-white/[0.16] bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
           : "border-border bg-transparent text-ink-3 hover:border-border-strong hover:text-ink",

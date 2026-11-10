@@ -79,16 +79,16 @@ export function NotifyCard() {
               type="button"
               disabled={busy}
               onClick={() => void turnOn()}
-              className="h-10 rounded-full bg-brand px-5 text-sm font-semibold text-on-brand transition-opacity disabled:opacity-60"
+              className="h-11 rounded-full bg-brand px-5 text-sm font-semibold text-on-brand transition-opacity disabled:opacity-60"
             >
               {busy ? "Turning on…" : "Turn on reminders"}
             </button>
           ) : (
-            <button type="button" onClick={() => setSteps((v) => !v)} aria-expanded={steps} className="h-10 rounded-full bg-brand px-5 text-sm font-semibold text-on-brand">
+            <button type="button" onClick={() => setSteps((v) => !v)} aria-expanded={steps} className="h-11 rounded-full bg-brand px-5 text-sm font-semibold text-on-brand">
               {steps ? "Hide steps" : "Show me how"}
             </button>
           )}
-          <button type="button" onClick={later} className="h-10 rounded-full px-3 text-sm font-semibold text-ink-3 hover:text-ink">
+          <button type="button" onClick={later} className="h-11 rounded-full px-3 text-sm font-semibold text-ink-3 hover:text-ink">
             Later
           </button>
         </div>

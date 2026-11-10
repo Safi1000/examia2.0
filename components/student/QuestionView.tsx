@@ -1,7 +1,7 @@
 "use client";
 
 import { cld } from "@/lib/cld";
-import { trackUpload } from "@/lib/upload-tracker";
+import { trackUpload, useUploadsInProgress } from "@/lib/upload-tracker";
 import { memo, useRef, useState } from "react";
 import type { Answer, Question } from "@/types";
 import { RadioCard, Textarea, Pill, Badge, Icon } from "@/components/ui";
@@ -23,6 +23,14 @@ import { cn } from "@/lib/cn";
  */
 export const QuestionView = memo(QuestionViewInner, (a, b) => a.question === b.question && a.answer === b.answer && a.paperHidden === b.paperHidden);
 
+/**
+ * The new answer, or a function from the answer as it is right now. Photos use
+ * the function: an upload can finish long after it started (the student has
+ * moved to another question and back), so it must add to whatever is there by
+ * then, never to the copy it started with.
+ */
+export type AnswerChange = Answer | ((current: Answer) => Answer);
+
 function QuestionViewInner({
   question,
   answer,
@@ -31,7 +39,7 @@ function QuestionViewInner({
 }: {
   question: Question;
   answer: Answer;
-  onChange: (next: Answer) => void;
+  onChange: (next: AnswerChange) => void;
   /** Writing time is over: the wording and the question paper come off the
    *  screen and only the upload control is left. */
   paperHidden?: boolean;
@@ -108,17 +116,27 @@ function batchLabel(p: number) {
   return p >= 0.99 ? "· almost done" : `· ${Math.round(p * 100)}%`;
 }
 
-function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: Answer) => void }) {
+const photosOf = (a: Answer) => a.photoUrls ?? (a.photoDataUrl ? [a.photoDataUrl] : []);
+
+function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: AnswerChange) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [dragging, setDragging] = useState(false);
+  // Uploads started before this box was last drawn (the student went to
+  // another question and came back) are still on their way.
+  const stillUploading = useUploadsInProgress() > 0 && !uploading;
 
-  const urls = answer.photoUrls ?? (answer.photoDataUrl ? [answer.photoDataUrl] : []);
+  const urls = photosOf(answer);
 
-  const apply = (next: string[]) =>
-    onChange({ ...answer, photoUrls: next, photoDataUrl: next[0] });
+  // Always worked out from the pages that are there at that moment, so two
+  // uploads finishing in any order both keep their pages.
+  const apply = (change: (have: string[]) => string[]) =>
+    onChange((current) => {
+      const next = change(photosOf(current)).slice(0, MAX_PHOTOS);
+      return { ...current, photoUrls: next, photoDataUrl: next[0] };
+    });
 
   async function addFiles(files: File[]) {
     // A PDF is accepted whole and lands as one image per page, so the rest of
@@ -158,9 +176,8 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
       const uploaded = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
       const failed = results.filter((r) => r.status === "rejected").length;
       if (failed) toast(failed === 1 ? "1 page didn't upload. Add it again." : `${failed} pages didn't upload. Add them again.`, "error");
-      const next = [...urls, ...uploaded];
-      if (next.length > MAX_PHOTOS) toast(`Only the first ${MAX_PHOTOS} pages were kept.`, "info");
-      apply(next.slice(0, MAX_PHOTOS));
+      if (urls.length + uploaded.length > MAX_PHOTOS) toast(`Only the first ${MAX_PHOTOS} pages were kept.`, "info");
+      if (uploaded.length) apply((have) => [...have, ...uploaded]);
     } catch (err) {
       toast(err instanceof Error ? err.message : "Photo upload failed. Try again.", "error");
     } finally {
@@ -170,8 +187,8 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
     }
   }
 
-  function remove(i: number) {
-    apply(urls.filter((_, idx) => idx !== i));
+  function remove(url: string) {
+    apply((have) => have.filter((u) => u !== url));
   }
 
   return (
@@ -203,10 +220,10 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
               </span>
               <button
                 type="button"
-                onClick={() => remove(i)}
+                onClick={() => remove(url)}
                 disabled={uploading}
                 aria-label={`Remove image ${i + 1}`}
-                className="absolute right-1 top-1 flex h-10 w-10 disabled:opacity-40 items-center justify-center rounded-md bg-paper/85 text-ink-2 backdrop-blur transition-colors hover:bg-error hover:text-paper"
+                className="absolute right-1 top-1 flex h-11 w-11 disabled:opacity-40 items-center justify-center rounded-md bg-paper/85 text-ink-2 backdrop-blur transition-colors hover:bg-error hover:text-paper"
               >
                 <Icon.Close className="h-4 w-4" />
               </button>
@@ -255,6 +272,11 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
             </span>
           </button>
         </div>
+      )}
+      {stillUploading && (
+        <p role="status" className="mt-2 text-sm text-ink-2">
+          Your photos are still uploading. They show up here as soon as they are done.
+        </p>
       )}
     </div>
   );

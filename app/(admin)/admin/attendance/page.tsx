@@ -35,18 +35,19 @@ export default function AttendancePage() {
   const [classId, setClassId] = useState("");
   const [date, setDate] = useState(todayISO);
 
-  const students = useMemo(
-    () =>
+  const students = useMemo(() => {
+    const off = archivedCohortIds(db);
+    return (
       db.students
-        .filter((s) => !archivedCohortIds(db).has(s.cohortId))
+        .filter((s) => !off.has(s.cohortId))
         // In-person students have no register.
         .filter((s) => !isInPersonStudent(db, s))
         .filter((s) => (cohortId ? s.cohortId === cohortId : true))
         // Their own classes, else their cohort's (the same rule the portal uses).
         .filter((s) => (classId ? (s.classIds.length ? s.classIds : (cohortById(db, s.cohortId)?.classIds ?? [])).includes(classId) : true))
-        .sort((a, b) => a.username.localeCompare(b.username)),
-    [db, cohortId, classId],
-  );
+        .sort((a, b) => a.username.localeCompare(b.username))
+    );
+  }, [db, cohortId, classId]);
 
   const month = monthStart(date);
   // Who tapped Join on this day (and when), so the register shows who actually came.
@@ -100,7 +101,10 @@ export default function AttendancePage() {
         <input
           type={mode === "daily" ? "date" : "month"}
           value={mode === "daily" ? date : date.slice(0, 7)}
-          onChange={(e) => setDate(mode === "daily" ? e.target.value : `${e.target.value}-01`)}
+          // The picker's Clear button sends an empty value: keep the last real date, or marks would be saved with no day.
+          // A typed future date is ignored too: `max` only limits the picker, not the keyboard.
+          onChange={(e) => e.target.value && e.target.value <= e.target.max && setDate(mode === "daily" ? e.target.value : `${e.target.value}-01`)}
+          max={mode === "daily" ? todayISO() : todayISO().slice(0, 7)}
           className="h-10 rounded-md border border-border-strong bg-surface px-3 text-sm text-ink max-md:h-11"
           aria-label={mode === "daily" ? "Date" : "Month"}
         />
@@ -167,21 +171,24 @@ export default function AttendancePage() {
         <Card className="divide-y divide-border overflow-hidden p-0">
           {rows.map(({ s, mark, join }) => (
             <div key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 transition-colors hover:bg-white/[0.018]">
-              <span className="min-w-0 flex-1">
+              <span className="min-w-36 flex-1">
                 <span className="block truncate font-semibold capitalize text-ink">{s.username}</span>
                 <span className="block text-xs tabular-nums text-ink-3">
                   {join ? `Joined ${clock(join.joinedAt)}` : "Didn't tap Join"}
                   {!mark && " · not marked yet"}
                 </span>
               </span>
-              <div className="flex gap-1.5">
+              {/* On a phone the three marks take their own full-width line, so the name is never squeezed. */}
+              <div className="flex gap-1.5 max-sm:w-full">
                 {STATUS.map((opt) => (
                   <button
                     key={opt.value}
+                    type="button"
                     onClick={() => store.setAttendance(s.id, mark ? mark.classId : classId, date, opt.value)}
                     aria-pressed={mark?.status === opt.value}
+                    aria-label={`${opt.label}: ${s.username}`}
                     className={cn(
-                      "h-10 min-w-[4.5rem] rounded-lg border px-3 text-sm font-semibold transition-colors duration-150 max-md:h-11",
+                      "h-11 min-w-[4.5rem] rounded-lg border px-3 text-sm font-semibold transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-sm:flex-1",
                       mark?.status === opt.value ? opt.tone : "border-border-strong bg-surface text-ink-2 hover:bg-surface-2",
                     )}
                   >

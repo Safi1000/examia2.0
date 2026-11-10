@@ -35,7 +35,7 @@ export type BoardMsg = (
   | { t: "pagedel"; id: string } // a page deleted: the other device lets it go too
   | { t: "view"; v: View } // what the tablet shows, for "follow"
   | { t: "hello" } // asking for the full board
-  | { t: "rev"; n: number; last: string; d?: string; p?: BoardPage } // heartbeat: item count, newest stroke, a fingerprint and the page, so the other side can self-check
+  | { t: "rev"; n: number; last: string; d?: string; p?: BoardPage; v?: View } // heartbeat: item count, newest stroke, a fingerprint, the page and the view, so the other side can self-check
 ) & { pg?: string };
 
 /** A short fingerprint of a board (which strokes and pictures, in their current form). */
@@ -88,6 +88,15 @@ export class Ledger {
   /** A full board or a clear: everything numbered before it is already in it. */
   reset(q: number) {
     this.floor = Math.max(this.floor, q);
+    this.seen.clear();
+  }
+  /**
+   * The tablet's full board, taken as the truth on the laptop: start again from its number, even a
+   * lower one. (A tablet opened fresh counts from zero; holding on to an older, higher number made
+   * the laptop refuse everything the tablet wrote afterwards.)
+   */
+  adopt(q: number) {
+    this.floor = q;
     this.seen.clear();
   }
   hear(q?: number) {
@@ -202,6 +211,8 @@ export function connectBoard(
   let closed = false;
   let retry: ReturnType<typeof setTimeout> | null = null;
   let joinedOnce = false;
+  // Channels taken down on purpose: their closing must not start another rejoin.
+  const dead = new WeakSet<RealtimeChannel>();
 
   // (Re)join the room. If the connection drops (Wi-Fi blip, laptop sleep),
   // join again by itself and ask for the full board, so nothing is missed.
@@ -218,6 +229,7 @@ export function connectBoard(
       );
     });
     c.subscribe((status) => {
+      if (dead.has(c)) return;
       if (status === "SUBSCRIBED") {
         void c.track({ role });
         if (joinedOnce && beforeRejoin) {
@@ -227,10 +239,16 @@ export function connectBoard(
         joinedOnce = true;
         if (askOnJoin) void c.send({ type: "broadcast", event: "m", payload: { t: "hello" } });
       } else if ((status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") && !closed) {
+        // The link is down: nobody else is here as far as this device can tell.
+        onPeople?.(0, 0);
         if (retry) return;
         retry = setTimeout(() => {
           retry = null;
+          // Already replaced, or it got back in by itself meanwhile: leave it be. (Joining again on
+          // top doubled every incoming message for the rest of the class.)
+          if (c !== ch || c.state === "joined") return;
           // Fully gone first: joining straight away got the same broken channel back.
+          dead.add(c);
           void sb.removeChannel(c).finally(join);
         }, 1500);
       }

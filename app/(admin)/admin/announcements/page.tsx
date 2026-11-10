@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Announcement } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { cohortById } from "@/lib/data/selectors";
@@ -25,13 +25,18 @@ export default function AnnouncementsPage() {
   const [toPhones, setToPhones] = useState(false);
   const [cohortId, setCohortId] = useState("");
   const [deleting, setDeleting] = useState<Announcement | null>(null);
+  // Posting also messages students, so it runs once: a second tap while it sends does nothing.
+  const [posting, setPosting] = useState(false);
+  const postingRef = useRef(false);
 
   function openNew() { setEditing("new"); setBody(""); setPinned(false); setToPhones(false); setCohortId(viewing ?? ""); }
   function openEdit(a: Announcement) { setEditing(a); setBody(a.body); setPinned(a.pinned); setCohortId(a.cohortId ?? ""); }
   async function save() {
     const text = body.trim().slice(0, MAX);
-    if (!text) return;
+    if (!text || postingRef.current) return;
     if (editing === "new") {
+      postingRef.current = true;
+      setPosting(true);
       try {
         const sent = await store.addAnnouncement({ body: text, pinned, cohortId: cohortId || null }, toPhones);
         toast(
@@ -47,11 +52,22 @@ export default function AnnouncementsPage() {
       } catch (e) {
         toast(e instanceof Error ? e.message : "Couldn't post the announcement. Try again.", "error");
         return;
+      } finally {
+        postingRef.current = false;
+        setPosting(false);
       }
     } else if (editing) {
       store.updateAnnouncement(editing.id, { body: text, pinned, cohortId: cohortId || null });
       toast("Announcement updated.", "success");
     }
+    setEditing(null);
+  }
+
+  // Esc or a tap outside the box: never lose a typed message without asking.
+  function closeEditor() {
+    if (postingRef.current) return;
+    const before = editing === "new" || editing === null ? "" : editing.body;
+    if (body.trim() !== before.trim() && !window.confirm("Throw away this message?")) return;
     setEditing(null);
   }
 
@@ -80,19 +96,19 @@ export default function AnnouncementsPage() {
                       {cohort ? <CohortTag color={cohort.color} name={cohort.name} className="text-xs" /> : <span className="text-xs text-ink-3">All cohorts</span>}
                       <span className="text-xs tabular-nums text-ink-3">{formatDate(a.createdAt)}</span>
                     </div>
-                    <p className="max-w-[75ch] text-pretty text-sm leading-relaxed text-ink">{a.body}</p>
+                    <p className="max-w-[75ch] whitespace-pre-line break-words text-pretty text-sm leading-relaxed text-ink">{a.body}</p>
                     {!a.pinned && (
                       <p className="mt-1.5 text-xs text-ink-3">Dismissed by {a.dismissedBy.length} {a.dismissedBy.length === 1 ? "student" : "students"}</p>
                     )}
                   </div>
                   <div className="flex shrink-0 gap-1">
-                    <button onClick={() => store.updateAnnouncement(a.id, { pinned: !a.pinned })} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11" aria-label={a.pinned ? "Unpin" : "Pin"} title={a.pinned ? "Unpin" : "Pin"}>
+                    <button type="button" aria-pressed={a.pinned} onClick={() => store.updateAnnouncement(a.id, { pinned: !a.pinned })} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11" aria-label="Pinned" title={a.pinned ? "Unpin" : "Pin"}>
                       <Icon.Flag className={a.pinned ? "h-4 w-4 text-info" : "h-4 w-4"} />
                     </button>
-                    <button onClick={() => openEdit(a)} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11" aria-label="Edit">
+                    <button type="button" onClick={() => openEdit(a)} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11" aria-label="Edit">
                       <Icon.Edit className="h-4 w-4" />
                     </button>
-                    <button onClick={() => setDeleting(a)} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error max-md:h-11 max-md:w-11" aria-label="Delete">
+                    <button type="button" onClick={() => setDeleting(a)} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error max-md:h-11 max-md:w-11" aria-label="Delete">
                       <Icon.Trash className="h-4 w-4" />
                     </button>
                   </div>
@@ -105,12 +121,12 @@ export default function AnnouncementsPage() {
 
       <Modal
         open={editing !== null}
-        onClose={() => setEditing(null)}
+        onClose={closeEditor}
         title={editing === "new" ? "New announcement" : "Edit announcement"}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setEditing(null)}>Cancel</Button>
-            <Button onClick={save} disabled={!body.trim()}>{editing === "new" ? "Post" : "Save"}</Button>
+            <Button variant="secondary" disabled={posting} onClick={() => setEditing(null)}>Cancel</Button>
+            <Button onClick={() => void save()} loading={posting} disabled={!body.trim()}>{editing === "new" ? "Post" : "Save"}</Button>
           </>
         }
       >

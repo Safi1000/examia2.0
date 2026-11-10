@@ -74,7 +74,7 @@ export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
           <select
             value={target}
             onChange={(e) => updateProfile({ daysTarget: Number(e.target.value) })}
-            className="h-11 rounded-full border border-border bg-surface-2 px-3 text-sm font-semibold text-ink"
+            className="h-11 rounded-full border border-border bg-surface-2 px-3 text-base font-semibold text-ink sm:text-sm"
           >
             {DAYS_TARGETS.map((t) => (
               <option key={t} value={t}>
@@ -162,7 +162,7 @@ export function SlotsCard({ nowMs }: { nowMs: number }) {
           </div>
           <label className="block text-xs font-semibold text-ink-2">
             Time
-            <select value={time} onChange={(e) => setTime(e.target.value)} className="mt-2 block h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-ink">
+            <select value={time} onChange={(e) => setTime(e.target.value)} className="mt-2 block h-11 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink sm:text-sm">
               {SLOT_TIMES.map((t) => (
                 <option key={t} value={t}>
                   {clock12(t)}

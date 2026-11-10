@@ -56,11 +56,31 @@ function cohortsFor(db: Db, opt: BookOpt, picked: string[]) {
   );
 }
 
+// Assignments grouped by note, built once per version of the list: every row looks its
+// note up here instead of scanning every assignment (slow with a big catalogue).
+const byNoteCache = new WeakMap<NoteAssignment[], Map<string, NoteAssignment[]>>();
+function assignmentsOf(noteId: string, assignments: NoteAssignment[]): NoteAssignment[] {
+  let m = byNoteCache.get(assignments);
+  if (!m) {
+    m = new Map();
+    for (const a of assignments) {
+      const list = m.get(a.noteId);
+      if (list) list.push(a);
+      else m.set(a.noteId, [a]);
+    }
+    byNoteCache.set(assignments, m);
+  }
+  return m.get(noteId) ?? [];
+}
+
 /** Which books a note goes to, from its assignments. */
 function booksOf(note: Note, assignments: NoteAssignment[], opts: BookOpt[]): BookOpt[] {
-  const mine = assignments.filter((a) => a.noteId === note.id);
+  const mine = assignmentsOf(note.id, assignments);
   return opts.filter((o) => mine.some((a) => a.subjectId === o.subjectId && (a.classId === o.classId || a.classId === null)));
 }
+
+/** File types the portal can show (the same list as the file picker): a folder can hold anything. */
+const ACCEPT_RE = new RegExp(`(${ACCEPT.split(",").map((x) => `\\${x}`).join("|")})$`, "i");
 
 /** The chapter a note sits on in a book, if any. */
 const slotIn = (book: NoteBook, note: Note) => {
@@ -172,8 +192,12 @@ export default function NotesPage() {
   const [bookKey, setBookKey] = useState<string>("");
   const [query, setQuery] = useState("");
   const [upload, setUpload] = useState<{ book?: string; slot?: string } | null>(null);
-  const [assigning, setAssigning] = useState<Note | null>(null);
-  const [deleting, setDeleting] = useState<Note | null>(null);
+  // The dialogs keep only the note's id and read the note fresh, so a rename (here or in
+  // another tab) shows straight away, and a note deleted meanwhile closes its dialog.
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const assigning = assigningId ? (db.notes.find((n) => n.id === assigningId) ?? null) : null;
+  const deleting = deletingId ? (db.notes.find((n) => n.id === deletingId) ?? null) : null;
   const [picked, setPicked] = useState<string[]>([]);
 
   // Which PDFs can be searched inside. Checked once, then kept up to date here.
@@ -209,6 +233,9 @@ export default function NotesPage() {
 
   const activeBook = opts.find((o) => o.key === bookKey) ?? opts[0];
   const hiddenCount = db.notes.filter((n) => isHidden(n.fileType)).length;
+  // A note no batch has been given isn't showing to anyone, hidden or not.
+  const unsharedCount = db.notes.filter((n) => !isHidden(n.fileType) && !assignmentsOf(n.id, db.noteAssignments).length).length;
+  const showingCount = db.notes.length - hiddenCount - unsharedCount;
   const q = query.trim().toLowerCase();
 
   async function setNoteHidden(n: Note, hidden: boolean) {
@@ -225,9 +252,9 @@ export default function NotesPage() {
       note={n}
       searchable={searchable ? (n.fileType.includes("pdf") ? searchable.has(n.id) : null) : null}
       onRead={() => setViewing({ id: n.id, title: n.title })}
-      onAssign={() => setAssigning(n)}
+      onAssign={() => setAssigningId(n.id)}
       onHide={(h) => void setNoteHidden(n, h)}
-      onDelete={() => setDeleting(n)}
+      onDelete={() => setDeletingId(n.id)}
     />
   );
 
@@ -235,7 +262,7 @@ export default function NotesPage() {
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader
         title="Notes"
-        subtitle={`${db.notes.length - hiddenCount} showing to students${hiddenCount ? ` · ${hiddenCount} hidden` : ""}`}
+        subtitle={`${showingCount} showing to students${unsharedCount ? ` · ${unsharedCount} not given to a batch yet` : ""}${hiddenCount ? ` · ${hiddenCount} hidden` : ""}`}
         actions={
           <Button onClick={() => setUpload({})}>
             <Icon.Plus className="h-4 w-4" /> Upload notes
@@ -265,7 +292,7 @@ export default function NotesPage() {
               role="tab"
               aria-selected={view === v}
               onClick={() => setView(v)}
-              className={cn("h-9 rounded-full px-4 text-sm font-semibold", view === v ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink")}
+              className={cn("h-9 rounded-full px-4 text-sm font-semibold max-md:h-11", view === v ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink")}
             >
               {v === "chapters" ? "By chapter" : "All notes"}
             </button>
@@ -279,7 +306,7 @@ export default function NotesPage() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Find a note by name"
             aria-label="Find a note by name"
-            className="h-10 w-full rounded-full border border-border bg-surface pl-9 pr-3 text-sm text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none"
+            className="h-10 w-full rounded-full border border-border bg-surface pl-9 pr-3 text-sm text-ink max-md:h-11 max-md:text-base placeholder:text-ink-3 focus:border-brand focus:outline-none"
           />
         </label>
       </div>
@@ -307,16 +334,16 @@ export default function NotesPage() {
       )}
 
       {upload && <UploadModal db={db} store={store} opts={opts} preset={upload} onClose={() => setUpload(null)} onIndexed={(id) => setSearchable((s) => (s ? new Set([...s, id]) : s))} />}
-      {assigning && <AssignModal db={db} store={store} opts={opts} note={assigning} onClose={() => setAssigning(null)} />}
+      {assigning && <AssignModal key={assigning.id} db={db} store={store} opts={opts} note={assigning} onClose={() => setAssigningId(null)} />}
 
       <Modal
         open={!!deleting}
-        onClose={() => setDeleting(null)}
+        onClose={() => setDeletingId(null)}
         title="Delete note?"
         description={deleting ? `"${deleting.title}" will be removed for all students.` : ""}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setDeleting(null)}>
+            <Button variant="secondary" onClick={() => setDeletingId(null)}>
               Cancel
             </Button>
             {deleting && !isHidden(deleting.fileType) && (
@@ -324,7 +351,7 @@ export default function NotesPage() {
                 variant="secondary"
                 onClick={() => {
                   void setNoteHidden(deleting, true);
-                  setDeleting(null);
+                  setDeletingId(null);
                 }}
               >
                 Hide instead
@@ -333,8 +360,12 @@ export default function NotesPage() {
             <Button
               variant="danger"
               onClick={() => {
-                if (deleting) store.deleteNote(deleting.id);
-                setDeleting(null);
+                if (!deleting) return;
+                const id = deleting.id;
+                store.deleteNote(id);
+                // A deleted note can't stay ticked for a bulk assign.
+                setPicked((p) => p.filter((x) => x !== id));
+                setDeletingId(null);
                 toast("Note deleted.", "success");
               }}
             >
@@ -516,10 +547,13 @@ function AllNotes({
   const [bulkSubject, setBulkSubject] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
   const list = db.notes.filter((n) => !q || n.title.toLowerCase().includes(q) || n.fileName.toLowerCase().includes(q));
+  // Only notes that still exist count (one may be deleted in another tab while ticked).
+  const live = new Set(db.notes.map((n) => n.id));
+  const chosen = picked.filter((id) => live.has(id));
 
   return (
     <>
-      <BulkBar count={picked.length} noun="note" onClear={() => setPicked(() => [])}>
+      <BulkBar count={chosen.length} noun="note" onClear={() => setPicked(() => [])}>
         <Select value={bulkCohort} onChange={(e) => setBulkCohort(e.target.value)} className="h-9 w-auto min-w-36" aria-label="Batch">
           <option value="">Batch…</option>
           {db.cohorts.filter((c) => c.active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -541,8 +575,8 @@ function AllNotes({
               setBulkBusy(true);
               let ok = 0;
               let failed = 0;
-              for (const id of picked) {
-                const has = db.noteAssignments.some((a) => a.noteId === id && a.cohortId === bulkCohort && a.classId === (bulkClass || null) && a.subjectId === (bulkSubject || null));
+              for (const id of chosen) {
+                const has = assignmentsOf(id, db.noteAssignments).some((a) => a.cohortId === bulkCohort && a.classId === (bulkClass || null) && a.subjectId === (bulkSubject || null));
                 if (has) continue;
                 try {
                   await store.addNoteAssignment(id, bulkCohort, bulkClass || null, bulkSubject || null);
@@ -568,7 +602,7 @@ function AllNotes({
         <div className="space-y-2.5">
           {list.map((n) => {
             const books = booksOf(n, db.noteAssignments, opts);
-            const assigned = db.noteAssignments.some((a) => a.noteId === n.id);
+            const assigned = assignmentsOf(n.id, db.noteAssignments).length > 0;
             return (
               <Card key={n.id} className={cn("p-4", isHidden(n.fileType) && "opacity-70")}>
                 <div className="flex flex-wrap items-start gap-3">
@@ -661,6 +695,34 @@ function UploadModal({
   const fileRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
   const finished = rows.length > 0 && rows.every((r) => r.status === "done");
+  // The rows as they are now: a file waiting its turn is read fresh when its turn comes,
+  // so one removed or changed after Publish was pressed is skipped or sent as changed.
+  const rowsRef = useRef(rows);
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
+  // What already went through for each file, so a retry after a failure doesn't upload
+  // the file again or make a second copy of a note that was already created.
+  const sent = useRef(new Map<string, { file?: { url: string; fileType: string; fileName: string }; notes: Map<string, string>; links: Set<string>; indexed: Set<string> }>());
+
+  // Leaving the page mid-upload would cut it off: the browser asks first.
+  useEffect(() => {
+    if (!busy) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [busy]);
+
+  /** Escape, a tap outside or the close button: ask before dropping files not yet published. */
+  function requestClose() {
+    if (busy) return;
+    const left = rows.filter((r) => r.status === "ready" || r.status === "failed").length;
+    if (left && !window.confirm(`Close without publishing? ${left === 1 ? "The file you added isn't" : `The ${left} files you added aren't`} uploaded yet.`)) return;
+    onClose();
+  }
 
   const optOf = (k: string) => allOpts.find((o) => o.key === k);
 
@@ -672,9 +734,12 @@ function UploadModal({
   };
 
   function addFiles(list: FileList | File[]) {
-    const files = [...list].filter((f) => f.size > 0 && !f.name.startsWith("."));
+    const usable = [...list].filter((f) => f.size > 0 && !f.name.startsWith("."));
+    // A dropped or chosen folder can hold anything: keep the kinds of file students can open.
+    const files = usable.filter((f) => ACCEPT_RE.test(f.name));
+    const skipped = usable.length - files.length;
+    setError(skipped ? `${skipped} file${skipped === 1 ? " was" : "s were"} left out. Notes can be PDF, Word, PowerPoint, Excel or an image.` : null);
     if (!files.length) return;
-    setError(null);
     setRows((prev) => {
       const next = [...prev];
       for (const file of files) {
@@ -763,24 +828,48 @@ function UploadModal({
     const queue = [...todo];
     const worker = async () => {
       for (let r = queue.shift(); r; r = queue.shift()) {
-        const row = r;
+        // Its turn now: take the row as it is, not as it was when Publish was pressed.
+        const row = rowsRef.current.find((x) => x.key === r.key);
+        if (!row || (row.status !== "ready" && row.status !== "failed")) continue;
+        if (!row.books.length) {
+          patch(row.key, { status: "failed", error: "Choose who gets it" });
+          continue;
+        }
         patch(row.key, { status: "uploading", progress: 0, error: undefined });
+        let done = sent.current.get(row.key);
+        if (!done) {
+          done = { notes: new Map(), links: new Set(), indexed: new Set() };
+          sent.current.set(row.key, done);
+        }
         try {
           const isPdf = row.file.type.includes("pdf") || /\.pdf$/i.test(row.file.name);
           // Read the words while the file uploads.
           const words = isPdf ? pdfPagesText(row.file).catch(() => null) : Promise.resolve(null);
-          const { url, fileType, fileName } = await uploadNote(row.file, (f) => patch(row.key, { progress: f }));
+          // A retry reuses the copy already uploaded.
+          done.file ??= await uploadNote(row.file, (f) => patch(row.key, { progress: f }));
+          const { url, fileType, fileName } = done.file;
           patch(row.key, { status: "saving", progress: 1 });
           const pages = await words;
           let unsearchable = isPdf && !pages;
           for (const [title, books] of plan(row)) {
-            const noteId = await store.addNote(title, url, fileType || (isPdf ? "application/pdf" : "application/octet-stream"), fileName);
-            for (const o of books) {
-              for (const c of cohortsFor(db, o, cohorts)) await store.addNoteAssignment(noteId, c.id, o.classId, o.subjectId);
+            // Made on an earlier try: use that note rather than making a second one.
+            let noteId = done.notes.get(title);
+            if (!noteId) {
+              noteId = await store.addNote(title, url, fileType || (isPdf ? "application/pdf" : "application/octet-stream"), fileName);
+              done.notes.set(title, noteId);
             }
-            if (pages) {
+            for (const o of books) {
+              for (const c of cohortsFor(db, o, cohorts)) {
+                const link = `${noteId}|${c.id}|${o.classId}|${o.subjectId}`;
+                if (done.links.has(link)) continue;
+                await store.addNoteAssignment(noteId, c.id, o.classId, o.subjectId);
+                done.links.add(link);
+              }
+            }
+            if (pages && !done.indexed.has(noteId)) {
               try {
                 await saveNoteText(noteId, pages);
+                done.indexed.add(noteId);
                 onIndexed(noteId);
               } catch {
                 unsearchable = true;
@@ -808,7 +897,7 @@ function UploadModal({
   return (
     <Modal
       open
-      onClose={() => !busy && onClose()}
+      onClose={requestClose}
       title="Upload notes"
       size="lg"
       footer={
@@ -955,7 +1044,7 @@ function UploadModal({
 function RowStatus({ r, onRemove }: { r: Row; onRemove: () => void }) {
   if (r.status === "ready")
     return (
-      <button type="button" onClick={onRemove} aria-label={`Remove ${r.file.name}`} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-surface-2 hover:text-ink">
+      <button type="button" onClick={onRemove} aria-label={`Remove ${r.file.name}`} className="-mr-1.5 -mt-1.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-surface-2 hover:text-ink">
         <Icon.Close className="h-4 w-4" />
       </button>
     );
@@ -991,7 +1080,7 @@ function AssignModal({ db, store, opts, note, onClose }: { db: Db; store: Store;
   const { toast } = useToast();
   const allOpts = [...opts, EVERYONE];
   const activeCohorts = db.cohorts.filter((c) => c.active);
-  const current = db.noteAssignments.filter((a) => a.noteId === note.id);
+  const current = assignmentsOf(note.id, db.noteAssignments);
   const [books, setBooks] = useState<string[]>([]);
   const [cohorts, setCohorts] = useState<string[]>(activeCohorts.map((c) => c.id));
   const [busy, setBusy] = useState(false);

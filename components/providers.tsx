@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { isPublicPath } from "@/lib/public-paths";
-import { COMPANY_NAME } from "@/lib/config";
+import { Splash as PortalSplash } from "@/components/Splash";
 
 /**
  * Client root. Public pages render straight into the server HTML with nothing
@@ -19,10 +19,12 @@ function useHydrated(): boolean {
   return useSyncExternalStore(subscribeNoop, () => true, () => false);
 }
 
+// The same loading screen the portal shows next (logo and gold line), so the
+// hand-over does not read as a flash between two different screens.
 function Splash() {
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-paper" aria-hidden>
-      <span className="font-display text-lg font-extrabold tracking-tight text-brand">{COMPANY_NAME}</span>
+    <div className="bg-paper">
+      <PortalSplash />
     </div>
   );
 }

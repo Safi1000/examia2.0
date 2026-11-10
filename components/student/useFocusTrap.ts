@@ -20,7 +20,9 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>) {
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;
-      const items = [...box.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.offsetParent !== null);
+      // Anything actually drawn. (offsetParent is also null for a fixed-position
+      // button, which left a pinned Close button out of the Tab loop.)
+      const items = [...box.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.getClientRects().length > 0);
       if (!items.length) return;
       const head = items[0];
       const tail = items[items.length - 1];

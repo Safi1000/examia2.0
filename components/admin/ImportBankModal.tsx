@@ -20,13 +20,18 @@ export function ImportBankModal({
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const subjects = useMemo(() => Array.from(new Set(db.bank.map((b) => b.subject))).sort(), [db.bank]);
-  const items = useMemo(
-    () =>
-      db.bank
-        .filter((b) => (subject === "all" ? true : b.subject === subject))
-        .filter((b) => (q.trim() ? (b.prompt + b.topic).toLowerCase().includes(q.toLowerCase()) : true)),
-    [db.bank, subject, q],
-  );
+  const items = useMemo(() => {
+    // Every word must appear somewhere, spaces at the ends ignored.
+    const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return db.bank
+      .filter((b) => (subject === "all" ? true : b.subject === subject))
+      .filter((b) => {
+        if (!words.length) return true;
+        const hay = `${b.prompt} ${b.topic}`.toLowerCase();
+        return words.every((w) => hay.includes(w));
+      });
+  }, [db.bank, subject, q]);
+  const [limit, setLimit] = useState(60);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -60,24 +65,29 @@ export function ImportBankModal({
       }
     >
       <div className="mb-3 flex flex-wrap gap-2">
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search questions…" className="min-w-40 flex-1" aria-label="Search bank" />
-        <Select value={subject} onChange={(e) => setSubject(e.target.value)} className="w-auto min-w-36" aria-label="Filter subject">
-          <option value="all">All subjects</option>
-          {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
-        </Select>
+        <div className="min-w-0 flex-1 basis-56"><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search questions…" aria-label="Search bank" /></div>
+        <div className="min-w-0 flex-1 basis-40 sm:max-w-52">
+          <Select value={subject} onChange={(e) => setSubject(e.target.value)} aria-label="Filter subject">
+            <option value="all">All subjects</option>
+            {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
+          </Select>
+        </div>
       </div>
 
       {items.length === 0 ? (
         <EmptyState icon={<Icon.Search />} title="No matching questions" />
       ) : (
         <ul className="space-y-2">
-          {items.map((b) => (
+          {items.slice(0, limit).map((b) => (
             <li
               key={b.id}
               className={"flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2.5 " + (selected.has(b.id) ? "border-brand bg-brand-soft" : "border-border bg-surface")}
               onClick={() => toggle(b.id)}
             >
-              <Checkbox checked={selected.has(b.id)} onChange={() => toggle(b.id)} />
+              {/* The row click already toggles: the box's own clicks stop here so one tap is one toggle. */}
+              <span className="flex min-h-6 items-center" onClick={(e) => e.stopPropagation()}>
+                <Checkbox checked={selected.has(b.id)} onChange={() => toggle(b.id)} label={<span className="sr-only">Select this question</span>} />
+              </span>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone="neutral">{b.subject}</Badge>
@@ -87,6 +97,13 @@ export function ImportBankModal({
               </div>
             </li>
           ))}
+          {items.length > limit && (
+            <li className="flex justify-center">
+              <button type="button" onClick={() => setLimit((n) => n + 100)} className="h-11 rounded-full px-5 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink">
+                Show more ({items.length - limit} left)
+              </button>
+            </li>
+          )}
         </ul>
       )}
     </Modal>

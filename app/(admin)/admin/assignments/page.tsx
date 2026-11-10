@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Assignment } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
-import { archivedCohortIds, studentById } from "@/lib/data/selectors";
+import { archivedCohortIds, joinedMs, studentById } from "@/lib/data/selectors";
 import { uploadAsImages } from "@/lib/cloudinary";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -45,6 +45,8 @@ export default function AdminAssignmentsPage() {
 
   const [editing, setEditing] = useState<Assignment | "new" | null>(null);
   const [form, setForm] = useState<Form | null>(null);
+  // The form as it was opened, so closing can ask before throwing away typed work.
+  const [formStart, setFormStart] = useState("");
   const [uploading, setUploading] = useState(false);
   // Today's "Homework to reply to" opens straight onto that homework's hand-ins.
   const [openId, setOpenId] = useState<string | null>(null);
@@ -55,6 +57,8 @@ export default function AdminAssignmentsPage() {
   }, []);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Hand-ins with feedback typed but not sent, so closing the window can ask first.
+  const unsent = useRef(new Set<string>());
 
   // From past papers: the questions' pictures go on a normal homework, with a
   // line naming their sources. Kept here while the form is open, for Swap and Remove.
@@ -68,6 +72,8 @@ export default function AdminAssignmentsPage() {
     setPapersOpen(false);
     setEditing("new");
     setPpQs(b.questions);
+    // Built from past papers is already work worth keeping: any close asks.
+    setFormStart("");
     setForm({
       title: `${b.subjectName.replace(/ Studies$/, "")}: ${topic}`,
       instructions: withSourcesLine("", b.questions.map((q) => q.id)),
@@ -125,12 +131,14 @@ export default function AdminAssignmentsPage() {
   function openNew() {
     setPpQs(null);
     setEditing("new");
-    setForm(blank(cohortId ?? db.cohorts[0]?.id ?? ""));
+    const f = blank(cohortId ?? db.cohorts[0]?.id ?? "");
+    setFormStart(JSON.stringify(f));
+    setForm(f);
   }
   function openEdit(a: Assignment) {
     setPpQs(null);
     setEditing(a);
-    setForm({
+    const f = {
       title: a.title,
       instructions: a.instructions ?? "",
       attachments: [...a.attachments],
@@ -138,7 +146,27 @@ export default function AdminAssignmentsPage() {
       cohortId: a.cohortId ?? "",
       classId: a.classId ?? "",
       subjectId: a.subjectId ?? "",
-    });
+    };
+    setFormStart(JSON.stringify(f));
+    setForm(f);
+  }
+
+  function closeForm() {
+    if (form && JSON.stringify(form) !== formStart && !window.confirm("Close without saving this homework? What you typed will be lost.")) return;
+    setForm(null);
+    setEditing(null);
+    setPpQs(null);
+  }
+
+  function markUnsent(id: string, on: boolean) {
+    if (on) unsent.current.add(id);
+    else unsent.current.delete(id);
+  }
+
+  function closeHandIns() {
+    if (unsent.current.size > 0 && !window.confirm("Some feedback is typed but not sent. Close without sending it?")) return;
+    unsent.current.clear();
+    setOpenId(null);
   }
 
   async function addFiles(files: File[]) {
@@ -161,6 +189,9 @@ export default function AdminAssignmentsPage() {
     if (!form.title.trim()) return toast("Give the homework a title.", "error");
     if (!form.dueAt) return toast("Set a due date.", "error");
     if (!form.cohortId) return toast("Choose a cohort.", "error");
+    // Pages still uploading would be left off the homework.
+    if (uploading) return toast("The worksheet is still uploading. Save once it has finished.", "error");
+    if (editing === "new" && +new Date(fromLocalInput(form.dueAt)) <= Date.now()) return toast("That deadline has already passed. Choose a later one.", "error");
     const payload = {
       title: form.title.trim(),
       instructions: form.instructions.trim() || undefined,
@@ -234,7 +265,7 @@ export default function AdminAssignmentsPage() {
                     </Button>
                     <button
                       onClick={() => setDeleteId(a.id)}
-                      className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error max-md:h-11 max-md:w-11"
+                      className="flex h-11 w-11 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error"
                       aria-label={`Delete ${a.title}`}
                     >
                       <Icon.Trash className="h-[18px] w-[18px]" />
@@ -250,13 +281,13 @@ export default function AdminAssignmentsPage() {
       {/* Create / edit */}
       <Modal
         open={!!form}
-        onClose={() => { setForm(null); setEditing(null); setPpQs(null); }}
+        onClose={closeForm}
         title={editing === "new" ? "New homework" : "Edit homework"}
         size="lg"
         footer={
           <>
-            <Button variant="secondary" onClick={() => { setForm(null); setEditing(null); setPpQs(null); }}>Cancel</Button>
-            <Button onClick={save}>Save</Button>
+            <Button variant="secondary" onClick={closeForm}>Cancel</Button>
+            <Button onClick={save} disabled={uploading}>Save</Button>
           </>
         }
       >
@@ -266,12 +297,13 @@ export default function AdminAssignmentsPage() {
             <Textarea label="Instructions (optional)" value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })} placeholder="What the students have to do…" />
 
             <div>
-              <Label>Deadline</Label>
+              <Label htmlFor="hw-due">Deadline (Pakistan time)</Label>
               <input
+                id="hw-due"
                 type="datetime-local"
                 value={form.dueAt}
                 onChange={(e) => setForm({ ...form, dueAt: e.target.value })}
-                className="h-12 w-full rounded-md border border-border-strong bg-surface px-3 text-ink"
+                className="h-12 w-full rounded-md border border-border-strong bg-surface px-3 text-base tabular-nums text-ink"
               />
             </div>
 
@@ -356,7 +388,7 @@ export default function AdminAssignmentsPage() {
                         type="button"
                         onClick={() => setForm({ ...form, attachments: form.attachments.filter((_, idx) => idx !== i) })}
                         aria-label={`Remove page ${i + 1}`}
-                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded bg-paper/85 text-ink-2 hover:bg-error hover:text-paper"
+                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded bg-paper/85 text-ink-2 before:absolute before:-inset-2.5 before:content-[''] hover:bg-error hover:text-paper"
                       >
                         ×
                       </button>
@@ -377,13 +409,13 @@ export default function AdminAssignmentsPage() {
       {/* Hand-ins + feedback */}
       <Modal
         open={!!open}
-        onClose={() => setOpenId(null)}
+        onClose={closeHandIns}
         title={open ? open.title : ""}
         description={open ? `Due ${formatTimestamp(open.dueAt)} · feedback only, no marks` : ""}
         size="lg"
       >
         {open && (
-          <HandIns assignmentId={open.id} />
+          <HandIns assignmentId={open.id} onUnsent={markUnsent} />
         )}
       </Modal>
 
@@ -405,7 +437,7 @@ export default function AdminAssignmentsPage() {
   );
 }
 
-function HandIns({ assignmentId }: { assignmentId: string }) {
+function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (id: string, on: boolean) => void }) {
   const db = useDatabase();
   const store = useStore();
   const { toast } = useToast();
@@ -423,6 +455,8 @@ function HandIns({ assignmentId }: { assignmentId: string }) {
         (s) =>
           !off.has(s.cohortId) &&
           a.cohortId === s.cohortId &&
+          // Joined after the deadline: this homework was never theirs to hand in.
+          joinedMs(s) < +new Date(a.dueAt) &&
           (!a.classId || s.classIds.includes(a.classId)) &&
           (!a.subjectId || s.subjectIds.includes(a.subjectId)) &&
           !handed.has(s.id),
@@ -478,7 +512,8 @@ function HandIns({ assignmentId }: { assignmentId: string }) {
             <PageStack urls={s.fileUrls} label={`${student?.username ?? "Student"}'s work`} />
             <FeedbackBox
               initial={s.feedback ?? ""}
-              onSave={(text) => { store.setAssignmentFeedback(s.id, text); toast("Feedback sent.", "success"); }}
+              onDirty={(on) => onUnsent(s.id, on)}
+              onSave={(text) => { store.setAssignmentFeedback(s.id, text); onUnsent(s.id, false); toast("Feedback sent.", "success"); }}
             />
           </div>
         );
@@ -487,14 +522,17 @@ function HandIns({ assignmentId }: { assignmentId: string }) {
   );
 }
 
-function FeedbackBox({ initial, onSave }: { initial: string; onSave: (text: string) => void }) {
+function FeedbackBox({ initial, onSave, onDirty }: { initial: string; onSave: (text: string) => void; onDirty: (dirty: boolean) => void }) {
   const [text, setText] = useState(initial);
   return (
     <div className="mt-3">
       <Textarea
         label="Feedback"
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => {
+          setText(e.target.value);
+          onDirty(e.target.value.trim() !== initial.trim());
+        }}
         placeholder="What they did well, what to fix…"
         className="min-h-20"
       />

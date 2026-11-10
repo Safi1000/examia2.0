@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { photoSrc, type Scene } from "@/lib/groundwork";
 import { Icon } from "@/components/ui";
@@ -101,7 +101,7 @@ export function Receipt({ r, className }: { r: ReceiptData; className?: string }
   const L = lines(r);
   return (
     <figure className={cn("mx-auto w-full max-w-[340px] drop-shadow-[0_24px_40px_rgba(0,0,0,.45)] animate-[receipt-in_700ms_cubic-bezier(.16,1,.3,1)_both]", className)} aria-label="Study receipt">
-      <Edge flip />
+      <Edge />
       <div className="px-6 pb-6 pt-5 text-[13px] leading-[1.65]" style={{ background: PAPER, color: INK, fontFamily: MONO }}>
         <div className="text-center">
           <p className="text-[15px] font-bold tracking-[0.18em]">HAMZA TEACHES</p>
@@ -139,7 +139,7 @@ export function Receipt({ r, className }: { r: ReceiptData; className?: string }
         <p className="mt-3 text-center text-[12px] font-bold tracking-[0.16em]">THANK YOU FOR STUDYING</p>
         <p className="text-center text-xs opacity-60">{SITE.toUpperCase()}</p>
       </div>
-      <Edge />
+      <Edge flip />
       <style>{`@keyframes receipt-in { from { opacity: 0; transform: translateY(-24px) scaleY(.96); transform-origin: top; } to { opacity: 1; transform: none; } } @media (prefers-reduced-motion: reduce) { figure[aria-label="Study receipt"] { animation: none !important; } }`}</style>
     </figure>
   );
@@ -178,7 +178,12 @@ export async function drawReceipt(r: ReceiptData, scene?: Scene): Promise<Blob> 
   const PW = 780;
   const lh = 46;
   const pad = 64;
-  const rows = 2 + 1 + 2 + 1 + 1 + L.items.length + (r.intention ? 2 + Math.ceil(r.intention.length / 30) + (r.intentionDone != null ? 1 : 0) : 0) + 1 + L.totals.length + 1 + 5;
+  const font = "Menlo, 'SF Mono', Consolas, 'Courier New', monospace";
+  // The goal, wrapped to the paper before the paper is sized: a word too long for a line is cut,
+  // and a very long goal stops at four lines, so it never runs off the paper or the image.
+  ctx.font = `400 30px ${font}`;
+  const goal = r.intention ? wrapText(ctx, r.intention, PW - pad * 2, 4) : [];
+  const rows = 2 + 1 + 2 + 1 + 1 + L.items.length + (r.intention ? 2 + goal.length + (r.intentionDone != null ? 1 : 0) : 0) + 1 + L.totals.length + 1 + 5;
   const PH = pad * 2 + rows * lh + 10;
   const x0 = (W - PW) / 2;
   const y0 = Math.max(120, (H - PH) / 2 - 40);
@@ -202,7 +207,6 @@ export async function drawReceipt(r: ReceiptData, scene?: Scene): Promise<Blob> 
   ctx.fill();
   ctx.shadowColor = "transparent";
 
-  const font = "Menlo, 'SF Mono', Consolas, 'Courier New', monospace";
   let y = y0 + pad + 30;
   const left = x0 + pad;
   const right = x0 + PW - pad;
@@ -267,17 +271,7 @@ export async function drawReceipt(r: ReceiptData, scene?: Scene): Promise<Blob> 
     ctx.fillText("GOAL", left, y);
     ctx.globalAlpha = 1;
     y += lh;
-    const words = r.intention.split(" ");
-    let line = "";
-    for (const w of words) {
-      const t = line ? `${line} ${w}` : w;
-      if (ctx.measureText(t).width > PW - pad * 2 && line) {
-        ctx.fillText(line, left, y);
-        y += lh;
-        line = w;
-      } else line = t;
-    }
-    if (line) {
+    for (const line of goal) {
       ctx.fillText(line, left, y);
       y += lh;
     }
@@ -306,38 +300,108 @@ export async function drawReceipt(r: ReceiptData, scene?: Scene): Promise<Blob> 
   ctx.font = `600 34px -apple-system, system-ui, sans-serif`;
   ctx.textAlign = "center";
   ctx.fillText(`Studying with Hamza Teaches · ${SITE}`, W / 2, H - 110);
-  return new Promise((resolve) => c.toBlob((bl) => resolve(bl!), "image/png"));
+  return new Promise((resolve, reject) => c.toBlob((bl) => (bl ? resolve(bl) : reject(new Error("no image"))), "image/png"));
+}
+
+/** Lines of `text` no wider than `maxW` in the context's current font, at most `maxLines` (the last ends in "…" when cut). */
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number, maxLines: number): string[] {
+  const fits = (t: string) => ctx.measureText(t).width <= maxW;
+  const out: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    let w = word;
+    // A word longer than a whole line (a link, a long name) is cut across lines.
+    while (!fits(w)) {
+      let n = w.length - 1;
+      while (n > 1 && !fits((line ? `${line} ` : "") + w.slice(0, n))) n--;
+      if (n <= 1 && line) {
+        out.push(line);
+        line = "";
+        continue;
+      }
+      out.push((line ? `${line} ` : "") + w.slice(0, n));
+      line = "";
+      w = w.slice(n);
+    }
+    const t = line ? `${line} ${w}` : w;
+    if (fits(t)) line = t;
+    else {
+      out.push(line);
+      line = w;
+    }
+  }
+  if (line) out.push(line);
+  if (out.length <= maxLines) return out;
+  let last = out[maxLines - 1];
+  while (last && !fits(`${last}…`)) last = last.slice(0, -1);
+  return [...out.slice(0, maxLines - 1), `${last.trimEnd()}…`];
 }
 
 /** Save or share the receipt image (the phone's share sheet where it can). */
 export function ShareReceipt({ r, scene }: { r: ReceiptData; scene?: Scene }) {
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const opener = useRef<HTMLButtonElement>(null);
+  const save = useRef<HTMLAnchorElement>(null);
   const text = `${r.focusedMin} minutes of ${r.subject} done. Studying with Hamza Teaches: https://www.${SITE}`;
   const file = `study-receipt-${r.id.toLowerCase()}.png`;
 
   async function go() {
+    if (busy) return;
     setBusy(true);
+    setFailed(false);
     try {
       const blob = await drawReceipt(r, scene);
       const f = new File([blob], file, { type: "image/png" });
-      if (navigator.canShare?.({ files: [f] })) await navigator.share({ files: [f], text }).catch(() => {});
-      else setPreview(URL.createObjectURL(blob));
+      let shared = false;
+      if (navigator.canShare?.({ files: [f] })) {
+        try {
+          await navigator.share({ files: [f], text });
+          shared = true;
+        } catch (e) {
+          // They closed the share sheet: done. Anything else (the phone refused it): show the image to save instead.
+          shared = (e as { name?: string } | null)?.name === "AbortError";
+        }
+      }
+      if (!shared) setPreview(URL.createObjectURL(blob));
+    } catch {
+      setFailed(true);
     } finally {
       setBusy(false);
     }
   }
 
+  // The image on show: the keyboard goes to it, Escape closes it (not the room behind), and its memory is freed after.
+  useEffect(() => {
+    if (!preview) return;
+    const back = opener.current;
+    save.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      setPreview(null);
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      URL.revokeObjectURL(preview);
+      back?.focus();
+    };
+  }, [preview]);
+
   return (
     <>
       <button
+        ref={opener}
         type="button"
         onClick={() => void go()}
         aria-busy={busy}
         className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white/12 px-5 text-sm font-semibold text-white backdrop-blur-xl transition hover:bg-white/20 active:scale-[0.98]"
       >
         <Icon.Share className="h-4 w-4" />
-        {busy ? "Printing…" : "Share receipt"}
+        {busy ? "Printing…" : failed ? "Try again" : "Share receipt"}
       </button>
       {preview &&
         createPortal(
@@ -346,7 +410,7 @@ export function ShareReceipt({ r, scene }: { r: ReceiptData; scene?: Scene }) {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={preview} alt="Your study receipt" className="mx-auto max-h-[60dvh] rounded-2xl" />
               <div className="mt-4 grid gap-2">
-                <a href={preview} download={file} className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white text-sm font-semibold text-black">
+                <a ref={save} href={preview} download={file} className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white text-sm font-semibold text-black">
                   <Icon.Download className="h-4 w-4" /> Save image
                 </a>
                 <a

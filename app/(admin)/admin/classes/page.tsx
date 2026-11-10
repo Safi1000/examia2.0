@@ -22,7 +22,9 @@ import {
   getSchedule,
   addDays,
   isClassDay,
+  isTime,
   looksLikeLink,
+  tidyLink,
   pkDate,
   slotKey,
   slotsForStudent,
@@ -74,7 +76,7 @@ export default function ClassesPage() {
 
   const linkFor = (s: DaySlot) => links.find((l) => slotKey(l) === slotKey(s));
   const live = slots.filter((s) => !s.cancelled);
-  // The class to start: live now, or the next one today (from 30 min before).
+  // The class to start: live now, or the next one today (from 3 hours before).
   const hero = date === today ? live.find((s) => nowMs < s.endMs && s.startMs - nowMs < 3 * 3_600_000) : undefined;
 
   async function store(targets: DaySlot[], field: "meetUrl" | "recordingUrl", value: string) {
@@ -87,15 +89,33 @@ export default function ClassesPage() {
     return ok;
   }
 
-  /** Change one class on this date only (cancel, move, extra), or undo that change. */
+  // One day change at a time: a double tap must not cancel, move or add twice
+  // (each one also messages the students). The ref blocks a second tap in the same frame.
+  const [working, setWorking] = useState(false);
+  const workingRef = useRef(false);
+
+  /** Change one class on this date only (cancel, move, extra), or undo that change. True when saved. */
   async function changeDay(level: LevelKey, subject: SubjectKey, change: Omit<Exception, "date" | "level" | "subject"> | null, done: string) {
+    if (workingRef.current) return false;
+    // A cleared time box gives "": that would save and tell students "12:NaN".
+    if (change?.start !== undefined && !(isTime(change.start) && isTime(change.end) && change.start < change.end)) {
+      toast("Fill in both times, with the end after the start.", "error");
+      return false;
+    }
     const notify = tell && date >= today;
+    workingRef.current = true;
+    setWorking(true);
     try {
       await saveDayChange({ date, level, subject, change, notify });
       setOpenRow(null);
       toast(notify ? `${done} Students in it have been told.` : done, "success");
+      return true;
     } catch (e) {
       toast(e instanceof Error ? e.message : "Couldn't save. Try again.", "error");
+      return false;
+    } finally {
+      workingRef.current = false;
+      setWorking(false);
     }
   }
 
@@ -118,7 +138,7 @@ export default function ClassesPage() {
     setPicked(d);
     setOpenRow(null);
   };
-  const dayName = new Date(`${date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  const dayName = dateLabel(date, "long");
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
@@ -160,6 +180,8 @@ export default function ClassesPage() {
                   type="date"
                   value={date}
                   onChange={(e) => e.target.value && setPicked(e.target.value)}
+                  // A laptop click on the hidden box doesn't open the calendar on its own.
+                  onClick={openPicker}
                   className="absolute inset-0 cursor-pointer opacity-0"
                   aria-label="Pick a day"
                 />
@@ -180,7 +202,7 @@ export default function ClassesPage() {
           {!slots.length ? (
             <Card className="p-6 text-center text-sm text-ink-2">
               {date < getSchedule().termStarts
-                ? `Classes start on ${new Date(`${getSchedule().termStarts}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}.`
+                ? `Classes start on ${dateLabel(getSchedule().termStarts, "long")}.`
                 : "No classes on this day."}
             </Card>
           ) : (
@@ -220,7 +242,7 @@ export default function ClassesPage() {
                           type="button"
                           onClick={() => setOpenRow(isOpen ? null : key)}
                           aria-expanded={isOpen}
-                          className="h-9 shrink-0 rounded-full px-3 text-xs font-semibold text-ink-3 hover:bg-surface-2 hover:text-ink"
+                          className="h-9 shrink-0 rounded-full px-3 text-xs font-semibold text-ink-3 hover:bg-surface-2 hover:text-ink pointer-coarse:h-11 pointer-coarse:px-4"
                         >
                           {isOpen ? "Close" : "More"}
                         </button>
@@ -228,7 +250,7 @@ export default function ClassesPage() {
                       {isOpen && (
                         <div className="space-y-3 border-t border-border bg-surface-2/40 px-4 py-4 sm:px-5">
                           {(s.cancelled || phase === "later") && date >= today && (
-                            <label className="flex items-center gap-2 text-xs text-ink-2">
+                            <label className="flex min-h-11 items-center gap-2 text-xs text-ink-2 md:min-h-0">
                               <input type="checkbox" checked={tell} onChange={(e) => setTell(e.target.checked)} className="h-4 w-4 accent-[var(--color-brand)]" />
                               Tell the students in this class if I change it
                             </label>
@@ -237,6 +259,7 @@ export default function ClassesPage() {
                             <Button
                               size="sm"
                               variant="secondary"
+                              loading={working}
                               onClick={() =>
                                 void changeDay(s.level, s.subject, s.extra ? { extra: true, start: s.start, end: s.end } : null, "Class is back on.")
                               }
@@ -249,8 +272,9 @@ export default function ClassesPage() {
                                 <DayActions
                                   slot={s}
                                   tell={tell}
+                                  busy={working}
                                   onCancel={() =>
-                                    void changeDay(
+                                    changeDay(
                                       s.level,
                                       s.subject,
                                       s.extra ? { extra: true, cancelled: true, start: s.start, end: s.end } : { cancelled: true },
@@ -258,7 +282,7 @@ export default function ClassesPage() {
                                     )
                                   }
                                   onMove={(start, end) =>
-                                    void changeDay(s.level, s.subject, { start, end, ...(s.extra ? { extra: true } : {}) }, `${s.subject} moved to ${clock(start)} for this day.`)
+                                    changeDay(s.level, s.subject, { start, end, ...(s.extra ? { extra: true } : {}) }, `${s.subject} moved to ${clock(start)} for this day.`)
                                   }
                                 />
                               )}
@@ -321,11 +345,19 @@ export default function ClassesPage() {
           {date >= today && (
             <ExtraClass
               date={date}
-              onAdd={(level, subject, start, end) => {
+              busy={working}
+              onAdd={async (level, subject, start, end) => {
                 // One class per level and subject per day: an existing one is moved instead.
-                if (slots.some((x) => x.level === level && x.subject === subject && !x.cancelled))
-                  return toast(`${LEVEL_LABEL[level]} ${subject} is already on this day. Use More, then Change time, instead.`, "error");
-                void changeDay(level, subject, { extra: true, start, end }, `Extra ${subject} class added.`);
+                const same = slots.find((x) => x.level === level && x.subject === subject);
+                if (same && !same.cancelled) {
+                  toast(`${LEVEL_LABEL[level]} ${subject} is already on this day. Use More, then Change time, instead.`, "error");
+                  return false;
+                }
+                // The regular class is cancelled today: one change per class and day, so
+                // this replaces the cancel with the new time (an "extra" here would just
+                // bring the regular time back).
+                const change = same && !same.extra ? { start, end } : { extra: true, start, end };
+                return changeDay(level, subject, change, `Extra ${subject} class added.`);
               }}
             />
           )}
@@ -337,6 +369,22 @@ export default function ClassesPage() {
     </div>
   );
 }
+
+/** "Monday 3 November" for a Pakistan date, the same on any phone's time zone. */
+function dateLabel(ymd: string, style: "long" | "short") {
+  return new Date(`${ymd}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: style, day: "numeric", month: style, timeZone: "Asia/Karachi" });
+}
+
+function openPicker(e: React.MouseEvent<HTMLInputElement>) {
+  try {
+    e.currentTarget.showPicker();
+  } catch {
+    // Older browsers open it themselves, or not at all; the arrows still work.
+  }
+}
+
+/** Inputs: 16px on phones so iOS doesn't zoom in, 44px tall on touch. */
+const touchField = "max-md:text-base pointer-coarse:h-11";
 
 function nextClassDay(today: string) {
   let d = today < getSchedule().termStarts ? getSchedule().termStarts : today;
@@ -360,9 +408,19 @@ function LinkField({
 }) {
   const [value, setValue] = useState(initial);
   const [saved, setSaved] = useState(initial);
-  const commit = async (v: string) => {
-    if (v.trim() === saved.trim()) return;
-    if (await onSave(v)) setSaved(v);
+  // The value being saved right now: a paste followed by leaving the box must not save it twice.
+  const pending = useRef<string | null>(null);
+  const commit = async (raw: string) => {
+    // A pasted WhatsApp line or a bare meet.google.com/... becomes the link itself.
+    const v = raw.trim() ? tidyLink(raw) : "";
+    if (v !== raw) setValue(v);
+    if (v === saved.trim() || v === pending.current) return;
+    pending.current = v;
+    try {
+      if (await onSave(v)) setSaved(v);
+    } finally {
+      pending.current = null;
+    }
   };
   return (
     <div className="flex items-center gap-2">
@@ -378,13 +436,13 @@ function LinkField({
           const v = e.clipboardData.getData("text").trim();
           if (!v) return;
           e.preventDefault();
-          setValue(v);
           void commit(v);
         }}
         onKeyDown={(e) => e.key === "Enter" && void commit(value)}
         onBlur={() => void commit(value)}
         className={cn(
           "h-10 min-w-0 flex-1 rounded-md border border-border-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3",
+          touchField,
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-60",
         )}
       />
@@ -393,7 +451,7 @@ function LinkField({
           href={saved}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-surface-2 hover:text-ink"
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-surface-2 hover:text-ink pointer-coarse:h-11 pointer-coarse:w-11"
           aria-label={`Open ${label.toLowerCase()}`}
         >
           <Icon.ChevronRight className="h-4 w-4" />
@@ -404,44 +462,81 @@ function LinkField({
 }
 
 /** "Cancel this day" / "Change time" for one class on one date. */
-function DayActions({ slot, tell, onCancel, onMove }: { slot: DaySlot; tell: boolean; onCancel: () => void; onMove: (start: string, end: string) => void }) {
+function DayActions({
+  slot,
+  tell,
+  busy,
+  onCancel,
+  onMove,
+}: {
+  slot: DaySlot;
+  tell: boolean;
+  busy: boolean;
+  onCancel: () => Promise<boolean>;
+  onMove: (start: string, end: string) => Promise<boolean>;
+}) {
   const [moving, setMoving] = useState(false);
   const [start, setStart] = useState(slot.start);
   const [end, setEnd] = useState(slot.end);
-  const small = "h-9 rounded-full px-3 text-xs font-semibold transition-colors";
+  const small = "h-9 rounded-full px-3 text-xs font-semibold transition-colors pointer-coarse:h-11 pointer-coarse:px-4 disabled:opacity-50";
+  const timeBox = cn("h-9 rounded-md border border-border-strong bg-surface px-2 text-sm text-ink", touchField);
+  const valid = isTime(start) && isTime(end) && start < end;
   if (moving)
     return (
       <span className="flex flex-wrap items-center gap-1.5">
-        <input type="time" value={start} onChange={(e) => setStart(e.target.value)} className="h-9 rounded-md border border-border-strong bg-surface px-2 text-sm text-ink" aria-label="New start" />
-        <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} className="h-9 rounded-md border border-border-strong bg-surface px-2 text-sm text-ink" aria-label="New end" />
-        <button type="button" disabled={!(start < end)} className={`${small} bg-brand text-on-brand disabled:opacity-50`} onClick={() => { onMove(start, end); setMoving(false); }}>
-          Save
+        <input type="time" value={start} onChange={(e) => setStart(e.target.value)} className={timeBox} aria-label="New start" aria-invalid={!isTime(start)} />
+        <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} className={timeBox} aria-label="New end" aria-invalid={!isTime(end) || !(start < end)} />
+        {/* Stays open if the save fails, so the new times aren't lost. */}
+        <button
+          type="button"
+          disabled={!valid || busy}
+          aria-busy={busy}
+          className={`${small} bg-brand text-on-brand`}
+          onClick={() => void onMove(start, end).then((ok) => ok && setMoving(false))}
+        >
+          {busy ? "Saving" : "Save"}
         </button>
-        <button type="button" className={`${small} text-ink-3 hover:text-ink`} onClick={() => setMoving(false)}>
+        <button type="button" disabled={busy} className={`${small} text-ink-3 hover:text-ink`} onClick={() => setMoving(false)}>
           Cancel
         </button>
       </span>
     );
   return (
     <span className="flex items-center">
-      <button type="button" className={`${small} text-ink-3 hover:bg-surface-2 hover:text-ink`} onClick={() => setMoving(true)}>
+      <button type="button" disabled={busy} className={`${small} text-ink-3 hover:bg-surface-2 hover:text-ink`} onClick={() => setMoving(true)}>
         Change time
       </button>
-      <button type="button" className={`${small} text-ink-3 hover:bg-surface-2 hover:text-error`} onClick={() => { if (window.confirm(`Cancel ${slot.subject} for this day?${tell ? " Students in it will be told." : " Students won't get a message (the box is unticked)."}`)) onCancel(); }}>
-        Cancel class
+      <button
+        type="button"
+        disabled={busy}
+        aria-busy={busy}
+        className={`${small} text-ink-3 hover:bg-surface-2 hover:text-error`}
+        onClick={() => {
+          if (window.confirm(`Cancel ${slot.subject} for this day?${tell ? " Students in it will be told." : " Students won't get a message (the box is unticked)."}`)) void onCancel();
+        }}
+      >
+        {busy ? "Saving" : "Cancel class"}
       </button>
     </span>
   );
 }
 
 /** One-off class on this date (a make-up or revision class). */
-function ExtraClass({ date, onAdd }: { date: string; onAdd: (level: LevelKey, subject: SubjectKey, start: string, end: string) => void }) {
+function ExtraClass({
+  date,
+  busy,
+  onAdd,
+}: {
+  date: string;
+  busy: boolean;
+  onAdd: (level: LevelKey, subject: SubjectKey, start: string, end: string) => Promise<boolean>;
+}) {
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState<LevelKey>("A2");
   const [subject, setSubject] = useState<SubjectKey>("Economics");
   const [start, setStart] = useState("16:00");
   const [end, setEnd] = useState("16:40");
-  const f = "h-10 rounded-md border border-border-strong bg-surface px-2.5 text-sm text-ink";
+  const f = cn("h-10 rounded-md border border-border-strong bg-surface px-2.5 text-sm text-ink", touchField);
   if (!open)
     return (
       <button type="button" onClick={() => setOpen(true)} className="mt-4 inline-flex h-10 items-center gap-1.5 text-sm font-semibold text-brand hover:underline">
@@ -451,7 +546,7 @@ function ExtraClass({ date, onAdd }: { date: string; onAdd: (level: LevelKey, su
   return (
     <Card className="mt-4 flex flex-wrap items-center gap-2 p-4">
       <span className="w-full text-sm font-semibold text-ink">
-        Extra class on {new Date(`${date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
+        Extra class on {dateLabel(date, "short")}
       </span>
       <select className={f} value={level} onChange={(e) => setLevel(e.target.value as LevelKey)} aria-label="Level">
         {(["A2", "O", "AS"] as LevelKey[]).map((l) => (
@@ -463,12 +558,18 @@ function ExtraClass({ date, onAdd }: { date: string; onAdd: (level: LevelKey, su
           <option key={x}>{x}</option>
         ))}
       </select>
-      <input type="time" className={f} value={start} onChange={(e) => setStart(e.target.value)} aria-label="Starts" />
-      <input type="time" className={f} value={end} onChange={(e) => setEnd(e.target.value)} aria-label="Ends" />
-      <Button size="sm" disabled={!(start < end)} onClick={() => { onAdd(level, subject, start, end); setOpen(false); }}>
+      <input type="time" className={f} value={start} onChange={(e) => setStart(e.target.value)} aria-label="Starts" aria-invalid={!isTime(start)} />
+      <input type="time" className={f} value={end} onChange={(e) => setEnd(e.target.value)} aria-label="Ends" aria-invalid={!isTime(end) || !(start < end)} />
+      {/* Closes only once it's saved: a failed add keeps what was picked. */}
+      <Button
+        size="sm"
+        loading={busy}
+        disabled={!(isTime(start) && isTime(end) && start < end)}
+        onClick={() => void onAdd(level, subject, start, end).then((ok) => ok && setOpen(false))}
+      >
         Add
       </Button>
-      <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+      <Button size="sm" variant="ghost" disabled={busy} onClick={() => setOpen(false)}>
         Cancel
       </Button>
     </Card>

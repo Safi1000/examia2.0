@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { isCronRequest } from "@/lib/admin-auth";
 import { pushReady, runReminders, serviceClient } from "@/lib/push-server";
 import { googleReady } from "@/lib/google";
 import { runClassAutomation } from "@/lib/class-automation";
@@ -16,10 +17,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  if (!isCronRequest(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   // Automations first (an auto-released result is then notified in this same
   // run). Each part runs on its own, so a Google hiccup never stops reminders.
   const automations = pushReady() ? await runAutomations(serviceClient()).catch((e) => ({ error: String(e) })) : null;

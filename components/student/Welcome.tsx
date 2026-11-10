@@ -48,6 +48,8 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
   const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   const heading = useRef<HTMLHeadingElement>(null);
   const dialog = useRef<HTMLDivElement>(null);
+  // When the step last changed: a double tap on Next must not skip the step that has only just appeared.
+  const steppedAt = useRef(0);
 
   const finish = () =>
     updateProfile({
@@ -226,11 +228,18 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
       ),
     },
   ].filter((x) => !!x);
-  const s = steps[step];
-  const last = step === steps.length - 1;
+  const s = steps[Math.min(step, steps.length - 1)];
+  const last = step >= steps.length - 1;
+  function forward() {
+    const now = performance.now();
+    if (now - steppedAt.current < 400) return;
+    steppedAt.current = now;
+    if (last) finish();
+    else setStep(step + 1);
+  }
 
   return (
-    <div ref={dialog} tabIndex={-1} onKeyDown={onKeyDown} role="dialog" aria-modal="true" aria-labelledby="welcome-title" className="fixed inset-0 z-[60] overflow-y-auto outline-none bg-paper/97 backdrop-blur-xl">
+    <div ref={dialog} tabIndex={-1} onKeyDown={onKeyDown} role="dialog" aria-modal="true" aria-labelledby="welcome-title" className="fixed inset-0 z-[60] overflow-y-auto overscroll-contain outline-none bg-paper/97 backdrop-blur-xl">
       <div className="mx-auto flex min-h-dvh max-w-md flex-col px-6 py-10">
         <div className="flex items-center justify-between">
           <div className="flex gap-1.5" aria-hidden>
@@ -238,6 +247,9 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
               <span key={i} className={cn("h-1.5 rounded-full transition-all", i === step ? "w-8 bg-brand" : i < step ? "w-4 bg-brand/50" : "w-4 bg-surface-2")} />
             ))}
           </div>
+          <span className="sr-only">
+            Step {step + 1} of {steps.length}
+          </span>
           <button type="button" onClick={finish} className="h-11 px-3 text-sm font-semibold text-ink-3 hover:text-ink">
             Skip
           </button>
@@ -259,7 +271,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
           )}
           <button
             type="button"
-            onClick={() => (last ? finish() : setStep(step + 1))}
+            onClick={forward}
             className="h-12 flex-1 rounded-full bg-brand text-base font-semibold text-on-brand transition hover:brightness-110 active:scale-[0.98]"
           >
             {last ? "Open my portal" : step === 0 ? "Let's set it up" : "Next"}

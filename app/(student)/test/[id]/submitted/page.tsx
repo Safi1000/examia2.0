@@ -60,9 +60,12 @@ export default function SubmittedPage() {
         <Row label="Submitted at">
           <span className="text-right text-ink tabular-nums">{submission.submittedAt ? formatTimestamp(submission.submittedAt) : "Not yet"}</span>
         </Row>
-        <Row label="Time taken">
-          <span className="text-ink tabular-nums">{formatDuration(submission.durationSeconds ?? 0)}</span>
-        </Row>
+        {/* Unknown (an older paper): leave the row out rather than say "0s". */}
+        {!!submission.durationSeconds && submission.durationSeconds > 0 && (
+          <Row label="Time taken">
+            <span className="text-ink tabular-nums">{formatDuration(submission.durationSeconds)}</span>
+          </Row>
+        )}
         <Row label="Submission">
           {submission.autoSubmitted ? (
             <Badge tone="warning">Handed in at time up</Badge>

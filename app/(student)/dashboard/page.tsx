@@ -15,7 +15,7 @@ import { TopicChip } from "@/components/student/TopicChip";
 import { Icon } from "@/components/ui";
 import { formatRelative, formatWhen } from "@/lib/time";
 import { buildStudyPlan, type PlanWeek } from "@/lib/study-plan";
-import { GRADE_FLOOR, performanceSnapshot, sameSubject, type Snapshot } from "@/lib/performance";
+import { GRADE_FLOOR, performanceSnapshot, sameSubject, shownPercent, type Snapshot } from "@/lib/performance";
 import { StudyBuddy, todaysMission } from "@/components/student/StudyBuddy";
 import { DailyFive } from "@/components/student/DailyFive";
 import { syllabusProgress } from "@/lib/syllabus-progress";
@@ -98,7 +98,7 @@ export default function DashboardPage() {
     .sort((a, b) => +new Date(b.releasedAt!) - +new Date(a.releasedAt!))
     .flatMap((x) => {
       const t = db.tests.find((tt) => tt.id === x.testId);
-      return t ? [{ key: `r-${x.id}`, href: `/results/${t.id}`, title: t.title, meta: `Result out · ${Math.round(gradeSubmission(t, x).percent)}%`, cta: "See result", quiet: true }] : [];
+      return t ? [{ key: `r-${x.id}`, href: `/results/${t.id}`, title: t.title, meta: `Result out · ${shownPercent(gradeSubmission(t, x).percent)}%`, cta: "See result", quiet: true }] : [];
     });
 
   const subjectOf = (id?: string | null) => (id ? db.subjects.find((x) => x.id === id)?.name : undefined);
@@ -219,7 +219,7 @@ function HomeHero({ name, status, studentId, totalMinutes }: { name: string; sta
       <p className="label-quiet text-ink-2">
         {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
       </p>
-      <h1 className="mt-2.5 text-[2rem] font-extrabold leading-[1.04] tracking-[-0.03em] text-ink [text-shadow:0_2px_18px_rgba(0,0,0,0.35)] sm:text-[2.5rem] lg:text-[2.75rem]">
+      <h1 className="mt-2.5 break-words text-[2rem] font-extrabold leading-[1.04] tracking-[-0.03em] text-ink [text-shadow:0_2px_18px_rgba(0,0,0,0.35)] sm:text-[2.5rem] lg:text-[2.75rem]">
         {greeting()}, {name}.
       </h1>
       <p className="mt-3 max-w-[40ch] text-base leading-relaxed text-pretty text-ink-2">{status}</p>
@@ -261,7 +261,7 @@ function PerformanceCard({
             <div className="flex items-end gap-3">
               <span className="text-5xl font-extrabold leading-none tracking-[-0.03em] text-brand tabular-nums">{perf.grade}</span>
               <span className="pb-1 text-sm text-ink-2">
-                <span className="font-semibold tabular-nums text-ink">{Math.round(perf.recent)}%</span> avg
+                <span className="font-semibold tabular-nums text-ink">{shownPercent(perf.recent)}%</span> avg
                 <br />
                 <span className="text-xs text-ink-3 tabular-nums">last {Math.min(5, perf.marked)} tests</span>
               </span>

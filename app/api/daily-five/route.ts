@@ -49,8 +49,8 @@ export function GET(req: Request) {
   const raw = (url.searchParams.get("s") ?? "").slice(0, 2000);
   if (!Number.isInteger(day) || day < 0) return Response.json({ questions: [] }, { status: 400 });
 
-  // Each syllabus's own shuffled pool of questions from covered chapters.
-  const pools: Array<Array<DailyQuestion>> = [];
+  // Each syllabus's own pool of questions from covered chapters.
+  const found: Array<{ code: string; pool: DailyQuestion[] }> = [];
   for (const part of raw.split("|").slice(0, 6)) {
     const [code, list = ""] = part.split(":");
     if (!CODES.has(code)) continue;
@@ -66,13 +66,24 @@ export function GET(req: Request) {
         pool.push({ id: q.id, c: q.c, n: q.n, segs: q.segs, a: q.a, topic: e.sub.name });
       }
     }
-    const rand = rng(day * 9973 + hash(code));
+    if (pool.length) found.push({ code, pool });
+  }
+
+  // Walk through one shuffle a few questions a day, instead of a fresh
+  // shuffle every day: with a small pool, independent shuffles kept bringing
+  // back yesterday's questions. A new shuffle starts once a pool is used up.
+  const perDay = Math.ceil(COUNT / Math.max(1, found.length));
+  const pools: Array<Array<DailyQuestion>> = found.map(({ code, pool }) => {
+    const start = day * perDay;
+    const cycle = Math.floor(start / pool.length);
+    const rand = rng(cycle * 9973 + hash(code));
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(rand() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
     }
-    if (pool.length) pools.push(pool);
-  }
+    const at = start % pool.length;
+    return [...pool.slice(at), ...pool.slice(0, at)];
+  });
 
   // Take turns between subjects so a student with two gets a mix.
   const questions: DailyQuestion[] = [];

@@ -45,11 +45,41 @@ export function formatDuration(totalSeconds: number): string {
 /** "2:05 pm" → "2:05 PM", so every time in the portal reads the same as the timetable. */
 const upperMeridiem = (s: string) => s.replace(/\s?(am|pm)\b/i, (_, m: string) => ` ${m.toUpperCase()}`);
 
-/** Friendly absolute timestamp in Pakistan time, e.g. "17 Jun 2026, 2:05 PM". */
+const PK = "Asia/Karachi";
+
+/**
+ * True on a device set to another time zone (the Gulf): a time then needs
+ * saying both ways. Same rule as lib/timetable.ts (`clockHere`). Only ever true
+ * in the browser, so a server render reads exactly as before.
+ */
+const awayFromPakistan = (d: Date) =>
+  typeof window !== "undefined" && Intl.DateTimeFormat().resolvedOptions().timeZone !== PK && d.getTimezoneOffset() !== -300;
+
+const dayKey = (d: Date, timeZone?: string) => d.toLocaleDateString("en-CA", { timeZone });
+
+/**
+ * "4:30 PM your time (5:30 PM Pakistan)" style: the date and time on this
+ * device, then the Pakistan time (with its date when the day differs).
+ */
+function bothWays(d: Date, local: Intl.DateTimeFormatOptions): string {
+  const time: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "2-digit", hour12: true };
+  const here = upperMeridiem(d.toLocaleString("en-GB", { ...local, ...time }));
+  const sameDay = dayKey(d) === dayKey(d, PK);
+  const there = upperMeridiem(
+    d.toLocaleString("en-GB", sameDay ? { timeZone: PK, ...time } : { timeZone: PK, weekday: "short", day: "numeric", month: "short", ...time }),
+  );
+  return `${here} your time (${there} Pakistan)`;
+}
+
+/**
+ * Friendly absolute timestamp in Pakistan time, e.g. "17 Jun 2026, 2:05 PM".
+ * On a device in another time zone: "17 Jun 2026, 1:05 PM your time (2:05 PM Pakistan)".
+ */
 export function formatTimestamp(iso: string): string {
   const d = new Date(iso);
+  if (awayFromPakistan(d)) return bothWays(d, { day: "numeric", month: "short", year: "numeric" });
   return upperMeridiem(d.toLocaleString("en-GB", {
-    timeZone: "Asia/Karachi",
+    timeZone: PK,
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -59,10 +89,15 @@ export function formatTimestamp(iso: string): string {
   }));
 }
 
-/** Short day and time in Pakistan time, e.g. "Mon 3 Nov, 5:30 PM". */
+/**
+ * Short day and time in Pakistan time, e.g. "Mon 3 Nov, 5:30 PM".
+ * On a device in another time zone: "Mon 3 Nov, 4:30 PM your time (5:30 PM Pakistan)".
+ */
 export function formatWhen(iso: string): string {
-  return upperMeridiem(new Date(iso).toLocaleString("en-GB", {
-    timeZone: "Asia/Karachi",
+  const d = new Date(iso);
+  if (awayFromPakistan(d)) return bothWays(d, { weekday: "short", day: "numeric", month: "short" });
+  return upperMeridiem(d.toLocaleString("en-GB", {
+    timeZone: PK,
     weekday: "short",
     day: "numeric",
     month: "short",

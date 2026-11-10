@@ -11,8 +11,9 @@ import { NavIcon } from "@/components/nav/NavIcons";
 import { cn } from "@/lib/cn";
 
 // Grouped by the job you're doing, so the list reads as a console, not a
-// pile of links.
-const GROUPS = [
+// pile of links. `also` lists pages reached from an item that have no item of
+// their own, so the menu still shows where you are.
+const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string; Icon: (typeof NavIcon)[keyof typeof NavIcon]; also?: string[] }> }> = [
   {
     title: "Teach",
     items: [
@@ -20,7 +21,7 @@ const GROUPS = [
       { href: "/admin/classes", label: "Classes", Icon: NavIcon.Classes },
       { href: "/admin/whiteboard", label: "Whiteboard", Icon: NavIcon.Board },
       { href: "/admin/tests", label: "Tests", Icon: NavIcon.Tests },
-      { href: "/admin/submissions", label: "Submissions", Icon: NavIcon.Inbox },
+      { href: "/admin/submissions", label: "Submissions", Icon: NavIcon.Inbox, also: ["/admin/grading"] },
       { href: "/admin/assignments", label: "Homework", Icon: NavIcon.Assignments },
     ],
   },
@@ -46,7 +47,7 @@ const GROUPS = [
     items: [
       { href: "/admin/analytics", label: "Analytics", Icon: NavIcon.Analytics },
       { href: "/admin/export", label: "Export", Icon: NavIcon.Export },
-      { href: "/admin/settings", label: "Settings", Icon: NavIcon.Settings },
+      { href: "/admin/settings", label: "Settings", Icon: NavIcon.Settings, also: ["/admin/leads"] },
     ],
   },
 ];
@@ -60,7 +61,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const cohorts = db.cohorts.filter((c) => c.active);
 
   return (
-    <div className="flex h-full flex-col bg-paper bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0)_30%)]">
+    <div className="flex h-full flex-col bg-paper bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0)_30%)] pb-[env(safe-area-inset-bottom)]">
       <div className="px-5 pb-5 pt-6">
         <Link href="/admin/today" onClick={onNavigate} className="inline-flex">
           <LogoTight className="h-[22px]" />
@@ -74,7 +75,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <p className="px-3 pb-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-3">{g.title}</p>
             <ul className="space-y-0.5">
               {g.items.map((item) => {
-                const active = pathname.startsWith(item.href);
+                const active = [item.href, ...(item.also ?? [])].some((h) => pathname === h || pathname.startsWith(`${h}/`));
                 return (
                   <li key={item.href}>
                     <Link
@@ -82,7 +83,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                       onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "group relative flex min-h-10 items-center gap-3 rounded-[10px] px-3 text-[13.5px] font-semibold transition-colors duration-150 max-md:min-h-11",
+                        "group relative flex min-h-10 items-center gap-3 rounded-[10px] px-3 text-[13.5px] font-semibold transition-colors duration-150 max-md:min-h-11 pointer-coarse:min-h-11",
                         active
                           ? "bg-white/[0.06] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-white/[0.06]"
                           : "text-ink-3 hover:bg-white/[0.035] hover:text-ink",
@@ -104,6 +105,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               Cohorts page where they can be switched back on. */}
           <div className="flex flex-wrap gap-1.5 px-2">
             <button
+              type="button"
               onClick={() => setCohortId(null)}
               aria-pressed={cohortId === null}
               className={cn(
@@ -116,6 +118,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             {cohorts.map((c) => (
               <button
                 key={c.id}
+                type="button"
                 onClick={() => setCohortId(cohortId === c.id ? null : c.id)}
                 aria-pressed={cohortId === c.id}
                 className={cn(
@@ -141,7 +144,13 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <span className="block text-xs text-ink-3">Teacher</span>
         </span>
         <button
-          onClick={() => { logout(); router.replace("/admin"); }}
+          type="button"
+          onClick={() => {
+            // Close the phone menu first, so it isn't still open (and holding the page) after signing back in.
+            onNavigate?.();
+            logout();
+            router.replace("/admin");
+          }}
           aria-label="Sign out"
           title="Sign out"
           className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-3 transition-colors hover:bg-white/[0.05] hover:text-ink"

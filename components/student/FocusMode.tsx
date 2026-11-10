@@ -3,16 +3,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { STUDY_NAME, MIN_COUNTED, currentStats, quoteFor, recordFocus } from "@/lib/focus";
+import { STUDY_NAME, MIN_COUNTED, currentStats, quoteFor, recordFocus, recordFocusOn } from "@/lib/focus";
 import { clearRunning, loadRunning, minutesToAdd, ownRunning, saveRunning } from "@/components/student/focus-session";
 import { useBackToClose } from "@/components/student/useBackToClose";
 import { AWAY_GRACE_MS, awayFor, awayLabel, creditedAway, hideTip, setFocusRoomOpen, tipHidden } from "@/components/student/focus-away";
 import { cn } from "@/lib/cn";
+import { displayName } from "@/lib/display-name";
 import { worldScene, reviewDone, topicKey } from "@/lib/groundwork";
 import { worldFor, type WorldPhase } from "@/lib/groundwork-worlds";
 import { pkDate, addDays } from "@/lib/timetable";
 import { setStudying } from "@/components/student/StudyRoom";
-import { SOUNDS, backgroundTicker, chime, clearLockScreen, pauseSound, playSound, showOnLockScreen, stopSound, wakeChime, type Sound } from "@/lib/focus-sound";
+import { SOUNDS, backgroundTicker, chime, clearLockScreen, pauseSound, playSound, restChime, showOnLockScreen, stopSound, wakeChime, type Sound } from "@/lib/focus-sound";
 import { clock, useFloatTimer } from "@/components/student/FloatTimer";
 import { GroundworkWorld } from "@/components/student/GroundworkWorld";
 import { WorldGlyph, WorldPicker } from "@/components/student/WorldPicker";
@@ -73,12 +74,16 @@ export default function FocusMode({
   me?: { id: string; name: string; avatar?: string };
 }) {
   const { updateProfile, profile } = useAuth();
+  // Callers pass a username or a name: either way the receipt and the study room get a first name ("amelia.k2" → "Amelia").
+  const firstName = me ? displayName(me.name).split(" ")[0] || me.name : "Me";
   const [openedAt] = useState(() => Date.now());
   const world = worldFor(profile.world);
   // The share image uses the world's still.
   const scene = worldScene(world.id);
   const today = pkDate(openedAt);
   const [subject, setSubject] = useState(mission?.subject ?? subjects[0] ?? "Study");
+  // The subject it opened with is always in the list (a test in a subject they don't take, or no subjects yet).
+  const [subjectChoices] = useState(() => [...new Set([...subjects, subject, "Something else"])]);
   const [focusMin, setFocusMinRaw] = useState(() => Math.max(5, Math.min(120, mission?.minutes ?? lastLength() ?? 25)));
   // The length a student picks is remembered on this device for next time.
   const setFocusMin = (next: number | ((m: number) => number)) =>
@@ -174,7 +179,10 @@ export default function FocusMode({
     const m = minutesToAdd(minutes * 60_000, logged.current);
     if (m) {
       logged.current += m;
-      updateProfile((latest) => ({ focus: recordFocus(latest.focus, m, subj, Date.now()) }));
+      // One moment for the copy on screen and the saved copy (which is written later, or much later when offline),
+      // so both put the minutes on the same day.
+      const at = Date.now();
+      updateProfile((latest) => ({ focus: recordFocus(latest.focus, m, subj, at) }));
     }
     return logged.current;
   };
@@ -182,7 +190,12 @@ export default function FocusMode({
   /** The block is ending early (End, Back, leaving the page): count it now. */
   const flush = () => {
     let counted = 0;
-    if (live.current.phase === "focus" && startedAt.current != null) counted = logFocus(doneMs(Date.now()) / 60_000, live.current.subject);
+    // Nothing of this room's to count: a block stored by an earlier visit (cut off, not yet added) stays stored.
+    if (startedAt.current == null) {
+      markGone(null);
+      return counted;
+    }
+    if (live.current.phase === "focus") counted = logFocus(doneMs(Date.now()) / 60_000, live.current.subject);
     startedAt.current = null;
     markGone(null);
     clearRunning();
@@ -190,19 +203,43 @@ export default function FocusMode({
   };
 
   // ---- The clock: a worker tick, so it (and the float) keep going in the background.
+  // Time always comes from the device clock; the tick only says "look again". On screen it looks
+  // four times a second and redraws when the second shown changes, so the count never sticks on a
+  // second or skips one (a tick that lands late, on a busy phone, used to do that).
   useEffect(() => {
     if (!running) return;
-    return backgroundTicker(() => setNow(Date.now()), 1000);
+    const tick = () => {
+      const t = Date.now();
+      const end = live.current.endsAt;
+      setNow((prev) => (end && Math.ceil((end - t) / 1000) === Math.ceil((end - prev) / 1000) ? prev : t));
+    };
+    let stop = () => {};
+    const start = () => {
+      stop();
+      stop = backgroundTicker(tick, document.visibilityState === "hidden" ? 1000 : 250);
+    };
+    start();
+    document.addEventListener("visibilitychange", start);
+    return () => {
+      document.removeEventListener("visibilitychange", start);
+      stop();
+    };
   }, [running]);
 
   // Keep the screen awake while timing.
   useEffect(() => {
     if (!running) return;
     let lock: { release: () => Promise<void> } | null = null;
+    let over = false;
     const ask = () =>
       (navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> } }).wakeLock
         ?.request("screen")
-        .then((l) => (lock = l))
+        .then((l) => {
+          // Granted after the timer stopped (it takes a moment): let it go, or the screen would stay on.
+          if (over) return void l.release().catch(() => {});
+          void lock?.release().catch(() => {});
+          lock = l;
+        })
         .catch(() => {});
     void ask();
     const back = () => {
@@ -213,17 +250,19 @@ export default function FocusMode({
     };
     document.addEventListener("visibilitychange", back);
     return () => {
+      over = true;
       document.removeEventListener("visibilitychange", back);
       void lock?.release().catch(() => {});
     };
   }, [running]);
 
-  // Save the block on the phone each minute and on every pause or resume.
+  // Save the block on the phone each minute, on every pause or resume, and when they leave or come back
+  // (back within the grace: the saved copy drops the "left at", or a tab closed then would lose that time).
   const minuteMark = Math.floor((total - left) / 60_000);
   useEffect(() => {
     persist();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, minuteMark, pausedLeft, endsAt]);
+  }, [phase, minuteMark, pausedLeft, endsAt, gone]);
 
   // ---- Stay to build. Leaving during a focus block notes when they went. Back
   // within the grace: nothing happens. Back later: the builder stopped when they
@@ -276,6 +315,7 @@ export default function FocusMode({
       setFocusRoomOpen(false);
       ownRunning(false);
       stopSound();
+      restChime();
       clearLockScreen();
       setStudying(null);
       if (meta && prevTheme) meta.content = prevTheme;
@@ -308,6 +348,7 @@ export default function FocusMode({
         setPhase("done");
         setEndsAt(null);
         setStudying(null);
+        stopSound();
       }
     }, 0);
     return () => clearTimeout(t);
@@ -318,11 +359,13 @@ export default function FocusMode({
     wakeChime();
     // A block from an earlier visit that was cut off: count it before this one takes its place.
     const old = loadRunning();
+    const at = Date.now();
     if (old && old.startedAt !== startedAt.current) {
       const m = minutesToAdd(old.doneMs, old.logged);
-      if (m > 0) updateProfile((latest) => ({ focus: recordFocus(latest.focus, m, old.subject, Date.now()) }));
+      // On the day it was studied, as the next-visit recovery does (focus-session).
+      const when = Math.min(at, old.awayAt ?? old.savedAt ?? at);
+      if (m > 0) updateProfile((latest) => ({ focus: recordFocusOn(latest.focus, m, old.subject, when, at) }));
     }
-    const at = Date.now();
     setSessionAt((v) => v ?? at);
     logged.current = 0;
     startedAt.current = at;
@@ -335,7 +378,7 @@ export default function FocusMode({
     setEndsAt(at + focusMin * 60_000);
     setNow(at);
     if (sound !== "off") playSound(sound);
-    if (me) setStudying({ ...me, name: me.name.split(" ")[0], subject, since: at });
+    if (me) setStudying({ ...me, name: firstName, subject, since: at });
   };
 
   /** End now. With enough counted, show the receipt; otherwise close. Returns true if the room stays open. */
@@ -346,7 +389,8 @@ export default function FocusMode({
       const counted = flush();
       if (counted > 0) setBlocks((b) => [...b, { kind: "focus", min: counted }]);
       const all = focusedMin + counted;
-      pauseSound();
+      // Over (the receipt, or closed): the sound is let go, so the phone stops showing a paused player.
+      stopSound();
       setStudying(null);
       if (all >= MIN_COUNTED) {
         setPhase("done");
@@ -364,6 +408,7 @@ export default function FocusMode({
       setEndsAt(null);
       setPausedLeft(null);
       setStudying(null);
+      stopSound();
       return true;
     }
     close();
@@ -436,7 +481,20 @@ export default function FocusMode({
 
   // ---- Floating timer (picture-in-picture).
   const view = { leftMs: left, totalMs: total, phase: phase === "rest" ? ("rest" as const) : ("focus" as const), paused: held, subject, intention: intention.trim() || undefined };
-  const float = useFloatTimer(view, { pause, resume }, running);
+  const onFloat = (on: boolean) => {
+    floating.current = on;
+    const l = live.current;
+    if (l.phase !== "focus" || l.pausedLeft != null || !l.endsAt) return;
+    const at = Date.now();
+    if (on) {
+      // Floated as they left (desktop Chrome can float it by itself on a tab switch): they never went away.
+      if (leftAt.current && !awayFor(leftAt.current.at, at)) markGone(null);
+    } else if (document.visibilityState === "hidden" && !leftAt.current) {
+      // The float was closed while they are somewhere else: from now on it is the same as leaving.
+      markGone({ at, left: Math.max(0, l.endsAt - at) });
+    }
+  };
+  const float = useFloatTimer(view, { pause, resume }, running, onFloat);
   useEffect(() => {
     floating.current = float.active;
   });
@@ -444,7 +502,8 @@ export default function FocusMode({
   // ---- Lock screen and the tab title, once a minute and on every change.
   const minsLeft = Math.ceil(left / 60_000);
   useEffect(() => {
-    if (!running) return;
+    // Not timing (the receipt): nothing of the session stays on the lock screen.
+    if (!running) return clearLockScreen();
     showOnLockScreen(
       { title: held ? "Paused" : phase === "rest" ? `Break · ${minsLeft} min left` : `${minsLeft} min left`, subject, totalMs: total, leftMs: left, paused: held },
       { play: resume, pause, stop: () => void end() },
@@ -501,7 +560,8 @@ export default function FocusMode({
         else close();
         return;
       }
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.metaKey || e.ctrlKey || e.altKey) return;
+      // Typing or choosing (the subject picker): the keys belong to that field.
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === " " && running && !sheet) {
         e.preventDefault();
         if (phase === "rest") skipBreak();
@@ -525,6 +585,8 @@ export default function FocusMode({
       const first = items[0];
       const last = items[items.length - 1];
       const at = document.activeElement;
+      // A dialog opened on top of the room (the receipt image) keeps the keyboard while it is open.
+      if (at instanceof Element && !el.contains(at) && at.closest('[role="dialog"][aria-modal="true"]')) return;
       const inside = at instanceof Node && el.contains(at);
       if (!inside || (e.shiftKey && (at === first || at === el)) || (!e.shiftKey && at === last)) {
         e.preventDefault();
@@ -541,7 +603,7 @@ export default function FocusMode({
     phase === "done" && sessionAt
       ? {
           id: receiptId(sessionAt),
-          name: me?.name.split(" ")[0] ?? "Me",
+          name: firstName,
           subject,
           intention: intention.trim() || undefined,
           intentionDone: finished,
@@ -567,7 +629,7 @@ export default function FocusMode({
   const accent = phase === "rest" ? "#7FD1A6" : "#FBC159";
   const hide = running && idle && pausedLeft == null;
   const fade = cn("transition-opacity duration-700", hide ? "pointer-events-none opacity-0" : "opacity-100");
-  const glass = "bg-white/[0.08] backdrop-blur-2xl border border-white/[0.12]";
+  const glass = "bg-white/[0.08] backdrop-blur-2xl [@media(pointer:coarse)]:backdrop-blur-md border border-white/[0.12]";
   const roundBtn = cn("flex h-11 w-11 items-center justify-center rounded-full text-white/85 transition hover:bg-white/15 hover:text-white active:scale-95", glass);
 
   return (
@@ -641,8 +703,8 @@ export default function FocusMode({
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                 <path d="m6 9 6 6 6-6" />
               </svg>
-              <select value={subject} onChange={(e) => setSubject(e.target.value)} aria-label="Subject" className="absolute inset-0 cursor-pointer opacity-0">
-                {[...subjects, "Something else"].map((x) => (
+              <select value={subject} onChange={(e) => setSubject(e.target.value)} aria-label="Subject" className="absolute inset-0 cursor-pointer text-base opacity-0">
+                {subjectChoices.map((x) => (
                   <option key={x} value={x}>
                     {x}
                   </option>

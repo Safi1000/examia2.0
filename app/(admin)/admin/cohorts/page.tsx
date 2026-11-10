@@ -112,15 +112,17 @@ export default function CohortsPage() {
             const classNames = c.classIds.map((cid) => db.classes.find((x) => x.id === cid)?.name).filter(Boolean);
             const subjectNames = c.subjectIds.map((sid) => db.subjects.find((x) => x.id === sid)?.name).filter(Boolean);
             return (
-              <Card key={c.id} className="flex items-start justify-between gap-3 p-4">
-                <div className="flex min-w-0 items-start gap-3">
+              <Card key={c.id} className="flex flex-wrap items-start justify-between gap-3 p-4">
+                {/* When the card is narrow the buttons drop to their own line rather than squeezing the name off it. */}
+                <div className="flex min-w-40 flex-1 items-start gap-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `color-mix(in srgb, ${cohortVar(c.color)} 18%, transparent)` }}>
                     <CohortDot color={c.color} size={16} />
                   </span>
                   <div className="min-w-0">
-                    <p className="flex items-center gap-2 truncate font-semibold tracking-[-0.01em] text-ink">
-                      {c.name}
-                      {!c.active && <Badge tone="neutral">Off</Badge>}
+                    <p className="flex min-w-0 items-center gap-2 font-semibold tracking-[-0.01em] text-ink">
+                      {/* The name itself truncates (a flex row can't), so the "Off" badge always shows. */}
+                      <span className="min-w-0 truncate" title={c.name}>{c.name}</span>
+                      {!c.active && <Badge tone="neutral" className="shrink-0">Off</Badge>}
                     </p>
                     <p className="text-sm tabular-nums text-ink-3">{studentCount} {studentCount === 1 ? "student" : "students"} · {testCount} {testCount === 1 ? "test" : "tests"}</p>
                     {!c.active && (
@@ -142,11 +144,12 @@ export default function CohortsPage() {
                     )}
                   </div>
                 </div>
-                <div className="flex shrink-0 gap-1">
+                <div className="ml-auto flex shrink-0 gap-1">
                   {!c.active && db.noteAssignments.some((na) => na.cohortId === c.id) && (
                     <button
+                      type="button"
                       onClick={() => setClearing(c)}
-                      className="flex h-9 items-center rounded px-2 text-xs font-semibold text-ink-3 hover:bg-error-soft hover:text-error"
+                      className="flex h-10 items-center rounded-full px-3 text-xs font-semibold text-ink-3 transition-colors hover:bg-error-soft hover:text-error focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-md:h-11"
                       title="Delete the notes that were only for this cohort"
                     >
                       Delete notes
@@ -186,7 +189,7 @@ export default function CohortsPage() {
       {db.cohorts.length === 0 ? (
         <EmptyState icon={<Icon.Layers />} title="No cohorts" action={<Button onClick={openNew}>Create one</Button>} />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {db.cohorts.filter((c) => c.active).map(card)}
         </div>
       )}
@@ -198,7 +201,7 @@ export default function CohortsPage() {
             Archived cohorts ({db.cohorts.filter((c) => !c.active).length})
           </summary>
           <p className="mb-3 mt-1 text-xs text-ink-3">Hidden from every other screen in the portal. Open a cohort&apos;s Students, Tests or Marks to look back.</p>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {db.cohorts.filter((c) => !c.active).map(card)}
           </div>
         </details>
@@ -338,8 +341,17 @@ export default function CohortsPage() {
       >
         <Select label="Move students & tests to" value={reassignTo} onChange={(e) => setReassignTo(e.target.value)}>
           <option value="">Choose a cohort…</option>
-          {db.cohorts.filter((c) => c.id !== deleting?.id).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {/* Archived cohorts are offered last and named as such: students moved there can't sign in. */}
+          {db.cohorts.filter((c) => c.id !== deleting?.id && c.active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {db.cohorts.some((c) => c.id !== deleting?.id && !c.active) && (
+            <optgroup label="Archived">
+              {db.cohorts.filter((c) => c.id !== deleting?.id && !c.active).map((c) => <option key={c.id} value={c.id}>{c.name} (archived)</option>)}
+            </optgroup>
+          )}
         </Select>
+        {reassignTo && db.cohorts.find((c) => c.id === reassignTo)?.active === false && (
+          <p className="mt-2 text-sm text-warning">That cohort is archived, so students moved there can&apos;t sign in.</p>
+        )}
       </Modal>
     </div>
   );

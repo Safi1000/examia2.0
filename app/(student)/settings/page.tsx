@@ -42,6 +42,7 @@ function ChangePassword() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setError(null);
     if (next.length < MIN) return setError({ field: "next", msg: `Use at least ${MIN} characters.` });
     if (next === current) return setError({ field: "next", msg: "Pick a password different from your current one." });
@@ -55,12 +56,17 @@ function ChangePassword() {
       return setError({ field: "current", msg: "You're offline. Connect to the internet and try again." });
     }
     const email = data.user?.email;
+    // Couldn't even look the account up (server hiccup): that is not a wrong password.
+    if (!email) {
+      setBusy(false);
+      return setError({ field: "current", msg: "Couldn't check your password. Check your internet and try again." });
+    }
     // Check the current password first, so a phone left signed in can't be
     // used to lock the student out.
-    const check = email ? await sb.auth.signInWithPassword({ email, password: current }) : null;
-    if (!check || check.error) {
+    const check = await sb.auth.signInWithPassword({ email, password: current });
+    if (check.error) {
       setBusy(false);
-      if (check?.error && /fetch|network/i.test(check.error.message)) {
+      if (check.error.status === 0 || /fetch|network/i.test(check.error.message)) {
         return setError({ field: "current", msg: "Couldn't reach the server. Check your internet and try again." });
       }
       return setError({ field: "current", msg: "That isn't your current password." });

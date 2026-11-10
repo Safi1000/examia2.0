@@ -19,8 +19,10 @@ export function RadioCard({
   return (
     <label
       className={cn(
-        "flex min-h-[52px] cursor-pointer items-center gap-3 rounded-md border px-4 py-3 transition-colors",
-        disabled && "cursor-not-allowed opacity-70",
+        "flex min-h-[52px] items-center gap-3 rounded-md border px-4 py-3 transition-colors",
+        // The real radio is visually hidden, so the card shows the keyboard focus ring.
+        "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand",
+        disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer",
         checked
           ? "border-brand bg-brand-soft"
           : "border-border-strong bg-surface hover:border-brand/50 hover:bg-surface-2",
@@ -62,10 +64,12 @@ export function Checkbox({
   className?: string;
 }) {
   return (
-    <label className={cn("inline-flex cursor-pointer items-center gap-2.5", disabled && "opacity-60", className)}>
+    <label className={cn("group/check inline-flex items-center gap-2.5", disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer", className)}>
       <span
         className={cn(
+          // The real checkbox is visually hidden, so the box shows the keyboard focus ring.
           "flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors",
+          "group-has-[:focus-visible]/check:outline-2 group-has-[:focus-visible]/check:outline-offset-2 group-has-[:focus-visible]/check:outline-brand",
           checked ? "border-brand bg-brand" : "border-border-strong bg-surface",
         )}
       >

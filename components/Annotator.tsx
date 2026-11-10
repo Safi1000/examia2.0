@@ -206,14 +206,30 @@ export function AnnotatorModal({
 }) {
   // Seeded once per mount — callers key the modal by answer.
   const [byUrl, setByUrl] = useState<Annotations>(initial);
+  // The newest markup, ahead of the next render: an eraser dragged across several
+  // marks commits several times before React catches up.
+  const latest = useRef<Annotations>(initial);
+  // Each page's earlier versions, newest last. Undo steps back through them, so it
+  // brings back what was erased or cleared instead of removing another stroke.
+  const [history, setHistory] = useState<Record<string, Annotation[][]>>({});
   const [tool, setTool] = useState<Tool>("pen");
-  // The page's ink just before Clear, so one Undo can bring it all back.
-  const [cleared, setCleared] = useState<{ url: string; shapes: Annotations[string] } | null>(null);
   const [color, setColor] = useState(COLORS[0]);
   const [size, setSize] = useState(1);
   const [markValue, setMarkValue] = useState(1);
   const [page, setPage] = useState(startAt);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // Shared by every page: once the S Pen has touched any page, a palm on the
+  // next page is already ignored instead of drawing its first mark.
+  const pen = useRef({ seen: false, nearAt: 0 });
+  const penInfo = () => pen.current;
+  const onPen = (touched: boolean) => {
+    if (touched) pen.current.seen = true;
+    pen.current.nearAt = Date.now();
+  };
+  // Until the grader scrolls or touches anything, the page they opened stays put
+  // while the pages above it finish loading (otherwise they push it down).
+  const settled = useRef(false);
 
   // Esc + scroll lock. onClose is read through a ref so a new inline handler
   // from the parent can't re-run this effect mid-drag.
@@ -222,6 +238,9 @@ export function AnnotatorModal({
     onCloseRef.current = onClose;
   }, [onClose]);
   useEffect(() => {
+    // Focus moves into the editor and back to what opened it on close.
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onCloseRef.current();
     };
@@ -231,14 +250,60 @@ export function AnnotatorModal({
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+    };
+  }, []);
+
+  // The page counter, the arrows, Undo and Clear follow the page on screen, not
+  // only the last page touched: scrolling to page 3 and pressing Clear clears page 3.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const mark = el.getBoundingClientRect().top + el.clientHeight * 0.35;
+        const pages = el.querySelectorAll<HTMLElement>("[data-page]");
+        let p = 0;
+        pages.forEach((w, i) => {
+          if (w.getBoundingClientRect().top <= mark) p = i;
+        });
+        // At the very bottom the last page counts, even when it is too short to climb that high.
+        if (el.scrollTop > 0 && el.scrollTop + el.clientHeight >= el.scrollHeight - 2) p = pages.length - 1;
+        setPage(p);
+      });
+    };
+    const settle = () => {
+      settled.current = true;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    // Only the grader's own hand counts as moving on, not the scroll made for them.
+    el.addEventListener("pointerdown", settle, { passive: true });
+    el.addEventListener("wheel", settle, { passive: true });
+    el.addEventListener("touchstart", settle, { passive: true });
+    el.addEventListener("keydown", settle);
+    return () => {
+      cancelAnimationFrame(frame);
+      el.removeEventListener("scroll", onScroll);
+      el.removeEventListener("pointerdown", settle);
+      el.removeEventListener("wheel", settle);
+      el.removeEventListener("touchstart", settle);
+      el.removeEventListener("keydown", settle);
     };
   }, []);
 
   if (typeof document === "undefined") return null;
 
-  function commit(url: string, shapes: Annotation[]) {
-    const next = { ...byUrl, [url]: shapes };
+  /** Save a page's new markup. `undoing` steps back without recording a new step. */
+  function commit(url: string, shapes: Annotation[], undoing = false) {
+    const prevAll = latest.current;
+    const before = prevAll[url] ?? [];
+    const next = { ...prevAll, [url]: shapes };
+    latest.current = next;
     setByUrl(next);
+    if (!undoing) setHistory((h) => ({ ...h, [url]: [...(h[url] ?? []), before].slice(-100) }));
     onChange(url, shapes);
     // The marks written in the margin ARE the score: hand the caller the total
     // so nobody adds them up by hand and mistypes it. Only when the stamps
@@ -246,26 +311,43 @@ export function AnnotatorModal({
     if (onMarksTotal) {
       const stamps = (list: Annotation[]) => list.filter((a): a is Extract<Annotation, { t: "mark" }> => a.t === "mark");
       const sum = (list: Annotation[]) => stamps(list).reduce((n, m) => n + m.value, 0);
-      const before = Object.values(byUrl).flat();
+      const beforeAll = Object.values(prevAll).flat();
       const after = Object.values(next).flat();
-      if (stamps(before).length !== stamps(after).length || sum(before) !== sum(after)) onMarksTotal(sum(after));
+      if (stamps(beforeAll).length !== stamps(after).length || sum(beforeAll) !== sum(after)) onMarksTotal(sum(after));
     }
   }
 
   const current = urls[page] ?? urls[0];
   const currentShapes = byUrl[current] ?? [];
+  const steps = history[current] ?? [];
+
+  function undo() {
+    const list = history[current];
+    if (!list?.length) return;
+    setHistory((h) => ({ ...h, [current]: (h[current] ?? []).slice(0, -1) }));
+    commit(current, list[list.length - 1], true);
+  }
 
   function goto(i: number) {
     const clamped = Math.max(0, Math.min(urls.length - 1, i));
     setPage(clamped);
+    settled.current = true;
     scrollRef.current?.querySelector(`[data-page="${clamped}"]`)?.scrollIntoView({ block: "start" });
+  }
+
+  /** A page finished loading: keep the opened page in place until the grader moves. */
+  function onPageLoad(i: number) {
+    if (settled.current || i > startAt) return;
+    scrollRef.current?.querySelector(`[data-page="${startAt}"]`)?.scrollIntoView({ block: "start" });
   }
 
   return createPortal(
     /* onContextMenu: a long press on a tablet otherwise pops the browser's
        copy / paste / back callout in the middle of marking. */
     <div
-      className="fixed inset-0 z-50 flex select-none flex-col bg-paper [-webkit-touch-callout:none]"
+      ref={dialogRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex select-none flex-col bg-paper outline-none [-webkit-touch-callout:none]"
       role="dialog"
       aria-modal="true"
       aria-label="Annotate answer"
@@ -273,7 +355,7 @@ export function AnnotatorModal({
     >
       {/* Two rows on a tablet, one on a laptop. Every control keeps its size and
           the row scrolls sideways rather than dropping tools off the edge. */}
-      <div className="shrink-0 border-b border-border bg-surface px-3 py-2 lg:flex lg:items-center lg:gap-3 lg:px-4">
+      <div className="shrink-0 border-b border-border bg-surface pb-2 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.5rem,env(safe-area-inset-top))] lg:flex lg:items-center lg:gap-3 lg:pl-[max(1rem,env(safe-area-inset-left))] lg:pr-[max(1rem,env(safe-area-inset-right))]">
         <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0">
           {(["pen", "line", "highlight", "mark", "tick", "cross", "text", "erase"] as Tool[]).map((t) => (
             <button
@@ -296,7 +378,11 @@ export function AnnotatorModal({
                 min={0}
                 step={0.5}
                 value={markValue}
-                onChange={(e) => setMarkValue(Number(e.target.value))}
+                // A mark is never below zero, and a cleared box stamps nothing odd.
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setMarkValue(Number.isFinite(v) ? Math.max(0, v) : 0);
+                }}
                 className="h-9 w-16 rounded-md border border-border-strong bg-surface px-2 text-center font-mono text-sm font-semibold text-ink"
                 aria-label="Marks to stamp"
               />
@@ -330,25 +416,17 @@ export function AnnotatorModal({
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => {
-              // Straight after Clear, Undo brings the whole page's ink back.
-              if (!currentShapes.length && cleared?.url === current) {
-                commit(current, cleared.shapes);
-                setCleared(null);
-              } else commit(current, currentShapes.slice(0, -1));
-            }}
-            disabled={!currentShapes.length && cleared?.url !== current}
+            onClick={undo}
+            disabled={!steps.length}
           >
             Undo
           </Button>
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => {
-              setCleared({ url: current, shapes: currentShapes });
-              commit(current, []);
-            }}
+            onClick={() => commit(current, [])}
             disabled={!currentShapes.length}
+            aria-label={urls.length > 1 ? `Clear page ${page + 1}` : "Clear"}
           >
             Clear
           </Button>
@@ -359,7 +437,7 @@ export function AnnotatorModal({
         </div>
       </div>
 
-      <div ref={scrollRef} data-annot-scroll className="flex-1 overflow-y-auto bg-surface-2/40 px-2 py-3 sm:px-4 sm:py-6">
+      <div ref={scrollRef} data-annot-scroll className="flex-1 overflow-y-auto bg-surface-2/40 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-4 sm:pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pt-6">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
           {urls.map((u, i) => (
             <div key={u} data-page={i} onPointerDown={() => setPage(i)}>
@@ -375,6 +453,11 @@ export function AnnotatorModal({
                 size={size}
                 markValue={markValue}
                 scrollIntoViewOnLoad={i === startAt}
+                // The opened page and its neighbours load now; the rest as they come near.
+                eager={Math.abs(i - startAt) <= 1}
+                penInfo={penInfo}
+                onPen={onPen}
+                onLoaded={() => onPageLoad(i)}
                 onCommit={(shapes) => commit(u, shapes)}
               />
             </div>
@@ -396,6 +479,10 @@ function EditablePage({
   size,
   markValue,
   scrollIntoViewOnLoad,
+  eager = true,
+  penInfo,
+  onPen,
+  onLoaded,
   onCommit,
 }: {
   url: string;
@@ -406,6 +493,12 @@ function EditablePage({
   size: number;
   markValue: number;
   scrollIntoViewOnLoad?: boolean;
+  eager?: boolean;
+  /** Pen seen and last near the screen, shared across pages (see the modal). */
+  penInfo: () => { seen: boolean; nearAt: number };
+  /** The pen touched (true) or hovered near (false) the screen. */
+  onPen: (touched: boolean) => void;
+  onLoaded?: () => void;
   onCommit: (shapes: Annotation[]) => void;
 }) {
   const [dim, setDim] = useState({ w: 0, h: 0 });
@@ -420,10 +513,9 @@ function EditablePage({
   // A finger drag, once a stylus has been seen: we scroll the page ourselves
   // because the surface has to keep touch-action: none for the pen's sake.
   const touchScroll = useRef<{ id: number; y: number; el: HTMLElement } | null>(null);
-  // Palm rejection: once this page has seen a stylus, finger and palm contacts
-  // stop drawing — on a tablet the hand resting on the page would otherwise
-  // scribble over the answer. Touch still draws on devices with no pen.
-  const sawPen = useRef(false);
+  // Palm rejection: once a stylus has been seen (on any page), finger and palm
+  // contacts stop drawing — on a tablet the hand resting on the page would
+  // otherwise scribble over the answer. Touch still draws on devices with no pen.
   // Shapes the caller has not re-rendered yet, so a fast drag erasing several
   // marks does not keep testing against the stale list.
   const liveShapes = useRef(shapes);
@@ -469,7 +561,6 @@ function EditablePage({
   const pressures = useRef<number[]>([]);
   const straight = useRef(false);
   const hold = useRef<{ x: number; y: number; path: number; timer: ReturnType<typeof setTimeout> | null }>({ x: 0, y: 0, path: 0, timer: null });
-  const penNearAt = useRef(0);
 
   /** Image pixels per screen pixel, for screen-sized thresholds. */
   const pxScale = () => {
@@ -545,17 +636,14 @@ function EditablePage({
 
   function down(e: React.PointerEvent) {
     if (!dim.w) return;
-    if (e.pointerType === "pen") {
-      sawPen.current = true;
-      penNearAt.current = Date.now();
-    }
+    if (e.pointerType === "pen") onPen(true);
     // Fingers scroll instead of drawing once the pen is in play. The browser
     // can't do it for us: touch-action has to stay `none` or Chrome steals a
     // slow downward pen stroke and scrolls with it instead.
-    if (e.pointerType === "touch" && sawPen.current) {
+    if (e.pointerType === "touch" && penInfo().seen) {
       // Not while the pen is down or hovering, and not for a resting hand —
       // otherwise the palm holding the tablet steady would drag the script.
-      const penNear = Date.now() - penNearAt.current < PALM_LOCK_MS;
+      const penNear = Date.now() - penInfo().nearAt < PALM_LOCK_MS;
       if (activePointer.current === null && !penNear && !isPalm(e, false)) {
         const el = e.currentTarget.closest<HTMLElement>("[data-annot-scroll]");
         if (el) {
@@ -567,7 +655,7 @@ function EditablePage({
       }
       return;
     }
-    if (isPalm(e, sawPen.current)) return;
+    if (isPalm(e, penInfo().seen)) return;
     // Another pointer is already drawing — ignore this one rather than
     // restarting the stroke half way through.
     if (activePointer.current !== null) return;
@@ -588,7 +676,7 @@ function EditablePage({
       return;
     }
     if (active === "mark") {
-      add({ id: nid(), t: "mark", color, x: p.x, y: p.y, size: (dim.w / 22) * size, value: markValue });
+      add({ id: nid(), t: "mark", color, x: p.x, y: p.y, size: (dim.w / 22) * size, value: Math.max(0, markValue) });
       return;
     }
     if (active === "tick" || active === "cross") {
@@ -626,7 +714,7 @@ function EditablePage({
   }
 
   function move(e: React.PointerEvent) {
-    if (e.pointerType === "pen") penNearAt.current = Date.now();
+    if (e.pointerType === "pen") onPen(false);
     const ts = touchScroll.current;
     if (ts && ts.id === e.pointerId) {
       ts.el.scrollTop -= (e.clientY - ts.y) * 1.15;
@@ -688,7 +776,7 @@ function EditablePage({
    * far beats dropping the line on the floor.
    */
   function up(e: React.PointerEvent) {
-    if (e.pointerType === "pen") penNearAt.current = Date.now();
+    if (e.pointerType === "pen") onPen(false);
     if (touchScroll.current?.id === e.pointerId) touchScroll.current = null;
     if (activePointer.current !== e.pointerId) return;
     clearHold();
@@ -720,9 +808,12 @@ function EditablePage({
           src={url}
           alt={alt}
           draggable={false}
+          loading={eager ? "eager" : "lazy"}
+          decoding="async"
           onLoad={(e) => {
             setDim({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight });
             if (scrollIntoViewOnLoad) wrapRef.current?.scrollIntoView({ block: "start" });
+            onLoaded?.();
           }}
           className="block select-none"
           style={{ width: `${PAGE_FRACTION * 100}%` }}
@@ -735,7 +826,8 @@ function EditablePage({
         />
       </div>
       {dim.w === 0 && (
-        <p className="px-3 py-10 text-center text-sm text-ink-3">Loading page…</p>
+        // A page-shaped space while it loads, so a page arriving late moves the others less.
+        <p className="flex aspect-[3/4] items-center justify-center px-3 text-center text-sm text-ink-3">Loading page…</p>
       )}
       {dim.w > 0 && (
         <svg

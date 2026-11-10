@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { TestStatus } from "@/types";
@@ -14,6 +14,7 @@ import { Button, Card, Badge, Pill, CohortTag, EmptyState, Modal, Icon } from "@
 import { FilterChips } from "@/components/admin/FilterChips";
 import { BulkBar, RowCheck } from "@/components/admin/BulkBar";
 import { fromLocalInput } from "@/lib/time";
+import { useNow } from "@/hooks/useNow";
 import { buttonClasses } from "@/components/ui/Button";
 import { PastPaperSheet, type PastPaperBuild } from "@/components/admin/PastPaperSheet";
 import { questionFromBuilt, testMinutes } from "@/lib/paper-builder";
@@ -65,6 +66,28 @@ export default function AdminTestsPage() {
       );
   }, [db.tests, cohortId, subjectFilter, statuses, view, archived]);
 
+  // Worked out once per data change, not again for every row each time a box is ticked.
+  const statsById = useMemo(() => new Map(tests.map((t) => [t.id, testStats(db, t)])), [db, tests]);
+
+  // Bulk actions only touch ticked tests that are still on screen: a filter
+  // change must not leave hidden tests silently included.
+  const shown = useMemo(() => new Set(tests.map((t) => t.id)), [tests]);
+  const chosen = picked.filter((id) => shown.has(id));
+
+  // The close date is Pakistan time; it must be in the future and after each test opens.
+  const now = useNow();
+  const bulkCloseIso = bulkClose ? fromLocalInput(bulkClose) : null;
+  const bulkCloseProblem = !bulkCloseIso
+    ? null
+    : +new Date(bulkCloseIso) <= now
+      ? "That time has passed."
+      : chosen.some((id) => {
+            const t = db.tests.find((x) => x.id === id);
+            return t ? +new Date(bulkCloseIso) <= +new Date(t.opensAt) : false;
+          })
+        ? "That is before a test opens."
+        : null;
+
   // Duplicate: a copy of the test (questions and answers) as a hidden draft, opened to edit.
   const [copying, setCopying] = useState<string | null>(null);
   async function duplicate(id: string) {
@@ -78,7 +101,11 @@ export default function AdminTestsPage() {
     }
   }
 
+  // One tap, one test: a double click used to make two "Untitled test" drafts.
+  const creating = useRef(false);
   function createTest() {
+    if (creating.current) return;
+    creating.current = true;
     const now = Date.now();
     const code = `NEW-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
     const id = store.addTest({
@@ -145,7 +172,7 @@ export default function AdminTestsPage() {
 
       {/* Admins land here, so this is where what-needs-chasing lives. */}
 
-      <BulkBar count={picked.length} noun="test" onClear={() => setPicked([])}>
+      <BulkBar count={chosen.length} noun="test" onClear={() => setPicked([])}>
         <label className="flex items-center gap-1.5 text-sm text-ink-2">
           Close date
           <input
@@ -153,17 +180,24 @@ export default function AdminTestsPage() {
             value={bulkClose}
             onChange={(e) => setBulkClose(e.target.value)}
             className="h-10 rounded-lg border border-border-strong bg-surface px-2.5 text-sm tabular-nums text-ink"
-            aria-label="New close date for the selected tests"
+            aria-label="New close date for the selected tests (Pakistan time)"
+            aria-invalid={!!bulkCloseProblem}
           />
         </label>
+        {bulkCloseProblem && <span role="alert" className="text-sm font-medium text-error">{bulkCloseProblem}</span>}
         <Button
           size="sm"
-          disabled={!bulkClose}
+          disabled={!bulkCloseIso || !!bulkCloseProblem}
           onClick={() => {
-            const closesAt = fromLocalInput(bulkClose);
-            picked.forEach((id) => store.updateTest(id, { closesAt }));
-            toast(`Close date changed on ${picked.length} tests.`, "success");
+            if (!bulkCloseIso || bulkCloseProblem) return;
+            const before = chosen.map((id) => ({ id, closesAt: db.tests.find((t) => t.id === id)?.closesAt }));
+            chosen.forEach((id) => store.updateTest(id, { closesAt: bulkCloseIso }));
+            toast(`Close date changed on ${chosen.length} test${chosen.length === 1 ? "" : "s"}.`, "success", {
+              label: "Undo",
+              onClick: () => before.forEach((b) => b.closesAt && store.updateTest(b.id, { closesAt: b.closesAt })),
+            });
             setPicked([]);
+            setBulkClose("");
           }}
         >
           Apply
@@ -214,11 +248,11 @@ export default function AdminTestsPage() {
       ) : (
         <Card className="divide-y divide-border overflow-hidden p-0">
           {tests.map((t) => {
-            const stats = testStats(db, t);
+            const stats = statsById.get(t.id) ?? testStats(db, t);
             const cohort = cohortById(db, t.cohortId);
             return (
-              <div key={t.id} className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-3 px-4 py-4 transition-colors hover:bg-white/[0.018] lg:grid-cols-[auto_minmax(0,1fr)_19rem_auto] lg:items-center lg:gap-x-5">
-                    <span className="pt-0.5 lg:pt-0">
+              <div key={t.id} className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-3 px-4 py-4 transition-colors hover:bg-white/[0.018] xl:grid-cols-[auto_minmax(0,1fr)_19rem_auto] xl:items-center xl:gap-x-5">
+                    <span className="pt-0.5 xl:pt-0">
                       <RowCheck
                         checked={picked.includes(t.id)}
                         onChange={(on) => setPicked((prev) => (on ? [...prev, t.id] : prev.filter((x) => x !== t.id)))}
@@ -243,7 +277,7 @@ export default function AdminTestsPage() {
                     </p>
                     </div>
 
-                <div className="col-span-2 grid grid-cols-3 gap-2 border-t border-border pt-3 lg:col-span-1 lg:border-0 lg:pt-0">
+                <div className="col-span-2 grid grid-cols-3 gap-2 border-t border-border pt-3 xl:col-span-1 xl:border-0 xl:pt-0">
                   <Stat label="Submissions" value={String(stats.submissionCount)} />
                   {stats.averagePercent != null ? (
                     <Stat label="Average" value={`${stats.averagePercent}%`} />
@@ -256,14 +290,14 @@ export default function AdminTestsPage() {
                   <Stat label="Completion" value={`${stats.completionPercent}%`} />
                 </div>
 
-                  <div className="col-span-2 flex items-center justify-end gap-1.5 lg:col-span-1">
+                  <div className="col-span-2 flex items-center justify-end gap-1.5 xl:col-span-1">
                     <Link href={`/admin/tests/${t.id}`} className={buttonClasses({ variant: "secondary", size: "sm" })}>
                       <Icon.Edit className="h-4 w-4" /> Edit
                     </Link>
                     <button
                       onClick={() => void duplicate(t.id)}
                       disabled={copying !== null}
-                      className="flex h-10 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-50 max-md:h-11"
+                      className="flex h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-50 xl:h-10"
                       aria-label={`Duplicate ${t.title}`}
                       title="Make a copy to edit: same questions and answers, as a hidden draft"
                     >
@@ -272,7 +306,7 @@ export default function AdminTestsPage() {
                     </button>
                     <button
                       onClick={() => setDeleteId(t.id)}
-                      className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error max-md:h-11 max-md:w-11"
+                      className="flex h-11 w-11 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error"
                       aria-label={`Delete ${t.title}`}
                     >
                       <Icon.Trash className="h-[18px] w-[18px]" />
@@ -290,15 +324,15 @@ export default function AdminTestsPage() {
       <Modal
         open={confirmClose}
         onClose={() => setConfirmClose(false)}
-        title={`Close ${picked.length} test${picked.length === 1 ? "" : "s"} now?`}
+        title={`Close ${chosen.length} test${chosen.length === 1 ? "" : "s"} now?`}
         description="Students who haven't handed in won't be able to any more."
         footer={
           <>
             <Button variant="secondary" onClick={() => setConfirmClose(false)}>Cancel</Button>
             <Button
               onClick={() => {
-                const before = picked.map((id) => ({ id, status: db.tests.find((t) => t.id === id)?.status ?? "active" }));
-                picked.forEach((id) => store.updateTest(id, { status: "closed" }));
+                const before = chosen.map((id) => ({ id, status: db.tests.find((t) => t.id === id)?.status ?? "active" }));
+                chosen.forEach((id) => store.updateTest(id, { status: "closed" }));
                 setConfirmClose(false);
                 setPicked([]);
                 toast(`${before.length} test${before.length === 1 ? "" : "s"} closed.`, "success", {
@@ -344,7 +378,7 @@ export default function AdminTestsPage() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="lg:text-right">
+    <div className="xl:text-right">
       <p className="text-[15px] font-semibold tabular-nums text-ink">{value}</p>
       <p className="text-xs text-ink-3">{label}</p>
     </div>

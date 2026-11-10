@@ -148,7 +148,8 @@ export function reportData(db: Database, studentId: string, month: string, teach
 
   // Work set this month: tests for this student that closed in the month.
   const setTests: Test[] = testsForStudent(db, student).filter((t) => monthOf(t.closesAt) === month);
-  const handed = new Set(mine.map((s) => s.testId));
+  // Handed in means submitted: an attempt still in progress is not work a parent can count.
+  const handed = new Set(mine.filter((s) => s.status !== "in_progress").map((s) => s.testId));
   const handedIn = setTests.filter((t) => handed.has(t.id)).length;
   const awaiting = mine.filter((s) => s.status === "submitted" && monthOf(s.submittedAt) === month).length;
   const missed = setTests
@@ -209,7 +210,7 @@ export function reportData(db: Database, studentId: string, month: string, teach
 
   // Plain sentences a parent can read in ten seconds: what was done, how it
   // went against the class, and the one best and one weakest topic, with marks.
-  const fmt = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const fmt = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
   const stillOpen = setTests.length - handedIn - missed.length;
   const sentences: string[] = [];
   if (setTests.length) {

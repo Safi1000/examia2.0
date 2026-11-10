@@ -62,8 +62,15 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
     // A failed check never leaves the card stuck on "loading".
     const run = () => check().catch(() => alive && setStatus(VAPID ? "off" : "notReady"));
     void run();
+    // Back from the browser's settings (after allowing notifications there):
+    // the card catches up by itself instead of still saying blocked.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void run();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       alive = false;
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [studentId]);
 
@@ -118,12 +125,12 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
   }
 
   async function setPref(key: keyof Prefs, value: boolean) {
-    const before = prefs;
     const next = { ...prefs, [key]: value };
     setPrefs(next);
     const { error } = await supabase().from("notify_prefs").upsert({ student_id: studentId, ...next, updated_at: new Date().toISOString() });
     if (error) {
-      setPrefs(before);
+      // Put back this one switch only: another switch tapped meanwhile keeps its new state.
+      setPrefs((cur) => ({ ...cur, [key]: !value }));
       toast("Couldn't save that. Try again.", "error");
     }
   }
@@ -147,6 +154,8 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
         )}
       </div>
 
+      {/* Holds the card's shape while this phone is checked, so the card below doesn't jump. */}
+      {status === "loading" && <div className="skeleton mt-4 h-5 w-2/3 rounded-md" aria-hidden />}
       {status === "iphone" && (
         <p className="mt-4 rounded-lg bg-surface-2 px-3 py-2.5 text-sm text-ink-2">
           On iPhone, first add this portal to your Home Screen: tap Share, then &quot;Add to Home Screen&quot;. Open it from

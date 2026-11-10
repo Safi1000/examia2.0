@@ -48,10 +48,21 @@ export async function GET(req: NextRequest) {
   const params = new URLSearchParams({ public_id: parts.publicId, type: "upload", attachment: "true" });
   if (parts.format) params.set("format", parts.format);
 
-  const upstream = await fetch(
-    `https://api.cloudinary.com/v1_1/${parts.cloud}/${parts.resourceType}/download?${params}`,
-    { headers: { Authorization: `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString("base64")}` } },
-  );
+  // Cloudinary gets 20 seconds to start answering; after that the reader is
+  // told, not left on a blank page. The file itself may take as long as it needs.
+  const gate = new AbortController();
+  const slow = setTimeout(() => gate.abort(), 20_000);
+  let upstream: Response;
+  try {
+    upstream = await fetch(
+      `https://api.cloudinary.com/v1_1/${parts.cloud}/${parts.resourceType}/download?${params}`,
+      { headers: { Authorization: `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString("base64")}` }, signal: gate.signal },
+    );
+  } catch {
+    return new NextResponse("Could not fetch the file", { status: 502 });
+  } finally {
+    clearTimeout(slow);
+  }
   if (!upstream.ok) return new NextResponse("Could not fetch the file", { status: 502 });
 
   const disposition = req.nextUrl.searchParams.get("inline") === "1" && !RISKY.test(upstream.headers.get("content-type") ?? "") ? "inline" : "attachment";

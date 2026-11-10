@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Student, Test } from "@/types";
+import type { Student, Submission, Test } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { useNow } from "@/hooks/useNow";
 import { useToast } from "@/components/toast";
-import { absenceStreak, cohortById, eligibleStudents, testById, archivedCohortIds, isArchivedTest } from "@/lib/data/selectors";
+import { absenceStreak, cohortById, eligibleStudents, testById, archivedCohortIds, isArchivedSubmission, isArchivedTest } from "@/lib/data/selectors";
 import { gradeSubmission } from "@/lib/grading";
 import { LOW_SCORE } from "@/lib/reminders";
 import { useStudentProfiles } from "@/lib/student-profiles";
@@ -85,6 +85,8 @@ export default function TodayPage() {
     return m;
   }, [db.remindersSent, localChecked]);
   const [showAll, setShowAll] = useState(false);
+  // Tests whose full "not handed in" list has been opened (a big class would bury the page otherwise).
+  const [allMissing, setAllMissing] = useState<string[]>([]);
   const markChecked = (id: string) => store.markReminderSent(id, "checked", todayPk);
 
   // The heavy sums below follow the clock in 5-minute steps, not every 30 s tick.
@@ -99,8 +101,9 @@ export default function TodayPage() {
     const studentIds = new Set(students.map((s) => s.id));
     const live = db.tests.filter((t) => t.status !== "draft" && testInScope(t));
 
+    // The same rule as the Submissions page, so the two counts agree.
     const toMark = db.submissions
-      .filter((s) => s.status === "submitted" && studentIds.has(s.studentId))
+      .filter((s) => s.status === "submitted" && studentIds.has(s.studentId) && !isArchivedSubmission(db, s, off))
       .sort((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""));
 
     // Homework hand-ins still waiting for a reply, oldest first.
@@ -124,22 +127,23 @@ export default function TodayPage() {
     const recentClosed = live.filter(
       (t) => +new Date(t.closesAt) <= tick && tick - +new Date(t.closesAt) < 14 * DAY,
     );
+    // Worked out once per test and once per student, not for every pair: with a
+    // full roster the old way re-read every submission hundreds of times.
+    const recent = recentClosed.map((t) => ({ t, eligible: new Set(eligibleStudents(db, t).map((e) => e.id)), done: handedIn(t) }));
+    const latestReleased = new Map<string, Submission>();
+    for (const x of db.submissions) {
+      if (x.status !== "released" || !studentIds.has(x.studentId)) continue;
+      const cur = latestReleased.get(x.studentId);
+      if (!cur || (x.submittedAt ?? "").localeCompare(cur.submittedAt ?? "") > 0) latestReleased.set(x.studentId, x);
+    }
     const attention = students
       .map((s) => {
-        const missed = recentClosed.filter(
-          (t) => eligibleStudents(db, t).some((e) => e.id === s.id) && !handedIn(t).has(s.id),
-        );
-        const released = db.submissions
-          .filter((x) => x.studentId === s.id && x.status === "released")
-          .sort((a, b) => (b.submittedAt ?? "").localeCompare(a.submittedAt ?? ""))
-          .slice(0, 1)
-          .flatMap((x) => {
-            const t = testById(db, x.testId);
-            return t ? [gradeSubmission(t, x).percent] : [];
-          });
+        const missed = recent.filter((r) => r.eligible.has(s.id) && !r.done.has(s.id)).map((r) => r.t);
+        const latest = latestReleased.get(s.id);
+        const latestTest = latest ? testById(db, latest.testId) : undefined;
         // Hamza's rules (2026-11-09): only a latest test under 70% or two classes
         // missed in a row (plus a skipped test). Grade targets never put a student here.
-        const lastPct = released.length ? Math.round(released[0]) : null;
+        const lastPct = latest && latestTest ? Math.round(gradeSubmission(latestTest, latest).percent) : null;
         const absent = absenceStreak(db, s.id);
         const reasons: string[] = [];
         if (missed.length) reasons.push(`Missed ${missed.map((t) => t.title).join(", ")}`);
@@ -162,7 +166,7 @@ export default function TodayPage() {
 
     const weak = weakTopics(db, cohortId).map((w) => ({ ...w, available: retestQuestions(db, w.subject, w.name).length }));
 
-    return { toMark, toReply, closing, attention, avg30, weak };
+    return { toMark, toReply, closing, attention, avg30, weak, studentCount: students.length, hasResults: latestReleased.size > 0 };
   }, [db, cohortId, tick, checked]);
 
   const cohortName = cohortId ? cohortById(db, cohortId)?.name : null;
@@ -189,7 +193,7 @@ export default function TodayPage() {
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader
         title={`${greeting(new Date(nowMs))}, Hamza`}
-        subtitle={`${new Date(nowMs).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}${cohortName ? ` · ${cohortName}` : " · All cohorts"}`}
+        subtitle={`${new Date(nowMs).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Karachi" })}${cohortName ? ` · ${cohortName}` : " · All cohorts"}`}
         actions={
           data.toMark[0] ? (
             <Link href={`/admin/grading/${data.toMark[0].id}`} className={buttonClasses()}>
@@ -253,7 +257,7 @@ export default function TodayPage() {
                         <span className="block truncate text-sm text-ink-2">{t?.title}</span>
                       </span>
                       <span className="shrink-0 text-right text-sm tabular-nums text-ink-3">
-                        {sub.submittedAt ? new Date(sub.submittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""}
+                        {sub.submittedAt ? new Date(sub.submittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Asia/Karachi" }) : ""}
                         {days > 0 && <span className="block text-xs font-semibold text-warning">Waiting {days} days</span>}
                       </span>
                     </Link>
@@ -306,7 +310,7 @@ export default function TodayPage() {
                   </p>
                   {missing.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {missing.map((s) => {
+                      {(allMissing.includes(test.id) ? missing : missing.slice(0, 12)).map((s) => {
                         // To the student if we have their number, else to the parent (worded for them).
                         const link = s.phone
                           ? waTo(s.phone, `Hi ${nameOf(s)}, a reminder that ${test.title} closes ${formatRelative(test.closesAt, nowMs)}. Don't miss it!`)
@@ -321,6 +325,15 @@ export default function TodayPage() {
                           </span>
                         );
                       })}
+                      {missing.length > 12 && !allMissing.includes(test.id) && (
+                        <button
+                          type="button"
+                          onClick={() => setAllMissing((v) => [...v, test.id])}
+                          className="inline-flex min-h-9 items-center rounded-full px-3 text-sm font-semibold text-ink-2 transition-colors hover:text-ink max-md:min-h-11"
+                        >
+                          Show {missing.length - 12} more
+                        </button>
+                      )}
                     </div>
                   )}
                 </li>
@@ -333,7 +346,16 @@ export default function TodayPage() {
         <Card id="attention" className="scroll-mt-24 p-5 lg:col-span-2">
           <h2 className={panelTitle}>Students to check on</h2>
           {data.attention.length === 0 ? (
-            <p className="mt-2 text-[15px] text-ink-2">Everyone is on track.</p>
+            <p className="mt-2 text-[15px] text-ink-2">
+              {data.studentCount === 0 ? (
+                <>
+                  No students here yet. Add them in{" "}
+                  <Link href="/admin/roster" className="font-semibold text-ink underline underline-offset-4">Roster</Link>.
+                </>
+              ) : (
+                "Everyone is on track."
+              )}
+            </p>
           ) : (
             <ul className="mt-3 divide-y divide-border">
               {(showAll ? data.attention : data.attention.slice(0, 5)).map(({ student: s, reasons, missed, lastPct, absent }) => {
@@ -392,7 +414,7 @@ export default function TodayPage() {
           <h2 className={panelTitle}>Weakest topics</h2>
           <p className="mt-1 max-w-[65ch] text-sm text-ink-3">From released results{cohortName ? ` in ${cohortName}` : ""}. A retest is drafted from your question bank and past tests, and stays hidden until you publish it.</p>
           {data.weak.length === 0 ? (
-            <p className="mt-3 text-[15px] text-ink-2">No topic is under 70%. Nice.</p>
+            <p className="mt-3 text-[15px] text-ink-2">{data.hasResults ? "No topic is under 70%. Nice." : "No results released yet."}</p>
           ) : (
             <ul className="mt-4 grid divide-y divide-border border-t border-border md:grid-cols-3 md:divide-x md:divide-y-0">
               {data.weak.map((w) => (

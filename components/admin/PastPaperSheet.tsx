@@ -156,12 +156,11 @@ function Sheet({
   const hasMcq = usable.some((s) => s.mcq > 0);
 
   const [opens, setOpens] = useState(() => toLocalInput(new Date().toISOString()));
-  // Due at the end of a day (11:59 pm), not at whatever minute the sheet was opened.
-  const [closes, setCloses] = useState(() => {
-    const d = new Date(Date.now() + (mode === "test" ? 2 : 3) * DAY);
-    d.setHours(23, 59, 0, 0);
-    return toLocalInput(d.toISOString());
-  });
+  // Due at the end of a day (11:59 pm Pakistan time, whatever the device's own
+  // zone), not at whatever minute the sheet was opened.
+  const [closes, setCloses] = useState(
+    () => `${toLocalInput(new Date(Date.now() + (mode === "test" ? 2 : 3) * DAY).toISOString()).slice(0, 10)}T23:59`,
+  );
 
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState("");

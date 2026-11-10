@@ -132,6 +132,7 @@ function PageViewerModal({
 }) {
   const [page, setPage] = useState(startAt);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const onCloseRef = useRef(onClose);
   useEffect(() => {
@@ -140,8 +141,27 @@ function PageViewerModal({
   // The phone's Back button closes the reader instead of leaving the page.
   useBackToClose(onClose);
   useEffect(() => {
+    // Focus moves into the reader (so arrows and Space scroll it) and back on close.
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    scrollRef.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onCloseRef.current();
+      // Tab stays inside the reader instead of wandering onto the page underneath.
+      const box = dialogRef.current;
+      if (e.key === "Tab" && box) {
+        const items = [...box.querySelectorAll<HTMLElement>('button:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')];
+        const first = items[0];
+        const last = items[items.length - 1];
+        const at = document.activeElement;
+        if (!first) e.preventDefault();
+        else if (e.shiftKey && (at === first || !box.contains(at))) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (at === last || !box.contains(at))) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -149,6 +169,34 @@ function PageViewerModal({
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+    };
+  }, []);
+
+  // The counter and arrows follow the page on screen as it is scrolled.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const mark = el.getBoundingClientRect().top + el.clientHeight * 0.35;
+        const pages = el.querySelectorAll<HTMLElement>("[data-page]");
+        let p = 0;
+        pages.forEach((w, i) => {
+          if (w.getBoundingClientRect().top <= mark) p = i;
+        });
+        // At the very bottom the last page counts, even when it is too short to climb that high.
+        if (el.scrollTop > 0 && el.scrollTop + el.clientHeight >= el.scrollHeight - 2) p = pages.length - 1;
+        setPage(p);
+      });
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      el.removeEventListener("scroll", onScroll);
     };
   }, []);
 
@@ -161,8 +209,8 @@ function PageViewerModal({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-paper" role="dialog" aria-modal="true" aria-label={label}>
-      <div className="flex shrink-0 items-center gap-2 border-b border-border bg-surface px-3 py-1.5 sm:px-4">
+    <div ref={dialogRef} className="fixed inset-0 z-50 flex flex-col bg-paper" role="dialog" aria-modal="true" aria-label={label}>
+      <div className="flex shrink-0 items-center gap-2 border-b border-border bg-surface pb-1.5 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.375rem,env(safe-area-inset-top))] sm:pl-[max(1rem,env(safe-area-inset-left))] sm:pr-[max(1rem,env(safe-area-inset-right))]">
         <span className="truncate text-sm font-semibold text-ink">{label}</span>
         {urls.length > 1 && (
           <div className="ml-auto flex shrink-0 items-center gap-1.5 text-sm text-ink-2">
@@ -180,7 +228,12 @@ function PageViewerModal({
         </button>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto bg-surface-2/40 px-2 py-3 sm:px-4 sm:py-6">
+      <div
+        ref={scrollRef}
+        // Focusable, so the keyboard can scroll the pages.
+        tabIndex={-1}
+        className="flex-1 overflow-y-auto bg-surface-2/40 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 outline-none sm:px-4 sm:pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pt-6"
+      >
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
           {urls.map((u, i) => (
             <div key={u} data-page={i}>

@@ -26,6 +26,19 @@ export interface Snapshot {
 /** Lowest percentage for each target grade (same bands as gradeLetter). */
 export const GRADE_FLOOR: Record<string, number> = { "A*": 92, A: 85, B: 75, C: 65 };
 
+/** Where each grade starts (gradeLetter's bands). */
+const BAND_FLOORS = [92, 85, 75, 65, 60, 50];
+
+/**
+ * A whole-number percentage to show next to its grade. Rounded as usual, but
+ * never up into the next grade's band: 84.6% is a B, so it shows as 84%, not
+ * as an "85%" that reads like an A.
+ */
+export function shownPercent(percent: number): number {
+  const r = Math.round(percent);
+  return BAND_FLOORS.some((floor) => percent < floor && r >= floor) ? r - 1 : r;
+}
+
 /** "Business Studies" and "Business" are the same subject. */
 export const sameSubject = (a: string, b: string) => a.trim().toLowerCase().slice(0, 4) === b.trim().toLowerCase().slice(0, 4);
 
@@ -61,7 +74,7 @@ export function performanceSnapshot(db: Database, student: Student): Snapshot | 
     delta: before.length >= 2 ? Math.round((recent - avg(before)) * 10) / 10 : null,
     marked: results.length,
     points: pcts.slice(-8),
-    last: { test: lastR.test, percent: Math.round(lastR.pct), letter: capAs(gradeLetter(lastR.pct), as || isAsClass(lastR.test.classId)) },
+    last: { test: lastR.test, percent: shownPercent(lastR.pct), letter: capAs(gradeLetter(lastR.pct), as || isAsClass(lastR.test.classId)) },
     weakest: topicMastery(
       results.map((r) => r.test),
       results.map((r) => r.sub),

@@ -26,7 +26,8 @@ const variantClass: Record<Variant, string> = {
 };
 
 const sizeClass: Record<Size, string> = {
-  sm: "h-10 px-4 text-sm rounded-full",
+  // 44px on touch screens so small buttons stay easy to tap; desktop stays 40px.
+  sm: "h-10 px-4 text-sm rounded-full pointer-coarse:h-11",
   md: "h-11 px-5 text-sm rounded-full",
   lg: "h-12 px-7 text-base rounded-full",
 };
@@ -41,13 +42,16 @@ export function buttonClasses(opts?: { variant?: Variant; size?: Size; fullWidth
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = "primary", size = "md", loading, fullWidth, className, children, disabled, ...rest },
+  { variant = "primary", size = "md", loading, fullWidth, className, children, disabled, type = "button", ...rest },
   ref,
 ) {
   return (
     <button
       ref={ref}
+      // A plain button unless told otherwise, so one inside a form never submits it by accident.
+      type={type}
       disabled={disabled || loading}
+      aria-busy={loading || undefined}
       className={cn(
         "inline-flex select-none items-center justify-center gap-2 font-semibold transition-[background,border-color,filter,opacity,transform] duration-150 ease-[var(--ease-out)]",
         "focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.98]",

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useToast } from "@/components/toast";
 import { enablePush, pushStatus } from "@/lib/push-client";
 import { useInApp } from "@/lib/in-app";
 
@@ -12,6 +14,9 @@ import { useInApp } from "@/lib/in-app";
  */
 export function NotifyNudge() {
   const { profile, updateProfile } = useAuth();
+  const { toast } = useToast();
+  // Home has its own reminders card (NotifyCard) saying the same thing: never both at once.
+  const onHome = usePathname() === "/dashboard";
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   // The phone app has its own notifications (in its Me tab).
@@ -24,7 +29,7 @@ export function NotifyNudge() {
 
   useEffect(() => {
     // Asked at most three times, three days apart: calm, but nobody is forgotten.
-    if (!profile.onboarded || onboardingThisVisit || count >= 3 || Date.now() - askedAt < 3 * 86_400_000) return;
+    if (onHome || !profile.onboarded || onboardingThisVisit || count >= 3 || Date.now() - askedAt < 3 * 86_400_000) return;
     let alive = true;
     const t = setTimeout(() => {
       void pushStatus().then((s) => alive && s === "off" && setShow(true)).catch(() => {});
@@ -33,15 +38,20 @@ export function NotifyNudge() {
       alive = false;
       clearTimeout(t);
     };
-  }, [profile.onboarded, onboardingThisVisit, count, askedAt]);
+  }, [onHome, profile.onboarded, onboardingThisVisit, count, askedAt]);
 
-  if (!show || app) return null;
+  if (!show || app || onHome) return null;
   const done = () => {
     setShow(false);
     updateProfile({ notifyAsked: true, notifyAskedAt: Date.now(), notifyAskCount: count + 1 });
   };
   return (
-    <div className="fixed inset-x-3 bottom-24 z-40 mx-auto max-w-md animate-fade-up rounded-2xl border border-border bg-[#1d2023]/95 p-4 shadow-[0_24px_48px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl md:bottom-6">
+    // Phones: clear of the dock and its raised middle button, and of the home-bar area.
+    <div
+      role="region"
+      aria-label="Class reminders"
+      className="fixed inset-x-3 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-md animate-fade-up rounded-2xl border border-border bg-[#1d2023]/95 p-4 shadow-[0_24px_48px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl md:bottom-6"
+    >
       <p className="font-semibold text-ink">Never miss a class</p>
       <p className="mt-1 text-sm text-ink-2">I&apos;ll send a short reminder when your class is about to start, and tell you when results are out. Never at night, and only a few.</p>
       <div className="mt-3 flex gap-2">
@@ -50,16 +60,21 @@ export function NotifyNudge() {
           disabled={busy}
           onClick={async () => {
             setBusy(true);
+            // Say how it went: before, a failed or blocked attempt closed the card as if it had worked.
             try {
-              await enablePush();
-            } catch {}
+              const next = await enablePush();
+              if (next === "on") toast("Reminders are on. I'll let you know before each class.", "success");
+              else if (next === "blocked") toast("Notifications are blocked on this phone. Allow them in your browser settings.", "info");
+            } catch {
+              toast("Couldn't turn them on. You can try again in Settings.", "error");
+            }
             done();
           }}
-          className="h-10 flex-1 rounded-full bg-brand text-sm font-semibold text-on-brand disabled:opacity-60"
+          className="h-11 flex-1 rounded-full bg-brand text-sm font-semibold text-on-brand disabled:opacity-60"
         >
-          Turn on reminders
+          {busy ? "Turning on…" : "Turn on reminders"}
         </button>
-        <button type="button" onClick={done} className="h-10 rounded-full px-4 text-sm font-semibold text-ink-3 hover:text-ink">
+        <button type="button" disabled={busy} onClick={done} className="h-11 rounded-full px-4 text-sm font-semibold text-ink-3 hover:text-ink">
           Not now
         </button>
       </div>

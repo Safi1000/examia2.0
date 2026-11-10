@@ -13,26 +13,39 @@ export function NotifyStep() {
   const [status, setStatus] = useState<PushStatus | "loading">("loading");
   const [dev, setDev] = useState<Device>("other");
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    void pushStatus()
-      .then((s) => {
-        if (!alive) return;
-        setDev(device());
-        setStatus(s);
-      })
-      .catch(() => alive && setStatus("unsupported"));
+    const check = () =>
+      void pushStatus()
+        .then((s) => {
+          if (!alive) return;
+          setDev(device());
+          setStatus(s);
+        })
+        .catch(() => alive && setStatus("unsupported"));
+    check();
+    // "Then come back here": after allowing notifications in the browser's
+    // settings, the step catches up by itself instead of still saying blocked.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") check();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       alive = false;
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 
   async function turnOn() {
     setBusy(true);
+    setFailed(false);
     try {
       setStatus(await enablePush());
     } catch {
+      // Allowed, but this phone couldn't be saved (weak signal): say so, the button stays.
+      setFailed(true);
       setStatus("off");
     } finally {
       setBusy(false);
@@ -45,7 +58,7 @@ export function NotifyStep() {
   if (status === "on")
     return (
       <div className={cn(box, "flex items-center gap-3")}>
-        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-success-soft text-lg text-success">✓</span>
+        <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success-soft text-lg text-success">✓</span>
         <p className="font-semibold text-ink">Notifications are on for this phone.</p>
       </div>
     );
@@ -82,7 +95,7 @@ export function NotifyStep() {
         <p className="font-semibold text-ink">Notifications are blocked</p>
         <p className="mt-1.5 text-sm text-ink-2">
           {dev === "android"
-            ? "Tap the lock icon next to the address, then Permissions → Notifications → Allow. Then come back here."
+            ? "Tap the icon to the left of the address, then Permissions → Notifications → Allow. Then come back here."
             : "Allow notifications for this site in your browser settings, then come back here."}
         </p>
       </div>
@@ -107,7 +120,11 @@ export function NotifyStep() {
       >
         {busy ? "One moment…" : "Turn on notifications"}
       </button>
-      <p className="mt-3 text-center text-xs text-ink-3">Your phone will ask you to allow them. Tap Allow.</p>
+      {failed ? (
+        <p role="alert" className="mt-3 text-center text-sm font-medium text-error">Couldn&apos;t turn them on. Check your internet and try again.</p>
+      ) : (
+        <p className="mt-3 text-center text-xs text-ink-3">Your phone will ask you to allow them. Tap Allow.</p>
+      )}
       {dev === "android" && (
         <p className="mt-4 text-xs text-ink-3">
           Tip: tap ⋮ in Chrome, then <span className="font-semibold text-ink-2">Add to Home screen</span>, so the portal opens like an app.

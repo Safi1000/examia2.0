@@ -27,20 +27,34 @@ export async function GET(req: NextRequest) {
   // Connected on paper isn't enough: try a real sign-in, so a lapsed
   // connection (password change, access removed) shows before class time.
   const broken = !!data && !(await accessToken(sb).catch(() => null));
-  return NextResponse.json({ ready: true, connected: !!data, broken, email: data?.email ?? null });
+  return NextResponse.json({ ready: true, connected: !!data, broken, email: data?.email ?? null }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function POST(req: NextRequest) {
   if (!(await isAdminRequest(req))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   if (!ready()) return NextResponse.json({ error: "not set up" }, { status: 400 });
-  const { action, eventId, startedAt } = (await req.json().catch(() => ({}))) as { action?: string; eventId?: string; startedAt?: string };
+  const { action, eventId, startedAt } = ((await req.json().catch(() => null)) ?? {}) as { action?: unknown; eventId?: unknown; startedAt?: unknown };
   if (action === "connect") return NextResponse.json({ url: authUrl(req.nextUrl.origin) });
-  if (action === "sync") return NextResponse.json(await runClassAutomation(serviceClient(), Date.now(), true));
-  if (action === "test") return NextResponse.json(await makeTestClass(serviceClient()));
-  if (action === "test-check" && eventId && startedAt) return NextResponse.json(await findTestRecording(serviceClient(), eventId, startedAt));
-  if (action === "disconnect") {
-    await serviceClient().from("google_account").delete().eq("id", 1);
-    return NextResponse.json({ connected: false });
+  try {
+    if (action === "sync") return NextResponse.json(await runClassAutomation(serviceClient(), Date.now(), true));
+    if (action === "test") return NextResponse.json(await makeTestClass(serviceClient()));
+    if (action === "test-check") {
+      // A Calendar event id and a real time, or there is nothing to look up.
+      if (typeof eventId !== "string" || !/^[\w-]{1,200}$/.test(eventId) || typeof startedAt !== "string" || Number.isNaN(Date.parse(startedAt))) {
+        return NextResponse.json({ error: "unknown action" }, { status: 400 });
+      }
+      return NextResponse.json(await findTestRecording(serviceClient(), eventId, startedAt));
+    }
+    if (action === "disconnect") {
+      const { error } = await serviceClient().from("google_account").delete().eq("id", 1);
+      // Never say "disconnected" while the account is still saved.
+      if (error) return NextResponse.json({ error: "Couldn't disconnect Google. Try again." }, { status: 502 });
+      return NextResponse.json({ connected: false });
+    }
+  } catch (e) {
+    // Google was busy or said no: a plain answer the page can show, not a crash page.
+    console.error("[google]", action, e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: "Google didn't respond. Try again." }, { status: 502 });
   }
   return NextResponse.json({ error: "unknown action" }, { status: 400 });
 }

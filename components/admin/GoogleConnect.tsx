@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { DEMO } from "@/lib/demo";
 import { useToast } from "@/components/toast";
@@ -31,6 +31,8 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
   const { toast } = useToast();
   const [status, setStatus] = useState<Status | null>(DEMO ? { ready: false, connected: false } : null);
   const [busy, setBusy] = useState<string | null>(null);
+  // The status check itself failed: that says nothing about the Google keys.
+  const [failed, setFailed] = useState(false);
   // The last test class, remembered on this computer so the check works later.
   const [test, setTest] = useState<TestRun | null>(() => {
     try {
@@ -47,16 +49,41 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
     } catch {}
   };
 
+  const check = useCallback(() => {
+    call("GET")
+      .then((s: Status) => {
+        setFailed(false);
+        setStatus(s);
+      })
+      .catch(() => setFailed(true));
+  }, []);
+
   useEffect(() => {
     if (DEMO) return;
-    call("GET").then(setStatus).catch(() => setStatus({ ready: false, connected: false }));
-    // Coming back from Google's sign-in page.
-    const r = new URLSearchParams(window.location.search).get("google");
+    check();
+    // Coming back from Google's sign-in page. Said once: the note comes off the
+    // address, so a reload (or the home-screen app reopening) doesn't repeat it.
+    const url = new URL(window.location.href);
+    const r = url.searchParams.get("google");
     if (r === "connected") toast("Google connected. Links will now make themselves at 1 pm.", "success");
     if (r === "failed") toast("Couldn't connect Google. Try again.", "error");
-  }, [toast]);
+    if (r) {
+      url.searchParams.delete("google");
+      window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    }
+  }, [toast, check]);
 
-  if (!status) return null;
+  if (!status) {
+    if (!failed) return null;
+    return (
+      <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5 text-sm">
+        <p className="text-ink-3">Couldn&apos;t check the Google connection just now.</p>
+        <Button size="sm" variant="secondary" onClick={check}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
 
   async function act(action: "connect" | "sync" | "disconnect" | "test" | "test-check") {
     setBusy(action);
@@ -80,10 +107,16 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
         return;
       }
       if (action === "sync") {
-        toast(j.connected === false ? "Google isn't connected." : `Done: ${j.links} new link${j.links === 1 ? "" : "s"}, ${j.recordings} recording${j.recordings === 1 ? "" : "s"}.`, "success");
+        if (j.connected === false) {
+          setStatus({ ...status!, connected: false, email: null });
+          toast("Google isn't connected, so no links were made. Connect it below.", "error");
+        } else toast(`Done: ${j.links ?? 0} new link${j.links === 1 ? "" : "s"}, ${j.recordings ?? 0} recording${j.recordings === 1 ? "" : "s"}.`, "success");
         onSynced();
       }
-      if (action === "disconnect") setStatus({ ...status!, connected: false, email: null });
+      if (action === "disconnect") {
+        setStatus({ ...status!, connected: false, email: null });
+        toast("Google disconnected. Classes won't get Meet links by themselves until you connect again.", "success");
+      }
     } catch (e) {
       toast(e instanceof Error ? e.message : "Something went wrong. Try again.", "error");
     } finally {
@@ -91,7 +124,7 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
     }
   }
 
-  const btn = "inline-flex h-9 items-center rounded-full px-3 text-xs font-semibold transition-colors disabled:opacity-50";
+  const btn = "inline-flex h-9 items-center rounded-full px-3 text-xs font-semibold transition-colors disabled:opacity-50 pointer-coarse:h-11";
 
   return (
     <div className="mt-10 border-t border-border pt-5 text-sm">
@@ -118,7 +151,7 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
               <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden />
               Google connected{status.email ? ` (${status.email})` : ""}. Links at 1 pm, recordings open 2 days.
             </p>
-            <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1">
               <button
                 type="button"
                 title="Sign in to Google again, to give any new permission (like classes recording by themselves)."
@@ -139,7 +172,7 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
             </div>
           </div>
           <details className="mt-3 text-ink-3">
-            <summary className="cursor-pointer select-none text-xs font-semibold hover:text-ink">Test the setup</summary>
+            <summary className="cursor-pointer select-none py-3 text-xs font-semibold hover:text-ink md:py-1">Test the setup</summary>
             <div className="mt-3 space-y-2">
               <p className="text-xs">
                 A 20-minute test class starting now (students never see it). Join it: recording should start by itself within a few

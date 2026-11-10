@@ -10,7 +10,7 @@ import { useNow } from "@/hooks/useNow";
 import { studentById, submissionsForStudent, testById, testsForStudent } from "@/lib/data/selectors";
 import { gradeSubmission } from "@/lib/grading";
 import { topicMastery } from "@/lib/scoring";
-import { GRADE_FLOOR, performanceSnapshot, sameSubject } from "@/lib/performance";
+import { GRADE_FLOOR, performanceSnapshot, sameSubject, shownPercent } from "@/lib/performance";
 import { formatDate } from "@/lib/time";
 import { studentSubjects } from "@/components/student/Welcome";
 import { EmptyState, Icon } from "@/components/ui";
@@ -54,13 +54,12 @@ export default function ProgressPage() {
     // Tests that are over (or already handed in), so a test still open today isn't "missed".
     const done0 = new Set(submissionsForStudent(db, student.id).filter((s) => s.status !== "in_progress").map((s) => s.testId));
     const set = testsForStudent(db, student).filter((t) => +new Date(t.closesAt) <= nowMs || done0.has(t.id));
-    const handedIn = new Set(submissionsForStudent(db, student.id).filter((s) => s.status !== "in_progress").map((s) => s.testId));
     return {
       results,
       snap: performanceSnapshot(db, student),
       weak: topics.filter((m) => m.percent < 60).slice(0, 5),
       strong: [...topics].filter((m) => m.percent >= 75).sort((a, b) => b.percent - a.percent).slice(0, 5),
-      handed: set.filter((t) => handedIn.has(t.id)).length,
+      handed: set.filter((t) => done0.has(t.id)).length,
       setCount: set.length,
     };
   }, [db, student, nowMs]);
@@ -116,7 +115,7 @@ export default function ProgressPage() {
               <div className="mt-3 flex items-end gap-4">
                 <GradeMedallion grade={snap.grade} size={96} />
                 <div className="pb-1">
-                  <p className="text-lg font-semibold tabular-nums text-ink">{Math.round(snap.recent)}%</p>
+                  <p className="text-lg font-semibold tabular-nums text-ink">{shownPercent(snap.recent)}%</p>
                   <p className="text-xs text-ink-3">average of your last {Math.min(5, snap.marked)} tests</p>
                 </div>
               </div>
@@ -130,7 +129,7 @@ export default function ProgressPage() {
                 <div className="mt-4">
                   <ShareMoment
                     label="Share my grade"
-                    moment={{ kicker: "Working at", big: `${snap.grade} grade`, sub: `${Math.round(snap.recent)}% across my last ${Math.min(5, snap.marked)} tests`, name: displayName(student.username).split(" ")[0], scene: worldScene(profile.world) }}
+                    moment={{ kicker: "Working at", big: `${snap.grade} grade`, sub: `${shownPercent(snap.recent)}% across my last ${Math.min(5, snap.marked)} tests`, name: displayName(student.username).split(" ")[0], scene: worldScene(profile.world) }}
                   />
                 </div>
               )}
@@ -161,7 +160,7 @@ export default function ProgressPage() {
                     <div className="flex items-baseline justify-between gap-3">
                       <p className="min-w-0 truncate font-semibold text-ink">{s.subject}</p>
                       <p className="flex shrink-0 items-baseline gap-2">
-                        <span className="text-sm tabular-nums text-ink-3">{Math.round(s.recent)}%</span>
+                        <span className="text-sm tabular-nums text-ink-3">{shownPercent(s.recent)}%</span>
                         <span className="w-9 text-right text-2xl font-extrabold leading-none tracking-[-0.02em] text-ink">{s.grade}</span>
                       </p>
                     </div>
@@ -251,7 +250,7 @@ export default function ProgressPage() {
                         {sub.submittedAt ? ` · ${formatDate(sub.submittedAt)}` : ""}
                       </span>
                     </span>
-                    <span className="shrink-0 tabular-nums text-sm font-semibold text-ink">{Math.round(pct)}%</span>
+                    <span className="shrink-0 tabular-nums text-sm font-semibold text-ink">{shownPercent(pct)}%</span>
                     <Icon.ChevronRight className="h-4 w-4 shrink-0 text-ink-3" />
                   </Link>
                 </li>
@@ -298,7 +297,7 @@ function SyllabusDone({ books }: { books: BookProgress[] }) {
                 </span>
               </div>
               <div className="mt-2 h-1.5 rounded-full bg-white/[0.07]" aria-hidden>
-                <div className="h-full rounded-full bg-brand/80" style={{ width: `${Math.max(2, pct)}%` }} />
+                <div className="h-full rounded-full bg-brand/80" style={{ width: `${pct > 0 ? Math.max(2, pct) : 0}%` }} />
               </div>
               {b.latest && <p className="mt-1.5 truncate text-xs text-ink-3">Latest: {b.latest.name}</p>}
             </li>

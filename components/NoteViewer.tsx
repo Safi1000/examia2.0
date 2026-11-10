@@ -65,10 +65,28 @@ export function NoteViewer({
   const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Focus moves into the reader, so the keyboard and screen readers follow.
+    // Focus moves into the reader, so the keyboard and screen readers follow,
+    // and goes back to the row that opened it when the reader closes.
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     panel.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onCloseRef.current();
+      // Tab stays inside the reader instead of wandering onto the page underneath.
+      const box = panel.current;
+      if (e.key === "Tab" && box) {
+        const items = [...box.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),iframe,[tabindex]:not([tabindex="-1"])')].filter((el) => el.offsetParent !== null);
+        const first = items[0];
+        const last = items[items.length - 1];
+        const at = document.activeElement;
+        if (!first) e.preventDefault();
+        else if (e.shiftKey && (at === first || at === box)) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (at === last || !box.contains(at))) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
       // Notes are read on screen only: Ctrl+P / Cmd+P does nothing while one is open.
       if ((e.ctrlKey || e.metaKey) && (e.key === "p" || e.key === "P")) {
         e.preventDefault();
@@ -85,6 +103,7 @@ export function NoteViewer({
       document.removeEventListener("keydown", onKey, true);
       document.documentElement.classList.remove("note-open");
       document.body.style.overflow = prev;
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
   }, []);
 
@@ -186,7 +205,7 @@ export function NoteViewer({
         ) : isOffice ? (
           <iframe src={officeSrc} title={title} className="h-full w-full rounded-md border border-border bg-white" />
         ) : isPdf && !pdfFailed ? (
-          <PdfView url={state.url} onFail={onPdfFail} startPage={page} highlight={highlight} onPage={onPage} />
+          <PdfView url={state.url} onFail={onPdfFail} startPage={page} highlight={highlight} onPage={onPage} autoFocus />
         ) : isPdf ? (
           // Never fall back to the browser's own PDF viewer: it has Print and Download buttons.
           <div className="max-w-xs text-center">

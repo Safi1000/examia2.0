@@ -49,14 +49,33 @@ export async function GET(req: NextRequest) {
   const params = new URLSearchParams({ public_id: parts.publicId, type: "upload" });
   if (parts.format) params.set("format", parts.format);
 
-  const upstream = await fetch(
-    `https://api.cloudinary.com/v1_1/${parts.cloud}/${parts.resourceType}/download?${params}`,
-    { headers: { Authorization: `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString("base64")}` } },
-  );
+  // Cloudinary gets 20 seconds to start answering; after that the reader is
+  // told, not left on a blank page. The file itself may take as long as it needs.
+  const gate = new AbortController();
+  const slow = setTimeout(() => gate.abort(), 20_000);
+  let upstream: Response;
+  try {
+    upstream = await fetch(
+      `https://api.cloudinary.com/v1_1/${parts.cloud}/${parts.resourceType}/download?${params}`,
+      { headers: { Authorization: `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString("base64")}` }, signal: gate.signal },
+    );
+  } catch {
+    return new NextResponse("Could not fetch the file", { status: 502 });
+  } finally {
+    clearTimeout(slow);
+  }
   if (!upstream.ok) return new NextResponse("Could not fetch the file", { status: 502 });
+
+  // The size lets the reader show how far a big file has come. Only when the
+  // bytes arrive as sent: a compressed reply is unpacked on the way, so its
+  // stated size would be wrong and cut the file short.
+  const size = upstream.headers.get("content-length");
+  const encoded = (upstream.headers.get("content-encoding") ?? "identity").toLowerCase() !== "identity";
+  const length: Record<string, string> = size && /^\d+$/.test(size) && !encoded ? { "Content-Length": size } : {};
 
   return new NextResponse(upstream.body, {
     headers: {
+      ...length,
       // A page or drawing (HTML, SVG, XML) would run as part of this site: never shown, only as plain bytes.
       "Content-Type": RISKY.test(upstream.headers.get("content-type") ?? "") ? "application/octet-stream" : (upstream.headers.get("content-type") ?? "application/octet-stream"),
       "Content-Disposition": `${RISKY.test(upstream.headers.get("content-type") ?? "") ? "attachment" : "inline"}; filename="${safeFileName(payload.n)}"`,

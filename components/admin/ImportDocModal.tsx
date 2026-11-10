@@ -118,6 +118,31 @@ export function ImportDocModal({
     onClose();
   }
 
+  // A stray tap outside, Esc or Cancel must not throw away questions read from a whole paper.
+  function requestClose() {
+    if ((drafts.length > 0 || pasted.trim()) && !window.confirm("Close without adding these questions? They will be lost.")) return;
+    close();
+  }
+
+  /**
+   * Changing a question's type. To written: the options are folded into the
+   * question text so nothing typed is lost. To multiple choice: four empty
+   * boxes to fill when there are none.
+   */
+  function changeType(i: number, type: DraftQuestion["type"]) {
+    const d = drafts[i];
+    if (type === d.type) return;
+    if (type !== "mcq" && d.type === "mcq") {
+      const opts = d.options.map((o) => o.trim()).filter(Boolean);
+      const folded = opts.map((o, x) => `(${String.fromCharCode(65 + x)}) ${o}`).join(" ");
+      patch(i, { type, prompt: folded ? `${d.prompt.trim()} ${folded}` : d.prompt, options: [], correctIndex: -1 });
+    } else if (type === "mcq") {
+      patch(i, { type, options: d.options.length ? d.options : ["", "", "", ""], correctIndex: -1 });
+    } else {
+      patch(i, { type });
+    }
+  }
+
   async function extract(files: File[]) {
     if (!files.length) return;
     setBusy(true);
@@ -184,7 +209,9 @@ export function ImportDocModal({
     const questions = drafts.map((d) => {
       const base = { prompt: d.prompt.trim(), marks: d.marks, topic: d.topic.trim() || "Imported" };
       if (d.type === "mcq") {
-        return { ...base, type: "mcq" as const, options: d.options, correctIndex: d.correctIndex };
+        // Empty boxes are dropped; the right answer moves with its option.
+        const kept = d.options.map((o, x) => ({ o: o.trim(), x })).filter((k) => k.o);
+        return { ...base, type: "mcq" as const, options: kept.map((k) => k.o), correctIndex: kept.findIndex((k) => k.x === d.correctIndex) };
       }
       if (d.type === "photo") return { ...base, type: "photo" as const };
       return { ...base, type: "text" as const };
@@ -193,10 +220,21 @@ export function ImportDocModal({
     close();
   }
 
-  const valid = drafts.length > 0 && drafts.every((d) => d.prompt.trim().length > 0);
+  // What still needs doing before the questions can be added, said plainly.
+  const firstProblem = (() => {
+    for (let i = 0; i < drafts.length; i++) {
+      const d = drafts[i];
+      if (!d.prompt.trim()) return `Question ${i + 1} has no text.`;
+      if (d.type !== "mcq") continue;
+      if (d.options.filter((o) => o.trim()).length < 2) return `Question ${i + 1} needs at least two options.`;
+      if (!d.options[d.correctIndex]?.trim()) return `Choose the right answer for question ${i + 1}, or use the answer key box.`;
+    }
+    return null;
+  })();
+  const valid = drafts.length > 0 && !firstProblem;
 
   return (
-    <Modal open={open} onClose={close} title="Import questions" size="lg">
+    <Modal open={open} onClose={requestClose} title="Import questions" size="lg">
       <div className="space-y-4">
         <input
           ref={inputRef}
@@ -297,7 +335,7 @@ export function ImportDocModal({
                 <Label>Marks for all</Label>
                 <div className="flex gap-2">
                   <Input type="number" min={1} value={allMarks} onChange={(e) => setAllMarks(e.target.value)} placeholder="e.g. 1" />
-                  <Button size="sm" variant="secondary" disabled={!(Number(allMarks) >= 1)} onClick={() => applyToAll({ marks: Math.max(1, Math.round(Number(allMarks))) })}>Apply</Button>
+                  <Button size="sm" variant="secondary" disabled={!(Number(allMarks) >= 1)} onClick={() => applyToAll({ marks: Math.min(100, Math.max(1, Math.round(Number(allMarks)))) })}>Apply</Button>
                 </div>
               </div>
               <div>
@@ -330,9 +368,7 @@ export function ImportDocModal({
                           <Label>Type</Label>
                           <Select
                             value={d.type}
-                            onChange={(e) =>
-                              patch(i, { type: e.target.value as DraftQuestion["type"] })
-                            }
+                            onChange={(e) => changeType(i, e.target.value as DraftQuestion["type"])}
                           >
                             <option value="mcq">MCQ</option>
                             <option value="text">Text</option>
@@ -344,8 +380,12 @@ export function ImportDocModal({
                           <Input
                             type="number"
                             min={1}
+                            max={100}
+                            step={1}
+                            inputMode="numeric"
                             value={d.marks}
-                            onChange={(e) => patch(i, { marks: Math.max(1, Number(e.target.value) || 1) })}
+                            // Whole marks only: the portal stores whole numbers, so 2.5 would not save.
+                            onChange={(e) => patch(i, { marks: Math.min(100, Math.max(1, Math.round(Number(e.target.value)) || 1)) })}
                           />
                         </div>
                         <div>
@@ -363,13 +403,16 @@ export function ImportDocModal({
                           <Label>Options: select the correct one</Label>
                           {d.options.map((opt, oi) => (
                             <div key={oi} className="flex items-center gap-2">
-                              <input
-                                type="radio"
-                                name={`correct-${i}`}
-                                checked={d.correctIndex === oi}
-                                onChange={() => patch(i, { correctIndex: oi })}
-                                aria-label={`Mark option ${oi + 1} correct`}
-                              />
+                              <label className="flex h-11 w-9 shrink-0 cursor-pointer items-center justify-center">
+                                <input
+                                  type="radio"
+                                  name={`correct-${i}`}
+                                  checked={d.correctIndex === oi}
+                                  onChange={() => patch(i, { correctIndex: oi })}
+                                  aria-label={`Mark option ${oi + 1} correct`}
+                                  className="h-5 w-5 accent-brand"
+                                />
+                              </label>
                               <Input
                                 value={opt}
                                 onChange={(e) =>
@@ -384,10 +427,11 @@ export function ImportDocModal({
                                 onClick={() =>
                                   patch(i, {
                                     options: d.options.filter((_, x) => x !== oi),
-                                    correctIndex: Math.max(0, d.correctIndex >= oi ? d.correctIndex - 1 : d.correctIndex),
+                                    // Removing the right answer leaves none chosen, never a silent "A".
+                                    correctIndex: d.correctIndex === oi ? -1 : d.correctIndex > oi ? d.correctIndex - 1 : d.correctIndex,
                                   })
                                 }
-                                className="text-ink-3 hover:text-error"
+                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-surface hover:text-error"
                                 aria-label={`Remove option ${oi + 1}`}
                               >
                                 <Icon.Close className="h-4 w-4" />
@@ -410,7 +454,7 @@ export function ImportDocModal({
                     <button
                       type="button"
                       onClick={() => removeAt(i)}
-                      className="text-ink-3 hover:text-error"
+                      className="-mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-surface hover:text-error"
                       aria-label={`Discard question ${i + 1}`}
                     >
                       <Icon.Trash className="h-4 w-4" />
@@ -422,8 +466,9 @@ export function ImportDocModal({
           </>
         )}
 
-        <div className="flex justify-end gap-2 border-t border-border pt-3">
-          <Button variant="secondary" onClick={close}>Cancel</Button>
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
+          {drafts.length > 0 && firstProblem && <p role="status" className="mr-auto text-sm text-ink-2">{firstProblem}</p>}
+          <Button variant="secondary" onClick={requestClose}>Cancel</Button>
           <Button onClick={save} disabled={!valid || busy}>
             Add {drafts.length || ""} question{drafts.length === 1 ? "" : "s"}
           </Button>

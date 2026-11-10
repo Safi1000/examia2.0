@@ -13,7 +13,7 @@ interface KeyRow {
 }
 
 /** A safe file name from the test's title. */
-const fileName = (s: string) => s.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "answer-key";
+const fileName = (s: string) => s.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "test";
 
 /**
  * The multiple choice answer key for a test, for marking paper copies by hand:
@@ -102,7 +102,7 @@ export function AnswerKeyModal({ open, onClose, title, code, questions }: { open
 <style>body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#1A1D20;margin:40px}h1{font-size:22px;margin:0}p{color:#6B7280;margin:6px 0 24px}
 ol{list-style:none;padding:0;margin:0;columns:4;column-gap:32px}li{font-size:18px;padding:6px 0;break-inside:avoid}b{display:inline-block;width:40px;color:#6B7280;font-weight:500}</style></head>
 <body><h1>${esc(heading)}</h1><p>Answer key · ${rows.length} multiple choice</p><ol>${rows.map((r) => `<li><b>${r.n}.</b><strong>${r.letter}</strong></li>`).join("")}</ol>
-<script>window.onload=function(){window.print()}</script></body></html>`);
+<script>window.onafterprint=function(){window.close()};window.onload=function(){window.print()}</script></body></html>`);
     win.document.close();
   };
 

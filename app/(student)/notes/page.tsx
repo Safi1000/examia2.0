@@ -59,10 +59,11 @@ function StudentNotes() {
   const [closedLinked, setClosedLinked] = useState<string | null>(null);
   const linked = openId && openId !== closedLinked ? db.notes.find((n) => n.id === openId) : undefined;
   const [positions, setPositions] = useState<Record<string, NotePos>>({});
+  // Re-read after any note closes (also one opened by a link), so the rows show the new page.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPositions(readPositions());
-  }, [viewing]);
+  }, [viewing, closedLinked]);
 
   const linkedLogged = useRef<string | null>(null);
   useEffect(() => {
@@ -101,7 +102,9 @@ function StudentNotes() {
       noteId: o.id,
       link: "/admin/notes",
     });
-    setViewing(o);
+    // A row that says "Page 14 of 30" opens at page 14. A finished note starts again at page 1.
+    const pos = o.page === undefined ? readPositions()[o.id] : undefined;
+    setViewing(pos && pos.page > 1 && pos.page < pos.pages ? { ...o, page: pos.page } : o);
   }
 
   const shown = viewing ?? (linked ? { id: linked.id, title: linked.title, page: openPage } : null);
@@ -313,7 +316,7 @@ function SearchBox({ value, onChange }: { value: string; onChange: (v: string) =
           type="button"
           onClick={() => onChange("")}
           aria-label="Clear search"
-          className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-ink-3 hover:text-ink"
+          className="absolute right-0.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-ink-3 hover:text-ink"
         >
           <Icon.Close className="h-4 w-4" />
         </button>

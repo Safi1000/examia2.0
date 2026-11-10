@@ -118,17 +118,25 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
   const overdue = +new Date(assignment.dueAt) < useNow();
   const subjectName = assignment.subjectId ? db.subjects.find((x) => x.id === assignment.subjectId)?.name : undefined;
 
-  async function removePage(i: number) {
-    if (!mine) return;
+  // One removal at a time: a quick double tap must never take out two pages.
+  const [removing, setRemoving] = useState(false);
+  async function removePage(e: React.MouseEvent<HTMLButtonElement>) {
+    const url = e.currentTarget.dataset.url;
+    if (!mine || !url || removing) return;
     const before = mine.fileUrls;
+    const i = before.indexOf(url);
+    if (i < 0) return;
+    setRemoving(true);
     try {
-      await store.submitAssignment(assignment.id, studentId, before.filter((_, idx) => idx !== i));
+      await store.submitAssignment(assignment.id, studentId, before.filter((u) => u !== url));
       toast(`Page ${i + 1} removed.`, "default", {
         label: "Undo",
         onClick: () => void store.submitAssignment(assignment.id, studentId, before).catch(() => {}),
       });
     } catch (err) {
       toast(err instanceof Error ? err.message : "Couldn't remove it. Try again.", "error");
+    } finally {
+      setRemoving(false);
     }
   }
 
@@ -207,7 +215,7 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
                 replacing.current = true;
                 fileRef.current?.click();
               }}
-              className="mt-2 inline-flex h-10 items-center gap-1.5 rounded-full border border-border-strong px-3 text-xs font-semibold text-ink-2 transition-colors hover:border-brand hover:text-ink disabled:opacity-40"
+              className="mt-2 inline-flex h-11 items-center gap-1.5 rounded-full border border-border-strong px-3 text-xs font-semibold text-ink-2 transition-colors hover:border-brand hover:text-ink disabled:opacity-40"
             >
               <Icon.Refresh className="h-3.5 w-3.5" /> Replace this photo
             </button>
@@ -218,9 +226,10 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
                 <li key={url}>
                   <button
                     type="button"
-                    disabled={uploading}
-                    onClick={() => void removePage(i)}
-                    className="inline-flex h-10 items-center gap-1.5 rounded-full border border-border-strong px-3 text-xs font-semibold text-ink-2 transition-colors hover:border-error hover:text-error disabled:opacity-40"
+                    disabled={uploading || removing}
+                    data-url={url}
+                    onClick={(e) => void removePage(e)}
+                    className="inline-flex h-11 items-center gap-1.5 rounded-full border border-border-strong px-3 text-xs font-semibold text-ink-2 transition-colors hover:border-error hover:text-error disabled:opacity-40"
                   >
                     <Icon.Close className="h-3.5 w-3.5" /> Remove page {i + 1}
                   </button>

@@ -43,6 +43,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile>({});
   const currentUserId = useRef<string | null>(null);
   const [failedUser, setFailedUser] = useState<User | null>(null);
+  /** Changes that couldn't be saved yet (offline); retried when the student is back. */
+  const unsaved = useRef<Array<Partial<Profile> | ((latest: Profile) => Partial<Profile>)>>([]);
 
   /**
    * Bring up a session: resolve role, hydrate the data cache, publish. Idempotent
@@ -132,6 +134,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!active) return;
       if (!sess?.user) {
         currentUserId.current = null;
+        // Whatever the last person hadn't saved must never land on the next account.
+        unsaved.current = [];
         getStore().reset();
         setSession(null);
         setInitializing(false);
@@ -177,12 +181,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return true;
       }
       const { data, error } = await supabase().auth.signInWithPassword({ email, password });
+      // No internet is not a wrong password: never count it towards the lockout.
+      if (error && (error.status === 0 || /fetch|network/i.test(error.message))) throw new Error("network");
       if (error || !data.user) return false;
       if ((data.user.app_metadata as Record<string, unknown>)?.role !== "admin") {
         await supabase().auth.signOut({ scope: "local" });
         return false;
       }
-      await establish(data.user);
+      // A right password whose console then fails to load is not a wrong password.
+      if (!(await establish(data.user))) throw new Error("portal-load-failed");
       return true;
     },
     [establish, establishDemo],
@@ -206,6 +213,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase().auth.signOut({ scope: "local" });
     })(); // onAuthStateChange clears session + cache
     currentUserId.current = null;
+    // On a shared phone, the last student's unsaved changes must not follow the next one in.
+    unsaved.current = [];
     getStore().reset();
     setSession(null);
     setThemeId(DEFAULT_THEME_ID);
@@ -218,11 +227,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * laptop never undo each other.
    */
   const saving = useRef<Promise<unknown>>(Promise.resolve());
-  /** Changes that couldn't be saved yet (offline); retried when the student is back. */
-  const unsaved = useRef<Array<Partial<Profile> | ((latest: Profile) => Partial<Profile>)>>([]);
   const updateProfile = useCallback((patch: Partial<Profile> | ((latest: Profile) => Partial<Profile>), local = true) => {
     const apply = (base: Profile) => ({ ...base, ...(typeof patch === "function" ? patch(base) : patch) });
     if (local) setProfile((cur) => apply(cur));
+    // Whose change this is. If someone else is signed in by the time it is
+    // sent (or nobody), it is dropped rather than written to the wrong account.
+    const owner = currentUserId.current;
     saving.current = saving.current.then(async () => {
       if (DEMO) {
         let base: Profile = {};
@@ -235,17 +245,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch {}
         return;
       }
+      if (!owner || currentUserId.current !== owner) return;
       try {
-        const { data } = await supabase().auth.getUser();
-        const latest = ((data.user?.user_metadata as Record<string, unknown> | undefined)?.profile as Profile) ?? {};
+        const { data, error: readError } = await supabase().auth.getUser();
+        // The saved profile couldn't be read (weak signal): wait and retry.
+        // Carrying on would treat it as empty and save this one change over
+        // everything else (targets, study history, settings).
+        if (readError || !data.user) throw readError ?? new Error("profile not read");
+        if (data.user.id !== owner || currentUserId.current !== owner) return;
+        const latest = ((data.user.user_metadata as Record<string, unknown> | undefined)?.profile as Profile) ?? {};
         const next = apply(latest);
         const { data: saved, error } = await supabase().auth.updateUser({ data: { profile: next } });
         if (error) throw error;
+        if (currentUserId.current !== owner) return;
         const fresh = ((saved.user?.user_metadata as Record<string, unknown> | undefined)?.profile as Profile) ?? next;
         if (!unsaved.current.length) setProfile((cur) => (sameProfile(cur, fresh) ? cur : fresh));
       } catch (e) {
         console.error("[profile] save", e);
-        unsaved.current.push(patch);
+        if (currentUserId.current === owner) unsaved.current.push(patch);
       }
     });
   }, []);

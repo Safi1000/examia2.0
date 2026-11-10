@@ -19,7 +19,8 @@ export function CalmStart({ name, nowMs, onStart, away = false }: { name: string
   const { profile, updateProfile } = useAuth();
   const world = worldFor(profile.world);
   const quote = quoteFor(nowMs);
-  const time = new Date(nowMs).toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Karachi" }).replace(/\s?[ap]m$/i, "");
+  // The clock on the wall: the phone's own time (it showed Pakistan time, an hour ahead, on a phone in the Gulf).
+  const time = new Date(nowMs).toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true }).replace(/\s?[ap]m$/i, "");
   const [tray, setTray] = useState(false);
 
   return (
@@ -34,7 +35,7 @@ export function CalmStart({ name, nowMs, onStart, away = false }: { name: string
           <button
             type="button"
             onClick={onStart}
-            className="mt-9 h-12 rounded-full border border-white/30 bg-white/15 px-8 text-[15px] font-semibold text-white shadow-[0_8px_30px_-10px_rgba(0,0,0,.5)] backdrop-blur-xl transition hover:bg-white/25 active:scale-[0.98]"
+            className="mt-9 h-12 rounded-full border border-white/30 bg-white/15 px-8 text-[15px] font-semibold text-white shadow-[0_8px_30px_-10px_rgba(0,0,0,.5)] backdrop-blur-xl [@media(pointer:coarse)]:backdrop-blur-md transition hover:bg-white/25 active:scale-[0.98]"
           >
             Start focus
           </button>

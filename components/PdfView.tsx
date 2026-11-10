@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui";
 import { loadPdfJs } from "@/lib/notes-client";
 
@@ -33,13 +33,10 @@ const clamp = (z: number) => Math.min(MAX, Math.max(MIN, z));
 /** A highlighted word on a page, in fractions of the page's size. */
 type Mark = { l: number; t: number; w: number; h: number };
 
-export function PdfView({
-  url,
-  onFail,
-  startPage,
-  highlight,
-  onPage,
-}: {
+/** A spot of the document (page and position on it) and where on the screen it sits. */
+type Anchor = { i: number; fx: number; fy: number; sx: number; sy: number };
+
+type Props = {
   url: string;
   onFail: () => void;
   /** Open at this page (from a search result, or where they left off). */
@@ -48,53 +45,95 @@ export function PdfView({
   highlight?: string[];
   /** Told the page in view, for "Continue reading". */
   onPage?: (page: number, pages: number) => void;
-}) {
+  /** Take the keyboard once the file is open, so arrows, Space and Page Down scroll it. */
+  autoFocus?: boolean;
+};
+
+export function PdfView(props: Props) {
+  // A different file starts a fresh reader, so nothing drawn for the last one lingers.
+  return <PdfReader key={props.url} {...props} />;
+}
+
+function PdfReader({ url, onFail, startPage, highlight, onPage, autoFocus }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const [doc, setDoc] = useState<PdfDoc | null>(null);
   // Page sizes at scale 1. Until a page is fetched it borrows page 1's size.
   const [sizes, setSizes] = useState<Array<{ w: number; h: number }>>([]);
   const [zoom, setZoom] = useState(1);
+  const zoomRef = useRef(1);
   const [width, setWidth] = useState(0);
+  const widthRef = useRef(0);
   // Pages are redrawn sharply a moment after zooming stops; until then CSS scales them.
   const [drawZoom, setDrawZoom] = useState(1);
   const canvases = useRef<Array<HTMLCanvasElement | null>>([]);
   // Pages near the screen (only these are drawn, so long notes stay light on phones).
-  const [near, setNear] = useState<Set<number>>(() => new Set([0, 1]));
+  const [near, setNear] = useState<Set<number>>(() => {
+    const s = Math.max(1, Math.floor(startPage ?? 1)) - 1;
+    return new Set(s > 0 ? [s - 1, s, s + 1] : [0, 1]);
+  });
   const [page, setPage] = useState(1);
-  const drawn = useRef(new Map<number, number>()); // page index -> zoom it was drawn at
-  const tasks = useRef(new Map<number, { cancel: () => void; key?: number }>()); // drawings in progress, and the size they're for
+  const drawn = useRef(new Map<number, number>()); // page index -> size it was drawn at
+  const tasks = useRef(new Map<number, { cancel: () => void; key: number }>()); // drawings in progress, and the size they're for
   const pageRef = useRef(1);
+  const pagesRef = useRef(0);
+  const toldRef = useRef(0);
   const utilRef = useRef<{ transform: (a: number[], b: number[]) => number[] } | null>(null);
   const [marks, setMarks] = useState<Record<number, Mark[]>>({});
   const marked = useRef(new Set<number>());
   const started = useRef(false);
+  // The spot to keep still on screen through the next change of size (zoom, or the phone turning).
+  const anchor = useRef<Anchor | null>(null);
+  const [slow, setSlow] = useState(false);
+
+  // The callers' handlers are read through refs: a new inline function on their
+  // side must not reload the file or lose the page.
+  const onFailRef = useRef(onFail);
+  const onPageRef = useRef(onPage);
+  useEffect(() => {
+    onFailRef.current = onFail;
+    onPageRef.current = onPage;
+  }, [onFail, onPage]);
 
   // Load PDF.js, the file and page 1 (enough to show the reader).
   useEffect(() => {
     let alive = true;
+    let loading: { destroy?: () => Promise<void> } | null = null;
     let loaded: PdfDoc | null = null;
+    // A long note on a slow connection: say it is still coming.
+    const slowTimer = setTimeout(() => alive && setSlow(true), 7000);
     void (async () => {
       try {
         const lib = await loadPdfJs();
+        if (!alive) return;
         utilRef.current = lib.Util;
-        const d = (await lib.getDocument({ url }).promise) as unknown as PdfDoc;
+        const task = lib.getDocument({ url });
+        loading = task;
+        const d = (await task.promise) as unknown as PdfDoc;
         loaded = d;
+        if (!alive) return;
         const first = (await d.getPage(1)).getViewport({ scale: 1 });
         if (!alive) return;
+        pagesRef.current = d.numPages;
         setSizes(Array.from({ length: d.numPages }, () => ({ w: first.width, h: first.height })));
         setDoc(d);
       } catch (e) {
+        if (!alive) return;
         console.error("[pdf] load", e);
-        if (alive) onFail();
+        onFailRef.current();
+      } finally {
+        clearTimeout(slowTimer);
       }
     })();
     return () => {
       alive = false;
-      void loaded?.destroy?.().catch(() => {});
+      clearTimeout(slowTimer);
+      // Closed while still downloading: stop the download too, not only a finished file.
+      void (loaded?.destroy?.() ?? loading?.destroy?.())?.catch(() => {});
     };
-  }, [url, onFail]);
+  }, [url]);
 
-  // Closing the reader: give every page's drawing memory back straight away.
+  // Closing the reader: give every page's drawing memory back straight away,
+  // and remember the page even when it closes right after a scroll.
   useEffect(() => {
     const list = canvases;
     const running = tasks;
@@ -107,17 +146,58 @@ export function PdfView({
           c.height = 0;
         }
       });
+      if (toldRef.current && pageRef.current !== toldRef.current && pagesRef.current) onPageRef.current?.(pageRef.current, pagesRef.current);
     };
   }, []);
 
-  // Fit-to-width base size follows the window.
+  /** The spot of the document under a point of the reader (its centre when no point is given). */
+  const anchorAt = useCallback((clientX?: number, clientY?: number): Anchor | null => {
+    const el = box.current;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    const sx = clientX === undefined ? r.width / 2 : clientX - r.left;
+    const sy = clientY === undefined ? r.height / 2 : clientY - r.top;
+    let best: { i: number; pr: DOMRect } | null = null;
+    for (let i = 0; i < canvases.current.length; i++) {
+      const w = canvases.current[i]?.parentElement;
+      if (!w) continue;
+      const pr = w.getBoundingClientRect();
+      if (best && pr.top > r.top + sy) break;
+      best = { i, pr };
+    }
+    if (!best || !best.pr.width || !best.pr.height) return null;
+    return { i: best.i, fx: (r.left + sx - best.pr.left) / best.pr.width, fy: (r.top + sy - best.pr.top) / best.pr.height, sx, sy };
+  }, []);
+
+  // Fit-to-width base size follows the window. When the phone is turned the
+  // pages change height, so the part of the note at the top is held in place.
   useEffect(() => {
     const el = box.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setWidth(Math.min(el.clientWidth - 24, 1000)));
+    const ro = new ResizeObserver(() => {
+      const w = Math.min(el.clientWidth - 24, 1000);
+      if (w === widthRef.current) return;
+      if (widthRef.current) anchor.current = anchorAt(undefined, el.getBoundingClientRect().top + 1) ?? anchor.current;
+      widthRef.current = w;
+      setWidth(w);
+    });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [anchorAt]);
+
+  // After a zoom or a turn of the phone: put the held spot back where it was on screen.
+  // Done before the browser paints, so the page never jumps and settles.
+  useLayoutEffect(() => {
+    const a = anchor.current;
+    const el = box.current;
+    anchor.current = null;
+    const w = a ? canvases.current[a.i]?.parentElement : null;
+    if (!a || !el || !w) return;
+    const r = el.getBoundingClientRect();
+    const pr = w.getBoundingClientRect();
+    el.scrollLeft += pr.left + a.fx * pr.width - (r.left + a.sx);
+    el.scrollTop += pr.top + a.fy * pr.height - (r.top + a.sy);
+  }, [zoom, width]);
 
   useEffect(() => {
     const t = setTimeout(() => setDrawZoom(zoom), 250);
@@ -158,6 +238,8 @@ export function PdfView({
         const w = c?.parentElement;
         if (w && w.offsetTop <= mark) p = i + 1;
       });
+      // At the very end the last page counts as reached, even when it is too short to climb that high.
+      if (el.scrollTop > 0 && el.scrollTop + el.clientHeight >= el.scrollHeight - 2) p = canvases.current.length || p;
       pageRef.current = p;
       setPage(p);
     };
@@ -182,18 +264,25 @@ export function PdfView({
       }
     }
     void (async () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      // Phones have three screen dots to a point: draw for them, so small text stays crisp.
+      // Wide screens stop at two, where a page is already several megapixels.
+      const dpr = Math.min(window.devicePixelRatio || 1, width < 600 ? 3 : 2);
+      // Keep each canvas small enough that phones never run out of canvas memory
+      // (tighter on touch devices, which have the least to spare).
+      const maxPixels = window.matchMedia?.("(pointer: coarse)").matches ? 8_000_000 : 16_000_000;
+      const key = drawZoom * width;
       // The page in view first, then outwards from it.
-      const here = (pageRef.current || startPage || 1) - 1;
+      const here = (started.current ? pageRef.current : startPage || 1) - 1;
       for (const i of [...near].sort((a, b) => Math.abs(a - here) - Math.abs(b - here) || a - b)) {
         if (!alive) return;
-        if (drawn.current.get(i) === drawZoom * width) continue;
+        if (drawn.current.get(i) === key) continue;
         // Already being drawn at this size: let it finish rather than start again.
-        if (tasks.current.get(i)?.key === drawZoom * width) continue;
+        if (tasks.current.get(i)?.key === key) continue;
+        const c = canvases.current[i];
+        if (!c) continue;
         const pg = await doc.getPage(i + 1).catch(() => null);
         if (!alive) return;
-        const c = canvases.current[i];
-        if (!pg || !c) continue;
+        if (!pg) continue;
         const base = pg.getViewport({ scale: 1 });
         // Now its real size is known: correct the borrowed one if it differs.
         setSizes((prev) => {
@@ -204,13 +293,16 @@ export function PdfView({
           return next;
         });
         const fit = width / base.width;
-        // Keep each canvas under ~16 MP so iPhones never run out of canvas memory.
-        const scale = Math.min(fit * drawZoom * dpr, Math.sqrt(16_000_000 / (base.width * base.height)));
+        const scale = Math.min(fit * drawZoom * dpr, Math.sqrt(maxPixels / (base.width * base.height)));
         const vp = pg.getViewport({ scale });
         tasks.current.get(i)?.cancel();
-        c.width = vp.width;
-        c.height = vp.height;
-        const ctx = c.getContext("2d");
+        // A page already showing keeps its drawing until the sharper one is ready,
+        // so zooming never flashes the page white.
+        const redo = drawn.current.has(i) && c.width > 0;
+        const target = redo ? document.createElement("canvas") : c;
+        target.width = Math.floor(vp.width);
+        target.height = Math.floor(vp.height);
+        const ctx = target.getContext("2d");
         if (!ctx) continue;
         let task: { promise: Promise<void>; cancel: () => void };
         try {
@@ -218,14 +310,25 @@ export function PdfView({
         } catch {
           continue;
         }
-        tasks.current.set(i, { cancel: task.cancel.bind(task), key: drawZoom * width });
+        const entry = { cancel: task.cancel.bind(task), key };
+        tasks.current.set(i, entry);
         const ok = await task.promise.then(
           () => true,
           () => false,
         );
-        if (tasks.current.get(i)?.key === drawZoom * width) tasks.current.delete(i);
-        // Released while drawing (scrolled away): it isn't drawn.
-        if (ok && c.width > 0) drawn.current.set(i, drawZoom * width);
+        // Released (scrolled away) or replaced by a newer drawing while this one ran: it doesn't count.
+        const mine = tasks.current.get(i) === entry;
+        if (mine) tasks.current.delete(i);
+        if (redo) {
+          if (ok && mine && c.width > 0) {
+            c.width = target.width;
+            c.height = target.height;
+            c.getContext("2d")?.drawImage(target, 0, 0);
+          }
+          target.width = 0;
+          target.height = 0;
+        }
+        if (ok && mine && c.width > 0) drawn.current.set(i, key);
       }
     })();
     return () => {
@@ -237,22 +340,29 @@ export function PdfView({
   useEffect(() => {
     if (!doc || !width || started.current) return;
     started.current = true;
-    const i = Math.min(Math.max(1, startPage ?? 1), sizes.length) - 1;
+    const i = Math.min(Math.max(1, Math.floor(startPage ?? 1)), sizes.length) - 1;
     if (i <= 0) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setNear(new Set([i - 1, i, i + 1].filter((x) => x >= 0)));
     requestAnimationFrame(() => {
       const c = canvases.current[i];
       if (c && box.current) box.current.scrollTop = (c.parentElement?.offsetTop ?? c.offsetTop) - 12;
     });
   }, [doc, width, startPage, sizes.length]);
 
-  // Tell the page in view (a moment after scrolling stops).
+  // The keyboard goes to the pages, so arrows, Space and Page Down scroll them.
   useEffect(() => {
-    if (!doc || !onPage) return;
-    const t = setTimeout(() => onPage(page, sizes.length), 600);
+    if (doc && autoFocus) box.current?.focus({ preventScroll: true });
+  }, [doc, autoFocus]);
+
+  // Tell the page in view (a moment after scrolling stops).
+  const hasOnPage = !!onPage;
+  useEffect(() => {
+    if (!doc || !hasOnPage) return;
+    const t = setTimeout(() => {
+      toldRef.current = page;
+      onPageRef.current?.(page, sizes.length);
+    }, 600);
     return () => clearTimeout(t);
-  }, [doc, page, sizes.length, onPage]);
+  }, [doc, page, sizes.length, hasOnPage]);
 
   // Find the searched words on the pages near the screen and mark them.
   const terms = (highlight ?? []).map((w) => w.toLowerCase()).filter((w) => w.length >= 2);
@@ -263,13 +373,19 @@ export function PdfView({
     let alive = true;
     void (async () => {
       for (const i of near) {
+        if (!alive) return;
         if (marked.current.has(i)) continue;
         marked.current.add(i);
         const pg = await doc.getPage(i + 1).catch(() => null);
         const util = utilRef.current;
-        if (!pg || !util || !alive) continue;
+        if (!pg || !util) continue;
         const vp = pg.getViewport({ scale: 1 });
         const { items } = await pg.getTextContent().catch(() => ({ items: [] as TextItem[] }));
+        // Scrolled on while this page was being read: leave it to the next pass, or its words would never be marked.
+        if (!alive) {
+          marked.current.delete(i);
+          return;
+        }
         const found: Mark[] = [];
         for (const it of items) {
           const low = it.str.toLowerCase();
@@ -290,7 +406,7 @@ export function PdfView({
             }
           }
         }
-        if (alive && found.length) setMarks((m) => ({ ...m, [i]: found }));
+        if (found.length) setMarks((m) => ({ ...m, [i]: found }));
       }
     })();
     return () => {
@@ -299,23 +415,22 @@ export function PdfView({
   }, [doc, near, termKey]);
 
   /** Zoom around a point on screen, keeping that spot under the fingers. */
-  const zoomAt = useCallback((factor: number, clientX?: number, clientY?: number) => {
-    const el = box.current;
-    setZoom((z) => {
-      const next = clamp(z * factor);
-      if (el && next !== z) {
-        const r = el.getBoundingClientRect();
-        const x = (clientX ?? r.left + r.width / 2) - r.left + el.scrollLeft;
-        const y = (clientY ?? r.top + r.height / 2) - r.top + el.scrollTop;
-        const k = next / z;
-        requestAnimationFrame(() => {
-          el.scrollLeft = x * k - ((clientX ?? r.left + r.width / 2) - r.left);
-          el.scrollTop = y * k - ((clientY ?? r.top + r.height / 2) - r.top);
-        });
-      }
-      return next;
-    });
-  }, []);
+  const zoomAt = useCallback(
+    (factor: number, clientX?: number, clientY?: number) => {
+      const next = clamp(zoomRef.current * factor);
+      if (next === zoomRef.current) return;
+      anchor.current = anchorAt(clientX, clientY) ?? anchor.current;
+      zoomRef.current = next;
+      setZoom(next);
+    },
+    [anchorAt],
+  );
+  const fitWidth = useCallback(() => {
+    if (zoomRef.current === 1) return;
+    anchor.current = anchorAt() ?? anchor.current;
+    zoomRef.current = 1;
+    setZoom(1);
+  }, [anchorAt]);
 
   // Trackpad pinch (Chrome, Edge, Firefox send ctrl+wheel), Safari gestures, phone pinch.
   useEffect(() => {
@@ -326,6 +441,9 @@ export function PdfView({
       e.preventDefault();
       zoomAt(Math.exp(-e.deltaY * 0.01), e.clientX, e.clientY);
     };
+    // Fingers on the glass. iPhones and iPads report a pinch twice, as touches and
+    // as a "gesture": only the touches are used there, or it would zoom twice as fast.
+    let fingers = 0;
     let gestureStart = 1;
     const onGestureStart = (e: Event) => {
       e.preventDefault();
@@ -333,23 +451,26 @@ export function PdfView({
     };
     const onGestureChange = (e: Event) => {
       e.preventDefault();
-      const ge = e as Event & { scale: number; clientX: number; clientY: number };
+      if (fingers > 0) return;
+      const ge = e as Event & { scale: number; clientX?: number; clientY?: number };
       zoomAt(ge.scale / gestureStart, ge.clientX, ge.clientY);
       gestureStart = ge.scale;
     };
     let pinch: { d: number } | null = null;
     const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
     const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) pinch = { d: dist(e.touches) };
+      fingers = e.touches.length;
+      pinch = e.touches.length === 2 ? { d: dist(e.touches) } : null;
     };
     const onTouchMove = (e: TouchEvent) => {
       if (!pinch || e.touches.length !== 2) return;
       e.preventDefault();
       const d = dist(e.touches);
-      zoomAt(d / pinch.d, (e.touches[0].clientX + e.touches[1].clientX) / 2, (e.touches[0].clientY + e.touches[1].clientY) / 2);
+      if (pinch.d > 0 && d > 0) zoomAt(d / pinch.d, (e.touches[0].clientX + e.touches[1].clientX) / 2, (e.touches[0].clientY + e.touches[1].clientY) / 2);
       pinch.d = d;
     };
-    const onTouchEnd = () => {
+    const onTouchEnd = (e: TouchEvent) => {
+      fingers = e.touches.length;
       pinch = null;
     };
     el.addEventListener("wheel", onWheel, { passive: false });
@@ -358,6 +479,7 @@ export function PdfView({
     el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
     el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("touchcancel", onTouchEnd);
     return () => {
       el.removeEventListener("wheel", onWheel);
       el.removeEventListener("gesturestart", onGestureStart);
@@ -365,16 +487,27 @@ export function PdfView({
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
     };
   }, [zoomAt]);
 
-  const btn = "flex h-10 w-10 items-center justify-center rounded-full text-lg font-semibold text-ink hover:bg-surface-2";
+  const btn = "flex h-11 w-11 items-center justify-center rounded-full text-lg font-semibold text-ink hover:bg-surface-2 disabled:opacity-40";
   return (
     <div className="relative h-full w-full">
-      <div ref={box} className="h-full w-full overflow-auto overscroll-contain" style={{ touchAction: "pan-x pan-y" }}>
+      <div
+        ref={box}
+        // Focusable, so the keyboard can scroll the pages.
+        tabIndex={0}
+        role="group"
+        aria-label="Pages"
+        className="h-full w-full overflow-auto overscroll-contain outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand/50"
+        style={{ touchAction: "pan-x pan-y" }}
+      >
         {!doc ? (
-          <div className="flex h-full items-center justify-center">
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center" role="status">
             <Spinner size={28} className="text-ink-3" />
+            <span className="sr-only">Loading</span>
+            {slow && <span className="max-w-xs text-sm text-ink-3">Still loading. A long file can take a little while on a slow connection.</span>}
           </div>
         ) : (
           <div className="mx-auto flex flex-col items-center gap-3 py-3" style={{ width: width * zoom + 24 }}>
@@ -391,7 +524,7 @@ export function PdfView({
                   <span
                     key={k}
                     aria-hidden
-                    className="pointer-events-none absolute rounded-[2px] bg-[#FBC159]/45 mix-blend-multiply"
+                    className="pointer-events-none absolute rounded-[2px] bg-brand/45 mix-blend-multiply"
                     style={{ left: `${m.l * 100}%`, top: `${m.t * 100}%`, width: `${m.w * 100}%`, height: `${m.h * 100}%` }}
                   />
                 ))}
@@ -401,17 +534,22 @@ export function PdfView({
         )}
       </div>
       {doc && (
-        <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-[#1d2023]/90 p-1 shadow-lg backdrop-blur-xl">
-          <span className="whitespace-nowrap px-2 text-xs tabular-nums text-ink-3" aria-live="polite">
-            {page} / {sizes.length}
+        <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-paper/90 p-1 shadow-lg backdrop-blur-xl">
+          <span className="whitespace-nowrap pl-3 pr-1 text-xs tabular-nums text-ink-2">
+            <span className="sr-only">
+              Page {page} of {sizes.length}
+            </span>
+            <span aria-hidden>
+              {page} / {sizes.length}
+            </span>
           </span>
-          <button type="button" className={btn} onClick={() => zoomAt(1 / 1.25)} aria-label="Zoom out">
+          <button type="button" className={btn} onClick={() => zoomAt(1 / 1.25)} disabled={zoom <= MIN} aria-label="Zoom out">
             −
           </button>
-          <button type="button" onClick={() => setZoom(1)} className="h-10 min-w-16 rounded-full px-2 text-sm font-semibold tabular-nums text-ink-2 hover:bg-surface-2" aria-label="Fit to width">
+          <button type="button" onClick={fitWidth} className="h-11 min-w-16 rounded-full px-2 text-sm font-semibold tabular-nums text-ink-2 hover:bg-surface-2" aria-label={`Zoom ${Math.round(zoom * 100)}%. Fit to width`}>
             {Math.round(zoom * 100)}%
           </button>
-          <button type="button" className={btn} onClick={() => zoomAt(1.25)} aria-label="Zoom in">
+          <button type="button" className={btn} onClick={() => zoomAt(1.25)} disabled={zoom >= MAX} aria-label="Zoom in">
             +
           </button>
         </div>

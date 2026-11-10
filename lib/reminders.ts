@@ -4,6 +4,7 @@ import { absenceStreak, archivedCohortIds, extensionFor, isArchivedTest, liveSta
 import { COMPANY_NAME } from "@/lib/config";
 import { inPersonIds } from "@/lib/in-person";
 import { awardedMarks, isFullyGraded, percent, totalMarks } from "@/lib/scoring";
+import { pkDate } from "@/lib/timetable";
 
 /** Results under this percentage are worth a word with the parents. */
 export const LOW_SCORE = 70;
@@ -62,11 +63,13 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
   const closed = db.tests.filter(
     (t) => liveStatus(t, nowMs) === "closed" && nowMs - new Date(t.closesAt).getTime() <= RECENT && !isArchivedTest(db, t, off),
   );
+  // Looked up once: scanning every submission for every student and test is slow with a full roster.
+  const started = closed.length ? new Set(db.submissions.map((s) => `${s.testId}|${s.studentId}`)) : new Set<string>();
   for (const test of closed) {
     for (const student of students) {
       if (!testCoversStudent(test, student)) continue;
       if (new Date(student.createdAt).getTime() > new Date(test.opensAt).getTime()) continue;
-      if (db.submissions.some((s) => s.testId === test.id && s.studentId === student.id)) continue;
+      if (started.has(`${test.id}|${student.id}`)) continue;
       // Reopened just for them and still open: not missed (yet).
       const ext = extensionFor(db, test.id, student.id);
       if (ext && +new Date(ext.until) > nowMs) continue;
@@ -97,16 +100,18 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
   }
 
   // 3. A result under 70%, released in the last 14 days.
+  const byId = new Map(students.map((s) => [s.id, s]));
   for (const sub of db.submissions) {
     if (sub.status !== "released" || !sub.releasedAt || nowMs - new Date(sub.releasedAt).getTime() > RECENT) continue;
-    const student = students.find((s) => s.id === sub.studentId);
+    const student = byId.get(sub.studentId);
     const test = db.tests.find((t) => t.id === sub.testId);
     if (!student || !test || isArchivedTest(db, test, off)) continue;
     const total = totalMarks(test);
     // Only results that are fully marked: an unmarked answer would count as zero.
     if (!total || !isFullyGraded(test, sub)) continue;
     const pct = percent(awardedMarks(sub), total);
-    if (pct >= LOW_SCORE) continue;
+    // Judged on the rounded figure the label shows, so "scored 70%" never sits under "Below 70%".
+    if (Math.round(pct) >= LOW_SCORE) continue;
     add({
       kind: "low_score",
       student,
@@ -116,16 +121,16 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
     });
   }
 
-  // 4. Last month's report, from the 1st onwards.
-  const now = new Date(nowMs);
-  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastMonth = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, "0")}`;
+  // 4. Last month's report, from the 1st onwards. The month turns over at
+  // midnight in Pakistan, whatever time zone the laptop or tablet is set to.
+  const [pkYear, pkMonth] = pkDate(nowMs).split("-").map(Number);
+  const lastMonth = new Date(Date.UTC(pkYear, pkMonth - 2, 1)).toISOString().slice(0, 7);
+  const hadResults = new Set(
+    db.submissions.filter((x) => x.status === "released" && (x.submittedAt ?? "").slice(0, 7) === lastMonth).map((x) => x.studentId),
+  );
   for (const student of students) {
     // Nothing marked last month means nothing to report.
-    const hadResults = db.submissions.some(
-      (x) => x.studentId === student.id && x.status === "released" && (x.submittedAt ?? "").slice(0, 7) === lastMonth,
-    );
-    if (!hadResults) continue;
+    if (!hadResults.has(student.id)) continue;
     const report = db.reports.find((r) => r.studentId === student.id && r.month.slice(0, 7) === lastMonth);
     if (report?.sentAt) continue;
     add({

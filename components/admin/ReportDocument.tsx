@@ -48,8 +48,14 @@ const s = StyleSheet.create({
 });
 
 function fmtDate(d: string) {
-  return d ? new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "";
+  // Noon UTC and read back in UTC: the calendar day stays put whatever the device's time zone.
+  return d ? new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }) : "";
 }
+/** The name shrinks as it gets longer, so it stays on one or two lines and the page never spills onto a second. */
+function nameSize(name: string) {
+  return name.length > 30 ? 22 : name.length > 20 ? 28 : 36;
+}
+const ONE_LINE = { maxLines: 1, textOverflow: "ellipsis" as const };
 function phone(n: string) {
   return n.startsWith("92") ? `+92 ${n.slice(2, 5)} ${n.slice(5)}` : `+${n}`;
 }
@@ -243,9 +249,10 @@ function Subjects({ data }: { data: ReportData }) {
           <LegendText>Class</LegendText>
         </Legend>
       </View>
-      {data.bySubject.map((b) => (
+      {/* Five at most: a sixth row would start pushing the page past A4. */}
+      {data.bySubject.slice(0, 5).map((b) => (
         <View key={b.subject} style={[s.row, { alignItems: "center", paddingVertical: 4 }]}>
-          <Text style={{ width: 118, fontSize: 9, fontWeight: 600, color: INK }}>{b.subject}</Text>
+          <Text style={{ width: 118, fontSize: 9, fontWeight: 600, color: INK, paddingRight: 6, ...ONE_LINE }}>{b.subject}</Text>
           <View style={{ flex: 1, height: 6, backgroundColor: LINE, borderRadius: 3, marginRight: 14 }}>
             <View style={{ height: 6, width: `${Math.max(2, b.average)}%`, backgroundColor: GOLD, borderRadius: 3 }} />
             {b.classAvg != null ? <View style={{ position: "absolute", left: `${b.classAvg}%`, top: -2.5, width: 1.6, height: 11, backgroundColor: INK }} /> : null}
@@ -325,7 +332,7 @@ function Topics({ title, items, good }: { title: string; items: ReportData["stre
       {items.map((t) => (
         <View key={t.subject + t.name} style={{ marginBottom: 6 }}>
           <View style={[s.row, { justifyContent: "space-between" }]}>
-            <Text style={{ fontSize: 8.4, color: INK }}>{t.name}</Text>
+            <Text style={{ flex: 1, paddingRight: 6, fontSize: 8.4, color: INK, ...ONE_LINE }}>{t.name}</Text>
             <Text style={{ fontSize: 8.4, color: good ? GOOD : BAD, fontWeight: 800 }}>{t.percent}%</Text>
           </View>
           <View style={{ height: 3, backgroundColor: LINE, borderRadius: 2, marginTop: 3 }}>
@@ -379,7 +386,8 @@ export function ReportDocument({ data }: { data: ReportData }) {
   return (
     <Document title={`${data.name} · ${data.monthLabel} report`} author="Hamza Sadaqat">
       {/* Always one page: content is capped (four listed results, three topics each, a short note). */}
-      <Page size="A4" style={s.page}>
+      {/* wrap off: whatever happens, a parent gets one page, never a near-empty second one. */}
+      <Page size="A4" style={s.page} wrap={false}>
         <Svg width={595.28} height={300} style={{ position: "absolute", top: 0, left: 0 }}>
           <Circle cx={560} cy={-60} r={260} fill={GOLD} fillOpacity={0.01} />
           <Circle cx={560} cy={-60} r={200} fill={GOLD} fillOpacity={0.012} />
@@ -401,9 +409,9 @@ export function ReportDocument({ data }: { data: ReportData }) {
         {/* Hero */}
         <View style={[s.row, { marginTop: 16, justifyContent: "space-between", alignItems: "center" }]}>
           <View style={{ flex: 1, paddingRight: 18 }}>
-            <Text style={{ fontSize: 36, fontWeight: 800, color: INK, letterSpacing: -1, lineHeight: 1 }}>{data.name}</Text>
+            <Text style={{ fontSize: nameSize(data.name), fontWeight: 800, color: INK, letterSpacing: -1, lineHeight: 1.05, maxLines: 2, textOverflow: "ellipsis" }}>{data.name}</Text>
             <Text style={{ fontFamily: "Caveat", fontSize: 22, color: GOLD, marginTop: 5, lineHeight: 1 }}>{data.headline}</Text>
-            <Text style={{ fontSize: 8, color: MUTED, marginTop: 9 }}>{[data.subjects.join(" · "), data.cohort].filter(Boolean).join("   |   ")}</Text>
+            <Text style={{ fontSize: 8, color: MUTED, marginTop: 9, maxLines: 2, textOverflow: "ellipsis" }}>{[data.subjects.join(" · "), data.cohort].filter(Boolean).join("   |   ")}</Text>
           </View>
           <ScoreRing data={data} />
         </View>
@@ -432,7 +440,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
                     <Text style={{ fontSize: 6.2, fontWeight: 800, color: BG }}>{listedFrom + i + 1}</Text>
                   </View>
                   <View style={{ flex: 1, paddingRight: 4 }}>
-                    <Text style={{ fontSize: 8.2, color: INK }}>{r.title.length > 30 ? `${r.title.slice(0, 29)}…` : r.title}</Text>
+                    <Text style={{ fontSize: 8.2, color: INK, ...ONE_LINE }}>{r.title.length > 30 ? `${r.title.slice(0, 29)}…` : r.title}</Text>
                     <Text style={{ fontSize: 6.2, color: MUTED }}>
                       {r.subject} · {fmtDate(r.date)}
                     </Text>
@@ -468,7 +476,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
               return (
                 <View key={i} style={[s.row, { marginBottom: 4 }]}>
                   <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: GOLD, marginTop: 3.5, marginRight: 7 }} />
-                  <Text style={{ fontSize: 8.2, color: INK, flex: 1 }}>
+                  <Text style={{ fontSize: 8.2, color: INK, flex: 1, maxLines: 2, textOverflow: "ellipsis" }}>
                     {k ? <Text style={{ color: MUTED }}>{k}  </Text> : null}
                     {v}
                   </Text>
@@ -482,7 +490,7 @@ export function ReportDocument({ data }: { data: ReportData }) {
 
         {note ? (
           <View style={{ marginTop: 8, borderLeftWidth: 1.5, borderColor: GOLD, paddingLeft: 11 }}>
-            <Text style={{ fontSize: 8.4, color: INK, lineHeight: 1.5 }}>{note}</Text>
+            <Text style={{ fontSize: 8.4, color: INK, lineHeight: 1.5, maxLines: 5, textOverflow: "ellipsis" }}>{note}</Text>
             <Text style={{ fontFamily: "Caveat", fontSize: 14, color: GOLD, marginTop: 3 }}>Hamza Sadaqat</Text>
           </View>
         ) : null}

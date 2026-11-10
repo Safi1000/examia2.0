@@ -39,6 +39,15 @@ export function LoginDetails({
     setText(initial);
   }
   const wa = (to: string) => `https://wa.me/${waDigits(to)}?text=${encodeURIComponent(text)}`;
+  // Say so when the copy fails (some browsers block it): a silent miss looks like it worked.
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("Message copied.", "success");
+    } catch {
+      toast("Couldn't copy it. Select the message and copy it yourself.", "error");
+    }
+  }
 
   return (
     <Modal
@@ -56,9 +65,7 @@ export function LoginDetails({
         <>
           <Button
             variant="secondary"
-            onClick={() => {
-              void navigator.clipboard?.writeText(text).then(() => toast("Message copied.", "success"));
-            }}
+            onClick={() => void copy()}
           >
             Copy
           </Button>
@@ -75,7 +82,7 @@ export function LoginDetails({
         </>
       }
     >
-      <p className="mb-3 rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-center font-mono text-lg font-bold tracking-wide text-ink">
+      <p className="mb-3 break-all rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-center font-mono text-lg font-bold tracking-wide text-ink">
         {kind === "username" ? username : `${username} · ${password}`}
       </p>
       <textarea
@@ -83,7 +90,7 @@ export function LoginDetails({
         onChange={(e) => setText(e.target.value)}
         rows={12}
         aria-label="Message"
-        className="w-full rounded-lg border border-border-strong bg-surface p-3 text-sm leading-relaxed text-ink"
+        className="w-full rounded-lg border border-border-strong bg-surface p-3 text-base leading-relaxed text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:text-sm"
       />
       {!phone && !parent && <p className="mt-2 text-xs text-ink-3">No WhatsApp numbers saved for this student. Copy the message instead.</p>}
     </Modal>

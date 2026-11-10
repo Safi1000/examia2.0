@@ -10,7 +10,6 @@ import { subjectsAtLevel } from "@/lib/levels";
  */
 /** Hour (Pakistan time) when the day's Meet links are made, before the first class at 3:30. */
 export const LINKS_AT_HOUR = 13;
-/** Students can watch a class recording until this many hours after the class ends. */
 /** How long a class recording stays open to students after the class ends. */
 export const RECORDING_HOURS = 48;
 /** How early the Join button wakes up. */
@@ -69,6 +68,8 @@ const TIMETABLE: WeekSlot[] = [
 export const DEFAULT_SCHEDULE: Schedule = { termStarts: "2026-11-02", days: [1, 2, 3, 4, 5], slots: TIMETABLE, exceptions: [] };
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+/** A real "HH:MM" time. A time box that was cleared gives "", which must never be saved. */
+export const isTime = (v: string | undefined | null): v is string => HHMM.test(v ?? "");
 const LEVELS: LevelKey[] = ["A2", "AS", "O"];
 const SUBJECTS: SubjectKey[] = ["Economics", "Business", "Accounting"];
 
@@ -255,6 +256,22 @@ export const slotKey = (s: { date: string; classId: string; subjectId: string })
 
 /** Only links that are real https addresses get saved. */
 export const looksLikeLink = (v: string) => /^https:\/\/\S+$/.test(v.trim());
+
+/**
+ * What was pasted, as a link: the first https address inside it (a copied
+ * WhatsApp line like "Join here: https://meet.google.com/abc"), or a bare
+ * "meet.google.com/abc" with https:// put in front. Anything else comes back
+ * trimmed, for `looksLikeLink` to judge.
+ */
+export function tidyLink(v: string): string {
+  const t = v.trim();
+  const found = t.match(/https:\/\/[^\s<>"']+/i)?.[0];
+  if (found) return found.replace(/[),.;]+$/, "");
+  // A Meet address without https:// inside a copied line ("Join: meet.google.com/abc-defg-hij").
+  const meet = t.match(/\bmeet\.google\.com\/[a-z0-9-]+/i)?.[0];
+  if (meet) return `https://${meet}`;
+  return /^[a-z0-9-]+(\.[a-z0-9-]+)+\/\S+$/i.test(t) ? `https://${t}` : t;
+}
 
 /** A class's own whiteboard page: one per class and subject on the weekly timetable. */
 export interface ClassBoardPage {

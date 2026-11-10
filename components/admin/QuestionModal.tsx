@@ -41,11 +41,14 @@ export function QuestionModal({
   const [topic, setTopic] = useState(initial?.topic ?? "");
   const [subject, setSubject] = useState(initial?.subject ?? "");
   const [marks, setMarks] = useState(initial?.marks ?? 2);
+  // Every option the question has (imported ones can have five or six), padded to four boxes.
+  // Cutting to four used to drop the fifth option, and with it the right answer.
   const [options, setOptions] = useState<string[]>(
-    initial?.type === "mcq" ? [...initial.options, "", "", ""].slice(0, 4) : ["", "", "", ""],
+    initial?.type === "mcq" ? [...initial.options, ...Array<string>(Math.max(0, 4 - initial.options.length)).fill("")] : ["", "", "", ""],
   );
+  // A new question has no right answer until one is chosen: -1, never a silent "A".
   const [correctIndex, setCorrectIndex] = useState(
-    initial?.type === "mcq" ? initial.correctIndex : 0,
+    initial?.type === "mcq" ? initial.correctIndex : -1,
   );
   const [maxLength, setMaxLength] = useState(
     initial?.type === "text" ? initial.maxLength ?? 400 : 400,
@@ -82,8 +85,18 @@ export function QuestionModal({
     // typing out. The topic tag is always optional (it only groups results by topic).
     if (type !== "photo" && !prompt.trim()) e.prompt = "A question prompt is required.";
     if (withSubject && !subject.trim()) e.subject = "Choose a subject.";
-    if (marks < 1) e.marks = "Marks must be at least 1.";
-    if (type === "mcq" && options.some((o) => !o.trim())) e.options = "Fill in all four options.";
+    // Whole marks only: the portal stores marks as whole numbers, so 2.5 would not save.
+    if (!Number.isInteger(marks) || marks < 1 || marks > 100) e.marks = "Marks must be a whole number from 1 to 100.";
+    if (type === "mcq") {
+      // Empty boxes at the end are fine (a question with two or three options);
+      // an empty box between filled ones is a slip.
+      const filled = options.map((o) => o.trim()).filter(Boolean).length;
+      const lastFilled = options.reduce((n, o, i) => (o.trim() ? i : n), -1);
+      if (filled < 2) e.options = "Fill in at least two options.";
+      else if (filled !== lastFilled + 1) e.options = "One option is empty. Fill it in, or move the ones below it up.";
+      else if (correctIndex < 0 || correctIndex > lastFilled) e.options = "Tap the circle next to the right answer.";
+    }
+    if (uploading) e.upload = "The paper is still uploading. Save once it has finished.";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -93,9 +106,9 @@ export function QuestionModal({
     const common = { prompt: prompt.trim(), topic: topic.trim() || "General", marks, attachments, ...(withSubject ? { subject: subject.trim() } : {}) };
     let draft: QuestionDraft;
     if (type === "mcq") {
-      draft = { ...common, type: "mcq", options: options.map((o) => o.trim()), correctIndex } as QuestionDraft;
+      draft = { ...common, type: "mcq", options: options.map((o) => o.trim()).filter(Boolean), correctIndex } as QuestionDraft;
     } else if (type === "text") {
-      draft = { ...common, type: "text", maxLength, showCounter } as QuestionDraft;
+      draft = { ...common, type: "text", maxLength: Math.max(50, Math.round(maxLength) || 400), showCounter } as QuestionDraft;
     } else {
       draft = { ...common, type: "photo" } as QuestionDraft;
     }
@@ -112,12 +125,22 @@ export function QuestionModal({
     onAddNext(build());
     setPrompt("");
     setOptions(["", "", "", ""]);
-    setCorrectIndex(0);
+    setCorrectIndex(-1);
     setAttachments([]);
     setErrors({});
     requestAnimationFrame(() => formRef.current?.querySelector("textarea")?.focus());
   }
   const adding = !initial && !!onAddNext;
+
+  // Closing by a stray tap outside the box (or Esc) must not throw away a typed question.
+  const dirty =
+    prompt.trim() !== (initial?.prompt ?? "").trim() ||
+    attachments.length !== (initial?.attachments?.length ?? 0) ||
+    (type === "mcq" && options.join("\n").trim() !== (initial?.type === "mcq" ? initial.options.join("\n") : "").trim());
+  function requestClose() {
+    if (dirty && !window.confirm(initial ? "Close without saving your changes to this question?" : "Close without adding this question? What you typed will be lost.")) return;
+    onClose();
+  }
 
   // A whole multiple-choice question pasted at once ("Question… A) … B) … C) … D) …"):
   // the options go into their own boxes.
@@ -131,25 +154,27 @@ export function QuestionModal({
     if (first < 1 || found.length < 2) return;
     e.preventDefault();
     setPrompt(lines.slice(0, first).join("\n"));
-    setOptions([...found, "", "", ""].slice(0, 4));
+    setOptions([...found, "", "", ""].slice(0, Math.max(4, found.length)));
+    // New options: the old choice of right answer no longer means anything.
+    setCorrectIndex(-1);
     toast("Options filled in. Tap the circle next to the right answer.", "success");
   }
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
       title={initial ? "Edit question" : "Add question"}
       size="lg"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button variant="secondary" onClick={requestClose}>Cancel</Button>
           {adding && (
-            <Button variant="secondary" onClick={handleNext} title="Ctrl+Enter">
+            <Button variant="secondary" onClick={handleNext} disabled={uploading} title="Ctrl+Enter">
               Add &amp; next
             </Button>
           )}
-          <Button onClick={handleSave}>{initial ? "Save changes" : adding ? "Add & close" : "Add question"}</Button>
+          <Button onClick={handleSave} disabled={uploading}>{initial ? "Save changes" : adding ? "Add & close" : "Add question"}</Button>
         </>
       }
     >
@@ -173,8 +198,9 @@ export function QuestionModal({
                 key={t}
                 type="button"
                 onClick={() => setType(t)}
+                aria-pressed={type === t}
                 className={
-                  "rounded-md border px-2 py-2.5 text-xs font-semibold transition-colors " +
+                  "min-h-11 rounded-md border px-2 py-2.5 text-xs font-semibold transition-colors " +
                   (type === t ? "border-brand bg-brand-soft text-brand" : "border-border-strong bg-surface text-ink-2 hover:bg-surface-2")
                 }
               >
@@ -185,7 +211,7 @@ export function QuestionModal({
         </div>
 
         {withSubject && (
-          <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} error={errors.subject} placeholder="e.g. Mathematics" required />
+          <Input label="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} error={errors.subject} placeholder="e.g. Accounting" required />
         )}
 
         <Textarea
@@ -225,7 +251,7 @@ export function QuestionModal({
                     type="button"
                     onClick={() => setAttachments(attachments.filter((_, idx) => idx !== i))}
                     aria-label={`Remove page ${i + 1}`}
-                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded bg-paper/85 text-ink-2 hover:bg-error hover:text-paper"
+                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded bg-paper/85 text-ink-2 before:absolute before:-inset-2.5 before:content-[''] hover:bg-error hover:text-paper"
                   >
                     ×
                   </button>
@@ -236,6 +262,7 @@ export function QuestionModal({
           <Button variant="secondary" size="sm" type="button" loading={uploading} onClick={() => fileRef.current?.click()}>
             {attachments.length ? "Add more pages" : "Attach PDF or image"}
           </Button>
+          {errors.upload && <p className="mt-1.5 text-sm font-medium text-error">{errors.upload}</p>}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -244,15 +271,15 @@ export function QuestionModal({
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             error={errors.topic}
-            placeholder="e.g. Algebra"
+            placeholder="e.g. Partnerships"
           />
-          <Input label="Marks" type="number" min={1} value={marks} onChange={(e) => setMarks(Number(e.target.value))} error={errors.marks} required />
+          <Input label="Marks" type="number" inputMode="numeric" min={1} max={100} step={1} value={marks} onChange={(e) => setMarks(Number(e.target.value))} error={errors.marks} required />
         </div>
 
         {type === "mcq" && (
           <div>
             <Label>Options: select the correct one</Label>
-            <div className="space-y-2">
+            <div className="space-y-2" role="radiogroup" aria-label="Correct answer">
               {options.map((opt, i) => (
                 <div
                   key={i}
@@ -268,7 +295,8 @@ export function QuestionModal({
                     aria-label={`Mark option ${i + 1} as correct`}
                     onClick={() => setCorrectIndex(i)}
                     className={cn(
-                      "flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors",
+                      // The circle stays small; its tap area reaches the edges of the row.
+                      "relative flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-colors before:absolute before:-inset-3.5 before:content-['']",
                       correctIndex === i ? "border-brand" : "border-border-strong hover:border-brand/50",
                     )}
                   >
@@ -285,7 +313,7 @@ export function QuestionModal({
                       }
                     }}
                     placeholder={`Option ${i + 1}`}
-                    className="w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-3"
+                    className="w-full bg-transparent text-base text-ink outline-none placeholder:text-ink-3"
                     aria-label={`Option ${i + 1}`}
                   />
                 </div>
@@ -298,7 +326,7 @@ export function QuestionModal({
 
         {type === "text" && (
           <div className="grid grid-cols-2 items-end gap-3">
-            <Input label="Max length" type="number" min={50} value={maxLength} onChange={(e) => setMaxLength(Number(e.target.value))} />
+            <Input label="Max length (characters)" type="number" inputMode="numeric" min={50} step={50} value={maxLength} onChange={(e) => setMaxLength(Number(e.target.value))} />
             <div className="pb-3">
               <Checkbox checked={showCounter} onChange={setShowCounter} label="Show character counter" />
             </div>

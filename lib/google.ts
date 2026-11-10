@@ -23,6 +23,14 @@ export const googleReady = () => !!(process.env.GOOGLE_CLIENT_ID && process.env.
 
 export const redirectUri = (origin: string) => `${origin}/api/google/callback`;
 
+/**
+ * Every call to Google gives up after this long. Without it one stuck
+ * connection held the whole 15-minute run (reminders included) until the
+ * server killed it. The callers already treat a failed call as "try next time".
+ */
+const GOOGLE_TIMEOUT_MS = 15_000;
+const patience = () => AbortSignal.timeout(GOOGLE_TIMEOUT_MS);
+
 // ---- OAuth -----------------------------------------------------------------
 
 /** A short-lived signed state, so only a flow an admin started can connect. */
@@ -36,7 +44,9 @@ export function makeState(): string {
 export function checkState(state: string | null): boolean {
   if (!state) return false;
   const [ts, sig] = state.split(".");
-  if (!ts || !sig || Date.now() - Number(ts) > 10 * 60_000) return false;
+  const made = Number(ts);
+  // Made in the last ten minutes (and not in the future), and signed by this server.
+  if (!ts || !sig || !Number.isFinite(made) || Date.now() - made > 10 * 60_000 || made - Date.now() > 60_000) return false;
   const a = Buffer.from(sig);
   const b = Buffer.from(sign(ts));
   return a.length === b.length && timingSafeEqual(a, b);
@@ -67,6 +77,7 @@ export async function exchangeCode(code: string, origin: string): Promise<{ refr
       redirect_uri: redirectUri(origin),
       grant_type: "authorization_code",
     }),
+    signal: patience(),
   });
   const j = (await res.json()) as { refresh_token?: string; id_token?: string; error?: string };
   if (!res.ok || !j.refresh_token) throw new Error(j.error ?? "no refresh token");
@@ -98,6 +109,7 @@ export async function accessToken(sb: SupabaseClient): Promise<string | null> {
           client_secret: process.env.GOOGLE_CLIENT_SECRET!,
           grant_type: "refresh_token",
         }),
+        signal: patience(),
       });
       status = res.status;
       j = (await res.json().catch(() => ({}))) as typeof j;
@@ -120,6 +132,7 @@ export function classEventId(date: string, classId: string, subjectId: string): 
 
 async function g<T>(token: string, url: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(url, {
+    signal: patience(),
     ...init,
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(init.headers ?? {}) },
   });
@@ -204,6 +217,7 @@ export async function deleteEvent(token: string, id: string) {
   const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(id)}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
+    signal: patience(),
   });
   if (!res.ok && res.status !== 404 && res.status !== 410) throw new Error(`Google ${res.status}`);
 }
@@ -262,7 +276,7 @@ export async function findRecording(
   let fileId = ev.attachments?.find((a) => a.mimeType?.startsWith("video/"))?.fileId ?? null;
   // ...and also names the Drive file after the event, so search as a fallback.
   if (!fileId) {
-    const q = `mimeType contains 'video/' and trashed = false and createdTime > '${afterIso}' and name contains '${title.replace(/'/g, "\\'")}'`;
+    const q = `mimeType contains 'video/' and trashed = false and createdTime > '${afterIso}' and name contains '${title.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
     const list = await g<{ files: Array<{ id: string }> }>(
       token,
       `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)&orderBy=createdTime&pageSize=1`,
@@ -289,9 +303,10 @@ export const fileIdOf = (url: string) => url.match(/\/d\/([\w-]+)/)?.[1] ?? url.
  * folder with by email (late joiners) keep access.
  */
 export async function closeLinkSharing(token: string, fileId: string) {
-  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions/anyoneWithLink`, {
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/permissions/anyoneWithLink`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
+    signal: patience(),
   });
   if (!res.ok && res.status !== 404) throw new Error(`Google ${res.status}`);
 }

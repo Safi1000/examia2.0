@@ -15,6 +15,12 @@ export interface WorldHandle {
   resize(w: number, h: number): void;
   dispose(): void;
   /**
+   * false while the page isn't showing the world (hidden tab, scrolled out of
+   * view): it stops drawing at once and keeps its last frame. Older worlds
+   * without it simply keep drawing.
+   */
+  setShown?(shown: boolean): void;
+  /**
    * Resolves once the world's shaders are compiled and it draws its first
    * real frame (until then it draws nothing, so the page can keep its
    * placeholder up). Older worlds without it are ready at once.
@@ -22,9 +28,18 @@ export interface WorldHandle {
   ready?: Promise<void>;
 }
 
+export interface WorldMountOptions {
+  reduceMotion?: boolean;
+  quality?: WorldQuality;
+  /** Most frames drawn a second; 0 or unset: every frame the screen shows. */
+  fps?: number;
+  /** Highest device pixel ratio drawn at; unset: the tier's own (2 high, 1.25 low). */
+  maxDpr?: number;
+}
+
 export interface WorldModule {
   id: string;
   title: string;
   blurb: string;
-  mount(canvas: HTMLCanvasElement, opts?: { reduceMotion?: boolean; quality?: WorldQuality }): WorldHandle;
+  mount(canvas: HTMLCanvasElement, opts?: WorldMountOptions): WorldHandle;
 }

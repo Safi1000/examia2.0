@@ -49,29 +49,45 @@ export async function readSnapshot(userId: string): Promise<Snapshot | null> {
       req.onsuccess = () => {
         const s = req.result as Snapshot | undefined;
         const fresh = s && s.v === VERSION && s.userId === userId && Date.now() - s.savedAt < MAX_AGE_MS;
+        db.close();
         resolve(fresh ? s : null);
       };
-      req.onerror = () => resolve(null);
+      req.onerror = () => {
+        db.close();
+        resolve(null);
+      };
     } catch {
+      db.close();
       resolve(null);
     }
   });
 }
 
+/** Goes up on every sign-out, so a save that was already on its way can't put the copy back afterwards. */
+let cleared = 0;
+
 export async function writeSnapshot(s: Omit<Snapshot, "v" | "savedAt">): Promise<void> {
+  const at = cleared;
   const db = await open();
   if (!db) return;
   try {
+    if (at !== cleared) return; // signed out while the database was opening
     db.transaction(STORE, "readwrite").objectStore(STORE).put({ ...s, v: VERSION, savedAt: Date.now() }, KEY);
   } catch {
     // Private mode or a full disk: the app simply loads the slower way.
+  } finally {
+    db.close(); // closes once the save has finished; one connection per save used to stay open
   }
 }
 
 export async function clearSnapshot(): Promise<void> {
+  cleared++;
   const db = await open();
   if (!db) return;
   try {
     db.transaction(STORE, "readwrite").objectStore(STORE).delete(KEY);
-  } catch {}
+  } catch {
+  } finally {
+    db.close();
+  }
 }

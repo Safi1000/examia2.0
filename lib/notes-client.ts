@@ -18,6 +18,8 @@ export type PdfLib = {
       getPage: (n: number) => Promise<{ getTextContent: () => Promise<{ items: TextItem[] }> }>;
       destroy?: () => Promise<void>;
     }>;
+    /** Stops the download and frees the worker's copy, also before the file has finished loading. */
+    destroy?: () => Promise<void>;
   };
   Util: { transform: (a: number[], b: number[]) => number[] };
 };

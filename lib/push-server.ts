@@ -76,6 +76,36 @@ interface Sub {
   auth: string;
 }
 
+type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+type Rows = { data: Row[] | null; error: { message: string } | null };
+const PAGE = 1000;
+
+/** Every row of a query, a page at a time (one read stops at 1,000). A failed page fails the whole read. */
+async function allRows(page: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message: string } | null }>): Promise<Rows> {
+  const rows: Row[] = [];
+  for (let from = 0; from < 200 * PAGE; from += PAGE) {
+    const r = await page(from, from + PAGE - 1);
+    // Asking past the last row can come back as "range not satisfiable": that just means the end.
+    if (r.error && from > 0 && /range/i.test(r.error.message)) break;
+    if (r.error) return { data: null, error: r.error };
+    const got = (r.data as Row[] | null) ?? [];
+    rows.push(...got);
+    if (got.length < PAGE) break;
+  }
+  return { data: rows, error: null };
+}
+
+/** The same read for a long list of students, 150 ids at a time, joined back together. */
+async function byIds(ids: string[], read: (part: string[]) => Promise<Rows>): Promise<Rows> {
+  const rows: Row[] = [];
+  for (let i = 0; i < ids.length; i += 150) {
+    const r = await read(ids.slice(i, i + 150));
+    if (r.error) return r;
+    rows.push(...(r.data ?? []));
+  }
+  return { data: rows, error: null };
+}
+
 /** Apply rules 2, 3 and 5, then send. Returns how many went out. */
 async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
   if (!items.length) return 0;
@@ -88,10 +118,16 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
   const today = pkDayStart();
   // Only today's log is read (for the daily cap): the whole log would pass the
   // 1,000-row read limit within weeks, and repeats are stopped by the insert below.
+  // Every read is paged (a table read stops at 1,000 rows) and asks about a
+  // slice of students at a time (hundreds of ids would make the address too long).
   const [{ data: subs }, { data: prefs }, { data: log }] = await Promise.all([
-    sb.from("push_subscriptions").select("*").in("student_id", ids),
-    sb.from("notify_prefs").select("*").in("student_id", ids),
-    sb.from("notify_log").select("student_id,kind,ref,sent_at").in("student_id", ids).gte("sent_at", today),
+    byIds(ids, (part) => allRows((a, b) => sb.from("push_subscriptions").select("*").in("student_id", part).order("id").range(a, b))),
+    byIds(ids, (part) => allRows((a, b) => sb.from("notify_prefs").select("*").in("student_id", part).order("student_id").range(a, b))),
+    byIds(ids, (part) =>
+      allRows((a, b) =>
+        sb.from("notify_log").select("student_id,kind,ref,sent_at").in("student_id", part).gte("sent_at", today).order("student_id").order("kind").order("ref").range(a, b),
+      ),
+    ),
   ]);
   const subsBy = new Map<string, Sub[]>();
   // Devices are written from the student's browser, so only real push services
@@ -155,6 +191,11 @@ async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
     thisRun.add(it.studentId);
     lastSent.set(it.studentId, nowMs);
 
+    // A push holds about 4,000 bytes in all; a very long test or homework name
+    // would be refused by the phone's push service on every try. Phones show less than this anyway.
+    const clip = (t: string, max: number) => (t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t);
+    it.title = clip(it.title, 120);
+    it.body = clip(it.body, 300);
     const payload = JSON.stringify({ title: it.title, body: it.body, url: it.url, tag: it.tag });
     // The push service was busy: un-remember it so the next run tries again
     // (only with one device, so a phone that did get it isn't sent it twice).
@@ -280,12 +321,14 @@ export async function levelSubjectsByStudent(sb: SupabaseClient): Promise<Map<st
 
 /** Students we may notify: have a device, and their cohort is switched on. */
 async function reachableStudents(sb: SupabaseClient) {
+  // Paged: a plain read stops at 1,000 rows, and past a few hundred students
+  // the ones beyond it would silently get nothing.
   const [{ data: subs }, { data: students }, { data: cohorts }, { data: sc }, { data: ss }] = await Promise.all([
-    sb.from("push_subscriptions").select("student_id"),
-    sb.from("students").select("id,cohort_id"),
+    allRows((a, b) => sb.from("push_subscriptions").select("id,student_id").order("id").range(a, b)),
+    allRows((a, b) => sb.from("students").select("id,cohort_id").order("id").range(a, b)),
     sb.from("cohorts").select("id,active"),
-    sb.from("student_classes").select("student_id,class_id"),
-    sb.from("student_subjects").select("student_id,subject_id"),
+    allRows((a, b) => sb.from("student_classes").select("student_id,class_id").order("student_id").order("class_id").range(a, b)),
+    allRows((a, b) => sb.from("student_subjects").select("student_id,subject_id").order("student_id").order("subject_id").range(a, b)),
   ]);
   const levels = await levelSubjectsByStudent(sb);
   const withDevice = new Set((subs ?? []).map((s) => s.student_id as string));

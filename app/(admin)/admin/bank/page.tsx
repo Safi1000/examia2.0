@@ -25,16 +25,29 @@ export default function QuestionBankPage() {
   const [importTestId, setImportTestId] = useState("");
 
   const subjects = useMemo(() => Array.from(new Set(db.bank.map((b) => b.subject))).sort(), [db.bank]);
-  const topics = useMemo(() => Array.from(new Set(db.bank.map((b) => b.topic))).sort(), [db.bank]);
-
-  const items = useMemo(
-    () =>
-      db.bank
-        .filter((b) => (subject === "all" ? true : b.subject === subject))
-        .filter((b) => (topic === "all" ? true : b.topic === topic))
-        .filter((b) => (q.trim() ? (b.prompt + b.topic + b.subject).toLowerCase().includes(q.toLowerCase()) : true)),
-    [db.bank, subject, topic, q],
+  // Only the topics of the chosen subject, so the menu never offers a dead end.
+  const topics = useMemo(
+    () => Array.from(new Set(db.bank.filter((b) => subject === "all" || b.subject === subject).map((b) => b.topic))).sort(),
+    [db.bank, subject],
   );
+  // A topic left over from another subject would show nothing at all.
+  const activeTopic = topic !== "all" && topics.includes(topic) ? topic : "all";
+
+  const items = useMemo(() => {
+    // Every word must appear somewhere ("partnership goodwill" finds both), spaces ignored at the ends.
+    const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return db.bank
+      .filter((b) => (subject === "all" ? true : b.subject === subject))
+      .filter((b) => (activeTopic === "all" ? true : b.topic === activeTopic))
+      .filter((b) => {
+        if (!words.length) return true;
+        const hay = `${b.prompt} ${b.topic} ${b.subject}`.toLowerCase();
+        return words.every((w) => hay.includes(w));
+      });
+  }, [db.bank, subject, activeTopic, q]);
+
+  // A few dozen at a time: a bank of hundreds rendered at once made typing in search lag.
+  const [limit, setLimit] = useState(60);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -63,15 +76,21 @@ export default function QuestionBankPage() {
       />
 
       <div className="mb-4 flex flex-wrap gap-2">
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" className="min-w-44 flex-1" aria-label="Search bank" />
-        <Select value={subject} onChange={(e) => setSubject(e.target.value)} className="w-auto min-w-36" aria-label="Subject">
-          <option value="all">All subjects</option>
-          {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
-        </Select>
-        <Select value={topic} onChange={(e) => setTopic(e.target.value)} className="w-auto min-w-32" aria-label="Topic">
-          <option value="all">All topics</option>
-          {topics.map((t) => <option key={t} value={t}>{t}</option>)}
-        </Select>
+        {/* Search and the two menus share one row from tablet width up (each menu
+            fills its own row otherwise, which pushed the list down). */}
+        <div className="min-w-0 flex-1 basis-full md:basis-64"><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" aria-label="Search bank" /></div>
+        <div className="min-w-0 flex-1 basis-40 md:max-w-56">
+          <Select value={subject} onChange={(e) => setSubject(e.target.value)} aria-label="Subject">
+            <option value="all">All subjects</option>
+            {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
+          </Select>
+        </div>
+        <div className="min-w-0 flex-1 basis-40 md:max-w-56">
+          <Select value={activeTopic} onChange={(e) => setTopic(e.target.value)} aria-label="Topic">
+            <option value="all">All topics</option>
+            {topics.map((t) => <option key={t} value={t}>{t}</option>)}
+          </Select>
+        </div>
       </div>
 
       {selected.size > 0 && (
@@ -88,28 +107,35 @@ export default function QuestionBankPage() {
         <EmptyState icon={<Icon.Bank />} title="No questions found" message="Adjust filters or add a new reusable question." />
       ) : (
         <Card as="ul" className="divide-y divide-border overflow-hidden p-0">
-          {items.map((b) => (
+          {items.slice(0, limit).map((b) => (
             <li key={b.id} className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-white/[0.018]">
               <div className="pt-0.5"><RowCheck checked={selected.has(b.id)} onChange={() => toggle(b.id)} label={`Select: ${b.prompt.slice(0, 60)}`} /></div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone="neutral">{b.subject}</Badge>
-                  <Badge tone="neutral">{b.topic}</Badge>
+                  {b.topic.trim() && <Badge tone="neutral">{b.topic}</Badge>}
                   <span className="text-xs text-ink-3">{b.type === "mcq" ? "Choice" : b.type === "photo" ? "Photo" : "Written"}</span>
                   <Pill>{b.marks}m</Pill>
                 </div>
                 <p className="mt-1.5 max-w-[75ch] text-pretty text-sm leading-relaxed text-ink">{b.prompt}</p>
               </div>
               <div className="flex shrink-0 gap-1">
-                <button onClick={() => { setEditing(b); setModalOpen(true); }} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11" aria-label="Edit question">
+                <button onClick={() => { setEditing(b); setModalOpen(true); }} className="flex h-11 w-11 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink" aria-label="Edit question">
                   <Icon.Edit className="h-4 w-4" />
                 </button>
-                <button onClick={() => setDeleteId(b.id)} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error max-md:h-11 max-md:w-11" aria-label="Delete question">
+                <button onClick={() => setDeleteId(b.id)} className="flex h-11 w-11 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error" aria-label="Delete question">
                   <Icon.Trash className="h-4 w-4" />
                 </button>
               </div>
             </li>
           ))}
+          {items.length > limit && (
+            <li className="flex justify-center p-2">
+              <button type="button" onClick={() => setLimit((n) => n + 100)} className="h-11 rounded-full px-5 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink">
+                Show more ({items.length - limit} left)
+              </button>
+            </li>
+          )}
         </Card>
       )}
 

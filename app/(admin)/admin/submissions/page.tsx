@@ -31,6 +31,7 @@ export default function SubmissionsPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
+  const [confirmPicked, setConfirmPicked] = useState(false);
 
   // Subjects that actually have submissions — filtering by an empty one is a
   // dead end the chips shouldn't offer.
@@ -63,7 +64,8 @@ export default function SubmissionsPage() {
       .filter((r) => (subjectFilter.length === 0 ? true : subjectFilter.includes(r.test.subject)))
       .filter((r) => (classFilter.length === 0 ? true : r.student?.classIds.some((c) => classFilter.includes(c)) ?? false))
       .filter((r) => (statuses.length === 0 ? true : statuses.includes(r.sub.status)))
-      .map((r) => ({ ...r, grade: gradeSubmission(r.test, r.sub) }))
+      // Worked out once per row here, not several times per row on every render.
+      .map((r) => ({ ...r, grade: gradeSubmission(r.test, r.sub), lateWindow: inLateWindow(db, r.sub) }))
       // Anything still needing a grade floats to the top; released work sinks.
       .sort(
         (a, b) =>
@@ -75,6 +77,29 @@ export default function SubmissionsPage() {
   // Bulk release covers exactly what the filters are showing: every awaiting
   // submission on an all-MCQ test, which needs no human marking.
   const releasable = rows.filter((r) => r.sub.status === "submitted" && isAllMcq(r.test));
+
+  // Ticked rows still on screen (a filter change must not leave hidden ones included).
+  const shown = new Set(rows.map((r) => r.sub.id));
+  const chosen = picked.filter((id) => shown.has(id));
+  // Only fully marked papers that haven't gone out yet. Unmarked written
+  // work would reach students as zeros; released ones would notify twice.
+  const ready = rows.filter((r) => chosen.includes(r.sub.id) && r.sub.status === "submitted" && isFullyGraded(r.test, r.sub));
+
+  /**
+   * Releases each paper. A test that is still open refuses every paper, so
+   * after its first refusal the rest of that test are skipped: one message,
+   * not one per script.
+   */
+  function releaseMany(list: typeof rows): number {
+    const refused = new Set<string>();
+    let out = 0;
+    for (const r of list) {
+      if (refused.has(r.test.id)) continue;
+      if (store.releaseSubmission(r.sub.id)) out++;
+      else refused.add(r.test.id);
+    }
+    return out;
+  }
 
   if (db.tests.length === 0) {
     return (
@@ -125,24 +150,16 @@ export default function SubmissionsPage() {
         />
       </div>
 
-      <BulkBar count={picked.length} noun="submission" onClear={() => setPicked([])}>
+      <BulkBar count={chosen.length} noun="submission" onClear={() => setPicked([])}>
         <Button
           size="sm"
           onClick={() => {
-            // Only fully marked papers that haven't gone out yet. Unmarked written
-            // work would reach students as zeros; released ones would notify twice.
-            const ready = rows.filter(
-              (r) => picked.includes(r.sub.id) && r.sub.status === "submitted" && isFullyGraded(r.test, r.sub),
-            );
-            const out = ready.filter((r) => store.releaseSubmission(r.sub.id));
-            const skipped = picked.length - out.length;
-            toast(
-              out.length
-                ? `${out.length} result${out.length === 1 ? "" : "s"} released.${skipped ? ` ${skipped} skipped: not fully marked, already released, or the test is still open.` : ""}`
-                : "Nothing released: the ticked papers aren't fully marked yet, are already released, or the test is still open.",
-              out.length ? "success" : "info",
-            );
-            setPicked([]);
+            if (ready.length === 0) {
+              toast("Nothing to release: the ticked papers aren't fully marked yet, or are already released.", "info");
+              return;
+            }
+            // Students are told the moment a result goes out, so it is confirmed first.
+            setConfirmPicked(true);
           }}
         >
           Release results
@@ -159,14 +176,14 @@ export default function SubmissionsPage() {
                 <tr>
                   <Th className="w-10">
                     <RowCheck
-                      checked={picked.length > 0 && picked.length === rows.length}
+                      checked={chosen.length > 0 && chosen.length === rows.length}
                       onChange={(on) => setPicked(on ? rows.map((r) => r.sub.id) : [])}
                       label="Select every row"
                     />
                   </Th>
                   <Th>Student</Th>
                   <Th>Test</Th>
-                  <Th className="hidden lg:table-cell">Cohort</Th>
+                  <Th className="hidden xl:table-cell">Cohort</Th>
                   <Th className="hidden md:table-cell">Status</Th>
                   <Th className="hidden md:table-cell">Score</Th>
                   <Th className="hidden md:table-cell">Submitted</Th>
@@ -174,7 +191,7 @@ export default function SubmissionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.slice(0, limit).map(({ sub, test, student, grade }) => {
+                {rows.slice(0, limit).map(({ sub, test, student, grade, lateWindow }) => {
                   const cohort = student ? cohortById(db, student.cohortId) : null;
                   return (
                     <tr key={sub.id}>
@@ -191,7 +208,7 @@ export default function SubmissionsPage() {
                           {student?.username ?? "Removed student"}
                         </Link>
                       </Td>
-                      <Td className="min-w-[8rem] text-ink-2 md:min-w-[10rem]">
+                      <Td className="min-w-[8rem] text-ink-2 xl:min-w-[10rem]">
                         {/* On a phone the status and score sit here, so nothing scrolls sideways. */}
                         <Link href={`/admin/grading/${sub.id}`} className="md:pointer-events-none">{test.title}</Link>
                         <span className="block text-xs text-ink-3">{test.subject}</span>
@@ -201,28 +218,28 @@ export default function SubmissionsPage() {
                           ) : (
                             <Badge tone="warning">Awaiting</Badge>
                           )}
-                          {sub.late && !inLateWindow(db, sub) && <span className="font-semibold text-error">late</span>}
+                          {sub.late && !lateWindow && <span className="font-semibold text-error">late</span>}
                         </span>
                       </Td>
-                      <Td className="hidden lg:table-cell">{cohort ? <span className="inline-flex items-center gap-1.5 text-ink-2"><CohortDot color={cohort.color} />{cohort.name}</span> : "No cohort"}</Td>
+                      <Td className="hidden xl:table-cell">{cohort ? <span className="inline-flex items-center gap-1.5 text-ink-2"><CohortDot color={cohort.color} />{cohort.name}</span> : "No cohort"}</Td>
                       <Td className="hidden md:table-cell">
                         {sub.status === "released" ? <Badge tone="success">Released</Badge> : <Badge tone="warning">Awaiting</Badge>}
                         {sub.autoSubmitted && <span className="ml-1 text-xs text-ink-3">auto</span>}
                         {sub.late &&
-                          (inLateWindow(db, sub) ? (
+                          (lateWindow ? (
                             <span className="ml-1 text-xs text-ink-3">late window</span>
                           ) : (
                             <span className="ml-1 text-xs font-semibold text-error">late</span>
                           ))}
                       </Td>
                       <Td className="hidden whitespace-nowrap font-semibold tabular-nums md:table-cell">{sub.status === "released" ? `${grade.percent}% · ${grade.letter}` : <span className="font-normal text-ink-3">Not yet</span>}</Td>
-                      <Td className="hidden whitespace-nowrap tabular-nums text-ink-2 md:table-cell">{sub.submittedAt ? formatTimestamp(sub.submittedAt) : "Not yet"}</Td>
+                      <Td className="hidden min-w-[6.5rem] tabular-nums text-ink-2 md:table-cell xl:whitespace-nowrap">{sub.submittedAt ? formatTimestamp(sub.submittedAt) : "Not yet"}</Td>
                       <Td>
                         <div className="flex items-center gap-1.5">
                           <Link href={`/admin/grading/${sub.id}`} className={cn(buttonClasses({ variant: "secondary", size: "sm" }), "max-md:hidden")}>
                             {sub.status === "released" ? "Review" : "Grade"}
                           </Link>
-                          <button onClick={() => setDeleteId(sub.id)} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error max-md:h-11 max-md:w-11" aria-label={`Delete ${student?.username ?? "this"} submission`}>
+                          <button onClick={() => setDeleteId(sub.id)} className="flex h-11 w-11 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error" aria-label={`Delete ${student?.username ?? "this"} submission`}>
                             <Icon.Trash className="h-4 w-4" />
                           </button>
                         </div>
@@ -253,7 +270,7 @@ export default function SubmissionsPage() {
             <Button variant="secondary" onClick={() => setBulkOpen(false)}>Cancel</Button>
             <Button
               onClick={() => {
-                const out = releasable.filter((r) => store.releaseSubmission(r.sub.id)).length;
+                const out = releaseMany(releasable);
                 setBulkOpen(false);
                 if (out) toast(`${out} result${out === 1 ? "" : "s"} released.`, "success");
               }}
@@ -264,6 +281,40 @@ export default function SubmissionsPage() {
         }
       >
         <p className="text-sm text-ink-2">Every question is multiple choice and marked automatically, so results can be released in one click.</p>
+      </Modal>
+
+      <Modal
+        open={confirmPicked}
+        onClose={() => setConfirmPicked(false)}
+        title={`Release ${ready.length} result${ready.length === 1 ? "" : "s"}?`}
+        description="Each student sees their mark and feedback straight away and gets a notice."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmPicked(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                const out = releaseMany(ready);
+                const skipped = chosen.length - out;
+                setConfirmPicked(false);
+                setPicked([]);
+                toast(
+                  out
+                    ? `${out} result${out === 1 ? "" : "s"} released.${skipped ? ` ${skipped} skipped: not fully marked, already released, or the test is still open.` : ""}`
+                    : "Nothing released: the test is still open.",
+                  out ? "success" : "info",
+                );
+              }}
+            >
+              Release
+            </Button>
+          </>
+        }
+      >
+        {chosen.length > ready.length && (
+          <p className="text-sm text-ink-2">
+            {chosen.length - ready.length} of the ticked papers {chosen.length - ready.length === 1 ? "is" : "are"} not fully marked or already released, so {chosen.length - ready.length === 1 ? "it stays" : "they stay"} as {chosen.length - ready.length === 1 ? "it is" : "they are"}.
+          </p>
+        )}
       </Modal>
 
       <Modal

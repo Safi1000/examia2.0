@@ -35,8 +35,13 @@ interface AutomationMeta extends Partial<AutomationSettings> {
   recordIssue?: string | null;
 }
 
+/**
+ * Throws when Hamza's account can't be read. A failed read must never pass as
+ * "nothing saved": that is the defaults (everything on), so the timer would
+ * mark absences or release results Hamza had switched off.
+ */
 export async function loadAutomation(sb: SupabaseClient): Promise<AutomationSettings & { cronAt?: string; recordIssue?: string | null }> {
-  const u = await adminUser(sb).catch(() => null);
+  const u = await adminUser(sb);
   const m = ((u?.app_metadata as { automation?: AutomationMeta } | undefined)?.automation ?? {}) as AutomationMeta;
   return { ...DEFAULT_AUTOMATION, ...pick(m), cronAt: m.cronAt, recordIssue: m.recordIssue ?? null };
 }
@@ -48,8 +53,13 @@ const pick = (m: Partial<AutomationSettings>): Partial<AutomationSettings> => {
   return out;
 };
 
+/**
+ * Refuses (throws) when the current settings can't be read, instead of
+ * writing the patch over an empty base: the timer's heartbeat would otherwise
+ * wipe Hamza's switches back to the defaults.
+ */
 export async function saveAutomation(sb: SupabaseClient, callerId: string | null, patch: Partial<AutomationSettings> & { cronAt?: string; recordIssue?: string | null }) {
-  const u = await adminUser(sb).catch(() => null);
+  const u = await adminUser(sb);
   const current = ((u?.app_metadata as { automation?: AutomationMeta } | undefined)?.automation ?? {}) as AutomationMeta;
   const next: AutomationMeta = {
     ...current,
@@ -118,15 +128,31 @@ export async function studentsIn(sb: SupabaseClient, classId: string, subjectIds
 /** Minutes after the start that still count as on time. */
 export const LATE_MINUTES = 10;
 
+/** How long after a level's last class auto-absent still runs (the timer runs every 15 minutes). */
+const ABSENT_WINDOW_MS = 3 * 3_600_000;
+
+/**
+ * The Pakistan dates whose classes the jobs below look at: today, plus
+ * yesterday for the first three hours after midnight. A class ending at
+ * 11:40 pm is due for auto-absent at 11:50 pm, but the next runs fall on the
+ * new date, which has its own (different) classes.
+ */
+const recentDates = (now: number) => [...new Set([pkDate(now - ABSENT_WINDOW_MS), pkDate(now)])];
+
 /** Today's late joiners: their automatic "present" becomes "late" (see top). */
 async function autoLate(sb: SupabaseClient, now: number) {
-  const today = pkDate(now);
   const db = await catalogue(sb);
-  const slots = liveSlotsOn(db, today).filter((s) => s.startMs <= now);
+  let total = 0;
+  for (const date of recentDates(now)) total += await autoLateOn(sb, db, date, now);
+  return total;
+}
+
+async function autoLateOn(sb: SupabaseClient, db: Awaited<ReturnType<typeof catalogue>>, date: string, now: number) {
+  const slots = liveSlotsOn(db, date).filter((s) => s.startMs <= now);
   if (!slots.length) return 0;
   const [{ data: joins }, { data: marks }] = await Promise.all([
-    sb.from("class_joins").select("student_id,class_id,subject_id,joined_at").eq("on_date", today),
-    sb.from("attendance_days").select("id,student_id,class_id,status,created_at").eq("on_date", today).eq("status", "present"),
+    sb.from("class_joins").select("student_id,class_id,subject_id,joined_at").eq("on_date", date),
+    sb.from("attendance_days").select("id,student_id,class_id,status,created_at").eq("on_date", date).eq("status", "present"),
   ]);
   const late: string[] = [];
   for (const m of marks ?? []) {
@@ -151,25 +177,31 @@ async function autoLate(sb: SupabaseClient, now: number) {
 
 /** After each level's last class: mark the no-shows absent (see top). */
 async function autoAbsent(sb: SupabaseClient, now: number) {
-  const today = pkDate(now);
   const db = await catalogue(sb);
+  let marked = 0;
+  for (const date of recentDates(now)) marked += await autoAbsentOn(sb, db, date, now);
+  return marked;
+}
+
+async function autoAbsentOn(sb: SupabaseClient, db: Awaited<ReturnType<typeof catalogue>>, date: string, now: number) {
   const byLevel = new Map<string, ReturnType<typeof liveSlotsOn>>();
-  for (const s of liveSlotsOn(db, today)) byLevel.set(s.classId, [...(byLevel.get(s.classId) ?? []), s]);
+  for (const s of liveSlotsOn(db, date)) byLevel.set(s.classId, [...(byLevel.get(s.classId) ?? []), s]);
   let marked = 0;
   for (const [classId, block] of byLevel) {
     const lastEnd = Math.max(...block.map((s) => s.endMs));
-    // From 10 minutes after the last class, for three hours (the timer runs every 15).
-    if (now < lastEnd + 10 * 60_000 || now > lastEnd + 3 * 3_600_000) continue;
-    const { data: joins } = await sb.from("class_joins").select("student_id").eq("on_date", today).eq("class_id", classId);
+    // From 10 minutes after the last class, for three hours. Everything below
+    // uses the class's own date, even when the run is after midnight.
+    if (now < lastEnd + 10 * 60_000 || now > lastEnd + ABSENT_WINDOW_MS) continue;
+    const { data: joins } = await sb.from("class_joins").select("student_id").eq("on_date", date).eq("class_id", classId);
     if (!joins?.length) continue;
     const joined = new Set(joins.map((j) => j.student_id as string));
-    const { data: marks } = await sb.from("attendance_days").select("student_id").eq("on_date", today);
+    const { data: marks } = await sb.from("attendance_days").select("student_id").eq("on_date", date);
     const hasMark = new Set((marks ?? []).map((m) => m.student_id as string));
     const who = (await studentsIn(sb, classId, block.map((s) => s.subjectId), { skipInPerson: true })).filter((id) => !joined.has(id) && !hasMark.has(id));
     if (!who.length) continue;
     const { error } = await sb
       .from("attendance_days")
-      .upsert(who.map((id) => ({ student_id: id, class_id: classId, on_date: today, status: "absent" })), { onConflict: "student_id,class_id,on_date", ignoreDuplicates: true });
+      .upsert(who.map((id) => ({ student_id: id, class_id: classId, on_date: date, status: "absent" })), { onConflict: "student_id,class_id,on_date", ignoreDuplicates: true });
     if (error) console.error("[automation] absent", error.message);
     else marked += who.length;
   }
@@ -232,6 +264,8 @@ async function autoRelease(sb: SupabaseClient, now: number) {
 
 /** Everything above, once per timer run. Each part fails on its own. */
 export async function runAutomations(sb: SupabaseClient, now = Date.now()) {
+  // Settings unknown (the account couldn't be read): do nothing this run rather
+  // than guess "on". The heartbeat is skipped too, so Today warns if it lasts.
   const settings = await loadAutomation(sb);
   setSchedule(await loadSchedule(sb));
   const [absent, late, released] = await Promise.all([
@@ -252,7 +286,8 @@ export interface HealthIssue {
 /** What Today should warn about. Empty when all is well. */
 export async function healthCheck(sb: SupabaseClient, now = Date.now()): Promise<HealthIssue[]> {
   const issues: HealthIssue[] = [];
-  const settings = await loadAutomation(sb);
+  const settings = await loadAutomation(sb).catch(() => null);
+  if (!settings) return issues;
   setSchedule(await loadSchedule(sb));
   const db = await catalogue(sb);
   const today = pkDate(now);

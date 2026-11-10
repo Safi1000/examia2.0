@@ -25,19 +25,39 @@ export function RouteProgress() {
   }, [clear]);
 
   useEffect(() => {
+    // The click on a link, and whether it got through to the page. A guard such
+    // as "Leave without saving?" stops the click before it reaches the link; the
+    // line then never starts, instead of creeping for 12s.
+    let started: MouseEvent | null = null;
+    let reached = false;
     const onClick = (e: MouseEvent) => {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       const a = (e.target as Element | null)?.closest?.("a");
       if (!a || !a.href || a.target === "_blank" || a.hasAttribute("download")) return;
       const url = new URL(a.href, location.href);
       if (url.origin !== location.origin || url.pathname === location.pathname) return;
-      clear();
-      setState("loading");
-      // Never left hanging if the page doesn't change after all.
-      timers.current.push(window.setTimeout(finish, 12000));
+      started = e;
+      reached = false;
+      const from = location.pathname;
+      // Decided once the click has finished its journey, so a stopped click
+      // never shows the line at all (nor does a page that already opened).
+      window.setTimeout(() => {
+        if (started !== e || !reached || location.pathname !== from) return;
+        clear();
+        setState("loading");
+        // Never left hanging if the page doesn't change after all.
+        timers.current.push(window.setTimeout(finish, 12000));
+      }, 0);
+    };
+    const onClickArrived = (e: MouseEvent) => {
+      if (e === started) reached = true;
     };
     document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
+    document.addEventListener("click", onClickArrived);
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("click", onClickArrived);
+    };
   }, [clear, finish]);
 
   useEffect(() => {

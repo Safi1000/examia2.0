@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import logo from "@/logo/logo-web.png";
 import { Icon } from "@/components/ui";
@@ -138,48 +138,81 @@ export async function drawMoment(m: Moment): Promise<Blob> {
     const w = 360;
     ctx.drawImage(img, 96, 150, w, (img.height / img.width) * w);
   } catch {}
-  return new Promise((resolve) => c.toBlob((b) => resolve(b!), "image/png"));
+  return new Promise((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error("no image"))), "image/png"));
 }
 
 export function ShareMoment({ moment, label = "Share", className }: { moment: Moment; label?: string; className?: string }) {
   const [fallback, setFallback] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const opener = useRef<HTMLButtonElement>(null);
+  const save = useRef<HTMLAnchorElement>(null);
   const text = `${moment.big}. ${moment.sub}. Studying with Hamza Teaches: https://www.${SITE}`;
 
   async function share() {
+    if (busy) return;
     setBusy(true);
+    setFailed(false);
     try {
       const blob = await drawMoment(moment);
       const file = new File([blob], "hamza-teaches.png", { type: "image/png" });
+      let shared = false;
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], text }).catch(() => {});
-      } else {
-        setFallback(URL.createObjectURL(blob));
+        try {
+          await navigator.share({ files: [file], text });
+          shared = true;
+        } catch (e) {
+          // They closed the share sheet: done. Anything else (the phone refused it): show the card to save instead.
+          shared = (e as { name?: string } | null)?.name === "AbortError";
+        }
       }
+      if (!shared) setFallback(URL.createObjectURL(blob));
+    } catch {
+      setFailed(true);
     } finally {
       setBusy(false);
     }
   }
 
+  // The card on show: the keyboard goes to it, Escape closes it, and its memory is freed after.
+  useEffect(() => {
+    if (!fallback) return;
+    const back = opener.current;
+    save.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      setFallback(null);
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      URL.revokeObjectURL(fallback);
+      back?.focus();
+    };
+  }, [fallback]);
+
   return (
     <>
       <button
+        ref={opener}
         type="button"
         onClick={() => void share()}
         aria-busy={busy}
         className={className ?? "inline-flex h-9 items-center gap-1.5 rounded-full border border-brand/40 px-4 text-sm font-semibold text-ink transition hover:bg-brand hover:text-on-brand"}
       >
         <Icon.Share className="h-4 w-4" />
-        {busy ? "Making your card…" : label}
+        {busy ? "Making your card…" : failed ? "Try again" : label}
       </button>
       {fallback &&
         createPortal(
-          <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-label="Share your card" onClick={() => setFallback(null)}>
+          <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-label="Share your card" onClick={() => setFallback(null)}>
             <div className="w-full max-w-sm rounded-2xl bg-surface p-4" onClick={(e) => e.stopPropagation()}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={fallback} alt="Your share card" className="mx-auto max-h-[55dvh] rounded-xl" />
               <div className="mt-4 grid gap-2">
-                <a href={fallback} download="hamza-teaches.png" className="inline-flex h-11 items-center justify-center rounded-full bg-brand text-sm font-semibold text-on-brand">
+                <a ref={save} href={fallback} download="hamza-teaches.png" className="inline-flex h-11 items-center justify-center rounded-full bg-brand text-sm font-semibold text-on-brand">
                   Download for Instagram
                 </a>
                 <a href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center justify-center rounded-full border border-border-strong text-sm font-semibold text-ink">

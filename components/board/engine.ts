@@ -785,7 +785,10 @@ export function measureText(text: string, size: number, st: TextStyle = {}): { w
 
 /** Compact a stroke for sending: fewer decimals, same look. */
 export function packStroke(s: Stroke): Stroke {
-  return { ...s, pts: s.pts.map((p) => [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10, Math.round(p[2] * 100) / 100]) };
+  // Fine ink (written zoomed far in) keeps one more decimal, or it looked rougher on the laptop
+  // and after a reload than it did while being written.
+  const k = s.size < 2 ? 100 : 10;
+  return { ...s, pts: s.pts.map((p) => [Math.round(p[0] * k) / k, Math.round(p[1] * k) / k, Math.round(p[2] * 100) / 100]) };
 }
 
 // ---------------------------------------------------------------- images
@@ -810,26 +813,45 @@ export const imageAt = (imgs: BoardImage[], x: number, y: number): BoardImage | 
 
 /** Loaded pictures, shared by every board on the page. */
 const cache = new Map<string, HTMLImageElement>();
+/** How many times in a row a picture has failed to load (it is tried again, a little later each time). */
+const fails = new Map<string, number>();
 /** Let go of loaded pictures (all, or all but `keep`): a new page starts light. */
 export function forgetImages(keep: string[] = []) {
   const k = new Set(keep);
   for (const url of [...cache.keys()]) if (!k.has(url)) cache.delete(url);
+  fails.clear();
 }
 export function loadImage(url: string, onReady: () => void): HTMLImageElement | null {
   const hit = cache.get(url);
   if (hit) return hit.complete && hit.naturalWidth ? hit : null;
   const img = new Image();
   img.decoding = "async";
-  img.onload = onReady;
+  img.onload = () => {
+    fails.delete(url);
+    onReady();
+  };
+  // Didn't load (a Wi-Fi blip, or a PDF page not made yet): forgotten, so the redraw asked for a
+  // little later tries again. Before, it stayed an empty outline until the page was reloaded.
+  img.onerror = () => {
+    if (cache.get(url) === img) cache.delete(url);
+    const n = (fails.get(url) ?? 0) + 1;
+    fails.set(url, n);
+    setTimeout(onReady, Math.min(30_000, 2000 * 2 ** (n - 1)));
+  };
   img.src = url;
   cache.set(url, img);
   return null;
 }
 
-/** A picture now known by another address (just uploaded): reuse the one already loaded (no flash, no second download). */
-export function aliasImage(from: string, to: string) {
+/**
+ * A picture now known by another address (just uploaded): reuse the one already loaded (no flash,
+ * no second download). True when the loaded picture now answers to the new address, so the old
+ * one is no longer needed.
+ */
+export function aliasImage(from: string, to: string): boolean {
   const el = cache.get(from);
   if (el && !cache.has(to)) cache.set(to, el);
+  return !!el && cache.get(to) === el && el.complete && el.naturalWidth > 0;
 }
 
 /** Natural size of a picture (waits for it to load). */

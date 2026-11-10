@@ -25,6 +25,7 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const bell = useRef<HTMLButtonElement>(null);
 
   // The bell is shared by both shells, but the two route groups have different
   // layouts and guards — sending an admin to the student route would bounce
@@ -38,7 +39,12 @@ export function NotificationBell() {
     const onDown = (e: PointerEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    // Escape closes and hands focus back to the bell (it was left on a row that had gone).
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      bell.current?.focus();
+    };
     document.addEventListener("pointerdown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {
@@ -60,6 +66,7 @@ export function NotificationBell() {
   return (
     <div ref={ref} className="relative">
       <button
+        ref={bell}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={unreadCount ? `Notifications (${unreadCount} unread)` : "Notifications"}
@@ -118,7 +125,7 @@ export function NotificationBell() {
           <div className="border-t border-border bg-surface-2/50">
             <button
               onClick={() => { setOpen(false); router.push(allHref); }}
-              className="flex w-full items-center justify-center gap-1.5 px-4 py-3 text-xs font-bold text-brand transition-colors hover:bg-surface-2"
+              className="flex min-h-11 w-full items-center justify-center gap-1.5 px-4 py-3 text-xs font-bold text-brand transition-colors hover:bg-surface-2"
             >
               Show all notifications
               <Icon.ChevronRight className="h-3.5 w-3.5" />
@@ -127,10 +134,10 @@ export function NotificationBell() {
             {activities.length > 0 && (
               <button
                 onClick={() => setConfirmClear(true)}
-                className="flex w-full items-center justify-center gap-1.5 border-t border-border px-4 py-2.5 text-xs font-semibold text-ink-3 transition-colors hover:bg-error-soft hover:text-error"
+                className="flex min-h-11 w-full items-center justify-center gap-1.5 border-t border-border px-4 py-2.5 text-xs font-semibold text-ink-3 transition-colors hover:bg-error-soft hover:text-error"
               >
                 <Icon.Trash className="h-3.5 w-3.5" />
-                Clear All Notifications
+                Clear all notifications
               </button>
             )}
           </div>
@@ -152,7 +159,7 @@ export function NotificationBell() {
               variant="danger"
               onClick={() => { clearAll(); setConfirmClear(false); setOpen(false); }}
             >
-              Clear All
+              Clear all
             </Button>
           </>
         }

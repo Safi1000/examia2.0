@@ -107,7 +107,8 @@ export function detectColumns(rows: Rows, subjects: SubjectItem[]): { header: nu
       };
       const isNumber = /phone|mobile|whats ?app|contact|number|cell|no$/.test(t) && !/name|serial|roll|^s ?no$|^sr/.test(t);
       // Columns that are never ours: serial numbers, roll numbers, IDs, fees, dates.
-      if (/^(s ?no|sr|serial|roll|id|student id|reg|fee|fees|paid|amount|date|email|e mail)\b/.test(t)) return;
+      // A bare "No" or "No." heading is a serial number too, not a phone number.
+      if (/^(no|s ?no|sr|serial|roll|id|student id|reg|fee|fees|paid|amount|date|email|e mail)\b/.test(t)) return;
       if (/parent|father|mother|guardian|family/.test(t)) {
         if (isNumber || /^parents?$/.test(t)) take("parent"); // "Father Name" is not a number
       } else if (/user ?name|login/.test(t)) take("username");
@@ -145,6 +146,8 @@ export function fixPhone(raw: string): string | undefined {
   else if (/^92\d{10}$/.test(p)) p = `+${p}`;
   else if (/^00\d+$/.test(p)) p = `+${p.slice(2)}`;
   else if (/^3\d{9}$/.test(p)) p = `+92${p}`;
+  // Gulf numbers typed with the country code but no "+": UAE and Saudi (9 digits after), Qatar, Bahrain, Oman, Kuwait (8).
+  else if (/^(971|966)\d{9}$/.test(p) || /^(974|973|968|965)\d{8}$/.test(p)) p = `+${p}`;
   return p;
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { Annotation, Answer, Question } from "@/types";
@@ -29,6 +29,8 @@ export default function GradingPage() {
   // Auto-marked MCQs are hidden by default so the written and photo answers
   // that actually need a decision are on screen first.
   const [showAuto, setShowAuto] = useState(false);
+  // Set by the first Release tap: a fast second tap (or Ctrl+Enter) must not release twice.
+  const releasing = useRef<string | null>(null);
 
   const submission = submissionById(db, subId);
   const test = submission ? testById(db, submission.testId) : null;
@@ -69,11 +71,13 @@ export default function GradingPage() {
   const others = queue.filter((s) => s.id !== subId).sort((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""));
   const nextId = (others.find((s) => s.testId === submission.testId) ?? others[0])?.id;
   const waiting = queue.length;
-  // Written / photo questions left blank and not yet scored: one tap gives them 0.
+  // Questions left blank and not yet scored: one tap gives them 0. A multiple
+  // choice question with no answer at all (added after hand in, or skipped and
+  // never saved) has no automatic mark, so it used to block release for good.
   const blanks = test.questions.filter((q) => {
-    if (q.type === "mcq") return false;
     const a = submission.answers.find((x) => x.questionId === q.id);
     if (typeof a?.marksAwarded === "number") return false;
+    if (q.type === "mcq") return !a || a.selectedIndex == null;
     return !a || (q.type === "text" ? !a.text?.trim() : !(a.photoUrls?.length || a.photoDataUrl));
   });
 
@@ -87,23 +91,22 @@ export default function GradingPage() {
   const name = student.username.charAt(0).toUpperCase() + student.username.slice(1);
 
   function release(goNext: boolean) {
+    if (released || releasing.current === subId) return;
+    releasing.current = subId;
     // Refused while the test is still open (the store says why).
-    if (!store.releaseSubmission(subId)) return;
+    if (!store.releaseSubmission(subId)) {
+      releasing.current = null;
+      return;
+    }
     toast(`${name}'s result released.`, "success");
     if (goNext && nextId) router.push(`/admin/grading/${nextId}`);
   }
 
   return (
-    <div
-      className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8"
-      // Ctrl/Cmd + Enter while marking: release and move to the next one.
-      onKeyDown={(e) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && fullyGraded && !released) {
-          e.preventDefault();
-          release(!!nextId);
-        }
-      }}
-    >
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+      {/* Ctrl/Cmd + Enter while marking: release and move to the next one,
+          wherever the focus is (it used to need a click inside the page first). */}
+      <ReleaseShortcut enabled={fullyGraded && !released} onRelease={() => release(!!nextId)} />
       <PageHeader
         title="Marking"
         subtitle={`${name} · ${test.title}${waiting ? ` · ${waiting} waiting to be marked` : ""}`}
@@ -112,7 +115,7 @@ export default function GradingPage() {
           released ? (
             <>
               <Badge tone="success">Released</Badge>
-              <Button variant="secondary" onClick={() => { if (!window.confirm("Take this result back to mark again? The student won't see it until you release it again.")) return; store.unreleaseSubmission(subId); toast("Opened for marking again.", "info"); }}>
+              <Button variant="secondary" onClick={() => { if (!window.confirm("Take this result back to mark again? The student won't see it until you release it again.")) return; store.unreleaseSubmission(subId); releasing.current = null; toast("Opened for marking again.", "info"); }}>
                 <Icon.Refresh className="h-4 w-4" /> Mark again
               </Button>
               {nextId && (
@@ -155,7 +158,7 @@ export default function GradingPage() {
                   for (const q of blanks) store.gradeAnswer(subId, q.id, 0);
                   toast(`Gave 0 to ${blanks.length === 1 ? "1 blank answer" : `${blanks.length} blank answers`}.`, "success");
                 }}
-                className="h-9 rounded-full border border-warning/40 px-3 text-xs font-semibold text-ink hover:bg-warning/10 max-md:h-11"
+                className="h-11 rounded-full border border-warning/40 px-3 text-xs font-semibold text-ink hover:bg-warning/10"
               >
                 0 for {blanks.length === 1 ? "the blank answer" : `the ${blanks.length} blank answers`}
               </button>
@@ -193,17 +196,21 @@ export default function GradingPage() {
         })}
       </div>
 
-      {/* Always in reach at the bottom (no scrolling back up on the iPad). */}
-      {!released && (
-        <div className="sticky bottom-3 z-20 mt-6 flex items-center justify-between gap-3 rounded-full border border-border-strong bg-surface/95 py-2 pl-5 pr-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),var(--shadow-lg)] backdrop-blur max-md:bottom-24">
-          <span className="text-sm font-semibold tabular-nums text-ink">
-            {awarded}/{total} <span className="font-normal text-ink-3">· {grade.percent}%</span>
-          </span>
+      {/* Always in reach at the bottom (no scrolling back up on the iPad). It
+          stays after release, so a quick second tap lands on it and not on a
+          mark button that was underneath. */}
+      <div className="sticky bottom-3 z-20 mt-6 flex items-center justify-between gap-3 rounded-full border border-border-strong bg-surface/95 py-2 pl-5 pr-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),var(--shadow-lg)] backdrop-blur max-md:bottom-24">
+        <span className="text-sm font-semibold tabular-nums text-ink">
+          {awarded}/{total} <span className="font-normal text-ink-3">· {grade.percent}%{released ? " · Released" : ""}</span>
+        </span>
+        {released ? (
+          nextId ? <Button variant="secondary" onClick={() => router.push(`/admin/grading/${nextId}`)}>Next to mark →</Button> : <span className="min-h-11" />
+        ) : (
           <Button disabled={!fullyGraded} onClick={() => release(!!nextId)}>
             {nextId ? "Release & next" : "Release result"}
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -279,7 +286,8 @@ function GradeCard({
   useEffect(() => () => flushFeedback(), [flushFeedback]);
 
   function setMarks(v: number) {
-    const clamped = Math.max(0, Math.min(question.marks, v));
+    // Whole marks: the portal stores whole numbers, so 2.5 looked saved but was not.
+    const clamped = Math.max(0, Math.min(question.marks, Math.round(Number.isFinite(v) ? v : 0)));
     store.gradeAnswer(submissionId, question.id, clamped);
   }
 
@@ -289,7 +297,7 @@ function GradeCard({
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-semibold tabular-nums text-ink-3">Q{index + 1}</span>
           <Badge tone="neutral">{question.type === "mcq" ? "Choice" : question.type === "photo" ? "Photo" : "Written"}</Badge>
-          <Badge tone="neutral">{question.topic}</Badge>
+          {question.topic.trim() && <Badge tone="neutral">{question.topic}</Badge>}
           <Pill>{question.marks}m</Pill>
           {locked && <span className="inline-flex items-center gap-1 text-xs text-ink-3"><Icon.Lock className="h-3 w-3" /> marked automatically</span>}
         </div>
@@ -323,7 +331,7 @@ function GradeCard({
           </ul>
         )}
         {question.type === "text" && (
-          <div className="rounded-lg bg-surface-2/60 p-3 text-sm leading-relaxed text-ink">
+          <div className="whitespace-pre-wrap break-words rounded-lg bg-surface-2/60 p-3 text-sm leading-relaxed text-ink">
             {answer?.text || <span className="italic text-ink-3">No answer given</span>}
           </div>
         )}
@@ -353,7 +361,7 @@ function GradeCard({
                     <button
                       onClick={() => setPage(Math.max(0, shown - 1))}
                       disabled={shown === 0}
-                      className="h-9 min-w-9 rounded-full border border-border-strong px-3 text-ink-2 transition-colors hover:bg-surface-2 disabled:opacity-40 max-md:h-11 max-md:min-w-11"
+                      className="h-11 min-w-11 rounded-full border border-border-strong px-3 text-ink-2 transition-colors hover:bg-surface-2 disabled:opacity-40"
                       aria-label="Previous page"
                     >
                       ‹
@@ -362,7 +370,7 @@ function GradeCard({
                     <button
                       onClick={() => setPage(Math.min(photos.length - 1, shown + 1))}
                       disabled={shown === photos.length - 1}
-                      className="h-9 min-w-9 rounded-full border border-border-strong px-3 text-ink-2 transition-colors hover:bg-surface-2 disabled:opacity-40 max-md:h-11 max-md:min-w-11"
+                      className="h-11 min-w-11 rounded-full border border-border-strong px-3 text-ink-2 transition-colors hover:bg-surface-2 disabled:opacity-40"
                       aria-label="Next page"
                     >
                       ›
@@ -412,6 +420,8 @@ function GradeCard({
                   type="number"
                   min={0}
                   max={question.marks}
+                  step={1}
+                  inputMode="numeric"
                   value={awarded ?? ""}
                   onChange={(e) => setMarks(e.target.value === "" ? 0 : Number(e.target.value))}
                   placeholder="0"
@@ -463,7 +473,23 @@ function GradeCard({
 }
 
 const GRACE_MS = 2 * 60_000;
-const clock = (ms: number) => new Date(ms).toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true });
+// Pakistan time, like every other time in the portal (not the device's own zone).
+const clock = (ms: number) => new Date(ms).toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit", hour12: true });
+
+/** Ctrl or Cmd + Enter anywhere on the page releases the result. */
+function ReleaseShortcut({ enabled, onRelease }: { enabled: boolean; onRelease: () => void }) {
+  const fire = useEffectEvent((e: KeyboardEvent) => {
+    if (!enabled || !(e.metaKey || e.ctrlKey) || e.key !== "Enter" || e.repeat) return;
+    e.preventDefault();
+    onRelease();
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => fire(e);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  return null;
+}
 
 /** "Taken 4:46 pm" under a page, with a gentle flag if it was well after time. */
 function TakenNote({ url, writeEndMs }: { url: string; writeEndMs: number | null }) {

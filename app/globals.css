@@ -27,7 +27,7 @@
   --color-ink-2: #b0b6bb;       /* text-secondary (brand body grey) */
   --color-ink-3: #969ca2;       /* text-muted: 4.5:1 or better on paper, surface-2 and raised cards */
 
-  /* ---- Brand / accent (gold — overridden by ThemeManager per user) ---- */
+  /* ---- Brand / accent (gold, the only accent; ThemeManager always applies gold) ---- */
   --color-brand: #FBC159;
   --color-brand-strong: #e5a832;
   --color-brand-soft: #2e2510;
@@ -102,8 +102,8 @@
   --color-card: #282b2f;
   --color-card-raised: #2e3236;
 
-  /* Sparse gold (same hue as --color-brand, held fixed so the marketing page
-     does not shift when a signed-in student picks a different accent) */
+  /* Sparse gold (same hue as --color-brand, held fixed here so the marketing
+     page never depends on the portal's brand token) */
   --color-gold: #fbc159;
   --color-gold-tint: rgba(251, 193, 89, 0.12);
   --color-gold-border: rgba(251, 193, 89, 0.3);
@@ -623,6 +623,19 @@ textarea:-webkit-autofill:focus {
 .portal-backdrop .landing-backdrop__grid,
 .portal-backdrop .landing-backdrop__ambient {
   transition: none;
+}
+/* The portal's glow is a touch softer than the homepage's (0.075, not 0.11),
+   so muted subtitles that sit in it ("8 tests") keep 4.5:1 contrast. */
+.portal-backdrop .landing-backdrop__ambient {
+  background:
+    radial-gradient(42vmax 34vmax at var(--ax) var(--ay), rgba(251, 193, 89, 0.075), transparent 70%),
+    radial-gradient(28vmax 22vmax at calc(100% - var(--ax)) calc(100% - var(--ay)), rgba(251, 193, 89, 0.045), transparent 70%);
+}
+/* Portal pages only (the backdrop exists nowhere else): native checkboxes,
+   ranges and select menus draw dark and gold instead of the browser's light blue. */
+html:has(.portal-backdrop) {
+  color-scheme: dark;
+  accent-color: var(--color-brand);
 }
 
 .landing-backdrop__ambient {

@@ -100,7 +100,7 @@ export default function GroundworkPage() {
                       type="button"
                       onClick={() => updateProfile({ today: { ...oneThing, done: !oneThing.done } })}
                       aria-pressed={!!oneThing.done}
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm ${oneThing.done ? "border-brand bg-brand text-on-brand" : "border-border-strong text-transparent hover:text-ink-3"}`}
+                      className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm after:absolute after:-inset-1 after:content-[''] ${oneThing.done ? "border-brand bg-brand text-on-brand" : "border-border-strong text-transparent hover:text-ink-3"}`}
                       aria-label={oneThing.done ? "Mark not done" : "Mark done"}
                     >
                       ✓
@@ -187,7 +187,7 @@ export default function GroundworkPage() {
                   ))}
                 </ol>
               ) : (
-                <p className="px-3 py-3 text-sm text-ink-2">Nobody yet this week. One session puts you at the top.</p>
+                <p className="px-3 py-3 text-sm text-ink-2">{top ? "Nobody yet this week. One session puts you at the top." : "Your class's top three shows here."}</p>
               )}
               {top?.me && top.me.rank > 3 && (
                 <p className="border-t border-hairline px-3 pb-2 pt-3 text-sm text-ink-2">

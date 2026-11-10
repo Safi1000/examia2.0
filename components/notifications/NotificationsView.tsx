@@ -80,7 +80,9 @@ export function NotificationsView() {
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [hasMore]);
+    // `limit` too: if the next page still leaves the marker on screen (a tall
+    // screen, short rows), a fresh observer reports it again and loading carries on.
+  }, [hasMore, limit]);
 
   const onSelect = useCallback(
     (a: Activity) => {
@@ -209,7 +211,7 @@ export function NotificationsView() {
               variant="danger"
               onClick={() => { clearAll(); setConfirmClear(false); }}
             >
-              Clear All
+              Clear all
             </Button>
           </>
         }

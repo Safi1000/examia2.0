@@ -3,6 +3,8 @@
 import type { Test } from "@/types";
 
 const stamp = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+/** Calendar files treat commas, semicolons and backslashes as separators: they have to be escaped in text. */
+const text = (s: string) => s.replace(/\\/g, "\\\\").replace(/([,;])/g, "\\$1").replace(/\r?\n/g, "\\n");
 
 /**
  * "Add to calendar" for an upcoming test: a standard .ics file the phone's
@@ -19,8 +21,9 @@ export function AddToCalendar({ test }: { test: Test }) {
     `DTSTAMP:${stamp(new Date().toISOString())}`,
     `DTSTART:${stamp(test.opensAt)}`,
     `DTEND:${stamp(new Date(new Date(test.opensAt).getTime() + test.durationMinutes * 60_000).toISOString())}`,
-    `SUMMARY:Test: ${test.title.replace(/[,;]/g, " ")}`,
-    `DESCRIPTION:${test.durationMinutes} minutes. Open it in the Hamza Teaches portal. Closes ${new Date(test.closesAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}.`,
+    `SUMMARY:${text(`Test: ${test.title}`)}`,
+    // The closing time on the phone's own clock (the calendar shows the event that way too), 12-hour like the portal.
+    `DESCRIPTION:${text(`${test.durationMinutes} minutes. Open it in the Hamza Teaches portal. Closes ${new Date(test.closesAt).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true }).replace(/\s?(am|pm)$/i, (m) => ` ${m.trim().toUpperCase()}`)}.`)}`,
     `URL:${origin}/test/${test.id}`,
     "BEGIN:VALARM",
     "TRIGGER:-PT1H",

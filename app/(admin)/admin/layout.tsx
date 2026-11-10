@@ -1,7 +1,7 @@
 "use client";
 
 import { ScheduleGate } from "@/components/ScheduleGate";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useDataReady } from "@/lib/data/store";
@@ -52,6 +52,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { toast } = useToast();
   const ready = useDataReady();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const drawerRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = session?.role === "admin";
   const pathname = usePathname();
@@ -59,6 +60,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useSessionTimeout(
     () => {
+      setMobileOpen(false);
       logout();
       toast("Signed out after 3 hours without use.", "info");
       // Stay on the teacher sign-in, not the student one.
@@ -68,18 +70,48 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     isAdmin,
   );
 
-  // Phone menu: Esc closes it, and the page behind doesn't scroll.
+  // Only while the console itself is showing: signed out with the menu open,
+  // the sign-in screen behind must still scroll.
+  const drawerOpen = mobileOpen && isAdmin && ready;
+
+  // Phone menu: focus moves into it and stays there, Esc closes it, the page
+  // behind doesn't scroll, and focus goes back to the button that opened it.
   useEffect(() => {
-    if (!mobileOpen) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMobileOpen(false);
+    if (!drawerOpen) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") return setMobileOpen(false);
+      const panel = drawerRef.current;
+      if (e.key !== "Tab" || !panel) return;
+      const items = [...panel.querySelectorAll<HTMLElement>("a[href],button:not([disabled])")];
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const at = document.activeElement;
+      if (e.shiftKey && (at === first || at === panel)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (at === last || !panel.contains(at))) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    // Turning the phone sideways (or widening the window) brings the fixed
+    // sidebar back; an open drawer would be hidden but still lock the page.
+    const wide = window.matchMedia("(min-width: 768px)");
+    const onWide = () => wide.matches && setMobileOpen(false);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", onKey);
+    wide.addEventListener("change", onWide);
+    drawerRef.current?.focus({ preventScroll: true });
     return () => {
       document.body.style.overflow = prev;
       document.removeEventListener("keydown", onKey);
+      wide.removeEventListener("change", onWide);
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
-  }, [mobileOpen]);
+  }, [drawerOpen]);
 
   if (initializing) {
     return <Splash />;
@@ -109,11 +141,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </aside>
 
         {/* Mobile overlay sidebar */}
-        {mobileOpen && (
+        {drawerOpen && (
           <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Menu">
             <div className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} aria-hidden />
-            <div className="absolute inset-y-0 left-0 w-72 max-w-[82%] animate-slide-in border-r border-border shadow-[var(--shadow-lg)]">
+            <div
+              ref={drawerRef}
+              tabIndex={-1}
+              className="absolute inset-y-0 left-0 w-72 max-w-[82%] animate-slide-in border-r border-border shadow-[var(--shadow-lg)] outline-none"
+            >
               <Sidebar onNavigate={() => setMobileOpen(false)} />
+              <button
+                type="button"
+                onClick={() => setMobileOpen(false)}
+                aria-label="Close menu"
+                className="absolute right-2 top-3.5 flex h-11 w-11 items-center justify-center rounded-md text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink"
+              >
+                <Icon.Close />
+              </button>
             </div>
           </div>
         )}
@@ -123,9 +167,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-white/[0.06] bg-paper/95 px-4 lg:bg-paper/70 lg:backdrop-blur-xl">
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={() => setMobileOpen(true)}
                 className="flex h-11 w-11 items-center justify-center rounded-md text-ink-2 hover:bg-surface-2 md:hidden"
                 aria-label="Open navigation"
+                aria-haspopup="dialog"
+                aria-expanded={drawerOpen}
               >
                 <Icon.Menu />
               </button>
@@ -136,7 +183,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </header>
 
-          <main id="admin-main" tabIndex={-1} className="flex-1 pb-28 outline-none md:pb-0"><ScheduleGate>{children}</ScheduleGate></main>
+          <main id="admin-main" tabIndex={-1} className="flex-1 pb-28 outline-none md:pb-0"><ScheduleGate fresh>{children}</ScheduleGate></main>
         </div>
 
         {/* Phones: the four everyday jobs at the thumb; everything else under More. */}
@@ -166,8 +213,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               })}
               <li>
                 <button
+                  type="button"
                   onClick={() => setMobileOpen(true)}
                   aria-haspopup="dialog"
+                  aria-expanded={drawerOpen}
                   className="flex h-[52px] w-full flex-col items-center justify-center gap-1 rounded-2xl text-xs font-semibold text-ink-3 active:scale-95"
                 >
                   <Icon.Menu className="h-5 w-5" />

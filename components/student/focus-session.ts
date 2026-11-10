@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { MIN_COUNTED, recordFocus } from "@/lib/focus";
+import { MIN_COUNTED, recordFocusOn } from "@/lib/focus";
 
 /**
  * The Groundwork session running right now, kept on the phone so its minutes
@@ -64,19 +64,73 @@ export function minutesToAdd(doneMs: number, logged: number): number {
 // True while a timer on this page owns the stored session, so it is never
 // "recovered" from under a session that is still going.
 let owned = false;
+/** Shared by every tab of the portal: held for as long as a timer is running a session. */
+const LOCK = "ht_focus_running";
+type Locks = { request: (name: string, a: unknown, b?: unknown) => Promise<unknown> };
+const locks = (): Locks | undefined => (typeof navigator === "undefined" ? undefined : (navigator as Navigator & { locks?: Locks }).locks);
+let held: (() => void) | null = null;
+
 export const ownRunning = (on: boolean) => {
   owned = on;
+  if (!on) {
+    held?.();
+    held = null;
+    return;
+  }
+  if (held) return;
+  // Held until the timer lets go, and let go by the browser itself when the tab closes or dies:
+  // that is how the next visit knows at once that a stored session is over.
+  let free = () => {};
+  const done = new Promise<void>((r) => (free = r));
+  held = free;
+  try {
+    void locks()
+      ?.request(LOCK, () => done)
+      .catch(() => {});
+  } catch {}
 };
 
-/** On the next visit: add what a cut-off session had done, once, then forget it. */
+/**
+ * Add what a cut-off session had done, once, then forget it. Runs when the
+ * portal opens and each time the student comes back to it. With no timer
+ * running it anywhere (the browser tells us), the session is over and is added
+ * now; where the browser can't tell, it waits until the session is clearly over.
+ */
 export function useRecoverFocus(enabled: boolean) {
   const { updateProfile } = useAuth();
   useEffect(() => {
-    if (!enabled || owned) return;
-    const r = loadRunning();
-    if (!r || Date.now() < r.startedAt + r.planned * 60_000 + STALE_MS) return;
-    clearRunning();
-    const m = minutesToAdd(r.doneMs, r.logged);
-    if (m > 0) updateProfile((latest) => ({ focus: recordFocus(latest.focus, m, r.subject, Date.now()) }));
+    if (!enabled) return;
+    const settle = (startedAt: number) => {
+      // Checked again at the last moment: a timer may have started, or another tab may have added it.
+      const r = loadRunning();
+      if (owned || !r || r.startedAt !== startedAt) return;
+      clearRunning();
+      const m = minutesToAdd(r.doneMs, r.logged);
+      const at = Date.now();
+      // Counted on the day it was studied, not the day the student came back.
+      const when = Math.min(at, r.awayAt ?? r.savedAt ?? at);
+      if (m > 0) updateProfile((latest) => ({ focus: recordFocusOn(latest.focus, m, r.subject, when, at) }));
+    };
+    const check = () => {
+      if (owned || document.visibilityState === "hidden") return;
+      const r = loadRunning();
+      if (!r) return;
+      const over = Date.now() >= r.startedAt + (r.planned || 0) * 60_000 + STALE_MS;
+      const l = locks();
+      if (!l) {
+        if (over) settle(r.startedAt);
+        return;
+      }
+      // Where the browser can tell, only "no timer holds it" counts as over: a timer paused for a long
+      // time in another tab still owns its session and adds it itself, so adding it here would count it twice.
+      l.request(LOCK, { ifAvailable: true }, (lock: unknown) => {
+        if (lock) settle(r.startedAt);
+      }).catch(() => {
+        if (over) settle(r.startedAt);
+      });
+    };
+    check();
+    document.addEventListener("visibilitychange", check);
+    return () => document.removeEventListener("visibilitychange", check);
   }, [enabled, updateProfile]);
 }

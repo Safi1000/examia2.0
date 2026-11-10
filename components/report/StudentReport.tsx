@@ -81,7 +81,8 @@ export function StudentReport({
         <section className="sr-stats">
           <div className="sr-stat">
             <div className="sr-stat-label">GRADE THIS MONTH</div>
-            <div className="sr-stat-value gold huge">{grade ?? "None yet"}</div>
+            {/* The huge size is for a grade letter; the words "None yet" at that size spill out of the column. */}
+            <div className={grade ? "sr-stat-value gold huge" : "sr-stat-value gold"}>{grade ?? "None yet"}</div>
           </div>
           <div className="sr-stat">
             <div className="sr-stat-label">AVERAGE</div>
@@ -183,8 +184,8 @@ const css = `
 .stureport .sr-name{font-family:var(--sr-display);font-weight:800;font-size:clamp(34px,8vw,60px);margin:8px 0 6px;letter-spacing:-.03em;line-height:1;color:#f6f7f8;word-break:break-word}
 .stureport .sr-cohort{font-size:13px;color:var(--sr-muted);margin-bottom:22px}
 
-.stureport .sr-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px solid var(--sr-gold-dim);border-bottom:1px solid var(--sr-gold-dim);padding:20px 0;margin-bottom:8px}
-.stureport .sr-stat{padding:2px 8px 2px 16px;border-left:2px solid var(--sr-gold)}
+.stureport .sr-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;border-top:1px solid var(--sr-gold-dim);border-bottom:1px solid var(--sr-gold-dim);padding:20px 0;margin-bottom:8px}
+.stureport .sr-stat{min-width:0;padding:2px 8px 2px 16px;border-left:2px solid var(--sr-gold)}
 .stureport .sr-stat-label{font-weight:600;font-size:9px;letter-spacing:.22em;color:var(--sr-gold);margin-bottom:10px}
 .stureport .sr-stat-value{font-family:var(--sr-display);font-weight:800;font-size:clamp(26px,6vw,40px);line-height:1;letter-spacing:-.03em;color:#f6f7f8}
 .stureport .sr-stat-value.huge{font-size:clamp(38px,9vw,60px)}
@@ -200,17 +201,18 @@ const css = `
 .stureport .sr-rule-thin{height:1px;background:var(--sr-gold-dim);margin:6px 0 2px}
 
 .stureport .sr-subjects{display:flex;flex-direction:column}
-.stureport .sr-subject-row{display:grid;grid-template-columns:1.3fr 2.4fr 1.2fr;align-items:center;gap:14px;padding:12px 2px;border-bottom:1px solid var(--sr-gold-dim)}
-.stureport .sr-s-name{font-family:var(--sr-display);font-weight:600;font-size:13.5px;color:#f6f7f8}
+.stureport .sr-subject-row{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,2.4fr) auto;align-items:center;gap:14px;padding:12px 2px;border-bottom:1px solid var(--sr-gold-dim)}
+.stureport .sr-s-name{min-width:0;overflow-wrap:anywhere;font-family:var(--sr-display);font-weight:600;font-size:13.5px;color:#f6f7f8}
 .stureport .sr-s-bar{position:relative;height:6px;background:var(--sr-gold-soft);border-radius:999px;overflow:hidden}
 .stureport .sr-s-bar-fill{position:absolute;inset:0 auto 0 0;background:var(--sr-gold);border-radius:999px}
-.stureport .sr-s-meta{display:flex;justify-content:flex-end;gap:12px;font-size:12px;color:var(--sr-muted)}
+.stureport .sr-s-meta{display:flex;white-space:nowrap;justify-content:flex-end;gap:12px;font-size:12px;color:var(--sr-muted)}
 .stureport .sr-s-avg{color:var(--sr-gold);font-weight:600;font-variant-numeric:tabular-nums}
 
 .stureport .sr-tests{list-style:none;margin:0;padding:0}
-.stureport .sr-test-row{display:grid;grid-template-columns:32px 1fr auto auto;align-items:center;gap:14px;padding:14px 2px;border-bottom:1px solid var(--sr-gold-dim)}
+.stureport .sr-test-row{display:grid;grid-template-columns:32px minmax(0,1fr) auto auto;align-items:center;gap:14px;padding:14px 2px;border-bottom:1px solid var(--sr-gold-dim)}
 .stureport .sr-t-index{font-family:var(--sr-display);font-weight:600;font-size:12px;color:var(--sr-gold);letter-spacing:.1em}
-.stureport .sr-t-title{font-family:var(--sr-display);font-weight:600;font-size:15px;letter-spacing:-.01em;color:#f6f7f8}
+.stureport .sr-t-body{min-width:0}
+.stureport .sr-t-title{overflow-wrap:anywhere;font-family:var(--sr-display);font-weight:600;font-size:15px;letter-spacing:-.01em;color:#f6f7f8}
 .stureport .sr-t-subject{font-size:12px;color:var(--sr-muted);margin-top:2px}
 .stureport .sr-t-score{font-weight:600;font-size:15px;color:var(--sr-fg);text-align:right;font-variant-numeric:tabular-nums}
 .stureport .sr-t-grade{font-family:var(--sr-display);font-weight:800;font-size:20px;text-align:right;letter-spacing:-.02em;min-width:34px}
@@ -220,7 +222,7 @@ const css = `
   .stureport .sr-stats{grid-template-columns:1fr;gap:0}
   .stureport .sr-stat{padding:12px 8px 12px 16px;border-bottom:1px solid var(--sr-gold-dim)}
   .stureport .sr-stat:last-child{border-bottom:0}
-  .stureport .sr-subject-row{grid-template-columns:1fr auto;gap:6px 12px}
+  .stureport .sr-subject-row{grid-template-columns:minmax(0,1fr) auto;gap:6px 12px}
   .stureport .sr-subject-row .sr-s-bar{grid-column:1 / -1;order:3}
 }
 `;

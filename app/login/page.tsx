@@ -43,7 +43,9 @@ export default function StudentLoginPage() {
     setError(null);
     let ok: boolean;
     try {
-      ok = await loginStudent(username, password);
+      ok = await loginStudent(username.trim(), password);
+      // A password pasted with a space on the end: try it without, before calling it wrong.
+      if (!ok && password.trim() !== password && password.trim()) ok = await loginStudent(username.trim(), password.trim());
     } catch (err) {
       setError(
         err instanceof Error && err.message === "network"
@@ -85,7 +87,7 @@ export default function StudentLoginPage() {
             href={forgotLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-ink-2 underline decoration-white/20 underline-offset-4 transition-colors hover:text-brand hover:decoration-brand"
+            className="inline-flex min-h-11 items-center text-ink-2 underline decoration-white/20 underline-offset-4 transition-colors hover:text-brand hover:decoration-brand"
           >
             Message Hamza
           </a>
@@ -107,7 +109,9 @@ export default function StudentLoginPage() {
                   setError(null);
                 }}
                 placeholder=""
+                name="username"
                 autoComplete="username"
+                enterKeyHint="next"
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}

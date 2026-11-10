@@ -22,6 +22,7 @@ import { LoginDetails } from "@/components/admin/LoginDetails";
 import { ImportStudents } from "@/components/admin/ImportStudents";
 import { newPassword } from "@/lib/password";
 import { fixPhone } from "@/lib/import-students";
+import { displayName } from "@/lib/display-name";
 
 const genPassword = newPassword;
 
@@ -45,9 +46,10 @@ function ChipToggle({
           <button
             key={item.id}
             type="button"
+            aria-pressed={on}
             onClick={() => onToggle(item.id)}
             className={cn(
-              "rounded-md border px-3 py-1.5 text-sm font-semibold transition-colors",
+              "min-h-10 rounded-md border px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-md:min-h-11",
               on
                 ? "border-brand bg-brand-soft text-brand"
                 : "border-border text-ink-2 hover:border-border-strong hover:text-ink",
@@ -113,16 +115,31 @@ export default function RosterPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [mode, setMode] = useState<"all" | "online" | "inperson">("all");
 
-  const students = useMemo(
-    () =>
-      db.students
-        .filter((s) => (view === "archive") === off.has(s.cohortId))
-        .filter((s) => (cohortId ? s.cohortId === cohortId : true))
-        .filter((s) => (mode === "all" ? true : (mode === "inperson") === inPersonIds.has(s.id)))
-        .filter((s) => (search.trim() ? `${s.username} ${s.email ?? ""} ${s.phone ?? ""} ${s.whatsapp ?? ""}`.toLowerCase().includes(search.trim().toLowerCase()) : true))
-        .sort((a, b) => a.username.localeCompare(b.username)),
-    [db.students, cohortId, search, view, off, mode, inPersonIds],
-  );
+  const students = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    // A number typed the local way ("0300 123…") still finds +92300123…: digits only, without the leading 0.
+    const qDigits = /^[\d\s+()-]+$/.test(q) ? q.replace(/\D/g, "").replace(/^0+/, "") : "";
+    return db.students
+      .filter((s) => (view === "archive") === off.has(s.cohortId))
+      .filter((s) => (cohortId ? s.cohortId === cohortId : true))
+      .filter((s) => (mode === "all" ? true : (mode === "inperson") === inPersonIds.has(s.id)))
+      .filter((s) => {
+        if (!q) return true;
+        // The name as it reads on screen too ("amelia k" finds amelia.k).
+        if (`${s.username} ${displayName(s.username)} ${s.email ?? ""} ${s.phone ?? ""} ${s.whatsapp ?? ""}`.toLowerCase().includes(q)) return true;
+        // Each number compared as bare digits, so a saved "+92 300 123…" still matches "0300123…".
+        return qDigits.length >= 4 && [s.phone, s.whatsapp].some((p) => (p ?? "").replace(/\D/g, "").includes(qDigits));
+      })
+      .sort((a, b) => a.username.localeCompare(b.username));
+  }, [db.students, cohortId, search, view, off, mode, inPersonIds]);
+
+  // Counted once for the whole list: counting per row re-read every submission
+  // for every student on each keystroke in the search box or the form.
+  const releasedCount = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const x of db.submissions) if (x.status === "released") m.set(x.studentId, (m.get(x.studentId) ?? 0) + 1);
+    return m;
+  }, [db.submissions]);
 
   // Classes/subjects available for the selected cohort in the form
   const selectedCohort = db.cohorts.find((c) => c.id === form.cohortId);
@@ -307,6 +324,9 @@ export default function RosterPage() {
                 "success",
               );
             setPicked([]);
+            // Start clean next time: a level or cohort left chosen here would quietly apply to the next students ticked.
+            setBulkClass("");
+            setBulkCohort("");
             setBulkTag("");
             setBulkBusy(false);
           }}
@@ -362,7 +382,7 @@ export default function RosterPage() {
                 aria-pressed={mode === k}
                 onClick={() => setMode(k)}
                 className={cn(
-                  "h-9 rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                  "h-9 rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-md:h-11",
                   mode === k ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink",
                 )}
               >
@@ -374,12 +394,24 @@ export default function RosterPage() {
       </div>
 
       {students.length === 0 ? (
-        <EmptyState icon={<Icon.Users />} title="No students" message="Add a student to get started." />
+        <EmptyState
+          icon={<Icon.Users />}
+          title={search.trim() ? "No student matches that" : view === "archive" ? "No past students" : "No students"}
+          message={
+            search.trim()
+              ? "Check the spelling, or clear the search."
+              : view === "archive"
+                ? "Students from archived cohorts appear here."
+                : cohortId || mode !== "all"
+                  ? "Nobody here yet. Pick another cohort or filter, or add a student."
+                  : "Add a student to get started."
+          }
+        />
       ) : (
         <Card className="divide-y divide-border overflow-hidden p-0">
           {students.map((s) => {
             const cohort = cohortById(db, s.cohortId);
-            const released = db.submissions.filter((x) => x.studentId === s.id && x.status === "released").length;
+            const released = releasedCount.get(s.id) ?? 0;
             const classNames = s.classIds.map((cid) => db.classes.find((x) => x.id === cid)?.name).filter(Boolean);
             const subjectNames = s.subjectIds.map((sid) => db.subjects.find((x) => x.id === sid)?.name).filter(Boolean);
             const nameOf = (sid: string) => db.subjects.find((x) => x.id === sid)?.name;
@@ -474,18 +506,19 @@ export default function RosterPage() {
 
       <Modal
         open={editing !== null}
-        onClose={() => setEditing(null)}
+        // Not while it is saving: the window would close over the result, and a failed save would vanish unseen.
+        onClose={() => !saving && setEditing(null)}
         title={editing === "new" ? "Add student" : "Edit student"}
         size="md"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button variant="secondary" onClick={() => setEditing(null)} disabled={saving}>Cancel</Button>
             <Button loading={saving} onClick={() => void save()}>{editing === "new" ? "Add" : "Save"}</Button>
           </>
         }
       >
         <div className="space-y-4">
-          <Input label="Username" value={form.username} onChange={(e) => { setForm({ ...form, username: e.target.value }); setError(null); }} required autoCapitalize="none" />
+          <Input label="Username" value={form.username} onChange={(e) => { setForm({ ...form, username: e.target.value }); setError(null); }} required autoCapitalize="none" autoCorrect="off" spellCheck={false} />
           <Input label="Email (optional)" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <div className="rounded-md border border-border bg-surface-2 px-4 py-3">
             <Checkbox
@@ -604,7 +637,7 @@ export default function RosterPage() {
               {editing === "new" ? "Temporary password" : "New password (only if they need one)"}
             </label>
             <div className="flex gap-2">
-              <Input value={form.tempPassword} onChange={(e) => setForm({ ...form, tempPassword: e.target.value })} className="flex-1" aria-label="Temporary password" />
+              <Input value={form.tempPassword} onChange={(e) => setForm({ ...form, tempPassword: e.target.value })} className="flex-1" aria-label={editing === "new" ? "Temporary password" : "New password"} autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false} />
               <Button type="button" variant="secondary" onClick={() => setForm({ ...form, tempPassword: genPassword() })}>Generate</Button>
             </div>
             <p className="mt-1.5 text-xs text-ink-3">

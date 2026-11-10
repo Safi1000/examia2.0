@@ -143,15 +143,18 @@ function copyStyles(to: Window) {
  * The floating timer for a running session. `view` is read live; the returned
  * `portal` must be rendered (it is the mini window's content on desktop).
  */
-export function useFloatTimer(view: FloatView, actions: Actions, enabled: boolean) {
+export function useFloatTimer(view: FloatView, actions: Actions, enabled: boolean, onActive?: (on: boolean) => void) {
   const [kind] = useState<FloatKind>(() => floatKind());
   const [docWin, setDocWin] = useState<Window | null>(null);
   const [videoOn, setVideoOn] = useState(false);
   const viewRef = useRef(view);
   const actRef = useRef(actions);
+  /** Told the moment the float opens or closes (the room's "stay to build" needs it before the next render). */
+  const activeRef = useRef(onActive);
   useEffect(() => {
     viewRef.current = view;
     actRef.current = actions;
+    activeRef.current = onActive;
   });
 
   // ---- Video float: a canvas, streamed into a silent video, kept ready so a tap can float it at once.
@@ -188,9 +191,13 @@ export function useFloatTimer(view: FloatView, actions: Actions, enabled: boolea
       if (ours.current) return;
       if (viewRef.current.paused) actRef.current.resume();
     };
-    const onEnter = () => setVideoOn(true);
+    const onEnter = () => {
+      setVideoOn(true);
+      activeRef.current?.(true);
+    };
     const onLeave = () => {
       setVideoOn(false);
+      activeRef.current?.(false);
       // Back in the page: keep the stream going for next time.
       if (v.paused) void v.play().catch(() => {});
     };
@@ -256,8 +263,12 @@ export function useFloatTimer(view: FloatView, actions: Actions, enabled: boolea
         root.style.height = "100%";
         w.document.body.style.margin = "0";
         w.document.body.appendChild(root);
-        w.addEventListener("pagehide", () => setDocWin(null));
+        w.addEventListener("pagehide", () => {
+          setDocWin(null);
+          activeRef.current?.(false);
+        });
         setDocWin(w);
+        activeRef.current?.(true);
         (w as Window & { __root?: HTMLElement }).__root = root;
         return;
       } catch {

@@ -164,7 +164,7 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
   const wa = (to: string, m: Made) => `https://wa.me/${waDigits(to)}?text=${encodeURIComponent(welcomeMessage({ username: m.username, password: m.password }))}`;
   const markSent = (u: string) => setMade((list) => list.map((m) => (m.username === u ? { ...m, sent: true } : m)));
   const chip = (on: boolean) =>
-    cn("rounded-md border px-3 py-1.5 text-sm font-semibold transition-colors", on ? "border-brand bg-brand-soft text-brand" : "border-border text-ink-2 hover:border-border-strong hover:text-ink");
+    cn("min-h-10 rounded-md border px-3 py-1.5 text-sm font-semibold transition-colors max-md:min-h-11", on ? "border-brand bg-brand-soft text-brand" : "border-border text-ink-2 hover:border-border-strong hover:text-ink");
   const headings = rows ? (header >= 0 ? rows[header] : rows[0].map((_, i) => `Column ${i + 1}`)) : [];
   const todo = fresh.length + realUpdates.length;
 
@@ -239,8 +239,16 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
                     size="sm"
                     variant="secondary"
                     onClick={() => {
-                      void navigator.clipboard?.writeText(welcomeMessage({ username: m.username, password: m.password })).then(() => toast("Message copied.", "success"));
-                      markSent(m.username);
+                      // Only counts as sent once the copy really worked.
+                      void (async () => {
+                        try {
+                          await navigator.clipboard.writeText(welcomeMessage({ username: m.username, password: m.password }));
+                          toast("Message copied.", "success");
+                          markSent(m.username);
+                        } catch {
+                          toast("Couldn't copy it. Write the login down from this list instead.", "error");
+                        }
+                      })();
                     }}
                   >
                     Copy message
@@ -283,7 +291,7 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
               onChange={(e) => setPaste(e.target.value)}
               rows={5}
               placeholder={"Name\tWhatsApp\tParent\tLevel\tSubjects\nAli Khan\t03001234567\t03331234567\tAS\tAccounting, Economics"}
-              className="w-full rounded-lg border border-border-strong bg-surface p-3 font-mono text-sm leading-relaxed text-ink"
+              className="w-full rounded-lg border border-border-strong bg-surface p-3 font-mono text-base leading-relaxed text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:text-sm"
             />
             <p className="mt-1 text-xs text-ink-3">
               Columns I look for: name (or username), student WhatsApp, parent WhatsApp, level (O Level, AS, A2) and subjects. Subjects can be one column (&quot;Accounting, Business&quot;) or a column per subject with a tick.
@@ -309,8 +317,8 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
               ))}
             </div>
             {!!cols?.subjectCols.length && <p className="mt-2 text-xs text-ink-3">Ticked subject columns: {cols.subjectCols.map((s) => `${headings[s.col]} (${name([s.subjectId], db.subjects)})`).join(", ")}</p>}
-            <label className="mt-3 flex items-center gap-2 text-sm text-ink-2">
-              <input type="checkbox" checked={header >= 0} onChange={(e) => setHeader(e.target.checked ? foundHeader : -1)} />
+            <label className="mt-3 flex min-h-11 items-center gap-2 text-sm text-ink-2">
+              <input type="checkbox" className="h-4 w-4" checked={header >= 0} onChange={(e) => setHeader(e.target.checked ? foundHeader : -1)} />
               First row is headings
             </label>
           </details>
@@ -347,8 +355,8 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
             {!!problems.length && <span className="rounded-full bg-warning-soft px-3 py-1 font-semibold text-warning">{problems.length} to fix</span>}
           </div>
           {plan.some((p) => p.existing && !p.problem) && (
-            <label className="flex items-center gap-2 text-sm text-ink-2">
-              <input type="checkbox" checked={updateExisting} onChange={(e) => setUpdateExisting(e.target.checked)} />
+            <label className="flex min-h-11 items-center gap-2 text-sm text-ink-2">
+              <input type="checkbox" className="h-4 w-4 shrink-0" checked={updateExisting} onChange={(e) => setUpdateExisting(e.target.checked)} />
               Update the level and subjects of students already in the portal ({realUpdates.length || "no"} change{realUpdates.length === 1 ? "" : "s"})
             </label>
           )}

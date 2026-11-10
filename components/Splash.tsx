@@ -37,19 +37,26 @@ export function Splash({ label, tips = false }: { label?: string; tips?: boolean
 
   return (
     <div role="status" aria-live="polite" className="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
-      <LogoTight className="logo-sheen h-7" />
-      <span className="relative mt-6 h-[3px] w-40 overflow-hidden rounded-full bg-white/[0.07]">
-        <span className="splash-fill absolute inset-0 overflow-hidden rounded-full bg-gradient-to-r from-brand/60 via-brand to-brand/80" />
-      </span>
-      <span className={label ? "mt-4 text-sm font-medium text-ink-2" : "sr-only"}>{label ?? "Loading"}</span>
-      {tips && (
-        <p key={i} className="tip-in mt-8 max-w-xs text-[15px] leading-relaxed text-ink-3" aria-live="off">
-          {TIPS[i]}
-        </p>
-      )}
-      <p className={`mt-6 text-xs text-ink-3 transition-opacity duration-700 ${slow ? "opacity-100" : "opacity-0"}`} aria-hidden={!slow}>
-        Taking a little longer than usual. Still on it.
-      </p>
+      {/* The logo and line hold the exact centre; everything else hangs below
+          them, so the logo never moves as tips change length or as one loading
+          screen hands over to the next. */}
+      <div className="relative flex flex-col items-center">
+        <LogoTight className="logo-sheen h-7" />
+        <span className="relative mt-6 h-[3px] w-40 overflow-hidden rounded-full bg-white/[0.07]">
+          <span className="splash-fill absolute inset-0 overflow-hidden rounded-full bg-gradient-to-r from-brand/60 via-brand to-brand/80" />
+        </span>
+        <div className="absolute left-1/2 top-full flex w-[min(20rem,calc(100vw-3rem))] -translate-x-1/2 flex-col items-center">
+          <span className={label ? "mt-4 text-sm font-medium text-ink-2" : "sr-only"}>{label ?? "Loading"}</span>
+          {tips && (
+            <p key={i} className="tip-in mt-8 text-[15px] leading-relaxed text-ink-3" aria-live="off">
+              {TIPS[i]}
+            </p>
+          )}
+          <p className={`mt-6 text-xs text-ink-3 transition-opacity duration-700 ${slow ? "opacity-100" : "opacity-0"}`} aria-hidden={!slow}>
+            Taking a little longer than usual. Still on it.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

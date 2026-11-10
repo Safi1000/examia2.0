@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { createClient } from "@supabase/supabase-js";
 import { COMPANY_NAME } from "@/lib/config";
+import { displayName } from "@/lib/display-name";
 
 /**
  * The card WhatsApp shows when the report link is pasted into a chat.
@@ -24,9 +25,9 @@ export default async function Image({ params }: { params: Promise<{ token: strin
     const { data } = await createClient(url, key).rpc("report_by_token", { p_token: token });
     const row = data?.[0] as { student_name: string; month: string } | undefined;
     if (row) {
-      studentName = row.student_name;
+      studentName = displayName(row.student_name);
       const [y, m] = row.month.split("-");
-      month = new Date(Number(y), Number(m) - 1, 1).toLocaleString("default", { month: "long", year: "numeric" });
+      month = new Date(Date.UTC(Number(y), Number(m) - 1, 1)).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
     }
   }
 

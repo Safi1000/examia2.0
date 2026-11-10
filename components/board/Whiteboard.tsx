@@ -38,6 +38,8 @@ import {
   measureText,
   TEXT_LINE,
   wrapText,
+  MAX_Z,
+  MIN_Z,
   newId,
   TEXT_PX,
   packStroke,
@@ -93,6 +95,9 @@ const MAIN_PAGE: BoardPage = { id: "main", title: "Board", at: 0 };
 const PAGE_EARLY_MIN = 1;
 /** The tablet's hovering pen shown as a red dot on the laptop. Off at Hamza's request. */
 const HOVER_POINTER = false;
+/** The board sliding up by itself after writing at the bottom of the screen. Off at Hamza's request:
+ * the board never moves on its own. (Page Down on the laptop still gives more room when asked.) */
+const AUTO_ROOM = false;
 /** Drawing a little ahead of the pen with the tablet's guessed points. Off: it made the ink tip blink. */
 const PREDICT_AHEAD = false;
 /** Messages that change a page's board (tagged with that page). */
@@ -182,6 +187,16 @@ function useCanvas(draw: (ctx: CanvasRenderingContext2D, w: number, h: number, a
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(c);
+    // Moved to a screen with a different pixel density (laptop screen to TV): the size on the page
+    // is the same, so nothing above notices, and the ink stayed soft. Watch the density itself.
+    let dprQuery: MediaQueryList | null = null;
+    const onDpr = () => {
+      dprQuery?.removeEventListener("change", onDpr);
+      dprQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+      dprQuery.addEventListener("change", onDpr);
+      resize();
+    };
+    onDpr();
     let raf = 0;
     const loop = () => {
       if (dirty.current) paintNow();
@@ -191,6 +206,7 @@ function useCanvas(draw: (ctx: CanvasRenderingContext2D, w: number, h: number, a
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      dprQuery?.removeEventListener("change", onDpr);
     };
   }, []);
 
@@ -214,10 +230,16 @@ type Layer = {
   /** When the layer was last drawn in full (rubbing out redraws at most this often). */
   builtAt: number;
   lastCam: string;
+  /** How long the last full draw took (a heavy page is drawn less often while a picture is dragged). */
+  cost: number;
 };
 const layers = new WeakMap<HTMLCanvasElement, Layer>();
 /** Goes up each time a picture finishes loading, so the layer is redrawn with it. */
 let imageVersion = 0;
+/** Draw every board's finished layer again (a font arrived). */
+const redrawAll = () => {
+  imageVersion++;
+};
 /** A zoom is shown by stretching the cached board, then drawn sharp this long after it stops. */
 const SETTLE_MS = 140;
 
@@ -271,7 +293,7 @@ function paint(
   const dpr = ctx.getTransform().a || 1;
   let L = layers.get(ctx.canvas);
   if (!L) {
-    L = { c: document.createElement("canvas"), content: "", strokes: null, images: null, cam: null, m: 0, movedAt: 0, builtAt: 0, lastCam: "" };
+    L = { c: document.createElement("canvas"), content: "", strokes: null, images: null, cam: null, m: 0, movedAt: 0, builtAt: 0, lastCam: "", cost: 0 };
     layers.set(ctx.canvas, L);
   }
   const now = performance.now();
@@ -333,9 +355,14 @@ function paint(
       if (bx.x > ox + vw || bx.y > oy + vh || bx.x + bx.w < ox || bx.y + bx.h < oy) continue;
       drawStroke(b, s);
     }
+    L.cost = performance.now() - L.builtAt;
   };
 
-  if (!L.cam || !sameContent) rebuild();
+  // A picture being dragged or resized on a heavy page: the whole board is drawn again about 30
+  // times a second, not on every frame (as rubbing out is, below). Only when nothing else changed,
+  // so a stroke just finished is never left out for a frame.
+  if (L.cam && L.content === content && L.images !== images && L.strokes === strokes && L.cost > 6 && now - L.builtAt < 33) onImage();
+  else if (!L.cam || !sameContent) rebuild();
   else if (L.strokes !== strokes) {
     // New strokes only: add them to the layer. Anything else (erased, undone, moved): draw again.
     if (onlyAdded(L.strokes, strokes)) {
@@ -732,6 +759,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const [fingerDraws, setFingerDraws] = useState(false);
   // The other device (laptop or tablet) on the private room.
   const [partner, setPartner] = useState(false);
+  // The tablet: the laptop was linked and has gone quiet (shown as a calm notice).
+  const [linkLost, setLinkLost] = useState(false);
   // Light (paper) or dark (night) board: shared with the other device and students.
   const look: ThemeId = "paper";
   const [ledger] = useState(() => new Ledger(lead ? 1 : 0));
@@ -767,7 +796,20 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   // What the other device is drawing or typing right now.
   const remoteLive = useRef<Stroke | null>(null);
   const [angle, setAngle] = useState<{ x: number; y: number; deg: number } | null>(null);
-  const [eraserAt, setEraserAt] = useState<{ x: number; y: number } | null>(null);
+  // The eraser ring is moved straight on the page element, not through React: rubbing out used to
+  // redraw the whole board's controls on every pen move.
+  const eraserRef = useRef<HTMLSpanElement>(null);
+  /** Show the ring at a screen point; with no point, hide it. */
+  const moveEraser = (x?: number, y?: number) => {
+    const el = eraserRef.current;
+    if (!el) return;
+    if (x === undefined || y === undefined) {
+      if (el.style.display !== "none") el.style.display = "none";
+      return;
+    }
+    el.style.transform = `translate(${x - ERASER_PX}px, ${y - ERASER_PX}px)`;
+    if (el.style.display !== "block") el.style.display = "block";
+  };
   const [zoom, setZoom] = useState(100);
   // What the toolbar needs to know, mirrored from the refs after each change.
   const [meta, setMeta] = useState({ undo: 0, redo: 0, content: 0 });
@@ -781,10 +823,21 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const showDebug = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // The toolbar only needs yes or no for each, so a new stroke on a page that already has some
+  // changes nothing here and the board's controls are not redrawn at every pen lift.
   const syncMeta = () =>
-    setMeta({ undo: undoStack.current.length, redo: redoStack.current.length, content: strokes.current.length + images.current.length });
+    setMeta((p) => {
+      const n = { undo: undoStack.current.length, redo: redoStack.current.length, content: strokes.current.length + images.current.length };
+      return !p.undo === !n.undo && !p.redo === !n.redo && !p.content === !n.content ? p : n;
+    });
 
+  // Set once the picture handles exist (further down): ends a handle drag left open.
+  const finishPicDragRef = useRef<(keepId?: string | null) => void>(() => {});
   const select = (id: string | null) => {
+    // The selection changing in the middle of a handle drag (the pen starting to write, a page
+    // change, Escape) takes the handle off the page before it can report the lift: the drag is
+    // finished here, or every handle stayed dead until the board was reloaded.
+    finishPicDragRef.current(id);
     selectedRef.current = id;
     setSelectedId(id);
   };
@@ -854,24 +907,48 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   // (points rounded to a tenth), so even a very full board saves in a moment.
   const snapshot = () => ({ strokes: strokes.current.map(packOnce), images: images.current.filter((m) => !m.url.startsWith("blob:")) });
   const save = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Set once flash exists (further down), for the link and the save, which are set up above it.
+  const flashRef = useRef<(msg: string, ms?: number) => void>(() => {});
+  // Said once: the browser would not keep the board (storage full or blocked).
+  const saveFailed = useRef(false);
+  const saved = useCallback(
+    (ok: boolean) => {
+      if (ok || saveFailed.current) return;
+      saveFailed.current = true;
+      flashRef.current(`This ${lead ? "tablet" : "laptop"} could not save the board. Keep this tab open.`, 9000);
+    },
+    [lead],
+  );
+  // Is the pen down or hovering ready to write? (Set once the pen's state exists, further down.)
+  const writingNow = useRef<() => boolean>(() => false);
+  const saveAsked = useRef(0);
   const persist = useCallback(() => {
     if (save.current) clearTimeout(save.current);
+    else saveAsked.current = Date.now();
     // Saved a moment after writing stops, in a quiet gap between pen strokes, so saving a full
     // page never makes the pen hitch.
-    save.current = setTimeout(() => {
+    const run = () => {
       save.current = null;
+      // The pen is on the glass or hovering over it: wait for it to lift away (ten seconds at most),
+      // so the save never lands on the first stroke after a pause.
+      if (writingNow.current() && Date.now() - saveAsked.current < 10_000) {
+        save.current = setTimeout(run, 700);
+        return;
+      }
       // The page and its board as they are now; if the page changes before the quiet moment
       // comes, this save is dropped (leaving a page already saves it).
       const id = pageRef.current.id;
       const board = { strokes: strokes.current.map(packOnce), images: images.current.filter((m) => !m.url.startsWith("blob:")) };
       const go = () => {
-        if (pageRef.current.id === id) void saveBoard(keyFor(id), board);
+        // Only a page whose own board has arrived: one still loading must never be saved nearly empty.
+        if (pageRef.current.id === id && loadedPageId.current === id) void saveBoard(keyFor(id), board).then(saved);
       };
       const idle = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
       if (idle) idle(go, { timeout: 2000 });
       else go();
-    }, 1500);
-  }, [keyFor]);
+    };
+    save.current = setTimeout(run, 1500);
+  }, [keyFor, saved]);
 
   // Closing or leaving the tab with a save still waiting: save straight away.
   useEffect(() => {
@@ -879,6 +956,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       if (!save.current) return;
       clearTimeout(save.current);
       save.current = null;
+      if (loadedPageId.current !== pageRef.current.id) return; // still loading: nothing of its own to save yet
       void saveBoard(keyFor(pageRef.current.id), { strokes: strokes.current.map(packOnce), images: images.current.filter((m) => !m.url.startsWith("blob:")) });
     };
     const onHide = () => document.visibilityState === "hidden" && flush();
@@ -890,12 +968,81 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     };
   }, [keyFor]);
 
+  // Where each page was last looked at. The tablet keeps it on the device too, so a reload in the
+  // middle of a class comes back to the same spot (and the laptop with it), not the top left corner.
+  const camByPage = useRef(new Map<string, Camera>());
+  const camsKey = `${storeKey}-cams`;
+  const saveCams = useCallback(() => {
+    if (!lead) return;
+    camByPage.current.set(pageRef.current.id, cam.current);
+    try {
+      localStorage.setItem(camsKey, JSON.stringify(Object.fromEntries(camByPage.current)));
+    } catch {}
+  }, [lead, camsKey]);
+  useEffect(() => {
+    const onHide = () => document.visibilityState === "hidden" && saveCams();
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", saveCams);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", saveCams);
+    };
+  }, [saveCams]);
+
+  // The laptop: what was made on it while the tablet was away, page by page. When the tablet's copy
+  // of that page arrives it is the truth for everything else, but this work is added to it rather
+  // than lost (a lesson prepared on the laptop the evening before).
+  const solo = useRef(new Map<string, Set<string>>());
+  const soloKey = `${storeKey}-solo`;
+  const soloSave = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveSolo = useCallback(() => {
+    if (soloSave.current) clearTimeout(soloSave.current);
+    soloSave.current = setTimeout(() => {
+      soloSave.current = null;
+      try {
+        const all: Record<string, string[]> = {};
+        for (const [k, v] of solo.current) if (v.size) all[k] = [...v];
+        localStorage.setItem(soloKey, JSON.stringify(all));
+      } catch {}
+    }, 400);
+  }, [soloKey]);
+  /** Take these off the "made while the tablet was away" list (rubbed out, or the tablet has them now). */
+  const dropSolo = useCallback(
+    (ids: string[] | null) => {
+      const pg = pageRef.current.id;
+      const set = solo.current.get(pg);
+      if (!set?.size) return;
+      if (ids) for (const id of ids) set.delete(id);
+      else solo.current.delete(pg);
+      saveSolo();
+    },
+    [saveSolo],
+  );
+  const noteSolo = useCallback(
+    (msg: BoardMsg) => {
+      for (const m of msg.t === "batch" ? msg.ms : [msg]) {
+        if (m.t === "del" || m.t === "imgdel") dropSolo(m.ids);
+        else if (m.t === "clear") dropSolo(null);
+        // Only while the tablet is silent: with it on, it hears every change as it is made.
+        else if ((m.t === "add" || m.t === "img") && Date.now() - tabletHeardAt.current >= 6000) {
+          const pg = pageRef.current.id;
+          const set = solo.current.get(pg) ?? new Set<string>();
+          set.add(m.t === "add" ? m.s.id : m.m.id);
+          solo.current.set(pg, set);
+          saveSolo();
+        }
+      }
+    },
+    [dropSolo, saveSolo],
+  );
+
   // Everything goes to the private room: just Hamza's tablet and laptop, nobody else.
   const send = useCallback(
     (m: BoardMsg) => {
+      if (!lead) noteSolo(m);
       link.current?.send(tagPage(stampMsg(ledger, m), pageRef.current.id));
     },
-    [ledger],
+    [ledger, lead, noteSolo],
   );
   const fullBoard = useCallback(
     (): BoardMsg => ({ t: "set", strokes: strokes.current.map(packOnce), images: images.current.filter((m) => !m.url.startsWith("blob:")) }),
@@ -931,48 +1078,149 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   useEffect(() => {
     showDebug.current = new URL(window.location.href).searchParams.get("debug") === "1";
     let alive = true;
-    const loadSaved = async () => {
-      // Where Hamza left off: the paper he chose, the page he was on, then its board.
+    const cam0 = cam.current;
+    // This device's saved list of pages. `switchPage`: also go back to the page Hamza was on (the
+    // tablet, or the laptop on its own; with the tablet on, the tablet says which page).
+    const readIndex = async (switchPage: boolean) => {
       const idx = await loadIndex(storeKey);
       if (!alive) return;
-      try {
-        const bg = localStorage.getItem("ht-board-bg") as Backdrop | null;
-        if (bg && BACKDROPS.includes(bg)) setPaperRef.current(bg, false);
-      } catch {}
-      if (idx?.pages.length && pageRef.current.id === MAIN_PAGE.id) {
-        // Pages already listed here (each class's own) stay alongside the saved list.
-        pagesRef.current = [...idx.pages, ...pagesRef.current.filter((x) => !idx.pages.some((y) => y.id === x.id))];
+      if (idx?.pages.length) {
+        const mine = pagesRef.current;
+        // Still on "Board": the saved list as it was. Already moved on this session: what is listed
+        // here now stays as it is, and the saved pages join it.
+        const fresh = switchPage && pageRef.current.id === MAIN_PAGE.id;
+        pagesRef.current = [...idx.pages.map((y) => (fresh ? y : (mine.find((x) => x.id === y.id) ?? y))), ...mine.filter((x) => !idx.pages.some((y) => y.id === x.id))];
         setPageList(pagesRef.current);
         const cur = idx.pages.find((x) => x.id === idx.current);
-        if (cur) {
+        if (fresh && cur) {
           pageRef.current = cur;
           setPage(cur);
         }
       }
       indexReady.current = true;
+      // A page opened before the list was read wasn't saved then (it would have written over the list): save it now.
+      if (pageRef.current.id !== MAIN_PAGE.id && pageRef.current.id !== idx?.current) void saveIndex(storeKey, { pages: pagesRef.current, current: pageRef.current.id });
       ensurePagesRef.current();
-      const saved = await loadBoard(keyFor(pageRef.current.id));
+    };
+    // The tablet: what the laptop says before the tablet knows which page it is on, and has that
+    // page's board, waits here. (Taken straight away, the laptop's board for "Board" landed on
+    // whichever page the tablet then opened, and an empty tablet could answer as if it were the truth.)
+    let early: BoardMsg[] | null = lead ? [] : null;
+    const drain = () => {
+      const q = early;
+      early = null;
+      if (q && alive) for (const m of q) onRemote.current(m);
+    };
+    // Never held for long, even if the saved board is slow to open.
+    const drainLate = setTimeout(drain, 3000);
+    const loadSaved = async () => {
+      try {
+        await openSaved();
+      } finally {
+        drain();
+      }
+    };
+    const openSaved = async () => {
+      // Where Hamza left off: the paper he chose, the page he was on, then its board.
+      await readIndex(true);
       if (!alive) return;
-      if (!(gotBoard.current && !lead)) loadedPageId.current = pageRef.current.id;
-      if (!saved) return;
-      // Anything that arrived while it loaded (the other device's board) stays too.
-      const hasS = new Set(saved.strokes.map((x) => x.id));
-      const hasI = new Set(saved.images.map((x) => x.id));
-      strokes.current = [...saved.strokes, ...strokes.current.filter((x) => !hasS.has(x.id))];
-      images.current = [...saved.images, ...images.current.filter((x) => !hasI.has(x.id))];
-      requestDraw();
-      syncMeta();
+      try {
+        const bg = localStorage.getItem("ht-board-bg") as Backdrop | null;
+        if (bg && BACKDROPS.includes(bg)) setPaperRef.current(bg, false);
+      } catch {}
+      if (lead) {
+        // And where on each page (unless Hamza has already moved the board while this loaded).
+        try {
+          const all = JSON.parse(localStorage.getItem(camsKey) ?? "{}") as Record<string, Partial<Camera> | null>;
+          for (const [id, c] of Object.entries(all)) {
+            if (!c || camByPage.current.has(id)) continue;
+            const { x, y, z } = c;
+            if (typeof x === "number" && typeof y === "number" && typeof z === "number" && Number.isFinite(x) && Number.isFinite(y) && z >= MIN_Z && z <= MAX_Z) camByPage.current.set(id, { x, y, z });
+          }
+        } catch {}
+        const c = camByPage.current.get(pageRef.current.id);
+        if (c && cam.current === cam0) {
+          cam.current = c;
+          setZoom(Math.round(c.z * 100));
+          requestDraw();
+          shareView();
+        }
+      }
+      const id = pageRef.current.id;
+      const saved = await loadBoard(keyFor(id));
+      // The page changed while it loaded: that page opens its own board.
+      if (!alive || pageRef.current.id !== id) return;
+      // The laptop: the tablet's board arrived meanwhile, and that is the truth. This device's older
+      // copy on top of it would bring back what was rubbed out.
+      if (!lead && gotBoard.current) return;
+      loadedPageId.current = id;
+      // Anything that arrived while it loaded (the other device's board) stays too, and is saved.
+      const arrived = strokes.current.length + images.current.length > 0;
+      if (saved) {
+        const hasS = new Set(saved.strokes.map((x) => x.id));
+        const hasI = new Set(saved.images.map((x) => x.id));
+        strokes.current = [...saved.strokes, ...strokes.current.filter((x) => !hasS.has(x.id))];
+        images.current = [...saved.images, ...images.current.filter((x) => !hasI.has(x.id))];
+        requestDraw();
+        syncMeta();
+      }
+      if (arrived) persist();
+    };
+    if (!lead) {
+      // The laptop's own list of pages is read straight away, even with the tablet on (its blank
+      // pages used to drop off the list), and what it made while the tablet was away.
+      void readIndex(false);
+      try {
+        const all = JSON.parse(localStorage.getItem(soloKey) ?? "{}") as Record<string, string[]>;
+        for (const [k, v] of Object.entries(all)) if (Array.isArray(v) && !solo.current.has(k)) solo.current.set(k, new Set(v));
+      } catch {}
+    }
+    // The laptop link, said plainly on the tablet (never on the laptop, whose screen the class sees).
+    let linked = false;
+    let lostTimer: ReturnType<typeof setTimeout> | null = null;
+    let lostShown = false;
+    const onPeople = (others: number) => {
+      const on = others > 0;
+      setPartner(on);
+      if (!lead) return;
+      if (on) {
+        if (lostTimer) clearTimeout(lostTimer);
+        lostTimer = null;
+        if (lostShown) {
+          lostShown = false;
+          setLinkLost(false);
+          flashRef.current("Laptop linked.");
+        }
+      } else if (linked && !lostTimer && !lostShown) {
+        // A few seconds first: on weak Wi-Fi the link can drop and come straight back.
+        lostTimer = setTimeout(() => {
+          lostShown = true;
+          setLinkLost(true);
+          // Then the notice steps aside (the grey dot in the top bar still says so).
+          lostTimer = setTimeout(() => {
+            lostTimer = null;
+            setLinkLost(false);
+          }, 30_000);
+        }, 3000);
+      }
+      linked = on;
     };
     // The tablet opens its saved board. The laptop waits a moment for the tablet's
     // board, and only opens its own copy when the tablet isn't on.
     if (lead) void loadSaved();
     const late = lead ? null : setTimeout(() => !gotBoard.current && void loadSaved(), 1800);
     const t = setTimeout(syncMeta, 0);
+    // Typed words drawn before the board's font had loaded are drawn again in it.
+    void document.fonts?.ready.then(() => {
+      if (!alive) return;
+      redrawAll();
+      requestDraw();
+    });
     link.current = connectBoard(
       room,
       "teacher",
-      (m) => onRemote.current(m),
-      (_viewers, others) => setPartner(others > 0),
+      (m) => (early ? early.push(m) : onRemote.current(m)),
+      (_viewers, others) => onPeople(others),
       true,
       lead ? undefined : () => tagPage(stampMsg(ledger, fullBoard()), pageRef.current.id),
     );
@@ -980,17 +1228,21 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const beat = lead
       ? setInterval(() => {
           const shared = images.current.filter((m) => !m.url.startsWith("blob:"));
-          send({ t: "rev", n: strokes.current.length + shared.length, last: strokes.current[strokes.current.length - 1]?.id ?? "", d: boardDigest(strokes.current, shared), p: pageRef.current });
+          const { w, h } = screen.current;
+          // The view goes too: a "view" message that got lost is put right within two seconds.
+          send({ t: "rev", n: strokes.current.length + shared.length, last: strokes.current[strokes.current.length - 1]?.id ?? "", d: boardDigest(strokes.current, shared), p: pageRef.current, ...(w && h ? { v: writingView(w, h) } : {}) });
         }, 2000)
       : undefined;
     return () => {
       alive = false;
       clearTimeout(t);
       if (late) clearTimeout(late);
+      clearTimeout(drainLate);
+      if (lostTimer) clearTimeout(lostTimer);
       clearInterval(beat);
       link.current?.close();
     };
-  }, [room, storeKey, keyFor, requestDraw, send, screen, fullBoard, lead, ledger]);
+  }, [room, storeKey, keyFor, requestDraw, send, screen, fullBoard, lead, ledger, persist, shareView, camsKey, soloKey]);
 
 
   // Keeps the text box on its words while the board pans or zooms.
@@ -1011,10 +1263,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const refresh = useCallback(() => {
     requestDraw();
     if (zoomLabel.current) clearTimeout(zoomLabel.current);
-    zoomLabel.current = setTimeout(() => setZoom(Math.round(cam.current.z * 100)), 150);
+    zoomLabel.current = setTimeout(() => {
+      setZoom(Math.round(cam.current.z * 100));
+      saveCams();
+    }, 150);
     shareView();
     if (typingRef.current) placeTyping();
-  }, [requestDraw, shareView, placeTyping]);
+  }, [requestDraw, shareView, placeTyping, saveCams]);
 
   // The laptop glides to wherever the tablet is looking, at screen speed.
   useEffect(() => {
@@ -1064,7 +1319,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const wake = () => {
       setQuiet(false);
       if (t) clearTimeout(t);
-      t = setTimeout(() => setQuiet(true), 3000);
+      t = setTimeout(() => {
+        setQuiet(true);
+        hideTip(); // a tooltip must not stay floating on the shared screen once the bars have gone
+      }, 3000);
     };
     wake();
     window.addEventListener("pointermove", wake);
@@ -1078,6 +1336,18 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     };
   }, [lead]);
 
+  // The tablet's writing space changed without a pan (turned round, resized, tools hidden or shown):
+  // the laptop is told, so it frames the same space straight away, not at the next pan.
+  useEffect(() => {
+    if (!lead) return;
+    const t = setTimeout(shareView, 30);
+    window.addEventListener("resize", shareView);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("resize", shareView);
+    };
+  }, [lead, toolsHidden, shareView]);
+
   // Tools hidden or shown on the laptop: the clear space changed, so fit again (bigger without tools).
   useEffect(() => {
     if (lead) return;
@@ -1086,11 +1356,15 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   }, [lead, toolsHidden]);
 
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const flash = (msg: string) => {
+  /** `ms`: how long it stays (problems stay longer: they are easy to miss in the middle of a class). */
+  const flash = (msg: string, ms = 2600) => {
     setNotice(msg);
     if (flashTimer.current) clearTimeout(flashTimer.current);
-    flashTimer.current = setTimeout(() => setNotice(null), 2600);
+    flashTimer.current = setTimeout(() => setNotice(null), ms);
   };
+  useEffect(() => {
+    flashRef.current = flash;
+  });
 
   // ---- history
   const commit = (a: Action) => {
@@ -1161,11 +1435,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   };
   const clearAll = () => {
     if (!strokes.current.length && !images.current.length) return;
+    const gone = [...strokes.current.map((x) => x.id), ...images.current.map((x) => x.id)];
     commit({ type: "clear", s: strokes.current, m: images.current });
     strokes.current = [];
     images.current = [];
     select(null);
     send({ t: "clear" });
+    // Remembered as gone, so a laptop that missed the clear can't hand them back when it rejoins.
+    ledger.mark(gone, ledger.stamp());
     persist();
     requestDraw();
     syncMeta();
@@ -1185,6 +1462,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   useEffect(() => {
     onRemote.current = (m: BoardMsg) => {
       if (!lead) tabletHeardAt.current = Date.now(); // the tablet is on: it picks the page
+      // Its number is heard first, even on a change for another page: a tablet opened fresh counts
+      // from zero, and until it had heard the laptop's count the laptop refused all it wrote.
+      ledger.hear((m as { q?: number }).q);
       // A change meant for another page (sent just as the page changed) is left out.
       if (m.pg && m.pg !== pageRef.current.id) return;
       switch (m.t) {
@@ -1246,6 +1526,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             link.current?.send({ t: "hello" });
             return;
           }
+          // A "view" message that got lost: the heartbeat carries the view, so this screen catches up.
+          const tv = teacherView.current;
+          if (m.v && (!tv || tv.x !== m.v.x || tv.y !== m.v.y || tv.w !== m.v.w || tv.h !== m.v.h)) {
+            teacherView.current = m.v;
+            follow.current();
+          }
           const shared = images.current.filter((x) => !x.url.startsWith("blob:"));
           const same =
             m.d !== undefined
@@ -1253,6 +1539,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               : strokes.current.length + shared.length === m.n && (strokes.current[strokes.current.length - 1]?.id ?? "") === m.last;
           // Behind twice in a row (not just a stroke in flight): take the tablet's board.
           revMiss.current = same ? 0 : revMiss.current + 1;
+          // The tablet has everything on this page, so nothing made here alone is still waiting.
+          if (same) dropSolo(null);
           if (revMiss.current >= 2) {
             revMiss.current = 0;
             resync.current = "rev";
@@ -1292,6 +1580,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           if (!ids.size) return;
           strokes.current = strokes.current.filter((x) => !ids.has(x.id));
           if (remoteLive.current && ids.has(remoteLive.current.id)) remoteLive.current = null;
+          if (!lead) dropSolo([...ids]);
           break;
         }
         case "img":
@@ -1303,6 +1592,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           if (!ids.size) return;
           images.current = images.current.filter((x) => !ids.has(x.id));
           if (selectedRef.current && ids.has(selectedRef.current)) select(null);
+          if (!lead) dropSolo([...ids]);
           break;
         }
         case "clear":
@@ -1314,19 +1604,22 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           images.current = [];
           remoteLive.current = null;
           select(null);
+          if (!lead) dropSolo(null);
           break;
         case "set": {
           ledger.hear(m.q);
           pageBoardIn.current = true;
           // The laptop now has this page's real board. (The tablet's own copy comes from its store.)
-          if (!lead) loadedPageId.current = pageRef.current.id;
-          const first = !gotBoard.current;
+          const pid = pageRef.current.id;
+          const hadOwn = loadedPageId.current === pid;
+          if (!lead) loadedPageId.current = pid;
           gotBoard.current = true;
           const theirs = m.strokes;
           const theirImgs = m.images ?? [];
-          if (lead && !first) {
-            // The tablet's board is the truth: after a Wi-Fi blip it only takes what the laptop drew
-            // meanwhile, never the laptop's (maybe older) copy of everything.
+          if (lead) {
+            // The tablet's board is the truth, the first time they meet as well as after a Wi-Fi blip:
+            // it only takes what the laptop has that it has never held, never the laptop's (maybe
+            // older) copy of everything, which brought back writing that had been rubbed out.
             const hasS = new Set(strokes.current.map((x) => x.id));
             const hasI = new Set(images.current.map((x) => x.id));
             const newS = theirs.filter((x) => !hasS.has(x.id) && !ledger.known(x.id));
@@ -1338,26 +1631,49 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             for (const x of newI) send({ t: "img", m: x });
             break;
           }
-          if (!lead || !first || resync.current === "rev") {
-            // The laptop always takes the tablet's board as the truth (catching up, or opening while
-            // the tablet is on): merging its own older copy would bring back what was erased.
-            resync.current = "join";
-            strokes.current = theirs;
-            images.current = theirImgs;
-            remoteLive.current = null;
-            if (m.q !== undefined) ledger.reset(m.q);
-            if (selectedRef.current && !theirImgs.some((x) => x.id === selectedRef.current)) select(null);
-            break;
+          // The laptop always takes the tablet's board as the truth (catching up, or opening while
+          // the tablet is on): merging its own older copy would bring back what was erased.
+          resync.current = "join";
+          const haveS = new Set(theirs.map((x) => x.id));
+          const haveI = new Set(theirImgs.map((x) => x.id));
+          // Two things of its own stay: a picture still uploading (it reaches the tablet when it is
+          // done), and what was made here while the tablet was away, which goes to the tablet now.
+          const mine = solo.current.get(pid);
+          const keepS = mine?.size ? strokes.current.filter((x) => mine.has(x.id) && !haveS.has(x.id)) : [];
+          const keepI = images.current.filter((x) => !haveI.has(x.id) && (x.url.startsWith("blob:") || !!mine?.has(x.id)));
+          strokes.current = [...theirs, ...keepS];
+          images.current = [...theirImgs, ...keepI];
+          remoteLive.current = null;
+          // The tablet's numbers are taken as they are, even lower ones (a tablet opened fresh).
+          if (m.q !== undefined) ledger.adopt(m.q);
+          if (selectedRef.current && !images.current.some((x) => x.id === selectedRef.current)) select(null);
+          const giveBack = (ss: Stroke[], ii: BoardImage[]) => {
+            for (const x of ss) send({ t: "add", s: packStroke(x) });
+            for (const x of ii) if (!x.url.startsWith("blob:")) send({ t: "img", m: x });
+          };
+          if (mine?.size) {
+            solo.current.delete(pid);
+            saveSolo();
+            giveBack(keepS, keepI);
+            if (!hadOwn) {
+              // This page's own copy was never opened here (the tablet led the way to it): what was
+              // made on it alone is still in this device's store. Read before the save below lands.
+              void loadBoard(keyFor(pid)).then((own) => {
+                if (!own || pageRef.current.id !== pid) return;
+                const gotS = new Set(strokes.current.map((x) => x.id));
+                const gotI = new Set(images.current.map((x) => x.id));
+                const moreS = own.strokes.filter((x) => mine.has(x.id) && !gotS.has(x.id));
+                const moreI = own.images.filter((x) => mine.has(x.id) && !gotI.has(x.id));
+                if (!moreS.length && !moreI.length) return;
+                strokes.current = [...strokes.current, ...moreS];
+                images.current = [...images.current, ...moreI];
+                giveBack(moreS, moreI);
+                persist();
+                requestDraw();
+                syncMeta();
+              });
+            }
           }
-          // First meeting: keep both devices' work, and send back what the other one hasn't got.
-          const hasS = new Set(theirs.map((x) => x.id));
-          const hasI = new Set(theirImgs.map((x) => x.id));
-          const mineS = strokes.current.filter((x) => !hasS.has(x.id));
-          const mineI = images.current.filter((x) => !hasI.has(x.id) && !x.url.startsWith("blob:"));
-          strokes.current = [...theirs, ...mineS];
-          images.current = [...theirImgs, ...mineI];
-          for (const x of mineS) send({ t: "add", s: packStroke(x) });
-          for (const x of mineI) send({ t: "img", m: x });
           break;
         }
         case "batch":
@@ -1446,10 +1762,19 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   };
   // Typing started with the T key goes back to the tool before it once the words are done.
   const toolBeforeT = useRef<Tool | null>(null);
+  // Axes started with the A key: one set, then back to the tool that was in hand.
+  const toolBeforeA = useRef<Tool | null>(null);
   /** `nextBox`: closed because another box is opening (the T-key tool stays until typing is done). */
+  // When a key was last typed into the text box (or the box closed): letters typed straight after
+  // are still words, not shortcuts.
+  const typedAt = useRef(0);
   const commitTyping = (nextBox = false) => {
+    // A handle drag cut short by the box closing must not carry over to the next box.
+    gripping.current = null;
+    resizing.current = null;
     const t = typingRef.current;
     if (!t) return;
+    typedAt.current = performance.now();
     typingRef.current = null;
     setTyping(null);
     if (toolBeforeT.current && !nextBox) {
@@ -1518,6 +1843,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     t.text = text;
     placeTyping();
     const now = performance.now();
+    typedAt.current = now;
     if (now - liveSend.current > 60) {
       liveSend.current = now;
       send({ t: "live", s: typedStroke(t) });
@@ -1620,12 +1946,29 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               problem = "The page changed before the picture finished uploading. Add it again here.";
               break;
             }
-            aliasImage(m.url, url); // the copy already on screen is used: no flicker, no second download
+            const aliased = aliasImage(m.url, url); // the copy already on screen is used: no flicker, no second download
             swapUrl(m.id, url);
+            // The copy held by this browser is let go once the loaded picture answers to its web address.
+            if (aliased) URL.revokeObjectURL(m.url);
             added++;
           } catch (err) {
             // Not uploaded, it would only ever be on this screen (and never saved), so it comes off.
             images.current = images.current.filter((x) => x.id !== m.id);
+            // Out of undo and redo as well, or redo would bring back a picture that only ever
+            // lived on this screen and is never saved.
+            const strip = (list: Action[]) =>
+              list.flatMap((a): Action[] => {
+                if (a.type === "img-add") {
+                  const left = a.m.filter((x) => x.id !== m.id);
+                  return left.length ? [{ ...a, m: left }] : [];
+                }
+                if (a.type === "clear") return [{ ...a, m: a.m.filter((x) => x.id !== m.id) }];
+                if ((a.type === "img-del" && a.m.id === m.id) || (a.type === "img-edit" && a.before.id === m.id)) return [];
+                return [a];
+              });
+            undoStack.current = strip(undoStack.current);
+            redoStack.current = strip(redoStack.current);
+            syncMeta();
             if (selectedRef.current === m.id) select(null);
             requestDraw();
             problem = err instanceof Error ? err.message : "That picture didn't upload. Try again.";
@@ -1667,13 +2010,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         requestDraw();
         added += pages.length;
       }
-      if (problem) flash(problem);
+      if (problem) flash(problem, 6000);
       else if (added) {
         const where = !online ? " Preview only: it stays on this screen." : partner ? (lead ? " It's on your laptop too." : " It's on your tablet too.") : "";
         flash(`${added > 1 ? `${added} added.` : "Added."}${where}`);
       }
     } catch (err) {
-      flash(err instanceof Error ? err.message : "That file couldn't be added.");
+      flash(err instanceof Error ? err.message : "That file couldn't be added.", 6000);
     } finally {
       setBusy(null);
       if (fileRef.current) fileRef.current.value = "";
@@ -1686,9 +2029,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       const el = e.target as HTMLElement | null;
       if (el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT" || el.isContentEditable)) return;
       const files = Array.from(e.clipboardData?.files ?? []);
-      if (!files.length || busy) return;
+      if (!files.length) return;
       e.preventDefault();
-      void insertFiles(files);
+      if (busy) flash("Still adding the last one. Try again in a moment.");
+      else void insertFiles(files);
     };
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
@@ -1718,6 +2062,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const hold = useRef<{ x: number; y: number; timer: ReturnType<typeof setTimeout> | null; path: number }>({ x: 0, y: 0, timer: null, path: 0 });
   const liveSend = useRef(0);
   const spaceDown = useRef(false);
+  useEffect(() => {
+    writingNow.current = () => gesture.current.mode !== null || Date.now() - pens.current.lastAt < 700;
+  }, []);
 
   const local = (e: { clientX: number; clientY: number }) => {
     const r = canvasRef.current!.getBoundingClientRect();
@@ -1779,7 +2126,18 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const from = lastErase.current ?? [wx, wy];
     lastErase.current = [wx, wy];
     const steps = Math.min(40, Math.max(1, Math.ceil(Math.hypot(wx - from[0], wy - from[1]) / (r * 0.6))));
+    // The patch of board this rub covers. A stroke whose own box is clear of it can't be touched, so
+    // it is skipped without measuring every point of it: a full page rubs out as quickly as an empty one.
+    const x0 = Math.min(from[0], wx) - r;
+    const x1 = Math.max(from[0], wx) + r;
+    const y0 = Math.min(from[1], wy) - r;
+    const y1 = Math.max(from[1], wy) + r;
     const hit = strokes.current.filter((s) => {
+      // (Not ovals or axes and T accounts: their reach can run past their box, so they are always measured.)
+      if (s.kind !== "form" && s.kind !== "ellipse") {
+        const b = strokeBox(s);
+        if (b.x > x1 || b.x + b.w < x0 || b.y > y1 || b.y + b.h < y0) return false;
+      }
       for (let i = 1; i <= steps; i++) {
         const t = i / steps;
         if (hitStroke(s, from[0] + (wx - from[0]) * t, from[1] + (wy - from[1]) * t, r)) return true;
@@ -1868,7 +2226,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     lastErase.current = null;
     setInking(true);
     gesture.current = { mode: "erase", id, erased: [], straightened: false };
-    setEraserAt({ x: sx, y: sy });
+    moveEraser(sx, sy);
     eraseAt(sx, sy);
   };
 
@@ -1897,20 +2255,45 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   // ---- the selected picture: a Move grip and four big corner handles (page elements over the board,
   // so they work with the pen, a finger or the mouse, whatever tool is in hand)
   type PicGrip = "move" | "nw" | "ne" | "sw" | "se";
-  const picDrag = useRef<{ id: number; kind: PicGrip; before: BoardImage; sx: number; sy: number; sent: number } | null>(null);
+  const picDrag = useRef<{ id: number; kind: PicGrip; before: BoardImage; sx: number; sy: number; sent: number; el: Element } | null>(null);
+  /** A handle drag ends: the move or resize is kept as one undo step and goes to the other device. */
+  const finishPicDrag = () => {
+    const d = picDrag.current;
+    if (!d) return;
+    picDrag.current = null;
+    const after = images.current.find((m) => m.id === d.before.id);
+    if (!after || (after.x === d.before.x && after.y === d.before.y && after.w === d.before.w)) return;
+    // To the front, as the other device puts it when it hears (so both screens stack alike).
+    images.current = [...images.current.filter((m) => m.id !== after.id), after];
+    commit({ type: "img-edit", before: { ...d.before, url: after.url }, after });
+    if (!after.url.startsWith("blob:")) send({ t: "img", m: after });
+    requestDraw();
+  };
+  useEffect(() => {
+    finishPicDragRef.current = (keepId) => {
+      if (picDrag.current && picDrag.current.before.id !== keepId) finishPicDrag();
+    };
+  });
   const onPicDown = (kind: PicGrip, e: React.PointerEvent<HTMLElement>) => {
     // A resting palm, or a touch while the pen is in use, does nothing (as on the board).
     if (e.pointerType === "touch" && (pens.current.active || Date.now() - pens.current.lastAt < PALM_LOCK_MS || e.width > PALM_SIZE_PX || e.height > PALM_SIZE_PX)) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     const m = images.current.find((x) => x.id === selectedRef.current);
-    if (!m || picDrag.current) return;
+    if (!m) return;
+    const open = picDrag.current;
+    if (open) {
+      // A drag still going on its own handle: this second press does nothing, as before.
+      if (open.el.isConnected && open.before.id === selectedRef.current) return;
+      // Its handle has gone from the page without reporting the lift: finish it, then start this one.
+      finishPicDrag();
+    }
     e.preventDefault();
     e.stopPropagation();
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {}
     stopGlide();
-    picDrag.current = { id: e.pointerId, kind, before: { ...m }, sx: e.clientX, sy: e.clientY, sent: 0 };
+    picDrag.current = { id: e.pointerId, kind, before: { ...m }, sx: e.clientX, sy: e.clientY, sent: 0, el: e.currentTarget };
   };
   const onCornerDown = (e: React.PointerEvent<HTMLElement>) => onPicDown(e.currentTarget.dataset.k as PicGrip, e);
   const onPicMove = (e: React.PointerEvent<HTMLElement>) => {
@@ -1944,14 +2327,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const onPicUp = (e: React.PointerEvent<HTMLElement>) => {
     const d = picDrag.current;
     if (!d || d.id !== e.pointerId) return;
-    picDrag.current = null;
-    const after = images.current.find((m) => m.id === d.before.id);
-    if (!after || (after.x === d.before.x && after.y === d.before.y && after.w === d.before.w)) return;
-    // To the front, as the other device puts it when it hears (so both screens stack alike).
-    images.current = [...images.current.filter((m) => m.id !== after.id), after];
-    commit({ type: "img-edit", before: { ...d.before, url: after.url }, after });
-    if (!after.url.startsWith("blob:")) send({ t: "img", m: after });
-    requestDraw();
+    finishPicDrag();
   };
   /** Fit: zoom the view to the whole selected picture, every corner in reach. The laptop follows. */
   const fitSelected = () => {
@@ -2020,7 +2396,18 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const strokeUnder = (sx: number, sy: number, anyStroke: boolean) => {
     const [wx, wy] = toWorld(cam.current, sx, sy);
     const r = 10 / cam.current.z;
-    return [...strokes.current].reverse().find((x) => (x.kind === "text" || anyStroke) && hitStroke(x, wx, wy, r));
+    // From the top down, skipping any stroke whose box is clear of the point (as the eraser does).
+    const all = strokes.current;
+    for (let i = all.length - 1; i >= 0; i--) {
+      const x = all[i];
+      if (x.kind !== "text" && !anyStroke) continue;
+      if (x.kind !== "form" && x.kind !== "ellipse") {
+        const b = strokeBox(x);
+        if (b.x > wx + r || b.x + b.w < wx - r || b.y > wy + r || b.y + b.h < wy - r) continue;
+      }
+      if (hitStroke(x, wx, wy, r)) return x;
+    }
+    return undefined;
   };
   const shifted = (s: Stroke, dx: number, dy: number): Stroke => ({ ...s, pts: s.pts.map((p) => [p[0] + dx, p[1] + dy, p[2]] as Pt) });
   /** `anyStroke`: writing and lines too, not just typed text (the Move tool with the pen or mouse). */
@@ -2208,7 +2595,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       const before = gesture.current.img.before;
       const after = images.current.find((m) => m.id === before.id);
       if (after && (after.x !== before.x || after.y !== before.y || after.w !== before.w)) {
-        commit({ type: "img-edit", before, after });
+        // Exactly as when the finger lifts: to the front, and undo keeps the picture's uploaded address.
+        images.current = [...images.current.filter((m) => m.id !== after.id), after];
+        commit({ type: "img-edit", before: { ...before, url: after.url }, after });
         if (!after.url.startsWith("blob:")) send({ t: "img", m: after });
       }
       gesture.current = { mode: null, id: -1, erased: [], straightened: false };
@@ -2240,7 +2629,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       lastErase.current = null;
       setInking(true);
       gesture.current = { mode: "erase", id: e.pointerId, erased: [], straightened: false };
-      setEraserAt({ x: sx, y: sy });
+      moveEraser(sx, sy);
       eraseAt(sx, sy);
       return;
     }
@@ -2299,7 +2688,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           send({ t: "pt", x: Math.round(px * 10) / 10, y: Math.round(py * 10) / 10 });
         }
       }
-      if (e.buttons === 0 && isPenEraser(e)) setEraserAt({ x: sx, y: sy });
+      if (e.buttons === 0 && isPenEraser(e)) moveEraser(sx, sy);
     }
 
     // Touch pan / pinch.
@@ -2322,9 +2711,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         const d = Math.hypot(p1.x - p2.x, p1.y - p2.y);
         const cx = (p1.x + p2.x) / 2;
         const cy = (p1.y + p2.y) / 2;
-        let c = zoomAt(cam.current, d / pinch.current.d, cx, cy);
-        c = { ...c, x: c.x - ((cx - pinch.current.cx) * PAN_GAIN) / c.z, y: c.y - ((cy - pinch.current.cy) * PAN_GAIN) / c.z };
-        cam.current = c;
+        // (Two contacts reported on the very same spot would divide nothing by nothing and blank
+        // the board: that frame is skipped.)
+        if (d > 0 && pinch.current.d > 0) {
+          let c = zoomAt(cam.current, d / pinch.current.d, cx, cy);
+          c = { ...c, x: c.x - ((cx - pinch.current.cx) * PAN_GAIN) / c.z, y: c.y - ((cy - pinch.current.cy) * PAN_GAIN) / c.z };
+          cam.current = c;
+        }
         pinch.current = { d, cx, cy };
         velocity.current = { vx: 0, vy: 0 };
       }
@@ -2334,7 +2727,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
 
     const g = gesture.current;
     if (g.id !== e.pointerId || !g.mode) {
-      if (tool === "eraser" && e.pointerType !== "touch") setEraserAt({ x: sx, y: sy });
+      if (tool === "eraser" && e.pointerType !== "touch") moveEraser(sx, sy);
+      return;
+    }
+
+    // Laptop: the mouse button was let go where this page never heard it (Alt+Tab in the middle of a
+    // drag), and the line, eraser or picture kept following the mouse with no button held. Ends here.
+    if (e.pointerType === "mouse" && e.buttons === 0) {
+      endLate.current(e);
       return;
     }
 
@@ -2374,7 +2774,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     }
 
     if (g.mode === "erase") {
-      setEraserAt({ x: sx, y: sy });
+      moveEraser(sx, sy);
       for (const ev of coalesced(e.nativeEvent)) {
         const [x, y] = local(ev);
         eraseAt(x, y);
@@ -2548,7 +2948,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
 
   /**
    * "More room": one tap slides the board up smoothly (the laptop following), like turning to
-   * fresh lines in a notebook. Only when asked: writing at the bottom never moves the board.
+   * fresh lines in a notebook. Only when asked (Page Down on the laptop): writing at the bottom
+   * never moves the board (see AUTO_ROOM).
    */
   const scrolling = useRef(false);
   const moreRoom = () => {
@@ -2578,13 +2979,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   });
 
   /**
+   * (Switched off with AUTO_ROOM: the board never moves by itself.)
    * Room by itself, only when it's clearly wanted: three or more handwritten strokes in a row end
    * in the bottom band of the screen (lines of writing, not a long diagram line), then the pen
    * rests for a moment and isn't hovering ready to write. Writing elsewhere resets it.
    */
   const bottomInk = useRef<{ times: number[]; timer: ReturnType<typeof setTimeout> | null; tries: number }>({ times: [], timer: null, tries: 0 });
   const watchBottom = (s: Stroke) => {
-    if (!lead || s.kind !== "ink") return;
+    if (!AUTO_ROOM || !lead || s.kind !== "ink") return;
     const b = bottomInk.current;
     const { h } = screen.current;
     const z = cam.current.z;
@@ -2641,6 +3043,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       }
       touches.current.delete(e.pointerId);
       if (touches.current.size < 2) pinch.current = null;
+      else if (touches.current.size === 2) {
+        // Back to two from three (a knuckle or the edge of the hand came and went mid-pinch): the
+        // pinch starts again from these two, or the view leapt by the gap to the old pair.
+        const [p1, p2] = [...touches.current.values()];
+        pinch.current = { d: Math.hypot(p1.x - p2.x, p1.y - p2.y), cx: (p1.x + p2.x) / 2, cy: (p1.y + p2.y) / 2 };
+      }
       // (A two-finger tap used to undo. A palm landing after writing looked just like one and
       // undid the last line, so it's gone: undo is the button, or Ctrl+Z.)
       if (touches.current.size === 0) tap2.current = null;
@@ -2661,7 +3069,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       flushErase();
       lastErase.current = null;
       if (g.erased.length) commit({ type: "erase", s: g.erased });
-      if (tool !== "eraser") setEraserAt(null);
+      if (tool !== "eraser") moveEraser();
     } else if ((g.mode === "drag" || g.mode === "resize") && g.img) {
       const before = g.img.before;
       const after = images.current.find((m) => m.id === before.id);
@@ -2696,6 +3104,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         // A stroke that gets tidied (a ruled line, a T account) is sent once, as the tidy version.
         if (!recognise(s)) send({ t: "add", s: packStroke(s) });
         watchBottom(s);
+        if (s.kind === "form" && s.form === "axes" && toolBeforeA.current) {
+          setTool(toolBeforeA.current);
+          toolBeforeA.current = null;
+        }
       } else {
         send({ t: "del", ids: [s.id] }); // the preview on the other screen goes
       }
@@ -2710,19 +3122,64 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     endLate.current = (e) => endGesture(e);
   });
 
+  // The tab going out of sight (app switch, screen off) with contacts still counted as down: they
+  // are forgotten, so nothing is left "held" when Hamza comes back. Nothing to do in normal use.
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState !== "hidden") return;
+      touches.current.clear();
+      pinch.current = null;
+      tap1.current = null;
+      tap2.current = null;
+      pens.current.active = false;
+      if (liftTimer.current) clearTimeout(liftTimer.current);
+      liftTimer.current = null;
+      if (gesture.current.mode === "pan") gesture.current = { mode: null, id: -1, erased: [], straightened: false };
+    };
+    document.addEventListener("visibilitychange", onHide);
+    return () => document.removeEventListener("visibilitychange", onHide);
+  }, []);
+
+  // No pull to refresh and no sideways "back" swipe from the edges of the page: a finger that starts
+  // on a toolbar and drags must never reload the board in the middle of a class. Put back on leaving.
+  useEffect(() => {
+    const els = [document.documentElement, document.body];
+    const was = els.map((el) => el.style.overscrollBehavior);
+    for (const el of els) el.style.overscrollBehavior = "none";
+    return () => els.forEach((el, i) => (el.style.overscrollBehavior = was[i]));
+  }, []);
+
   // Mouse wheel / trackpad: pinch or ctrl+wheel zooms, plain wheel pans.
-  const onWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+  const onWheel = (e: WheelEvent) => {
     const [sx, sy] = local(e);
     if (e.ctrlKey || e.metaKey) cam.current = zoomAt(cam.current, Math.exp(-e.deltaY * 0.01), sx, sy);
     else cam.current = { ...cam.current, x: cam.current.x + e.deltaX / cam.current.z, y: cam.current.y + e.deltaY / cam.current.z };
     refresh();
   };
+  // Listened to directly, not through React (whose wheel listener can't cancel the browser's own
+  // action): a trackpad pinch or Ctrl+wheel no longer also zooms the whole page, and a sideways
+  // scroll no longer swipes "back" out of the board. The board moves exactly as before.
+  const wheelRef = useRef(onWheel);
+  useEffect(() => {
+    wheelRef.current = onWheel;
+  });
+  useEffect(() => {
+    const c = canvasRef.current;
+    if (!c) return;
+    const h = (e: WheelEvent) => {
+      e.preventDefault();
+      wheelRef.current(e);
+    };
+    c.addEventListener("wheel", h, { passive: false });
+    return () => c.removeEventListener("wheel", h);
+  }, [canvasRef]);
 
   const pickTool = (t: Tool) => {
     commitTyping();
+    toolBeforeA.current = null;
     setTool(t);
     if (t !== "move") select(null);
-    if (t !== "eraser") setEraserAt(null);
+    if (t !== "eraser") moveEraser();
     requestDraw();
   };
 
@@ -2744,7 +3201,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const list = ordered(pagesRef.current.some((x) => x.id === p.id) ? pagesRef.current.map((x) => (x.id === p.id ? { ...x, ...p } : x)) : [...pagesRef.current, p]);
     pagesRef.current = list;
     setPageList(list);
-    void saveIndex(storeKey, { pages: list, current: p.id });
+    // Saved only once this device's own list has loaded, so it never writes over pages it hasn't read yet.
+    if (indexReady.current) void saveIndex(storeKey, { pages: list, current: p.id });
   };
   /**
    * Switch page. The page being left is saved as it is; the new one opens from this device's
@@ -2754,9 +3212,24 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const openPage = (p: BoardPage, announce: boolean) => {
     if (p.id === pageRef.current.id) return;
     commitTyping();
+    // The page changing under a gesture (the other device switched page while this one was in the
+    // middle of a move or a rub): it ends here, on the page it belongs to. Words being moved go back
+    // where they were, a half-drawn line is dropped, and what was rubbed out so far is sent.
+    const open = gesture.current;
+    if (open.mode === "shift" && open.mv) finishShift(open.mv, true);
+    else if (open.mode && open.mode !== "pan") {
+      if (current.current) send({ t: "del", ids: [current.current.id] });
+      gesture.current = { mode: null, id: -1, erased: [], straightened: false };
+      setInking(false);
+      setAngle(null);
+    }
+    flushErase();
+    lastErase.current = null;
+    clearHold();
+    moving.current = null;
     if (save.current) clearTimeout(save.current);
     save.current = null;
-    if (loadedPageId.current === pageRef.current.id) void saveBoard(keyFor(pageRef.current.id), snapshot());
+    if (loadedPageId.current === pageRef.current.id) void saveBoard(keyFor(pageRef.current.id), snapshot()).then(saved);
     loadedPageId.current = null;
     camByPage.current.set(pageRef.current.id, cam.current);
     pageRef.current = p;
@@ -2792,13 +3265,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         images.current = [...saved.images, ...images.current.filter((x) => !hasI.has(x.id))];
       }
       if (lead) send(fullBoard());
+      // Anything that arrived while it loaded is saved with it.
+      if (strokes.current.length || images.current.length) persist();
       requestDraw();
       syncMeta();
     });
     requestDraw();
     syncMeta();
   };
-  const camByPage = useRef(new Map<string, Camera>());
   useEffect(() => {
     openPageRef.current = openPage;
   });
@@ -2829,7 +3303,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     pagesRef.current = list;
     setPageList(list);
     void deleteBoard(keyFor(id));
-    void saveIndex(storeKey, { pages: list, current: pageRef.current.id });
+    if (indexReady.current) void saveIndex(storeKey, { pages: list, current: pageRef.current.id });
+    if (solo.current.delete(id)) saveSolo();
+    camByPage.current.delete(id);
     // A class's page comes straight back, empty: deleting it wipes it clean.
     ensurePagesRef.current();
   };
@@ -2855,7 +3331,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     if (next) openPage(next, true);
   };
 
-  // Each class opens its own page by itself, 10 minutes before it starts (on the tablet, or the
+  // Each class opens its own page by itself, a minute before it starts (on the tablet, or the
   // laptop when it's on its own). Only when the class changes: going back to another page by
   // hand during class is never undone.
   const db = useDatabase();
@@ -2865,9 +3341,6 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   useEffect(() => {
     autoPage.current = () => {
       const now = Date.now();
-      if (!lead && now - tabletHeardAt.current < 10_000) return;
-      // Not before this page's own board has loaded (its list of pages comes with it).
-      if (loadedPageId.current === null) return;
       const today = pkDate(now);
       // The class that has started (or starts within a minute): with back-to-back subjects, the
       // next one's page opens a minute before it starts.
@@ -2877,6 +3350,15 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       if (!slot) return;
       const key = slotKey(slot);
       if (lastAutoSlot.current === key) return;
+      // The tablet is on: it picks the page for this class. Counted as done here, so if the tablet
+      // goes quiet for a moment later in the lesson the laptop doesn't open the class page over
+      // whatever page Hamza has chosen.
+      if (!lead && now - tabletHeardAt.current < 10_000) {
+        lastAutoSlot.current = key;
+        return;
+      }
+      // Not before this page's own board has loaded (its list of pages comes with it).
+      if (loadedPageId.current === null) return;
       // Never mid-stroke or mid-word: it waits for the pen to lift (checked again in 5 seconds).
       if (gesture.current.mode || typingRef.current) return;
       lastAutoSlot.current = key;
@@ -2910,7 +3392,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   }, [db, schedule]);
 
   useEffect(() => {
-    // A moment after opening (the saved page first), then every 20 seconds.
+    // A moment after opening (the saved page first), then every 5 seconds.
     const first = setTimeout(() => autoPage.current(), 3000);
     const every = setInterval(() => autoPage.current(), 5_000);
     return () => {
@@ -2925,7 +3407,23 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       // Typing in the text box: its keys are words, not shortcuts.
       const el = e.target as HTMLElement | null;
       if (el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT" || el.isContentEditable)) return;
-      if (e.code === "Space") spaceDown.current = true;
+      // A question or the page list is open: Escape closes it, and nothing happens on the board behind it.
+      if (confirmClear || confirmDelete || pagesOpen) {
+        if (e.key === "Escape") {
+          setConfirmClear(false);
+          setConfirmDelete(false);
+          setPagesOpen(false);
+        }
+        return;
+      }
+      // A button pressed with the mouse or a finger keeps the focus, and Space or Enter would press it
+      // again (a second undo, another blank page). It lets go instead. A button reached with Tab still works.
+      if ((e.code === "Space" || e.key === "Enter") && pressedButton.current && document.activeElement === pressedButton.current) {
+        e.preventDefault();
+        pressedButton.current.blur();
+        pressedButton.current = null;
+      }
+      if (e.code === "Space" && !e.metaKey && !e.ctrlKey && !e.altKey) spaceDown.current = true;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
         e.preventDefault();
         if (e.shiftKey) redo();
@@ -2940,12 +3438,26 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         if (d && nudge(d[0], d[1])) e.preventDefault();
         return;
       }
-      if (e.key === "p") pickTool("pen");
-      if (e.key === "l") pickTool("line");
-      if (e.key === "a") pickTool("axes");
-      if (e.key === "e") pickTool("eraser");
-      if (e.key === "v") pickTool("move");
-      if (e.key === "t") {
+      // Still typing: Enter closed the text box and the next line's letters are on their way. They
+      // are words, not shortcuts (a stray "n" made a new page on both devices).
+      if (e.key.length === 1 && performance.now() - typedAt.current < 700) {
+        typedAt.current = performance.now();
+        return;
+      }
+      // A key held down acts once (a held N made a pile of pages). Page Down may repeat.
+      if (e.repeat && e.key !== "PageDown") return;
+      // Lower case whether or not Caps Lock is on.
+      const k = e.shiftKey ? "" : e.key.toLowerCase();
+      if (k === "p") pickTool("pen");
+      if (k === "l") pickTool("line");
+      if (k === "a") {
+        const before = tool === "axes" ? toolBeforeA.current : tool;
+        pickTool("axes");
+        toolBeforeA.current = before;
+      }
+      if (k === "e") pickTool("eraser");
+      if (k === "v") pickTool("move");
+      if (k === "t") {
         // T: the text box opens right where the mouse is (or the middle), ready to type.
         e.preventDefault();
         const before = tool === "text" ? toolBeforeT.current : tool;
@@ -2955,14 +3467,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         const at = hoverAt.current ?? { x: w / 2, y: h / 2 };
         startTyping(at.x, at.y);
       }
-      if (e.key === "h") setToolsHidden((v) => !v);
+      if (k === "h") setToolsHidden((v) => !v);
       if (e.key === "PageDown") {
         e.preventDefault();
         moreRoom();
       }
       if (e.key === "[") stepPage(-1);
       if (e.key === "]") stepPage(1);
-      if (e.key === "n") newPage();
+      if (k === "n") newPage();
       if ((e.key === "Delete" || e.key === "Backspace") && selectedRef.current) deleteSelected();
       if (e.key === "Escape" && selectedRef.current) {
         select(null);
@@ -2979,6 +3491,24 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       window.removeEventListener("keyup", up);
     };
   });
+  // Which button the pointer last pressed (see Space and Enter above), and Space let go of when the
+  // window loses the keyboard (or every later click would move the board instead of drawing).
+  const pressedButton = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    const press = (e: PointerEvent) => {
+      const b = (e.target as Element | null)?.closest?.("button");
+      pressedButton.current = b instanceof HTMLButtonElement ? b : null;
+    };
+    const blur = () => {
+      spaceDown.current = false;
+    };
+    window.addEventListener("pointerdown", press, true);
+    window.addEventListener("blur", blur);
+    return () => {
+      window.removeEventListener("pointerdown", press, true);
+      window.removeEventListener("blur", blur);
+    };
+  }, []);
 
   const fit = () => {
     const b = boundsOf(strokes.current);
@@ -3020,7 +3550,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       onDrop={(e) => {
         if (!e.dataTransfer.files.length) return;
         e.preventDefault();
-        if (!busy) void insertFiles(Array.from(e.dataTransfer.files));
+        if (busy) flash("Still adding the last one. Try again in a moment.");
+        else void insertFiles(Array.from(e.dataTransfer.files));
       }}
     >
       <canvas
@@ -3040,9 +3571,15 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         }}
         onPointerUp={(e) => endGesture(e)}
         onPointerCancel={(e) => endGesture(e, true)}
-        onLostPointerCapture={(e) => gesture.current.id === e.pointerId && gesture.current.mode && endGesture(e)}
-        onPointerLeave={() => tool !== "eraser" && gesture.current.mode !== "erase" && setEraserAt(null)}
-        onWheel={onWheel}
+        // A safety net: this always follows the lift, when there is nothing left to end. If the lift
+        // itself never came, a finger is not left behind as a ghost that turns every pan into a pinch.
+        onLostPointerCapture={(e) => {
+          if (gesture.current.id === e.pointerId && gesture.current.mode) endGesture(e);
+          else if (touches.current.has(e.pointerId)) endGesture(e, true);
+        }}
+        // The ring goes when the pen or mouse leaves the board (it used to stay behind with the
+        // Eraser tool on, also on the shared laptop screen); the next move over the board shows it again.
+        onPointerLeave={() => gesture.current.mode !== "erase" && moveEraser()}
         onContextMenu={(e) => e.preventDefault()}
       />
       <input
@@ -3051,6 +3588,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         accept="image/*,application/pdf"
         multiple
         className="sr-only"
+        tabIndex={-1}
         onChange={(e) => void insertFiles(Array.from(e.target.files ?? []))}
         aria-label="Insert a picture or PDF"
       />
@@ -3062,6 +3600,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         spellCheck={false}
         autoCapitalize="sentences"
         rows={1}
+        // Out of the Tab order while hidden (focus landing in it silenced every shortcut).
+        tabIndex={typing ? 0 : -1}
         onChange={(e) => onTypingInput(e.target.value)}
         onBlur={(e) => {
           // Tapping the style bar: keep typing (and the keyboard) open.
@@ -3180,8 +3720,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             onPointerMove={(e) => onHandleMove(e)}
             onPointerUp={() => onHandleUp()}
             onPointerCancel={() => onHandleUp()}
-            className="absolute z-20 flex h-7 w-4 cursor-ew-resize touch-none items-center justify-center"
-            style={{ left: typing.x + typing.wPx + 6, top: typing.y + typing.hPx / 2 - 14 }}
+            // The tablet: a finger-sized target that grows outwards (right, up and down); the pill itself stays where it was.
+            className={`absolute z-20 flex cursor-ew-resize touch-none items-center ${lead ? "h-11 w-9 justify-start pl-[5px]" : "h-7 w-4 justify-center"}`}
+            style={{ left: typing.x + typing.wPx + 6, top: typing.y + typing.hPx / 2 - (lead ? 22 : 14) }}
           >
             <span className="block h-6 w-1.5 rounded-full border border-black/20 bg-white shadow-sm" />
           </button>
@@ -3195,7 +3736,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             onPointerMove={(e) => onHandleMove(e)}
             onPointerUp={() => onHandleUp()}
             onPointerCancel={() => onHandleUp()}
-            className="absolute z-20 flex h-6 w-6 cursor-nwse-resize touch-none items-center justify-center"
+            // The tablet: a bigger target growing right and down; the dot stays where it was.
+            className={`absolute z-20 flex cursor-nwse-resize touch-none ${lead ? "h-10 w-10 items-start justify-start p-[6px]" : "h-6 w-6 items-center justify-center"}`}
             style={{ left: typing.x + typing.wPx + 1, top: typing.y + typing.hPx + 1 }}
           >
             <span className="block h-3 w-3 rounded-full border-2 border-[#1A1D20] bg-white shadow-sm" />
@@ -3204,13 +3746,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       )}
 
       {/* Eraser ring */}
-      {eraserAt && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute rounded-full border"
-          style={{ left: eraserAt.x - ERASER_PX, top: eraserAt.y - ERASER_PX, width: ERASER_PX * 2, height: ERASER_PX * 2, borderColor: THEMES[look].ring.border, background: THEMES[look].ring.fill }}
-        />
-      )}
+      <span
+        ref={eraserRef}
+        aria-hidden
+        className="pointer-events-none absolute rounded-full border"
+        style={{ left: 0, top: 0, display: "none", width: ERASER_PX * 2, height: ERASER_PX * 2, borderColor: THEMES[look].ring.border, background: THEMES[look].ring.fill }}
+      />
 
       {/* Angle readout while drawing a line */}
       {angle && (
@@ -3335,7 +3876,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               <>
                 <ul data-pages-menu role="listbox" aria-label="Pages" className={`${PANEL} absolute left-0 top-[52px] z-50 max-h-[60vh] w-72 origin-top-left animate-[scale-in_140ms_ease-out] overflow-y-auto p-1.5 [scrollbar-width:thin] motion-reduce:animate-none`}>
                   {pageList.map((x) => (
-                    <li key={x.id}>
+                    <li key={x.id} role="presentation">
                       <button
                         type="button"
                         role="option"
@@ -3420,7 +3961,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           ref={toolbarRef}
           className={`${PANEL} absolute flex items-center gap-0.5 p-[3px] [scrollbar-width:none] ${
             lead
-              ? "left-3 top-1/2 max-h-[calc(100dvh-80px)] -translate-y-1/2 flex-col overflow-y-auto"
+              ? // In the middle of the screen's height when there is room (as before). In a short browser
+                // window (the tablet's address bar and tab strip showing) it starts just under the page bar
+                // and its buttons are a little shorter, so "Clear the board" is never cut off at the bottom.
+                "left-3 top-[max(64px,calc(50dvh_-_347.5px))] max-h-[calc(100dvh-76px)] flex-col overflow-y-auto [@media(max-height:800px)]:[&>button]:h-10"
               : "bottom-4 left-1/2 max-w-[calc(100vw-16px)] -translate-x-1/2 overflow-x-auto"
           }`}
         >
@@ -3492,9 +4036,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       <BoardTip />
 
       {/* Short messages: "Undone", upload progress, errors */}
-      {(notice || busy) && (
+      {(notice || busy || linkLost) && (
         <div className={`${PANEL} pointer-events-none absolute left-1/2 flex -translate-x-1/2 animate-[scale-in_140ms_ease-out] items-center rounded-full px-4 py-2.5 text-xs font-semibold motion-reduce:animate-none ${lead ? "bottom-6" : "bottom-20"}`} role="status">
-          {busy ?? notice}
+          {notice ?? busy ?? "Laptop link lost. Your writing is safe here."}
         </div>
       )}
 
@@ -3514,7 +4058,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                 : "The page and its writing go for good, on your laptop too."}
             </p>
             <div className="mt-5 flex gap-2">
-              <button type="button" onClick={() => setConfirmDelete(false)} className={`${PRESS} h-11 flex-1 rounded-[12px] bg-white/[0.07] text-sm font-semibold text-white hover:bg-white/[0.11]`}>
+              <button type="button" autoFocus onClick={() => setConfirmDelete(false)} className={`${PRESS} h-11 flex-1 rounded-[12px] bg-white/[0.07] text-sm font-semibold text-white hover:bg-white/[0.11]`}>
                 Cancel
               </button>
               <button type="button" onClick={deletePage} className={`${PRESS} h-11 flex-1 rounded-[12px] bg-[#C2382C] text-sm font-bold text-white hover:bg-[#D0453A]`}>
@@ -3532,7 +4076,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             <p className="text-lg font-bold tracking-[-0.01em]">Clear the whole board?</p>
             <p className="mt-1.5 text-sm leading-relaxed text-white/60">Writing and pictures go. Undo brings them back.</p>
             <div className="mt-5 flex gap-2">
-              <button type="button" onClick={() => setConfirmClear(false)} className={`${PRESS} h-11 flex-1 rounded-[12px] bg-white/[0.07] text-sm font-semibold text-white hover:bg-white/[0.11]`}>
+              <button type="button" autoFocus onClick={() => setConfirmClear(false)} className={`${PRESS} h-11 flex-1 rounded-[12px] bg-white/[0.07] text-sm font-semibold text-white hover:bg-white/[0.11]`}>
                 Cancel
               </button>
               <button

@@ -12,6 +12,26 @@ import { isHidden } from "@/lib/notes-library";
  */
 export const runtime = "nodejs";
 
+/**
+ * Each search can read hundreds of note texts, so one account gets a fair
+ * share: plenty for typing a few searches, not a script hammering it.
+ * Counted per server, so it slows a flood rather than stopping one.
+ */
+const WINDOW_MS = 60_000;
+const PER_WINDOW = 40;
+const recent = new Map<string, { n: number; until: number }>();
+function tooMany(userId: string): boolean {
+  const now = Date.now();
+  if (recent.size > 5000) for (const [k, v] of recent) if (v.until <= now) recent.delete(k);
+  const hit = recent.get(userId);
+  if (!hit || hit.until <= now) {
+    recent.set(userId, { n: 1, until: now + WINDOW_MS });
+    return false;
+  }
+  hit.n++;
+  return hit.n > PER_WINDOW;
+}
+
 export async function GET(req: NextRequest) {
   const token = req.headers.get("authorization")?.replace(/^Bearer /, "");
   if (!token) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -23,9 +43,13 @@ export async function GET(req: NextRequest) {
   const terms = searchTerms(q);
   if (!terms.length) return NextResponse.json({ hits: [] });
 
-  const sb = createClient(url, key, { global: { headers: { Authorization: `Bearer ${token}` } } });
+  const sb = createClient(url, key, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
   const { data: user } = await sb.auth.getUser();
   if (!user.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (tooMany(user.user.id)) return NextResponse.json({ error: "too many searches" }, { status: 429, headers: { "Retry-After": "60" } });
   const admin = (user.user.app_metadata as { role?: string } | undefined)?.role === "admin";
 
   const { data: notes, error } = await sb.from("notes").select("id, file_type").limit(1000);

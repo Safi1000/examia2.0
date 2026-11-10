@@ -21,8 +21,11 @@ export async function POST(req: NextRequest) {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return NextResponse.json({ error: "server misconfigured" }, { status: 500 });
 
-  const { noteId } = (await req.json().catch(() => ({}))) as { noteId?: string };
+  const body = (await req.json().catch(() => null)) as { noteId?: unknown } | null;
+  const noteId = typeof body?.noteId === "string" ? body.noteId : "";
   if (!noteId) return NextResponse.json({ error: "noteId required" }, { status: 400 });
+  // Note ids are always this shape; anything else can't be a note.
+  if (!/^[0-9a-f-]{36}$/i.test(noteId)) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   const sb = createClient(url, key, { global: { headers: { Authorization: `Bearer ${token}` } } });
   const { data: user } = await sb.auth.getUser();
@@ -43,9 +46,13 @@ export async function POST(req: NextRequest) {
   const admin = (user.user.app_metadata as { role?: string } | undefined)?.role === "admin";
   if (!admin && isHidden(String(note.file_type ?? ""))) return NextResponse.json({ error: "not found" }, { status: 404 });
 
-  return NextResponse.json({
-    url: signViewUrl(fileUrl as string, (note.file_name as string) ?? "note"),
-    fileType: note.file_type ?? "application/octet-stream",
-    fileName: (note.file_name as string) ?? "",
-  });
+  return NextResponse.json(
+    {
+      url: signViewUrl(fileUrl as string, (note.file_name as string) ?? "note"),
+      fileType: note.file_type ?? "application/octet-stream",
+      fileName: (note.file_name as string) ?? "",
+    },
+    // The link inside is a short-lived key to the file: never stored anywhere on the way.
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
 }

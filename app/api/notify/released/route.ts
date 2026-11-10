@@ -16,7 +16,14 @@ export async function POST(req: NextRequest) {
   if ((data.user?.app_metadata as { role?: string } | undefined)?.role !== "admin") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
-  const { ids } = (await req.json().catch(() => ({}))) as { ids?: string[] };
-  const sent = await notifyReleased((ids ?? []).filter((x) => typeof x === "string").slice(0, 200));
-  return NextResponse.json({ sent });
+  const { ids } = ((await req.json().catch(() => null)) ?? {}) as { ids?: unknown };
+  // Paper ids only: anything else would make the lookup fail for the whole batch.
+  const clean = (Array.isArray(ids) ? ids : []).filter((x): x is string => typeof x === "string" && /^[0-9a-f-]{36}$/i.test(x)).slice(0, 200);
+  try {
+    return NextResponse.json({ sent: await notifyReleased(clean) });
+  } catch (e) {
+    // Not lost: the 15-minute check sends any result that hasn't gone out yet.
+    console.error("[notify] released", e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: "could not send" }, { status: 502 });
+  }
 }

@@ -14,6 +14,8 @@ import { areaOf, type Area } from "@/lib/activity";
  */
 
 const KEY = "ht-activity-buf";
+/** Whose time the buffer holds: a shared phone must never credit one student's minutes to the next. */
+const OWNER_KEY = "ht-activity-owner";
 const TICK_MS = 5_000;
 const FLUSH_MS = 120_000;
 /** No input for this long and the time stops counting. */
@@ -28,6 +30,39 @@ let area: Area = "other";
 let note: { id: string; page: number; total: number } | null = null;
 let lastInput = Date.now();
 let running = false;
+/** The signed-in account the counting is for; nothing counts until it is known. */
+let owner: string | null = null;
+
+/** The account id inside a sign-in token (its `sub`), or null. Read only, never trusted by the server. */
+function accountOf(token: string | null): string | null {
+  try {
+    const part = token?.split(".")[1];
+    if (!part) return null;
+    const json = JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(part.length / 4) * 4, "="))) as { sub?: unknown };
+    return typeof json.sub === "string" && json.sub ? json.sub : null;
+  } catch {
+    return null;
+  }
+}
+function storedOwner(): string | null {
+  try {
+    return localStorage.getItem(OWNER_KEY);
+  } catch {
+    return null;
+  }
+}
+/**
+ * Make the buffer this account's. Time left by someone else on this phone is
+ * dropped, not sent with this account's sign-in. A buffer from before the tag
+ * existed has no owner and is kept (on most phones it is the same student).
+ */
+function claim(id: string) {
+  const prev = storedOwner();
+  if (prev && prev !== id) write({});
+  try {
+    localStorage.setItem(OWNER_KEY, id);
+  } catch {}
+}
 
 function read(): Buf {
   try {
@@ -66,7 +101,7 @@ function mergeBack(sent: Buf) {
 }
 
 function tick() {
-  if (typeof document === "undefined" || document.visibilityState !== "visible") return;
+  if (!owner || typeof document === "undefined" || document.visibilityState !== "visible") return;
   const now = Date.now();
   if (now - lastInput > (note ? NOTE_IDLE_MS : IDLE_MS)) return;
   const day = pkDate(now);
@@ -87,12 +122,20 @@ function tick() {
 }
 
 async function flush(getToken: () => Promise<string | null>, closing = false) {
+  const mine = owner;
+  if (!mine) return;
+  // Someone else's time (another student signed in on this phone meanwhile): never sent as this one's.
+  const tag = storedOwner(); // null only where the phone won't store it: then nobody else's is there either
+  if (tag && tag !== mine) return;
   const buf = read();
   if (!Object.keys(buf).length) return;
   write({});
   try {
     const token = await getToken();
     if (!token) throw new Error("signed out");
+    const who = accountOf(token);
+    // The sign-in changed since counting began: this time isn't theirs, drop it.
+    if (who && who !== mine) return;
     const res = await fetch("/api/activity", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -101,7 +144,9 @@ async function flush(getToken: () => Promise<string | null>, closing = false) {
     });
     if (!res.ok && res.status !== 400) throw new Error(String(res.status));
   } catch {
-    mergeBack(buf);
+    // Kept for the next try, unless the phone has changed hands meanwhile.
+    const now = storedOwner();
+    if (!now || now === mine) mergeBack(buf);
   }
 }
 
@@ -129,12 +174,25 @@ export function startActivity(getToken: () => Promise<string | null>): () => voi
   window.addEventListener("pointermove", onMove, opts);
   document.addEventListener("visibilitychange", onVis);
   window.addEventListener("pagehide", onVis);
+  let stopped = false;
+  // Find out whose time this is before counting any of it (tried again with
+  // each send if there was no signal at first).
+  const ensureOwner = async () => {
+    if (owner) return;
+    const id = accountOf(await getToken().catch(() => null));
+    if (stopped || !id) return;
+    claim(id);
+    owner = id;
+  };
+  void ensureOwner();
   const t = window.setInterval(tick, TICK_MS);
-  const f = window.setInterval(() => void flush(getToken), FLUSH_MS);
+  const f = window.setInterval(() => void ensureOwner().then(() => flush(getToken)), FLUSH_MS);
   // Anything left from last time (closed app, no signal) goes now.
-  const first = window.setTimeout(() => void flush(getToken), 4_000);
+  const first = window.setTimeout(() => void ensureOwner().then(() => flush(getToken)), 4_000);
   return () => {
+    stopped = true;
     running = false;
+    owner = null;
     for (const ev of ["pointerdown", "keydown", "touchstart", "wheel", "scroll"]) window.removeEventListener(ev, onInput, opts);
     window.removeEventListener("pointermove", onMove, opts);
     document.removeEventListener("visibilitychange", onVis);

@@ -39,6 +39,19 @@ export async function loadSchedule(sb: SupabaseClient, fresh = false): Promise<S
   }
 }
 
+/**
+ * The saved timetable, read fresh, for a save to build on. Unlike
+ * loadSchedule this throws when the account can't be read: a save must never
+ * start from the built-in default (or an old copy) and write that over the
+ * real timetable.
+ */
+export async function loadScheduleForSave(sb: SupabaseClient): Promise<Schedule> {
+  const u = await adminUser(sb);
+  const value = cleanSchedule((u?.app_metadata as { schedule?: unknown } | undefined)?.schedule) ?? DEFAULT_SCHEDULE;
+  cache = { at: Date.now(), value };
+  return value;
+}
+
 /** Merge keys into the admin's server-only settings (timetable, automations). */
 export async function saveAdminMeta(sb: SupabaseClient, callerId: string | null, patch: Record<string, unknown>) {
   const adminId = (await adminUser(sb).catch(() => null))?.id ?? callerId;

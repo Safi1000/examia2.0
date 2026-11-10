@@ -59,6 +59,8 @@ export function DailyBars({ days, from, to, compact = false }: { days: Record<st
 
   const total = vals.reduce((a, v) => a + v, 0);
   const on = vals.filter((v) => v >= 60).length;
+  // Days before tracking began cannot count against anyone: "3 of 30" when there were only 5 to be had.
+  const counted = list.filter((d) => d >= TRACKING_SINCE).length;
   return (
     <div>
       <p className="mb-3 h-5 text-sm text-ink-2 tabular-nums" aria-live="polite">
@@ -68,7 +70,7 @@ export function DailyBars({ days, from, to, compact = false }: { days: Record<st
           </>
         ) : (
           <>
-            {on ? `Active on ${on} of ${list.length} days` : "No activity yet"}
+            {on ? `Active on ${on} of ${counted} ${counted === 1 ? "day" : "days"}` : "No activity yet"}
             {on ? ` · about ${fmtTime(total / on)} a day when active` : ""}
           </>
         )}
@@ -178,6 +180,9 @@ export function StudentActivitySection({ studentId }: { studentId: string }) {
   const from = addDays(today, -29);
   const { data, error, reload } = useActivity(from, db, studentId);
   const a = data?.[studentId];
+  // Out of the days there were to be active on: from the first tracked day if that is later.
+  const start = from < TRACKING_SINCE ? TRACKING_SINCE : from;
+  const span = Math.max(1, Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${start}T12:00:00Z`)) / 864e5) + 1);
 
   return (
     <section id="activity" className="mt-8 scroll-mt-20">
@@ -188,7 +193,7 @@ export function StudentActivitySection({ studentId }: { studentId: string }) {
       {error ? (
         <Card className="p-5 text-sm text-ink-2">
           Activity didn&apos;t load.{" "}
-          <button type="button" onClick={reload} className="font-semibold text-brand underline-offset-2 hover:underline">
+          <button type="button" onClick={reload} className="inline-flex min-h-11 items-center font-semibold text-brand underline-offset-2 hover:underline">
             Try again
           </button>
         </Card>
@@ -201,7 +206,7 @@ export function StudentActivitySection({ studentId }: { studentId: string }) {
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Tile label="Last 7 days" value={fmtTime(a ? secsBetween(a.days, addDays(today, -6), today) : 0)} />
             <Tile label="Last 30 days" value={fmtTime(a ? secsBetween(a.days, from, today) : 0)} />
-            <Tile label="Days active" value={`${a ? activeDays(a.days, from, today) : 0} of 30`} />
+            <Tile label="Days active" value={`${a ? activeDays(a.days, start, today) : 0} of ${span}`} />
             <Tile label="Last seen" value={fmtAgo(lastSeen(a), nowMs)} />
           </div>
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
@@ -219,7 +224,7 @@ export function StudentActivitySection({ studentId }: { studentId: string }) {
             <NotesRead notes={a?.notes ?? {}} />
           </Card>
           {from < TRACKING_SINCE && (
-            <p className="mt-2 text-xs text-ink-3">Counted from {dayLabel(TRACKING_SINCE, false)} 2026, when tracking began. Only active time counts: an open but idle screen doesn&apos;t.</p>
+            <p className="mt-2 text-xs text-ink-3">Counted from {dayLabel(TRACKING_SINCE, false)} {TRACKING_SINCE.slice(0, 4)}, when tracking began. Only active time counts: an open but idle screen doesn&apos;t.</p>
           )}
         </>
       )}

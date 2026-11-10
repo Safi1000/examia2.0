@@ -11,6 +11,7 @@ import { useFocusTrap } from "@/components/student/useFocusTrap";
 import { Icon } from "@/components/ui";
 import { PortalAmbient } from "@/components/PortalAmbient";
 import { cn } from "@/lib/cn";
+import { useNow } from "@/hooks/useNow";
 
 /**
  * Daily 5: five real past paper multiple choice questions a day, only from
@@ -21,22 +22,36 @@ import { cn } from "@/lib/cn";
 const KEY = "ht-daily5";
 const LETTERS = ["A", "B", "C", "D"] as const;
 
-/** Today's number in Pakistan time, so the set turns over at local midnight. */
-const today = () => Math.floor((Date.now() + 5 * 3_600_000) / 86_400_000);
+/** The day number in Pakistan time, so the set turns over at local midnight. */
+const dayOf = (ms: number) => Math.floor((ms + 5 * 3_600_000) / 86_400_000);
 
-type Saved = { day: number; picks: string[] };
-function load(day: number): string[] {
+/**
+ * Each pick sits next to the id of the question it answers, so a set that
+ * changes during the day (a new chapter released) never scores an old pick
+ * against a different question. Saves from before `ids` existed are by
+ * position, and still read that way.
+ */
+type Saved = { day: number; picks: string[]; ids?: string[] };
+function load(day: number): Saved {
   try {
     const s = JSON.parse(localStorage.getItem(KEY) ?? "null") as Saved | null;
-    return s?.day === day && Array.isArray(s.picks) ? s.picks : [];
-  } catch {
-    return [];
-  }
-}
-function save(day: number, picks: string[]) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify({ day, picks } satisfies Saved));
+    if (s?.day === day && Array.isArray(s.picks)) return { day, picks: s.picks, ids: Array.isArray(s.ids) ? s.ids : undefined };
   } catch {}
+  return { day, picks: [], ids: [] };
+}
+function save(saved: Saved) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(saved));
+  } catch {}
+}
+/** The pick for each question of the set, in set order (undefined: not answered). */
+function picksFor(saved: Saved, questions: DailyQuestion[]): (string | undefined)[] {
+  const ids = saved.ids;
+  return questions.map((q, i) => {
+    if (!ids) return saved.picks[i];
+    const at = ids.indexOf(q.id);
+    return at >= 0 ? saved.picks[at] : undefined;
+  });
 }
 
 const cache = new Map<string, Promise<DailyQuestion[]>>();
@@ -65,40 +80,54 @@ export function DailyFive({ books }: { books: BookProgress[] }) {
   }, [books]);
 
   // Home only renders once the student is signed in, in the browser, so the
-  // day and saved answers can be read straight away.
-  const [day] = useState<number | null>(() => (typeof window === "undefined" ? null : today()));
-  const [picks, setPicks] = useState<string[]>(() => (typeof window === "undefined" ? [] : load(today())));
-  const [loaded, setLoaded] = useState<{ query: string; questions: DailyQuestion[] } | null>(null);
+  // saved answers can be read straight away. The day follows the clock, so a
+  // Home left open overnight moves on to the new set.
+  const day = dayOf(useNow());
+  const [stored, setStored] = useState<Saved>(() => (typeof window === "undefined" ? { day, picks: [], ids: [] } : load(day)));
+  const saved: Saved = stored.day === day ? stored : { day, picks: [], ids: [] };
+  const [loaded, setLoaded] = useState<{ key: string; questions: DailyQuestion[] } | null>(null);
   const [open, setOpen] = useState(false);
-  const questions = query && loaded?.query === query ? loaded.questions : null;
+  const setKey = `${query}@${day}`;
+  const questions = query && loaded?.key === setKey ? loaded.questions : null;
 
   useEffect(() => {
-    if (!query || day === null) return;
+    if (!query) return;
     let live = true;
-    fetchSet(query, day).then((q) => live && setLoaded({ query, questions: q }));
+    fetchSet(query, day).then((q) => live && setLoaded({ key: `${query}@${day}`, questions: q }));
     return () => {
       live = false;
     };
   }, [query, day]);
 
+  // A quick double tap must count once, not twice (in the score and in the
+  // past paper mistakes list).
+  const taken = useRef(new Set<string>());
   const answer = useCallback(
     (q: DailyQuestion, letter: string) => {
-      if (day === null) return;
-      setPicks((p) => {
-        const next = [...p, letter];
-        save(day, next);
+      const once = `${day}:${q.id}`;
+      if (taken.current.has(once)) return;
+      taken.current.add(once);
+      setStored((prev) => {
+        const base: Saved = prev.day === day ? prev : { day, picks: [], ids: [] };
+        // An old by-position save gets its ids now, from the set it was made on.
+        const ids = base.ids ?? (questions ?? []).slice(0, base.picks.length).map((x) => x.id);
+        if (ids.includes(q.id)) return base;
+        const next: Saved = { day, picks: [...base.picks, letter], ids: [...ids, q.id] };
+        save(next);
         return next;
       });
       recordAnswers([{ id: q.id, right: letter === q.a }]);
     },
-    [day],
+    [day, questions],
   );
 
   // Nothing covered yet, or a subject with no multiple choice paper: no card.
   if (!questions || questions.length === 0) return null;
 
+  const picks = picksFor(saved, questions);
   const total = questions.length;
-  const done = picks.length >= total;
+  const answered = picks.filter((p) => p !== undefined).length;
+  const done = answered >= total;
   const score = questions.reduce((n, q, i) => n + (picks[i] === q.a ? 1 : 0), 0);
 
   return (
@@ -114,13 +143,13 @@ export function DailyFive({ books }: { books: BookProgress[] }) {
           <span className="block text-sm text-ink-2">
             {done
               ? `${score} of ${total} today. New questions tomorrow.`
-              : picks.length
-                ? `${total - picks.length} to go. Pick up where you left off.`
+              : answered
+                ? `${total - answered} to go. Pick up where you left off.`
                 : "Past paper questions from topics you've covered. About 3 min."}
           </span>
         </span>
         <span className="flex h-11 shrink-0 items-center gap-1 rounded-full border border-border-strong px-4 text-sm font-semibold text-ink transition-colors group-hover:border-brand/60">
-          {done ? "Review" : picks.length ? "Continue" : "Start"}
+          {done ? "Review" : answered ? "Continue" : "Start"}
           <Icon.ChevronRight className="h-4 w-4" />
         </span>
       </button>
@@ -134,7 +163,7 @@ export function DailyFive({ books }: { books: BookProgress[] }) {
 }
 
 /** Five small marks: gold for right, red for wrong, hollow for not done yet. */
-function Dots({ total, picks, questions }: { total: number; picks: string[]; questions: DailyQuestion[] }) {
+function Dots({ total, picks, questions }: { total: number; picks: (string | undefined)[]; questions: DailyQuestion[] }) {
   return (
     <span aria-hidden className="grid h-10 w-10 shrink-0 grid-cols-3 content-center justify-items-center gap-1 rounded-full bg-white/[0.05] px-2">
       {Array.from({ length: total }, (_, i) => (
@@ -157,14 +186,17 @@ function Sheet({
   onClose,
 }: {
   questions: DailyQuestion[];
-  picks: string[];
+  picks: (string | undefined)[];
   onAnswer: (q: DailyQuestion, letter: string) => void;
   onClose: () => void;
 }) {
   const total = questions.length;
-  const finished = picks.length >= total;
+  const finished = picks.every((p) => p !== undefined);
   // Open on the next unanswered question, or the summary once all are done.
-  const [i, setI] = useState(() => Math.min(picks.length, total));
+  const [i, setI] = useState(() => {
+    const next = picks.findIndex((p) => p === undefined);
+    return next < 0 ? total : next;
+  });
   useBackToClose(onClose);
   // Keyboard focus moves into the Daily 5, stays there, and returns on close.
   const box = useRef<HTMLDivElement>(null);
