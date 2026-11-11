@@ -27,7 +27,7 @@ export type BoardMsg = (
   | { t: "clear"; q?: number } // everything off the board
   | { t: "batch"; ms: BoardMsg[] } // several changes that belong together, in order
   | { t: "theme"; v: ThemeId }
-  | { t: "bg"; v: Backdrop } // plain or a faint grid: the laptop follows the tablet
+  | { t: "bg"; v: Backdrop; dark?: boolean } // the paper (plain, dots, lines, squared) and whether the board is dark: the other device follows
   | { t: "mag"; v: number } // (no longer sent: a laptop magnifier was tried and removed)
   | { t: "room" } // the laptop asks the tablet for "More room" (the tablet leads the view)
   | { t: "pt"; x: number; y: number } // where the tablet's pen hovers: shown as a pointer on the laptop

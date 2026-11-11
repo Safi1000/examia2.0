@@ -41,18 +41,21 @@ import {
   wrapText,
   MAX_Z,
   MIN_Z,
+  FOLLOW_MAX_Z,
+  FOLLOW_MIN_Z,
   newId,
   TEXT_PX,
   packStroke,
   lineDir,
-  recogniseShape,
+  holdShape,
+  tidyStroke,
+  penWeight,
   settleStroke,
   smoothPoint,
   steadyFor,
   straightOf,
   strokeBox,
   tAccountOf,
-  axesOf,
   axesOfPair,
   snapLine,
   toWorld,
@@ -651,17 +654,28 @@ function Swatch({ ink, on, size = 18 }: { ink: string; on: boolean; size?: numbe
   );
 }
 
+/** The first ink is charcoal on the light board and white on the dark one: it is named for what is seen. */
+const inkName = (name: string, dark: boolean) => (dark && name === "Black" ? "White" : name);
+
+/** A small picture of each paper for the paper menu (the real print is drawn by the engine). */
+const PAPER_SWATCH: Record<Backdrop, (ink: string) => React.CSSProperties> = {
+  plain: () => ({}),
+  dots: (ink) => ({ backgroundImage: `radial-gradient(circle, ${ink} 1px, transparent 1.4px)`, backgroundSize: "8px 8px", backgroundPosition: "center" }),
+  lines: (ink) => ({ backgroundImage: `linear-gradient(${ink} 1px, transparent 1px)`, backgroundSize: "100% 8px", backgroundPosition: "0 3px" }),
+  grid: (ink) => ({ backgroundImage: `linear-gradient(${ink} 1px, transparent 1px), linear-gradient(90deg, ${ink} 1px, transparent 1px)`, backgroundSize: "8px 8px", backgroundPosition: "3px 3px" }),
+};
+
 /** The text colour choices in the style bar (the same four inks as the pen). */
-function TextColors({ value, big, onPick }: { value: string; big: boolean; onPick: (c: string) => void }) {
+function TextColors({ value, big, dark, onPick }: { value: string; big: boolean; dark: boolean; onPick: (c: string) => void }) {
   return (
     <>
       {COLORS.map((c) => (
         <button
           key={c.value}
           type="button"
-          aria-label={`${c.name} text`}
+          aria-label={`${inkName(c.name, dark)} text`}
           aria-pressed={value === c.value}
-          {...tipOn(`${c.name} text`)}
+          {...tipOn(`${inkName(c.name, dark)} text`)}
           onPointerDown={palmDown}
           onClick={() => onPick(c.value)}
           className={`${PRESS} flex items-center justify-center rounded-[10px] hover:bg-white/[0.07] ${big ? "h-11 w-10" : `h-9 w-8 ${HIT}`}`}
@@ -766,8 +780,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const [partner, setPartner] = useState(false);
   // The tablet: the laptop was linked and has gone quiet (shown as a calm notice).
   const [linkLost, setLinkLost] = useState(false);
-  // Light (paper) or dark (night) board: shared with the other device and students.
-  const look: ThemeId = "paper";
+  // The light board (paper, the default) or the dark charcoal one: chosen with the paper button,
+  // remembered on this device, and the other device follows.
+  const [dark, setDarkState] = useState(false);
+  const look: ThemeId = dark ? "night" : "paper";
   const [ledger] = useState(() => new Ledger(lead ? 1 : 0));
   const remoteLiveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [toolsHidden, setToolsHidden] = useState(false);
@@ -908,19 +924,26 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     ),
   );
 
-  // The paper: plain or a faint grid. Remembered on this device; the laptop follows the tablet.
+  // The paper: plain, dots, lines or squared, on the light board or the dark one. One choice for
+  // the whole board (every page), remembered on this device; the other device follows.
   const [paper, setPaperState] = useState<Backdrop>("plain");
   const paperRef = useRef<Backdrop>("plain");
-  const setPaperRef = useRef<(v: Backdrop, share: boolean) => void>(() => {});
-  const setPaper = (v: Backdrop, share: boolean) => {
+  const darkRef = useRef(false);
+  const setPaperRef = useRef<(v: Backdrop, isDark: boolean, share: boolean) => void>(() => {});
+  const setPaper = (v: Backdrop, isDark: boolean, share: boolean) => {
     paperRef.current = v;
+    darkRef.current = isDark;
     setPaperState(v);
+    setDarkState(isDark);
     setBackdrop(v);
+    setTheme(isDark ? "night" : "paper");
+    // The finished layer is drawn again with the new paper at the next frame (its key holds both).
     requestDraw();
     try {
       localStorage.setItem("ht-board-bg", v);
+      localStorage.setItem("ht-board-dark", isDark ? "1" : "0");
     } catch {}
-    if (share) link.current?.send({ t: "bg", v });
+    if (share) link.current?.send({ t: "bg", v, dark: isDark });
   };
   useEffect(() => {
     setPaperRef.current = setPaper;
@@ -1121,6 +1144,16 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const following = useRef(false);
   const onRemote = useRef<(m: BoardMsg) => void>(() => {});
   const follow = useRef<(jump?: boolean) => void>(() => {});
+  // The laptop: its view was moved here by hand (wheel, Space drag, Fit) while the tablet is on, so
+  // it no longer shows what the tablet shows. It goes back by itself as soon as the tablet moves,
+  // or at once with "Tablet view" in the top bar.
+  const [away, setAway] = useState(false);
+  const awayRef = useRef(false);
+  const markAway = () => {
+    if (lead || awayRef.current || !teacherView.current || Date.now() - tabletHeardAt.current > 10_000) return;
+    awayRef.current = true;
+    setAway(true);
+  };
 
   useEffect(() => {
     showDebug.current = new URL(window.location.href).searchParams.get("debug") === "1";
@@ -1173,7 +1206,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       if (!alive) return;
       try {
         const bg = localStorage.getItem("ht-board-bg") as Backdrop | null;
-        if (bg && BACKDROPS.includes(bg)) setPaperRef.current(bg, false);
+        const isDark = localStorage.getItem("ht-board-dark") === "1";
+        if ((bg && BACKDROPS.includes(bg)) || isDark) setPaperRef.current(bg && BACKDROPS.includes(bg) ? bg : "plain", isDark, false);
       } catch {}
       if (lead) {
         // And where on each page (unless Hamza has already moved the board while this loaded).
@@ -1339,8 +1373,15 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       const v = teacherView.current;
       const { w, h } = screen.current;
       if (!v || !w || !h) return;
-      // Fit the tablet's whole screen into the part of this one the toolbars leave clear.
-      followTarget.current = fitView(v, w, h, clearInset(h, [topBarRef.current, sidePanelRef.current], [toolbarRef.current]));
+      // Fit the tablet's whole writing space into the part of this screen the toolbars leave clear,
+      // centred, whatever the two screens' shapes. (Not held to this screen's own zoom limits: with
+      // the tablet zoomed far out, stopping at them cut the edges of its view off here.)
+      followTarget.current = fitView(v, w, h, clearInset(h, [topBarRef.current, sidePanelRef.current], [toolbarRef.current]), FOLLOW_MIN_Z, FOLLOW_MAX_Z);
+      // Following again: any looking around done here by hand is over.
+      if (awayRef.current) {
+        awayRef.current = false;
+        setAway(false);
+      }
       if (jump) {
         cam.current = followTarget.current;
         refresh();
@@ -1351,13 +1392,21 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     };
   }, [refresh, screen]);
 
-  // The laptop window changes size (full screen to share): fit the tablet's view again.
+  // The laptop window changes size (full screen to share): fit the tablet's view again. The board's
+  // own size is watched too: it is what the fit is worked out from, and it can settle a moment
+  // after the window says it changed (going full screen), which left the old framing on screen.
+  // The tablet does the same for what it shares (turned round, the browser's bars showing or hiding).
   useEffect(() => {
-    if (lead) return;
-    const onResize = () => setTimeout(() => follow.current(true), 50);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [lead]);
+    const c = canvasRef.current;
+    const refit = () => setTimeout(() => (lead ? shareView() : follow.current(true)), 50);
+    const ro = c ? new ResizeObserver(refit) : null;
+    if (c) ro?.observe(c);
+    if (!lead) window.addEventListener("resize", refit);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", refit);
+    };
+  }, [lead, canvasRef, shareView]);
 
   // Laptop: the bars step aside after 3 seconds without the mouse, and come back as soon as it moves.
   useEffect(() => {
@@ -1520,7 +1569,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         case "hello": {
           // The other device asked for the board: answer it on this channel only (page first).
           if (lead) link.current?.send({ t: "page", p: pageRef.current });
-          if (lead) link.current?.send({ t: "bg", v: paperRef.current });
+          if (lead) link.current?.send({ t: "bg", v: paperRef.current, dark: darkRef.current });
           link.current?.send(tagPage(stampMsg(ledger, fullBoard()), pageRef.current.id));
           const { w, h } = screen.current;
           if (lead && w && h) link.current?.send({ t: "view", v: writingView(w, h) });
@@ -1549,7 +1598,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           }
           return;
         case "bg":
-          if (BACKDROPS.includes(m.v)) setPaper(m.v, false);
+          // (An older tab that only knows the paper leaves the board light or dark as it is here.)
+          if (BACKDROPS.includes(m.v)) setPaper(m.v, m.dark ?? darkRef.current, false);
           return;
         case "page":
           // The other device moved to another page (a class starting, or by hand): follow it.
@@ -2311,29 +2361,29 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       const s = current.current;
       if (!s || s.kind !== "ink" || gesture.current.mode !== "draw" || hold.current.path < MIN_HOLD_PATH_PX) return;
       // Snap from where the pen tip really is, not where the smoothing had got to.
-      if (lastRaw.current) s.pts = [...s.pts, lastRaw.current];
-      // A closed loop becomes a clean box or oval; anything else a straight line.
-      const shape = recogniseShape(s.pts);
-      if (shape) {
-        s.kind = shape.kind;
-        s.pts = [shape.a, shape.b];
-        gesture.current.straightened = true;
-        try {
-          navigator.vibrate?.(10);
-        } catch {}
-        requestDraw();
-        sendLive();
-        return;
+      const drawn = lastRaw.current ? [...s.pts, lastRaw.current] : s.pts;
+      // A closed loop becomes a clean box or oval, an L becomes axes, a roughly straight stroke a
+      // line. A real curve (an arc, a letter) stays exactly as drawn, and the pen carries on.
+      const tidy = holdShape(drawn, cam.current.z);
+      if (!tidy) return;
+      // The same weight as the hand-drawn stroke it replaces.
+      const weight = penWeight(drawn);
+      if (tidy.kind === "line") {
+        s.kind = "line";
+        s.size *= Math.min(1.25, Math.max(0.6, weight / 0.95));
+        setAngle({ x: (tidy.b[0] - cam.current.x) * cam.current.z, y: (tidy.b[1] - cam.current.y) * cam.current.z, deg: lineAngle(tidy.a, tidy.b) });
+      } else {
+        s.size *= Math.min(1.25, Math.max(0.6, weight / 0.9));
+        if (tidy.kind === "axes") {
+          s.kind = "form";
+          s.form = "axes";
+        } else s.kind = tidy.kind;
       }
-      const a = s.pts[0];
-      const b = snapLine(a, s.pts[s.pts.length - 1]);
-      s.kind = "line";
-      s.pts = [a, b];
+      s.pts = [tidy.a, tidy.b];
       gesture.current.straightened = true;
       try {
         navigator.vibrate?.(10);
       } catch {}
-      setAngle({ x: (b[0] - cam.current.x) * cam.current.z, y: (b[1] - cam.current.y) * cam.current.z, deg: lineAngle(a, b) });
       requestDraw();
       sendLive();
     }, HOLD_MS);
@@ -2481,6 +2531,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const { w, h } = screen.current;
     const z = cam.current.z;
     const pad = 24 / z;
+    markAway();
     const inset = lead
       ? clearInset(h, [topBarRef.current, sidePanelRef.current], [], 14, [toolbarRef.current])
       : clearInset(h, [topBarRef.current, sidePanelRef.current], [toolbarRef.current]);
@@ -3042,6 +3093,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       const now = performance.now();
       touches.current.set(e.pointerId, { x: sx, y: sy, t: now });
       if (tap2.current) tap2.current.moved += Math.hypot(sx - prev.x, sy - prev.y);
+      if (!lead) markAway();
       if (touches.current.size === 1 || gesture.current.mode === "pan") {
         const dx = (sx - prev.x) * PAN_GAIN;
         const dy = (sy - prev.y) * PAN_GAIN;
@@ -3149,8 +3201,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       sendLive();
       return;
     }
-    // A snapped box or oval stays put until the pen lifts.
-    if (s.kind === "rect" || s.kind === "ellipse") return;
+    // A snapped box, oval or set of axes stays put until the pen lifts.
+    if (s.kind === "rect" || s.kind === "ellipse" || s.kind === "form") return;
     if (g.mode === "line" || (g.mode === "draw" && g.straightened)) {
       const a = s.pts[0];
       const b = snapLine(a, [wx, wy, 0.5]);
@@ -3240,46 +3292,36 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     }
 
     if (s.kind !== "ink") return false;
-    const big = (() => {
-      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-      for (const p of s.pts) {
-        x0 = Math.min(x0, p[0]);
-        y0 = Math.min(y0, p[1]);
-        x1 = Math.max(x1, p[0]);
-        y1 = Math.max(y1, p[1]);
-      }
-      return (x1 - x0) * z >= 90 && (y1 - y0) * z >= 60;
-    })();
-    const shape = big ? recogniseShape(s.pts, 0.032) : null;
-    // Circling or boxing an answer keeps the hand drawn loop: only an empty loop snaps.
-    const empty = (sh: NonNullable<typeof shape>) =>
-      !strokes.current.some((o) => {
-        if (o.id === s.id) return false;
-        const b = strokeBox(o);
-        const cx = b.x + b.w / 2;
-        const cy = b.y + b.h / 2;
-        return cx > sh.a[0] && cx < sh.b[0] && cy > sh.a[1] && cy < sh.b[1];
-      }) && !images.current.some((m) => m.x < sh.b[0] && m.x + m.w > sh.a[0] && m.y < sh.b[1] && m.y + m.h > sh.a[1]);
-    if (shape && empty(shape)) {
-      swap([s], { id: newId(), kind: shape.kind, color: s.color, size: s.size, pts: [shape.a, shape.b] });
+    const tidy = tidyStroke(s.pts, z);
+    if (!tidy) return false;
+    // The clean version is drawn the same weight as the hand-drawn stroke it replaces.
+    const weight = (k: number) => s.size * Math.min(1.25, Math.max(0.6, penWeight(s.pts) / k));
+    if (tidy.kind === "rect" || tidy.kind === "ellipse") {
+      // Circling or boxing an answer keeps the hand drawn loop: only an empty loop snaps.
+      const empty =
+        !strokes.current.some((o) => {
+          if (o.id === s.id) return false;
+          const b = strokeBox(o);
+          const cx = b.x + b.w / 2;
+          const cy = b.y + b.h / 2;
+          return cx > tidy.a[0] && cx < tidy.b[0] && cy > tidy.a[1] && cy < tidy.b[1];
+        }) && !images.current.some((m) => m.x < tidy.b[0] && m.x + m.w > tidy.a[0] && m.y < tidy.b[1] && m.y + m.h > tidy.a[1]);
+      if (!empty) return false;
+      swap([s], { id: newId(), kind: tidy.kind, color: s.color, size: weight(0.9), pts: [tidy.a, tidy.b] });
       return true;
     }
     // An L in one go (down the side, along the bottom): diagram axes.
-    const ax = big ? axesOf(s.pts) : null;
-    if (ax && (ax.b[0] - ax.a[0]) * z >= 120 && (ax.b[1] - ax.a[1]) * z >= 90) {
-      swap([s], { id: newId(), kind: "form", form: "axes", color: s.color, size: s.size, pts: [ax.a, ax.b] }, "Axes");
+    if (tidy.kind === "axes") {
+      swap([s], { id: newId(), kind: "form", form: "axes", color: s.color, size: weight(0.9), pts: [tidy.a, tidy.b] }, "Axes");
       return true;
     }
-    // Long and clearly straight: tidy it into a ruled line (underlines, totals), at its own angle.
-    const tidy = straightOf(s.pts, 0.03);
-    if (tidy && len >= 120) {
-      const line: Stroke = { id: s.id + "l", kind: "line", color: s.color, size: s.size, pts: [s.pts[0], s.pts[s.pts.length - 1]] };
-      swap([s], line);
-      // Still counts towards a T, under its new id.
-      if (dir) recentLines.current.push({ id: line.id, ends: [line.pts[0], line.pts[1]], dir, at: now });
-      return true;
-    }
-    return false;
+    // Long and clearly straight: tidied into a ruled line (underlines, totals), made exactly level
+    // or upright when it was drawn nearly so, otherwise at its own angle.
+    const line: Stroke = { id: s.id + "l", kind: "line", color: s.color, size: weight(0.95), pts: [tidy.a, tidy.b] };
+    swap([s], line);
+    // Still counts towards a T, under its new id.
+    if (dir) recentLines.current.push({ id: line.id, ends: [line.pts[0], line.pts[1]], dir, at: now });
+    return true;
   };
 
   /**
@@ -3295,6 +3337,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       return;
     }
     if (scrolling.current) return;
+    markAway();
     const { h } = screen.current;
     const from = cam.current.y;
     const to = from + (h * 0.45) / cam.current.z;
@@ -3501,6 +3544,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
 
   // Mouse wheel / trackpad: pinch or ctrl+wheel zooms, plain wheel pans.
   const onWheel = (e: WheelEvent) => {
+    markAway();
     const [sx, sy] = local(e);
     if (e.ctrlKey || e.metaKey) cam.current = zoomAt(cam.current, Math.exp(-e.deltaY * 0.01), sx, sy);
     else cam.current = { ...cam.current, x: cam.current.x + e.deltaX / cam.current.z, y: cam.current.y + e.deltaY / cam.current.z };
@@ -3651,6 +3695,21 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     window.addEventListener("pointerdown", down, true);
     return () => window.removeEventListener("pointerdown", down, true);
   }, [pagesOpen]);
+  // The paper menu: a tap or click anywhere outside it closes it, and never draws on the board.
+  const [paperOpen, setPaperOpen] = useState(false);
+  useEffect(() => {
+    if (!paperOpen) return;
+    const down = (e: PointerEvent) => {
+      if ((e.target as Element | null)?.closest?.("[data-paper-menu]")) return;
+      e.stopPropagation();
+      e.preventDefault();
+      setPaperOpen(false);
+    };
+    window.addEventListener("pointerdown", down, true);
+    return () => window.removeEventListener("pointerdown", down, true);
+  }, [paperOpen]);
+  const onPickPaper = (e: React.MouseEvent<HTMLElement>) => setPaper(e.currentTarget.dataset.v as Backdrop, darkRef.current, true);
+  const onPickTone = (e: React.MouseEvent<HTMLElement>) => setPaper(paperRef.current, e.currentTarget.dataset.v === "dark", true);
   const forgetPage = (id: string) => {
     const list = pagesRef.current.filter((x) => x.id !== id);
     pagesRef.current = list;
@@ -3761,11 +3820,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       const el = e.target as HTMLElement | null;
       if (el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT" || el.isContentEditable)) return;
       // A question or the page list is open: Escape closes it, and nothing happens on the board behind it.
-      if (confirmClear || confirmDelete || pagesOpen) {
+      if (confirmClear || confirmDelete || pagesOpen || paperOpen) {
         if (e.key === "Escape") {
           setConfirmClear(false);
           setConfirmDelete(false);
           setPagesOpen(false);
+          setPaperOpen(false);
         }
         return;
       }
@@ -3873,6 +3933,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   }, []);
 
   const fit = () => {
+    markAway();
     const b = boundsOf(strokes.current);
     const all = [...images.current.map((m) => ({ x: m.x, y: m.y, w: m.w, h: m.h })), ...(b ? [b] : [])];
     const { w, h } = screen.current;
@@ -3986,7 +4047,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           }
         }}
         className={`absolute resize-none overflow-hidden whitespace-pre-wrap break-words border-0 bg-transparent p-0 leading-[1.25] outline-none [field-sizing:content] ${
-          typing ? "rounded-sm ring-1 ring-[#E5A832]/60 ring-offset-4 ring-offset-transparent" : "pointer-events-none opacity-0"
+          typing ? "rounded-sm ring-2 ring-[#FBC159] ring-offset-4 ring-offset-transparent" : "pointer-events-none opacity-0"
         }`}
         style={
           typing
@@ -4050,7 +4111,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             Highlight
           </button>
           <Divider />
-          <TextColors value={typing.color} big={lead} onPick={setTextColor} />
+          <TextColors value={typing.color} big={lead} dark={dark} onPick={setTextColor} />
         </div>
       )}
 
@@ -4070,7 +4131,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             className={`absolute z-20 flex cursor-move touch-none items-center justify-center rounded-full ${lead ? "h-11 w-11" : "h-9 w-9"}`}
             style={{ left: Math.max(4, typing.x - (lead ? 52 : 42)), top: typing.y + Math.min(typing.hPx, typing.px * 1.25) / 2 - (lead ? 22 : 18) }}
           >
-            <span className={`flex items-center justify-center rounded-full border border-black/15 bg-white text-[#1A1D20]/70 shadow-sm ${lead ? "h-8 w-8 [&>svg]:h-[18px] [&>svg]:w-[18px]" : "h-7 w-7 [&>svg]:h-4 [&>svg]:w-4"}`}>{I.move}</span>
+            <span className={`flex items-center justify-center rounded-full border border-[#FBC159] bg-white text-[#1A1D20]/75 shadow-[0_1px_3px_rgba(20,22,24,0.35)] ${lead ? "h-8 w-8 [&>svg]:h-[18px] [&>svg]:w-[18px]" : "h-7 w-7 [&>svg]:h-4 [&>svg]:w-4"}`}>{I.move}</span>
           </button>
           <button
             type="button"
@@ -4086,7 +4147,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             className={`absolute z-20 flex cursor-ew-resize touch-none items-center ${lead ? "h-11 w-9 justify-start pl-[5px]" : "h-7 w-4 justify-center"}`}
             style={{ left: typing.x + typing.wPx + 6, top: typing.y + typing.hPx / 2 - (lead ? 22 : 14) }}
           >
-            <span className="block h-6 w-1.5 rounded-full border border-black/20 bg-white shadow-sm" />
+            <span className="block h-6 w-1.5 rounded-full border border-[#FBC159] bg-white shadow-[0_1px_3px_rgba(20,22,24,0.35)]" />
           </button>
           <button
             type="button"
@@ -4102,7 +4163,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             className={`absolute z-20 flex cursor-nwse-resize touch-none ${lead ? "h-10 w-10 items-start justify-start p-[6px]" : "h-6 w-6 items-center justify-center"}`}
             style={{ left: typing.x + typing.wPx + 1, top: typing.y + typing.hPx + 1 }}
           >
-            <span className="block h-3 w-3 rounded-full border-2 border-[#1A1D20] bg-white shadow-sm" />
+            <span className={HANDLE_DOT} />
           </button>
         </>
       )}
@@ -4119,7 +4180,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       {angle && (
         <span
           aria-hidden
-          className="pointer-events-none absolute rounded-full bg-[#1A1D20] px-2.5 py-1 text-xs font-bold tabular-nums text-white shadow-lg"
+          className="pointer-events-none absolute rounded-full bg-[#1A1D20] px-2.5 py-1 text-xs font-bold tabular-nums text-white shadow-lg ring-1 ring-white/[0.12]"
           style={{ left: angle.x + 18, top: angle.y - 34 }}
         >
           {angle.deg}°
@@ -4131,10 +4192,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         <button
           type="button"
           onClick={() => setToolsHidden(false)}
-          className={`absolute bottom-3 left-3 flex h-11 items-center gap-2 rounded-[12px] px-3 text-[11px] font-semibold text-[#6B7075] transition-[opacity,background-color,color] duration-300 hover:bg-black/[0.04] hover:text-[#1B1E21] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1B1E21]/40 motion-reduce:transition-none ${quiet ? "opacity-0" : "opacity-70"}`}
+          className={`absolute bottom-3 left-3 flex h-11 items-center gap-2 rounded-[12px] px-3 text-[11px] font-semibold transition-[opacity,background-color,color] duration-300 focus-visible:outline-none focus-visible:ring-2 motion-reduce:transition-none ${
+            dark ? "text-white/60 hover:bg-white/[0.06] hover:text-white focus-visible:ring-white/50" : "text-[#6B7075] hover:bg-black/[0.04] hover:text-[#1B1E21] focus-visible:ring-[#1B1E21]/40"
+          } ${quiet ? "opacity-0" : "opacity-70"}`}
         >
           Show tools
-          <kbd className="min-w-[18px] rounded-[5px] border border-black/[0.12] px-1 text-center font-sans text-[10.5px] leading-[17px]">H</kbd>
+          <kbd className={`min-w-[18px] rounded-[5px] border px-1 text-center font-sans text-[10.5px] leading-[17px] ${dark ? "border-white/[0.18]" : "border-black/[0.12]"}`}>H</kbd>
         </button>
       )}
 
@@ -4261,7 +4324,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                 Highlight
               </button>
               <Divider />
-              <TextColors value={selText.color} big={lead} onPick={(c) => !palmBlocked() && colorSel(c)} />
+              <TextColors value={selText.color} big={lead} dark={dark} onPick={(c) => !palmBlocked() && colorSel(c)} />
               <Divider />
               <button type="button" {...tipOn("Edit the words", "Enter", "Or tap the words again.")} onPointerDown={palmDown} onClick={() => !palmBlocked() && editSel()} className={`${PRESS} ${QUIET} rounded-[10px] px-3 text-xs font-semibold ${lead ? "h-11" : `h-9 ${HIT}`}`}>
                 Edit
@@ -4360,11 +4423,25 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             <button type="button" onClick={fit} aria-label={`Zoom ${zoom}%. Fit the whole board`} {...tipOn("Fit the whole board", undefined, "Shows everything on this page")} className={`${PRESS} ${QUIET} ${HIT} flex h-9 w-[60px] items-center justify-center gap-1 rounded-[10px] text-xs font-semibold tabular-nums`}>
               {zoom}%
             </button>
+            {!lead && away && (
+              <button
+                type="button"
+                onClick={() => follow.current()}
+                {...tipOn("Back to the tablet's view", undefined, "This screen was moved by hand. It also goes back by itself when the tablet moves.")}
+                className={`${PRESS} ${GOLD_ON} ${HIT} h-9 rounded-[10px] px-3 text-xs font-semibold`}
+              >
+                Tablet view
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => setPaper(BACKDROPS[(BACKDROPS.indexOf(paper) + 1) % BACKDROPS.length], true)}
-              {...tipOn("Paper", undefined, "Plain, or a faint grid (tap to switch). The laptop changes too.")}
-              className={`${PRESS} ${QUIET} ${HIT} h-9 rounded-[10px] px-3 text-xs font-semibold`}
+              data-paper-menu
+              onClick={() => setPaperOpen((v) => !v)}
+              aria-expanded={paperOpen}
+              aria-haspopup="menu"
+              aria-label={`Paper: ${BACKDROP_NAME[paper]}${dark ? ", dark board" : ""}`}
+              {...tipOn("Paper", undefined, `Plain, dots, lines or squared, on a light or dark board. The ${lead ? "laptop" : "tablet"} changes too.`)}
+              className={`${PRESS} ${HIT} h-9 rounded-[10px] px-3 text-xs font-semibold ${paperOpen ? ON : QUIET}`}
             >
               {BACKDROP_NAME[paper]}
             </button>
@@ -4381,6 +4458,39 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             )}
             </div>
           </div>
+          {/* The papers: four prints, on the light board or the dark one. One tap each. */}
+          {paperOpen && (
+            <div data-paper-menu role="menu" aria-label="Paper" className={`${PANEL} pointer-events-auto absolute right-3 top-[64px] z-50 w-[252px] origin-top-right animate-[scale-in_140ms_ease-out] p-2 motion-reduce:animate-none`}>
+              <div className="grid grid-cols-4 gap-1">
+                {BACKDROPS.map((b) => (
+                  <button
+                    key={b}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={paper === b}
+                    data-v={b}
+                    onClick={onPickPaper}
+                    className={`${PRESS} flex flex-col items-center gap-1.5 rounded-[12px] px-1 pb-1.5 pt-2 text-[11px] font-semibold ${paper === b ? ON : QUIET}`}
+                  >
+                    <span
+                      aria-hidden
+                      className={`block h-8 w-11 rounded-[6px] ${paper === b ? "shadow-[0_0_0_1.5px_#FBC159]" : "shadow-[0_0_0_1px_rgba(255,255,255,0.14)]"}`}
+                      style={{ backgroundColor: THEMES[look].bg, ...PAPER_SWATCH[b](dark ? "rgba(240,237,232,0.4)" : "rgba(26,29,32,0.34)") }}
+                    />
+                    {BACKDROP_NAME[b]}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-1 rounded-[12px] bg-white/[0.05] p-1" role="group" aria-label="Board">
+                <button type="button" role="menuitemradio" aria-checked={!dark} data-v="light" onClick={onPickTone} className={`${PRESS} h-11 rounded-[9px] text-xs font-semibold ${!dark ? ON : QUIET}`}>
+                  Light board
+                </button>
+                <button type="button" role="menuitemradio" aria-checked={dark} data-v="dark" onClick={onPickTone} className={`${PRESS} h-11 rounded-[9px] text-xs font-semibold ${dark ? ON : QUIET}`}>
+                  Dark board
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
 
@@ -4412,9 +4522,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             <button
               key={c.value}
               type="button"
-              aria-label={c.name}
+              aria-label={inkName(c.name, dark)}
               aria-pressed={color === c.value}
-              {...tipOn(`${c.name} ink`)}
+              {...tipOn(`${inkName(c.name, dark)} ink`)}
               onPointerDown={palmDown}
               onClick={() => {
                 if (palmBlocked()) return;
@@ -4455,8 +4565,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           Not on the laptop, whose screen the class sees. */}
       {lead && !hasContent && !typing && !inking && !toolsHidden && !quiet && (
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 text-center" aria-hidden>
-          <p className="text-[15px] font-semibold tracking-[-0.01em] text-[#1B1E21]/35">Write anywhere</p>
-          <p className="flex items-center gap-1.5 text-xs text-[#1B1E21]/30">
+          <p className={`text-[15px] font-semibold tracking-[-0.01em] ${dark ? "text-white/35" : "text-[#1B1E21]/35"}`}>Write anywhere</p>
+          <p className={`flex items-center gap-1.5 text-xs ${dark ? "text-white/30" : "text-[#1B1E21]/30"}`}>
             <span>Pen draws</span>
             <span aria-hidden>·</span>
             <span>{fingerDraws ? "fingers draw too" : "fingers move the board"}</span>

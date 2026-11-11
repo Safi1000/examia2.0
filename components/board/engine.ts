@@ -77,8 +77,9 @@ export type ThemeId = "paper" | "night";
 interface Theme {
   /** Board background. */
   bg: string;
-  /** Grid dots. */
-  dots: string;
+  /** What is printed on the paper (see drawGrid), as [red, green, blue] and how strong each kind is:
+   * dots, fine ruled lines, the squares of graph paper, and its heavier line every fifth square. */
+  print: { rgb: string; dots: number; lines: number; grid: number; major: number };
   /** What each saved ink colour is drawn as: strokes keep their original colour, so the
    * same board reads on both looks (white writing becomes charcoal on paper). */
   ink: Record<string, string>;
@@ -91,7 +92,8 @@ export const THEMES: Record<ThemeId, Theme> = {
   paper: {
     // The brand's paper white: crisp on a TV, no glare.
     bg: "#FDFDFB",
-    dots: "rgba(28,32,35,0.16)",
+    // Faint enough that ink always wins. (The squares are exactly as faint as the old "Faint grid".)
+    print: { rgb: "26,29,32", dots: 0.2, lines: 0.085, grid: 0.055, major: 0.115 },
     // Deep, even inks that read from the back of a room and on a TV: the brand charcoal, a royal
     // blue, a clear red, a clear green (5 to 1 against the paper, and plainly green beside the
     // charcoal on a TV) and a deep brand gold (plain gold is too light on white).
@@ -100,8 +102,10 @@ export const THEMES: Record<ThemeId, Theme> = {
     ring: { border: "rgba(20,22,24,0.55)", fill: "rgba(20,22,24,0.05)" },
   },
   night: {
-    bg: "#141618",
-    dots: "rgba(240,237,232,0.09)",
+    // The dark board: the brand charcoal. Every ink is drawn in its own saved (light) shade, all
+    // at least 5.7 to 1 against it.
+    bg: "#212427",
+    print: { rgb: "240,237,232", dots: 0.17, lines: 0.07, grid: 0.055, major: 0.105 },
     ink: {},
     accent: "#FBC159",
     ring: { border: "rgba(255,255,255,0.7)", fill: "rgba(255,255,255,0.05)" },
@@ -117,6 +121,13 @@ export const inkOf = (c: string) => THEMES[themeId].ink[c] ?? c;
 
 export const MIN_Z = 0.2;
 export const MAX_Z = 6;
+/**
+ * How far the laptop may zoom while it follows the tablet. Wider than a screen's own limits: a
+ * smaller or differently shaped laptop window has to zoom out further than the tablet to show the
+ * same part of the board, and stopping at its own limit cut the edges of the tablet's view off.
+ */
+export const FOLLOW_MIN_Z = 0.02;
+export const FOLLOW_MAX_Z = 30;
 
 export const newId = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
@@ -140,10 +151,10 @@ const NO_INSET: Inset = { t: 0, r: 0, b: 0, l: 0 };
  * Camera that fits a world rectangle inside a w x h screen, centred in the part
  * left clear by `pad`, so nothing ends up under the toolbars or off the edge.
  */
-export function fitView(v: View, w: number, h: number, pad: Inset = NO_INSET): Camera {
+export function fitView(v: View, w: number, h: number, pad: Inset = NO_INSET, minZ = MIN_Z, maxZ = MAX_Z): Camera {
   const iw = Math.max(80, w - pad.l - pad.r);
   const ih = Math.max(80, h - pad.t - pad.b);
-  const z = Math.min(MAX_Z, Math.max(MIN_Z, Math.min(iw / v.w, ih / v.h)));
+  const z = Math.min(maxZ, Math.max(minZ, Math.min(iw / v.w, ih / v.h)));
   const cx = v.x + v.w / 2;
   const cy = v.y + v.h / 2;
   return { x: cx - (pad.l + iw / 2) / z, y: cy - (pad.t + ih / 2) / z, z };
@@ -243,8 +254,12 @@ export function settleStroke(pts: Pt[], size: number): Pt[] {
   return out;
 }
 
-/** A stroke that is really a straight line: its two ends, else null. */
-export function straightOf(all: Pt[], tolerance = 0.06): [Pt, Pt] | null {
+/**
+ * A stroke that is really a straight line: its two ends, else null. `tolerance`: how far it may
+ * bow from the straight line between its ends (a share of its length); `slack`: how much longer
+ * than that line its own path may be (wobble, doubling back).
+ */
+export function straightOf(all: Pt[], tolerance = 0.06, slack = 1.18): [Pt, Pt] | null {
   if (all.length < 2) return null;
   // Ignore a little hook or flick where the pen lands and lifts.
   const cut = all.length >= 12 ? Math.floor(all.length * 0.08) : 0;
@@ -259,8 +274,64 @@ export function straightOf(all: Pt[], tolerance = 0.06): [Pt, Pt] | null {
     path += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
     dev = Math.max(dev, distToSeg(pts[i][0], pts[i][1], a, b));
   }
-  if (dev > L * tolerance || path > L * 1.18) return null;
+  if (dev > L * tolerance || path > L * slack) return null;
   return [a, b];
+}
+
+/**
+ * A straight stroke as a ruled line: the line of best fit through the whole stroke (not just the
+ * line between its two ends, which a small hook where the pen lands or lifts would tilt), from
+ * where the pen began to where it ended. Null when the stroke is not straight.
+ */
+export function ruledLine(all: Pt[], tolerance = 0.03): [Pt, Pt] | null {
+  if (!straightOf(all, tolerance)) return null;
+  const cut = all.length >= 12 ? Math.floor(all.length * 0.08) : 0;
+  const pts = cut ? all.slice(cut, all.length - cut) : all;
+  let mx = 0, my = 0;
+  for (const p of pts) {
+    mx += p[0];
+    my += p[1];
+  }
+  mx /= pts.length;
+  my /= pts.length;
+  let sxx = 0, sxy = 0, syy = 0;
+  for (const p of pts) {
+    sxx += (p[0] - mx) * (p[0] - mx);
+    sxy += (p[0] - mx) * (p[1] - my);
+    syy += (p[1] - my) * (p[1] - my);
+  }
+  const ang = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+  const dx = Math.cos(ang);
+  const dy = Math.sin(ang);
+  const onLine = (p: Pt): Pt => {
+    const t = (p[0] - mx) * dx + (p[1] - my) * dy;
+    return [mx + t * dx, my + t * dy, 0.5];
+  };
+  return [onLine(all[0]), onLine(all[all.length - 1])];
+}
+
+/**
+ * A ruled line drawn almost level, upright or at 45° is made exactly so, turned about its middle
+ * (so an underline stays under its words) and kept the same length. Level and upright are caught
+ * from further off than 45°: a sloping line on a diagram is usually meant to slope as drawn.
+ */
+export function levelLine(a: Pt, b: Pt, flat = 6, diagonal = 3): [Pt, Pt] {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const len = Math.hypot(dx, dy);
+  if (len < 0.001) return [a, b];
+  const deg = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const nearest = Math.round(deg / 45) * 45;
+  if (Math.abs(deg - nearest) > (nearest % 90 === 0 ? flat : diagonal)) return [a, b];
+  const r = (nearest * Math.PI) / 180;
+  const cx = (a[0] + b[0]) / 2;
+  const cy = (a[1] + b[1]) / 2;
+  const hx = (Math.cos(r) * len) / 2;
+  const hy = (Math.sin(r) * len) / 2;
+  return [
+    [cx - hx, cy - hy, a[2]],
+    [cx + hx, cy + hy, b[2]],
+  ];
 }
 
 /** Roughly flat (h) or upright (v), or neither, for a line's two ends. */
@@ -315,7 +386,7 @@ export function axesOfPair(h: [Pt, Pt], v: [Pt, Pt]): { a: Pt; b: Pt } | null {
  * One stroke drawn as an L (down the side, then along the bottom): the box for clean axes, or
  * null. The path has to hug the left and bottom edges of its box all the way.
  */
-export function axesOf(pts: Pt[]): { a: Pt; b: Pt } | null {
+export function axesOf(pts: Pt[], hug = 0.08): { a: Pt; b: Pt } | null {
   if (pts.length < 6) return null;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const p of pts) {
@@ -327,7 +398,7 @@ export function axesOf(pts: Pt[]): { a: Pt; b: Pt } | null {
   const w = x1 - x0;
   const h = y1 - y0;
   if (w < 1 || h < 1 || h < w * 0.3 || w < h * 0.3) return null;
-  const tol = Math.max(w, h) * 0.08;
+  const tol = Math.max(w, h) * hug;
   const first = pts[0];
   const last = pts[pts.length - 1];
   // Starts at the top of the upright, ends at the right of the base (or drawn the other way).
@@ -341,6 +412,17 @@ export function axesOf(pts: Pt[]): { a: Pt; b: Pt } | null {
 
 /** Pen pressure to width factor: light touch stays readable, pressing thickens. */
 const widthAt = (size: number, p: number) => size * (0.3 + 1.05 * Math.pow(Math.min(1, Math.max(0, p)), 0.8));
+
+/**
+ * How heavy a hand-drawn stroke looks, as a share of its pen size (from its pen pressure), so the
+ * ruled line or clean shape it is tidied into is drawn the same weight as the writing around it.
+ */
+export function penWeight(pts: Pt[]): number {
+  if (!pts.length) return 0.9;
+  let sum = 0;
+  for (const p of pts) sum += widthAt(1, p[2]);
+  return sum / pts.length;
+}
 
 /** Distance from point to segment. */
 function distToSeg(px: number, py: number, a: Pt, b: Pt): number {
@@ -649,11 +731,25 @@ function drawShape(ctx: CanvasRenderingContext2D, s: Stroke) {
   ctx.restore();
 }
 
+/** The middle value of a list (0 when it is empty). */
+function median(v: number[]): number {
+  if (!v.length) return 0;
+  const s = [...v].sort((a, b) => a - b);
+  return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
+}
+
 /**
  * Hand-drawn closed loop to a clean box or oval, if it is close to one.
  * Returns null when the stroke isn't a clear shape (it then stays as ink).
+ * `strict`: how closely it must follow the shape; `gap`: how far apart its two ends may be (both
+ * as a share of its size).
+ *
+ * The clean shape is fitted to where the pen actually ran, not to the furthest it strayed: each
+ * side of a box sits on the middle of the points drawn along it (so one bulge or an overshoot at
+ * the join does not push the whole side out), and a box or oval drawn nearly square or round comes
+ * out exactly square or round.
  */
-export function recogniseShape(pts: Pt[], strict = 0.045): { kind: "rect" | "ellipse"; a: Pt; b: Pt } | null {
+export function recogniseShape(pts: Pt[], strict = 0.045, gap = 0.22): { kind: "rect" | "ellipse"; a: Pt; b: Pt } | null {
   if (pts.length < 8) return null;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const p of pts) {
@@ -667,61 +763,197 @@ export function recogniseShape(pts: Pt[], strict = 0.045): { kind: "rect" | "ell
   const diag = Math.hypot(w, h);
   if (w < diag * 0.12 || h < diag * 0.12) return null; // a line, not a loop
   const [s0, e0] = [pts[0], pts[pts.length - 1]];
-  if (Math.hypot(e0[0] - s0[0], e0[1] - s0[1]) > diag * 0.22) return null; // not closed
+  if (Math.hypot(e0[0] - s0[0], e0[1] - s0[1]) > diag * gap) return null; // not closed
   const cx = x0 + w / 2;
   const cy = y0 + h / 2;
   let er = 0;
   let ee = 0;
+  // The points drawn along each side of the box (the middle part of each side, clear of the corners).
+  const sides: [number[], number[], number[], number[]] = [[], [], [], []];
   for (const p of pts) {
-    er += Math.min(Math.abs(p[0] - x0), Math.abs(p[0] - x1), Math.abs(p[1] - y0), Math.abs(p[1] - y1));
+    const dl = Math.abs(p[0] - x0), dr = Math.abs(p[0] - x1), dt = Math.abs(p[1] - y0), db = Math.abs(p[1] - y1);
+    const near = Math.min(dl, dr, dt, db);
+    er += near;
     const ang = Math.atan2((p[1] - cy) / (h / 2), (p[0] - cx) / (w / 2));
     ee += Math.hypot(p[0] - (cx + Math.cos(ang) * (w / 2)), p[1] - (cy + Math.sin(ang) * (h / 2)));
+    const midY = p[1] > y0 + h * 0.2 && p[1] < y1 - h * 0.2;
+    const midX = p[0] > x0 + w * 0.2 && p[0] < x1 - w * 0.2;
+    if (near === dl && midY) sides[0].push(p[0]);
+    else if (near === dr && midY) sides[1].push(p[0]);
+    else if (near === dt && midX) sides[2].push(p[1]);
+    else if (near === db && midX) sides[3].push(p[1]);
   }
   er /= pts.length * diag;
   ee /= pts.length * diag;
   const best = er <= ee ? "rect" : "ellipse";
   if (Math.min(er, ee) > strict) return null;
-  return { kind: best, a: [x0, y0, 0.5], b: [x1, y1, 0.5] };
+  let [l, r, t, b] = [x0, x1, y0, y1];
+  if (best === "rect") {
+    // Each side where most of it was drawn (never further in than a little way: a side with too few
+    // points of its own keeps the box's edge).
+    const fit = (v: number[], edge: number, room: number) => (v.length >= 3 && Math.abs(median(v) - edge) < room ? median(v) : edge);
+    l = fit(sides[0], x0, w * 0.12);
+    r = fit(sides[1], x1, w * 0.12);
+    t = fit(sides[2], y0, h * 0.12);
+    b = fit(sides[3], y1, h * 0.12);
+  }
+  // Nearly square or round: exactly so, about the same middle.
+  const sw = r - l;
+  const sh = b - t;
+  if (Math.abs(sw - sh) <= Math.max(sw, sh) * 0.1) {
+    const side = (sw + sh) / 2;
+    const mx = (l + r) / 2;
+    const my = (t + b) / 2;
+    [l, r, t, b] = [mx - side / 2, mx + side / 2, my - side / 2, my + side / 2];
+  }
+  return { kind: best, a: [l, t, 0.5], b: [r, b, 0.5] };
 }
 
-/** Subtle dot grid behind the ink, so the board feels like paper, not a void. */
-/** What's printed on the board: nothing, or a very faint grid. */
-export type Backdrop = "plain" | "grid";
-export const BACKDROPS: Backdrop[] = ["plain", "grid"];
-export const BACKDROP_NAME: Record<Backdrop, string> = { plain: "Plain", grid: "Faint grid" };
+/** What a pen stroke is tidied into: a clean box or oval, diagram axes, or a ruled line. */
+export type Tidy = { kind: "rect" | "ellipse" | "axes" | "line"; a: Pt; b: Pt };
+
+/**
+ * What a finished pen stroke tidies into by itself, with no hold: only big, clear, deliberate
+ * shapes. Handwriting never gets here: letters and figures are far smaller than these sizes, and
+ * anything that is not plainly a closed box or oval, an L, or a long straight line stays as drawn.
+ * `z`: the zoom, so the sizes are what Hamza sees on screen.
+ *  - a closed loop at least 110 by 70 on screen that follows a box or an oval closely;
+ *  - an L at least 150 by 110, not a tall narrow one (a capital L written large stays a letter);
+ *  - a straight stroke at least 120 long: a ruled line, levelled when it is nearly level or upright.
+ */
+export function tidyStroke(pts: Pt[], z: number): Tidy | null {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of pts) {
+    x0 = Math.min(x0, p[0]);
+    y0 = Math.min(y0, p[1]);
+    x1 = Math.max(x1, p[0]);
+    y1 = Math.max(y1, p[1]);
+  }
+  const w = (x1 - x0) * z;
+  const h = (y1 - y0) * z;
+  if (w >= 90 && h >= 60) {
+    // (A little bigger than before, 110 by 70: a capital O written large for a heading was just
+    // inside the old 90 by 60 and came out as a drawn oval.)
+    const shape = w >= 110 && h >= 70 ? recogniseShape(pts, 0.032) : null;
+    if (shape) return shape;
+    const ax = axesOf(pts);
+    if (ax && w >= 150 && h >= 110 && w >= h * 0.55) return { kind: "axes", ...ax };
+  }
+  // (Its length is measured as before, without any little hook at its ends, so nothing shorter than
+  // before is taken for a ruled line.)
+  const ends = straightOf(pts);
+  const line = ends && Math.hypot(ends[1][0] - ends[0][0], ends[1][1] - ends[0][1]) * z >= 120 ? ruledLine(pts, 0.03) : null;
+  if (line) {
+    const [a, b] = levelLine(line[0], line[1]);
+    return { kind: "line", a, b };
+  }
+  return null;
+}
+
+/**
+ * What a stroke becomes when the pen is held still at its end: the deliberate "tidy this" gesture,
+ * so it is more forgiving than tidyStroke and works at any size. A closed loop becomes a box or an
+ * oval, an L becomes axes, and a stroke that runs roughly straight becomes a line from where the
+ * pen began (snapped to level, upright or 45° when close). A real curve (an arc, an S, a letter)
+ * is left exactly as drawn: before, it was flattened into the straight line between its ends.
+ */
+export function holdShape(pts: Pt[], z: number): Tidy | null {
+  if (pts.length < 2) return null;
+  const shape = recogniseShape(pts, 0.075, 0.3);
+  if (shape) return shape;
+  const ax = axesOf(pts, 0.12);
+  if (ax && (ax.b[0] - ax.a[0]) * z >= 80 && (ax.b[1] - ax.a[1]) * z >= 60) return { kind: "axes", ...ax };
+  if (!straightOf(pts, 0.22, 1.5)) return null;
+  const a = pts[0];
+  return { kind: "line", a, b: snapLine(a, pts[pts.length - 1]) };
+}
+
+/** What's printed on the board: nothing, soft dots, fine ruled lines, or squares for graphs. */
+export type Backdrop = "plain" | "dots" | "lines" | "grid";
+export const BACKDROPS: Backdrop[] = ["plain", "dots", "lines", "grid"];
+export const BACKDROP_NAME: Record<Backdrop, string> = { plain: "Plain", dots: "Dots", lines: "Lines", grid: "Squared" };
 let backdrop: Backdrop = "plain";
 export const getBackdrop = () => backdrop;
 export function setBackdrop(b: Backdrop) {
   backdrop = b;
 }
 
+/** The paper's own spacing, in board units: one square, one ruled line, one dot. */
+export const PAPER_STEP = 40;
+/** How much of a level of the print shows when it is `px` apart on screen: all of it from 20px, none under 9px. */
+const printFade = (px: number) => Math.max(0, Math.min(1, (px - 9) / 11));
+
 /**
- * The faint grid: one set of soft squares, barely there (enough to keep writing straight,
- * never louder than the ink). One path, a hairline on screen at any zoom.
+ * The print on the paper: soft dots, fine ruled lines, or squares with a slightly heavier line
+ * every fifth (for graphs). It is part of the board, so it moves and zooms with the writing and
+ * works as real paper for lining things up. Always fainter than the ink. Zoomed out, the fine
+ * level fades away and every fifth carries on, so it never turns into noise.
+ *
+ * Drawn once into the finished layer (never per pen move), straight in screen pixels: each line is
+ * one thin filled bar that sits exactly on the pixels (a crisp hairline at any zoom), all in one path.
  */
 export function drawGrid(ctx: CanvasRenderingContext2D, cam: Camera, w: number, h: number) {
-  if (backdrop !== "grid") return;
-  let step = 40;
-  while (step * cam.z < 20) step *= 2;
-  const x0 = Math.floor(cam.x / step) * step;
-  const y0 = Math.floor(cam.y / step) * step;
-  const x1 = cam.x + w / cam.z;
-  const y1 = cam.y + h / cam.z;
-  const px = 1 / cam.z;
-  ctx.beginPath();
-  for (let x = x0; x <= x1; x += step) {
-    const sx = Math.round((x - cam.x) * cam.z) / cam.z + cam.x + px / 2; // on a pixel, so it stays sharp
-    ctx.moveTo(sx, y0);
-    ctx.lineTo(sx, y1 + step);
+  if (backdrop === "plain") return;
+  const { rgb, dots, lines, grid, major } = THEMES[themeId].print;
+  const z = cam.z;
+  // The fine level and every fifth of it. (Far below any tablet zoom, on a laptop following a much
+  // bigger screen, both step up together.)
+  let step = PAPER_STEP;
+  while (step * 5 * z < 9) step *= 5;
+  const fine = printFade(step * z);
+  const coarse = printFade(step * 5 * z);
+  const base = backdrop === "dots" ? dots : backdrop === "lines" ? lines : grid;
+  const top = backdrop === "grid" ? major : base;
+  // Every fifth is drawn over the fine level, so it only adds what is missing to reach its strength.
+  const levels: Array<[number, number]> = [
+    [step, base * fine],
+    [step * 5, top * coarse - base * fine],
+  ];
+  // Board units to screen pixels, as the layer is set up: X = k * x + ex.
+  const m = ctx.getTransform();
+  const k = m.a;
+  const dpr = k / z;
+  const W = Math.ceil(w * dpr);
+  const H = Math.ceil(h * dpr);
+  const thick = Math.max(1, Math.round(dpr));
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  for (const [gap, alpha] of levels) {
+    if (alpha < 0.004) continue;
+    const ink = `rgba(${rgb},${Math.round(alpha * 1000) / 1000})`;
+    const x0 = Math.floor(cam.x / gap) * gap;
+    const y0 = Math.floor(cam.y / gap) * gap;
+    const x1 = cam.x + w / z;
+    const y1 = cam.y + h / z;
+    ctx.fillStyle = ink;
+    ctx.beginPath();
+    if (backdrop === "dots") {
+      // Round dots while there are few enough of them (any normal zoom); zoomed far out, where each is
+      // only a couple of pixels and already fading, small squares, which cost next to nothing. A
+      // little bigger zoomed in.
+      const r = dpr * Math.max(1, Math.min(1.7, 1.15 * Math.sqrt(z)));
+      const round = ((x1 - x0) / gap + 1) * ((y1 - y0) / gap + 1) <= 4000;
+      const d = Math.max(1, Math.round(r * 2));
+      for (let y = y0; y <= y1; y += gap) {
+        const Y = k * y + m.f;
+        for (let x = x0; x <= x1; x += gap) {
+          const X = k * x + m.e;
+          if (round) {
+            ctx.moveTo(X + r, Y);
+            ctx.arc(X, Y, r, 0, Math.PI * 2);
+          } else ctx.rect(Math.round(X - d / 2), Math.round(Y - d / 2), d, d);
+        }
+      }
+      ctx.fill();
+      continue;
+    }
+    ctx.fillStyle = ink;
+    ctx.beginPath();
+    if (backdrop === "grid") for (let x = x0; x <= x1; x += gap) ctx.rect(Math.round(k * x + m.e), 0, thick, H);
+    for (let y = y0; y <= y1; y += gap) ctx.rect(0, Math.round(k * y + m.f), W, thick);
+    ctx.fill();
   }
-  for (let y = y0; y <= y1; y += step) {
-    const sy = Math.round((y - cam.y) * cam.z) / cam.z + cam.y + px / 2;
-    ctx.moveTo(x0, sy);
-    ctx.lineTo(x1 + step, sy);
-  }
-  ctx.lineWidth = px;
-  ctx.strokeStyle = themeId === "night" ? "rgba(240,237,232,0.05)" : "rgba(26,29,32,0.055)";
-  ctx.stroke();
+  ctx.restore();
 }
 
 // ---------------------------------------------------------------- typed text
