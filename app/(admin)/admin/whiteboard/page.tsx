@@ -54,14 +54,18 @@ export default function WhiteboardPage() {
         <li>Both devices pair on their own because they&apos;re both signed in as you. Nothing to copy.</li>
         <li>Open the board on the tablet from this page (or bookmark it to the home screen for one tap).</li>
         <li>If the laptop was opened late, it catches up with everything already drawn within a second or two.</li>
-        <li>Typing: on the laptop, point where the words go and press T. On the tablet, pick the T tool and tap. Enter finishes, Shift+Enter starts a new line. Tap the words again to edit them.</li>
+        <li>Typing: on the laptop, point where the words go and press T. On the tablet, pick the T tool and tap an empty spot. Enter finishes, Shift+Enter starts a new line.</li>
+        <li>Typed words: tap or click them once to select them. A gold frame appears with a small bar, and the keyboard stays closed. Drag the words to move them, with a finger, the S Pen or the mouse. Tap them a second time (or press Enter) to edit. Tap an empty spot to let them go.</li>
+        <li>Which tool for that: on the tablet a finger tap selects typed words with any tool, and the S Pen selects them with the Type or Move tool. With the Pen tool the S Pen always writes, even over typed words. On the laptop a click selects typed words with the Pen tool too.</li>
+        <li>With typed words selected: the bar has Move, bold, italic, highlight, the four colours, Edit and a bin. Delete or Backspace removes them, the arrow keys nudge them (Shift moves 10 at a time), and Undo puts back a move or a delete in one step.</li>
         <li>Every class has its own page (&ldquo;A2 Economics&rdquo;), always there, even before its first lesson: tap the page name at the top left to see them all, open one and write ahead. It opens by itself as the class starts, with everything still on it, and stays day after day until you delete it (deleting wipes it clean). The arrows step through the pages; + starts a blank one.</li>
-        <li>Laptop keys: P pen, L line, A axes, E eraser, T type, V move, H hide the tools, [ and ] pages, N new page, Page Down more room, Ctrl+Z undo, Ctrl+Shift+Z redo. Hold Space and drag to move the board.</li>
+        <li>Laptop keys: P pen, L line, A axes, E eraser, T type, V move, H hide the tools, [ and ] pages, N new page, Page Down more room, Ctrl+Z undo, Ctrl+Shift+Z redo, Delete removes what is selected, Esc lets it go. Hold Space and drag to move the board.</li>
         <li>Diagrams: draw an L (or press A on the laptop) for clean x and y axes, with 0 at the origin and arrows at the ends.</li>
-        <li>Moving things: the Move tool (V) drags pictures, typed text and writing. With the Type tool, a tap on words edits them and a drag moves them.</li>
+        <li>Moving things: the Move tool (V) drags pictures, typed text and writing. Selected typed words can be dragged with any tool.</li>
+        <li>Ink colours: black, blue, red and green, for the pen and for typed words.</li>
         <li>While typing: B for bold, I for italic, and a highlighter, in the little bar by the words (or Ctrl+B, Ctrl+I, Ctrl+H).</li>
         <li>Need more room below? Press Page Down on the laptop and the board slides up for fresh space. The board never moves by itself. Typed words carry on to the next line at the edge.</li>
-        <li>Text boxes: drag the side handle to set how wide the lines run, the corner to make the words bigger or smaller. The bar by the words has bold, italic, highlight and the three colours.</li>
+        <li>Text boxes: drag the side handle to set how wide the lines run, the corner to make the words bigger or smaller. This works on selected words and while typing. The bar by the words has bold, italic, highlight and the four colours.</li>
         <li>The tools fade while you write, and on the laptop they step aside after 3 seconds without the mouse, so they never cover the board.</li>
         <li>For a fully clean shared screen, hide the tools (the eye button, or H). &ldquo;Show tools&rdquo; brings them back.</li>
         <li>Each device keeps its board when you leave, however full, and it&apos;s there when you come back.</li>

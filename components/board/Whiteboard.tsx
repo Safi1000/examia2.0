@@ -36,6 +36,7 @@ import {
   isPenEraser,
   lineAngle,
   measureText,
+  runWidth,
   TEXT_LINE,
   wrapText,
   MAX_Z,
@@ -523,6 +524,9 @@ const QUIET = "text-white/[0.68] hover:bg-white/[0.07] hover:text-white active:b
 const ON = "bg-white/[0.12] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]";
 /** The tool in hand: the brand gold, as a tint, not a fill. */
 const GOLD_ON = "bg-[#FBC159]/[0.16] text-[#FBC159] shadow-[inset_0_0_0_1px_rgba(251,193,89,0.32)]";
+/** What is selected (a picture, typed text): one calm gold frame, and one kind of handle dot. */
+const SEL_FRAME = "rounded-[3px] shadow-[0_0_0_2px_#FBC159,0_0_0_6px_rgba(251,193,89,0.16)]";
+const HANDLE_DOT = "block h-4 w-4 rounded-full border-2 border-[#FBC159] bg-white shadow-[0_1px_3px_rgba(20,22,24,0.35)]";
 /** Makes a 36px control a 44px touch target without making it look bigger. */
 const HIT = "before:absolute before:-inset-y-1 before:inset-x-0 before:content-['']";
 
@@ -647,7 +651,7 @@ function Swatch({ ink, on, size = 18 }: { ink: string; on: boolean; size?: numbe
   );
 }
 
-/** The text colour choices in the style bar (the same three inks as the pen). */
+/** The text colour choices in the style bar (the same four inks as the pen). */
 function TextColors({ value, big, onPick }: { value: string; big: boolean; onPick: (c: string) => void }) {
   return (
     <>
@@ -658,6 +662,7 @@ function TextColors({ value, big, onPick }: { value: string; big: boolean; onPic
           aria-label={`${c.name} text`}
           aria-pressed={value === c.value}
           {...tipOn(`${c.name} text`)}
+          onPointerDown={palmDown}
           onClick={() => onPick(c.value)}
           className={`${PRESS} flex items-center justify-center rounded-[10px] hover:bg-white/[0.07] ${big ? "h-11 w-10" : `h-9 w-8 ${HIT}`}`}
         >
@@ -831,6 +836,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       return !p.undo === !n.undo && !p.redo === !n.redo && !p.content === !n.content ? p : n;
     });
 
+  // The selected typed text: a tap selects it (a gold frame and its bar), a drag then moves it and a
+  // second tap opens it to edit. Only this device knows what is selected. Its look is kept beside it
+  // for the bar's buttons.
+  const [selText, setSelTextState] = useState<{ id: string; color: string; bold: boolean; italic: boolean; hl: boolean } | null>(null);
+  const selTextRef = useRef<string | null>(null);
+  // Set once the text grips exist (further down): ends a grip drag left open.
+  const endTextDragRef = useRef<() => void>(() => {});
+
   // Set once the picture handles exist (further down): ends a handle drag left open.
   const finishPicDragRef = useRef<(keepId?: string | null) => void>(() => {});
   const select = (id: string | null) => {
@@ -840,6 +853,40 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     finishPicDragRef.current(id);
     selectedRef.current = id;
     setSelectedId(id);
+    // One thing is selected at a time: a picture taking the selection lets typed text go.
+    if (id && selTextRef.current) {
+      endTextDragRef.current();
+      selTextRef.current = null;
+      setSelTextState(null);
+    }
+  };
+  /** The selected text as it is now (also while it is being dragged, when it is drawn on top). */
+  const selStroke = (): Stroke | undefined => {
+    const id = selTextRef.current;
+    if (!id) return undefined;
+    if (moving.current?.id === id) return moving.current;
+    return strokes.current.find((x) => x.id === id && x.kind === "text");
+  };
+  const selectText = (id: string | null) => {
+    if (id && selectedRef.current) select(null);
+    if (selTextRef.current === id) return;
+    // Its grips leave the page with it: a grip drag still open is finished first (the words land).
+    endTextDragRef.current();
+    selTextRef.current = id;
+    const s = selStroke();
+    if (!s) selTextRef.current = null;
+    setSelTextState(s ? { id: s.id, color: s.color, bold: !!s.bold, italic: !!s.italic, hl: !!s.hl } : null);
+  };
+  /**
+   * After the board changes under the selection. It is let go once its text is no longer on the
+   * board (rubbed out, undone, cleared, opened on the other device); if its look changed (an undo,
+   * the other device), its bar shows the look it has now.
+   */
+  const checkSel = () => {
+    if (!selTextRef.current) return;
+    const s = selStroke();
+    if (!s) return selectText(null);
+    setSelTextState((p) => (p && p.id === s.id && p.color === s.color && p.bold === !!s.bold && p.italic === !!s.italic && p.hl === !!s.hl ? p : { id: s.id, color: s.color, bold: !!s.bold, italic: !!s.italic, hl: !!s.hl }));
   };
 
   const { canvasRef, size: screen, requestDraw } = useCanvas((ctx, w, h, again) =>
@@ -1393,6 +1440,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     // One message, so the other device applies the whole undo together or not at all.
     if (ms.length) send({ t: "batch", ms });
     if (selectedRef.current && !nowI.has(selectedRef.current)) select(null);
+    checkSel();
     persist();
     requestDraw();
     syncMeta();
@@ -1440,6 +1488,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     strokes.current = [];
     images.current = [];
     select(null);
+    selectText(null);
     send({ t: "clear" });
     // Remembered as gone, so a laptop that missed the clear can't hand them back when it rejoins.
     ledger.mark(gone, ledger.stamp());
@@ -1679,6 +1728,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         case "batch":
           return; // unpacked before it gets here
       }
+      checkSel();
       persist();
       requestDraw();
       syncMeta();
@@ -1704,6 +1754,49 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       wrapW: t.maxW,
       pts: [[t.wx, t.wy, 0.5], [t.wx + Math.max(m.w, t.boxW ?? 0), t.wy + m.h, 0.5]],
     };
+  };
+  /** Typed text with a new look (size, line width, style or colour): its words are laid out again, in the same place. */
+  const restyled = (s: Stroke, patch: { size?: number; boxW?: number; color?: string; bold?: boolean; italic?: boolean; hl?: boolean }): Stroke => {
+    const n = { ...s, ...patch };
+    const hasWrap = typeof s.wrapW === "number" && Number.isFinite(s.wrapW);
+    const out = typedStroke({ id: s.id, wx: s.pts[0][0], wy: s.pts[0][1], size: n.size, color: n.color, text: s.raw ?? s.text ?? "", maxW: n.boxW ?? (hasWrap ? s.wrapW! : Infinity), boxW: n.boxW, bold: n.bold, italic: n.italic, hl: n.hl });
+    // Text from before line widths were kept stays as it was: its lines are not re-broken later.
+    if (!n.boxW && !hasWrap) delete out.wrapW;
+    return out;
+  };
+  /** Where in the words as typed a tap landed, so the caret opens there. */
+  const caretAt = (s: Stroke, wx: number, wy: number): number => {
+    const raw = s.raw ?? s.text ?? "";
+    const lines = (s.text ?? "").split("\n");
+    const li = Math.max(0, Math.min(lines.length - 1, Math.floor((wy - s.pts[0][1]) / (s.size * TEXT_LINE))));
+    const line = lines[li];
+    const at = wx - s.pts[0][0];
+    // The gap between two letters nearest the tap.
+    let col = line.length;
+    let before = 0;
+    for (let i = 1; i <= line.length; i++) {
+      const w = runWidth(line.slice(0, i), s.size, s);
+      if (w > at) {
+        col = at - before < w - at ? i - 1 : i;
+        break;
+      }
+      before = w;
+    }
+    // The same place in the words as typed (wrapping swaps spaces for line breaks): after the same
+    // number of letters, plus any spaces typed between that letter and the tap.
+    const lead = lines.slice(0, li).join("") + line.slice(0, col);
+    let need = lead.replace(/\s/g, "").length;
+    let i = 0;
+    while (i < raw.length && need > 0) {
+      if (!/\s/.test(raw[i])) need--;
+      i++;
+    }
+    let gaps = /\s*$/.exec(line.slice(0, col))?.[0].length ?? 0;
+    while (gaps > 0 && raw[i] === " ") {
+      gaps--;
+      i++;
+    }
+    return i;
   };
   // Bold, italic, highlight: switched on the text being typed (the whole of it), shown at once
   // there and on the other screen.
@@ -1807,11 +1900,16 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     }
     requestDraw();
   };
-  /** Opens the text box at a spot, or on the words already there. Focus happens now, so the keyboard opens. */
-  const startTyping = (sx: number, sy: number) => {
+  /**
+   * Opens the text box at a spot, or on the words already there. Focus happens now, so the keyboard opens.
+   * `target`: these words (selected, then tapped again), with the caret where the tap landed (`atTap`) or at the end.
+   */
+  const startTyping = (sx: number, sy: number, target?: Stroke, atTap = false) => {
     commitTyping(true);
+    selectText(null);
     const [wx, wy] = toWorld(cam.current, sx, sy);
-    const under = [...strokes.current].reverse().find((x) => x.kind === "text" && hitStroke(x, wx, wy, 6 / cam.current.z));
+    const under = target ?? [...strokes.current].reverse().find((x) => x.kind === "text" && hitStroke(x, wx, wy, 6 / cam.current.z));
+    const caret = target && atTap ? caretAt(target, wx, wy) : -1;
     // Lines run to the right edge of the screen (less a margin), then carry on below.
     const lineFrom = (x: number) => Math.max(160, screen.current.w - 24 - (x - cam.current.x) * cam.current.z) / cam.current.z;
     if (under) {
@@ -1830,7 +1928,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     if (el) {
       el.value = typingRef.current.text;
       el.focus({ preventScroll: true });
-      el.setSelectionRange(el.value.length, el.value.length);
+      const pos = caret >= 0 ? Math.min(caret, el.value.length) : el.value.length;
+      el.setSelectionRange(pos, pos);
     }
     placeTyping();
     // Opening words to edit: the other screen keeps showing them (not a gap until the first key).
@@ -1848,6 +1947,42 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       liveSend.current = now;
       send({ t: "live", s: typedStroke(t) });
     }
+  };
+
+  // ---- the selected text's bar: its look changes in place (one undo step each), no keyboard needed
+  const restyleSel = (patch: Parameters<typeof restyled>[1]) => {
+    const s = selStroke();
+    if (!s || moving.current) return;
+    const after = restyled(s, patch);
+    strokes.current = strokes.current.map((x) => (x.id === s.id ? after : x));
+    commit({ type: "replace", before: [s], after: [after] });
+    send({ t: "add", s: packStroke(after) });
+    setSelTextState({ id: after.id, color: after.color, bold: !!after.bold, italic: !!after.italic, hl: !!after.hl });
+    requestDraw();
+  };
+  const toggleSel = (k: "bold" | "italic" | "hl") => {
+    const s = selStroke();
+    if (s) restyleSel({ [k]: !s[k] });
+  };
+  const colorSel = (c: string) => restyleSel({ color: c });
+  const onSelStyle = (e: React.MouseEvent<HTMLElement>) => {
+    if (!palmBlocked()) toggleSel(e.currentTarget.dataset.k as "bold" | "italic" | "hl");
+  };
+  /** Delete or Backspace, or the bin in its bar: the selected text goes (undo brings it back). */
+  const deleteSelText = () => {
+    const s = selStroke();
+    if (!s || moving.current) return;
+    strokes.current = strokes.current.filter((x) => x.id !== s.id);
+    commit({ type: "erase", s: [s] });
+    send({ t: "del", ids: [s.id] });
+    selectText(null);
+    requestDraw();
+  };
+  /** Enter, or Edit in its bar: the selected words open, caret at the end. */
+  const editSel = () => {
+    const s = selStroke();
+    if (!s || moving.current) return;
+    startTyping((s.pts[0][0] - cam.current.x) * cam.current.z, (s.pts[0][1] - cam.current.y) * cam.current.z, s);
   };
 
   // ---- insert pictures and PDFs
@@ -2049,6 +2184,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const velocity = useRef({ vx: 0, vy: 0 });
   // How far this finger pan has travelled, and when it last moved: a tap or a stop never glides.
   const panTrip = useRef({ dist: 0, at: 0 });
+  /**
+   * Typed text or writing being moved. `tapEdits`: lifting without a drag opens the words (they were
+   * already selected). `slop`: how far the pointer may wander and still count as a tap. `lx, ly`: where
+   * the pointer is now.
+   */
+  type Mv = { s: Stroke; x0: number; y0: number; lx: number; ly: number; moved: boolean; tapEdits: boolean; previewId: string; slop: number; touch: boolean; at: number };
   const gesture = useRef<{
     mode: "draw" | "line" | "box" | "erase" | "pan" | "drag" | "resize" | "shift" | null;
     id: number;
@@ -2057,7 +2198,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     img?: { before: BoardImage; ox: number; oy: number };
     /** Moving typed text or writing: the stroke, where the pointer went down, and whether it has
      * moved yet (a tap on words with the type tool edits them instead). */
-    mv?: { s: Stroke; x0: number; y0: number; moved: boolean; tapEdits: boolean; previewId: string };
+    mv?: Mv;
+    /** A mouse press with the pen or line tool that may turn out to be a plain click: on typed words
+     * it selects them (`text`), and with words selected a click elsewhere only lets them go. */
+    click?: { text: string | null; at: number };
   }>({ mode: null, id: -1, erased: [], straightened: false });
   const hold = useRef<{ x: number; y: number; timer: ReturnType<typeof setTimeout> | null; path: number }>({ x: 0, y: 0, timer: null, path: 0 });
   const liveSend = useRef(0);
@@ -2149,6 +2293,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     gesture.current.erased.push(...hit);
     eraseOut.current.ids.push(...hit.map((s) => s.id));
     eraseOut.current.timer ??= setTimeout(flushErase, 60);
+    checkSel();
     requestDraw();
   };
 
@@ -2410,24 +2555,69 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     return undefined;
   };
   const shifted = (s: Stroke, dx: number, dy: number): Stroke => ({ ...s, pts: s.pts.map((p) => [p[0] + dx, p[1] + dy, p[2]] as Pt) });
-  /** `anyStroke`: writing and lines too, not just typed text (the Move tool with the pen or mouse). */
-  const grabStroke = (id: number, sx: number, sy: number, tapEdits: boolean, anyStroke = !tapEdits) => {
+  /** A press that may become a move: nothing changes until the pointer has gone further than a tap would. */
+  const startMv = (s: Stroke, sx: number, sy: number, tapEdits: boolean, pt: string): Mv => ({
+    s,
+    x0: sx,
+    y0: sy,
+    lx: sx,
+    ly: sy,
+    moved: false,
+    tapEdits,
+    previewId: `${s.id}~${Date.now().toString(36)}`,
+    // A fingertip wanders more than a pen tip or the mouse while it taps.
+    slop: pt === "touch" ? 8 : pt === "pen" ? 5 : 4,
+    touch: pt === "touch",
+    at: performance.now(),
+  });
+  /**
+   * A press on typed text (or, `anyStroke`, any writing: the Move tool with the pen or mouse). Typed
+   * text is selected at once and a drag from here moves it; pressed again while selected, lifting
+   * without a drag opens it to edit.
+   */
+  const grabStroke = (id: number, sx: number, sy: number, anyStroke: boolean, pt: string) => {
     const hit = strokeUnder(sx, sy, anyStroke);
     if (!hit) return false;
-    gesture.current = { mode: "shift", id, erased: [], straightened: false, mv: { s: hit, x0: sx, y0: sy, moved: false, tapEdits, previewId: `${hit.id}~${Date.now().toString(36)}` } };
+    const again = hit.kind === "text" && hit.id === selTextRef.current;
+    selectText(hit.kind === "text" ? hit.id : null);
+    gesture.current = { mode: "shift", id, erased: [], straightened: false, mv: startMv(hit, sx, sy, again, pt) };
     return true;
+  };
+  /** A press on the selected text (anywhere in its frame, with a little slack), whatever is drawn over it. */
+  const grabSel = (id: number, sx: number, sy: number, pt: string) => {
+    const s = selStroke();
+    if (!s || moving.current) return false;
+    const c = cam.current;
+    const pad = (pt === "touch" ? 12 : 8) / c.z;
+    const [wx, wy] = toWorld(c, sx, sy);
+    const [a, b] = [s.pts[0], s.pts[s.pts.length - 1]];
+    if (wx < a[0] - pad || wx > b[0] + pad || wy < a[1] - pad || wy > b[1] + pad) return false;
+    gesture.current = { mode: "shift", id, erased: [], straightened: false, mv: startMv(s, sx, sy, true, pt) };
+    return true;
+  };
+  /** The move really starts: lifted off the board while it moves (drawn on top), so the board isn't redrawn each move. */
+  const liftMv = (mv: Mv) => {
+    mv.moved = true;
+    strokes.current = strokes.current.filter((x) => x.id !== mv.s.id);
+    send({ t: "del", ids: [mv.s.id] });
+    setInking(true);
+  };
+  /** Where (or how) it is now: drawn on top here, and the other screen sees it a few times a second. */
+  const showMv = (mv: Mv, next: Stroke) => {
+    moving.current = next;
+    const now = performance.now();
+    if (now - liveSend.current > 40) {
+      liveSend.current = now;
+      send({ t: "live", s: packStroke({ ...next, id: mv.previewId }) });
+    }
+    requestDraw();
   };
   // What was moved last: the laptop's arrow keys nudge it.
   const lastMoved = useRef<string | null>(null);
   /** A move ends: the moved words land (one undo step), or a tap with the type tool opens them to edit. */
-  const finishShift = (mv: NonNullable<typeof gesture.current.mv>, cancelled: boolean) => {
-    gesture.current = { mode: null, id: -1, erased: [], straightened: false };
+  /** The moved (or resized) words land: one undo step, and the other device gets them. */
+  const landMv = (mv: Mv, cancelled: boolean) => {
     setInking(false);
-    if (!mv.moved) {
-      // A tap on words with the type tool: open them to edit.
-      if (mv.tapEdits && !cancelled) startTyping(mv.x0, mv.y0);
-      return;
-    }
     const after = cancelled ? mv.s : (moving.current ?? mv.s);
     moving.current = null;
     strokes.current = [...strokes.current, after];
@@ -2441,6 +2631,118 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     requestDraw();
     syncMeta();
   };
+  const finishShift = (mv: Mv, cancelled: boolean) => {
+    gesture.current = { mode: null, id: -1, erased: [], straightened: false };
+    if (!mv.moved) {
+      setInking(false);
+      // A second tap on selected words opens them to edit, the caret where the tap landed. (A finger
+      // that only rested there for a while is not a tap.)
+      if (mv.tapEdits && !cancelled && (!mv.touch || performance.now() - mv.at < 600)) startTyping(mv.x0, mv.y0, mv.s, true);
+      return;
+    }
+    landMv(mv, cancelled);
+  };
+  // ---- the selected text's own grips (page elements over the board, so they work with the pen, a
+  // finger or the mouse, whatever tool is in hand): Move in its bar, the side pill for how wide its
+  // lines run, the corner dot for its size.
+  type TextGrip = "move" | "w" | "s";
+  const textDrag = useRef<{ id: number; kind: TextGrip; mv: Mv; w0: number } | null>(null);
+  const endTextDrag = (cancelled = false) => {
+    const d = textDrag.current;
+    if (!d) return;
+    textDrag.current = null;
+    if (d.mv.moved) landMv(d.mv, cancelled);
+  };
+  useEffect(() => {
+    endTextDragRef.current = endTextDrag;
+  });
+  const onTextGripDown = (e: React.PointerEvent<HTMLElement>) => {
+    // A resting palm, or a touch while the pen is in use, does nothing (as on the board).
+    if (e.pointerType === "touch" && (pens.current.active || Date.now() - pens.current.lastAt < PALM_LOCK_MS || e.width > PALM_SIZE_PX || e.height > PALM_SIZE_PX)) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    // A drag left open by a grip that went off the page is finished first.
+    endTextDrag();
+    const s = selStroke();
+    if (!s || moving.current || gesture.current.mode === "shift") return;
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+    stopGlide();
+    const [a, b] = [s.pts[0], s.pts[s.pts.length - 1]];
+    textDrag.current = { id: e.pointerId, kind: e.currentTarget.dataset.k as TextGrip, w0: Math.max(1, b[0] - a[0]), mv: { ...startMv(s, e.clientX, e.clientY, false, e.pointerType), slop: 2 } };
+  };
+  const onTextGripMove = (e: React.PointerEvent<HTMLElement>) => {
+    const d = textDrag.current;
+    if (!d || d.id !== e.pointerId) return;
+    const mv = d.mv;
+    const z = cam.current.z;
+    const dx = (e.clientX - mv.x0) / z;
+    const dy = (e.clientY - mv.y0) / z;
+    if (!mv.moved) {
+      if (Math.hypot(dx, dy) * z < mv.slop) return;
+      liftMv(mv);
+    }
+    if (d.kind === "move") showMv(mv, shifted(mv.s, dx, dy));
+    else if (d.kind === "w") showMv(mv, restyled(mv.s, { boxW: Math.max(mv.s.size * 2, d.w0 + dx) }));
+    else {
+      // The corner: the words grow or shrink (and a set line width with them).
+      const size = Math.max(10 / z, mv.s.size * Math.max(0.4, Math.min(4, (d.w0 + dx) / d.w0)));
+      showMv(mv, restyled(mv.s, { size, ...(mv.s.boxW ? { boxW: mv.s.boxW * (size / mv.s.size) } : {}) }));
+    }
+  };
+  const onTextGripUp = (e: React.PointerEvent<HTMLElement>) => {
+    if (textDrag.current?.id === e.pointerId) endTextDrag(e.type === "pointercancel");
+  };
+  // The frame and bar follow the selected words (pan, zoom, a drag, the other device moving them),
+  // set straight on the page elements, as for a picture.
+  const selTextFrameRef = useRef<HTMLDivElement>(null);
+  const selTextBarRef = useRef<HTMLDivElement>(null);
+  const selTextId = selText?.id ?? null;
+  useEffect(() => {
+    if (!selTextId) return;
+    let raf = 0;
+    let last = "";
+    const place = () => {
+      const el = selTextFrameRef.current;
+      const bar = selTextBarRef.current;
+      const id = selTextRef.current;
+      const s = id ? (moving.current?.id === id ? moving.current : strokes.current.find((x) => x.id === id)) : undefined;
+      if (!el || !bar || !s) return;
+      const c = cam.current;
+      const { w: sw, h: sh } = screen.current;
+      const [a, b] = [s.pts[0], s.pts[s.pts.length - 1]];
+      // A little clear of the words all round.
+      const x = (a[0] - c.x) * c.z - 7;
+      const y = (a[1] - c.y) * c.z - 5;
+      const w = (b[0] - a[0]) * c.z + 14;
+      const h = (b[1] - a[1]) * c.z + 10;
+      const key = `${x}|${y}|${w}|${h}|${sw}|${sh}`;
+      if (key === last) return;
+      last = key;
+      Object.assign(el.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
+      // The bar: just above the words (below them near the top), always on screen, clear of the bars.
+      const bw = bar.offsetWidth;
+      const bh = bar.offsetHeight;
+      const minY = 64;
+      const maxY = sh - bh - (lead ? 12 : 84);
+      const above = y - bh - 14;
+      const below = y + h + 14;
+      const by = Math.min(Math.max(minY, above >= minY ? above : below <= maxY ? below : minY), maxY);
+      const bx = Math.max(lead ? 76 : 12, Math.min(x, sw - bw - 12));
+      const off = x + w < 0 || y + h < 0 || x > sw || y > sh;
+      Object.assign(bar.style, { left: `${bx}px`, top: `${by}px`, visibility: off ? "hidden" : "visible" });
+    };
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      place();
+    };
+    // Placed at once (not a frame later), then kept in step.
+    place();
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [selTextId, screen, lead]);
   // Tablet: a finger held still on typed words picks them up (a small buzz), then they follow the
   // finger, with any tool. A quick drag still pans, and the pen never moves text by accident.
   const liftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2451,7 +2753,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       const at = touches.current.get(id);
       if (!at || touches.current.size !== 1 || panTrip.current.dist > 12 || gesture.current.mode) return;
       if (pens.current.active || Date.now() - pens.current.lastAt < PALM_LOCK_MS) return;
-      if (!grabStroke(id, at.x, at.y, false, false)) return;
+      if (!grabStroke(id, at.x, at.y, false, "touch")) return;
+      // Picked up to be moved: letting go without a drag only leaves them selected.
+      if (gesture.current.mv) gesture.current.mv.tapEdits = false;
       // From here this finger moves the words (the "shift" gesture), not the board.
       touches.current.delete(id);
       tap1.current = null;
@@ -2495,7 +2799,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   // Laptop: right after a move, the arrow keys nudge it (Shift: 10 at a time); a burst is one undo.
   const nudgeAt = useRef(0);
   const nudge = (dx: number, dy: number) => {
-    const id = lastMoved.current;
+    // The selected text, or what was moved last.
+    const id = selTextRef.current ?? lastMoved.current;
     const s = id ? strokes.current.find((x) => x.id === id) : undefined;
     if (!s) return false;
     const z = cam.current.z;
@@ -2521,6 +2826,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     if (!gesture.current.mode && (tool === "text" || tool === "move")) {
       const [wx, wy] = toWorld(cam.current, x, y);
       over = !!strokeUnder(x, y, tool === "move") || (tool === "move" && !!imageAt(images.current, wx, wy));
+    } else if (!gesture.current.mode && (tool === "pen" || tool === "line") && selTextRef.current) {
+      // With the pen or line tool the mouse still moves the selected words.
+      const s = selStroke();
+      const [wx, wy] = toWorld(cam.current, x, y);
+      const pad = 8 / cam.current.z;
+      over = !!s && wx >= s.pts[0][0] - pad && wx <= s.pts[1][0] + pad && wy >= s.pts[0][1] - pad && wy <= s.pts[1][1] + pad;
     }
     if (over === overItemRef.current) return;
     overItemRef.current = over;
@@ -2551,13 +2862,26 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     if (isTouch) {
       if (pens.current.active || Date.now() - pens.current.lastAt < PALM_LOCK_MS) return;
       if (e.width > PALM_SIZE_PX || e.height > PALM_SIZE_PX) return; // a resting hand, not a fingertip
+      // A second finger while the first rests on typed words it has not dragged yet: a pinch, not a
+      // move. The words stay where they are and the first finger joins the pan and zoom.
+      const held = gesture.current;
+      if (held.mode === "shift" && held.mv?.touch && !held.mv.moved && held.id !== e.pointerId) {
+        touches.current.set(held.id, { x: held.mv.lx, y: held.mv.ly, t: performance.now() });
+        gesture.current = { mode: null, id: -1, erased: [], straightened: false };
+      }
+      // One finger on the selected words moves them, with any tool (as a selected picture does). A
+      // finger anywhere else pans, exactly as before.
+      if (selTextRef.current && touches.current.size === 0 && !gesture.current.mode && grabSel(e.pointerId, sx, sy, "touch")) {
+        capture(canvasRef.current, e.pointerId);
+        return;
+      }
       // Move tool: one finger on typed words moves them, even on a picture or PDF page (not near the
       // selected picture's gold dot, which still resizes it).
       if (tool === "move" && touches.current.size === 0 && !gesture.current.mode) {
         const sel = images.current.find((m) => m.id === selectedRef.current);
         const [px, py] = toWorld(cam.current, sx, sy);
         const onDot = !!sel && Math.hypot((sel.x + sel.w - px) * cam.current.z, (sel.y + sel.h - py) * cam.current.z) <= HANDLE_PX * 1.8;
-        if (!onDot && grabStroke(e.pointerId, sx, sy, false, false)) {
+        if (!onDot && grabStroke(e.pointerId, sx, sy, false, "touch")) {
           capture(canvasRef.current, e.pointerId);
           return;
         }
@@ -2602,23 +2926,27 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       }
       gesture.current = { mode: null, id: -1, erased: [], straightened: false };
     }
-    // Same for a finger moving words: they land where they are, and the pen writes.
-    if (isPen && gesture.current.mode === "shift" && gesture.current.mv) finishShift(gesture.current.mv, false);
+    // Same for a finger moving words: they land where they are, and the pen writes. (A finger only
+    // resting on them is let go; it never opens them.)
+    if (isPen && gesture.current.mode === "shift" && gesture.current.mv) finishShift(gesture.current.mv, !gesture.current.mv.moved);
     if (gesture.current.mode) return;
 
     // Typing: the pen or mouse puts the text box here (focus stays in it).
     if (tool === "text" && !isPenEraser(e)) {
       e.preventDefault();
-      // On words already there: a drag moves them, a tap opens them to edit (on lifting). An open box
-      // closes first, so pressing just around it picks it up too.
+      // On words already there: they are selected, a drag moves them, and a tap on them once
+      // selected opens them to edit (on lifting). An open box closes first, so pressing just around
+      // it picks it up too.
       if (typingRef.current) commitTyping(true);
-      if (grabStroke(e.pointerId, sx, sy, true)) {
+      if (grabStroke(e.pointerId, sx, sy, false, e.pointerType)) {
         capture(canvasRef.current, e.pointerId);
         return;
       }
       // Keep this pointer, so its lift always comes back here (and the pen is never left "down").
       capture(canvasRef.current, e.pointerId);
-      startTyping(sx, sy);
+      // With words selected, a tap on empty board only lets them go (no new text box, no keyboard).
+      if (selTextRef.current) selectText(null);
+      else startTyping(sx, sy);
       return;
     }
 
@@ -2626,6 +2954,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const [wx, wy] = toWorld(cam.current, sx, sy);
 
     if (isPenEraser(e) || tool === "eraser") {
+      selectText(null);
       lastErase.current = null;
       setInking(true);
       gesture.current = { mode: "erase", id: e.pointerId, erased: [], straightened: false };
@@ -2638,9 +2967,23 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       // The selected picture's resize dot first, then writing (even on a picture or PDF page), then a picture.
       const sel = images.current.find((m) => m.id === selectedRef.current);
       const onDot = !!sel && Math.hypot((sel.x + sel.w - wx) * cam.current.z, (sel.y + sel.h - wy) * cam.current.z) <= HANDLE_PX;
-      if (onDot || !grabStroke(e.pointerId, sx, sy, false)) grabImage(e.pointerId, sx, sy, false);
+      if (onDot || !grabStroke(e.pointerId, sx, sy, true, e.pointerType)) {
+        selectText(null);
+        grabImage(e.pointerId, sx, sy, false);
+      }
       return;
     }
+
+    // Typed words and the pen, line and axes tools. The S Pen always writes, so it lets selected
+    // words go and carries on. The mouse moves the selected words (and a click on them again opens
+    // them); a plain click on other typed words selects them, and a plain click anywhere else only
+    // lets the selection go (see the lift). A drag draws as usual.
+    let click: { text: string | null; at: number } | undefined;
+    if (isMouse && e.button === 0 && (tool === "pen" || tool === "line")) {
+      if (selTextRef.current && grabSel(e.pointerId, sx, sy, "mouse")) return;
+      const word = strokeUnder(sx, sy, false);
+      if (word || selTextRef.current) click = { text: word?.id ?? null, at: performance.now() };
+    } else if (selTextRef.current) selectText(null);
 
     // Writing away from the selected picture lets it go (writing on it keeps it selected).
     if (selectedRef.current) {
@@ -2660,12 +3003,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     } else if (tool === "line") {
       current.current = { id: newId(), kind: "line", color: ink, size: w, pts: [p, p] };
       setInking(true);
-      gesture.current = { mode: "line", id: e.pointerId, erased: [], straightened: true };
+      gesture.current = { mode: "line", id: e.pointerId, erased: [], straightened: true, click };
     } else {
       current.current = { id: newId(), kind: "ink", color: ink, size: w, pts: [p] };
       lastRaw.current = p;
       setInking(true);
-      gesture.current = { mode: "draw", id: e.pointerId, erased: [], straightened: false };
+      gesture.current = { mode: "draw", id: e.pointerId, erased: [], straightened: false, click };
       hold.current.path = 0;
       armHold(sx, sy);
     }
@@ -2740,22 +3083,15 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
 
     if (g.mode === "shift" && g.mv) {
       const mv = g.mv;
+      mv.lx = sx;
+      mv.ly = sy;
       if (!mv.moved) {
-        if (Math.hypot(sx - mv.x0, sy - mv.y0) < 6) return;
-        // Lifted off the board while it moves (drawn on top), so the board isn't redrawn each move.
-        mv.moved = true;
-        strokes.current = strokes.current.filter((x) => x.id !== mv.s.id);
-        send({ t: "del", ids: [mv.s.id] });
-        setInking(true);
+        // Still a tap until it has gone a few pixels (a little more for a fingertip).
+        if (Math.hypot(sx - mv.x0, sy - mv.y0) < mv.slop) return;
+        liftMv(mv);
       }
       const z = cam.current.z;
-      moving.current = shifted(mv.s, (sx - mv.x0) / z, (sy - mv.y0) / z);
-      const now = performance.now();
-      if (now - liveSend.current > 40) {
-        liveSend.current = now;
-        send({ t: "live", s: packStroke({ ...moving.current, id: mv.previewId }) });
-      }
-      requestDraw();
+      showMv(mv, shifted(mv.s, (sx - mv.x0) / z, (sy - mv.y0) / z));
       return;
     }
 
@@ -3033,12 +3369,22 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       if (t1 && t1.id === e.pointerId && !cancelled && performance.now() - t1.at < 300) {
         const [ex, ey] = local(e);
         if (Math.hypot(ex - t1.x, ey - t1.y) < 10) {
-          if (tool === "text") startTyping(ex, ey);
+          // A clean finger tap (the finger hardly moved, so it was never a pan). On typed words it
+          // selects them, with any tool. With words selected, a tap elsewhere lets them go. Otherwise
+          // as before: the Type tool starts a text box, any other tool selects the picture under it.
+          const word = strokeUnder(ex, ey, false);
+          const hadWords = !!selTextRef.current;
+          if (word) selectText(word.id);
           else {
-            const [wx, wy] = toWorld(cam.current, ex, ey);
-            select(imageAt(images.current, wx, wy)?.id ?? null);
-            requestDraw();
+            selectText(null);
+            if (tool === "text") {
+              if (!hadWords) startTyping(ex, ey);
+            } else {
+              const [wx, wy] = toWorld(cam.current, ex, ey);
+              select(imageAt(images.current, wx, wy)?.id ?? null);
+            }
           }
+          requestDraw();
         }
       }
       touches.current.delete(e.pointerId);
@@ -3098,7 +3444,11 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         else s.pts = [[Math.min(a[0], b[0]), Math.min(a[1], b[1]), 0.5], [Math.max(a[0], b[0]), Math.max(a[1], b[1]), 0.5]];
       }
       const tooShort = s.kind === "line" && Math.hypot(s.pts[1][0] - s.pts[0][0], s.pts[1][1] - s.pts[0][1]) * cam.current.z < 3;
-      if (!cancelled && !tooShort) {
+      // A plain mouse click (no drag) that began on typed words, or while words were selected: it
+      // selects, or lets the selection go, and leaves no dot. A real stroke lets the selection go.
+      const clicked = !!g.click && !cancelled && performance.now() - g.click.at < 500 && (s.kind === "line" ? tooShort : s.kind === "ink" && hold.current.path < 4);
+      if (g.click) selectText(clicked ? g.click.text : null);
+      if (!cancelled && !tooShort && !clicked) {
         strokes.current = [...strokes.current, s];
         commit({ type: "add", s });
         // A stroke that gets tidied (a ruled line, a T account) is sent once, as the tidy version.
@@ -3179,6 +3529,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     toolBeforeA.current = null;
     setTool(t);
     if (t !== "move") select(null);
+    if (t !== "move" && t !== "text") selectText(null);
     if (t !== "eraser") moveEraser();
     requestDraw();
   };
@@ -3216,6 +3567,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     // middle of a move or a rub): it ends here, on the page it belongs to. Words being moved go back
     // where they were, a half-drawn line is dropped, and what was rubbed out so far is sent.
     const open = gesture.current;
+    endTextDrag(true);
+    selectText(null);
     if (open.mode === "shift" && open.mv) finishShift(open.mv, true);
     else if (open.mode && open.mode !== "pan") {
       if (current.current) send({ t: "del", ids: [current.current.id] });
@@ -3431,8 +3784,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         return;
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      // Arrow keys nudge what was just moved (Shift: 10 at a time).
-      if (e.key.startsWith("Arrow") && lastMoved.current) {
+      // Arrow keys nudge the selected text, or what was just moved (Shift: 10 at a time).
+      if (e.key.startsWith("Arrow") && (selTextRef.current || lastMoved.current)) {
         const step = e.shiftKey ? 10 : 1;
         const d = ({ ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] } as Record<string, [number, number]>)[e.key];
         if (d && nudge(d[0], d[1])) e.preventDefault();
@@ -3475,9 +3828,18 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       if (e.key === "[") stepPage(-1);
       if (e.key === "]") stepPage(1);
       if (k === "n") newPage();
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedRef.current) deleteSelected();
-      if (e.key === "Escape" && selectedRef.current) {
+      if ((e.key === "Delete" || e.key === "Backspace") && selTextRef.current) {
+        e.preventDefault();
+        deleteSelText();
+      } else if ((e.key === "Delete" || e.key === "Backspace") && selectedRef.current) deleteSelected();
+      // Enter opens the selected words to edit.
+      if (e.key === "Enter" && selTextRef.current) {
+        e.preventDefault();
+        editSel();
+      }
+      if (e.key === "Escape" && (selectedRef.current || selTextRef.current)) {
         select(null);
+        selectText(null);
         requestDraw();
       }
     };
@@ -3557,7 +3919,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       <canvas
         ref={canvasRef}
         className="absolute inset-0 h-full w-full touch-none"
-        style={{ cursor: tool === "eraser" ? "none" : (tool === "move" || tool === "text") && overItem ? "move" : tool === "move" ? "grab" : tool === "text" ? "text" : lead ? "auto" : penCursor(inkOf(color)) }}
+        style={{ cursor: tool === "eraser" ? "none" : overItem ? "move" : tool === "move" ? "grab" : tool === "text" ? "text" : lead ? "auto" : penCursor(inkOf(color)) }}
         onPointerDown={onPointerDown}
         // Keeps the text box focused when the board is clicked or tapped to type.
         onMouseDown={(e) => tool === "text" && e.preventDefault()}
@@ -3652,7 +4014,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           className={`${PANEL} absolute z-20 flex animate-[scale-in_140ms_ease-out] items-center gap-0.5 p-1 motion-reduce:animate-none`}
           // Above the words, or below them when there's no room above (near the top of the screen).
           style={{
-            left: Math.min(Math.max(8, typing.x - 6), Math.max(8, screen.current.w - (lead ? 330 : 270))),
+            left: Math.min(Math.max(8, typing.x - 6), Math.max(8, screen.current.w - (lead ? 372 : 304))),
             top: typing.y - 60 > 64 ? typing.y - 60 : typing.y + typing.hPx + 14,
           }}
           onPointerDown={(e) => e.preventDefault()}
@@ -3782,7 +4144,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             keeps its shape), and a small bar just above it. The inside lets the pen write straight through. */}
         {selectedId && (
           <>
-            <div ref={selFrameRef} aria-hidden className="pointer-events-none absolute rounded-[3px] shadow-[0_0_0_2px_#FBC159,0_0_0_6px_rgba(251,193,89,0.16)]" style={{ left: -9999, top: -9999 }}>
+            <div ref={selFrameRef} aria-hidden className={`pointer-events-none absolute ${SEL_FRAME}`} style={{ left: -9999, top: -9999 }}>
               {(["nw", "ne", "sw", "se"] as const).map((k) => (
                 <span
                   key={k}
@@ -3795,7 +4157,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                   className={`pointer-events-auto absolute flex h-11 w-11 touch-none items-center justify-center ${k === "nw" || k === "se" ? "cursor-nwse-resize" : "cursor-nesw-resize"}`}
                   style={{ left: k[1] === "w" ? -22 : undefined, right: k[1] === "e" ? -22 : undefined, top: k[0] === "n" ? -22 : undefined, bottom: k[0] === "s" ? -22 : undefined }}
                 >
-                  <span className="block h-4 w-4 rounded-full border-2 border-[#FBC159] bg-white shadow-[0_1px_3px_rgba(20,22,24,0.35)]" />
+                  <span className={HANDLE_DOT} />
                 </span>
               ))}
             </div>
@@ -3838,6 +4200,74 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                 className={`${PRESS} ${QUIET} rounded-[10px] px-3 text-xs font-semibold ${lead ? "h-11" : `h-9 ${HIT}`}`}
               >
                 Done
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* The selected typed text: the same gold frame as a picture, a pill on its side for how wide its
+            lines run, a dot on its corner for its size, and its bar just above. A drag on the words
+            themselves moves them (that part is the board's own work). */}
+        {selText && (
+          <>
+            <div ref={selTextFrameRef} aria-hidden className={`pointer-events-none absolute ${SEL_FRAME}`} style={{ left: -9999, top: -9999 }}>
+              <span
+                data-k="w"
+                onPointerDown={onTextGripDown}
+                onPointerMove={onTextGripMove}
+                onPointerUp={onTextGripUp}
+                onPointerCancel={onTextGripUp}
+                onLostPointerCapture={onTextGripUp}
+                className="pointer-events-auto absolute right-[-30px] top-1/2 flex h-11 w-9 -translate-y-1/2 cursor-ew-resize touch-none items-center pl-[3px]"
+              >
+                <span className="block h-6 w-1.5 rounded-full border border-[#FBC159] bg-white shadow-[0_1px_3px_rgba(20,22,24,0.35)]" />
+              </span>
+              <span
+                data-k="s"
+                onPointerDown={onTextGripDown}
+                onPointerMove={onTextGripMove}
+                onPointerUp={onTextGripUp}
+                onPointerCancel={onTextGripUp}
+                onLostPointerCapture={onTextGripUp}
+                className="pointer-events-auto absolute bottom-[-34px] right-[-34px] flex h-11 w-11 cursor-nwse-resize touch-none items-start justify-start p-[2px]"
+              >
+                <span className={HANDLE_DOT} />
+              </span>
+            </div>
+            <div ref={selTextBarRef} data-seltext-bar className={`${PANEL} absolute z-20 flex animate-[scale-in_140ms_ease-out] items-center gap-0.5 p-[3px] motion-reduce:animate-none`} style={{ left: -9999, top: -9999 }}>
+              <button
+                type="button"
+                data-k="move"
+                aria-label="Move the text: drag this, or drag the words"
+                {...tipOn("Move", undefined, "Drag this, or the words themselves.")}
+                onPointerDown={onTextGripDown}
+                onPointerMove={onTextGripMove}
+                onPointerUp={onTextGripUp}
+                onPointerCancel={onTextGripUp}
+                onLostPointerCapture={onTextGripUp}
+                className={`${PRESS} ${GOLD_ON} flex cursor-grab touch-none items-center gap-1.5 rounded-[10px] px-3 text-xs font-semibold active:cursor-grabbing [&_svg]:h-4 [&_svg]:w-4 ${lead ? "h-11" : `h-9 ${HIT}`}`}
+              >
+                {I.move}
+                Move
+              </button>
+              <button type="button" data-k="bold" aria-label="Bold" aria-pressed={selText.bold} {...tipOn("Bold")} onPointerDown={palmDown} onClick={onSelStyle} className={`${PRESS} flex items-center justify-center rounded-[10px] text-[15px] font-bold ${lead ? "h-11 w-11" : `h-9 w-9 ${HIT}`} ${selText.bold ? ON : QUIET}`}>
+                B
+              </button>
+              <button type="button" data-k="italic" aria-label="Italic" aria-pressed={selText.italic} {...tipOn("Italic")} onPointerDown={palmDown} onClick={onSelStyle} className={`${PRESS} flex items-center justify-center rounded-[10px] font-serif text-[15px] italic ${lead ? "h-11 w-11" : `h-9 w-9 ${HIT}`} ${selText.italic ? ON : QUIET}`}>
+                I
+              </button>
+              <button type="button" data-k="hl" aria-label="Highlight" aria-pressed={selText.hl} {...tipOn("Highlight")} onPointerDown={palmDown} onClick={onSelStyle} className={`${PRESS} flex items-center gap-2 rounded-[10px] px-3 text-xs font-semibold ${lead ? "h-11" : `h-9 ${HIT}`} ${selText.hl ? ON : QUIET}`}>
+                <span className="h-3.5 w-3.5 rounded-[4px] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.15)]" style={{ background: "rgb(255, 213, 0)" }} />
+                Highlight
+              </button>
+              <Divider />
+              <TextColors value={selText.color} big={lead} onPick={(c) => !palmBlocked() && colorSel(c)} />
+              <Divider />
+              <button type="button" {...tipOn("Edit the words", "Enter", "Or tap the words again.")} onPointerDown={palmDown} onClick={() => !palmBlocked() && editSel()} className={`${PRESS} ${QUIET} rounded-[10px] px-3 text-xs font-semibold ${lead ? "h-11" : `h-9 ${HIT}`}`}>
+                Edit
+              </button>
+              <button type="button" aria-label="Remove the text" {...tipOn("Remove the text", "Delete")} onPointerDown={palmDown} onClick={() => !palmBlocked() && deleteSelText()} className={`${PRESS} flex items-center justify-center rounded-[10px] bg-[#E5685A]/[0.14] text-[#F4A397] hover:bg-[#E5685A]/[0.22] [&_svg]:h-4 [&_svg]:w-4 ${lead ? "h-11 w-11" : `h-9 w-9 ${HIT}`}`}>
+                {I.trash}
               </button>
             </div>
           </>
@@ -3963,16 +4393,17 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             lead
               ? // In the middle of the screen's height when there is room (as before). In a short browser
                 // window (the tablet's address bar and tab strip showing) it starts just under the page bar
-                // and its buttons are a little shorter, so "Clear the board" is never cut off at the bottom.
-                "left-3 top-[max(64px,calc(50dvh_-_347.5px))] max-h-[calc(100dvh-76px)] flex-col overflow-y-auto [@media(max-height:800px)]:[&>button]:h-10"
+                // and its buttons are a little shorter (and the dividers closer), so "Clear the board" is
+                // never cut off at the bottom, with the fourth ink colour in the column too.
+                "left-3 top-[max(64px,calc(50dvh_-_370.5px))] max-h-[calc(100dvh-76px)] flex-col overflow-y-auto [@media(max-height:800px)]:[&>button]:h-10 [@media(max-height:800px)]:[&>span]:my-1"
               : "bottom-4 left-1/2 max-w-[calc(100vw-16px)] -translate-x-1/2 overflow-x-auto"
           }`}
         >
           <ToolButton label="Pen (P). Draw a T for a T account; hold still at the end to snap a line, box or circle" tip="Pen" keys="P" hint="Draw a T for a T account. Hold still at the end to snap a line, box or circle." active={tool === "pen"} onClick={() => pickTool("pen")}>{I.pen}</ToolButton>
           <ToolButton label="Straight line (L)" tip="Straight line" keys="L" active={tool === "line"} onClick={() => pickTool("line")}>{I.line}</ToolButton>
           <ToolButton label="Eraser (E), or hold the pen's side button" tip="Eraser" keys="E" hint="Or hold the pen's side button." active={tool === "eraser"} onClick={() => pickTool("eraser")}>{I.eraser}</ToolButton>
-          <ToolButton label="Type (T starts typing where the mouse is). Enter finishes, Shift+Enter for a new line" tip="Type" keys="T" hint="Starts where the mouse is. Enter finishes, Shift+Enter for a new line." active={tool === "text"} onClick={() => pickTool("text")}>{I.text}</ToolButton>
-          <ToolButton label="Move (V): drag pictures, typed text or writing" tip="Move" keys="V" hint="Drag pictures, typed text or writing. With any tool, hold a finger on typed words, then drag." active={tool === "move"} onClick={() => pickTool("move")}>{I.move}</ToolButton>
+          <ToolButton label="Type (T starts typing where the mouse is). Enter finishes, Shift+Enter for a new line. Tap typed words to select them, drag to move them, tap again to edit" tip="Type" keys="T" hint="Starts where the mouse is. Enter finishes, Shift+Enter for a new line. Tap typed words to select them, drag to move, tap again to edit." active={tool === "text"} onClick={() => pickTool("text")}>{I.text}</ToolButton>
+          <ToolButton label="Move (V): drag pictures, typed text or writing" tip="Move" keys="V" hint="Drag pictures, typed text or writing. With any tool, tap typed words with a finger to select them, then drag." active={tool === "move"} onClick={() => pickTool("move")}>{I.move}</ToolButton>
           <ToolButton label="Insert a picture or PDF" tip="Picture or PDF" hint={lead ? undefined : "Or paste one (Ctrl+V), or drop a file on the board."} disabled={!!busy} onClick={() => fileRef.current?.click()}>
             {busy ? <Spinner size={20} className="text-white/80" /> : I.insert}
           </ToolButton>

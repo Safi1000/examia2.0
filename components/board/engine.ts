@@ -55,12 +55,14 @@ export interface View {
 }
 
 // Saved colours stay the same (older boards keep working); the light board draws each as its ink.
-// Three inks with strong contrast on white, on a TV and in Meet: near-black, a deep royal blue
-// and a clear red. (Green and gold from before still draw as they were.)
+// Four inks with strong contrast on white, on a TV and in Meet: near-black, a deep royal blue,
+// a clear red and a calm green (the same green older boards already used, so they draw as they
+// were). Gold from before still draws as it was.
 export const COLORS = [
   { name: "Black", value: "#F3F1EC" },
   { name: "Blue", value: "#8FD0F5" },
   { name: "Red", value: "#F07A6A" },
+  { name: "Green", value: "#7FD1A6" },
 ];
 
 export const SIZES = [
@@ -91,8 +93,9 @@ export const THEMES: Record<ThemeId, Theme> = {
     bg: "#FDFDFB",
     dots: "rgba(28,32,35,0.16)",
     // Deep, even inks that read from the back of a room and on a TV: the brand charcoal, a royal
-    // blue, a clear red, a calm green and a deep brand gold (plain gold is too light on white).
-    ink: { "#F3F1EC": "#14171A", "#FBC159": "#C98500", "#8FD0F5": "#1D47C9", "#F07A6A": "#CC1F1A", "#7FD1A6": "#0F7A55" },
+    // blue, a clear red, a clear green (5 to 1 against the paper, and plainly green beside the
+    // charcoal on a TV) and a deep brand gold (plain gold is too light on white).
+    ink: { "#F3F1EC": "#14171A", "#FBC159": "#C98500", "#8FD0F5": "#1D47C9", "#F07A6A": "#CC1F1A", "#7FD1A6": "#15803D" },
     accent: "#0F63A8",
     ring: { border: "rgba(20,22,24,0.55)", fill: "rgba(20,22,24,0.05)" },
   },
@@ -770,6 +773,14 @@ export function wrapText(text: string, size: number, maxW: number, st: TextStyle
       return out.join("\n");
     })
     .join("\n");
+}
+
+/** How wide one run of typed text is, in world units (no minimum: used to find the gap between two letters). */
+export function runWidth(text: string, size: number, st: TextStyle = {}): number {
+  meter ??= document.createElement("canvas").getContext("2d");
+  if (!meter) return text.length * size * 0.55;
+  meter.font = textFont(size, st);
+  return meter.measureText(text).width;
 }
 
 export function measureText(text: string, size: number, st: TextStyle = {}): { w: number; h: number } {
