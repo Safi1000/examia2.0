@@ -15,7 +15,7 @@ import { eligibleStudents, joinedMs, testById } from "@/lib/data/selectors";
 import { gradeSubmission } from "@/lib/grading";
 import { currentStats } from "@/lib/focus";
 import { LOW_SCORE } from "@/lib/reminders";
-import { clean, count, joinAnd } from "@/lib/outgoing-message";
+import { clean, count, joinAnd, low } from "@/lib/outgoing-message";
 
 /** `missed "A" and "B"` when every title is there, else `missed 2 tests` / `missed a test`. For the parent message. */
 function namedOrCounted(verb: string, titles: string[], one: string, many: string) {
@@ -302,7 +302,7 @@ export function buildAttention(
       const day = (r: SlotRecording) => new Date(r.slot.startMs).toLocaleDateString("en-GB", { weekday: "short", timeZone: "Asia/Karachi" });
       reasons.push(
         recs.length === 1
-          ? { kind: "recording", label: `Missed ${recs[0].slot.subject} on ${day(recs[0])}, recording not opened`, parent: `missed ${clean(recs[0].slot.subject) ? `the ${clean(recs[0].slot.subject)} class` : "a class"}${clean(day(recs[0])) ? ` on ${clean(day(recs[0]))}` : ""}` }
+          ? { kind: "recording", label: `Missed ${recs[0].slot.subject} on ${day(recs[0])}, recording not opened`, parent: `missed ${low(recs[0].slot.subject) ? `the ${low(recs[0].slot.subject)} class` : "a class"}${low(day(recs[0])) ? ` on ${low(day(recs[0]))}` : ""}` }
           : { kind: "recording", label: `Missed ${recs.length} classes, recordings not opened`, parent: `missed ${count(recs.length, "class", "classes")} this week` },
       );
     }
