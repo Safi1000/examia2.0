@@ -1,6 +1,7 @@
 import type { Database } from "@/lib/data/seed";
 import type { Student } from "@/types";
 import { absenceStreak, archivedCohortIds, extensionFor, isArchivedTest, liveStatus, testCoversStudent } from "@/lib/data/selectors";
+import { isTestAccount } from "@/lib/display-name";
 import { COMPANY_NAME } from "@/lib/config";
 import { inPersonIds } from "@/lib/in-person";
 import { awardedMarks, isFullyGraded, percent, totalMarks } from "@/lib/scoring";
@@ -48,8 +49,9 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
   // Past students (switched-off cohorts) are never chased.
   const off = archivedCohortIds(db);
   // In-person students are managed in class: no parent messages or monthly reports from here.
+  // Hamza's own test account is never chased either.
   const inPerson = inPersonIds(db);
-  const students = db.students.filter((s) => !off.has(s.cohortId) && !inPerson.has(s.id) && (cohortId ? s.cohortId === cohortId : true));
+  const students = db.students.filter((s) => !off.has(s.cohortId) && !inPerson.has(s.id) && !isTestAccount(s) && (cohortId ? s.cohortId === cohortId : true));
   const out: Reminder[] = [];
 
   const add = (r: Reminder) => {

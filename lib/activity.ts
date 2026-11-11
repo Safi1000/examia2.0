@@ -29,10 +29,37 @@ export const TRACKING_SINCE = "2026-11-07";
 export type DayActivity = { s: Partial<Record<Area, number>>; a?: number; b?: number };
 /** One note over a month: seconds reading, pages spent time on, page count, last opened (ms). */
 export type NoteActivity = { s: number; p: number[]; t: number; at: number };
-export type MonthFile = { v: 1; days: Record<string, DayActivity>; notes: Record<string, NoteActivity> };
+export type MonthFile = {
+  v: 1;
+  days: Record<string, DayActivity>;
+  notes: Record<string, NoteActivity>;
+  /** Groundwork seconds spent on a homework this month, by assignment id (blocks started from that homework). */
+  h?: Record<string, number>;
+  /** The same for tests, by test id. */
+  t?: Record<string, number>;
+};
 
 /** What the admin page gets for each student. */
-export type StudentActivity = { days: Record<string, DayActivity>; notes: Record<string, NoteActivity>; signIn?: string | null };
+export type StudentActivity = {
+  days: Record<string, DayActivity>;
+  notes: Record<string, NoteActivity>;
+  signIn?: string | null;
+  /**
+   * Groundwork seconds per assignment id, summed over the current and the
+   * previous Pakistan month (whatever `from` is). Missing when there are none.
+   */
+  focusHomework?: Record<string, number>;
+  /** The same per test id. */
+  focusTests?: Record<string, number>;
+};
+
+/** Add one month's per-item seconds into a running total. */
+export function addSecs(into: Record<string, number> | undefined, more: Record<string, number> | undefined): Record<string, number> | undefined {
+  if (!more) return into;
+  const out = { ...into };
+  for (const [id, s] of Object.entries(more)) if (typeof s === "number" && s > 0) out[id] = (out[id] ?? 0) + s;
+  return Object.keys(out).length ? out : into;
+}
 
 export function areaOf(pathname: string): Area {
   const p = pathname.split("?")[0];

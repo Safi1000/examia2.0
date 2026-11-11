@@ -25,6 +25,7 @@ import { Button, buttonClasses } from "@/components/ui/Button";
 import { LineChart, type LinePoint } from "@/components/charts/LineChart";
 import { MasteryBar } from "@/components/charts/MasteryBar";
 import { LoginDetails } from "@/components/admin/LoginDetails";
+import { StudentNoteCard } from "@/components/admin/StudentNote";
 import { StudentActivitySection } from "@/components/admin/ActivityParts";
 import { gradeSubmission } from "@/lib/grading";
 import { topicMastery } from "@/lib/scoring";
@@ -260,7 +261,10 @@ function StudentDetail() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* Hamza's own note, near the top so it's the first thing seen before a call. */}
+      <StudentNoteCard studentId={student.id} />
+
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Submissions" value={String(data.subs.length)} />
         <Stat label="Released" value={String(data.released.length)} />
         <Stat label="Average" value={data.avg === null ? "None yet" : `${data.avg}%`} />

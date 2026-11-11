@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useDatabase } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { attendancePercent, cohortById, eligibleStudents, testsForStudent } from "@/lib/data/selectors";
+import { isTestAccount } from "@/lib/display-name";
 import { useNow } from "@/hooks/useNow";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Badge, CohortDot, EmptyState, Icon, TableScroll, Table, Th, Td } from "@/components/ui";
@@ -119,6 +120,8 @@ export default function AnalyticsPage() {
     const activeCohorts = new Set(db.cohorts.filter((c) => c.active).map((c) => c.id));
     const students = db.students
       .filter((s) => activeCohorts.has(s.cohortId))
+      // Hamza's own test account stays out of every average and completion figure.
+      .filter((s) => !isTestAccount(s))
       .filter((s) => (cohortId ? s.cohortId === cohortId : true));
     const studentIds = new Set(students.map((s) => s.id));
     // Tests for switched-off (archived) cohorts are left out.

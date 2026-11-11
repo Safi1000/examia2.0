@@ -31,6 +31,9 @@ export interface Stroke {
   bold?: boolean;
   italic?: boolean;
   hl?: boolean;
+  /** For kind "line": drawn as evenly spaced dashes. Left out for a solid line, so old boards and
+   * an older tab (which does not know it) simply show a solid line. */
+  dotted?: boolean;
 }
 
 /** Typed text's style. */
@@ -189,19 +192,24 @@ export function zoomAt(cam: Camera, factor: number, sx: number, sy: number): Cam
 }
 
 /**
- * Snap a straight line to 0°, 45° or 90° (and their mirrors) when it is
- * within `tolerance` degrees of one; otherwise leave it at its own angle.
- * Length is kept.
+ * A straight line goes at exactly the angle it is drawn (demand and supply curves, budget lines).
+ * Only a line within `tolerance` degrees of level or upright is made exactly so (axes, price
+ * lines). `step`: the deliberate constraint (Shift on the laptop): the nearest multiple of that
+ * many degrees. Length is kept.
  */
-export function snapLine(a: Pt, b: Pt, tolerance = 9): Pt {
+export function snapLine(a: Pt, b: Pt, tolerance = 3, step = 0): Pt {
   const dx = b[0] - a[0];
   const dy = b[1] - a[1];
   const len = Math.hypot(dx, dy);
   if (len < 0.001) return b;
   const deg = (Math.atan2(dy, dx) * 180) / Math.PI;
-  const nearest = Math.round(deg / 45) * 45;
-  if (Math.abs(deg - nearest) > tolerance) return b;
+  const nearest = step > 0 ? Math.round(deg / step) * step : Math.round(deg / 90) * 90;
+  if (!(step > 0) && Math.abs(deg - nearest) > tolerance) return b;
   const r = (nearest * Math.PI) / 180;
+  // Exactly level or upright: the same y (or x) as the start, with no rounding left over.
+  const q = ((Math.round(nearest) % 360) + 360) % 360;
+  if (q === 0 || q === 180) return [a[0] + (q === 0 ? len : -len), a[1], b[2]];
+  if (q === 90 || q === 270) return [a[0], a[1] + (q === 90 ? len : -len), b[2]];
   return [a[0] + Math.cos(r) * len, a[1] + Math.sin(r) * len, b[2]];
 }
 
@@ -311,23 +319,23 @@ export function ruledLine(all: Pt[], tolerance = 0.03): [Pt, Pt] | null {
 }
 
 /**
- * A ruled line drawn almost level, upright or at 45° is made exactly so, turned about its middle
- * (so an underline stays under its words) and kept the same length. Level and upright are caught
- * from further off than 45°: a sloping line on a diagram is usually meant to slope as drawn.
+ * A ruled line drawn almost level or upright (within `flat` degrees) is made exactly so, turned
+ * about its middle (so an underline stays under its words) and kept the same length. Any other
+ * line keeps its own angle: a sloping line on a diagram is meant to slope as drawn.
  */
-export function levelLine(a: Pt, b: Pt, flat = 6, diagonal = 3): [Pt, Pt] {
+export function levelLine(a: Pt, b: Pt, flat = 3): [Pt, Pt] {
   const dx = b[0] - a[0];
   const dy = b[1] - a[1];
   const len = Math.hypot(dx, dy);
   if (len < 0.001) return [a, b];
   const deg = (Math.atan2(dy, dx) * 180) / Math.PI;
-  const nearest = Math.round(deg / 45) * 45;
-  if (Math.abs(deg - nearest) > (nearest % 90 === 0 ? flat : diagonal)) return [a, b];
-  const r = (nearest * Math.PI) / 180;
+  const nearest = Math.round(deg / 90) * 90;
+  if (Math.abs(deg - nearest) > flat) return [a, b];
+  const q = ((nearest % 360) + 360) % 360;
   const cx = (a[0] + b[0]) / 2;
   const cy = (a[1] + b[1]) / 2;
-  const hx = (Math.cos(r) * len) / 2;
-  const hy = (Math.sin(r) * len) / 2;
+  const hx = q === 0 ? len / 2 : q === 180 ? -len / 2 : 0;
+  const hy = q === 90 ? len / 2 : q === 270 ? -len / 2 : 0;
   return [
     [cx - hx, cy - hy, a[2]],
     [cx + hx, cy + hy, b[2]],
@@ -481,11 +489,16 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
   ctx.lineJoin = "round";
   const pts = s.pts;
   if (s.kind === "line" && pts.length >= 2) {
-    ctx.lineWidth = s.size * 0.95;
+    const lw = s.size * 0.95;
+    ctx.lineWidth = lw;
+    // Dotted: even dashes that grow with the line's weight, in board units (so they stay evenly
+    // spaced at any zoom). With round ends each dash shows 3 widths long with 2 widths between.
+    if (s.dotted) ctx.setLineDash([lw * 2, lw * 3]);
     ctx.beginPath();
     ctx.moveTo(pts[0][0], pts[0][1]);
     ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
     ctx.stroke();
+    if (s.dotted) ctx.setLineDash([]);
     return;
   }
   if (s.kind === "rect" || s.kind === "ellipse" || s.kind === "form") {
@@ -854,7 +867,7 @@ export function tidyStroke(pts: Pt[], z: number): Tidy | null {
  * What a stroke becomes when the pen is held still at its end: the deliberate "tidy this" gesture,
  * so it is more forgiving than tidyStroke and works at any size. A closed loop becomes a box or an
  * oval, an L becomes axes, and a stroke that runs roughly straight becomes a line from where the
- * pen began (snapped to level, upright or 45° when close). A real curve (an arc, an S, a letter)
+ * pen began (made exactly level or upright when within 3° of it, otherwise at its own angle). A real curve (an arc, an S, a letter)
  * is left exactly as drawn: before, it was flattened into the straight line between its ends.
  */
 export function holdShape(pts: Pt[], z: number): Tidy | null {

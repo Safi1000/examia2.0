@@ -7,11 +7,12 @@ import { useNow } from "@/hooks/useNow";
 import { useToast } from "@/components/toast";
 import { archivedCohortIds } from "@/lib/data/selectors";
 import { isInPersonStudent } from "@/lib/in-person";
-import { displayName } from "@/lib/display-name";
+import { displayName, isTestAccount } from "@/lib/display-name";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { GoogleConnect } from "@/components/admin/GoogleConnect";
 import { StartCard } from "@/components/admin/StartCard";
 import { TimetableEditor } from "@/components/admin/TimetableEditor";
+import { RecordingOpens } from "@/components/admin/RecordingOpens";
 import { saveDayChange } from "@/components/ScheduleGate";
 import type { Exception, SubjectKey } from "@/lib/timetable";
 import { Button, Card, Icon } from "@/components/ui";
@@ -67,6 +68,8 @@ export default function ClassesPage() {
   const off = useMemo(() => archivedCohortIds(db), [db]);
   // In-person students can join online classes but have no register, so they're left off it.
   const students = useMemo(() => db.students.filter((s) => !off.has(s.cohortId) && !isInPersonStudent(db, s)), [db, off]);
+  // Who counts for recordings: the same students, without Hamza's own test account.
+  const counted = useMemo(() => students.filter((s) => !isTestAccount(s)), [students]);
   const enrolled = useMemo(() => {
     const m = new Map<string, Student[]>();
     for (const s of students) for (const sl of slotsForStudent(db, s, date)) m.set(slotKey(sl), [...(m.get(slotKey(sl)) ?? []), s]);
@@ -127,7 +130,8 @@ export default function ClassesPage() {
     const joined = new Set(joins.filter((j) => j.classId === block[0].classId).map((j) => j.studentId));
     if (!joined.size) return [];
     const who = [...new Set(block.flatMap((s) => enrolled.get(slotKey(s)) ?? []))].filter(
-      (st) => !joined.has(st.id) && !db.attendanceDays.some((a) => a.studentId === st.id && a.date === date),
+      // Hamza's own test account is never offered for "mark absent".
+      (st) => !joined.has(st.id) && !isTestAccount(st) && !db.attendanceDays.some((a) => a.studentId === st.id && a.date === date),
     );
     return who.length ? [{ level, classId: block[0].classId, who }] : [];
   });
@@ -308,7 +312,7 @@ export default function ClassesPage() {
                                 <p className="text-xs text-ink-3">
                                   Not joined:{" "}
                                   {who
-                                    .filter((w) => !joins.some((j) => slotKey(j) === key && j.studentId === w.id))
+                                    .filter((w) => !isTestAccount(w) && !joins.some((j) => slotKey(j) === key && j.studentId === w.id))
                                     .map((m) => displayName(m.username))
                                     .join(", ")}
                                 </p>
@@ -361,6 +365,9 @@ export default function ClassesPage() {
               }}
             />
           )}
+
+          {/* Who joined, who opened the recording, who did neither: the last 7 days. */}
+          <RecordingOpens db={db} students={counted} nowMs={nowMs} />
         </>
       )}
 

@@ -3,15 +3,19 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Student, Submission, Test } from "@/types";
+import type { Student, Test } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { useNow } from "@/hooks/useNow";
 import { useToast } from "@/components/toast";
-import { absenceStreak, cohortById, eligibleStudents, testById, archivedCohortIds, isArchivedSubmission, isArchivedTest } from "@/lib/data/selectors";
+import { cohortById, eligibleStudents, testById, archivedCohortIds, isArchivedSubmission, isArchivedTest } from "@/lib/data/selectors";
 import { gradeSubmission } from "@/lib/grading";
-import { LOW_SCORE } from "@/lib/reminders";
+import { isTestAccount } from "@/lib/display-name";
 import { useStudentProfiles } from "@/lib/student-profiles";
+import { useActivity } from "@/lib/activity-admin";
+import { isInPersonStudent } from "@/lib/in-person";
+import { buildAttention, recordingReport } from "@/lib/attention";
+import { AttentionList } from "@/components/admin/AttentionList";
 import { StartCard } from "@/components/admin/StartCard";
 import { SlippingCard } from "@/components/admin/SlippingCard";
 import { WellBuiltCard } from "@/components/admin/WellBuiltCard";
@@ -22,7 +26,7 @@ import { addDays, clock, LEVEL_LABEL, liveSlotsOn, pkDate, slotKey, useClassLink
 import { formatRelative } from "@/lib/time";
 import { createRetest, reachOf, retestQuestions, retestTarget, weakTopics } from "@/lib/retest";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Badge, Button, Card, Icon } from "@/components/ui";
+import { Button, Card, Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { countPill, panelLink, panelTitle } from "@/components/admin/surface";
@@ -50,9 +54,15 @@ export default function TodayPage() {
   const { toast } = useToast();
   const { cohortId } = useAdminFilter();
   const nowMs = useNow();
-  const profiles = useStudentProfiles(); // for the Groundwork card
+  const profiles = useStudentProfiles(); // Groundwork cards, recordings opened, the list below
+  const profilesReady = Object.keys(profiles).length > 0;
   const todayPk = pkDate(nowMs);
   const { links: classLinks } = useClassLinks(todayPk, todayPk);
+  // The last week's recordings and joins, for "missed a class and hasn't opened the recording" (no polling: once, and when the tab comes back).
+  const weekAgo = addDays(todayPk, -7);
+  const { links: weekLinks, joins: weekJoins, ready: weekReady } = useClassLinks(weekAgo, todayPk, true, false);
+  // Last time on the portal, for "not on the portal for 7 days".
+  const activity = useActivity(addDays(todayPk, -14), db);
   useSchedule(); // re-render when the timetable loads or changes
   const heroClass = liveSlotsOn(db, todayPk).find((s) => nowMs < s.endMs && s.startMs - nowMs < 3 * 3_600_000);
   // Before the start card shows: when (and which level) the next class is, up to a week ahead.
@@ -84,7 +94,6 @@ export default function TodayPage() {
     for (const r of db.remindersSent) if (r.kind === "checked") m[r.studentId] = Math.max(m[r.studentId] ?? 0, +new Date(r.sentAt));
     return m;
   }, [db.remindersSent, localChecked]);
-  const [showAll, setShowAll] = useState(false);
   // Tests whose full "not handed in" list has been opened (a big class would bury the page otherwise).
   const [allMissing, setAllMissing] = useState<string[]>([]);
   const markChecked = (id: string) => store.markReminderSent(id, "checked", todayPk);
@@ -92,9 +101,10 @@ export default function TodayPage() {
   // The heavy sums below follow the clock in 5-minute steps, not every 30 s tick.
   const tick = Math.floor(nowMs / 300_000) * 300_000;
   const data = useMemo(() => {
-    // Switched-off cohorts are archived: they never show up on Today.
+    // Switched-off cohorts are archived: they never show up on Today. Nor does
+    // Hamza's own test account (its papers still open from Submissions).
     const off = archivedCohortIds(db);
-    const inScope = (s: Student) => !off.has(s.cohortId) && (cohortId === null || s.cohortId === cohortId);
+    const inScope = (s: Student) => !off.has(s.cohortId) && !isTestAccount(s) && (cohortId === null || s.cohortId === cohortId);
     const testInScope = (t: Test) =>
       !isArchivedTest(db, t, off) && (cohortId === null || t.cohortId === null || t.cohortId === cohortId);
     const students = db.students.filter(inScope);
@@ -123,37 +133,29 @@ export default function TodayPage() {
         return { test: t, eligible, missing: eligible.filter((s) => !done.has(s.id)) };
       });
 
-    // Per-student reasons to get in touch.
-    const recentClosed = live.filter(
-      (t) => +new Date(t.closesAt) <= tick && tick - +new Date(t.closesAt) < 14 * DAY,
-    );
-    // Worked out once per test and once per student, not for every pair: with a
-    // full roster the old way re-read every submission hundreds of times.
-    const recent = recentClosed.map((t) => ({ t, eligible: new Set(eligibleStudents(db, t).map((e) => e.id)), done: handedIn(t) }));
-    const latestReleased = new Map<string, Submission>();
-    for (const x of db.submissions) {
-      if (x.status !== "released" || !studentIds.has(x.studentId)) continue;
-      const cur = latestReleased.get(x.studentId);
-      if (!cur || (x.submittedAt ?? "").localeCompare(cur.submittedAt ?? "") > 0) latestReleased.set(x.studentId, x);
-    }
-    const attention = students
-      .map((s) => {
-        const missed = recent.filter((r) => r.eligible.has(s.id) && !r.done.has(s.id)).map((r) => r.t);
-        const latest = latestReleased.get(s.id);
-        const latestTest = latest ? testById(db, latest.testId) : undefined;
-        // Hamza's rules (2026-11-09): only a latest test under 70% or two classes
-        // missed in a row (plus a skipped test). Grade targets never put a student here.
-        const lastPct = latest && latestTest ? Math.round(gradeSubmission(latestTest, latest).percent) : null;
-        const absent = absenceStreak(db, s.id);
-        const reasons: string[] = [];
-        if (missed.length) reasons.push(`Missed ${missed.map((t) => t.title).join(", ")}`);
-        if (lastPct !== null && lastPct < LOW_SCORE) reasons.push(`Last test ${lastPct}%`);
-        if (absent >= 2) reasons.push(`Absent ${absent} classes in a row`);
-        return { student: s, reasons, missed, lastPct, absent };
-      })
-      // "Checked" (or messaging them from here) hides a student for a week, so the same names don't nag daily.
-      .filter((r) => r.reasons.length > 0 && !(checked[r.student.id] && tick - checked[r.student.id] < 7 * DAY))
-      .sort((a, b) => b.reasons.length - a.reasons.length);
+    // Students who need Hamza today (lib/attention.ts has every rule and threshold).
+    // Hamza's rules (2026-11-09) still hold: grade targets never put a student here.
+    const recordings = recordingReport(db, {
+      links: weekLinks,
+      joins: weekJoins,
+      profiles,
+      // In-person students have no online register, so recordings don't judge them.
+      students: students.filter((s) => !isInPersonStudent(db, s)),
+      from: weekAgo,
+      to: todayPk,
+      nowMs: tick,
+    });
+    const { problems, rotation } = buildAttention(db, {
+      students,
+      tests: live,
+      nowMs: tick,
+      checked,
+      profiles,
+      profilesReady,
+      activity: activity.data,
+      recordings: weekReady ? recordings : [],
+    });
+    const hasResults = db.submissions.some((x) => x.status === "released" && studentIds.has(x.studentId));
 
     const monthAgo = tick - 30 * DAY;
     const recentPcts = db.submissions
@@ -166,8 +168,8 @@ export default function TodayPage() {
 
     const weak = weakTopics(db, cohortId).map((w) => ({ ...w, available: retestQuestions(db, w.subject, w.name).length }));
 
-    return { toMark, toReply, closing, attention, avg30, weak, studentCount: students.length, hasResults: latestReleased.size > 0 };
-  }, [db, cohortId, tick, checked]);
+    return { toMark, toReply, closing, problems, rotation, avg30, weak, studentCount: students.length, hasResults };
+  }, [db, cohortId, tick, checked, profiles, profilesReady, weekLinks, weekJoins, weekReady, weekAgo, todayPk, activity.data]);
 
   const cohortName = cohortId ? cohortById(db, cohortId)?.name : null;
 
@@ -185,7 +187,7 @@ export default function TodayPage() {
   const stats = [
     { label: "To mark", value: data.toMark.length + data.toReply.length, href: "#to-mark" },
     { label: "Closing in 48 hours", value: data.closing.length, href: "#closing" },
-    { label: "Students to check on", value: data.attention.length, href: "#attention" },
+    { label: "Students to check on", value: data.problems.length, href: "#attention" },
     { label: "Average, last 30 days", value: data.avg30 === null ? "None yet" : `${data.avg30}%`, href: "/admin/analytics" },
   ];
 
@@ -342,72 +344,15 @@ export default function TodayPage() {
           )}
         </Card>
 
-        {/* Needs attention */}
-        <Card id="attention" className="scroll-mt-24 p-5 lg:col-span-2">
-          <h2 className={panelTitle}>Students to check on</h2>
-          {data.attention.length === 0 ? (
-            <p className="mt-2 text-[15px] text-ink-2">
-              {data.studentCount === 0 ? (
-                <>
-                  No students here yet. Add them in{" "}
-                  <Link href="/admin/roster" className="font-semibold text-ink underline underline-offset-4">Roster</Link>.
-                </>
-              ) : (
-                "Everyone is on track."
-              )}
-            </p>
-          ) : (
-            <ul className="mt-3 divide-y divide-border">
-              {(showAll ? data.attention : data.attention.slice(0, 5)).map(({ student: s, reasons, missed, lastPct, absent }) => {
-                // The message matches the reason they're on the list.
-                const msg = missed.length
-                  ? `Hi ${nameOf(s)}, I noticed you missed ${missed[0].title}. Is everything okay? Let me know if you need help catching up.`
-                  : lastPct !== null && lastPct < LOW_SCORE
-                    ? `Hi ${nameOf(s)}, your last test was a tough one. Let's fix it together. When can we do a quick call?`
-                    : absent >= 2
-                      ? `Hi ${nameOf(s)}, I noticed you've missed a few classes. Is everything okay?`
-                      : `Hi ${nameOf(s)}, just checking in. How are things going?`;
-                const studentLink = waTo(s.phone, msg);
-                const parentLink = waTo(s.whatsapp, `Assalam o Alaikum, a quick update about ${nameOf(s)}: ${reasons.join(". ")}. Happy to talk whenever suits you.`);
-                return (
-                  <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                    <div className="min-w-0">
-                      <Link href={`/admin/roster/${s.id}`} className="font-semibold text-ink underline-offset-4 hover:underline">{nameOf(s)}</Link>
-                      <div className="mt-1 flex flex-wrap gap-1.5">
-                        {reasons.map((r) => (
-                          <Badge key={r} tone={r.startsWith("Missed") ? "warning" : "error"}>{r}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 flex-wrap items-center gap-2">
-                      {studentLink && (
-                        <a href={studentLink} target="_blank" rel="noopener noreferrer" onClick={() => markChecked(s.id)} className={buttonClasses({ variant: "secondary", size: "sm" })}>
-                          Message student
-                        </a>
-                      )}
-                      {parentLink && (
-                        <a href={parentLink} target="_blank" rel="noopener noreferrer" onClick={() => markChecked(s.id)} className={buttonClasses({ variant: "secondary", size: "sm" })}>
-                          Message parent
-                        </a>
-                      )}
-                      {!studentLink && !parentLink && (
-                        <Link href={`/admin/roster/${s.id}`} className="inline-flex min-h-11 items-center px-1 text-sm text-ink-3 transition-colors hover:text-ink">Add a number →</Link>
-                      )}
-                      <button type="button" onClick={() => markChecked(s.id)} className={buttonClasses({ variant: "ghost", size: "sm" })} title="Hide for a week">
-                        Checked
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          {!showAll && data.attention.length > 5 && (
-            <button type="button" onClick={() => setShowAll(true)} className="mt-2 min-h-11 text-sm font-semibold text-ink-2 hover:text-ink">
-              Show {data.attention.length - 5} more
-            </button>
-          )}
-        </Card>
+        {/* Students who need you today: problems first, then the check-in rotation. */}
+        <AttentionList
+          problems={data.problems}
+          rotation={data.rotation}
+          studentCount={data.studentCount}
+          nowMs={nowMs}
+          loadingMore={!profilesReady || weekReady === null || (activity.data === null && !activity.error)}
+          onCheck={markChecked}
+        />
 
         {/* Weak topics → retest */}
         <Card className="p-5 lg:col-span-2">

@@ -23,6 +23,7 @@ export function FocusOnThis({
   title,
   subject,
   href,
+  id,
   variant = "pill",
   className,
 }: {
@@ -32,6 +33,8 @@ export function FocusOnThis({
   subject?: string;
   /** Where "Go to the test" leads after the block (only from another page). */
   href?: string;
+  /** The assignment or test id, so the block's minutes are counted against it. */
+  id?: string;
   /** "icon": a round 44px button for tight rows; "pill": icon and the word Focus. */
   variant?: "icon" | "pill";
   className?: string;
@@ -68,7 +71,7 @@ export function FocusOnThis({
               subject: subject ?? subjects[0] ?? "Study",
               topic: title,
               tag: kind === "test" ? "Test prep" : "Homework",
-              item: { kind, title, href },
+              item: { kind, title, href, id },
             }}
             me={{ id: student.id, name: student.username, avatar: profile.avatar }}
             onClose={() => setOpen(false)}

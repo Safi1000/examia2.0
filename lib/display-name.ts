@@ -11,3 +11,21 @@ export function displayName(username: string): string {
     .trim()
     .replace(/\b\p{L}/gu, (c) => c.toUpperCase());
 }
+
+/**
+ * Usernames Hamza keeps for trying the student side. Lower case. Add another
+ * name here to treat that account the same way.
+ */
+const TEST_ACCOUNT_NAMES = new Set(["test"]);
+
+/**
+ * Hamza's own practice account. It signs in and works like any student and
+ * stays in the roster, but it is never chased, counted, averaged or ranked:
+ * reminders, Today, activity, analytics and the leaderboard all skip it.
+ * Matches the username or the name the roster shows ("test", "Test", "test2").
+ */
+export function isTestAccount(student: { username?: string | null } | null | undefined): boolean {
+  const u = (student?.username ?? "").trim();
+  if (!u) return false;
+  return TEST_ACCOUNT_NAMES.has(u.toLowerCase()) || TEST_ACCOUNT_NAMES.has(displayName(u).toLowerCase());
+}

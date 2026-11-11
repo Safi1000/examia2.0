@@ -23,7 +23,8 @@ const IDLE_MS = 90_000;
 const NOTE_IDLE_MS = 5 * 60_000;
 
 type NoteBuf = { s: number; p: number[]; t: number; at: number };
-type DayBuf = { s: Partial<Record<Area, number>>; n?: Record<string, NoteBuf>; a: number; b: number };
+/** h and t: Groundwork seconds per homework and per test id, from blocks started on them. */
+type DayBuf = { s: Partial<Record<Area, number>>; n?: Record<string, NoteBuf>; h?: Record<string, number>; t?: Record<string, number>; a: number; b: number };
 type Buf = Record<string, DayBuf>;
 
 let area: Area = "other";
@@ -93,6 +94,12 @@ function mergeBack(sent: Buf) {
       c.n ??= {};
       const x = c.n[id];
       c.n[id] = x ? { s: x.s + nb.s, p: Array.from(new Set([...x.p, ...nb.p])), t: Math.max(x.t, nb.t), at: Math.max(x.at, nb.at) } : nb;
+    }
+    for (const key of ["h", "t"] as const) {
+      for (const [id, s] of Object.entries(d[key] ?? {})) {
+        const m = (c[key] ??= {});
+        m[id] = (m[id] ?? 0) + s;
+      }
     }
     c.a = Math.min(c.a, d.a);
     c.b = Math.max(c.b, d.b);
@@ -201,6 +208,33 @@ export function startActivity(getToken: () => Promise<string | null>): () => voi
     window.clearInterval(f);
     window.clearTimeout(first);
   };
+}
+
+/** A Groundwork block linked to a homework (by assignment id) or a test (by test id). */
+export type FocusItem = { kind: "homework" | "test"; id: string };
+
+/**
+ * Count `minutes` of a Groundwork block against its homework or test. Called
+ * exactly where those minutes are added to the student's week (FocusMode and
+ * the cut-off recovery), so each minute is counted once here too. Goes into the
+ * same buffer as the rest, so it is sent, tagged and retried the same way.
+ * `whenMs` is the moment it was studied; a day older than the server accepts
+ * is put on today instead, so recovered time isn't dropped.
+ */
+export function trackFocusItem(item: FocusItem | undefined, minutes: number, whenMs: number) {
+  if (!item || typeof window === "undefined" || !(minutes > 0) || !/^[A-Za-z0-9_-]{1,64}$/.test(item.id)) return;
+  const now = Date.now();
+  const today = pkDate(now);
+  const then = pkDate(Math.min(whenMs, now));
+  // The server takes today and the four days before it; one day of margin for a slow send.
+  const day = Date.parse(`${today}T12:00:00Z`) - Date.parse(`${then}T12:00:00Z`) <= 3 * 864e5 ? then : today;
+  const at = day === then ? Math.min(whenMs, now) : now;
+  const buf = read();
+  const d = (buf[day] ??= { s: {}, a: at, b: at });
+  const key = item.kind === "test" ? "t" : "h";
+  const m = (d[key] ??= {});
+  m[item.id] = (m[item.id] ?? 0) + Math.round(minutes * 60);
+  write(buf);
 }
 
 /** Which part of the portal is on screen. */

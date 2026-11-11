@@ -6,7 +6,7 @@ import { useAdminFilter } from "@/lib/admin-filter";
 import { useDatabase } from "@/lib/data/store";
 import { archivedCohortIds } from "@/lib/data/selectors";
 import { DEMO } from "@/lib/demo";
-import { displayName } from "@/lib/display-name";
+import { displayName, isTestAccount } from "@/lib/display-name";
 import { waDigits } from "@/lib/phone";
 import { supabase } from "@/lib/supabase";
 
@@ -43,7 +43,8 @@ export function NotifyCoverage() {
 
   const { total, missing } = useMemo(() => {
     const off = archivedCohortIds(db);
-    const all = db.students.filter((s) => !off.has(s.cohortId) && (!cohortId || s.cohortId === cohortId));
+    // Hamza's own test account is neither counted nor chased to turn reminders on.
+    const all = db.students.filter((s) => !off.has(s.cohortId) && !isTestAccount(s) && (!cohortId || s.cohortId === cohortId));
     return { total: all.length, missing: all.filter((s) => !on?.has(s.id)).sort((a, b) => a.username.localeCompare(b.username)) };
   }, [db, cohortId, on]);
 

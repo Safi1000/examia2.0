@@ -272,7 +272,7 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
           >
             <Icon.Camera className="h-4 w-4" /> {mine ? "Add more pages" : overdue ? "Hand in late" : "Hand in work"}
           </Button>
-          {!mine && <FocusOnThis kind="homework" title={assignment.title} subject={subjectName} />}
+          {!mine && <FocusOnThis kind="homework" title={assignment.title} subject={subjectName} id={assignment.id} />}
         </div>
         {uploading && (
           <div className="mt-2.5 flex items-center gap-2.5" role="status">

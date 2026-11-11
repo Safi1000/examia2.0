@@ -102,12 +102,12 @@ export default function DashboardPage() {
     });
 
   const subjectOf = (id?: string | null) => (id ? db.subjects.find((x) => x.id === id)?.name : undefined);
-  type Todo = { key: string; href: string; title: string; meta: string; cta: string; quiet?: boolean; focus?: { kind: "test" | "homework"; subject?: string } };
+  type Todo = { key: string; href: string; title: string; meta: string; cta: string; quiet?: boolean; focus?: { kind: "test" | "homework"; subject?: string; id: string } };
   const todo: Todo[] = [
-    ...tests.open.map((t) => ({ key: t.id, href: `/test/${t.id}`, title: t.title, meta: `Test · closes ${formatRelative(t.closesAt, nowMs)}`, cta: "Start", focus: { kind: "test" as const, subject: t.subject } })),
+    ...tests.open.map((t) => ({ key: t.id, href: `/test/${t.id}`, title: t.title, meta: `Test · closes ${formatRelative(t.closesAt, nowMs)}`, cta: "Start", focus: { kind: "test" as const, subject: t.subject, id: t.id } })),
     // Straight to that homework on the Homework page, not the top of the list.
-    ...overdue.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · overdue since ${formatWhen(a.dueAt)}`, cta: "Hand in", focus: { kind: "homework" as const, subject: subjectOf(a.subjectId) } })),
-    ...dueSoon.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · due ${formatWhen(a.dueAt)}`, cta: "Hand in", focus: { kind: "homework" as const, subject: subjectOf(a.subjectId) } })),
+    ...overdue.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · overdue since ${formatWhen(a.dueAt)}`, cta: "Hand in", focus: { kind: "homework" as const, subject: subjectOf(a.subjectId), id: a.id } })),
+    ...dueSoon.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · due ${formatWhen(a.dueAt)}`, cta: "Hand in", focus: { kind: "homework" as const, subject: subjectOf(a.subjectId), id: a.id } })),
     ...newResults,
   ];
   const toDoCount = todo.filter((x) => !x.quiet).length;
@@ -149,7 +149,7 @@ export default function DashboardPage() {
                   </Link>
                   <span className="block text-sm text-ink-3 tabular-nums [grid-area:meta]">{x.meta}</span>
                   <span className="flex items-center gap-3 [grid-area:actions]">
-                    {x.focus && <FocusOnThis kind={x.focus.kind} title={x.title} subject={x.focus.subject} href={x.href} variant="icon" />}
+                    {x.focus && <FocusOnThis kind={x.focus.kind} title={x.title} subject={x.focus.subject} href={x.href} id={x.focus.id} variant="icon" />}
                     <span
                       aria-hidden
                       className={cn(

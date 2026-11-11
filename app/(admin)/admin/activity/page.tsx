@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useDatabase } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { archivedCohortIds, cohortById } from "@/lib/data/selectors";
-import { displayName } from "@/lib/display-name";
+import { displayName, isTestAccount } from "@/lib/display-name";
 import { useNow } from "@/hooks/useNow";
 import { addDays, pkDate } from "@/lib/timetable";
 import { useActivity } from "@/lib/activity-admin";
@@ -46,7 +46,8 @@ export default function ActivityPage() {
 
   const students = useMemo(() => {
     const off = archivedCohortIds(db);
-    return db.students.filter((s) => !off.has(s.cohortId) && (cohortId === null || s.cohortId === cohortId));
+    // Hamza's own test account would skew the totals and the "gone quiet" list.
+    return db.students.filter((s) => !off.has(s.cohortId) && !isTestAccount(s) && (cohortId === null || s.cohortId === cohortId));
   }, [db, cohortId]);
 
   const rows = useMemo(() => {

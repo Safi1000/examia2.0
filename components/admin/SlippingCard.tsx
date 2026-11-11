@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Database } from "@/lib/data/seed";
 import type { Profile } from "@/lib/profile";
 import { archivedCohortIds } from "@/lib/data/selectors";
-import { displayName } from "@/lib/display-name";
+import { displayName, isTestAccount } from "@/lib/display-name";
 import { addDays, getSchedule, pkDate } from "@/lib/timetable";
 import { Card } from "@/components/ui";
 
@@ -25,7 +25,7 @@ export function SlippingCard({ db, profiles, nowMs, cohortId }: { db: Database; 
   const lastStudy = (p?: Profile) => Object.entries(p?.focus?.days ?? {}).filter(([, m]) => m > 0).map(([d]) => d).sort().pop() ?? null;
   const cutoff = addDays(today, -5);
   const list = db.students
-    .filter((s) => !off.has(s.cohortId) && (cohortId === null || s.cohortId === cohortId))
+    .filter((s) => !off.has(s.cohortId) && !isTestAccount(s) && (cohortId === null || s.cohortId === cohortId))
     .map((s) => ({ s, last: lastStudy(profiles[s.id]) }))
     .filter((x) => (x.last ? x.last < cutoff : neverCounts))
     .sort((a, b) => (a.last ?? "").localeCompare(b.last ?? ""));

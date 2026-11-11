@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { MIN_COUNTED, recordFocusOn } from "@/lib/focus";
+import { trackFocusItem, type FocusItem } from "@/lib/activity-tracker";
 
 /**
  * The Groundwork session running right now, kept on the phone so its minutes
@@ -28,6 +29,8 @@ export interface RunningFocus {
   logged: number;
   /** When they left Groundwork during it (stay to build); doneMs stops there. */
   awayAt?: number;
+  /** The homework or test the block was started on, if any. */
+  item?: FocusItem;
 }
 
 const KEY = "ht_focus_running";
@@ -109,7 +112,10 @@ export function useRecoverFocus(enabled: boolean) {
       const at = Date.now();
       // Counted on the day it was studied, not the day the student came back.
       const when = Math.min(at, r.awayAt ?? r.savedAt ?? at);
-      if (m > 0) updateProfile((latest) => ({ focus: recordFocusOn(latest.focus, m, r.subject, when, at) }));
+      if (m > 0) {
+        updateProfile((latest) => ({ focus: recordFocusOn(latest.focus, m, r.subject, when, at) }));
+        trackFocusItem(r.item, m, when);
+      }
     };
     const check = () => {
       if (owned || document.visibilityState === "hidden") return;

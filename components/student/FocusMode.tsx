@@ -19,6 +19,7 @@ import { GroundworkWorld } from "@/components/student/GroundworkWorld";
 import { WorldGlyph, WorldPicker } from "@/components/student/WorldPicker";
 import { Receipt, ShareReceipt, receiptId, type ReceiptData } from "@/components/student/StudyReceipt";
 import { setTitleOverride } from "@/hooks/usePageTitle";
+import { trackFocusItem, type FocusItem } from "@/lib/activity-tracker";
 
 /**
  * The focus room: the student's 3D world, full screen, building as they
@@ -42,7 +43,7 @@ export interface Mission {
    * A test or homework this block is for ("Focus on this" on a To do row).
    * The summary names it, and the review check is skipped (it isn't a topic).
    */
-  item?: { kind: "test" | "homework"; title: string; href?: string };
+  item?: { kind: "test" | "homework"; title: string; href?: string; /** The assignment or test id: its minutes are counted against it. */ id?: string };
 }
 
 type Phase = "setup" | "focus" | "rest" | "done";
@@ -82,6 +83,8 @@ export default function FocusMode({
   const scene = worldScene(world.id);
   const today = pkDate(openedAt);
   const [subject, setSubject] = useState(mission?.subject ?? subjects[0] ?? "Study");
+  /** The homework or test this room's blocks are on: every counted minute is also counted against it. */
+  const [focusItem] = useState<FocusItem | undefined>(() => (mission?.item?.id ? { kind: mission.item.kind, id: mission.item.id } : undefined));
   // The subject it opened with is always in the list (a test in a subject they don't take, or no subjects yet).
   const [subjectChoices] = useState(() => [...new Set([...subjects, subject, "Something else"])]);
   const [focusMin, setFocusMinRaw] = useState(() => Math.max(5, Math.min(120, mission?.minutes ?? lastLength() ?? 25)));
@@ -171,7 +174,7 @@ export default function FocusMode({
     const at = Date.now();
     // Away: save only the time before they left (and when), so a tab closed while away never counts it.
     const awayAt = leftAt.current?.at;
-    saveRunning({ subject: live.current.subject, planned: live.current.planned, startedAt: startedAt.current, doneMs: doneMs(awayAt != null ? Math.min(at, awayAt) : at), savedAt: at, logged: logged.current, awayAt });
+    saveRunning({ subject: live.current.subject, planned: live.current.planned, startedAt: startedAt.current, doneMs: doneMs(awayAt != null ? Math.min(at, awayAt) : at), savedAt: at, logged: logged.current, awayAt, item: focusItem });
   };
 
   /** Count the minutes actually focused (each minute once). Returns the block's counted minutes. */
@@ -183,6 +186,7 @@ export default function FocusMode({
       // so both put the minutes on the same day.
       const at = Date.now();
       updateProfile((latest) => ({ focus: recordFocus(latest.focus, m, subj, at) }));
+      trackFocusItem(focusItem, m, at);
     }
     return logged.current;
   };
@@ -364,7 +368,10 @@ export default function FocusMode({
       const m = minutesToAdd(old.doneMs, old.logged);
       // On the day it was studied, as the next-visit recovery does (focus-session).
       const when = Math.min(at, old.awayAt ?? old.savedAt ?? at);
-      if (m > 0) updateProfile((latest) => ({ focus: recordFocusOn(latest.focus, m, old.subject, when, at) }));
+      if (m > 0) {
+        updateProfile((latest) => ({ focus: recordFocusOn(latest.focus, m, old.subject, when, at) }));
+        trackFocusItem(old.item, m, when);
+      }
     }
     setSessionAt((v) => v ?? at);
     logged.current = 0;
@@ -372,7 +379,7 @@ export default function FocusMode({
     markGone(null);
     setAway(null);
     ownRunning(true);
-    saveRunning({ subject, planned: focusMin, startedAt: at, doneMs: 0, savedAt: at, logged: 0 });
+    saveRunning({ subject, planned: focusMin, startedAt: at, doneMs: 0, savedAt: at, logged: 0, item: focusItem });
     setPhase("focus");
     setPausedLeft(null);
     setEndsAt(at + focusMin * 60_000);

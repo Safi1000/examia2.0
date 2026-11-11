@@ -6,6 +6,7 @@ import type { Announcement, Student, Submission, Test, TestExtension, TestStats,
 import type { Database } from "@/lib/data/seed";
 import { awardedMarks, percent, totalMarks } from "@/lib/scoring";
 import { takesLevelSubject } from "@/lib/levels";
+import { isTestAccount } from "@/lib/display-name";
 
 export const cohortById = (db: Database, id: string | null) =>
   id ? db.cohorts.find((c) => c.id === id) ?? null : null;
@@ -171,8 +172,10 @@ export function submissionsForStudent(db: Database, studentId: string): Submissi
 
 /** Per-test admin stats: submissions, average %, completion %. */
 export function testStats(db: Database, test: Test): TestStats {
-  const subs = submissionsForTest(db, test.id);
-  const eligible = eligibleStudents(db, test).length;
+  // Hamza's own test account never counts towards a test's figures.
+  const practice = new Set(db.students.filter(isTestAccount).map((s) => s.id));
+  const subs = submissionsForTest(db, test.id).filter((s) => !practice.has(s.studentId));
+  const eligible = eligibleStudents(db, test).filter((s) => !practice.has(s.id)).length;
   const total = totalMarks(test);
   // Average only what has actually been marked. Counting a script that is still
   // waiting on the teacher as 0 dragged every average down to nonsense.

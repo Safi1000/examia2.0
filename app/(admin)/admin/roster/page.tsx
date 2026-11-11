@@ -22,7 +22,7 @@ import { LoginDetails } from "@/components/admin/LoginDetails";
 import { ImportStudents } from "@/components/admin/ImportStudents";
 import { newPassword } from "@/lib/password";
 import { fixPhone } from "@/lib/import-students";
-import { displayName } from "@/lib/display-name";
+import { displayName, isTestAccount } from "@/lib/display-name";
 
 const genPassword = newPassword;
 
@@ -441,6 +441,8 @@ export default function RosterPage() {
                     <p className="flex min-w-0 items-center gap-2">
                       <span className="truncate font-semibold capitalize text-ink underline-offset-4 group-hover:underline">{s.username}</span>
                       {inPersonIds.has(s.id) && <Badge tone="neutral" className="shrink-0">In person</Badge>}
+                      {/* Hamza's practice account: left out of reminders, Today, activity, analytics and the leaderboard. */}
+                      {isTestAccount(s) && <Badge tone="neutral" className="shrink-0">Test account</Badge>}
                     </p>
                     <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm text-ink-2">
                       {cohort && <CohortDot color={cohort.color} />}

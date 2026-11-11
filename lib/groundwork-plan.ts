@@ -5,7 +5,7 @@
  * their next class. Pure: no network, no saving.
  */
 import type { Database } from "@/lib/data/seed";
-import type { Student } from "@/types";
+import type { Assignment, Student } from "@/types";
 import type { Profile } from "@/lib/profile";
 import { dueFor } from "@/lib/due";
 import { reviewQueue } from "@/lib/groundwork";
@@ -27,9 +27,22 @@ export interface PlanItem {
   subject: string;
   /** Suggested minutes. */
   minutes: number;
-  /** Homework opens its page; everything else starts a timed session. */
-  href?: string;
   noteHref?: string;
+  /**
+   * The test or homework itself: every item starts a timed session, and with
+   * this the session's minutes are counted against it. `href` is its own page
+   * (homework: the worksheet and hand in), offered as a small link beside it.
+   */
+  item?: { kind: "test" | "homework"; id: string; href?: string };
+}
+
+/** At most this many homeworks on the plan; the rest are counted in a "more" line. */
+export const HOMEWORK_CAP = 5;
+
+/** Open homework that is overdue or due within the next 7 days, most urgent (overdue) first. */
+export function homeworkAhead(db: Database, student: Student, nowMs: number): Assignment[] {
+  const due = dueFor(db, student, nowMs);
+  return [...due.overdue, ...due.dueSoon.filter((a) => +new Date(a.dueAt) - nowMs <= 7 * 24 * H)];
 }
 
 const H = 3_600_000;
@@ -41,7 +54,7 @@ const rel = (ms: number) => {
   return `${d} ${d === 1 ? "day" : "days"}`;
 };
 
-/** Up to four things, most urgent first. Nothing is invented: every item comes from the portal. */
+/** Most urgent first: a test, homework (up to HOMEWORK_CAP), then reviews and a mission while there is room for four. Nothing is invented: every item comes from the portal. */
 export function planToday(db: Database, student: Student, profile: Profile, nowMs: number): PlanItem[] {
   const out: PlanItem[] = [];
   const due = dueFor(db, student, nowMs);
@@ -57,11 +70,12 @@ export function planToday(db: Database, student: Student, profile: Profile, nowM
       why: `Opens in ${rel(+new Date(t.opensAt) - nowMs)}`,
       subject: t.subject,
       minutes: 25,
+      item: { kind: "test", id: t.id },
     });
   }
 
-  // 2. Homework: overdue first, then the next due within 3 days.
-  const hw = [...due.overdue, ...due.dueSoon.filter((a) => +new Date(a.dueAt) - nowMs < 72 * H)].slice(0, 2);
+  // 2. Homework: overdue first, then everything due within the week.
+  const hw = homeworkAhead(db, student, nowMs).slice(0, HOMEWORK_CAP);
   for (const a of hw) {
     const late = +new Date(a.dueAt) <= nowMs;
     const subject = db.subjects.find((s) => s.id === a.subjectId)?.name ?? "Homework";
@@ -73,13 +87,16 @@ export function planToday(db: Database, student: Student, profile: Profile, nowM
       why: late ? "Overdue: hand it in today" : `Due in ${rel(+new Date(a.dueAt) - nowMs)}`,
       subject,
       minutes: 40,
-      href: `/assignments#a-${a.id}`,
+      item: { kind: "homework", id: a.id, href: `/assignments#a-${a.id}` },
     });
   }
 
   // 3. Topics due for review today (spaced: 1, 3, 7, 14 days).
   const weak = weakTopics(db, student);
-  const reviews = reviewQueue(weak, profile.reviews, nowMs).filter((r) => r.isDue).slice(0, 2);
+  // Homework comes first: reviews only fill what room is left of four.
+  const reviews = reviewQueue(weak, profile.reviews, nowMs)
+    .filter((r) => r.isDue)
+    .slice(0, Math.min(2, Math.max(0, 4 - out.length)));
   for (const r of reviews) {
     const note = db.notes.find((n) => n.title.toLowerCase().includes(r.topic.toLowerCase()));
     out.push({
@@ -100,7 +117,7 @@ export function planToday(db: Database, student: Student, profile: Profile, nowM
     if (m && !out.some((x) => x.title.toLowerCase() === m.topic.toLowerCase()))
       out.push({ key: `m-${m.topic}`, kind: "mission", tag: "Today's mission", title: m.topic, why: "Your best next step", subject: m.subject, minutes: 25, noteHref: m.noteHref });
   }
-  return out.slice(0, 4);
+  return out;
 }
 
 export interface FreeTime {

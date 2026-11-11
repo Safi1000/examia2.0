@@ -23,7 +23,7 @@ import {
 } from "@/lib/data/selectors";
 import { capAs, gradeLetter, gradeSubmission, isAsStudent, type GradeLetter } from "@/lib/grading";
 import { topicMastery } from "@/lib/scoring";
-import { displayName } from "@/lib/display-name";
+import { displayName, isTestAccount } from "@/lib/display-name";
 import { syllabusProgress } from "@/lib/syllabus-progress";
 import { LEVEL_SHORT } from "@/lib/notes-library";
 
@@ -112,12 +112,14 @@ export function reportData(db: Database, studentId: string, month: string, teach
   const mine = submissionsForStudent(db, student.id);
   const released = mine.filter((s) => s.status === "released");
 
+  const practice = new Set(db.students.filter(isTestAccount).map((s) => s.id));
   const resultFor = (sub: (typeof released)[number]): ReportResult | null => {
     const t = testById(db, sub.testId);
     if (!t) return null;
     const g = gradeSubmission(t, sub);
+    // Hamza's own test account never moves a parent's "class average".
     const others = db.submissions
-      .filter((x) => x.testId === t.id && x.status === "released")
+      .filter((x) => x.testId === t.id && x.status === "released" && !practice.has(x.studentId))
       .map((x) => gradeSubmission(t, x).percent);
     return {
       title: t.title,

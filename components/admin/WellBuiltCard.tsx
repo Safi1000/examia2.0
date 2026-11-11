@@ -5,7 +5,7 @@ import type { Database } from "@/lib/data/seed";
 import type { Profile } from "@/lib/profile";
 import { useStore } from "@/lib/data/store";
 import { archivedCohortIds } from "@/lib/data/selectors";
-import { displayName } from "@/lib/display-name";
+import { displayName, isTestAccount } from "@/lib/display-name";
 import { currentStats, levelFor, mondayOf } from "@/lib/focus";
 import { pkDate } from "@/lib/timetable";
 import { DEMO } from "@/lib/demo";
@@ -69,7 +69,8 @@ export function WellBuiltCard({ db, profiles, nowMs, cohortId }: { db: Database;
   const monday = mondayOf(today);
   const weekStartMs = Date.parse(`${monday}T00:00:00+05:00`);
   const off = archivedCohortIds(db);
-  const students = db.students.filter((s) => !off.has(s.cohortId) && (cohortId === null || s.cohortId === cohortId));
+  // Hamza's own test account is never ranked or praised.
+  const students = db.students.filter((s) => !off.has(s.cohortId) && !isTestAccount(s) && (cohortId === null || s.cohortId === cohortId));
 
   // Preview only (npm run dev:demo has no sign-in accounts to read): sample minutes.
   const demoStats = (id: string) => {

@@ -3,6 +3,7 @@ import { LEVEL_LABEL, addDays, at, liveSlotsOn, pkDate, setSchedule, slotsOn } f
 import { adminUser, loadSchedule, saveAdminMeta } from "@/lib/schedule-server";
 import { accessToken, googleReady } from "@/lib/google";
 import { levelSubjectsByStudent } from "@/lib/push-server";
+import { isTestAccount } from "@/lib/display-name";
 
 /**
  * Hands-off jobs run by the 15-minute timer (no AI, no paid services):
@@ -89,7 +90,7 @@ async function catalogue(sb: SupabaseClient) {
  */
 export async function studentsIn(sb: SupabaseClient, classId: string, subjectIds: string[], opts: { skipInPerson?: boolean } = {}): Promise<string[]> {
   const [{ data: students }, { data: cohorts }, { data: sc }, { data: ss }, { data: cc }, { data: cs }] = await Promise.all([
-    sb.from("students").select("id,cohort_id"),
+    sb.from("students").select("id,cohort_id,username"),
     sb.from("cohorts").select("id,active"),
     sb.from("student_classes").select("student_id,class_id"),
     sb.from("student_subjects").select("student_id,subject_id"),
@@ -115,6 +116,8 @@ export async function studentsIn(sb: SupabaseClient, classId: string, subjectIds
   const cohS = group(cs, "cohort_id", "subject_id");
   return (students ?? [])
     .filter((s) => !(s.cohort_id && off.has(s.cohort_id)) && !inPerson.has(s.id as string))
+    // Nor does Hamza's own test account: auto-absent never marks it.
+    .filter((s) => !(opts.skipInPerson && isTestAccount({ username: s.username as string })))
     .filter((s) => {
       const classes = ownC.get(s.id)?.size ? ownC.get(s.id)! : (cohC.get(s.cohort_id ?? "") ?? new Set<string>());
       if (!classes.has(classId)) return false;

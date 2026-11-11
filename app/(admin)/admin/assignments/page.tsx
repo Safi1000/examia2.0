@@ -5,6 +5,7 @@ import type { Assignment } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { archivedCohortIds, joinedMs, studentById } from "@/lib/data/selectors";
+import { isTestAccount } from "@/lib/display-name";
 import { uploadAsImages } from "@/lib/cloudinary";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -14,6 +15,9 @@ import { familyOfCode, newSeed, parseId, withSourcesLine, type BuiltQuestion } f
 import { Card, Button, Input, Textarea, Select, Label, Badge, Modal, EmptyState, Icon } from "@/components/ui";
 import { formatTimestamp, toLocalInput, fromLocalInput } from "@/lib/time";
 import { useNow } from "@/hooks/useNow";
+import { useActivity } from "@/lib/activity-admin";
+import { fmtTime } from "@/lib/activity";
+import { pkDate } from "@/lib/timetable";
 
 type Form = {
   title: string;
@@ -454,6 +458,8 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
     ? db.students.filter(
         (s) =>
           !off.has(s.cohortId) &&
+          // Hamza's own test account never shows as owing homework.
+          !isTestAccount(s) &&
           a.cohortId === s.cohortId &&
           // Joined after the deadline: this homework was never theirs to hand in.
           joinedMs(s) < +new Date(a.dueAt) &&
@@ -466,13 +472,38 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
   const nameOf = (u: string) => u.charAt(0).toUpperCase() + u.slice(1);
   const due = a ? new Date(a.dueAt).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
 
+  // Groundwork time on this homework, from blocks started on it. One request for everyone (the
+  // activity route sends this month's and last month's per-homework time whatever the start day).
+  const [from] = useState(() => pkDate(Date.now()));
+  const { data: activity } = useActivity(from, db);
+  const focusSecs = (studentId: string) => activity?.[studentId]?.focusHomework?.[assignmentId] ?? 0;
+  const focusNote = (studentId: string) => {
+    const secs = focusSecs(studentId);
+    return secs >= 60 ? <span className="text-xs tabular-nums text-ink-3">{fmtTime(secs)} in Groundwork</span> : null;
+  };
+  // Everyone it was set for (handed in or not), without Hamza's test account.
+  const setFor = [...new Set([...rows.map((r) => r.studentId), ...owed.map((s) => s.id)])].filter((id) => !isTestAccount(studentById(db, id)));
+  const used = setFor.filter((id) => focusSecs(id) >= 60);
+  const usedSecs = used.reduce((n, id) => n + focusSecs(id), 0);
+  // Kept at its height while loading, so the list doesn't jump when the numbers arrive.
+  const summary = setFor.length > 0 && (
+    <p className="min-h-5 text-sm tabular-nums text-ink-2" aria-live="polite">
+      {activity
+        ? `${used.length} of ${setFor.length} used Groundwork for this${used.length ? `, ${fmtTime(usedSecs)} in total` : ""}.`
+        : "\u00a0"}
+    </p>
+  );
+
   const missing = owed.length > 0 && (
     <details className="rounded-md border border-border bg-surface-2/40 px-4 py-3">
       <summary className="cursor-pointer select-none text-sm font-semibold text-ink">Not handed in yet ({owed.length})</summary>
       <ul className="mt-2 divide-y divide-border">
         {owed.map((s) => (
-          <li key={s.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-            <span className="text-ink-2">{nameOf(s.username)}</span>
+          <li key={s.id} className="flex min-h-11 items-center justify-between gap-3 py-2 text-sm">
+            <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+              <span className="text-ink-2">{nameOf(s.username)}</span>
+              {focusNote(s.id)}
+            </span>
             {/* Before the deadline only: no nudging towards late work. */}
             {open && s.phone && (
               <a
@@ -493,6 +524,7 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
   if (!rows.length)
     return (
       <div className="space-y-3">
+        {summary}
         <p className="text-sm italic text-ink-3">Nobody has handed in yet.</p>
         {missing}
       </div>
@@ -500,6 +532,7 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
 
   return (
     <div className="space-y-5">
+      {summary}
       {missing}
       {rows.map((s) => {
         const student = studentById(db, s.studentId);
@@ -508,6 +541,7 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <span className="font-semibold capitalize text-ink">{student?.username ?? "Unknown"}</span>
               <span className="text-xs text-ink-3">handed in {formatTimestamp(s.submittedAt)}</span>
+              {focusNote(s.studentId)}
             </div>
             <PageStack urls={s.fileUrls} label={`${student?.username ?? "Student"}'s work`} />
             <FeedbackBox

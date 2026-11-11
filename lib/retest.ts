@@ -5,6 +5,7 @@
  * actions only; nothing new in the database.
  */
 import { archivedCohortIds, isArchivedSubmission } from "@/lib/data/selectors";
+import { isTestAccount } from "@/lib/display-name";
 import type { Question, QuestionBankItem, Test } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { topicMastery, type TopicMastery } from "@/lib/scoring";
@@ -16,11 +17,11 @@ const norm = (s: string) => s.trim().toLowerCase();
 /** Weakest topics for a cohort (null = everyone), from released results only. */
 export function weakTopics(db: Database, cohortId: string | null, limit = 3): TopicMastery[] {
   // Current students only: switched-off (archived) cohorts and their tests
-  // don't count towards today's weak topics.
+  // don't count towards today's weak topics, and nor does Hamza's test account.
   const off = archivedCohortIds(db);
   const studentIds = new Set(
     db.students
-      .filter((s) => !off.has(s.cohortId) && (cohortId === null || s.cohortId === cohortId))
+      .filter((s) => !off.has(s.cohortId) && !isTestAccount(s) && (cohortId === null || s.cohortId === cohortId))
       .map((s) => s.id),
   );
   const subs = db.submissions.filter(

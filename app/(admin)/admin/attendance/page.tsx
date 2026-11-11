@@ -7,6 +7,7 @@ import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { attendancePercent, archivedCohortIds } from "@/lib/data/selectors";
 import { isInPersonStudent } from "@/lib/in-person";
+import { isTestAccount } from "@/lib/display-name";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Select, EmptyState, Icon } from "@/components/ui";
@@ -142,7 +143,9 @@ export default function AttendancePage() {
         .sort((x, y) => x.joinedAt.localeCompare(y.joinedAt))[0];
     const rows = students.map((s) => ({ s, mark: markOf(s.id), join: firstJoin(s.id) }));
     const count = (st: AttendanceStatus) => rows.filter((r) => r.mark?.status === st).length;
-    const unmarked = rows.filter((r) => !r.mark);
+    // Hamza's own test account keeps its row (tap to mark it) but is never
+    // counted as "not marked" or swept up by "Mark the rest".
+    const unmarked = rows.filter((r) => !r.mark && !isTestAccount(r.s));
     const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit", hour12: true });
     const markRest = (status: AttendanceStatus) => {
       for (const r of unmarked) store.setAttendance(r.s.id, classId, date, status);

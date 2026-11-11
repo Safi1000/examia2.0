@@ -506,6 +506,17 @@ const notePen = () => {
   penAt = Date.now();
 };
 let palmUntil = 0;
+// The two line styles, as small pictures for their buttons.
+const LINE_SOLID = (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+    <path d="M2 8h12" />
+  </svg>
+);
+const LINE_DOTTED = (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+    <path d="M2 8h2M7 8h2M12 8h2" />
+  </svg>
+);
 const palmDown = (e: React.PointerEvent) => {
   if (e.pointerType === "touch" && (Date.now() - penAt < 1500 || e.width > PALM_SIZE_PX || e.height > PALM_SIZE_PX)) palmUntil = Date.now() + 700;
 };
@@ -857,6 +868,33 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   // for the bar's buttons.
   const [selText, setSelTextState] = useState<{ id: string; color: string; bold: boolean; italic: boolean; hl: boolean } | null>(null);
   const selTextRef = useRef<string | null>(null);
+  // The selected straight line (the Move tool, a tap or a drag on it): a gold frame and a small bar
+  // with Dotted or Solid, Duplicate and a bin. Only this device knows what is selected.
+  const [selLine, setSelLineState] = useState<{ id: string; dotted: boolean } | null>(null);
+  const selLineRef = useRef<string | null>(null);
+  /** The selected line as it is now (also while it is being dragged, when it is drawn on top). */
+  const selLineStroke = (): Stroke | undefined => {
+    const id = selLineRef.current;
+    if (!id) return undefined;
+    if (moving.current?.id === id) return moving.current;
+    return strokes.current.find((x) => x.id === id && x.kind === "line");
+  };
+  const selectLine = (id: string | null) => {
+    selLineRef.current = id;
+    const s = selLineStroke();
+    if (!s) selLineRef.current = null;
+    setSelLineState((p) => (!s ? null : p && p.id === s.id && p.dotted === !!s.dotted ? p : { id: s.id, dotted: !!s.dotted }));
+  };
+  // The Line tool's style, Solid or Dotted: remembered for the next line, and on this device.
+  const [lineDotted, setLineDottedState] = useState(false);
+  const lineDottedRef = useRef(false);
+  const setLineDotted = (on: boolean) => {
+    lineDottedRef.current = on;
+    setLineDottedState(on);
+    try {
+      localStorage.setItem("ht-board-line-dotted", on ? "1" : "0");
+    } catch {}
+  };
   // Set once the text grips exist (further down): ends a grip drag left open.
   const endTextDragRef = useRef<() => void>(() => {});
 
@@ -869,6 +907,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     finishPicDragRef.current(id);
     selectedRef.current = id;
     setSelectedId(id);
+    if (id && selLineRef.current) selectLine(null);
     // One thing is selected at a time: a picture taking the selection lets typed text go.
     if (id && selTextRef.current) {
       endTextDragRef.current();
@@ -885,6 +924,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   };
   const selectText = (id: string | null) => {
     if (id && selectedRef.current) select(null);
+    if (id && selLineRef.current) selectLine(null);
     if (selTextRef.current === id) return;
     // Its grips leave the page with it: a grip drag still open is finished first (the words land).
     endTextDragRef.current();
@@ -899,6 +939,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
    * the other device), its bar shows the look it has now.
    */
   const checkSel = () => {
+    // The selected line: let go once it is off the board, and its bar shows the style it has now.
+    if (selLineRef.current) selectLine(selLineRef.current);
     if (!selTextRef.current) return;
     const s = selStroke();
     if (!s) return selectText(null);
@@ -1208,6 +1250,11 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         const bg = localStorage.getItem("ht-board-bg") as Backdrop | null;
         const isDark = localStorage.getItem("ht-board-dark") === "1";
         if ((bg && BACKDROPS.includes(bg)) || isDark) setPaperRef.current(bg && BACKDROPS.includes(bg) ? bg : "plain", isDark, false);
+        // And the Line tool's style (Solid or Dotted).
+        if (localStorage.getItem("ht-board-line-dotted") === "1") {
+          lineDottedRef.current = true;
+          setLineDottedState(true);
+        }
       } catch {}
       if (lead) {
         // And where on each page (unless Hamza has already moved the board while this loaded).
@@ -1538,6 +1585,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     images.current = [];
     select(null);
     selectText(null);
+    selectLine(null);
     send({ t: "clear" });
     // Remembered as gone, so a laptop that missed the clear can't hand them back when it rejoins.
     ledger.mark(gone, ledger.stamp());
@@ -2026,6 +2074,42 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     commit({ type: "erase", s: [s] });
     send({ t: "del", ids: [s.id] });
     selectText(null);
+    requestDraw();
+  };
+  // ---- the selected line's bar
+  /** Dotted or Solid: this line's style switches in place (one undo step), and the other device sees it. */
+  const toggleSelLine = () => {
+    const s = selLineStroke();
+    if (!s || moving.current) return;
+    const after: Stroke = { ...s };
+    if (s.dotted) delete after.dotted;
+    else after.dotted = true;
+    strokes.current = strokes.current.map((x) => (x.id === s.id ? after : x));
+    commit({ type: "replace", before: [s], after: [after] });
+    send({ t: "add", s: packStroke(after) });
+    setSelLineState({ id: after.id, dotted: !!after.dotted });
+    requestDraw();
+  };
+  /** A copy a little down and to the right, selected and ready to drag (one undo step). */
+  const duplicateSelLine = () => {
+    const s = selLineStroke();
+    if (!s || moving.current) return;
+    const d = 24 / cam.current.z;
+    const copy: Stroke = { ...s, id: newId(), pts: s.pts.map((p) => [p[0] + d, p[1] + d, p[2]] as Pt) };
+    strokes.current = [...strokes.current, copy];
+    commit({ type: "add", s: copy });
+    send({ t: "add", s: packStroke(copy) });
+    selectLine(copy.id);
+    requestDraw();
+  };
+  /** Delete or Backspace, or the bin in its bar: the selected line goes (undo brings it back). */
+  const deleteSelLine = () => {
+    const s = selLineStroke();
+    if (!s || moving.current) return;
+    strokes.current = strokes.current.filter((x) => x.id !== s.id);
+    commit({ type: "erase", s: [s] });
+    send({ t: "del", ids: [s.id] });
+    selectLine(null);
     requestDraw();
   };
   /** Enter, or Edit in its bar: the selected words open, caret at the end. */
@@ -2631,6 +2715,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     if (!hit) return false;
     const again = hit.kind === "text" && hit.id === selTextRef.current;
     selectText(hit.kind === "text" ? hit.id : null);
+    // A straight line picked up with the Move tool is selected too: its bar has Dotted and Duplicate.
+    selectLine(anyStroke && hit.kind === "line" ? hit.id : null);
     gesture.current = { mode: "shift", id, erased: [], straightened: false, mv: startMv(hit, sx, sy, again, pt) };
     return true;
   };
@@ -2794,6 +2880,50 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [selTextId, screen, lead]);
+  // The selected line's frame and bar, kept in step the same way.
+  const selLineFrameRef = useRef<HTMLDivElement>(null);
+  const selLineBarRef = useRef<HTMLDivElement>(null);
+  const selLineId = selLine?.id ?? null;
+  useEffect(() => {
+    if (!selLineId) return;
+    let raf = 0;
+    let last = "";
+    const place = () => {
+      const el = selLineFrameRef.current;
+      const bar = selLineBarRef.current;
+      const id = selLineRef.current;
+      const s = id ? (moving.current?.id === id ? moving.current : strokes.current.find((x) => x.id === id)) : undefined;
+      if (!el || !bar || !s) return;
+      const c = cam.current;
+      const { w: sw, h: sh } = screen.current;
+      const [a, b] = [s.pts[0], s.pts[s.pts.length - 1]];
+      const x = (Math.min(a[0], b[0]) - c.x) * c.z - 8;
+      const y = (Math.min(a[1], b[1]) - c.y) * c.z - 8;
+      const w = Math.abs(b[0] - a[0]) * c.z + 16;
+      const h = Math.abs(b[1] - a[1]) * c.z + 16;
+      const key = `${x}|${y}|${w}|${h}|${sw}|${sh}`;
+      if (key === last) return;
+      last = key;
+      Object.assign(el.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
+      const bw = bar.offsetWidth;
+      const bh = bar.offsetHeight;
+      const minY = 64;
+      const maxY = sh - bh - (lead ? 12 : 84);
+      const above = y - bh - 14;
+      const below = y + h + 14;
+      const by = Math.min(Math.max(minY, above >= minY ? above : below <= maxY ? below : minY), maxY);
+      const bx = Math.min(Math.max(lead ? 76 : 12, x + w / 2 - bw / 2), sw - bw - 12);
+      const off = x + w < 0 || y + h < 0 || x > sw || y > sh;
+      Object.assign(bar.style, { left: `${bx}px`, top: `${by}px`, visibility: off ? "hidden" : "visible" });
+    };
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      place();
+    };
+    place();
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [selLineId, screen, lead]);
   // Tablet: a finger held still on typed words picks them up (a small buzz), then they follow the
   // finger, with any tool. A quick drag still pans, and the pen never moves text by accident.
   const liftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -3006,6 +3136,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
 
     if (isPenEraser(e) || tool === "eraser") {
       selectText(null);
+      selectLine(null);
       lastErase.current = null;
       setInking(true);
       gesture.current = { mode: "erase", id: e.pointerId, erased: [], straightened: false };
@@ -3020,6 +3151,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       const onDot = !!sel && Math.hypot((sel.x + sel.w - wx) * cam.current.z, (sel.y + sel.h - wy) * cam.current.z) <= HANDLE_PX;
       if (onDot || !grabStroke(e.pointerId, sx, sy, true, e.pointerType)) {
         selectText(null);
+        selectLine(null);
         grabImage(e.pointerId, sx, sy, false);
       }
       return;
@@ -3052,7 +3184,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       setInking(true);
       gesture.current = { mode: "box", id: e.pointerId, erased: [], straightened: false };
     } else if (tool === "line") {
-      current.current = { id: newId(), kind: "line", color: ink, size: w, pts: [p, p] };
+      // Solid or Dotted, as chosen beside the Line tool. (A pen stroke that is straightened is always solid.)
+      current.current = { id: newId(), kind: "line", color: ink, size: w, pts: [p, p], ...(lineDottedRef.current ? { dotted: true } : {}) };
       setInking(true);
       gesture.current = { mode: "line", id: e.pointerId, erased: [], straightened: true, click };
     } else {
@@ -3205,7 +3338,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     if (s.kind === "rect" || s.kind === "ellipse" || s.kind === "form") return;
     if (g.mode === "line" || (g.mode === "draw" && g.straightened)) {
       const a = s.pts[0];
-      const b = snapLine(a, [wx, wy, 0.5]);
+      // Free: the line goes at exactly the angle drawn, and only settles on exactly level or upright
+      // within 3 degrees of it. Shift with the mouse: steps of 15 degrees, on purpose.
+      const b = snapLine(a, [wx, wy, 0.5], 3, e.pointerType === "mouse" && e.shiftKey ? 15 : 0);
       s.pts = [a, b];
       setAngle({ x: (b[0] - cam.current.x) * cam.current.z, y: (b[1] - cam.current.y) * cam.current.z, deg: lineAngle(a, b) });
     } else {
@@ -3573,6 +3708,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     toolBeforeA.current = null;
     setTool(t);
     if (t !== "move") select(null);
+    if (t !== "move") selectLine(null);
     if (t !== "move" && t !== "text") selectText(null);
     if (t !== "eraser") moveEraser();
     requestDraw();
@@ -3613,6 +3749,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const open = gesture.current;
     endTextDrag(true);
     selectText(null);
+    selectLine(null);
     if (open.mode === "shift" && open.mv) finishShift(open.mv, true);
     else if (open.mode && open.mode !== "pan") {
       if (current.current) send({ t: "del", ids: [current.current.id] });
@@ -3863,6 +4000,11 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       const k = e.shiftKey ? "" : e.key.toLowerCase();
       if (k === "p") pickTool("pen");
       if (k === "l") pickTool("line");
+      // D: Solid or Dotted, for the next line (Line tool) or for the selected line.
+      if (k === "d") {
+        if (selLineRef.current) toggleSelLine();
+        else if (tool === "line") setLineDotted(!lineDottedRef.current);
+      }
       if (k === "a") {
         const before = tool === "axes" ? toolBeforeA.current : tool;
         pickTool("axes");
@@ -3891,15 +4033,19 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       if ((e.key === "Delete" || e.key === "Backspace") && selTextRef.current) {
         e.preventDefault();
         deleteSelText();
+      } else if ((e.key === "Delete" || e.key === "Backspace") && selLineRef.current) {
+        e.preventDefault();
+        deleteSelLine();
       } else if ((e.key === "Delete" || e.key === "Backspace") && selectedRef.current) deleteSelected();
       // Enter opens the selected words to edit.
       if (e.key === "Enter" && selTextRef.current) {
         e.preventDefault();
         editSel();
       }
-      if (e.key === "Escape" && (selectedRef.current || selTextRef.current)) {
+      if (e.key === "Escape" && (selectedRef.current || selTextRef.current || selLineRef.current)) {
         select(null);
         selectText(null);
+        selectLine(null);
         requestDraw();
       }
     };
@@ -4268,6 +4414,79 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           </>
         )}
 
+        {/* The selected straight line (Move tool): a gold frame and a small bar. A drag on the line
+            itself moves it (the board's own work). */}
+        {selLine && (
+          <>
+            <div ref={selLineFrameRef} aria-hidden className={`pointer-events-none absolute ${SEL_FRAME}`} style={{ left: -9999, top: -9999 }} />
+            <div ref={selLineBarRef} data-selline-bar className={`${PANEL} absolute z-20 flex animate-[scale-in_140ms_ease-out] items-center gap-0.5 p-[3px] motion-reduce:animate-none`} style={{ left: -9999, top: -9999 }}>
+              <button
+                type="button"
+                {...tipOn(selLine.dotted ? "Make it solid" : "Make it dotted", "D")}
+                onPointerDown={palmDown}
+                onClick={() => !palmBlocked() && toggleSelLine()}
+                className={`${PRESS} ${QUIET} flex items-center gap-1.5 rounded-[10px] px-3 text-xs font-semibold [&_svg]:h-4 [&_svg]:w-4 ${lead ? "h-11" : `h-9 ${HIT}`}`}
+              >
+                {selLine.dotted ? LINE_SOLID : LINE_DOTTED}
+                {selLine.dotted ? "Solid" : "Dotted"}
+              </button>
+              <button
+                type="button"
+                {...tipOn("Duplicate", undefined, "Makes a copy just beside it, ready to drag.")}
+                onPointerDown={palmDown}
+                onClick={() => !palmBlocked() && duplicateSelLine()}
+                className={`${PRESS} ${QUIET} flex items-center gap-1.5 rounded-[10px] px-3 text-xs font-semibold [&_svg]:h-4 [&_svg]:w-4 ${lead ? "h-11" : `h-9 ${HIT}`}`}
+              >
+                Duplicate
+              </button>
+              <button type="button" aria-label="Remove the line" {...tipOn("Remove the line", "Delete")} onPointerDown={palmDown} onClick={() => !palmBlocked() && deleteSelLine()} className={`${PRESS} flex items-center gap-1.5 rounded-[10px] bg-[#E5685A]/[0.14] px-3 text-xs font-semibold text-[#F4A397] hover:bg-[#E5685A]/[0.22] [&_svg]:h-4 [&_svg]:w-4 ${lead ? "h-11" : `h-9 ${HIT}`}`}>
+                {I.trash}
+              </button>
+              <Divider />
+              <button
+                type="button"
+                {...tipOn("Done", "Esc")}
+                onPointerDown={palmDown}
+                onClick={() => {
+                  if (palmBlocked()) return;
+                  selectLine(null);
+                  requestDraw();
+                }}
+                className={`${PRESS} ${QUIET} rounded-[10px] px-3 text-xs font-semibold ${lead ? "h-11" : `h-9 ${HIT}`}`}
+              >
+                Done
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* The Line tool in hand: Solid or Dotted for the next line, beside the tools. */}
+        {tool === "line" && (
+          <div
+            data-line-style
+            role="group"
+            aria-label="Line style"
+            className={`${PANEL} absolute flex animate-[scale-in_140ms_ease-out] items-center gap-0.5 p-[3px] motion-reduce:animate-none ${
+              lead ? "left-[72px] top-[calc(max(64px,50dvh_-_370.5px)_+_49px)]" : "bottom-[76px] left-1/2 -translate-x-1/2"
+            }`}
+          >
+            {([false, true] as const).map((d) => (
+              <button
+                key={d ? "dotted" : "solid"}
+                type="button"
+                aria-pressed={lineDotted === d}
+                {...tipOn(d ? "Dotted line" : "Solid line", "D", "For the next line you draw.")}
+                onPointerDown={palmDown}
+                onClick={() => !palmBlocked() && setLineDotted(d)}
+                className={`${PRESS} flex items-center gap-1.5 rounded-[10px] px-3 text-xs font-semibold [&_svg]:h-4 [&_svg]:w-4 ${lead ? "h-11" : `h-9 ${HIT}`} ${lineDotted === d ? ON : QUIET}`}
+              >
+                {d ? LINE_DOTTED : LINE_SOLID}
+                {d ? "Dotted" : "Solid"}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* The selected typed text: the same gold frame as a picture, a pill on its side for how wide its
             lines run, a dot on its corner for its size, and its bar just above. A drag on the words
             themselves moves them (that part is the board's own work). */}
@@ -4510,10 +4729,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           }`}
         >
           <ToolButton label="Pen (P). Draw a T for a T account; hold still at the end to snap a line, box or circle" tip="Pen" keys="P" hint="Draw a T for a T account. Hold still at the end to snap a line, box or circle." active={tool === "pen"} onClick={() => pickTool("pen")}>{I.pen}</ToolButton>
-          <ToolButton label="Straight line (L)" tip="Straight line" keys="L" active={tool === "line"} onClick={() => pickTool("line")}>{I.line}</ToolButton>
+          <ToolButton label="Straight line (L), at any angle. Solid or Dotted appears beside the tools" tip="Straight line" keys="L" hint={lead ? "Goes at any angle. Pick Solid or Dotted beside the tools." : "Goes at any angle. D switches Solid and Dotted. Hold Shift for steps of 15 degrees."} active={tool === "line"} onClick={() => pickTool("line")}>{I.line}</ToolButton>
           <ToolButton label="Eraser (E), or hold the pen's side button" tip="Eraser" keys="E" hint="Or hold the pen's side button." active={tool === "eraser"} onClick={() => pickTool("eraser")}>{I.eraser}</ToolButton>
           <ToolButton label="Type (T starts typing where the mouse is). Enter finishes, Shift+Enter for a new line. Tap typed words to select them, drag to move them, tap again to edit" tip="Type" keys="T" hint="Starts where the mouse is. Enter finishes, Shift+Enter for a new line. Tap typed words to select them, drag to move, tap again to edit." active={tool === "text"} onClick={() => pickTool("text")}>{I.text}</ToolButton>
-          <ToolButton label="Move (V): drag pictures, typed text or writing" tip="Move" keys="V" hint="Drag pictures, typed text or writing. With any tool, tap typed words with a finger to select them, then drag." active={tool === "move"} onClick={() => pickTool("move")}>{I.move}</ToolButton>
+          <ToolButton label="Move (V): drag pictures, typed text or writing" tip="Move" keys="V" hint="Drag pictures, typed text or writing. Tap a straight line for Dotted and Duplicate. With any tool, tap typed words with a finger to select them, then drag." active={tool === "move"} onClick={() => pickTool("move")}>{I.move}</ToolButton>
           <ToolButton label="Insert a picture or PDF" tip="Picture or PDF" hint={lead ? undefined : "Or paste one (Ctrl+V), or drop a file on the board."} disabled={!!busy} onClick={() => fileRef.current?.click()}>
             {busy ? <Spinner size={20} className="text-white/80" /> : I.insert}
           </ToolButton>

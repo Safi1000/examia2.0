@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { isAdminRequest } from "@/lib/admin-auth";
 import { serviceClient } from "@/lib/push-server";
 import { pkDate, addDays } from "@/lib/timetable";
-import { AREAS, mergeNote, type Area, type DayActivity, type MonthFile, type NoteActivity, type StudentActivity } from "@/lib/activity";
+import { AREAS, addSecs, mergeNote, type Area, type DayActivity, type MonthFile, type NoteActivity, type StudentActivity } from "@/lib/activity";
 
 /**
  * POST (a signed-in student): add a batch of active time to their month file.
@@ -20,6 +20,9 @@ const DAY_CAP = 16 * 3600;
 const BATCH_CAP = 4 * 3600;
 /** Different notes kept in one month file, so a forged stream of ids can't grow it without end. */
 const NOTES_CAP = 600;
+/** The same for homework and tests with Groundwork time (each map), and how many one batch may name. */
+const ITEMS_CAP = 300;
+const ITEMS_PER_BATCH = 20;
 
 type Sb = ReturnType<typeof serviceClient>;
 const storageReady = () => !!(process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.NEXT_PUBLIC_SUPABASE_URL);
@@ -45,6 +48,28 @@ async function readMonth(sb: Sb, path: string): Promise<MonthFile | null> {
 const num = (v: unknown, max: number) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.min(v, max) : 0);
 const isDay = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d);
 const isId = (id: string) => /^[A-Za-z0-9_-]{1,64}$/.test(id);
+
+/**
+ * Add a day's Groundwork seconds per homework (or test) to the month's map.
+ * Added, never overwritten; ids checked; at most BATCH_CAP seconds in one batch
+ * across all ids, days and both maps (they share `room`), and the
+ * month keeps at most ITEMS_CAP different ids.
+ */
+function addItems(map: Record<string, number> | undefined, raw: unknown, room: { left: number }): Record<string, number> | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return map;
+  let out = map;
+  for (const [id, v] of Object.entries(raw as Record<string, unknown>).slice(0, ITEMS_PER_BATCH)) {
+    // "constructor" and the like pass isId but would read the object's own machinery, not a count.
+    if (!isId(id) || id in Object.prototype || room.left <= 0) continue;
+    const add = Math.round(Math.min(num(v, BATCH_CAP), room.left));
+    if (!add) continue;
+    out ??= {};
+    if (out[id] == null && Object.keys(out).length >= ITEMS_CAP) continue;
+    out[id] = Math.round((out[id] ?? 0) + add);
+    room.left -= add;
+  }
+  return out;
+}
 
 /** One student's writes in this server, one at a time, so two batches never overwrite each other. */
 const queues = new Map<string, Promise<unknown>>();
@@ -90,10 +115,16 @@ export async function POST(req: NextRequest) {
   await ensureBucket(sb);
   try {
     await serial(studentId, async () => {
+      // One batch can credit at most BATCH_CAP of Groundwork time to homework and tests, whatever its days say.
+      const itemRoom = { left: BATCH_CAP };
       for (const [month, entries] of byMonth) {
         const path = `${studentId}/${month}.json`;
         const file: MonthFile = (await readMonth(sb, path)) ?? { v: 1, days: {}, notes: {} };
         for (const [day, raw] of entries) {
+          const h = addItems(file.h, raw.h, itemRoom);
+          if (h) file.h = h;
+          const t = addItems(file.t, raw.t, itemRoom);
+          if (t) file.t = t;
           const d: DayActivity = (file.days[day] ??= { s: {} });
           const s = (raw.s ?? {}) as Record<string, unknown>;
           let room = DAY_CAP - Object.values(d.s).reduce<number>((a, n) => a + (n ?? 0), 0);
@@ -152,6 +183,12 @@ export async function GET(req: NextRequest) {
     m = mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, "0")}`;
     if (months.length > 14) break;
   }
+  // Groundwork time per homework always covers this month and last (homework set late last month is
+  // still being worked on), so last month's file is read even when `from` is in this one.
+  const thisMonth = today.slice(0, 7);
+  const [ty, tm] = thisMonth.split("-").map(Number);
+  const lastMonth = tm === 1 ? `${ty - 1}-12` : `${ty}-${String(tm - 1).padStart(2, "0")}`;
+  if (months[0] > lastMonth) months.unshift(lastMonth);
 
   let ids: string[];
   if (only) ids = isId(only) ? [only] : [];
@@ -171,6 +208,12 @@ export async function GET(req: NextRequest) {
       const st = (students[j.id] ??= { days: {}, notes: {} });
       for (const [d, v] of Object.entries(f.days)) if (d >= from) st.days[d] = v;
       for (const [nid, n] of Object.entries(f.notes)) if (n.at >= Date.parse(`${from}T00:00:00+05:00`)) st.notes[nid] = mergeNote(st.notes[nid], n);
+      if (j.m >= lastMonth) {
+        const h = addSecs(st.focusHomework, f.h);
+        if (h) st.focusHomework = h;
+        const t = addSecs(st.focusTests, f.t);
+        if (t) st.focusTests = t;
+      }
     });
   }
 

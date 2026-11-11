@@ -9,7 +9,11 @@ import { TRACKING_SINCE, type Area, type DayActivity, type NoteActivity, type St
 
 export type ActivityState = { data: Record<string, StudentActivity> | null; error: boolean; reload: () => void };
 
-/** Admin: every student's activity since `from` (or one student's). */
+/**
+ * Admin: every student's activity since `from` (or one student's). Each
+ * student's `focusHomework` (assignment id to Groundwork seconds, this month
+ * and last) comes with it, whatever `from` is.
+ */
 export function useActivity(from: string, db: Database, studentId?: string): ActivityState {
   const [data, setData] = useState<Record<string, StudentActivity> | null>(null);
   const [error, setError] = useState(false);
@@ -85,7 +89,18 @@ function demoActivity(db: Database, from: string, only?: string): Record<string,
     const last = Object.values(days).reduce((m, v) => Math.max(m, v.b ?? 0), 0);
     // A quiet student last signed in before they went quiet (sign-ins predate activity tracking).
     const signIn = last || (quietFor ? Date.now() - quietFor * 864e5 : 0);
-    out[st.id] = { days, notes, signIn: signIn ? new Date(signIn).toISOString() : null };
+    // Groundwork time on their homework: keener students start more blocks from it. Its own seed, so the days above stay as they were.
+    let hs = 11 + i * 977;
+    const rnd2 = () => {
+      hs = (hs * 9301 + 49297) % 233280;
+      return hs / 233280;
+    };
+    const focusHomework: Record<string, number> = {};
+    for (const a of db.assignments) {
+      if (a.cohortId !== st.cohortId || (a.classId && !st.classIds.includes(a.classId)) || (a.subjectId && !st.subjectIds.includes(a.subjectId))) continue;
+      if (rnd2() < keen) focusHomework[a.id] = Math.round(10 + rnd2() * 80) * 60;
+    }
+    out[st.id] = { days, notes, signIn: signIn ? new Date(signIn).toISOString() : null, ...(Object.keys(focusHomework).length ? { focusHomework } : {}) };
   });
   return out;
 }
