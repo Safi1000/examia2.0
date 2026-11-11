@@ -15,6 +15,7 @@ import {
 } from "@/lib/timetable";
 import { loadSchedule } from "@/lib/schedule-server";
 import { loadAutomation, saveAutomation } from "@/lib/automation";
+import { heldOpen, readAccess, sweepAccess } from "@/lib/recordings-server";
 import { RECORDINGS_ROOT, accessToken, autoRecord, classEventId, closeLinkSharing, createClassEvent, deleteEvent, fileIdOf, findRecording, getEvent, moveEvent } from "@/lib/google";
 
 // Cancelled classes get no link and no recording.
@@ -130,6 +131,10 @@ export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), f
   const before = await loadAutomation(sb).catch(() => null);
   if (tried && before && (before.recordIssue ?? null) !== recordIssue) await saveAutomation(sb, null, { recordIssue }).catch(() => {});
 
+  // A catch-up window or "Open for 48 hours" (Recordings page) can keep a
+  // recording open past its 48 hours; then the sweep below closes it later.
+  const access = await readAccess(sb).catch(() => null);
+
   // 2 and 3. Recordings, driven by the links that exist (not today's
   // timetable), so editing the timetable never strands a recording.
   for (const row of (rows ?? []) as LinkRow[]) {
@@ -151,6 +156,7 @@ export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), f
       if (row.recording_url) {
         // Past its 48 hours: close the link (retried for a few hours).
         if (now >= closesAt && now < closesAt + 6 * 3_600_000) {
+          if (heldOpen(access, key(row.on_date, row.class_id, row.subject_id), row.on_date, now)) continue;
           const id = fileIdOf(row.recording_url);
           if (id) await closeLinkSharing(token, id);
         }
@@ -175,7 +181,11 @@ export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), f
     }
   }
 
-  return { connected: true, links, recordings };
+  // 5. Recordings opened from the Recordings page close again when their window ends.
+  const access2 = access ? await sweepAccess(sb, token, now).catch((e) => ({ error: String(e).slice(0, 200) })) : null;
+  const sweep = access2 && "closed" in access2 ? { closed: access2.closed, stuck: access2.stuck } : access2;
+
+  return { connected: true, links, recordings, sweep };
 }
 
 /**

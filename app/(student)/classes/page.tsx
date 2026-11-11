@@ -8,7 +8,10 @@ import { ClassNow } from "@/components/student/ClassNow";
 import { Badge, EmptyState, Icon, Skeleton } from "@/components/ui";
 import type { Student } from "@/types";
 import type { Database } from "@/lib/data/seed";
-import { useSchedule, LEVEL_LABEL, RECORDING_HOURS, getSchedule, addDays, isClassDay, pkDate, slotKey, slotsForStudent, slotsOn, span, useClassLinks } from "@/lib/classes";
+import { useSchedule, LEVEL_LABEL, RECORDING_HOURS, getSchedule, addDays, isClassDay, levelOf, pkDate, slotKey, slotsForStudent, slotsOn, span, useClassLinks } from "@/lib/classes";
+import { anythingOpen, useRecordingRows, useStudentAccess, type RecordingRow } from "@/lib/recordings";
+import { openUntil } from "@/lib/recording-access";
+import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { subjectsAtLevel } from "@/lib/levels";
 import { PageHeader, SectionTitle } from "@/components/student/PortalKit";
@@ -73,6 +76,11 @@ export default function ClassesPage() {
   // Nothing in the next two weeks: fall back to the next class day (and the note below).
   if (!slots.length) for (let i = 0; i < 7 && !isClassDay(day); i++) day = addDays(day, 1);
 
+  // Hamza can open older recordings for a while (a catch-up window, or one recording).
+  const access = useStudentAccess();
+  const olderOpen = !!student && anythingOpen(access, nowMs);
+  const { rows: olderRows } = useRecordingRows(olderOpen);
+
   const recordings = (() => {
     if (!student) return [];
     // Each of my classes, and when its recording closes (48 hours after it ends).
@@ -84,10 +92,42 @@ export default function ClassesPage() {
         closes.set(slotKey(s), s.endMs + RECORDING_HOURS * 3_600_000);
       }
     return links
-      .filter((l) => l.recordingUrl && nowMs < (closes.get(slotKey(l)) ?? 0))
-      .map((l) => ({ ...l, closesAt: closes.get(slotKey(l))!, subject: db.subjects.find((s) => s.id === l.subjectId)?.name ?? "Class" }))
+      .filter((l) => l.recordingUrl && closes.has(slotKey(l)))
+      .map((l) => ({
+        ...l,
+        closesAt: openUntil(slotKey(l), l.date, closes.get(slotKey(l))!, access, nowMs),
+        subject: db.subjects.find((s) => s.id === l.subjectId)?.name ?? "Class",
+      }))
+      .filter((l) => l.closesAt > nowMs)
       .sort((a, b) => b.closesAt - a.closesAt);
   })();
+
+  // Older recordings Hamza has opened: my own levels and subjects only, newest first.
+  const older = (() => {
+    if (!student || !olderOpen) return [];
+    const recent = new Set(recordings.map((r) => slotKey(r)));
+    const cohort = db.cohorts.find((c) => c.id === student.cohortId);
+    const classes = student.classIds.length ? student.classIds : (cohort?.classIds ?? []);
+    const mine = (classId: string, subjectId: string) => {
+      if (!classes.includes(classId)) return false;
+      const subjects = subjectsAtLevel(student, classId, cohort?.subjectIds);
+      return !subjects.length || subjects.includes(subjectId);
+    };
+    return olderRows
+      .filter((r) => !recent.has(r.key) && mine(r.classId, r.subjectId))
+      .map((r) => {
+        const cls = db.classes.find((c) => c.id === r.classId);
+        const lvl = cls ? levelOf(cls) : null;
+        return {
+          ...r,
+          closesAt: openUntil(r.key, r.date, 0, access, nowMs),
+          subject: db.subjects.find((s) => s.id === r.subjectId)?.name ?? "Class",
+          level: lvl ? LEVEL_LABEL[lvl] : (cls?.name ?? ""),
+        };
+      })
+      .filter((r) => r.closesAt > nowMs && r.date <= today);
+  })();
+  const twoLevels = new Set(older.map((r) => r.classId)).size > 1;
 
   // My classes that ended in the last 3 hours with no recording yet: Meet takes
   // 30 to 60 minutes to save one, so say it is coming rather than show nothing.
@@ -213,8 +253,111 @@ export default function ClassesPage() {
         )}
         </div>
       </section>
+
+      {older.length > 0 && (
+        <PastRecordings
+          items={older}
+          twoLevels={twoLevels}
+          watched={watched}
+          onWatch={(key) => updateProfile((p) => ({ watched: [...(p.watched ?? []).filter((k) => k !== key), key].slice(-60) }))}
+        />
+      )}
       </div>
     </div>
+  );
+}
+
+type PastItem = RecordingRow & { closesAt: number; subject: string; level: string };
+const PAGE = 12;
+const monthName = (ymd: string) => new Date(`${ymd}T12:00:00+05:00`).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+
+/**
+ * Older recordings while Hamza has them open: a subject filter, months as
+ * headings, newest first, a dozen at a time so a long list stays easy on a phone.
+ */
+function PastRecordings({ items, twoLevels, watched, onWatch }: { items: PastItem[]; twoLevels: boolean; watched: Set<string>; onWatch: (key: string) => void }) {
+  const [subject, setSubject] = useState<string | null>(null);
+  const [shown, setShown] = useState(PAGE);
+  const subjects = [...new Set(items.map((i) => i.subject))].sort();
+  const list = items.filter((i) => !subject || i.subject === subject).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.subject.localeCompare(b.subject)));
+  const latest = Math.max(...items.map((i) => i.closesAt));
+  const visible = list.slice(0, shown);
+  const months: Array<{ name: string; rows: PastItem[] }> = [];
+  for (const r of visible) {
+    const name = monthName(r.date);
+    if (months[months.length - 1]?.name !== name) months.push({ name, rows: [] });
+    months[months.length - 1].rows.push(r);
+  }
+  const chip = (on: boolean) =>
+    cn(
+      "inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold transition-colors",
+      on ? "border-border-strong bg-surface-2 text-ink" : "border-hairline text-ink-3 hover:text-ink",
+    );
+  return (
+    <section>
+      <SectionTitle count={items.length} sub={`Past classes are open for you to catch up until ${closesLabel(latest)}.`}>
+        Catch up on past classes
+      </SectionTitle>
+      {subjects.length > 1 && (
+        <div className="mb-3 flex flex-wrap gap-2 px-1" role="group" aria-label="Subject">
+          <button type="button" className={chip(!subject)} aria-pressed={!subject} onClick={() => { setSubject(null); setShown(PAGE); }}>
+            All
+          </button>
+          {subjects.map((s) => (
+            <button key={s} type="button" className={chip(subject === s)} aria-pressed={subject === s} onClick={() => { setSubject(s); setShown(PAGE); }}>
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="space-y-5">
+        {months.map((m) => (
+          <div key={m.name}>
+            <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.14em] text-ink-3">{m.name}</p>
+            <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
+              {m.rows.map((r) => (
+                <li key={r.key}>
+                  <a
+                    href={r.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => onWatch(r.key)}
+                    className="flex min-h-14 items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-white/[0.02] sm:px-6"
+                  >
+                    <span className="min-w-0">
+                      <span className="block font-semibold text-ink">{r.subject}</span>
+                      <span className="block text-xs text-ink-3 tabular-nums">
+                        {dayName(r.date)}
+                        {twoLevels && r.level ? ` · ${r.level}` : ""}
+                        {r.closesAt < latest ? ` · open until ${closesLabel(r.closesAt)}` : ""}
+                      </span>
+                    </span>
+                    {watched.has(r.key) ? (
+                      <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-success">
+                        <Icon.Check className="h-4 w-4" /> Watched
+                      </span>
+                    ) : (
+                      <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-ink">
+                        Watch <Icon.ChevronRight className="h-4 w-4" />
+                      </span>
+                    )}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      {list.length > shown && (
+        <button
+          type="button"
+          onClick={() => setShown((n) => n + PAGE)}
+          className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-full border border-hairline text-sm font-semibold text-ink-2 hover:text-ink"
+        >
+          Show {Math.min(PAGE, list.length - shown)} more ({list.length - shown} left)
+        </button>
+      )}
+    </section>
   );
 }
 

@@ -5,14 +5,15 @@ import { useMemo, useState } from "react";
 import type { AttendanceStatus } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
-import { attendancePercent, archivedCohortIds } from "@/lib/data/selectors";
+import { attendancePercent, archivedCohortIds, canBeSwept, countsFor } from "@/lib/data/selectors";
+import { slotsForStudent } from "@/lib/timetable";
 import { isInPersonStudent } from "@/lib/in-person";
 import { isTestAccount } from "@/lib/display-name";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Select, EmptyState, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { useClassLinks } from "@/lib/classes";
+import { useClassLinks, useSchedule } from "@/lib/classes";
 
 type Mode = "daily" | "monthly";
 
@@ -31,6 +32,7 @@ export default function AttendancePage() {
   const store = useStore();
   const { toast } = useToast();
   const { cohortId } = useAdminFilter();
+  useSchedule(); // re-render when the timetable loads: class times decide who "Mark the rest" may sweep
 
   const [mode, setMode] = useState<Mode>("daily");
   const [classId, setClassId] = useState("");
@@ -141,11 +143,19 @@ export default function AttendancePage() {
       joins
         .filter((j) => j.studentId === id && (!classId || j.classId === classId))
         .sort((x, y) => x.joinedAt.localeCompare(y.joinedAt))[0];
-    const rows = students.map((s) => ({ s, mark: markOf(s.id), join: firstJoin(s.id) }));
-    const count = (st: AttendanceStatus) => rows.filter((r) => r.mark?.status === st).length;
+    // Before a student joined (or on their joining day, for a class that had already
+    // started) they are not swept up by "Mark the rest", and a mark there is not counted.
+    // Tapping still works, so a wrong mark can always be changed by hand.
+    const sweepable = (s: (typeof students)[number]) =>
+      canBeSwept(s, date, slotsForStudent(db, s, date).filter((sl) => !classId || sl.classId === classId).map((sl) => sl.startMs));
+    const rows = students.map((s) => {
+      const mark = markOf(s.id);
+      return { s, mark, join: firstJoin(s.id), before: !sweepable(s), counted: !!mark && countsFor(s, date, mark.status) };
+    });
+    const count = (st: AttendanceStatus) => rows.filter((r) => r.counted && r.mark?.status === st).length;
     // Hamza's own test account keeps its row (tap to mark it) but is never
     // counted as "not marked" or swept up by "Mark the rest".
-    const unmarked = rows.filter((r) => !r.mark && !isTestAccount(r.s));
+    const unmarked = rows.filter((r) => !r.mark && !r.before && !isTestAccount(r.s));
     const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit", hour12: true });
     const markRest = (status: AttendanceStatus) => {
       for (const r of unmarked) store.setAttendance(r.s.id, classId, date, status);
@@ -172,13 +182,13 @@ export default function AttendancePage() {
           )}
         </div>
         <Card className="divide-y divide-border overflow-hidden p-0">
-          {rows.map(({ s, mark, join }) => (
+          {rows.map(({ s, mark, join, before, counted }) => (
             <div key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 transition-colors hover:bg-white/[0.018]">
               <span className="min-w-36 flex-1">
                 <span className="block truncate font-semibold capitalize text-ink">{s.username}</span>
                 <span className="block text-xs tabular-nums text-ink-3">
                   {join ? `Joined ${clock(join.joinedAt)}` : "Didn't tap Join"}
-                  {!mark && " · not marked yet"}
+                  {mark && !counted ? " · added to the portal after this class, so this mark is not counted" : before ? " · added to the portal after this class" : !mark && " · not marked yet"}
                 </span>
               </span>
               {/* On a phone the three marks take their own full-width line, so the name is never squeezed. */}

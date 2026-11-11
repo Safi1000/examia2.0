@@ -310,3 +310,46 @@ export async function closeLinkSharing(token: string, fileId: string) {
   });
   if (!res.ok && res.status !== 404) throw new Error(`Google ${res.status}`);
 }
+
+/**
+ * Open the "anyone with the link can view" door again (Recordings page: a
+ * catch-up window or "Open for 48 hours"). Safe to repeat: Drive keeps one
+ * "anyone" permission per file. Throws when Google refuses, so the caller can
+ * count it as failed instead of showing students a link that will not open.
+ */
+export async function openLinkSharing(token: string, fileId: string) {
+  await g(token, `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/permissions?fields=id`, {
+    method: "POST",
+    body: JSON.stringify({ role: "reader", type: "anyone" }),
+  });
+}
+
+/** Copying a long class video can take Google longer than an ordinary call. */
+const COPY_TIMEOUT_MS = 45_000;
+
+/**
+ * Give a recording a NEW link (Recordings page, "Refresh links"). Drive cannot
+ * change a file's link, so the file is copied (a copy has a new id, so a new
+ * link) into the same folder with the same name. The copy starts private, like
+ * every new Drive file. The original is never deleted: its link sharing is
+ * closed and it is moved into "Hamza Teaches recordings / Replaced links", where
+ * Hamza can delete it later to free Drive space. Returns the copy's link.
+ */
+export async function copyRecording(token: string, fileId: string): Promise<{ url: string; newId: string }> {
+  const src = await g<{ name?: string; parents?: string[] }>(token, `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=name,parents`);
+  const copy = await g<{ id: string; webViewLink?: string }>(token, `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/copy?fields=id,webViewLink`, {
+    method: "POST",
+    body: JSON.stringify({ ...(src.name ? { name: src.name } : {}), ...(src.parents?.length ? { parents: src.parents } : {}) }),
+    signal: AbortSignal.timeout(COPY_TIMEOUT_MS),
+  });
+  const url = copy.webViewLink ?? `https://drive.google.com/file/d/${copy.id}/view?usp=drivesdk`;
+  return { url, newId: copy.id };
+}
+
+/** Where originals go once a recording has a new link. Never deleted by the site. */
+export const REPLACED_FOLDER = [RECORDINGS_ROOT, "Replaced links"];
+
+/** Move a file into "Replaced links" (best effort: a failure leaves it where it was). */
+export async function moveToReplaced(token: string, fileId: string) {
+  await moveInto(token, fileId, await folderPath(token, REPLACED_FOLDER));
+}

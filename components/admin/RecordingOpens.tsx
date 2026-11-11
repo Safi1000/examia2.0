@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import type { Student } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { useStudentProfiles } from "@/lib/student-profiles";
@@ -48,7 +49,13 @@ export function RecordingOpens({ db, students, nowMs }: { db: Database; students
   return (
     <Card className="mt-6 overflow-hidden p-0">
       <div className="px-4 pb-3 pt-4 sm:px-5">
-        <h2 className={panelTitle}>Recordings, last 7 days</h2>
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <h2 className={panelTitle}>Recordings, last 7 days</h2>
+          {/* Every recording so far, and opening or closing them for students. */}
+          <Link href="/admin/recordings" className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-ink-2 hover:text-ink md:min-h-9">
+            All recordings <Icon.ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
         <p className="mt-1 max-w-[65ch] text-[13px] text-ink-3">
           This shows who opened the recording, not how much they watched. An open only counts while the recording is open to students. Only you see this.
         </p>

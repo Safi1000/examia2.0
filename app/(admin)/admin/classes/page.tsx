@@ -5,7 +5,7 @@ import type { Student } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useNow } from "@/hooks/useNow";
 import { useToast } from "@/components/toast";
-import { archivedCohortIds } from "@/lib/data/selectors";
+import { archivedCohortIds, canBeSwept } from "@/lib/data/selectors";
 import { isInPersonStudent } from "@/lib/in-person";
 import { displayName, isTestAccount } from "@/lib/display-name";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -131,7 +131,12 @@ export default function ClassesPage() {
     if (!joined.size) return [];
     const who = [...new Set(block.flatMap((s) => enrolled.get(slotKey(s)) ?? []))].filter(
       // Hamza's own test account is never offered for "mark absent".
-      (st) => !joined.has(st.id) && !isTestAccount(st) && !db.attendanceDays.some((a) => a.studentId === st.id && a.date === date),
+      (st) =>
+        !joined.has(st.id) &&
+        !isTestAccount(st) &&
+        !db.attendanceDays.some((a) => a.studentId === st.id && a.date === date) &&
+        // Joined the portal after that day's classes started: not absent from them.
+        canBeSwept(st, date, block.filter((s) => (enrolled.get(slotKey(s)) ?? []).some((x) => x.id === st.id)).map((s) => s.startMs)),
     );
     return who.length ? [{ level, classId: block[0].classId, who }] : [];
   });

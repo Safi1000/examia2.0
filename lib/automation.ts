@@ -11,7 +11,8 @@ import { isTestAccount } from "@/lib/display-name";
  *  - Auto-absent: after a level's last class of the day, anyone in that level
  *    who didn't tap Join and has no mark for the day is marked absent. Only
  *    when somebody did join, so a class that never happened marks nobody.
- *    Hamza can change any mark in Attendance afterwards.
+ *    Nobody added to the portal after that day's first class started is
+ *    marked. Hamza can change any mark in Attendance afterwards.
  *  - Auto-late: a Join tapped more than LATE_MINUTES after the class started
  *    turns that day's automatic "present" into "late". A mark Hamza set by
  *    hand is never changed.
@@ -88,9 +89,9 @@ async function catalogue(sb: SupabaseClient) {
  * cohort's (same rule as the portal), and only while their cohort is on.
  * `subjectIds` empty means any subject of that level.
  */
-export async function studentsIn(sb: SupabaseClient, classId: string, subjectIds: string[], opts: { skipInPerson?: boolean } = {}): Promise<string[]> {
+export async function studentsIn(sb: SupabaseClient, classId: string, subjectIds: string[], opts: { skipInPerson?: boolean; addedBy?: number } = {}): Promise<string[]> {
   const [{ data: students }, { data: cohorts }, { data: sc }, { data: ss }, { data: cc }, { data: cs }] = await Promise.all([
-    sb.from("students").select("id,cohort_id,username"),
+    sb.from("students").select("id,cohort_id,username,created_at"),
     sb.from("cohorts").select("id,active"),
     sb.from("student_classes").select("student_id,class_id"),
     sb.from("student_subjects").select("student_id,subject_id"),
@@ -118,6 +119,8 @@ export async function studentsIn(sb: SupabaseClient, classId: string, subjectIds
     .filter((s) => !(s.cohort_id && off.has(s.cohort_id)) && !inPerson.has(s.id as string))
     // Nor does Hamza's own test account: auto-absent never marks it.
     .filter((s) => !(opts.skipInPerson && isTestAccount({ username: s.username as string })))
+    // `addedBy`: only students already on the portal by then (auto-absent never marks a class from before they joined).
+    .filter((s) => opts.addedBy === undefined || !(+new Date(s.created_at as string) > opts.addedBy))
     .filter((s) => {
       const classes = ownC.get(s.id)?.size ? ownC.get(s.id)! : (cohC.get(s.cohort_id ?? "") ?? new Set<string>());
       if (!classes.has(classId)) return false;
@@ -200,7 +203,10 @@ async function autoAbsentOn(sb: SupabaseClient, db: Awaited<ReturnType<typeof ca
     const joined = new Set(joins.map((j) => j.student_id as string));
     const { data: marks } = await sb.from("attendance_days").select("student_id").eq("on_date", date);
     const hasMark = new Set((marks ?? []).map((m) => m.student_id as string));
-    const who = (await studentsIn(sb, classId, block.map((s) => s.subjectId), { skipInPerson: true })).filter((id) => !joined.has(id) && !hasMark.has(id));
+    // Only students added before the level's first class that day started: anyone added
+    // later (or on a later day) could not have joined, so they are never marked absent.
+    const firstStart = Math.min(...block.map((s) => s.startMs));
+    const who = (await studentsIn(sb, classId, block.map((s) => s.subjectId), { skipInPerson: true, addedBy: firstStart })).filter((id) => !joined.has(id) && !hasMark.has(id));
     if (!who.length) continue;
     const { error } = await sb
       .from("attendance_days")

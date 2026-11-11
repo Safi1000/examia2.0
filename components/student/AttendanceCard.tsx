@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Database } from "@/lib/data/seed";
-import { attendancePercent } from "@/lib/data/selectors";
+import { attendancePercent, countedDays } from "@/lib/data/selectors";
 import { cn } from "@/lib/cn";
 
 /** "2026-11" for a time, in Pakistan time (classes run on Pakistan dates). */
@@ -20,17 +20,18 @@ const STATUS = {
  * A student's own class register: this month's attendance, last month for
  * comparison, and their last classes as a row of marks. Hidden when there is
  * no register (in-person students, or before the first class is marked).
+ * Marks dated before the student joined are never shown or counted.
  */
-export function AttendanceCard({ db, studentId, nowMs }: { db: Pick<Database, "attendanceDays" | "attendanceMonths">; studentId: string; nowMs: number }) {
+export function AttendanceCard({ db, studentId, nowMs }: { db: Pick<Database, "attendanceDays" | "attendanceMonths" | "students">; studentId: string; nowMs: number }) {
   const data = useMemo(() => {
-    const days = db.attendanceDays.filter((a) => a.studentId === studentId).sort((a, b) => a.date.localeCompare(b.date));
+    const days = countedDays(db, studentId).sort((a, b) => a.date.localeCompare(b.date));
     const thisMonth = monthOf(nowMs);
     const d = new Date(`${thisMonth}-01T12:00:00Z`);
     d.setUTCMonth(d.getUTCMonth() - 1);
     const lastMonth = d.toISOString().slice(0, 7);
     // Before this month's first class, show last month as the headline.
-    const now = attendancePercent(db as Database, studentId, `${thisMonth}-01`);
-    const prev = attendancePercent(db as Database, studentId, `${lastMonth}-01`);
+    const now = attendancePercent(db, studentId, `${thisMonth}-01`);
+    const prev = attendancePercent(db, studentId, `${lastMonth}-01`);
     const headMonth = now != null ? thisMonth : prev != null ? lastMonth : null;
     const inMonth = headMonth ? days.filter((x) => x.date.startsWith(headMonth)) : [];
     return {

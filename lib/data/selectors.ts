@@ -2,7 +2,7 @@
  * Pure selectors over the database snapshot, for display. Access itself is
  * enforced by row-level security in supabase/migrations.
  */
-import type { Announcement, Student, Submission, Test, TestExtension, TestStats, TestStatus } from "@/types";
+import type { Announcement, AttendanceDay, AttendanceStatus, Student, Submission, Test, TestExtension, TestStats, TestStatus } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { awardedMarks, percent, totalMarks } from "@/lib/scoring";
 import { takesLevelSubject } from "@/lib/levels";
@@ -69,7 +69,7 @@ export const eligibleStudents = (db: Database, test: Test) =>
  * was already over before they joined (closed tests, past deadlines, old
  * notices and notifications) belongs to someone else's history, not theirs.
  */
-export const joinedMs = (s: Student) => +new Date(s.createdAt) || 0;
+export const joinedMs = (s: Pick<Student, "createdAt">) => +new Date(s.createdAt) || 0;
 /** Notices from the few days before joining still count (a welcome note, the session plan). */
 const NOTICE_GRACE_MS = 3 * 86_400_000;
 
@@ -195,31 +195,74 @@ export function testStats(db: Database, test: Test): TestStats {
 }
 
 // ---- Attendance ------------------------------------------------------------
+//
+// A student's register starts on the day they joined (their account was made,
+// see `joinedMs`). A mark dated before that day can only be a mistake (a bulk
+// "mark the rest absent" on an old date, or an old automatic sweep), so it is
+// never counted, even while the row still sits in the database. On the joining
+// day itself, present and late count but absent does not: the class may well
+// have been over before they were added.
+
+/** Pakistan calendar date (YYYY-MM-DD) of a moment. Classes run on Pakistan dates. */
+export const pkDay = (ms: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date(ms));
+
+/** The Pakistan date a student joined, or "" when unknown (then everything counts). */
+export const joinedDate = (s: Pick<Student, "createdAt">) => {
+  const ms = +new Date(s.createdAt);
+  return ms ? pkDay(ms) : "";
+};
+
+/** Does an attendance mark on this date count for this student? Unknown student or date: yes. */
+export function countsFor(s: Pick<Student, "createdAt"> | null | undefined, date: string, status?: AttendanceStatus): boolean {
+  if (!s) return true;
+  const j = joinedDate(s);
+  if (!j || date > j) return true;
+  if (date < j) return false;
+  return status !== "absent";
+}
+
+/**
+ * May a bulk sweep (automatic or "Mark the rest") give this student a mark for
+ * this date? Never before they joined. On the joining day only when one of the
+ * day's classes started after they were added (`startsMs`); with no class times
+ * known, not at all. A mark tapped by hand is always allowed.
+ */
+export function canBeSwept(s: Pick<Student, "createdAt">, date: string, startsMs: number[] = []): boolean {
+  const j = joinedDate(s);
+  if (!j || date > j) return true;
+  if (date < j) return false;
+  const since = joinedMs(s);
+  return startsMs.some((t) => t >= since);
+}
+
+type AttendanceDb = Pick<Database, "attendanceDays" | "attendanceMonths"> & { students?: Database["students"] };
+
+/** A student's register rows that count (see above), any order. */
+export function countedDays(db: Pick<AttendanceDb, "attendanceDays" | "students">, studentId: string): AttendanceDay[] {
+  const s = db.students?.find((x) => x.id === studentId);
+  return db.attendanceDays.filter((a) => a.studentId === studentId && countsFor(s, a.date, a.status));
+}
 
 /**
  * A student's attendance for a month, as a percentage.
  *
  * A typed monthly figure always wins — it is the teacher's own number, entered
- * or corrected by hand. Otherwise it is derived from the daily register, where
- * a late counts as half a day present.
+ * or corrected by hand. Otherwise it is derived from the daily register (only
+ * days from joining on), where a late counts as half a day present.
  */
-export function attendancePercent(db: Database, studentId: string, month: string): number | null {
+export function attendancePercent(db: AttendanceDb, studentId: string, month: string): number | null {
   const typed = db.attendanceMonths.find((a) => a.studentId === studentId && a.month === month);
   if (typed) return typed.percent;
 
-  const days = db.attendanceDays.filter(
-    (a) => a.studentId === studentId && a.date.slice(0, 7) === month.slice(0, 7),
-  );
+  const days = countedDays(db, studentId).filter((a) => a.date.slice(0, 7) === month.slice(0, 7));
   if (!days.length) return null;
   const score = days.reduce((n, d) => n + (d.status === "present" ? 1 : d.status === "late" ? 0.5 : 0), 0);
   return Math.round((score / days.length) * 1000) / 10;
 }
 
-/** Consecutive absences ending at the most recent recorded day. */
-export function absenceStreak(db: Database, studentId: string): number {
-  const days = db.attendanceDays
-    .filter((a) => a.studentId === studentId)
-    .sort((a, b) => b.date.localeCompare(a.date));
+/** Consecutive absences ending at the most recent counted day. */
+export function absenceStreak(db: Pick<AttendanceDb, "attendanceDays" | "students">, studentId: string): number {
+  const days = countedDays(db, studentId).sort((a, b) => b.date.localeCompare(a.date));
   let n = 0;
   for (const d of days) {
     if (d.status !== "absent") break;

@@ -10,6 +10,19 @@ import { CohortDot } from "@/components/ui";
 import { NavIcon } from "@/components/nav/NavIcons";
 import { cn } from "@/lib/cn";
 
+/** Recordings: a stack of videos with a gold play mark, drawn like the other menu icons. */
+function RecordingsIcon({ active, className }: { active?: boolean; className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden className={cn("h-5 w-5 shrink-0", className)}>
+      <rect x="3.5" y="7" width="17" height="12.5" rx="2.5" />
+      <path d="M6.5 4.5h11" />
+      <g fill="var(--color-brand)" stroke="var(--color-brand)" className={cn("transition-opacity duration-300", active ? "opacity-100" : "opacity-40")}>
+        <path d="M10.5 10.6v5.3l4.4-2.65z" strokeWidth="1" />
+      </g>
+    </svg>
+  );
+}
+
 // Grouped by the job you're doing, so the list reads as a console, not a
 // pile of links. `also` lists pages reached from an item that have no item of
 // their own, so the menu still shows where you are.
@@ -19,6 +32,7 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string;
     items: [
       { href: "/admin/today", label: "Today", Icon: NavIcon.Today },
       { href: "/admin/classes", label: "Classes", Icon: NavIcon.Classes },
+      { href: "/admin/recordings", label: "Recordings", Icon: RecordingsIcon },
       { href: "/admin/whiteboard", label: "Whiteboard", Icon: NavIcon.Board },
       { href: "/admin/tests", label: "Tests", Icon: NavIcon.Tests },
       { href: "/admin/submissions", label: "Submissions", Icon: NavIcon.Inbox, also: ["/admin/grading"] },

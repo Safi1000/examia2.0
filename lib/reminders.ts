@@ -1,6 +1,6 @@
 import type { Database } from "@/lib/data/seed";
 import type { Student } from "@/types";
-import { absenceStreak, archivedCohortIds, extensionFor, isArchivedTest, liveStatus, testCoversStudent } from "@/lib/data/selectors";
+import { absenceStreak, archivedCohortIds, countedDays, extensionFor, isArchivedTest, liveStatus, testCoversStudent } from "@/lib/data/selectors";
 import { isTestAccount } from "@/lib/display-name";
 import { parentAbsent, parentLowScore, parentMissedTest, parentReport } from "@/lib/portal-messages";
 import { inPersonIds } from "@/lib/in-person";
@@ -89,8 +89,9 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
   for (const student of students) {
     const streak = absenceStreak(db, student.id);
     if (streak < 2) continue;
-    const last = db.attendanceDays
-      .filter((a) => a.studentId === student.id && a.status === "absent")
+    // Only days from joining on count (a wrong old mark never reaches a parent).
+    const last = countedDays(db, student.id)
+      .filter((a) => a.status === "absent")
       .sort((a, b) => b.date.localeCompare(a.date))[0];
     add({
       kind: "absent_streak",

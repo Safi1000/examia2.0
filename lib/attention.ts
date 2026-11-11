@@ -11,7 +11,7 @@ import type { StudentActivity } from "@/lib/activity";
 import { lastSeen } from "@/lib/activity";
 import type { ClassJoin, ClassLink } from "@/lib/classes";
 import { addDays, getSchedule, liveSlotsOn, pkDate, RECORDING_HOURS, slotKey, slotsForStudent, type DaySlot } from "@/lib/timetable";
-import { eligibleStudents, joinedMs, testById } from "@/lib/data/selectors";
+import { absenceStreak, countsFor, eligibleStudents, joinedMs, testById } from "@/lib/data/selectors";
 import { gradeSubmission } from "@/lib/grading";
 import { currentStats } from "@/lib/focus";
 import { LOW_SCORE } from "@/lib/reminders";
@@ -25,6 +25,8 @@ function namedOrCounted(verb: string, titles: string[], one: string, many: strin
 }
 
 const DAY = 86_400_000;
+/** "Not on the portal" and "No Groundwork" wait until a student has been here this long. */
+const FIRST_WEEK_MS = 7 * DAY;
 
 // ---- Recordings -------------------------------------------------------------
 
@@ -66,7 +68,7 @@ export function recordingReport(
   const joinedSlot = new Set(joins.map((j) => `${j.studentId}|${slotKey(j)}`));
   const joinedDay = new Set(joins.map((j) => `${j.studentId}|${j.date}`));
   const present = new Set(
-    db.attendanceDays.filter((a) => a.status !== "absent" && a.date >= from && a.date <= to).map((a) => `${a.studentId}|${a.classId ?? ""}|${a.date}`),
+    db.attendanceDays.filter((a) => a.status !== "absent" && a.date >= from && a.date <= to && countsFor(students.find((s) => s.id === a.studentId), a.date, a.status)).map((a) => `${a.studentId}|${a.classId ?? ""}|${a.date}`),
   );
   const watched = new Map(students.map((s) => [s.id, new Set(profiles[s.id]?.watched ?? [])]));
 
@@ -75,7 +77,9 @@ export function recordingReport(
     const slots = liveSlotsOn(db, d).filter((s) => s.endMs <= nowMs && linkBy.has(slotKey(s)));
     if (!slots.length) continue;
     const enrolledBy = new Map<string, Student[]>();
-    for (const st of students) for (const sl of slotsForStudent(db, st, d)) enrolledBy.set(slotKey(sl), [...(enrolledBy.get(slotKey(sl)) ?? []), st]);
+    // Only classes that started after the student was added: a class from before they joined was never theirs to miss.
+    for (const st of students)
+      for (const sl of slotsForStudent(db, st, d)) if (sl.startMs >= joinedMs(st)) enrolledBy.set(slotKey(sl), [...(enrolledBy.get(slotKey(sl)) ?? []), st]);
     // Latest class of the day first.
     for (const slot of [...slots].reverse()) {
       const key = slotKey(slot);
@@ -224,17 +228,11 @@ export function buildAttention(
     if (!cur || (x.submittedAt ?? "").localeCompare(cur.submittedAt ?? "") > 0) latestReleased.set(x.studentId, x);
   }
 
-  // Absences in a row, newest first: one pass over the register.
-  const register = new Map<string, Array<{ date: string; status: string }>>();
-  for (const a of db.attendanceDays) if (ids.has(a.studentId)) register.set(a.studentId, [...(register.get(a.studentId) ?? []), a]);
-  const streak = (id: string) => {
-    let n = 0;
-    for (const d of [...(register.get(id) ?? [])].sort((a, b) => b.date.localeCompare(a.date))) {
-      if (d.status !== "absent") break;
-      n++;
-    }
-    return n;
-  };
+  // Absences in a row, newest first: one pass over the register, only days from
+  // joining on (the same rule as absenceStreak, so a mark from before a student
+  // joined never shows here).
+  const register = { attendanceDays: db.attendanceDays.filter((a) => ids.has(a.studentId)), students };
+  const streak = (id: string) => absenceStreak(register, id);
 
   // Homework due in the last two weeks, and each student's hand-ins.
   const dueRecently = db.assignments.filter((a) => +new Date(a.dueAt) <= nowMs && nowMs - +new Date(a.dueAt) < ATTENTION.homeworkDays * DAY);
@@ -256,7 +254,8 @@ export function buildAttention(
 
   const rows: AttentionRow[] = students.map((s) => {
     const reasons: Reason[] = [];
-    const missed = recent.filter((r) => r.eligible.has(s.id) && !r.done.has(s.id)).map((r) => r.t);
+    // Not missed when they joined after it opened (the parent reminder's rule).
+    const missed = recent.filter((r) => r.eligible.has(s.id) && !r.done.has(s.id) && joinedMs(s) <= +new Date(r.t.opensAt)).map((r) => r.t);
     if (missed.length) {
       const l = `Missed ${missed.map((t) => t.title).join(", ")}`;
       reasons.push({ kind: "missed_test", label: l, parent: namedOrCounted("missed", missed.map((t) => t.title), "a test", "tests") });
@@ -308,8 +307,10 @@ export function buildAttention(
     }
 
     // Activity: last time they were on the portal (tracking or sign-in). No entry means unknown, so no reason.
+    // A student in their first week has not had time to fall behind on signing in or Groundwork.
+    const settled = nowMs - joinedMs(s) >= FIRST_WEEK_MS;
     const act = activity?.[s.id];
-    if (act) {
+    if (act && settled) {
       const seen = lastSeen(act);
       if (seen === null) reasons.push({ kind: "signin", label: "Never signed in", parent: null });
       else {
@@ -319,7 +320,7 @@ export function buildAttention(
     }
 
     const p = profiles[s.id];
-    if (gwOn) {
+    if (gwOn && settled) {
       const last = lastStudyDay(p, today);
       if (last ? last < addDays(today, -(ATTENTION.groundworkDays - 1)) : neverCounts) {
         const ago = last ? Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${last}T12:00:00Z`)) / DAY) : null;

@@ -15,6 +15,7 @@ import type { Database } from "@/lib/data/seed";
 import type { Test } from "@/types";
 import {
   attendancePercent,
+  countedDays,
   cohortById,
   studentById,
   submissionsForStudent,
@@ -161,7 +162,8 @@ export function reportData(db: Database, studentId: string, month: string, teach
 
   // Attendance from the register (or a typed monthly figure).
   const typed = db.attendanceMonths.find((a) => a.studentId === student.id && a.month.slice(0, 7) === month);
-  const days = db.attendanceDays.filter((a) => a.studentId === student.id && a.date.slice(0, 7) === month);
+  // Only days from joining on (see countsFor in lib/data/selectors.ts).
+  const days = countedDays(db, student.id).filter((a) => a.date.slice(0, 7) === month);
   const present = days.filter((d) => d.status === "present").length;
   const late = days.filter((d) => d.status === "late").length;
   const absent = days.filter((d) => d.status === "absent").length;
