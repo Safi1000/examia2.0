@@ -8,6 +8,8 @@ import { assignmentsForStudent } from "@/lib/data/selectors";
 import { uploadAsImages } from "@/lib/cloudinary";
 import { useToast } from "@/components/toast";
 import { PageStack } from "@/components/PageStack";
+import { PastPaperHomework } from "@/components/student/PastPaperHomework";
+import { SOURCES_PREFIX, withoutSourcesLine } from "@/lib/paper-builder";
 import { Card, Button, Badge, EmptyState, Icon } from "@/components/ui";
 import { formatTimestamp, formatWhen } from "@/lib/time";
 import { cn } from "@/lib/cn";
@@ -116,6 +118,8 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
     (s) => s.assignmentId === assignment.id && s.studentId === studentId,
   );
   const overdue = +new Date(assignment.dueAt) < useNow();
+  const fromPapers = (assignment.instructions ?? "").split("\n").some((l) => l.startsWith(SOURCES_PREFIX));
+  const instructions = withoutSourcesLine(assignment.instructions ?? "");
   const subjectName = assignment.subjectId ? db.subjects.find((x) => x.id === assignment.subjectId)?.name : undefined;
 
   // One removal at a time: a quick double tap must never take out two pages.
@@ -192,11 +196,12 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
       </div>
       <h2 className="mt-1.5 text-xl font-bold leading-snug tracking-[-0.015em] text-ink">{assignment.title}</h2>
       <p className={cn("mt-1 text-sm tabular-nums", overdue && !mine ? "font-semibold text-warning" : "text-ink-2")}>Due {formatWhen(assignment.dueAt)}</p>
-      {assignment.instructions && <p className="mt-3 max-w-[65ch] whitespace-pre-wrap text-base leading-relaxed text-ink-2">{assignment.instructions}</p>}
+      {/* Past paper homework: the line naming the papers is for Hamza only. */}
+      {instructions && <p className="mt-3 max-w-[65ch] whitespace-pre-wrap text-base leading-relaxed text-ink-2">{instructions}</p>}
 
       {assignment.attachments.length > 0 && (
         <div className="mt-4">
-          <PageStack urls={assignment.attachments} label="Worksheet" />
+          {fromPapers ? <PastPaperHomework urls={assignment.attachments} /> : <PageStack urls={assignment.attachments} label="Worksheet" />}
         </div>
       )}
 

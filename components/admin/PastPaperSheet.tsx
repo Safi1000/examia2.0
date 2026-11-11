@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { Answer, Question } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { useDatabase } from "@/lib/data/store";
-import { Button, Modal, Select, Icon } from "@/components/ui";
+import { Button, Modal, Select, Icon, Badge, Pill } from "@/components/ui";
+import { QuestionView } from "@/components/student/QuestionView";
+import { PageStack } from "@/components/PageStack";
 import { cn } from "@/lib/cn";
 import { levelOfName, subjectOfName } from "@/lib/notes-library";
 import { syllabusProgress } from "@/lib/syllabus-progress";
@@ -14,15 +17,18 @@ import {
   idsInText,
   newSeed,
   paperFamily,
+  questionFromBuilt,
   type BuiltQuestion,
   type PaperFamily,
   type TopicChoice,
 } from "@/lib/paper-builder";
 
 /**
- * "From past papers": class → subject → topics → mix → when → Build draft.
- * Nothing is saved here; the page that opened it makes the draft test, or
- * fills the homework form, for Hamza to check before students see it.
+ * "From past papers": class → subject → topics → mix → when → Build, then a
+ * review of every question exactly as the student will see it (typed, or its
+ * one picture with A to D), with Swap and Remove. Nothing is saved here; the
+ * page that opened it makes the draft test, or fills the homework form, for
+ * Hamza to check again before students see it.
  */
 
 export interface PastPaperBuild {
@@ -180,32 +186,109 @@ function Sheet({
         subs: [...picked],
         mcq: hasMcq ? mix.mcq : 0,
         written: mix.written,
-        exclude: classHistoryIds(db, cohortId, cls.id),
+        // Questions this class has had before come last, only when nothing new is left.
+        seen: classHistoryIds(db, cohortId, cls.id),
         seed: newSeed(),
       });
       if (!questions.length) {
-        setError("Every question on these topics has been set for this class already. Add a topic.");
-        setBuilding(false);
+        setError("No questions on these topics yet. Add a topic.");
         return;
       }
-      const order = subs.map((s) => s.num);
-      const names = [...new Set(questions.map((q) => q.sub))].sort((a, b) => order.indexOf(a) - order.indexOf(b)).map((n) => subs.find((s) => s.num === n)?.name ?? n);
-      onBuilt({
-        cohortId,
-        classId: cls.id,
-        subjectId: subj.id,
-        subjectName: subj.name,
-        family,
-        questions,
-        topicNames: names,
-        opensAt: fromLocalInput(opens),
-        closesAt: fromLocalInput(closes),
-      });
+      setReview(questions);
     } catch (e) {
       setError(e instanceof Error ? e.message : "That didn't work. Try again.");
+    } finally {
       setBuilding(false);
     }
   }
+
+  // ---- Review: every question as the student will see it ------------------
+  const [review, setReview] = useState<BuiltQuestion[] | null>(null);
+  const [swapping, setSwapping] = useState<string | null>(null);
+  const [finishing, setFinishing] = useState(false);
+
+  async function swap(q: BuiltQuestion) {
+    if (!family || !review || !cls) return;
+    setSwapping(q.id);
+    setError("");
+    try {
+      const { question } = await paperBuilder<{ question: BuiltQuestion | null }>({
+        action: "swap",
+        syllabus: family.syllabus,
+        codes: family.codes,
+        id: q.id,
+        exclude: review.map((x) => x.id),
+        seen: classHistoryIds(db, cohortId, cls.id),
+        seed: newSeed(),
+      });
+      if (!question) setError("There's no other question on that topic. Remove it, or keep it.");
+      else setReview(review.map((x) => (x.id === q.id ? { ...question, topic: q.topic, sub: q.sub } : x)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "That didn't work. Try again.");
+    } finally {
+      setSwapping(null);
+    }
+  }
+
+  function finish() {
+    if (!family || !cls || !subj || !review?.length) return;
+    setFinishing(true);
+    const order = subs.map((s) => s.num);
+    const names = [...new Set(review.map((q) => q.sub))].sort((a, b) => order.indexOf(a) - order.indexOf(b)).map((n) => subs.find((s) => s.num === n)?.name ?? n);
+    onBuilt({
+      cohortId,
+      classId: cls.id,
+      subjectId: subj.id,
+      subjectName: subj.name,
+      family,
+      questions: review,
+      topicNames: names,
+      opensAt: fromLocalInput(opens),
+      closesAt: fromLocalInput(closes),
+    });
+  }
+
+  if (review)
+    return (
+      <Modal
+        open
+        onClose={() => !finishing && onClose()}
+        size="lg"
+        title="Check the questions"
+        description={
+          mode === "test"
+            ? "Exactly what students will see. Swap or remove any, then make the draft."
+            : "Exactly what students will see on the homework. Swap or remove any, then attach them."
+        }
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setReview(null)} disabled={finishing}>Back</Button>
+            <Button onClick={finish} disabled={!review.length || swapping !== null} loading={finishing}>
+              {mode === "test" ? `Make draft test (${review.length})` : `Attach ${review.length} to homework`}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4 pb-1">
+          {review.length === 0 && <p className="text-sm text-ink-3">Every question was removed. Go back and build again.</p>}
+          <ol className="space-y-4">
+            {review.map((q, i) => (
+              <ReviewItem
+                key={q.id}
+                q={q}
+                index={i}
+                mode={mode}
+                swapping={swapping === q.id}
+                busy={swapping !== null}
+                onSwap={() => void swap(q)}
+                onRemove={() => setReview(review.filter((x) => x.id !== q.id))}
+              />
+            ))}
+          </ol>
+          {error && <p role="alert" className="text-sm text-error">{error}</p>}
+        </div>
+      </Modal>
+    );
 
   const short = mix && topics ? (hasMcq && mix.mcq > avail.mcq) || mix.written > avail.written : false;
 
@@ -220,7 +303,7 @@ function Sheet({
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={building}>Cancel</Button>
-          <Button onClick={() => void build()} disabled={!ready} loading={building}>Build draft</Button>
+          <Button onClick={() => void build()} disabled={!ready} loading={building}>Build and check</Button>
         </>
       }
     >
@@ -325,7 +408,7 @@ function Sheet({
             {!hasMcq && <p className="text-sm text-ink-3">This subject has no multiple choice paper, so it&apos;s written questions only.</p>}
             {short && picked.size > 0 && (
               <p className="text-sm text-ink-3">
-                Only {hasMcq ? `${avail.mcq} multiple choice and ` : ""}{avail.written} written on these topics. Fewer will be used, never a repeat.
+                Only {hasMcq ? `${avail.mcq} multiple choice and ` : ""}{avail.written} written on these topics. Fewer will be used.
               </p>
             )}
           </section>
@@ -432,4 +515,91 @@ function DateField({ id, label, value, onChange }: { id: string; label: string; 
       <input id={id} type="datetime-local" value={value} onChange={(e) => onChange(e.target.value)} className="h-12 w-full rounded-md border border-border-strong bg-surface px-3 tabular-nums text-ink" />
     </div>
   );
+}
+
+/** One question in the review: as the student will see it, with what Hamza needs to know. */
+function ReviewItem({
+  q,
+  index,
+  mode,
+  swapping,
+  busy,
+  onSwap,
+  onRemove,
+}: {
+  q: BuiltQuestion;
+  index: number;
+  mode: "test" | "homework";
+  swapping: boolean;
+  busy: boolean;
+  onSwap: () => void;
+  onRemove: () => void;
+}) {
+  const question = useMemo(() => ({ ...questionFromBuilt(q), id: `review-${q.id}`, order: index }) as Question, [q, index]);
+  const form = q.kind === "written" ? "Written, photo answer" : mode === "homework" || !q.typed ? "Picture with A to D" : "Typed";
+  return (
+    <li className="rounded-lg border border-border p-3 sm:p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-bold tabular-nums text-ink">Question {index + 1}</span>
+        <Badge tone="neutral">{form}</Badge>
+        {q.seen && <Badge tone="warning">Set for this class before</Badge>}
+        <span className="ml-auto flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onSwap}
+            disabled={busy}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-50"
+            aria-label={`Swap question ${index + 1} for another on the same topic`}
+          >
+            <Icon.Refresh className={cn("h-4 w-4", swapping && "animate-spin motion-reduce:animate-none")} /> {swapping ? "Swapping…" : "Swap"}
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={busy}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-error-soft hover:text-error disabled:opacity-50"
+            aria-label={`Remove question ${index + 1}`}
+          >
+            <Icon.Trash className="h-4 w-4" /> Remove
+          </button>
+        </span>
+      </div>
+      {/* Where it came from: for Hamza only. */}
+      <p className="mt-1 text-xs text-ink-3">{q.label}{q.kind === "written" && q.marks === null ? " · marks to type in the draft" : ""}</p>
+      <div className="mt-3 rounded-lg border border-hairline bg-paper/40 p-3 sm:p-4">
+        {mode === "test" ? (
+          <PastPaperPreview question={question} />
+        ) : (
+          <>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <Badge tone="neutral">{q.topic}</Badge>
+              {q.marks !== null && <Pill>{q.marks} {q.marks === 1 ? "mark" : "marks"}</Pill>}
+            </div>
+            <PageStack urls={q.attachments} label={`Question ${index + 1}`} />
+          </>
+        )}
+      </div>
+    </li>
+  );
+}
+
+/**
+ * A past paper test question as the student sees it (Hamza can try the
+ * choices). Written questions show their pages only: the photo upload box
+ * stays on the student's side.
+ */
+export function PastPaperPreview({ question }: { question: Question }) {
+  const [answer, setAnswer] = useState<Answer>({ questionId: question.id, type: question.type });
+  if (question.type !== "mcq")
+    return (
+      <div>
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          {question.topic.trim() && <Badge tone="neutral">{question.topic}</Badge>}
+          <Pill>{question.marks > 0 ? `${question.marks} ${question.marks === 1 ? "mark" : "marks"}` : "Marks to type"}</Pill>
+          <span className="text-xs uppercase tracking-wide text-ink-3">Photo answer</span>
+        </div>
+        {question.attachments?.length ? <PageStack urls={question.attachments} label="The question" /> : null}
+      </div>
+    );
+  return <QuestionView question={question} answer={answer} onChange={(next) => setAnswer((cur) => (typeof next === "function" ? next(cur) : next))} />;
 }

@@ -11,7 +11,9 @@ import { isValidPhone, normalizePhone, waDigits } from "@/lib/phone";
 import { inPersonIds as tagged } from "@/lib/in-person";
 import { Checkbox } from "@/components/ui/Choice";
 import { squareThumbnail } from "@/lib/image";
-import { BulkBar, RowCheck } from "@/components/admin/BulkBar";
+import { BulkBar, ConfirmBulk, NameList, OneByOne, RowCheck, SelectAll, copyText, downloadCsv, outcome, plural, waLink, type BulkAction, type Step } from "@/components/admin/BulkBar";
+import { useSelection } from "@/lib/use-selection";
+import { parentNotifications, studentCheckIn, studentNotifications } from "@/lib/portal-messages";
 import { uploadImage } from "@/lib/cloudinary";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { ArchiveTabs, archiveFromUrl, type ArchiveView } from "@/components/admin/ArchiveTabs";
@@ -95,10 +97,14 @@ export default function RosterPage() {
     }
   }
   const [deleting, setDeleting] = useState<Student | null>(null);
-  // Bulk move: tick students, then put them all in another class or cohort.
-  const [picked, setPicked] = useState<string[]>([]);
+  // Bulk work: tick students, then act on them all in one go.
   const [bulkClass, setBulkClass] = useState("");
   const [bulkCohort, setBulkCohort] = useState("");
+  const [bulkSubjects, setBulkSubjects] = useState<string[]>([]);
+  const [ask, setAsk] = useState<null | "message" | "cohort" | "level" | "subjects" | "tag" | "delete">(null);
+  const [msgTo, setMsgTo] = useState<"student" | "parent">("student");
+  const [msgKind, setMsgKind] = useState<"checkin" | "notify" | "blank">("checkin");
+  const [steps, setSteps] = useState<Step[] | null>(null);
 
   // Past students (in switched-off cohorts) are kept apart. Tick them and use
   // "Add to cohort" to bring them into a new cohort; they can sign in again.
@@ -112,7 +118,6 @@ export default function RosterPage() {
   // Physical students sit in the normal groups, tagged "In person".
   const inPersonIds = useMemo(() => tagged(db), [db]);
   const [bulkTag, setBulkTag] = useState<"" | "in" | "out">("");
-  const [bulkBusy, setBulkBusy] = useState(false);
   const [mode, setMode] = useState<"all" | "online" | "inperson">("all");
 
   const students = useMemo(() => {
@@ -140,6 +145,156 @@ export default function RosterPage() {
     for (const x of db.submissions) if (x.status === "released") m.set(x.studentId, (m.get(x.studentId) ?? 0) + 1);
     return m;
   }, [db.submissions]);
+
+  // Ticked students: only ever ones the search and filters show.
+  const ids = useMemo(() => students.map((s) => s.id), [students]);
+  const sel = useSelection(ids);
+  const chosen = useMemo(() => students.filter((s) => sel.isSelected(s.id)), [students, sel]);
+  const names = chosen.map((s) => displayName(s.username));
+  // Hamza's own test account is never messaged in bulk.
+  const real = chosen.filter((s) => !isTestAccount(s));
+  const twoLevel = (s: Student) => s.classIds.length > 1;
+
+  /** Each save, then one honest line about how it went. */
+  async function eachStudent(list: Student[], verb: string, save: (s: Student) => Promise<unknown> | unknown, undo?: () => void) {
+    const results = await Promise.allSettled(list.map(async (s) => save(s)));
+    const problems = results.flatMap((r, i) => (r.status === "rejected" ? [{ name: displayName(list[i].username), why: r.reason instanceof Error ? r.reason.message.replace(/\.$/, "") : "the save failed" }] : []));
+    const done = list.length - problems.length;
+    setAsk(null);
+    sel.clear();
+    toast(outcome(done, verb, problems, "student"), problems.length ? (done ? "info" : "error") : "success", done && undo ? { label: "Undo", onClick: undo } : undefined);
+  }
+
+  async function runCohort() {
+    if (!bulkCohort) return;
+    const list = chosen.filter((s) => s.cohortId !== bulkCohort);
+    const before = list.map((s) => ({ id: s.id, username: s.username, cohortId: s.cohortId }));
+    const to = db.cohorts.find((c) => c.id === bulkCohort)?.name ?? "the cohort";
+    await eachStudent(list, view === "archive" ? `added to ${to}` : `moved to ${to}`, (s) => store.updateStudent(s.id, { cohortId: bulkCohort, username: s.username }), () => {
+      before.forEach((b) => void store.updateStudent(b.id, { cohortId: b.cohortId, username: b.username }).catch(() => toast(`Couldn't move ${displayName(b.username)} back.`, "error")));
+      toast(`Moving ${plural(before.length, "student")} back.`, "success");
+    });
+    setBulkCohort("");
+  }
+
+  async function runLevel() {
+    if (!bulkClass) return;
+    const list = chosen.filter((s) => !twoLevel(s));
+    const skipped = chosen.filter(twoLevel);
+    const before = list.map((s) => ({ id: s.id, classIds: [...s.classIds] }));
+    const results = await Promise.allSettled(list.map((s) => store.setStudentClasses(s.id, [bulkClass])));
+    const problems = [
+      ...results.flatMap((r, i) => (r.status === "rejected" ? [{ name: displayName(list[i].username), why: "the save failed" }] : [])),
+      ...skipped.map((s) => ({ name: displayName(s.username), why: "takes two levels, change it in their profile" })),
+    ];
+    const done = list.length - (problems.length - skipped.length);
+    setAsk(null);
+    sel.clear();
+    setBulkClass("");
+    toast(outcome(done, "given the new level", problems, "student"), problems.length ? (done ? "info" : "error") : "success", done ? {
+      label: "Undo",
+      onClick: () => before.forEach((b) => void store.setStudentClasses(b.id, b.classIds)?.catch(() => undefined)),
+    } : undefined);
+  }
+
+  async function runSubjects() {
+    if (!bulkSubjects.length) return;
+    const list = chosen.filter((s) => !twoLevel(s));
+    const skipped = chosen.filter(twoLevel);
+    const before = list.map((s) => ({ id: s.id, subjectIds: [...s.subjectIds] }));
+    const results = await Promise.allSettled(list.map((s) => store.setStudentSubjects(s.id, bulkSubjects)));
+    const problems = [
+      ...results.flatMap((r, i) => (r.status === "rejected" ? [{ name: displayName(list[i].username), why: "the save failed" }] : [])),
+      ...skipped.map((s) => ({ name: displayName(s.username), why: "takes two levels, change it in their profile" })),
+    ];
+    const done = list.length - (problems.length - skipped.length);
+    setAsk(null);
+    sel.clear();
+    setBulkSubjects([]);
+    toast(outcome(done, "given the new subjects", problems, "student"), problems.length ? (done ? "info" : "error") : "success", done ? {
+      label: "Undo",
+      onClick: () => before.forEach((b) => void store.setStudentSubjects(b.id, b.subjectIds)?.catch(() => undefined)),
+    } : undefined);
+  }
+
+  async function runTag() {
+    if (!bulkTag) return;
+    const on = bulkTag === "in";
+    const list = chosen.filter((s) => inPersonIds.has(s.id) !== on);
+    const before = list.map((s) => s.id);
+    await eachStudent(list, on ? "tagged in person" : "tagged online", (s) => store.setInPerson(s.id, on), () => before.forEach((id) => store.setInPerson(id, !on)));
+    setBulkTag("");
+  }
+
+  async function runDelete() {
+    await eachStudent(chosen, "deleted", (s) => store.deleteStudent(s.id));
+  }
+
+  function startMessages() {
+    const list: Step[] = real.map((s) => {
+      const to = msgTo === "parent" ? s.whatsapp : s.phone;
+      const message =
+        msgKind === "blank"
+          ? undefined
+          : msgKind === "checkin"
+            ? studentCheckIn({ id: s.id, username: s.username })
+            : msgTo === "parent"
+              ? parentNotifications({ id: s.id, username: s.username })
+              : studentNotifications({ id: s.id, username: s.username });
+      const href = waLink(to, message);
+      return {
+        id: s.id,
+        name: displayName(s.username),
+        detail: `${msgTo === "parent" ? "Parent" : "Student"}${to ? ` · ${to}` : ""}`,
+        message,
+        href,
+        missing: inPersonIds.has(s.id) ? "taught in person, no numbers kept" : msgTo === "parent" ? "no parent's number saved" : "no student number saved",
+      };
+    });
+    setAsk(null);
+    setSteps(list);
+  }
+
+  async function copyNumbers(parent: boolean) {
+    const withNo = real.filter((s) => (parent ? s.whatsapp : s.phone));
+    const without = real.filter((s) => !(parent ? s.whatsapp : s.phone)).map((s) => displayName(s.username));
+    if (!withNo.length) return toast(parent ? "None of them has a parent's number saved." : "None of them has a number saved.", "info");
+    const ok = await copyText(withNo.map((s) => (parent ? s.whatsapp : s.phone)).join("\n"));
+    if (!ok) return toast("Couldn't copy. Your browser blocked it; try again.", "error");
+    toast(`${plural(withNo.length, parent ? "parent's number" : "number", parent ? "parents' numbers" : "numbers")} copied, one per line.${without.length ? ` No number for ${without.slice(0, 4).join(", ")}${without.length > 4 ? ` and ${without.length - 4} more` : ""}.` : ""}`, "success");
+  }
+
+  function exportRows() {
+    const nameOf = (list: { id: string; name: string }[], id: string) => list.find((x) => x.id === id)?.name ?? "";
+    downloadCsv(
+      chosen.map((s) => ({
+        Name: displayName(s.username),
+        Username: s.username,
+        Cohort: nameOf(db.cohorts, s.cohortId),
+        Level: s.classIds.map((c) => nameOf(db.classes, c)).join(" / "),
+        Subjects: s.subjectIds.map((x) => nameOf(db.subjects, x)).join(" / "),
+        "Student number": s.phone ?? "",
+        "Parent's WhatsApp": s.whatsapp ?? "",
+        Email: s.email ?? "",
+        "In person": inPersonIds.has(s.id) ? "Yes" : "No",
+        Results: releasedCount.get(s.id) ?? 0,
+      })),
+      "students",
+    );
+    toast(`Downloaded ${plural(chosen.length, "student")}.`, "success");
+  }
+
+  const actions: BulkAction[] = [
+    { id: "message", label: "Message one by one", primary: true, run: () => (real.length ? setAsk("message") : toast("Your test account is left out of messages.", "info")) },
+    { id: "copy", label: "Copy numbers", run: () => void copyNumbers(false) },
+    { id: "copy-parents", label: "Copy parents' numbers", run: () => void copyNumbers(true) },
+    { id: "cohort", label: view === "archive" ? "Add to cohort" : "Move to cohort", run: () => setAsk("cohort") },
+    ...(db.classes.length ? [{ id: "level", label: "Set level", run: () => setAsk("level") }] : []),
+    ...(db.subjects.length ? [{ id: "subjects", label: "Set subjects", run: () => setAsk("subjects") }] : []),
+    { id: "tag", label: "Tag in person or online", run: () => setAsk("tag") },
+    { id: "export", label: "Download as spreadsheet", run: exportRows },
+    { id: "delete", label: "Delete", danger: true, run: () => setAsk("delete") },
+  ];
 
   // Classes/subjects available for the selected cohort in the form
   const selectedCohort = db.cohorts.find((c) => c.id === form.cohortId);
@@ -175,6 +330,10 @@ export default function RosterPage() {
       ...f,
       subjectIds: f.subjectIds.includes(id) ? f.subjectIds.filter((x) => x !== id) : [...f.subjectIds, id],
     }));
+  }
+
+  function toggleBulkSubject(id: string) {
+    setBulkSubjects((now) => (now.includes(id) ? now.filter((x) => x !== id) : [...now, id]));
   }
 
   function openNew() {
@@ -281,59 +440,6 @@ export default function RosterPage() {
         }
       />
 
-      <BulkBar count={picked.length} noun="student" onClear={() => setPicked([])}>
-        <Select value={bulkClass} onChange={(e) => setBulkClass(e.target.value)} className="h-9 w-auto min-w-36" aria-label="Set level to">
-          <option value="">Set level to… (replaces their level)</option>
-          {db.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </Select>
-        <Select value={bulkCohort} onChange={(e) => setBulkCohort(e.target.value)} className="h-9 w-auto min-w-36" aria-label="Move to cohort">
-          <option value="">{view === "archive" ? "Add to cohort…" : "Move to cohort…"}</option>
-          {db.cohorts.filter((c) => c.active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </Select>
-        <Select value={bulkTag} onChange={(e) => setBulkTag(e.target.value as "" | "in" | "out")} className="h-9 w-auto min-w-36" aria-label="Tag as">
-          <option value="">Tag as…</option>
-          <option value="in">In person</option>
-          <option value="out">Online</option>
-        </Select>
-        <Button
-          size="sm"
-          disabled={!bulkClass && !bulkCohort && !bulkTag}
-          loading={bulkBusy}
-          onClick={async () => {
-            if (bulkBusy) return;
-            setBulkBusy(true);
-            // Wait for every save, then say how it went (never "moved" before it is).
-            const results = await Promise.allSettled(
-              picked.map(async (id) => {
-                const st = db.students.find((x) => x.id === id);
-                if (!st) return;
-                // Moving class replaces the class list; the cohort is a straight swap.
-                if (bulkClass) await store.setStudentClasses(id, [bulkClass]);
-                if (bulkCohort) await store.updateStudent(id, { cohortId: bulkCohort, username: st.username });
-                if (bulkTag) store.setInPerson(id, bulkTag === "in");
-              }),
-            );
-            const failed = results.filter((r) => r.status === "rejected").length;
-            const ok = picked.length - failed;
-            if (failed) toast(`${failed} couldn't be moved. Try them again.`, "error");
-            if (ok)
-              toast(
-                view === "archive" && bulkCohort
-                  ? `${ok} past student${ok === 1 ? "" : "s"} added. They can sign in again.`
-                  : `${ok} student${ok === 1 ? "" : "s"} ${bulkClass || bulkCohort ? "moved" : "updated"}.`,
-                "success",
-              );
-            setPicked([]);
-            // Start clean next time: a level or cohort left chosen here would quietly apply to the next students ticked.
-            setBulkClass("");
-            setBulkCohort("");
-            setBulkTag("");
-            setBulkBusy(false);
-          }}
-        >
-          Apply
-        </Button>
-      </BulkBar>
 
       {/* Tests, notes and assignments reach students through their level and subjects. */}
       {(() => {
@@ -358,7 +464,7 @@ export default function RosterPage() {
 
       <ArchiveTabs
         view={view}
-        onChange={(v) => { setView(v); setPicked([]); }}
+        onChange={(v) => { setView(v); sel.clear(); }}
         currentLabel="Current students"
         archiveLabel="Past students"
         currentCount={db.students.length - pastCount}
@@ -366,7 +472,7 @@ export default function RosterPage() {
       />
       {view === "archive" && (
         <p className="mb-4 text-sm text-ink-2">
-          Students from switched-off cohorts. Tick the ones coming back, then choose a cohort in the bar to add them.
+          Students from switched-off cohorts. Tick the ones coming back, then use Add to cohort in the bar.
           Their old tests and marks stay in the archive.
         </p>
       )}
@@ -408,6 +514,8 @@ export default function RosterPage() {
           }
         />
       ) : (
+        <div role="group" aria-label="Students" onKeyDown={sel.listKeyDown}>
+        <SelectAll sel={sel} noun="student" />
         <Card className="divide-y divide-border overflow-hidden p-0">
           {students.map((s) => {
             const cohort = cohortById(db, s.cohortId);
@@ -422,11 +530,7 @@ export default function RosterPage() {
             return (
               <div key={s.id} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-white/[0.018] sm:flex-nowrap sm:items-center">
                 <span className="pt-2.5 sm:pt-0">
-                  <RowCheck
-                    checked={picked.includes(s.id)}
-                    onChange={(on) => setPicked((prev) => (on ? [...prev, s.id] : prev.filter((x) => x !== s.id)))}
-                    label={`Select ${s.username}`}
-                  />
+                  <RowCheck id={s.id} checked={sel.isSelected(s.id)} onToggle={sel.toggle} label={`Select ${s.username}`} />
                 </span>
                 <Link href={`/admin/roster/${s.id}`} className="group flex min-w-0 flex-1 basis-[calc(100%-2.5rem)] items-start gap-3 sm:basis-auto sm:items-center">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-2 font-display text-sm font-bold uppercase text-ink-2">
@@ -504,7 +608,113 @@ export default function RosterPage() {
             );
           })}
         </Card>
+        </div>
       )}
+
+      <BulkBar count={sel.count} onClear={sel.clear} actions={actions} />
+
+      <ConfirmBulk
+        open={ask === "message"}
+        onClose={() => setAsk(null)}
+        title={`Message ${plural(real.length, "student")} one by one`}
+        description="WhatsApp opens one chat at a time. Each chat opens with the message typed in; you press send, then Next."
+        confirmLabel="Start"
+        onConfirm={startMessages}
+      >
+        <Select label="Send to" value={msgTo} onChange={(e) => {
+          const to = e.target.value as "student" | "parent";
+          setMsgTo(to);
+          if (to === "parent" && msgKind === "checkin") setMsgKind("notify");
+        }}>
+          <option value="student">Each student</option>
+          <option value="parent">Each parent</option>
+        </Select>
+        <Select label="Message" value={msgKind} onChange={(e) => setMsgKind(e.target.value as "checkin" | "notify" | "blank")}>
+          {msgTo === "student" && <option value="checkin">Check in: how are things going</option>}
+          <option value="notify">Turn on phone notifications</option>
+          <option value="blank">An empty chat, I&apos;ll type</option>
+        </Select>
+        {chosen.length > real.length && <p>Your test account is left out.</p>}
+      </ConfirmBulk>
+
+      <ConfirmBulk
+        open={ask === "cohort"}
+        onClose={() => setAsk(null)}
+        title={`${view === "archive" ? "Add" : "Move"} ${plural(chosen.length, "student")} to a cohort`}
+        description={view === "archive" ? "They can sign in again and see that cohort's work. Their old marks stay in the archive." : "They see the new cohort's tests, notes and classes from now on."}
+        confirmLabel={view === "archive" ? "Add to cohort" : "Move"}
+        disabled={!bulkCohort}
+        onConfirm={runCohort}
+      >
+        <Select label="Cohort" value={bulkCohort} onChange={(e) => setBulkCohort(e.target.value)}>
+          <option value="">Choose…</option>
+          {db.cohorts.filter((c) => c.active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </Select>
+        <NameList names={names} />
+      </ConfirmBulk>
+
+      <ConfirmBulk
+        open={ask === "level"}
+        onClose={() => setAsk(null)}
+        title={`Set the level for ${plural(chosen.filter((s) => !twoLevel(s)).length, "student")}`}
+        description="This replaces their level. Tests, notes and classes follow it."
+        confirmLabel="Set level"
+        disabled={!bulkClass || chosen.every(twoLevel)}
+        onConfirm={runLevel}
+      >
+        <Select label="Level" value={bulkClass} onChange={(e) => setBulkClass(e.target.value)}>
+          <option value="">Choose…</option>
+          {db.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </Select>
+        <NameList names={chosen.filter((s) => !twoLevel(s)).map((s) => displayName(s.username))} />
+        {chosen.some(twoLevel) && <p>Left as they are (two levels, each with its own subjects): {chosen.filter(twoLevel).map((s) => displayName(s.username)).join(", ")}. Change those in their profile.</p>}
+      </ConfirmBulk>
+
+      <ConfirmBulk
+        open={ask === "subjects"}
+        onClose={() => setAsk(null)}
+        title={`Set the subjects for ${plural(chosen.filter((s) => !twoLevel(s)).length, "student")}`}
+        description="This replaces their subjects with the ones picked here."
+        confirmLabel="Set subjects"
+        disabled={!bulkSubjects.length || chosen.every(twoLevel)}
+        onConfirm={runSubjects}
+      >
+        <ChipToggle items={db.subjects} selected={bulkSubjects} onToggle={toggleBulkSubject} />
+        <NameList names={chosen.filter((s) => !twoLevel(s)).map((s) => displayName(s.username))} />
+        {chosen.some(twoLevel) && <p>Left as they are (two levels, each with its own subjects): {chosen.filter(twoLevel).map((s) => displayName(s.username)).join(", ")}. Change those in their profile.</p>}
+      </ConfirmBulk>
+
+      <ConfirmBulk
+        open={ask === "tag"}
+        onClose={() => setAsk(null)}
+        title={`Tag ${plural(chosen.length, "student")}`}
+        description="In person students keep no phone numbers and get no register, monthly report or parent messages."
+        confirmLabel="Tag"
+        disabled={!bulkTag}
+        onConfirm={runTag}
+      >
+        <Select label="Taught" value={bulkTag} onChange={(e) => setBulkTag(e.target.value as "" | "in" | "out")}>
+          <option value="">Choose…</option>
+          <option value="in">In person</option>
+          <option value="out">Online</option>
+        </Select>
+        <NameList names={names} />
+      </ConfirmBulk>
+
+      <ConfirmBulk
+        open={ask === "delete"}
+        onClose={() => setAsk(null)}
+        title={`Delete ${plural(chosen.length, "student")}?`}
+        description="Their accounts, submissions and results are removed for good. This cannot be undone."
+        confirmLabel={`Delete ${plural(chosen.length, "student")}`}
+        danger
+        ack={`I understand ${chosen.length === 1 ? "this student's" : `these ${chosen.length} students'`} work and marks will be deleted.`}
+        onConfirm={runDelete}
+      >
+        <NameList names={names} max={12} />
+      </ConfirmBulk>
+
+      <OneByOne onClose={() => setSteps(null)} title="Message one by one" steps={steps} />
 
       <Modal
         open={editing !== null}

@@ -10,6 +10,8 @@ import { studentById, testById, submissionFor, submissionsForStudent } from "@/l
 import { Card, Badge, Pill, Icon, EmptyState } from "@/components/ui";
 import { AnnotatedImage } from "@/components/Annotator";
 import { PageStack } from "@/components/PageStack";
+import { PaperText } from "@/components/PaperText";
+import { isPastPaper, withoutSources } from "@/lib/paper-builder";
 import { buttonClasses } from "@/components/ui/Button";
 import { gradeSubmission } from "@/lib/grading";
 import { formatDuration, formatTimestamp } from "@/lib/time";
@@ -201,6 +203,10 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
   const full = awarded >= question.marks;
   const zero = awarded === 0;
   const [big, setBig] = useState<string | null>(null);
+  const pastPaper = isPastPaper(question);
+  const prompt = pastPaper ? withoutSources(question.prompt) : question.prompt;
+  // Typed past paper options carry their letter, as the student saw them.
+  const lettered = pastPaper && question.type === "mcq" && !question.options.every((o) => /^[A-D]$/.test(o.trim()));
 
   return (
     <Card id={`q-${index + 1}`} className="scroll-mt-24 p-5 sm:p-6">
@@ -219,10 +225,15 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
           </Badge>
         )}
       </div>
-      <p className="mt-3 whitespace-pre-wrap text-base font-semibold leading-relaxed text-ink">{question.prompt}</p>
+      {/* A past paper question never shows where it came from (the student sees this test's own numbering). */}
+      {pastPaper ? (
+        prompt && <PaperText text={prompt} className="mt-3 text-base font-semibold leading-relaxed text-ink" />
+      ) : (
+        <p className="mt-3 whitespace-pre-wrap text-base font-semibold leading-relaxed text-ink">{prompt}</p>
+      )}
       {question.attachments && question.attachments.length > 0 && (
         <div className="mt-3">
-          <PageStack urls={question.attachments} label="Question paper" />
+          <PageStack urls={question.attachments} label={pastPaper ? "The question" : "Question paper"} />
         </div>
       )}
 
@@ -265,7 +276,14 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
                   ) : (
                     <span className="h-4 w-4 shrink-0" />
                   )}
-                  <span className="whitespace-pre-wrap">{opt}</span>
+                  {lettered ? (
+                    <span className="flex min-w-0 items-start gap-2.5">
+                      <span className="w-4 shrink-0 font-bold">{"ABCD"[oi]}</span>
+                      <PaperText text={opt} className="min-w-0" />
+                    </span>
+                  ) : (
+                    <span className="whitespace-pre-wrap">{opt}</span>
+                  )}
                   {chosen && <span className="ml-auto shrink-0 text-xs font-semibold">Your pick</span>}
                   {correct && !chosen && (
                     <span className="ml-auto shrink-0 text-xs font-semibold">Correct answer</span>

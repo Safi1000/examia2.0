@@ -1,16 +1,21 @@
 import meta from "@/lib/past-paper-meta.json";
 import tags from "@/lib/past-paper-tags.json";
+import mcqData from "@/lib/past-paper-mcq.json";
 import { SYLLABI } from "@/lib/syllabus";
 import {
   ALL_CODES,
   buildPool,
   covers,
   cropUrl,
+  isPaperImage,
+  mcqUsable,
+  parseCrop,
   parseId,
   pickQuestions,
   sourceLabel,
   swapFor,
   type BuiltQuestion,
+  type McqDataLike,
   type MetaLike,
   type PoolItem,
   type TagsLike,
@@ -21,9 +26,14 @@ import {
  * The teacher console's "From past papers" (see lib/paper-builder.ts).
  *
  *   POST { action: "topics", syllabus, codes, asOnly }          → { topics }
- *   POST { action: "build", syllabus, codes, subs, mcq, written, exclude, seed } → { questions }
- *   POST { action: "swap", syllabus, codes, id, exclude, seed }  → { question }
+ *   POST { action: "build", syllabus, codes, subs, mcq, written, exclude, seen, seed } → { questions }
+ *   POST { action: "swap", syllabus, codes, id, exclude, seen, seed }  → { question }
  *   POST { action: "ms", id }                                    → { name, start, pages, ratios }
+ *   POST { action: "view", urls }                                → { urls, ids }
+ *
+ * "view" brings pictures saved before the crops were measured again up to
+ * date (the same question, its printed number covered; an insert's cover page,
+ * which names the paper, dropped), and says which question each one shows.
  *
  * Reads only the past paper data this site already publishes on its public
  * past paper pages (page images, answer letters, mark schemes), so it needs no
@@ -33,6 +43,7 @@ export const runtime = "nodejs";
 
 const M = meta as unknown as MetaLike;
 const T = tags as unknown as TagsLike;
+const D = mcqData as unknown as McqDataLike;
 const HELD = new Set(M.x ?? []);
 
 /**
@@ -48,7 +59,7 @@ function poolFor(codes: string[]) {
   let p = pools.get(key);
   if (!p) {
     if (pools.size >= MAX_POOLS) pools.delete(pools.keys().next().value!);
-    pools.set(key, (p = buildPool(M, T, codes)));
+    pools.set(key, (p = buildPool(M, T, codes, D)));
   }
   return p;
 }
@@ -103,27 +114,96 @@ function subName(syllabus: string, num: string): string {
 }
 
 const page = (name: string, n: number) => `/papers/img/${name}/${n}.jpg`;
+/** Written pages and insert pages: the page between its header and footer, side margins trimmed. */
+const PAGE_BOX = { t: 0.06, b: 0.93, l: 0.075, r: 0.925 };
+/** Insert pages worth showing: never the cover (it names the paper) or a blank page. */
+const insertPages = (insert: string) => D.i[insert] ?? Array.from({ length: M.n[insert] ?? 0 }, (_, i) => i + 1).slice(1);
 
-async function built(q: PoolItem, syllabus: string, subs: string[]): Promise<BuiltQuestion> {
+function mcqPicture(paper: string, n: number): { url: string; typed?: BuiltQuestion["typed"] } | null {
+  const e = D.q[paper]?.[n - 1];
+  if (!mcqUsable(e)) return null;
+  const [code, sess, pv] = paper.split("_");
+  const name = `${code}_${sess}_qp_${pv}`;
+  const [pg, t, b, l, r, form, cover, stem, options] = e;
+  const ratio = M.q[paper]?.[n - 1]?.[3] ?? 1.414;
+  const url = cropUrl(page(name, pg), { t, b, l, r, ratio, cover });
+  return form === 1 && stem && options?.length === 4 ? { url, typed: { stem, options } } : { url };
+}
+
+function writtenPages(paper: string, n: number): string[] {
+  const [code, sess, pv] = paper.split("_");
+  const name = `${code}_${sess}_qp_${pv}`;
+  const segs = M.w[paper]?.find(([x]) => x === n)?.[1] ?? [];
+  const ratios = M.r?.[name];
+  const cover = D.w[`${paper}#${n}`] ?? null;
+  return segs.map(([pg, t, b], i) =>
+    cropUrl(page(name, pg), { t: Math.max(t, PAGE_BOX.t), b: Math.min(b, PAGE_BOX.b), l: PAGE_BOX.l, r: PAGE_BOX.r, ratio: ratios?.[pg - 1] ?? 1.414, cover: i === 0 ? cover : null }),
+  );
+}
+
+function insertUrls(insert: string): string[] {
+  if (HELD.has(insert) || !M.n[insert]) return [];
+  const ratios = M.r?.[insert];
+  return insertPages(insert).map((p) => cropUrl(page(insert, p), { ...PAGE_BOX, ratio: ratios?.[p - 1] ?? 1.414 }));
+}
+
+async function built(q: PoolItem, syllabus: string, subs: string[], seen: Set<string>): Promise<BuiltQuestion> {
   const name = `${q.code}_${q.s}${String(q.y).slice(2)}_qp_${q.pv}`;
   const [, minutes, marks] = M.p[q.paper] ?? [null, null, null];
   const perMark = minutes && marks ? minutes / marks : null;
   const sub = q.subs.find((s) => subs.some((c) => covers(c, s))) ?? q.subs[0];
-  const base = { id: q.id, kind: q.kind, label: sourceLabel(q.id), sub, topic: subName(syllabus, sub) };
+  const base = { id: q.id, kind: q.kind, label: sourceLabel(q.id), sub, topic: subName(syllabus, sub), ...(seen.has(q.id) ? { seen: true } : {}) };
   if (q.kind === "mcq") {
-    const [pg, t, b, r] = M.q[q.paper][q.n - 1];
-    return { ...base, attachments: [cropUrl(page(name, pg), t, b, r ?? 1.414)], answer: "ABCD".indexOf(M.k[q.paper][q.n - 1]), marks: 1, minutes: perMark ?? 1.5 };
+    const pic = mcqPicture(q.paper, q.n)!;
+    return { ...base, attachments: [pic.url], ...(pic.typed ? { typed: pic.typed } : {}), answer: "ABCD".indexOf(M.k[q.paper][q.n - 1]), marks: 1, minutes: perMark ?? 1.5 };
   }
-  const segs = M.w[q.paper].find(([n]) => n === q.n)?.[1] ?? [];
-  const ratios = M.r?.[name];
-  const attachments = segs.map(([pg, t, b]) => cropUrl(page(name, pg), t, b, ratios?.[pg - 1] ?? 1.414));
   // Case studies and data: the insert's pages come with the question.
-  const insert = name.replace("_qp_", "_in_");
-  for (let i = 1; i <= (HELD.has(insert) ? 0 : (M.n[insert] ?? 0)); i++) attachments.push(page(insert, i));
+  const attachments = [...writtenPages(q.paper, q.n), ...insertUrls(name.replace("_qp_", "_in_"))];
   const qMarks = (await writtenMarks(q.paper)).get(q.n) ?? null;
   const count = M.w[q.paper].length || 1;
   const mins = perMark && qMarks ? perMark * qMarks : minutes ? minutes / count : 15;
   return { ...base, attachments, marks: qMarks, minutes: mins };
+}
+
+/**
+ * A saved picture link, brought up to date: [new link or null to drop it,
+ * the question it shows]. Unknown links come back as they were.
+ */
+function viewOf(url: string): [string | null, string | null] {
+  if (!isPaperImage(url)) return [url, null];
+  const m = /^\/papers\/img\/(\d{4})_([msw]\d{2})_(qp|in)_(\d{2})\/(\d{1,3})\.jpg/.exec(url);
+  if (!m) return [url, null];
+  const [, code, sess, kind, pv] = m;
+  const pg = Number(m[5]);
+  const paper = `${code}_${sess}_${pv}`;
+  const crop = parseCrop(url);
+  if (kind === "in") {
+    const name = `${code}_${sess}_in_${pv}`;
+    if (!insertPages(name).includes(pg)) return [null, null];
+    if (crop && !crop.legacy) return [url, null];
+    return [cropUrl(page(name, pg), { ...PAGE_BOX, ratio: M.r?.[name]?.[pg - 1] ?? 1.414 }), null];
+  }
+  // A multiple choice question on that page whose crop starts where this one does.
+  const qs = M.q[paper];
+  if (qs && crop) {
+    const i = qs.findIndex((e, k) => e[0] === pg && (Math.abs(e[1] - crop.t) < 0.0006 || (mcqUsable(D.q[paper]?.[k]) && Math.abs((D.q[paper][k] as number[])[1] - crop.t) < 0.0006)));
+    if (i >= 0) {
+      const id = `${paper}#${i + 1}`;
+      if (!crop.legacy) return [url, id];
+      // Left out by the measuring: keep the old picture rather than none.
+      return [mcqPicture(paper, i + 1)?.url ?? url, id];
+    }
+  }
+  // A written question's page.
+  const w = M.w[paper]?.find(([, segs]) => segs.some(([p]) => p === pg));
+  if (w) {
+    const id = `${paper}#${w[0]}`;
+    if (crop && !crop.legacy) return [url, id];
+    const pages = writtenPages(paper, w[0]);
+    const at = w[1].findIndex(([p]) => p === pg);
+    return [pages[at] ?? url, id];
+  }
+  return [url, null];
 }
 
 // ---- Request checks -------------------------------------------------------
@@ -136,6 +216,12 @@ const count = (v: unknown, max: number) => Math.max(0, Math.min(max, Math.floor(
 export async function POST(req: Request) {
   const b = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   if (!b || typeof b.action !== "string") return Response.json({ error: "bad request" }, { status: 400 });
+
+  if (b.action === "view") {
+    const urls = Array.isArray(b.urls) ? b.urls.filter((u): u is string => typeof u === "string" && u.length < 300).slice(0, 300) : [];
+    const out = urls.map(viewOf);
+    return Response.json({ urls: out.map((x) => x[0]), ids: out.map((x) => x[1]) });
+  }
 
   if (b.action === "ms") {
     const id = typeof b.id === "string" && ID.test(b.id) ? b.id : "";
@@ -171,14 +257,16 @@ export async function POST(req: Request) {
 
   if (b.action === "build") {
     const subs = Array.isArray(b.subs) ? b.subs.filter((s): s is string => typeof s === "string" && SUB.test(s)).slice(0, 200) : [];
-    const picked = pickQuestions(pool, { subs, mcq: count(b.mcq, 40), written: count(b.written, 10), exclude: ids(b.exclude), seed });
-    return Response.json({ questions: await Promise.all(picked.map((q) => built(q, syllabus, subs))) });
+    const seen = new Set(ids(b.seen));
+    const picked = pickQuestions(pool, { subs, mcq: count(b.mcq, 40), written: count(b.written, 10), exclude: ids(b.exclude), seen, seed });
+    return Response.json({ questions: await Promise.all(picked.map((q) => built(q, syllabus, subs, seen))) });
   }
 
   if (b.action === "swap") {
     const id = typeof b.id === "string" && ID.test(b.id) ? b.id : "";
-    const next = id ? swapFor(pool, id, ids(b.exclude), seed) : null;
-    return Response.json({ question: next ? await built(next, syllabus, next.subs) : null });
+    const seen = new Set(ids(b.seen));
+    const next = id ? swapFor(pool, id, ids(b.exclude), seed, seen) : null;
+    return Response.json({ question: next ? await built(next, syllabus, next.subs, seen) : null });
   }
 
   return Response.json({ error: "bad request" }, { status: 400 });

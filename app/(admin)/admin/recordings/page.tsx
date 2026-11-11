@@ -15,6 +15,8 @@ import { panelTitle } from "@/components/admin/surface";
 import { LEVEL_LABEL, RECORDING_HOURS, addDays, levelOf, pkDate, slotsOn, useSchedule, type LevelKey } from "@/lib/classes";
 import { useRecordingRows, useTeacherAccess, type RecordingRow, type TeacherResult } from "@/lib/recordings";
 import { CATCH_UP_HOURS, REFRESH_EVERY_DAYS, noAccess, openUntil, pkWhen, pkWhenLong } from "@/lib/recording-access";
+import { BulkBar, ConfirmBulk, RowCheck, SelectAll, copyText, outcome, type BulkAction } from "@/components/admin/BulkBar";
+import { useSelection } from "@/lib/use-selection";
 
 /**
  * Hamza's Recordings page: every class recording so far, whether students can
@@ -89,6 +91,15 @@ export default function RecordingsPage() {
     }
     return out;
   }, [shown, rows]);
+
+  // Ticked recordings: only ever ones the filters show, in the order they appear.
+  const ids = useMemo(() => groups.flatMap((g) => g.rows.map((r) => r.key)), [groups]);
+  const sel = useSelection(ids);
+  const chosen = groups.flatMap((g) => g.rows).filter((r) => sel.isSelected(r.key));
+  const chosenOpen = chosen.filter((r) => r.until > nowMs);
+  const chosenClosed = chosen.filter((r) => r.until <= nowMs);
+  const [ask, setAsk] = useState<null | "open" | "close" | "refresh">(null);
+  const labelOf = (r: Row) => `${r.levelName} ${r.subject}, ${dayLabel(r.date)}`;
 
   const openNow = rows.filter((r) => r.until > nowMs);
   const closedCount = rows.length - openNow.length;
@@ -195,6 +206,49 @@ export default function RecordingsPage() {
       setBusy(null);
     }
   }
+
+  /** The same open or close as each row's own button, one recording after another. */
+  async function many(list: Row[], action: "open" | "close") {
+    setAsk(null);
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy("selected");
+    let done = 0;
+    const problems: { name: string; why: string }[] = [];
+    try {
+      for (let i = 0; i < list.length; i++) {
+        setProgress(`${action === "open" ? "Opening" : "Closing"} ${i + 1} of ${list.length}. Keep this page open.`);
+        try {
+          const r = await act(action, { key: list[i].key });
+          if (r.error) problems.push({ name: labelOf(list[i]), why: r.error.replace(/\.$/, "") });
+          else done++;
+        } catch (e) {
+          problems.push({ name: labelOf(list[i]), why: e instanceof Error ? e.message.replace(/\.$/, "") : "no answer" });
+        }
+      }
+    } finally {
+      busyRef.current = false;
+      setBusy(null);
+      setProgress(null);
+    }
+    sel.clear();
+    toast(
+      outcome(done, action === "open" ? `open to students for ${CATCH_UP_HOURS} hours` : "closed for students", problems, "recording"),
+      problems.length ? (done ? "info" : "error") : "success",
+    );
+  }
+
+  async function copyLinks() {
+    const ok = await copyText(chosen.map((r) => `${labelOf(r)}: ${r.url}`).join("\n"));
+    toast(ok ? `${plural(chosen.length, "link")} copied, one per line.` : "Couldn't copy. Your browser blocked it; try again.", ok ? "success" : "error");
+  }
+
+  const bulkActions: BulkAction[] = [
+    ...(chosenClosed.length ? [{ id: "open", label: `Open for ${CATCH_UP_HOURS} hours`, primary: true, run: () => setAsk("open") }] : []),
+    ...(chosenOpen.length ? [{ id: "close", label: "Close now", primary: !chosenClosed.length, run: () => setAsk("close") }] : []),
+    { id: "copy", label: "Copy links", run: () => void copyLinks() },
+    ...(chosenClosed.length ? [{ id: "refresh", label: "New links", run: () => setAsk("refresh") }] : []),
+  ];
 
   const catchUp = state?.catchUp ?? null;
   const daysSinceRefresh = state?.refreshedAt ? Math.floor((nowMs - state.refreshedAt) / 86_400_000) : null;
@@ -326,7 +380,9 @@ export default function RecordingsPage() {
 
       {/* ---- The list ---- */}
       {groups.length > 0 && (
-        <div className="mt-4 space-y-4">
+        <div className="mt-4" role="group" aria-label="Recordings" onKeyDown={sel.listKeyDown}>
+        <SelectAll sel={sel} noun="recording" />
+        <div className="space-y-4">
           {groups.map((g) => (
             <Card key={g.title} className="overflow-hidden p-0">
               <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-4 sm:px-5">
@@ -335,13 +391,56 @@ export default function RecordingsPage() {
               </div>
               <ul className="divide-y divide-border border-t border-border">
                 {g.rows.map((r) => (
-                  <RecordingItem key={r.key} r={r} nowMs={nowMs} busy={busy} opened={openedBy.get(r.key) ?? []} onOne={one} />
+                  <RecordingItem key={r.key} r={r} nowMs={nowMs} busy={busy} opened={openedBy.get(r.key) ?? []} onOne={one} picked={sel.isSelected(r.key)} onPick={sel.toggle} />
                 ))}
               </ul>
             </Card>
           ))}
         </div>
+        </div>
       )}
+
+      <BulkBar count={sel.count} onClear={sel.clear} actions={bulkActions} busy={busy} status={busy === "selected" ? progress : null} />
+
+      <ConfirmBulk
+        open={ask === "open"}
+        onClose={() => setAsk(null)}
+        title={`Open ${plural(chosenClosed.length, "recording")} for ${CATCH_UP_HOURS} hours?`}
+        description={`Current students of each class can open ${chosenClosed.length === 1 ? "it" : "them"} until about ${pkWhenLong(endsIfStarted)} (Pakistan time). Then ${chosenClosed.length === 1 ? "it closes" : "they close"} by ${chosenClosed.length === 1 ? "itself" : "themselves"}.`}
+        confirmLabel={`Open for ${CATCH_UP_HOURS} hours`}
+        onConfirm={() => many(chosenClosed, "open")}
+      >
+        <p className="text-ink-3">{chosenClosed.slice(0, 6).map(labelOf).join("; ")}{chosenClosed.length > 6 ? ` and ${chosenClosed.length - 6} more` : ""}.</p>
+        {chosenOpen.length > 0 && <p>{plural(chosenOpen.length, "recording")} already open {chosenOpen.length === 1 ? "is" : "are"} left as {chosenOpen.length === 1 ? "it is" : "they are"}.</p>}
+        <p>Each one is opened in Google Drive in turn. Keep this page open until it says done.</p>
+      </ConfirmBulk>
+
+      <ConfirmBulk
+        open={ask === "close"}
+        onClose={() => setAsk(null)}
+        title={`Close ${plural(chosenOpen.length, "recording")} now?`}
+        description="Nobody can open them after this, not even with a saved link."
+        confirmLabel="Close now"
+        onConfirm={() => many(chosenOpen, "close")}
+      >
+        <p className="text-ink-3">{chosenOpen.slice(0, 6).map(labelOf).join("; ")}{chosenOpen.length > 6 ? ` and ${chosenOpen.length - 6} more` : ""}.</p>
+      </ConfirmBulk>
+
+      <ConfirmBulk
+        open={ask === "refresh"}
+        onClose={() => setAsk(null)}
+        title={`New links for ${plural(chosenClosed.length, "recording")}?`}
+        description="Any copy of an old link stops working for good. Recordings open right now are left as they are."
+        confirmLabel="Make new links"
+        onConfirm={() => {
+          const keys = chosenClosed.map((r) => r.key);
+          setAsk(null);
+          sel.clear();
+          return refresh(keys);
+        }}
+      >
+        <p>Google Drive copies each video (it can take a while; keep this page open). The old files move to &quot;Hamza Teaches recordings / Replaced links&quot; and are never deleted by the site.</p>
+      </ConfirmBulk>
       {rows.length > 0 && !groups.length && <p className="mt-4 px-1 text-sm text-ink-3">No recordings match these filters.</p>}
 
       {/* ---- New links ---- */}
@@ -455,12 +554,29 @@ function Chips({ label, value, onChange, options }: { label: string; value: stri
   );
 }
 
-function RecordingItem({ r, nowMs, busy, opened, onOne }: { r: Row; nowMs: number; busy: string | null; opened: Student[]; onOne: (key: string, a: "open" | "close") => void }) {
+function RecordingItem({
+  r,
+  nowMs,
+  busy,
+  opened,
+  onOne,
+  picked,
+  onPick,
+}: {
+  r: Row;
+  nowMs: number;
+  busy: string | null;
+  opened: Student[];
+  onOne: (key: string, a: "open" | "close") => void;
+  picked: boolean;
+  onPick: (key: string, range: boolean) => void;
+}) {
   const { toast } = useToast();
   const open = r.until > nowMs;
   const small = "inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors pointer-coarse:h-11 pointer-coarse:px-4 disabled:opacity-50";
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:px-5">
+      <RowCheck id={r.key} checked={picked} onToggle={onPick} label={`Select the ${r.subject} recording from ${dayLabel(r.date)}`} />
       <span className="min-w-0 flex-1 basis-48">
         <span className="block font-semibold tabular-nums text-ink">{dayLabel(r.date)}</span>
         <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[13px] text-ink-3">

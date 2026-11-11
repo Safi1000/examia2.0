@@ -5,11 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/ui";
 import { useBackToClose } from "@/components/student/useBackToClose";
-import { parseCrop } from "@/lib/paper-builder";
-
-/** Cambridge pages have wide white margins: a cropped question is shown without them, so it fills the width. */
-const MARGIN = 0.075;
-const ZOOM = 1 / (1 - 2 * MARGIN);
+import { isPaperImage, parseCrop } from "@/lib/paper-builder";
+import { PaperCrop, usePaperUrls } from "@/components/PaperCrop";
 
 /**
  * One attached page. A past paper question is the paper's page image with a
@@ -30,28 +27,16 @@ export function PaperImage({
   alt: string;
   className?: string;
   loading?: "lazy" | "eager";
-  onLoad?: (e: React.SyntheticEvent<HTMLImageElement>) => void;
+  onLoad?: (el: Element) => void;
 }) {
   const crop = parseCrop(url);
   if (!crop) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={cld(url, width)} loading={loading} decoding="async" alt={alt} className={className ?? "block w-full"} onLoad={onLoad} />;
+    return <img src={cld(url, width)} loading={loading} decoding="async" alt={alt} className={className ?? "block w-full"} onLoad={onLoad && ((e) => onLoad(e.currentTarget))} />;
   }
-  const h = crop.b - crop.t;
   return (
-    <div className={`relative w-full overflow-hidden bg-white ${className ?? ""}`} style={{ aspectRatio: `1 / ${h * crop.r * ZOOM}` }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={crop.src}
-        alt={alt}
-        loading={loading}
-        decoding="async"
-        width={1100}
-        height={Math.round(1100 * crop.r)}
-        onLoad={onLoad}
-        className="absolute max-w-none"
-        style={{ top: `${(-crop.t / h) * 100}%`, width: `${ZOOM * 100}%`, left: `${-MARGIN * ZOOM * 100}%`, height: "auto" }}
-      />
+    <div className={`overflow-hidden ${className ?? ""}`}>
+      <PaperCrop crop={crop} alt={alt} onLoad={onLoad} />
     </div>
   );
 }
@@ -65,9 +50,12 @@ export function PaperImage({
  * it (the answer box, the marks) a mile down the screen. Clicking it opens the
  * same full-screen reader the grader gets for answers, minus the markup tools.
  */
-export function PageStack({ urls, label }: { urls: string[]; label: string }) {
+export function PageStack({ urls: given, label, pageWord = "Page" }: { urls: string[]; label: string; pageWord?: string }) {
   const [page, setPage] = useState(0);
   const [open, setOpen] = useState(false);
+  // Past paper pictures saved before the crops were measured again are brought up to date.
+  const { urls, ready } = usePaperUrls(given);
+  if (!ready) return <div className="skeleton h-40 w-full rounded-lg" aria-busy="true" aria-label={`Loading ${label}`} />;
   if (!urls.length) return null;
 
   const shown = Math.min(page, urls.length - 1);
@@ -81,7 +69,7 @@ export function PageStack({ urls, label }: { urls: string[]; label: string }) {
         className="block max-h-[32rem] w-full overflow-auto bg-surface-2 text-left"
         aria-label={`Open ${label} full screen`}
       >
-        <PaperImage url={url} width={1000} alt={`${label}, page ${shown + 1}`} />
+        <PaperImage url={url} width={1000} alt={urls.length > 1 ? `${label}, page ${shown + 1}` : label} />
       </button>
       <figcaption className="flex flex-wrap items-center gap-2 border-t border-border px-3 py-2 text-xs text-ink-3">
         {urls.length > 1 && (
@@ -94,7 +82,7 @@ export function PageStack({ urls, label }: { urls: string[]; label: string }) {
             >
               ‹
             </button>
-            <span className="tabular">Page {shown + 1} of {urls.length}</span>
+            <span className="tabular">{pageWord} {shown + 1} of {urls.length}</span>
             <button
               onClick={() => setPage(Math.min(urls.length - 1, shown + 1))}
               disabled={shown === urls.length - 1}
@@ -108,9 +96,12 @@ export function PageStack({ urls, label }: { urls: string[]; label: string }) {
         <button onClick={() => setOpen(true)} className="inline-flex min-h-11 items-center font-semibold text-brand hover:underline">
           Open full screen
         </button>
-        <a href={parseCrop(url)?.src ?? url} target="_blank" rel="noreferrer" className="ml-auto inline-flex min-h-11 items-center font-semibold text-brand hover:underline">
-          Open in new tab
-        </a>
+        {/* A past paper picture never opens its whole page: that shows other questions and the paper's name. */}
+        {!isPaperImage(url) && (
+          <a href={url} target="_blank" rel="noreferrer" className="ml-auto inline-flex min-h-11 items-center font-semibold text-brand hover:underline">
+            Open in new tab
+          </a>
+        )}
       </figcaption>
 
       {open && <PageViewerModal urls={urls} startAt={shown} label={label} onClose={() => setOpen(false)} />}
@@ -232,11 +223,12 @@ function PageViewerModal({
         ref={scrollRef}
         // Focusable, so the keyboard can scroll the pages.
         tabIndex={-1}
-        className="flex-1 overflow-y-auto bg-surface-2/40 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 outline-none sm:px-4 sm:pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pt-6"
+        className="flex-1 overflow-auto bg-surface-2/40 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 outline-none sm:px-4 sm:pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pt-6"
       >
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
           {urls.map((u, i) => (
-            <div key={u} data-page={i}>
+            // A past paper picture opens at double size on a phone (move around it with a finger), so its small print is easy to read.
+            <div key={u} data-page={i} className={parseCrop(u) ? "min-w-[42rem] sm:min-w-0" : undefined}>
               {urls.length > 1 && (
                 <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-3">Page {i + 1} of {urls.length}</p>
               )}
@@ -246,7 +238,7 @@ function PageViewerModal({
                   width={1800}
                   loading={i === startAt ? "eager" : "lazy"}
                   alt={`${label}, page ${i + 1}`}
-                  onLoad={i === startAt ? (e) => (e.currentTarget.closest("[data-page]") ?? e.currentTarget).scrollIntoView({ block: "start" }) : undefined}
+                  onLoad={i === startAt ? (el) => (el.closest("[data-page]") ?? el).scrollIntoView({ block: "start" }) : undefined}
                 />
               </div>
             </div>

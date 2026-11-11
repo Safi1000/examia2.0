@@ -12,7 +12,9 @@ import { stickyHead, tableBox } from "@/components/admin/surface";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Button, Badge, CohortDot, EmptyState, Icon, TableScroll, Table, Th, Td, Modal } from "@/components/ui";
 import { FilterChips } from "@/components/admin/FilterChips";
-import { BulkBar, RowCheck } from "@/components/admin/BulkBar";
+import { BulkBar, ConfirmBulk, OneByOne, RowCheck, SelectAll, chaseSteps, downloadCsv, plural, type BulkAction, type Step } from "@/components/admin/BulkBar";
+import { useSelection } from "@/lib/use-selection";
+import { useNow } from "@/hooks/useNow";
 import { cn } from "@/lib/cn";
 import { buttonClasses } from "@/components/ui/Button";
 import { gradeSubmission, isAllMcq } from "@/lib/grading";
@@ -30,8 +32,9 @@ export default function SubmissionsPage() {
   const [statuses, setStatuses] = useStickyFilter("submissions.status");
   const [bulkOpen, setBulkOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [picked, setPicked] = useState<string[]>([]);
-  const [confirmPicked, setConfirmPicked] = useState(false);
+  const [ask, setAsk] = useState<null | "release" | "delete">(null);
+  const [steps, setSteps] = useState<{ title: string; label: string; noun: string; list: Step[] } | null>(null);
+  const nowMs = useNow();
 
   // Subjects that actually have submissions — filtering by an empty one is a
   // dead end the chips shouldn't offer.
@@ -78,12 +81,74 @@ export default function SubmissionsPage() {
   // submission on an all-MCQ test, which needs no human marking.
   const releasable = rows.filter((r) => r.sub.status === "submitted" && isAllMcq(r.test));
 
-  // Ticked rows still on screen (a filter change must not leave hidden ones included).
-  const shown = new Set(rows.map((r) => r.sub.id));
-  const chosen = picked.filter((id) => shown.has(id));
+  // Ticked rows: only ever ones the filters show (a filter change drops hidden ones).
+  const ids = useMemo(() => rows.map((r) => r.sub.id), [rows]);
+  const sel = useSelection(ids);
+  const chosenRows = rows.filter((r) => sel.isSelected(r.sub.id));
   // Only fully marked papers that haven't gone out yet. Unmarked written
   // work would reach students as zeros; released ones would notify twice.
-  const ready = rows.filter((r) => chosen.includes(r.sub.id) && r.sub.status === "submitted" && isFullyGraded(r.test, r.sub));
+  const ready = chosenRows.filter((r) => r.sub.status === "submitted" && isFullyGraded(r.test, r.sub));
+  const toMark = chosenRows.filter((r) => r.sub.status === "submitted");
+  const chosenTests = [...new Map(chosenRows.map((r) => [r.test.id, r.test])).values()];
+
+  function markSteps() {
+    setSteps({
+      title: `Mark ${plural(toMark.length, "paper")}`,
+      label: "Open paper",
+      noun: "paper",
+      list: toMark.map((r) => ({
+        id: r.sub.id,
+        name: r.student ? displayName(r.student.username) : "Removed student",
+        detail: r.test.title,
+        href: `/admin/grading/${r.sub.id}`,
+      })),
+    });
+  }
+
+  function chase() {
+    const list = chaseSteps(db, chosenTests, nowMs);
+    if (!list.length) return toast("Everyone set these tests has handed them in.", "info");
+    setSteps({ title: "Message who hasn't handed in", label: "Open WhatsApp", noun: "chat", list });
+  }
+
+  function exportRows() {
+    downloadCsv(
+      chosenRows.map(({ sub, test, student, grade }) => ({
+        Student: student ? displayName(student.username) : "Removed student",
+        Username: student?.username ?? "",
+        Test: test.title,
+        Subject: test.subject,
+        Status: sub.status === "released" ? "Released" : "Awaiting marking",
+        "Mark %": sub.status === "released" ? Math.round(grade.percent) : "",
+        Grade: sub.status === "released" ? grade.letter : "",
+        Late: sub.late ? "Yes" : "No",
+        "Handed in": sub.submittedAt ? sub.submittedAt.slice(0, 16).replace("T", " ") : "",
+      })),
+      "submissions",
+    );
+    toast(`Downloaded ${plural(chosenRows.length, "submission")}.`, "success");
+  }
+
+  function runDelete() {
+    const n = chosenRows.length;
+    chosenRows.forEach((r) => store.deleteSubmission(r.sub.id));
+    setAsk(null);
+    sel.clear();
+    toast(`${plural(n, "submission")} deleted.`, "success");
+  }
+
+  const actions: BulkAction[] = [
+    ...(toMark.length ? [{ id: "mark", label: `Mark ${plural(toMark.length, "paper")}`, run: markSteps }] : []),
+    {
+      id: "release",
+      label: "Release results",
+      run: () => (ready.length ? setAsk("release") : toast("Nothing to release: the ticked papers aren't fully marked yet, or are already released.", "info")),
+    },
+    { id: "chase", label: "Message who hasn't handed in", run: chase },
+    { id: "export", label: "Download as spreadsheet", run: exportRows },
+    { id: "delete", label: "Delete", danger: true, run: () => setAsk("delete") },
+  ];
+  actions[0] = { ...actions[0], primary: true };
 
   /**
    * Releases each paper. A test that is still open refuses every paper, so
@@ -120,7 +185,7 @@ export default function SubmissionsPage() {
 
       <ArchiveTabs
         view={view}
-        onChange={(v) => { setView(v); setPicked([]); }}
+        onChange={(v) => { setView(v); sel.clear(); }}
         currentLabel="Current"
         currentCount={db.submissions.length - archived.size}
         archiveCount={archived.size}
@@ -150,37 +215,18 @@ export default function SubmissionsPage() {
         />
       </div>
 
-      <BulkBar count={chosen.length} noun="submission" onClear={() => setPicked([])}>
-        <Button
-          size="sm"
-          onClick={() => {
-            if (ready.length === 0) {
-              toast("Nothing to release: the ticked papers aren't fully marked yet, or are already released.", "info");
-              return;
-            }
-            // Students are told the moment a result goes out, so it is confirmed first.
-            setConfirmPicked(true);
-          }}
-        >
-          Release results
-        </Button>
-      </BulkBar>
 
       {rows.length === 0 ? (
         <EmptyState icon={<Icon.Inbox />} title="No submissions" message="Nothing matches the current filters." />
       ) : (
+        <div role="group" aria-label="Submissions" onKeyDown={sel.listKeyDown}>
+        <SelectAll sel={sel} noun="submission" />
         <Card className="overflow-hidden p-0">
           <TableScroll className={tableBox}>
             <Table stickyFirst className={stickyHead}>
               <thead>
                 <tr>
-                  <Th className="w-10">
-                    <RowCheck
-                      checked={chosen.length > 0 && chosen.length === rows.length}
-                      onChange={(on) => setPicked(on ? rows.map((r) => r.sub.id) : [])}
-                      label="Select every row"
-                    />
-                  </Th>
+                  <Th className="w-10"><span className="sr-only">Select</span></Th>
                   <Th>Student</Th>
                   <Th>Test</Th>
                   <Th className="hidden xl:table-cell">Cohort</Th>
@@ -196,11 +242,7 @@ export default function SubmissionsPage() {
                   return (
                     <tr key={sub.id}>
                       <Td>
-                        <RowCheck
-                          checked={picked.includes(sub.id)}
-                          onChange={(on) => setPicked((prev) => (on ? [...prev, sub.id] : prev.filter((x) => x !== sub.id)))}
-                          label={`Select ${student?.username ?? "submission"}`}
-                        />
+                        <RowCheck id={sub.id} checked={sel.isSelected(sub.id)} onToggle={sel.toggle} label={`Select ${student?.username ?? "submission"}`} />
                       </Td>
                       <Td className="font-semibold capitalize">
                         {/* On a phone the actions sit off to the side: the name opens the paper too. */}
@@ -258,7 +300,10 @@ export default function SubmissionsPage() {
             </div>
           )}
         </Card>
+        </div>
       )}
+
+      <BulkBar count={sel.count} onClear={sel.clear} actions={actions} />
 
       <Modal
         open={bulkOpen}
@@ -283,39 +328,49 @@ export default function SubmissionsPage() {
         <p className="text-sm text-ink-2">Every question is multiple choice and marked automatically, so results can be released in one click.</p>
       </Modal>
 
-      <Modal
-        open={confirmPicked}
-        onClose={() => setConfirmPicked(false)}
-        title={`Release ${ready.length} result${ready.length === 1 ? "" : "s"}?`}
+      <ConfirmBulk
+        open={ask === "release"}
+        onClose={() => setAsk(null)}
+        title={`Release ${plural(ready.length, "result")}?`}
         description="Each student sees their mark and feedback straight away and gets a notice."
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setConfirmPicked(false)}>Cancel</Button>
-            <Button
-              onClick={() => {
-                const out = releaseMany(ready);
-                const skipped = chosen.length - out;
-                setConfirmPicked(false);
-                setPicked([]);
-                toast(
-                  out
-                    ? `${out} result${out === 1 ? "" : "s"} released.${skipped ? ` ${skipped} skipped: not fully marked, already released, or the test is still open.` : ""}`
-                    : "Nothing released: the test is still open.",
-                  out ? "success" : "info",
-                );
-              }}
-            >
-              Release
-            </Button>
-          </>
-        }
+        confirmLabel="Release"
+        onConfirm={() => {
+          const out = releaseMany(ready);
+          const skipped = chosenRows.length - out;
+          setAsk(null);
+          sel.clear();
+          toast(
+            out
+              ? `${plural(out, "result")} released.${skipped ? ` ${skipped} not released: not fully marked, already released, or the test is still open.` : ""}`
+              : "Nothing released: the test is still open.",
+            out ? (skipped ? "info" : "success") : "error",
+          );
+        }}
       >
-        {chosen.length > ready.length && (
-          <p className="text-sm text-ink-2">
-            {chosen.length - ready.length} of the ticked papers {chosen.length - ready.length === 1 ? "is" : "are"} not fully marked or already released, so {chosen.length - ready.length === 1 ? "it stays" : "they stay"} as {chosen.length - ready.length === 1 ? "it is" : "they are"}.
+        {chosenRows.length > ready.length && (
+          <p>
+            {chosenRows.length - ready.length} of the ticked papers {chosenRows.length - ready.length === 1 ? "is" : "are"} not fully marked or already released, so {chosenRows.length - ready.length === 1 ? "it stays" : "they stay"} as {chosenRows.length - ready.length === 1 ? "it is" : "they are"}.
           </p>
         )}
-      </Modal>
+      </ConfirmBulk>
+
+      <ConfirmBulk
+        open={ask === "delete"}
+        onClose={() => setAsk(null)}
+        title={`Delete ${plural(chosenRows.length, "submission")}?`}
+        description="The students' answers, photos and marks for these papers are removed for good. This cannot be undone."
+        confirmLabel={`Delete ${plural(chosenRows.length, "submission")}`}
+        danger
+        ack={`I understand ${plural(chosenRows.length, "student's paper", "students' papers")} will be deleted.`}
+        onConfirm={runDelete}
+      >
+        <p className="text-ink-3">
+          {chosenRows.slice(0, 6).map((r) => `${r.student ? displayName(r.student.username) : "Removed student"} (${r.test.title})`).join(", ")}
+          {chosenRows.length > 6 ? ` and ${chosenRows.length - 6} more` : ""}.
+        </p>
+      </ConfirmBulk>
+
+      <OneByOne onClose={() => setSteps(null)} title={steps?.title ?? ""} steps={steps?.list ?? null} openLabel={steps?.label} doneNoun={steps?.noun} />
 
       <Modal
         open={!!deleteId}

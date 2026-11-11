@@ -14,10 +14,10 @@ import { LateWindowCard } from "@/components/admin/LateWindowCard";
 import { AnswerKeyModal } from "@/components/admin/AnswerKeyModal";
 import { Card, CardHeader, CardBody, Button, Input, Select, Badge, Pill, Modal, Icon, EmptyState } from "@/components/ui";
 import { formatWhen, fromLocalInput, toLocalInput } from "@/lib/time";
-import { PageStack } from "@/components/PageStack";
 import { useNow } from "@/hooks/useNow";
-import { classHistoryIds, paperBuilder } from "@/components/admin/PastPaperSheet";
-import { familyOfCode, idsInText, newSeed, parseId, questionFromBuilt, type BuiltQuestion } from "@/lib/paper-builder";
+import { classHistoryIds, paperBuilder, PastPaperPreview } from "@/components/admin/PastPaperSheet";
+import { familyOfCode, idsInText, isPastPaper, newSeed, parseId, questionFromBuilt, sourceLabel, withoutSources, type BuiltQuestion } from "@/lib/paper-builder";
+import { PaperText } from "@/components/PaperText";
 
 /** The same words the marking screen uses. */
 const TYPE_LABEL: Record<Question["type"], string> = { mcq: "Choice", text: "Written", photo: "Photo" };
@@ -461,7 +461,15 @@ export default function TestEditorPage() {
                       </div>
                     </div>
                     <div className="min-w-0 sm:pl-6">
-                      {q.prompt.trim() ? (
+                      {isPastPaper(q) ? (
+                        // Past paper: the wording students see (if typed), and the source in small text for Hamza only.
+                        <>
+                          {withoutSources(q.prompt) && <PaperText text={withoutSources(q.prompt)} className="mt-1.5 line-clamp-3 text-sm text-ink" />}
+                          <p className="mt-1 text-xs text-ink-3">
+                            {q.type === "mcq" ? (q.options.every((o) => /^[A-D]$/.test(o.trim())) ? "Picture with A to D" : "Typed") : "Pages, photo answer"} · {idsInText(q.prompt).map(sourceLabel).join(", ")}
+                          </p>
+                        </>
+                      ) : q.prompt.trim() ? (
                         <p className="mt-1.5 text-sm text-ink">{q.prompt}</p>
                       ) : (
                         <p className="mt-1.5 text-sm italic text-ink-3">Answer the attached paper</p>
@@ -505,9 +513,10 @@ export default function TestEditorPage() {
                       )}
                     </div>
                     {/* The question itself, full width under the row (readable on a phone). */}
-                    {viewing === q.id && q.attachments && q.attachments.length > 0 && (
-                      <div className="mt-1 sm:pl-6">
-                        <PageStack urls={q.attachments} label={q.prompt} />
+                    {/* The question exactly as students will see it. */}
+                    {viewing === q.id && (
+                      <div className="mt-1 rounded-lg border border-hairline bg-paper/40 p-3 sm:ml-6 sm:p-4">
+                        <PastPaperPreview question={q} />
                       </div>
                     )}
                   </li>

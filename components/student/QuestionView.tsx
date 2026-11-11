@@ -9,7 +9,8 @@ import { uploadAsImages } from "@/lib/cloudinary";
 import { readPhotoTakenAt, withTakenTime } from "@/lib/photo-time";
 import { useToast } from "@/components/toast";
 import { PageStack } from "@/components/PageStack";
-import { withoutSources } from "@/lib/paper-builder";
+import { isPastPaper, withoutSources } from "@/lib/paper-builder";
+import { PaperText } from "@/components/PaperText";
 import { cn } from "@/lib/cn";
 
 /**
@@ -44,9 +45,17 @@ function QuestionViewInner({
    *  screen and only the upload control is left. */
   paperHidden?: boolean;
 }) {
-  // A past paper question's source ("Q3 · 0452/12 May/June 2024") stays hidden
-  // while the test is open, so the answer can't be looked up. Results show it.
+  // A past paper question's source ("Q3 · 0452/12 May/June 2024") is never
+  // shown to a student: the test numbers its own questions.
   const prompt = withoutSources(question.prompt);
+  const pastPaper = isPastPaper(question);
+  // Past paper multiple choice is one of two things, never both: typed out
+  // (the stem and the four options as text), or the picture of that one
+  // question with A, B, C and D to choose from.
+  const pictureChoice = pastPaper && question.type === "mcq" && question.options.every((o) => /^[A-D]$/.test(o.trim()));
+  const typedChoice = pastPaper && question.type === "mcq" && !pictureChoice;
+  const showPrompt = !paperHidden && !!prompt && !pictureChoice;
+  const showPictures = !paperHidden && !!question.attachments?.length && !typedChoice;
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
@@ -54,26 +63,55 @@ function QuestionViewInner({
         <Pill>{question.marks} {question.marks === 1 ? "mark" : "marks"}</Pill>
         <span className="text-xs uppercase tracking-wide text-ink-3">{TYPE_LABEL[question.type] ?? question.type}</span>
       </div>
-      {!paperHidden && prompt && (
-        <p className="mt-3 whitespace-pre-wrap text-lg font-semibold leading-snug text-ink">{prompt}</p>
-      )}
-      {!paperHidden && question.attachments && question.attachments.length > 0 && (
+      {showPrompt &&
+        (pastPaper ? (
+          <PaperText text={prompt} className="mt-3 text-lg font-semibold leading-snug text-ink" />
+        ) : (
+          <p className="mt-3 whitespace-pre-wrap text-lg font-semibold leading-snug text-ink">{prompt}</p>
+        ))}
+      {showPictures && (
         <div className="mt-3">
-          <PageStack urls={question.attachments} label="Question paper" />
+          <PageStack urls={question.attachments!} label={pastPaper ? "The question" : "Question paper"} />
         </div>
       )}
 
       <div className="mt-5">
-        {question.type === "mcq" && (
+        {question.type === "mcq" && pictureChoice && (
+          <fieldset>
+            <legend className="sr-only">Choose your answer: A, B, C or D</legend>
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+              {question.options.map((opt, i) => (
+                <RadioCard
+                  key={i}
+                  name={question.id}
+                  checked={answer.selectedIndex === i}
+                  onChange={() => onChange({ ...answer, selectedIndex: i })}
+                  label={<span className="block text-center text-lg font-bold">{opt.trim()}</span>}
+                />
+              ))}
+            </div>
+          </fieldset>
+        )}
+
+        {question.type === "mcq" && !pictureChoice && (
           <fieldset className="space-y-2.5">
-            <legend className="sr-only">{prompt || "Choose one answer"}</legend>
+            <legend className="sr-only">{typedChoice ? "Choose one answer" : prompt || "Choose one answer"}</legend>
             {question.options.map((opt, i) => (
               <RadioCard
                 key={i}
                 name={question.id}
                 checked={answer.selectedIndex === i}
                 onChange={() => onChange({ ...answer, selectedIndex: i })}
-                label={opt}
+                label={
+                  typedChoice ? (
+                    <span className="flex items-start gap-3">
+                      <span className="w-4 shrink-0 font-bold text-ink">{"ABCD"[i]}</span>
+                      <PaperText text={opt} className="min-w-0 text-ink" />
+                    </span>
+                  ) : (
+                    opt
+                  )
+                }
               />
             ))}
           </fieldset>

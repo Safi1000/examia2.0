@@ -7,7 +7,8 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Button, Input, Select, Modal, EmptyState, Icon, Badge, Spinner } from "@/components/ui";
 import type { Note, NoteAssignment } from "@/types";
 import { NoteViewer } from "@/components/NoteViewer";
-import { BulkBar, RowCheck } from "@/components/admin/BulkBar";
+import { BulkBar, ConfirmBulk, NameList, RowCheck, SelectAll, outcome, plural, type BulkAction } from "@/components/admin/BulkBar";
+import { useSelection } from "@/lib/use-selection";
 import { uploadNote, notesConfigured } from "@/lib/cloudinary";
 import { cn } from "@/lib/cn";
 import { DEMO } from "@/lib/demo";
@@ -198,7 +199,6 @@ export default function NotesPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const assigning = assigningId ? (db.notes.find((n) => n.id === assigningId) ?? null) : null;
   const deleting = deletingId ? (db.notes.find((n) => n.id === deletingId) ?? null) : null;
-  const [picked, setPicked] = useState<string[]>([]);
 
   // Which PDFs can be searched inside. Checked once, then kept up to date here.
   const [searchable, setSearchable] = useState<Set<string> | null>(null);
@@ -330,7 +330,7 @@ export default function NotesPage() {
           <BookView db={db} opt={activeBook} actions={actions} onUpload={(slot) => setUpload({ book: activeBook.key, slot })} />
         </>
       ) : (
-        <AllNotes db={db} store={store} opts={opts} q={q} picked={picked} setPicked={setPicked} actions={actions} />
+        <AllNotes db={db} store={store} opts={opts} q={q} actions={actions} />
       )}
 
       {upload && <UploadModal db={db} store={store} opts={opts} preset={upload} onClose={() => setUpload(null)} onIndexed={(id) => setSearchable((s) => (s ? new Set([...s, id]) : s))} />}
@@ -362,9 +362,8 @@ export default function NotesPage() {
               onClick={() => {
                 if (!deleting) return;
                 const id = deleting.id;
+                // A ticked note that is deleted drops out of the selection by itself.
                 store.deleteNote(id);
-                // A deleted note can't stay ticked for a bulk assign.
-                setPicked((p) => p.filter((x) => x !== id));
                 setDeletingId(null);
                 toast("Note deleted.", "success");
               }}
@@ -529,76 +528,186 @@ function AllNotes({
   store,
   opts,
   q,
-  picked,
-  setPicked,
   actions,
 }: {
   db: Db;
   store: Store;
   opts: BookOpt[];
   q: string;
-  picked: string[];
-  setPicked: (f: (p: string[]) => string[]) => void;
   actions: (n: Note) => React.ReactNode;
 }) {
   const { toast } = useToast();
   const [bulkCohort, setBulkCohort] = useState("");
   const [bulkClass, setBulkClass] = useState("");
   const [bulkSubject, setBulkSubject] = useState("");
-  const [bulkBusy, setBulkBusy] = useState(false);
-  const list = db.notes.filter((n) => !q || n.title.toLowerCase().includes(q) || n.fileName.toLowerCase().includes(q));
-  // Only notes that still exist count (one may be deleted in another tab while ticked).
-  const live = new Set(db.notes.map((n) => n.id));
-  const chosen = picked.filter((id) => live.has(id));
+  const [ask, setAsk] = useState<null | "assign" | "unshare" | "hide" | "show" | "delete">(null);
+  const list = useMemo(() => db.notes.filter((n) => !q || n.title.toLowerCase().includes(q) || n.fileName.toLowerCase().includes(q)), [db.notes, q]);
+  // Ticked notes: only ever ones the search shows (and that still exist).
+  const ids = useMemo(() => list.map((n) => n.id), [list]);
+  const sel = useSelection(ids);
+  const chosen = list.filter((n) => sel.isSelected(n.id));
+  const names = chosen.map((n) => n.title);
+  const shown = chosen.filter((n) => !isHidden(n.fileType));
+  const hidden = chosen.filter((n) => isHidden(n.fileType));
+  // Batches the ticked notes are shared with, for "Take away from a batch".
+  const sharedWith = db.cohorts.filter((c) => chosen.some((n) => assignmentsOf(n.id, db.noteAssignments).some((a) => a.cohortId === c.id)));
+
+  async function runAssign() {
+    if (!bulkCohort) return;
+    let ok = 0;
+    let already = 0;
+    const problems: { name: string; why: string }[] = [];
+    for (const n of chosen) {
+      const has = assignmentsOf(n.id, db.noteAssignments).some((a) => a.cohortId === bulkCohort && a.classId === (bulkClass || null) && a.subjectId === (bulkSubject || null));
+      if (has) {
+        already++;
+        continue;
+      }
+      try {
+        await store.addNoteAssignment(n.id, bulkCohort, bulkClass || null, bulkSubject || null);
+        ok++;
+      } catch {
+        problems.push({ name: n.title, why: "the save failed, try again" });
+      }
+    }
+    setAsk(null);
+    sel.clear();
+    toast(`${outcome(ok, "shared", problems, "note")}${already ? ` ${plural(already, "was", "were")} already shared with that group.` : ""}`, problems.length ? (ok ? "info" : "error") : "success");
+  }
+
+  function runUnshare() {
+    if (!bulkCohort) return;
+    const gone = chosen.flatMap((n) => assignmentsOf(n.id, db.noteAssignments).filter((a) => a.cohortId === bulkCohort));
+    gone.forEach((a) => store.deleteNoteAssignment(a.id));
+    const notes = new Set(gone.map((a) => a.noteId)).size;
+    setAsk(null);
+    sel.clear();
+    setBulkCohort("");
+    toast(`${plural(notes, "note")} taken away from ${db.cohorts.find((c) => c.id === bulkCohort)?.name ?? "that batch"}.`, "success", gone.length ? {
+      label: "Undo",
+      onClick: () => {
+        void Promise.allSettled(gone.map((a) => store.addNoteAssignment(a.noteId, a.cohortId, a.classId, a.subjectId))).then((r) => {
+          const failed = r.filter((x) => x.status === "rejected").length;
+          toast(failed ? `${failed} couldn't be shared again. Use Who gets it on those notes.` : "Shared again.", failed ? "error" : "success");
+        });
+      },
+    } : undefined);
+  }
+
+  async function runHide(hide: boolean) {
+    const list = hide ? shown : hidden;
+    const results = await Promise.allSettled(list.map((n) => store.updateNote(n.id, { fileType: setHidden(n.fileType, hide) })));
+    const done = list.filter((_, i) => results[i].status === "fulfilled");
+    const problems = list.filter((_, i) => results[i].status === "rejected").map((n) => ({ name: n.title, why: "the save failed, try again" }));
+    setAsk(null);
+    sel.clear();
+    toast(outcome(done.length, hide ? "hidden from students" : "showing to students again", problems, "note"), problems.length ? (done.length ? "info" : "error") : "success", done.length ? {
+      label: "Undo",
+      onClick: () => {
+        void Promise.allSettled(done.map((n) => store.updateNote(n.id, { fileType: n.fileType }))).then(() => toast("Put back.", "success"));
+      },
+    } : undefined);
+  }
+
+  function runDelete() {
+    const n = chosen.length;
+    chosen.forEach((x) => store.deleteNote(x.id));
+    setAsk(null);
+    sel.clear();
+    toast(`${plural(n, "note")} deleted.`, "success");
+  }
+
+  const bulkActions: BulkAction[] = [
+    { id: "assign", label: "Who gets them", primary: true, run: () => setAsk("assign") },
+    ...(shown.length ? [{ id: "hide", label: "Hide from students", run: () => setAsk("hide") }] : []),
+    ...(hidden.length ? [{ id: "show", label: "Show to students", run: () => setAsk("show") }] : []),
+    ...(sharedWith.length ? [{ id: "unshare", label: "Take away from a batch", run: () => setAsk("unshare") }] : []),
+    { id: "delete", label: "Delete", danger: true, run: () => setAsk("delete") },
+  ];
 
   return (
     <>
-      <BulkBar count={chosen.length} noun="note" onClear={() => setPicked(() => [])}>
-        <Select value={bulkCohort} onChange={(e) => setBulkCohort(e.target.value)} className="h-9 w-auto min-w-36" aria-label="Batch">
-          <option value="">Batch…</option>
+      <ConfirmBulk
+        open={ask === "assign"}
+        onClose={() => setAsk(null)}
+        title={`Share ${plural(chosen.length, "note")}`}
+        description="Students in that batch (and class and subject, if you pick them) see these notes and get a notice."
+        confirmLabel="Share"
+        disabled={!bulkCohort}
+        onConfirm={runAssign}
+      >
+        <Select label="Batch" value={bulkCohort} onChange={(e) => setBulkCohort(e.target.value)}>
+          <option value="">Choose…</option>
           {db.cohorts.filter((c) => c.active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select>
-        <Select value={bulkClass} onChange={(e) => setBulkClass(e.target.value)} className="h-9 w-auto min-w-32" aria-label="Class">
-          <option value="">All classes</option>
-          {db.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Select label="Class" value={bulkClass} onChange={(e) => setBulkClass(e.target.value)}>
+            <option value="">All classes</option>
+            {db.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </Select>
+          <Select label="Subject" value={bulkSubject} onChange={(e) => setBulkSubject(e.target.value)}>
+            <option value="">All subjects</option>
+            {db.subjects.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+          </Select>
+        </div>
+        <NameList names={names} />
+      </ConfirmBulk>
+
+      <ConfirmBulk
+        open={ask === "unshare"}
+        onClose={() => setAsk(null)}
+        title={`Take ${plural(chosen.length, "note")} away from a batch`}
+        description="Students in that batch stop seeing them. The notes stay here, and other batches keep them."
+        confirmLabel="Take away"
+        disabled={!bulkCohort}
+        onConfirm={runUnshare}
+      >
+        <Select label="Batch" value={bulkCohort} onChange={(e) => setBulkCohort(e.target.value)}>
+          <option value="">Choose…</option>
+          {sharedWith.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select>
-        <Select value={bulkSubject} onChange={(e) => setBulkSubject(e.target.value)} className="h-9 w-auto min-w-32" aria-label="Subject">
-          <option value="">All subjects</option>
-          {db.subjects.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-        </Select>
-        <Button
-          size="sm"
-          disabled={!bulkCohort || bulkBusy}
-          loading={bulkBusy}
-          onClick={() => {
-            void (async () => {
-              setBulkBusy(true);
-              let ok = 0;
-              let failed = 0;
-              for (const id of chosen) {
-                const has = assignmentsOf(id, db.noteAssignments).some((a) => a.cohortId === bulkCohort && a.classId === (bulkClass || null) && a.subjectId === (bulkSubject || null));
-                if (has) continue;
-                try {
-                  await store.addNoteAssignment(id, bulkCohort, bulkClass || null, bulkSubject || null);
-                  ok++;
-                } catch {
-                  failed++;
-                }
-              }
-              setBulkBusy(false);
-              if (ok) toast(`${ok} note${ok === 1 ? "" : "s"} assigned.`, "success");
-              if (failed) toast(`${failed} couldn't be assigned. Try them again.`, "error");
-              if (!ok && !failed) toast("Those notes were already shown to that group.", "success");
-              setPicked(() => []);
-            })();
-          }}
-        >
-          Assign
-        </Button>
-      </BulkBar>
+        <NameList names={names} />
+      </ConfirmBulk>
+
+      <ConfirmBulk
+        open={ask === "hide"}
+        onClose={() => setAsk(null)}
+        title={`Hide ${plural(shown.length, "note")} from students?`}
+        description="They stay here and keep who gets them, so showing them again puts everything back."
+        confirmLabel="Hide"
+        onConfirm={() => runHide(true)}
+      >
+        <NameList names={shown.map((n) => n.title)} />
+      </ConfirmBulk>
+
+      <ConfirmBulk
+        open={ask === "show"}
+        onClose={() => setAsk(null)}
+        title={`Show ${plural(hidden.length, "note")} to students again?`}
+        description="Students they are shared with can open them again."
+        confirmLabel="Show"
+        onConfirm={() => runHide(false)}
+      >
+        <NameList names={hidden.map((n) => n.title)} />
+      </ConfirmBulk>
+
+      <ConfirmBulk
+        open={ask === "delete"}
+        onClose={() => setAsk(null)}
+        title={`Delete ${plural(chosen.length, "note")}?`}
+        description="They are removed for all students. This cannot be undone. To keep them but stop students seeing them, use Hide instead."
+        confirmLabel={`Delete ${plural(chosen.length, "note")}`}
+        danger
+        onConfirm={runDelete}
+      >
+        <NameList names={names} />
+      </ConfirmBulk>
+
       {list.length === 0 ? (
         <p className="py-10 text-center text-sm text-ink-3">{q ? "No note has that name." : "No notes yet."}</p>
       ) : (
+        <div role="group" aria-label="Notes" onKeyDown={sel.listKeyDown}>
+        <SelectAll sel={sel} noun="note" className="px-4" />
         <div className="space-y-2.5">
           {list.map((n) => {
             const books = booksOf(n, db.noteAssignments, opts);
@@ -607,7 +716,7 @@ function AllNotes({
               <Card key={n.id} className={cn("p-4", isHidden(n.fileType) && "opacity-70")}>
                 <div className="flex flex-wrap items-start gap-3">
                   <span className="pt-1.5">
-                    <RowCheck checked={picked.includes(n.id)} onChange={(on) => setPicked((p) => (on ? [...p, n.id] : p.filter((x) => x !== n.id)))} label={`Select ${n.title}`} />
+                    <RowCheck id={n.id} checked={sel.isSelected(n.id)} onToggle={sel.toggle} label={`Select ${n.title}`} />
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-ink">{n.title}</p>
@@ -634,7 +743,9 @@ function AllNotes({
             );
           })}
         </div>
+        </div>
       )}
+      <BulkBar count={sel.count} onClear={sel.clear} actions={bulkActions} />
     </>
   );
 }

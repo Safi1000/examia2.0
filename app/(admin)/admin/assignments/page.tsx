@@ -14,7 +14,10 @@ import { PageStack, PaperImage } from "@/components/PageStack";
 import { PastPaperSheet, classHistoryIds, paperBuilder, type PastPaperBuild } from "@/components/admin/PastPaperSheet";
 import { familyOfCode, newSeed, parseId, withSourcesLine, type BuiltQuestion } from "@/lib/paper-builder";
 import { Card, Button, Input, Textarea, Select, Label, Badge, Modal, EmptyState, Icon } from "@/components/ui";
-import { formatTimestamp, toLocalInput, fromLocalInput } from "@/lib/time";
+import { formatTimestamp, formatWhen, toLocalInput, fromLocalInput } from "@/lib/time";
+import { BulkBar, ConfirmBulk, NameList, OneByOne, RowCheck, SelectAll, plural, waLink, type BulkAction, type Step } from "@/components/admin/BulkBar";
+import { useSelection } from "@/lib/use-selection";
+import { displayName } from "@/lib/display-name";
 import { useNow } from "@/hooks/useNow";
 import { useActivity } from "@/lib/activity-admin";
 import { fmtTime } from "@/lib/activity";
@@ -40,6 +43,31 @@ const blank = (cohortId: string): Form => ({
   classId: "",
   subjectId: "",
 });
+
+type Db = ReturnType<typeof useDatabase>;
+
+/** Who a homework was set for (its cohort, and level/subject when set) and hasn't handed in. */
+function owedFor(db: Db, a: Assignment, off = archivedCohortIds(db)) {
+  const handed = new Set(db.assignmentSubmissions.filter((s) => s.assignmentId === a.id).map((r) => r.studentId));
+  return db.students.filter(
+    (s) =>
+      !off.has(s.cohortId) &&
+      // Hamza's own test account never shows as owing homework.
+      !isTestAccount(s) &&
+      a.cohortId === s.cohortId &&
+      // Joined after the deadline: this homework was never theirs to hand in.
+      joinedMs(s) < +new Date(a.dueAt) &&
+      (!a.classId || s.classIds.includes(a.classId)) &&
+      (!a.subjectId || s.subjectIds.includes(a.subjectId)) &&
+      !handed.has(s.id),
+  );
+}
+
+/** The deadline as the reminder message words it ("Fri 14 Nov, 9:00 pm"). */
+const dueWords = (iso: string) => new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+
+/** The time right now, read when an action runs (not while drawing the page). */
+const clock = () => Date.now();
 
 export default function AdminAssignmentsPage() {
   const db = useDatabase();
@@ -132,6 +160,75 @@ export default function AdminAssignmentsPage() {
         .sort((a, b) => +new Date(b.dueAt) - +new Date(a.dueAt)),
     [db.assignments, cohortId],
   );
+
+  // Bulk work on ticked homework (only ever what the cohort filter shows).
+  const ids = useMemo(() => assignments.map((a) => a.id), [assignments]);
+  const sel = useSelection(ids);
+  const chosen = useMemo(() => assignments.filter((a) => sel.isSelected(a.id)), [assignments, sel]);
+  const [ask, setAsk] = useState<null | "extend" | "due" | "delete">(null);
+  const [bulkDue, setBulkDue] = useState("");
+  const [steps, setSteps] = useState<Step[] | null>(null);
+  const openHw = chosen.filter((a) => +new Date(a.dueAt) > nowMs);
+  const handInsLost = chosen.reduce((n, a) => n + db.assignmentSubmissions.filter((s) => s.assignmentId === a.id).length, 0);
+  const bulkDueIso = bulkDue ? fromLocalInput(bulkDue) : null;
+  const bulkDueProblem = bulkDueIso && +new Date(bulkDueIso) <= nowMs ? "That time has passed." : null;
+
+  const payloadOf = (a: Assignment) => ({ title: a.title, instructions: a.instructions, attachments: a.attachments, dueAt: a.dueAt, cohortId: a.cohortId, classId: a.classId, subjectId: a.subjectId });
+  const undoDue = (before: Assignment[]) => ({
+    label: "Undo",
+    onClick: () => {
+      before.forEach((a) => store.updateAssignment(a.id, payloadOf(a)));
+      toast(`Deadline put back on ${plural(before.length, "homework", "homeworks")}.`, "success");
+    },
+  });
+
+  function runExtend() {
+    const at = clock();
+    const before = chosen.map((a) => ({ ...a }));
+    chosen.forEach((a) => store.updateAssignment(a.id, { ...payloadOf(a), dueAt: new Date(Math.max(at, +new Date(a.dueAt)) + 86_400_000).toISOString() }));
+    setAsk(null);
+    sel.clear();
+    toast(`${plural(before.length, "homework", "homeworks")} given one more day.`, "success", undoDue(before));
+  }
+
+  function runDue() {
+    if (!bulkDueIso || bulkDueProblem) return;
+    const before = chosen.map((a) => ({ ...a }));
+    chosen.forEach((a) => store.updateAssignment(a.id, { ...payloadOf(a), dueAt: bulkDueIso }));
+    setAsk(null);
+    sel.clear();
+    setBulkDue("");
+    toast(`${plural(before.length, "homework", "homeworks")} now due ${formatWhen(bulkDueIso)}.`, "success", undoDue(before));
+  }
+
+  function runDelete() {
+    const n = chosen.length;
+    chosen.forEach((a) => store.deleteAssignment(a.id));
+    setAsk(null);
+    sel.clear();
+    toast(`${plural(n, "homework", "homeworks")} deleted.`, "success");
+  }
+
+  // Before the deadline only, as on each homework: no nudging towards late work.
+  function startReminders() {
+    if (!openHw.length) return toast("These have all closed. Reminders are only for homework still open.", "info");
+    const list: Step[] = openHw.flatMap((a) =>
+      owedFor(db, a).map((s) => {
+        const message = studentHomeworkDue({ id: s.id, username: s.username, title: a.title, due: dueWords(a.dueAt) });
+        const href = waLink(s.phone, message);
+        return { id: `${a.id}|${s.id}`, name: displayName(s.username), detail: `${a.title}${s.phone ? ` · ${s.phone}` : ""}`, message, href, missing: href ? undefined : "no student number saved" };
+      }),
+    );
+    if (!list.length) return toast("Everyone has handed these in.", "success");
+    setSteps(list);
+  }
+
+  const bulkActions: BulkAction[] = [
+    ...(openHw.length ? [{ id: "remind", label: "Remind who hasn't handed in", primary: true, run: startReminders }] : []),
+    { id: "extend", label: "One more day", primary: !openHw.length, run: () => setAsk("extend") },
+    { id: "due", label: "Change deadline", run: () => setAsk("due") },
+    { id: "delete", label: "Delete", danger: true, run: () => setAsk("delete") },
+  ];
 
   function openNew() {
     setPpQs(null);
@@ -239,6 +336,8 @@ export default function AdminAssignmentsPage() {
           action={<Button onClick={openNew}><Icon.Plus className="h-4 w-4" /> New homework</Button>}
         />
       ) : (
+        <div role="group" aria-label="Homework" onKeyDown={sel.listKeyDown}>
+        <SelectAll sel={sel} noun="homework" />
         <Card className="divide-y divide-border overflow-hidden p-0">
           {assignments.map((a) => {
             const handIns = db.assignmentSubmissions.filter((s) => s.assignmentId === a.id);
@@ -247,8 +346,11 @@ export default function AdminAssignmentsPage() {
             const cls = db.classes.find((c) => c.id === a.classId);
             const subj = db.subjects.find((x) => x.id === a.subjectId);
             return (
-              <div key={a.id} className="px-4 py-4 transition-colors hover:bg-white/[0.018]">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+              <div key={a.id} className="flex items-start gap-3 px-4 py-4 transition-colors hover:bg-white/[0.018]">
+                <span className="pt-1">
+                  <RowCheck id={a.id} checked={sel.isSelected(a.id)} onToggle={sel.toggle} label={`Select ${a.title}`} />
+                </span>
+                <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge tone={overdue ? "warning" : "success"}>{overdue ? "Closed" : "Open"}</Badge>
@@ -281,7 +383,57 @@ export default function AdminAssignmentsPage() {
             );
           })}
         </Card>
+        </div>
       )}
+
+      <BulkBar count={sel.count} onClear={sel.clear} actions={bulkActions} />
+
+      <ConfirmBulk
+        open={ask === "extend"}
+        onClose={() => setAsk(null)}
+        title={`Give ${plural(chosen.length, "homework", "homeworks")} one more day?`}
+        description="Each is due a day after its deadline, or a day from now if it has already closed (it opens again)."
+        confirmLabel="Give one more day"
+        onConfirm={runExtend}
+      >
+        <NameList names={chosen.map((a) => a.title)} />
+      </ConfirmBulk>
+
+      <ConfirmBulk
+        open={ask === "due"}
+        onClose={() => setAsk(null)}
+        title={`New deadline for ${plural(chosen.length, "homework", "homeworks")}`}
+        description="Pakistan time."
+        confirmLabel="Change deadline"
+        disabled={!bulkDueIso || !!bulkDueProblem}
+        onConfirm={runDue}
+      >
+        <input
+          type="datetime-local"
+          value={bulkDue}
+          onChange={(e) => setBulkDue(e.target.value)}
+          className="h-12 w-full rounded-md border border-border-strong bg-surface px-3 text-base tabular-nums text-ink"
+          aria-label="New deadline (Pakistan time)"
+          aria-invalid={!!bulkDueProblem}
+        />
+        {bulkDueProblem && <p role="alert" className="font-medium text-error">{bulkDueProblem}</p>}
+        <NameList names={chosen.map((a) => a.title)} />
+      </ConfirmBulk>
+
+      <ConfirmBulk
+        open={ask === "delete"}
+        onClose={() => setAsk(null)}
+        title={`Delete ${plural(chosen.length, "homework", "homeworks")}?`}
+        description={handInsLost ? `Their ${plural(handInsLost, "hand-in")} and your feedback go too. This cannot be undone.` : "This cannot be undone."}
+        confirmLabel={`Delete ${plural(chosen.length, "homework", "homeworks")}`}
+        danger
+        ack={handInsLost ? `I understand ${plural(handInsLost, "student hand-in")} will be deleted for good.` : undefined}
+        onConfirm={runDelete}
+      >
+        <NameList names={chosen.map((a) => a.title)} />
+      </ConfirmBulk>
+
+      <OneByOne onClose={() => setSteps(null)} title="Remind who hasn't handed in" steps={steps} />
 
       {/* Create / edit */}
       <Modal
@@ -454,24 +606,10 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
   const a = db.assignments.find((x) => x.id === assignmentId);
   // Who it was set for (its cohort, and level/subject when set) and hasn't handed in.
   const off = archivedCohortIds(db);
-  const handed = new Set(rows.map((r) => r.studentId));
-  const owed = a
-    ? db.students.filter(
-        (s) =>
-          !off.has(s.cohortId) &&
-          // Hamza's own test account never shows as owing homework.
-          !isTestAccount(s) &&
-          a.cohortId === s.cohortId &&
-          // Joined after the deadline: this homework was never theirs to hand in.
-          joinedMs(s) < +new Date(a.dueAt) &&
-          (!a.classId || s.classIds.includes(a.classId)) &&
-          (!a.subjectId || s.subjectIds.includes(a.subjectId)) &&
-          !handed.has(s.id),
-      )
-    : [];
+  const owed = a ? owedFor(db, a, off) : [];
   const open = a ? +new Date(a.dueAt) > nowMs : false;
   const nameOf = (u: string) => u.charAt(0).toUpperCase() + u.slice(1);
-  const due = a ? new Date(a.dueAt).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
+  const due = a ? dueWords(a.dueAt) : "";
 
   // Groundwork time on this homework, from blocks started on it. One request for everyone (the
   // activity route sends this month's and last month's per-homework time whatever the start day).
