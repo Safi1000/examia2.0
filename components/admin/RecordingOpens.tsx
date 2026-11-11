@@ -7,11 +7,11 @@ import { useStudentProfiles } from "@/lib/student-profiles";
 import { recordingReport, type SlotRecording } from "@/lib/attention";
 import { addDays, LEVEL_LABEL, pkDate, useClassLinks } from "@/lib/classes";
 import { displayName } from "@/lib/display-name";
+import { parentMissedClass, studentMissedClass } from "@/lib/portal-messages";
 import { Card, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { panelTitle } from "@/components/admin/surface";
 
-const nameOf = (s: Student) => s.username.charAt(0).toUpperCase() + s.username.slice(1);
 const waTo = (e164: string | undefined, text: string) =>
   e164 ? `https://wa.me/${e164.replace(/\D/g, "")}?text=${encodeURIComponent(text)}` : null;
 const TZ = "Asia/Karachi";
@@ -113,11 +113,11 @@ function Groups({ r, profilesReady }: { r: SlotRecording; profilesReady: boolean
                       : s.phone
                         ? waTo(
                             s.phone,
-                            `Hi ${nameOf(s)}, I missed you in ${r.slot.subject} on ${dayLong(r.slot.startMs)}. The recording is on your Classes page until ${closeLabel(r.closesMs)}. Please watch it before it closes, and tell me if anything is unclear.`,
+                            studentMissedClass({ id: s.id, username: s.username, subject: r.slot.subject, day: dayLong(r.slot.startMs), close: closeLabel(r.closesMs) }),
                           )
                         : waTo(
                             s.whatsapp,
-                            `Assalam o Alaikum, ${nameOf(s)} missed ${r.slot.subject} class on ${dayLong(r.slot.startMs)}. The recording is on the portal until ${closeLabel(r.closesMs)}, so please ask them to watch it before it closes. Thank you.`,
+                            parentMissedClass({ id: s.id, username: s.username, subject: r.slot.subject, day: dayLong(r.slot.startMs), close: closeLabel(r.closesMs) }),
                           );
                     return link ? (
                       <a

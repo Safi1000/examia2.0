@@ -6,6 +6,7 @@ import type { Profile } from "@/lib/profile";
 import { useStore } from "@/lib/data/store";
 import { archivedCohortIds } from "@/lib/data/selectors";
 import { displayName, isTestAccount } from "@/lib/display-name";
+import { wellBuilt } from "@/lib/portal-messages";
 import { currentStats, levelFor, mondayOf } from "@/lib/focus";
 import { pkDate } from "@/lib/timetable";
 import { DEMO } from "@/lib/demo";
@@ -34,14 +35,8 @@ function weekMinutes(p: Profile | undefined, nowMs: number) {
 
 const fmt = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`);
 
-/** "4 hours", "2.5 hours", "45 minutes": for the note. */
-function amount(min: number) {
-  if (min < 60) return `${min} ${min === 1 ? "minute" : "minutes"}`;
-  const h = Math.round(min / 30) / 2;
-  return `${h} ${h === 1 ? "hour" : "hours"}`;
-}
-
-const draftFor = (min: number) => `Well built this week. ${amount(min)} of focus shows. Keep going.`;
+/** The note Hamza can edit before sending: their own week's focus time when the figure is sane, else without it. */
+const draftFor = (id: string, username: string, minutes: number) => wellBuilt({ id, username, minutes, maxMinutes: MAX_WEEK_MIN });
 
 /** Who already got a note this week on this device (a backup for the feed). */
 const sentKey = (monday: string) => `ht_well_built_${monday}`;
@@ -143,7 +138,7 @@ export function WellBuiltCard({ db, profiles, nowMs, cohortId }: { db: Database;
                     size="sm"
                     className="max-md:h-11"
                     aria-label={`Send ${x.name} a well built note`}
-                    onClick={() => setCompose({ id: x.s.id, name: x.name, text: draftFor(x.minutes) })}
+                    onClick={() => setCompose({ id: x.s.id, name: x.name, text: draftFor(x.s.id, x.s.username, x.minutes) })}
                   >
                     Send well built
                   </Button>

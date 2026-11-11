@@ -2186,7 +2186,7 @@ class Store {
     const test = this.state.tests.find((t) => t.id === testId);
     this.logActivity({
       type: "result_released",
-      title: `Result released for "${test?.title ?? "your test"}"`,
+      title: `Your result for "${test?.title ?? "your test"}" is ready`,
       description: test?.subject,
       studentId,
       testId,

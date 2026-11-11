@@ -2,7 +2,7 @@ import type { Database } from "@/lib/data/seed";
 import type { Student } from "@/types";
 import { absenceStreak, archivedCohortIds, extensionFor, isArchivedTest, liveStatus, testCoversStudent } from "@/lib/data/selectors";
 import { isTestAccount } from "@/lib/display-name";
-import { COMPANY_NAME } from "@/lib/config";
+import { parentAbsent, parentLowScore, parentMissedTest, parentReport } from "@/lib/portal-messages";
 import { inPersonIds } from "@/lib/in-person";
 import { awardedMarks, isFullyGraded, percent, totalMarks } from "@/lib/scoring";
 import { pkDate } from "@/lib/timetable";
@@ -80,7 +80,7 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
         student,
         ref: test.id,
         label: `${student.username} did not sit "${test.title}"`,
-        message: `Assalam o Alaikum. ${student.username} has not submitted "${test.title}" (${test.subject}), which has now closed. Please ask them to catch up. ${COMPANY_NAME}`,
+        message: parentMissedTest({ id: student.id, username: student.username, title: test.title, subject: test.subject }),
       });
     }
   }
@@ -97,7 +97,7 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
       student,
       ref: last?.date ?? String(streak),
       label: `${student.username} has been absent ${streak} classes in a row`,
-      message: `Assalam o Alaikum. ${student.username} has missed ${streak} classes in a row. Is everything alright? ${COMPANY_NAME}`,
+      message: parentAbsent({ id: student.id, username: student.username, streak }),
     });
   }
 
@@ -119,7 +119,7 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
       student,
       ref: sub.id,
       label: `${student.username} scored ${Math.round(pct)}% in "${test.title}"`,
-      message: `Assalam o Alaikum. ${student.username} scored ${Math.round(pct)}% in "${test.title}" (${test.subject}). The marked paper with my feedback is in their portal. Please sit with them this week to go through what went wrong. ${COMPANY_NAME}`,
+      message: parentLowScore({ id: student.id, username: student.username, pct, title: test.title, subject: test.subject }),
     });
   }
 
@@ -140,7 +140,7 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
       student,
       ref: `${lastMonth}-01`,
       label: `${monthName(lastMonth)} report for ${student.username}`,
-      message: `Assalam o Alaikum. Here is ${student.username}'s progress report for ${monthName(lastMonth)}. ${COMPANY_NAME}`,
+      message: parentReport({ id: student.id, username: student.username, month: monthName(lastMonth) }),
     });
   }
 

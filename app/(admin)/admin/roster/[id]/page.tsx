@@ -17,9 +17,10 @@ import { isInPersonStudent } from "@/lib/in-person";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Badge, CohortDot, EmptyState, Icon, Modal } from "@/components/ui";
 import { useToast } from "@/components/toast";
-import { COMPANY_NAME } from "@/lib/config";
 import { waDigits } from "@/lib/phone";
 import { displayName } from "@/lib/display-name";
+import { guardMessage, withLink } from "@/lib/outgoing-message";
+import { parentReport } from "@/lib/portal-messages";
 import { notesConfigured, uploadNote } from "@/lib/cloudinary";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import { LineChart, type LinePoint } from "@/components/charts/LineChart";
@@ -166,7 +167,8 @@ function StudentDetail() {
     try {
       const link = await publishReport();
       if (!link) return tab.cancel();
-      tab.go(`https://wa.me/${waDigits(student.whatsapp)}?text=${encodeURIComponent(`${reportMessage()}\n\n${link}`)}`);
+      const text = guardMessage(withLink(reportMessage(), link), withLink(parentReport({ id: student.id, username: student.username }), link), [link]);
+      tab.go(`https://wa.me/${waDigits(student.whatsapp)}?text=${encodeURIComponent(text)}`);
       setReportOpen(false);
     } catch (err) {
       tab.cancel();
@@ -203,7 +205,7 @@ function StudentDetail() {
 
   function reportMessage() {
     const month = reportMonth || data?.months[data.months.length - 1] || "";
-    return `${student!.username}'s report, ${month ? formatMonthLabel(month) : "all results"} (${COMPANY_NAME})`;
+    return parentReport({ id: student!.id, username: student!.username, month: month ? formatMonthLabel(month) : "" });
   }
 
   return (

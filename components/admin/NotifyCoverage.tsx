@@ -7,6 +7,7 @@ import { useDatabase } from "@/lib/data/store";
 import { archivedCohortIds } from "@/lib/data/selectors";
 import { DEMO } from "@/lib/demo";
 import { displayName, isTestAccount } from "@/lib/display-name";
+import { parentNotifications, studentNotifications } from "@/lib/portal-messages";
 import { waDigits } from "@/lib/phone";
 import { supabase } from "@/lib/supabase";
 
@@ -50,8 +51,6 @@ export function NotifyCoverage() {
 
   if (!on || total === 0 || missing.length === 0) return null;
   const have = total - missing.length;
-  const message = (name: string) =>
-    `Hi ${name}, please turn on reminders in your portal so you never miss a class. Open the portal, go to Settings, then Phone notifications, and tap Turn on. On an iPhone, add the portal to your Home Screen first. Thank you.`;
 
   return (
     <Card className="mb-4 p-5">
@@ -73,13 +72,13 @@ export function NotifyCoverage() {
         <ul className="mt-4 divide-y divide-border">
           {missing.map((s) => {
             const number = s.phone ?? s.whatsapp;
-            const name = displayName(s.username).split(" ")[0];
+            const text = s.phone ? studentNotifications({ id: s.id, username: s.username }) : parentNotifications({ id: s.id, username: s.username });
             return (
               <li key={s.id} className="flex min-h-11 flex-wrap items-center justify-between gap-2 py-1.5 text-sm">
                 <span className="font-medium text-ink">{displayName(s.username)}</span>
                 {number ? (
                   <a
-                    href={`https://wa.me/${waDigits(number)}?text=${encodeURIComponent(message(name))}`}
+                    href={`https://wa.me/${waDigits(number)}?text=${encodeURIComponent(text)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex min-h-11 items-center font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline"

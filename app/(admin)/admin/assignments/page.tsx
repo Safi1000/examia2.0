@@ -6,6 +6,7 @@ import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { archivedCohortIds, joinedMs, studentById } from "@/lib/data/selectors";
 import { isTestAccount } from "@/lib/display-name";
+import { studentHomeworkDue } from "@/lib/portal-messages";
 import { uploadAsImages } from "@/lib/cloudinary";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -507,7 +508,7 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
             {/* Before the deadline only: no nudging towards late work. */}
             {open && s.phone && (
               <a
-                href={`https://wa.me/${s.phone.replace(/\D/g, "")}?text=${encodeURIComponent(`Hi ${nameOf(s.username)}, a reminder that "${a!.title}" is due ${due}.`)}`}
+                href={`https://wa.me/${s.phone.replace(/\D/g, "")}?text=${encodeURIComponent(studentHomeworkDue({ id: s.id, username: s.username, title: a!.title, due }))}`}
                 target="_blank"
                 rel="noreferrer"
                 className="text-xs font-semibold text-brand hover:underline"

@@ -11,6 +11,8 @@ import { buildStudentReport } from "@/lib/report-build";
 import { notesConfigured, uploadNote } from "@/lib/cloudinary";
 import { waDigits } from "@/lib/phone";
 import { displayName } from "@/lib/display-name";
+import { guardMessage, withLink } from "@/lib/outgoing-message";
+import { parentReport } from "@/lib/portal-messages";
 import { useToast } from "@/components/toast";
 import { Card, Button, Badge, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
@@ -85,7 +87,8 @@ export function RemindersPanel() {
           tab.cancel();
           return { ok: false, reportId: null };
         }
-        text = `${text}\n\n${made.link}`;
+        // The link sits above the sign-off; checked again once it is in.
+        text = guardMessage(withLink(text, made.link), withLink(parentReport({ id: r.student.id, username: r.student.username }), made.link), [made.link]);
         reportId = made.reportId;
       }
       tab.go(`https://wa.me/${waDigits(number)}?text=${encodeURIComponent(text)}`);

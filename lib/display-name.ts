@@ -13,6 +13,19 @@ export function displayName(username: string): string {
 }
 
 /**
+ * The name a message to a student or parent uses: "amelia.k2" → "Amelia",
+ * "ahmed_ali" → "Ahmed". No real name is stored, so it comes from the tidied
+ * username. If the first part is a lone letter or nothing usable, the whole
+ * tidied username is used instead ("k.amelia" → "K Amelia").
+ */
+export function firstName(username: string): string {
+  const full = displayName(username);
+  const first = full.split(" ")[0] ?? "";
+  if (first.length >= 2 && /\p{L}/u.test(first)) return first;
+  return full || username;
+}
+
+/**
  * Usernames Hamza keeps for trying the student side. Lower case. Add another
  * name here to treat that account the same way.
  */

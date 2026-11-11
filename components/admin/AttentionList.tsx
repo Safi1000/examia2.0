@@ -2,10 +2,18 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import type { Student } from "@/types";
 import type { AttentionRow } from "@/lib/attention";
 import { LOW_SCORE } from "@/lib/reminders";
 import { displayName } from "@/lib/display-name";
+import {
+  parentUpdate,
+  studentAbsent,
+  studentCheckIn,
+  studentHomeworkMissing,
+  studentLowScore,
+  studentMissedClass,
+  studentMissedTest,
+} from "@/lib/portal-messages";
 import { useTeacherNotes } from "@/lib/teacher-notes";
 import { NoteEditor, NOTE_LABEL } from "@/components/admin/StudentNote";
 import { useToast } from "@/components/toast";
@@ -15,31 +23,27 @@ import { cn } from "@/lib/cn";
 import { panelTitle } from "@/components/admin/surface";
 
 const SHOW = 8;
-const nameOf = (s: Student) => s.username.charAt(0).toUpperCase() + s.username.slice(1);
 const waTo = (e164: string | undefined, text: string) =>
   e164 ? `https://wa.me/${e164.replace(/\D/g, "")}?text=${encodeURIComponent(text)}` : null;
 const shortDate = (ms: number) => new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Asia/Karachi" });
 const weekday = (ms: number) => new Date(ms).toLocaleDateString("en-GB", { weekday: "long", timeZone: "Asia/Karachi" });
 
-/** What "Message" says: the existing wording for the first three reasons, then the new ones. Never mentions what the portal tracks. */
+/** What "Message" says, by the heaviest reason. Never mentions what the portal tracks. */
 function studentMessage(r: AttentionRow, nowMs: number) {
-  const s = r.student;
-  if (r.missed.length) return `Hi ${nameOf(s)}, I noticed you missed ${r.missed[0].title}. Is everything okay? Let me know if you need help catching up.`;
-  if (r.lastPct !== null && r.lastPct < LOW_SCORE) return `Hi ${nameOf(s)}, your last test was a tough one. Let's fix it together. When can we do a quick call?`;
-  if (r.absent >= 2) return `Hi ${nameOf(s)}, I noticed you've missed a few classes. Is everything okay?`;
-  if (r.missingHomework.length)
-    return `Hi ${nameOf(s)}, I haven't seen ${r.missingHomework[0].title} from you yet. Is everything okay? Send it when you can, and tell me if you're stuck.`;
+  const w = { id: r.student.id, username: r.student.username };
+  if (r.missed.length) return studentMissedTest({ ...w, title: r.missed[0].title });
+  if (r.lastPct !== null && r.lastPct < LOW_SCORE) return studentLowScore(w);
+  if (r.absent >= 2) return studentAbsent(w);
+  if (r.missingHomework.length) return studentHomeworkMissing({ ...w, title: r.missingHomework[0].title });
   const rec = r.recordings.find((x) => x.closesMs > nowMs);
-  if (rec) return `Hi ${nameOf(s)}, I missed you in ${rec.slot.subject} on ${weekday(rec.slot.startMs)}. The recording is on your Classes page, so please catch up on it before it closes.`;
-  return `Hi ${nameOf(s)}, just checking in. How are things going?`;
+  if (rec) return studentMissedClass({ ...w, subject: rec.slot.subject, day: weekday(rec.slot.startMs) });
+  return studentCheckIn(w);
 }
 
 /** To the parent: only facts a parent can see for themselves (never Groundwork, sign-ins or recordings opened). */
 function parentMessage(r: AttentionRow) {
-  const said = r.reasons.map((x) => x.parent).filter((x): x is string => !!x);
-  return said.length
-    ? `Assalam o Alaikum, a quick update about ${nameOf(r.student)}: ${said.join(". ")}. Happy to talk whenever suits you.`
-    : `Assalam o Alaikum, just checking in about ${nameOf(r.student)}. How are things going with their studies? Happy to talk whenever suits you.`;
+  const facts = r.reasons.map((x) => x.parent).filter((x): x is string => !!x);
+  return parentUpdate({ id: r.student.id, username: r.student.username, facts });
 }
 
 /**

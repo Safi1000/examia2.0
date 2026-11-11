@@ -252,7 +252,7 @@ async function autoRelease(sb: SupabaseClient, now: number) {
     await sb.from("activities").insert(
       rows.map((r) => ({
         type: "result_released",
-        title: `Result released for "${t.title}"`,
+        title: `Your result for "${t.title}" is ready`,
         description: t.subject,
         student_id: r.student_id,
         test_id: t.id,

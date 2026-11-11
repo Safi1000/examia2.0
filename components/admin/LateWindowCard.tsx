@@ -10,6 +10,7 @@ import { Card, CardHeader, CardBody, Button, Select } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { SITE_URL } from "@/lib/seo";
+import { parentReopened, studentReopened } from "@/lib/portal-messages";
 
 const HOURS = [4, 6, 12, 24] as const;
 
@@ -66,11 +67,11 @@ export function LateWindowCard({ test }: { test: Test }) {
   function whatsapp(s: Student, until: string) {
     const link = `${SITE_URL}/test/${test.id}`;
     if (s.phone) {
-      const text = `Hi ${nameOf(s)}, I've opened ${test.title} for you until ${pkTime(until)}. You can start it here: ${link}`;
+      const text = studentReopened({ id: s.id, username: s.username, title: test.title, until: pkTime(until), link });
       return `https://wa.me/${s.phone.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
     }
     if (s.whatsapp) {
-      const text = `Assalam o Alaikum, I've opened ${test.title} for ${nameOf(s)} until ${pkTime(until)}, so they can sit it in the portal. Thank you.`;
+      const text = parentReopened({ id: s.id, username: s.username, title: test.title, until: pkTime(until) });
       return `https://wa.me/${s.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
     }
     return null;

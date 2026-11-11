@@ -15,6 +15,14 @@ import { eligibleStudents, joinedMs, testById } from "@/lib/data/selectors";
 import { gradeSubmission } from "@/lib/grading";
 import { currentStats } from "@/lib/focus";
 import { LOW_SCORE } from "@/lib/reminders";
+import { clean, count, joinAnd } from "@/lib/outgoing-message";
+
+/** `missed "A" and "B"` when every title is there, else `missed 2 tests` / `missed a test`. For the parent message. */
+function namedOrCounted(verb: string, titles: string[], one: string, many: string) {
+  const named = titles.map(clean).filter(Boolean);
+  if (named.length && named.length === titles.length) return `${verb} ${joinAnd(named.map((t) => `"${t}"`))}`;
+  return `${verb} ${titles.length > 1 ? count(titles.length, one, many) : one}`;
+}
 
 const DAY = 86_400_000;
 
@@ -145,7 +153,10 @@ export interface Reason {
   kind: ReasonKind;
   /** The chip Hamza sees. */
   label: string;
-  /** The same fact in words fit for a parent, or null when it would reveal what the portal tracks. */
+  /**
+   * The same fact in words fit for a parent, or null when it would reveal what the portal tracks.
+   * Written to follow the student's name in a sentence ("Amelia missed ..."), lower case, no full stop.
+   */
   parent: string | null;
 }
 
@@ -248,14 +259,14 @@ export function buildAttention(
     const missed = recent.filter((r) => r.eligible.has(s.id) && !r.done.has(s.id)).map((r) => r.t);
     if (missed.length) {
       const l = `Missed ${missed.map((t) => t.title).join(", ")}`;
-      reasons.push({ kind: "missed_test", label: l, parent: l });
+      reasons.push({ kind: "missed_test", label: l, parent: namedOrCounted("missed", missed.map((t) => t.title), "a test", "tests") });
     }
     const latest = latestReleased.get(s.id);
     const latestTest = latest ? testById(db, latest.testId) : undefined;
     const lastPct = latest && latestTest ? Math.round(gradeSubmission(latestTest, latest).percent) : null;
-    if (lastPct !== null && lastPct < LOW_SCORE) reasons.push({ kind: "low_score", label: `Last test ${lastPct}%`, parent: `Last test ${lastPct}%` });
+    if (lastPct !== null && lastPct < LOW_SCORE) reasons.push({ kind: "low_score", label: `Last test ${lastPct}%`, parent: Number.isFinite(lastPct) ? `got ${lastPct}% in the last test` : "found the last test difficult" });
     const absent = streak(s.id);
-    if (absent >= 2) reasons.push({ kind: "absent_streak", label: `Absent ${absent} classes in a row`, parent: `Absent ${absent} classes in a row` });
+    if (absent >= 2) reasons.push({ kind: "absent_streak", label: `Absent ${absent} classes in a row`, parent: `has missed the last ${count(absent, "class", "classes")}` });
 
     // The same "who it was set for" rule as the Homework page's hand-in list.
     const owed = dueRecently.filter(
@@ -272,11 +283,18 @@ export function buildAttention(
     });
     if (missingHomework.length) {
       const l = missingHomework.length === 1 ? `Homework missing: ${missingHomework[0].title}` : `${missingHomework.length} homeworks missing`;
-      reasons.push({ kind: "homework_missing", label: l, parent: l });
+      const one = clean(missingHomework[0].title);
+      const p =
+        missingHomework.length === 1
+          ? `has not handed in ${one ? `the homework "${one}"` : "a homework"} yet`
+          : `has ${count(missingHomework.length, "homework")} still to hand in`;
+      reasons.push({ kind: "homework_missing", label: l, parent: p });
     }
     if (late.length) {
       const l = late.length === 1 ? `Homework late: ${late[0].title}` : `${late.length} homeworks handed in late`;
-      reasons.push({ kind: "homework_late", label: l, parent: l });
+      const one = clean(late[0].title);
+      const p = late.length === 1 ? `handed in ${one ? `the homework "${one}"` : "a homework"} late` : `handed in ${count(late.length, "homework")} late`;
+      reasons.push({ kind: "homework_late", label: l, parent: p });
     }
 
     const recs = recMissed.get(s.id) ?? [];
@@ -284,8 +302,8 @@ export function buildAttention(
       const day = (r: SlotRecording) => new Date(r.slot.startMs).toLocaleDateString("en-GB", { weekday: "short", timeZone: "Asia/Karachi" });
       reasons.push(
         recs.length === 1
-          ? { kind: "recording", label: `Missed ${recs[0].slot.subject} on ${day(recs[0])}, recording not opened`, parent: `Missed ${recs[0].slot.subject} class on ${day(recs[0])}` }
-          : { kind: "recording", label: `Missed ${recs.length} classes, recordings not opened`, parent: `Missed ${recs.length} classes this week` },
+          ? { kind: "recording", label: `Missed ${recs[0].slot.subject} on ${day(recs[0])}, recording not opened`, parent: `missed ${clean(recs[0].slot.subject) ? `the ${clean(recs[0].slot.subject)} class` : "a class"}${clean(day(recs[0])) ? ` on ${clean(day(recs[0]))}` : ""}` }
+          : { kind: "recording", label: `Missed ${recs.length} classes, recordings not opened`, parent: `missed ${count(recs.length, "class", "classes")} this week` },
       );
     }
 

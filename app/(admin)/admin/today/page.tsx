@@ -11,6 +11,7 @@ import { useToast } from "@/components/toast";
 import { cohortById, eligibleStudents, testById, archivedCohortIds, isArchivedSubmission, isArchivedTest } from "@/lib/data/selectors";
 import { gradeSubmission } from "@/lib/grading";
 import { isTestAccount } from "@/lib/display-name";
+import { parentTestClosing, studentTestClosing } from "@/lib/portal-messages";
 import { useStudentProfiles } from "@/lib/student-profiles";
 import { useActivity } from "@/lib/activity-admin";
 import { isInPersonStudent } from "@/lib/in-person";
@@ -315,8 +316,8 @@ export default function TodayPage() {
                       {(allMissing.includes(test.id) ? missing : missing.slice(0, 12)).map((s) => {
                         // To the student if we have their number, else to the parent (worded for them).
                         const link = s.phone
-                          ? waTo(s.phone, `Hi ${nameOf(s)}, a reminder that ${test.title} closes ${formatRelative(test.closesAt, nowMs)}. Don't miss it!`)
-                          : waTo(s.whatsapp, `Assalam o Alaikum, a quick reminder that ${nameOf(s)}'s test, ${test.title}, closes ${formatRelative(test.closesAt, nowMs)}. Thank you.`);
+                          ? waTo(s.phone, studentTestClosing({ id: s.id, username: s.username, title: test.title, when: formatRelative(test.closesAt, nowMs) }))
+                          : waTo(s.whatsapp, parentTestClosing({ id: s.id, username: s.username, title: test.title, when: formatRelative(test.closesAt, nowMs) }));
                         return link ? (
                           <a key={s.id} href={link} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center rounded-full border border-border-strong px-3 text-sm font-semibold text-ink transition-colors hover:border-ink-3 hover:bg-surface-2 max-md:min-h-11">
                             Remind {nameOf(s)}
