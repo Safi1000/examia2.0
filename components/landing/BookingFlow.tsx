@@ -233,7 +233,7 @@ export function BookingFlow({
           </a>
           </Magnetic>
         ) : (
-          <p className="flex min-h-12 w-full items-center justify-center rounded-full border border-hairline-strong px-6 text-center text-[15px] text-faint">
+          <p aria-live="polite" className="flex min-h-12 w-full items-center justify-center rounded-full border border-hairline-strong px-6 text-center text-[15px] text-faint">
             Choose {missing} to continue
           </p>
         )}

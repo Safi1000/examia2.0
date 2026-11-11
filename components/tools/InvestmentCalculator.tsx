@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { AskHamza, NumberField, Result, fmt, num } from "@/components/tools/ToolBits";
+import { appraise } from "@/components/tools/calc";
+import { AskHamza, NumberField, Result, amount, fieldError, fmt, num } from "@/components/tools/ToolBits";
 
 /**
  * Payback, accounting rate of return (ARR) and net present value (NPV) for
@@ -15,64 +16,54 @@ export function InvestmentCalculator() {
   const [rate, setRate] = useState("10");
   const [residual, setResidual] = useState("");
   const [flows, setFlows] = useState<string[]>(["", "", "", "", ""]);
-  const I = num(cost);
-  const RV = num(residual) ?? 0;
-  const r = num(rate);
+  const I = amount(cost);
+  const RV = amount(residual) ?? 0;
+  const r = amount(rate);
   const cf = flows.map(num);
   const years = cf.reduce<number>((n, x, i) => (x !== null ? i + 1 : n), 0);
-  const ready = I !== null && I > 0 && years > 0 && cf.slice(0, years).every((x) => x !== null);
-
-  let payback: string | null = null;
-  let arr = 0;
-  let npv = 0;
-  if (ready) {
-    let cum = -I!;
-    for (let y = 0; y < years; y++) {
-      const before = cum;
-      cum += cf[y]!;
-      if (payback === null && cum >= 0) {
-        const part = -before / cf[y]!;
-        const months = Math.round(part * 12);
-        payback = months === 12 ? `${y + 1} years` : `${y} years ${months} months`;
-      }
-    }
-    const total = cf.slice(0, years).reduce<number>((s, x) => s + x!, 0);
-    // Profit over the life = inflows minus the part of the cost not recovered.
-    const avgProfit = (total - (I! - RV)) / years;
-    arr = (avgProfit / ((I! + RV) / 2)) * 100;
-    npv = cf.slice(0, years).reduce<number>((s, x, i) => s + x! / Math.pow(1 + (r ?? 0) / 100, i + 1), 0) - I!;
-  }
+  const gaps = cf.slice(0, years).some((x) => x === null);
+  const ready = I !== null && I > 0 && years > 0 && !gaps && !fieldError(residual);
+  const res = ready ? appraise(I!, RV, r, cf.slice(0, years) as number[]) : null;
+  const payback = res?.paybackText ?? null;
+  const npvText = res?.npv != null ? fmt(res.npv) : "Add a discount rate";
 
   return (
     <div className="space-y-8">
       <div className="grid gap-4 sm:grid-cols-2">
         <NumberField label="Initial investment" value={cost} onChange={setCost} />
-        <NumberField label="Residual value at the end" value={residual} onChange={setResidual} hint="Leave empty if none" />
+        <NumberField label="Residual value at the end" value={residual} onChange={setResidual} hint="Leave empty if none. Counted as cash in the final year, so do not add it to that year too." />
         <NumberField label="Discount rate" value={rate} onChange={setRate} suffix="%" />
       </div>
       <div>
         <p className="mb-2 text-sm font-semibold text-foreground">Net cash inflow each year</p>
         <div className="grid gap-3 sm:grid-cols-3">
           {flows.map((f, i) => (
-            <NumberField key={i} label={`Year ${i + 1}`} value={f} onChange={(x) => setFlows((s) => s.map((y, j) => (j === i ? x : y)))} />
+            <NumberField key={i} label={`Year ${i + 1}`} value={f} allowNegative onChange={(x) => setFlows((s) => s.map((y, j) => (j === i ? x : y)))} />
           ))}
         </div>
         <button type="button" onClick={() => setFlows((s) => [...s, ""])} className="mt-1 inline-flex min-h-11 items-center rounded-md text-sm font-semibold text-gold underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
           Add a year
         </button>
       </div>
-      {ready && (
+      <div aria-live="polite" className="space-y-8">
+      {gaps && (
+        <p className="rounded-[16px] border border-hairline bg-card p-5 text-[15px] text-body">
+          Fill in every year up to the last one you used. Enter 0 for a year with no cash inflow.
+        </p>
+      )}
+      {res && (
         <div className="grid gap-3 sm:grid-cols-2">
           <Result strong label="Payback" value={payback ?? "Not within these years"} note="Time until the cash inflows add up to the investment, assuming cash comes in evenly through each year." />
-          <Result label="Net present value" value={fmt(npv)} note={`Each year's cash discounted at ${rate}% (÷ (1 + r) to the power of the year), minus the investment. Positive means it beats that rate.`} />
+          <Result label="Net present value" value={npvText} note={res.npv != null ? `Each year's cash discounted at ${r}% (÷ (1 + r) to the power of the year), minus the investment. Positive means it beats that rate.` : "Enter the discount rate from the question to see the NPV."} />
           <Result
             label="Accounting rate of return (ARR)"
-            value={`${fmt(arr, 1)}%`}
+            value={`${fmt(res.arr, 1)}%`}
             note="Average annual profit ÷ average investment × 100, where average investment is (cost + residual value) ÷ 2. Dividing by the cost instead is the most common ARR mistake."
           />
         </div>
       )}
-      {ready && <AskHamza tool="investment appraisal calculator" summary={`Investment ${cost}: payback ${payback ?? "not reached"}, NPV ${fmt(npv)} at ${rate}%, ARR ${fmt(arr, 1)}%.`} />}
+      </div>
+      {res && <AskHamza tool="investment appraisal calculator" summary={`Investment ${cost}: payback ${payback ?? "not reached"}, NPV ${npvText}${res.npv != null ? ` at ${r}%` : ""}, ARR ${fmt(res.arr, 1)}%.`} />}
     </div>
   );
 }

@@ -29,7 +29,7 @@ export function Hero() {
           <span className="block text-[#b9bec3]">You still lose the marks.</span>
         </h1>
 
-        <p className="mt-6 whitespace-nowrap font-hand text-[clamp(1.5rem,4.6vw,2.4rem)] font-bold text-gold">
+        <p className="mt-6 whitespace-nowrap max-[359px]:whitespace-normal font-hand text-[clamp(1.5rem,4.6vw,2.4rem)] font-bold text-gold">
           Start from scratch. Finish{" "}
           <span className="relative inline-block">
             exam ready.

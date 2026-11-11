@@ -5,6 +5,8 @@ import { track, type LevelName, type SubjectName } from "@/lib/landing";
 import { BookingFlow } from "./BookingFlow";
 
 type OpenArgs = { subject?: SubjectName; level?: LevelName; from: string };
+/** Marks the history entry pushed while the booking sheet is open. */
+const HISTORY_KEY = "htBooking";
 const Ctx = createContext<{ open: (args: OpenArgs) => void } | null>(null);
 
 /** Opens the booking calendar from any button on the public pages. */
@@ -23,6 +25,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
   const open = useCallback((args: OpenArgs) => {
     triggerRef.current = (document.activeElement as HTMLElement) ?? null;
+    // A history entry for the open sheet, so the phone's back button closes it
+    // instead of leaving the page. Same URL; Next keeps its own state on it.
+    if (!window.history.state?.[HISTORY_KEY]) window.history.pushState({ [HISTORY_KEY]: true }, "");
     setState(args);
     setRun((n) => n + 1);
     track("book_open", { from: args.from });
@@ -41,10 +46,21 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     setTimeout(() => triggerRef.current?.focus(), 0);
   }, []);
 
+  // The close button, Escape and the backdrop step back past the sheet's own
+  // history entry (the popstate listener below then closes it), so a later
+  // back press is not swallowed by a stale entry.
+  const requestClose = useCallback(() => {
+    if (window.history.state?.[HISTORY_KEY]) window.history.back();
+    else close();
+  }, [close]);
+
   useEffect(() => {
     if (!state) return;
+    const onPop = () => {
+      if (!window.history.state?.[HISTORY_KEY]) close();
+    };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape") requestClose();
       if (e.key === "Tab" && dialogRef.current) {
         // Only what is on screen: the folded "More details" choices are hidden, and
         // a hidden last item would let Tab slip out of the dialog.
@@ -66,14 +82,16 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       }
     };
     window.addEventListener("keydown", onKey);
+    window.addEventListener("popstate", onPop);
     document.body.style.overflow = "hidden";
     const id = setTimeout(() => dialogRef.current?.querySelector<HTMLElement>("button")?.focus(), 30);
     return () => {
       clearTimeout(id);
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("popstate", onPop);
       document.body.style.overflow = "";
     };
-  }, [state, close]);
+  }, [state, close, requestClose]);
 
   const value = useMemo(() => ({ open }), [open]);
 
@@ -84,7 +102,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
         <div
           className="landing-portal fixed inset-0 z-[100] flex items-end justify-center bg-[rgba(0,0,0,0.7)] backdrop-blur-sm sm:items-center sm:p-6"
           onClick={(e) => {
-            if (e.target === e.currentTarget) close();
+            if (e.target === e.currentTarget) requestClose();
           }}
         >
           <div
@@ -104,7 +122,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 aria-label="Close"
-                onClick={close}
+                onClick={requestClose}
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-faint hover:bg-card-raised hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>

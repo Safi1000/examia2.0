@@ -61,24 +61,34 @@ export function SyllabusBrowser({ series, papers }: { series: BrowserSeries[]; p
   const [year, setYear] = useState<number | null>(null);
   const [ser, setSer] = useState<string | null>(null);
   const { done } = useProgress();
+  const [read, setRead] = useState(false);
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
+    // Only values this syllabus has: an old link (?paper=5, ?year=2019) would otherwise show an empty list with a blank drop-down.
+    const p = q.get("paper");
+    const y = Number(q.get("year"));
+    const sr = q.get("series");
     /* eslint-disable react-hooks/set-state-in-effect */
-    if (q.get("paper")) setPaper(q.get("paper"));
-    if (q.get("year")) setYear(Number(q.get("year")) || null);
-    if (q.get("series")) setSer(q.get("series"));
+    if (p && papers.some((x) => x.num === p)) setPaper(p);
+    if (y && series.some((x) => x.year === y)) setYear(y);
+    if (sr && SERIES.some((x) => x.id === sr)) setSer(sr);
+    setRead(true);
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, []);
+  }, [papers, series]);
 
+  // Waits for the read above, so the first pass doesn't wipe a shared link's filters; keeps other parameters (campaign tags) as they are.
   useEffect(() => {
-    const q = new URLSearchParams();
-    if (paper) q.set("paper", paper);
-    if (year) q.set("year", String(year));
-    if (ser) q.set("series", ser);
+    if (!read) return;
+    const q = new URLSearchParams(window.location.search);
+    for (const [k, v] of [["paper", paper], ["year", year ? String(year) : null], ["series", ser]] as const) {
+      if (v) q.set(k, v);
+      else q.delete(k);
+    }
     const s = q.toString();
+    if (s === window.location.search.slice(1)) return;
     window.history.replaceState(null, "", s ? `?${s}` : window.location.pathname);
-  }, [paper, year, ser]);
+  }, [read, paper, year, ser]);
 
   const years = useMemo(() => [...new Set(series.map((s) => s.year))], [series]);
   const shown = series

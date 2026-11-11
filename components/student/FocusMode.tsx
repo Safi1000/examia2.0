@@ -780,13 +780,16 @@ export default function FocusMode({
         )}
 
         {running && (
-          <div className="flex flex-1 flex-col items-center justify-start pt-[4dvh] sm:pt-[7dvh]" onClick={() => setIdle(false)}>
-            <p className={cn("room-clock font-light leading-none tabular-nums tracking-[-0.045em] [text-shadow:0_2px_24px_rgba(0,0,0,.35)]", pausedLeft != null ? "text-white/60" : "text-white")} role="timer" aria-live="off">
-              {clock(left)}
-            </p>
-            <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.3em] [text-shadow:0_1px_10px_rgba(0,0,0,.5)]" style={{ color: accent }}>
-              {pausedLeft != null ? "Paused" : phase === "rest" ? "Break · stand up, drink some water" : "Building"}
-            </p>
+          <div className="flex flex-1 flex-col items-center justify-start pt-2" onClick={() => setIdle(false)}>
+            {/* A small pill under the top bar, so the world and the builder fill the screen. No blur on touch screens: it would sit over the live 3D canvas. */}
+            <div className="flex h-9 items-center gap-2 rounded-full border border-[rgba(244,241,234,0.16)] bg-[rgba(15,20,32,0.55)] pl-3.5 pr-4 lg:h-10 [@media(pointer:fine)]:backdrop-blur-sm">
+              <span aria-hidden className={cn("h-1.5 w-1.5 shrink-0 rounded-full", pausedLeft != null && "opacity-40")} style={{ background: accent }} />
+              <span className={cn("text-[17px] font-normal leading-none tabular-nums lg:text-[20px]", pausedLeft != null ? "text-ink/60" : "text-ink")} role="timer" aria-live="off">
+                {clock(left)}
+              </span>
+              <span className="text-[12px] leading-none text-ink/65">{pausedLeft != null ? "paused" : phase === "rest" ? "break" : "left"}</span>
+            </div>
+            {phase === "rest" && <p className="mt-2.5 text-[12px] text-ink/65 [text-shadow:0_1px_8px_rgba(0,0,0,.5)]">Stand up, drink some water</p>}
             {phase === "rest" && (
               <figure className="mb-4 mt-auto max-w-sm px-6 pt-6 text-center [text-shadow:0_1px_10px_rgba(0,0,0,.55)]">
                 <blockquote className="text-[15px] leading-snug text-white/80 [text-wrap:balance]">“{quote.text}”</blockquote>
@@ -940,8 +943,6 @@ export default function FocusMode({
       <style>{`
         .room-time { font-size: clamp(3.25rem, min(16vw, 10dvh), 8rem); }
         .no-scrollbar { scrollbar-width: none; } .no-scrollbar::-webkit-scrollbar { display: none; }
-        .room-clock { font-size: clamp(4rem, min(21vw, 11dvh), 6.5rem); }
-        @media (min-width: 1024px) { .room-clock { font-size: clamp(5rem, 12dvh, 7rem); } }
         @keyframes away-in { from { opacity: 0; transform: translateY(8px); } }
         @media (prefers-reduced-motion: no-preference) { .away-in { animation: away-in .4s ease-out both; } }
       `}</style>

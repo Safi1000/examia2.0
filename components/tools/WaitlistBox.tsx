@@ -23,7 +23,7 @@ export function WaitlistBox({ source }: { source: string }) {
   const [error, setError] = useState("");
   const toggle = <T,>(list: T[], set: (v: T[]) => void, x: T) => set(list.includes(x) ? list.filter((y) => y !== x) : [...list, x]);
   const chip = (on: boolean) =>
-    cn("min-h-10 rounded-full border px-4 text-sm font-semibold transition-colors", on ? "border-gold bg-gold text-[#1b1e21]" : "border-hairline-strong text-body hover:border-gold-border");
+    cn("min-h-11 rounded-full border px-4 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold", on ? "border-gold bg-gold text-[#1b1e21]" : "border-hairline-strong text-body hover:border-gold-border");
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -60,7 +60,7 @@ export function WaitlistBox({ source }: { source: string }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block">
           <span className="mb-1.5 block text-sm font-semibold text-foreground">First name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" className="h-12 w-full rounded-[12px] border border-hairline-strong bg-card px-4 text-[16px] text-foreground outline-none focus:border-gold-border" />
+          <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" className="h-12 w-full rounded-[12px] border border-hairline-strong bg-card px-4 text-[16px] text-foreground outline-none focus:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold" />
         </label>
         <label className="block">
           <span className="mb-1.5 block text-sm font-semibold text-foreground">WhatsApp number</span>
@@ -70,7 +70,7 @@ export function WaitlistBox({ source }: { source: string }) {
             type="tel"
             autoComplete="tel"
             placeholder="+92 300 1234567"
-            className="h-12 w-full rounded-[12px] border border-hairline-strong bg-card px-4 text-[16px] text-foreground outline-none placeholder:text-faint focus:border-gold-border"
+            className="h-12 w-full rounded-[12px] border border-hairline-strong bg-card px-4 text-[16px] text-foreground outline-none placeholder:text-faint focus:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
           />
         </label>
       </div>
@@ -107,14 +107,14 @@ export function WaitlistBox({ source }: { source: string }) {
       {/* Left empty by people; filled by bots. */}
       <input value={website} onChange={(e) => setWebsite(e.target.value)} tabIndex={-1} autoComplete="off" aria-hidden className="hidden" name="website" />
       {error && (
-        <p role="alert" className="text-[15px] text-[#ff8a80]">
+        <p role="alert" className="text-[15px] text-error-x">
           {error}
         </p>
       )}
-      <button type="submit" disabled={state === "sending"} className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] hover:bg-[#ffd07a] disabled:opacity-60 sm:w-auto">
+      <button type="submit" disabled={state === "sending"} className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] hover:bg-[#ffd07a] disabled:opacity-60 sm:w-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
         {state === "sending" ? "Sending…" : "Put me on the list"}
       </button>
-      <p className="text-xs text-faint">
+      <p className="text-[13px] text-muted-foreground">
         Only used to message you about these. See the <Link href="/privacy" className="underline hover:text-gold">privacy policy</Link>.
       </p>
     </form>

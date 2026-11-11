@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { readRatings, type Rating } from "@/components/syllabus/Checklist";
+import { spread, splitWeeks } from "@/components/tools/calc";
 import { NumberField } from "@/components/tools/ToolBits";
 import { TrackedLink } from "@/components/landing/TrackedLink";
 import { cn } from "@/lib/cn";
@@ -22,6 +23,28 @@ type Item = { code: string; subject: string; num: string; name: string; rating: 
 type Week = { start: Date; phase: "learn" | "papers" | "final"; items: Item[] };
 
 const DAY = 86_400_000;
+/** Subjects, exam date and hours, kept on this device so a reload does not lose them. */
+const STORE = "tools:revision-planner";
+type Saved = { codes: string[]; exam: string; hours: string };
+function readSaved(): Partial<Saved> {
+  try {
+    const v = JSON.parse(localStorage.getItem(STORE) ?? "{}") as Partial<Saved>;
+    return {
+      codes: Array.isArray(v.codes) ? v.codes.filter((c): c is string => typeof c === "string") : undefined,
+      exam: typeof v.exam === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.exam) ? v.exam : undefined,
+      hours: typeof v.hours === "string" ? v.hours : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+function writeSaved(v: Saved) {
+  try {
+    localStorage.setItem(STORE, JSON.stringify(v));
+  } catch {
+    // Private mode or storage full: the plan still works, it just is not kept.
+  }
+}
 const WEIGHT: Record<Rating, number> = { unsure: 2.5, new: 2, confident: 0.6 };
 
 /**
@@ -39,18 +62,31 @@ export function RevisionPlanner({ initial, syllabi: SYLLABI }: { initial?: strin
   useEffect(() => {
     const id = setTimeout(() => {
       setRatings(Object.fromEntries(SYLLABI.map((s) => [s.code, readRatings(s.code)])));
+      const saved = readSaved();
+      const known = (saved.codes ?? []).filter((c) => SYLLABI.some((x) => x.code === c));
+      // A link to one syllabus (?s=0452) adds it to what was saved, rather than wiping it.
+      if (known.length) setCodes(initial && !known.includes(initial) ? [...known, initial].slice(-4) : known);
+      if (saved.exam) setExam(saved.exam);
+      if (saved.hours !== undefined) setHours(saved.hours);
       setToday(Date.now());
     }, 0);
     return () => clearTimeout(id);
-  }, [SYLLABI]);
+  }, [SYLLABI, initial]);
+
+  const save = (next: Partial<Saved>) => writeSaved({ codes, exam, hours, ...next });
+  const toggle = (e: MouseEvent<HTMLButtonElement>) => {
+    const code = e.currentTarget.dataset.code!;
+    const next = codes.includes(code) ? codes.filter((x) => x !== code) : [...codes, code].slice(-4);
+    setCodes(next);
+    save({ codes: next });
+  };
 
   const plan = useMemo<Week[] | null>(() => {
     if (!codes.length || !exam || today === null) return null;
     const end = new Date(`${exam}T09:00:00`).getTime();
     const weeks = Math.floor((end - today) / (7 * DAY));
     if (weeks < 2) return null;
-    const paperWeeks = Math.min(8, Math.max(1, Math.round(weeks * 0.3)));
-    const learnWeeks = Math.max(1, weeks - paperWeeks - 1);
+    const { learn: learnWeeks, papers: paperWeeks } = splitWeeks(weeks);
     // Weak first, then not started, then confident (a quick check), subjects interleaved.
     const lists = codes.map((c) => {
       const s = SYLLABI.find((x) => x.code === c)!;
@@ -61,21 +97,11 @@ export function RevisionPlanner({ initial, syllabi: SYLLABI }: { initial?: strin
     });
     const merged: Item[] = [];
     for (let i = 0; lists.some((l) => i < l.length); i++) for (const l of lists) if (l[i]) merged.push(l[i]);
-    const total = merged.reduce((n, x) => n + WEIGHT[x.rating], 0);
-    const perWeek = total / learnWeeks;
-    const out: Week[] = [];
-    let w: Week = { start: new Date(today), phase: "learn", items: [] };
-    let load = 0;
-    for (const it of merged) {
-      if (load >= perWeek && out.length < learnWeeks - 1) {
-        out.push(w);
-        w = { start: new Date(today + out.length * 7 * DAY), phase: "learn", items: [] };
-        load = 0;
-      }
-      w.items.push(it);
-      load += WEIGHT[it.rating];
-    }
-    out.push(w);
+    // Spread over every learn week, so a short topic list still fills the time
+    // up to the past paper weeks instead of leaving the plan short.
+    const slot = spread(merged.map((x) => WEIGHT[x.rating]), learnWeeks);
+    const out: Week[] = Array.from({ length: learnWeeks }, (_, i) => ({ start: new Date(today + i * 7 * DAY), phase: "learn" as const, items: [] as Item[] }));
+    merged.forEach((it, i) => out[slot[i]].items.push(it));
     for (let i = 0; i < paperWeeks; i++) out.push({ start: new Date(today + out.length * 7 * DAY), phase: "papers", items: [] });
     out.push({ start: new Date(today + out.length * 7 * DAY), phase: "final", items: merged.filter((x) => x.rating === "unsure").slice(0, 8) });
     return out;
@@ -85,7 +111,7 @@ export function RevisionPlanner({ initial, syllabi: SYLLABI }: { initial?: strin
   const h = Number(hours) || 0;
   const fmtDate = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   const chip = (on: boolean) =>
-    cn("min-h-10 rounded-full border px-4 text-sm font-semibold transition-colors", on ? "border-gold bg-gold text-[#1b1e21]" : "border-hairline-strong text-body hover:border-gold-border");
+    cn("min-h-11 rounded-full border px-4 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold", on ? "border-gold bg-gold text-[#1b1e21]" : "border-hairline-strong text-body hover:border-gold-border");
 
   return (
     <div className="space-y-8">
@@ -99,7 +125,8 @@ export function RevisionPlanner({ initial, syllabi: SYLLABI }: { initial?: strin
                   key={s.code}
                   type="button"
                   aria-pressed={codes.includes(s.code)}
-                  onClick={() => setCodes((c) => (c.includes(s.code) ? c.filter((x) => x !== s.code) : [...c, s.code].slice(-4)))}
+                  data-code={s.code}
+                  onClick={toggle}
                   className={chip(codes.includes(s.code))}
                 >
                   {s.name.replace("AS and A Level", "A Level")}
@@ -115,12 +142,23 @@ export function RevisionPlanner({ initial, syllabi: SYLLABI }: { initial?: strin
           <input
             type="date"
             value={exam}
-            onChange={(e) => setExam(e.target.value)}
-            className="h-12 w-full rounded-[12px] border border-hairline-strong bg-card px-4 text-[16px] text-foreground outline-none focus:border-gold-border [color-scheme:dark]"
+            onChange={(e) => {
+              setExam(e.target.value);
+              save({ exam: e.target.value });
+            }}
+            className="h-12 w-full rounded-[12px] border border-hairline-strong bg-card px-4 text-[16px] text-foreground outline-none focus:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold [color-scheme:dark]"
           />
-          <span className="mt-1 block text-xs text-faint">It is on your statement of entry, or Cambridge&apos;s exam timetable.</span>
+          <span className="mt-1 block text-[13px] text-muted-foreground">It is on your statement of entry, or Cambridge&apos;s exam timetable.</span>
         </label>
-        <NumberField label="Hours a week you can study" value={hours} onChange={setHours} hint="Across all your subjects" />
+        <NumberField
+          label="Hours a week you can study"
+          value={hours}
+          onChange={(v) => {
+            setHours(v);
+            save({ hours: v });
+          }}
+          hint="Across all your subjects"
+        />
       </div>
       {codes.length > 0 && (
         <p className="text-[15px] text-muted-foreground">
@@ -131,7 +169,7 @@ export function RevisionPlanner({ initial, syllabi: SYLLABI }: { initial?: strin
             codes.map((c) => {
               const s = SYLLABI.find((x) => x.code === c)!;
               return (
-                <Link key={c} href={`/syllabus/${s.slug}`} className="mr-3 text-gold hover:underline">
+                <Link key={c} href={`/syllabus/${s.slug}`} className="mr-3 inline-flex min-h-11 items-center text-gold hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
                   {s.code} checklist
                 </Link>
               );
@@ -154,6 +192,7 @@ export function RevisionPlanner({ initial, syllabi: SYLLABI }: { initial?: strin
               </p>
               {w.phase === "learn" && (
                 <ul className="mt-2 space-y-1 text-[15px] text-body">
+                  {w.items.length === 0 && <li>Catch up week: go back over the topics so far.</li>}
                   {w.items.map((it) => (
                     <li key={it.code + it.num}>
                       <span className="text-faint">{it.code}</span> {it.num} {it.name}

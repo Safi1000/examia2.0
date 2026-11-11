@@ -148,21 +148,52 @@ function Pages({ doc, zoom, night, onPage }: { doc: ViewDoc; zoom: number; night
     <ol ref={box} className="mx-auto space-y-4" style={{ width: `${zoom * 100}%`, maxWidth: zoom * 860 }} aria-label={doc.label}>
       {Array.from({ length: doc.pages }, (_, i) => (
         <li key={i} data-page={i + 1} id={onPage ? `pg-${i + 1}` : undefined} className="scroll-mt-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`/papers/img/${doc.name}/${i + 1}.jpg`}
-            alt={`${doc.label}, page ${i + 1} of ${doc.pages}`}
-            width={1100}
-            height={Math.round(1100 * (doc.ratios?.[i] ?? 1.414))}
-            // Only page 1 is on the first screen (phone or desktop): it loads first, the rest as you scroll.
-            loading={i === 0 ? "eager" : "lazy"}
-            fetchPriority={i === 0 ? "high" : "auto"}
-            decoding="async"
-            className={cn("h-auto w-full rounded-[4px] bg-white shadow-[0_12px_32px_-16px_rgba(0,0,0,0.8)]", night && "invert hue-rotate-180")}
-          />
+          <PageImg key={`${doc.name}-${i}`} src={`/papers/img/${doc.name}/${i + 1}.jpg`} n={i + 1} doc={doc} night={night} />
         </li>
       ))}
     </ol>
+  );
+}
+
+/**
+ * One page image. On a weak connection a page can fail: instead of a blank
+ * white box, say so and let them try that page again (same file, so nothing
+ * extra is stored anywhere).
+ */
+function PageImg({ src, n, doc, night }: { src: string; n: number; doc: ViewDoc; night: boolean }) {
+  const [failed, setFailed] = useState(false);
+  const [tries, setTries] = useState(0);
+  const ratio = doc.ratios?.[n - 1] ?? 1.414;
+  if (failed)
+    return (
+      <div className="flex w-full flex-col items-center justify-center gap-3 rounded-[4px] border border-hairline-strong bg-card px-6 text-center" style={{ aspectRatio: `1 / ${ratio}` }}>
+        <p className="text-[15px] text-muted-foreground">Page {n} didn&apos;t load. Check your connection.</p>
+        <button
+          type="button"
+          onClick={() => {
+            setFailed(false);
+            setTries((t) => t + 1);
+          }}
+          className="inline-flex min-h-11 items-center rounded-full border border-hairline-strong px-5 text-[15px] font-semibold text-foreground hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={tries ? `${src}?retry=${tries}` : src}
+      alt={`${doc.label}, page ${n} of ${doc.pages}`}
+      width={1100}
+      height={Math.round(1100 * ratio)}
+      // Only page 1 is on the first screen (phone or desktop): it loads first, the rest as you scroll.
+      loading={n === 1 ? "eager" : "lazy"}
+      fetchPriority={n === 1 ? "high" : "auto"}
+      decoding="async"
+      onError={() => setFailed(true)}
+      className={cn("h-auto w-full rounded-[4px] bg-white shadow-[0_12px_32px_-16px_rgba(0,0,0,0.8)]", night && "invert hue-rotate-180")}
+    />
   );
 }
 
@@ -254,6 +285,7 @@ export function PaperView({
   const [score, setScore] = useState<number | null>(null);
   const panel = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  const guideBtn = useRef<HTMLButtonElement>(null);
   const { done } = useProgress();
   const mine = done[pkey];
 
@@ -262,6 +294,8 @@ export function PaperView({
   const ins = docs.find((d) => d.id === "in") ?? null;
   // In a key, "-" is a question Cambridge removed (no mark) and "*" one where everyone gets the mark.
   const counted = answer ? [...answer].filter((c) => c !== "-").length : 0;
+  // Questions with bubbles to fill ("*" is a free mark, so it has none): what "12/30 answered" counts against.
+  const answerable = answer ? [...answer].filter((c) => c !== "-" && c !== "*").length : 0;
   const total = answer ? counted : (marks ?? thresholds?.max ?? null);
   const practising = mode === "practice";
   const current = tab === "ms" && ms ? ms : tab === "in" && ins ? ins : qp;
@@ -309,15 +343,16 @@ export function PaperView({
   }, [pkey]);
 
   // Remember the page they're on in the question paper (quietly, on this device).
+  // Not while "Continue from page 5" is still on offer: page 1 on arrival would overwrite the page they stopped at.
   useEffect(() => {
-    if (tab !== "qp" || split || page < 1) return;
+    if (tab !== "qp" || split || page < 1 || resume) return;
     const t = setTimeout(() => {
       try {
         localStorage.setItem(`ht-pp-pos-${pkey}`, String(page));
       } catch {}
     }, 800);
     return () => clearTimeout(t);
-  }, [page, tab, split, pkey]);
+  }, [page, tab, split, pkey, resume]);
 
   // The offer to continue fades away on its own.
   useEffect(() => {
@@ -350,7 +385,7 @@ export function PaperView({
   const elapsed = banked + (runningSince != null && now ? Math.max(0, now - runningSince) : 0);
   const limit = (minutes ?? 0) * 60_000;
   const left = limit - elapsed;
-  const answered = answers.filter(Boolean).length;
+  const answered = answer ? answers.filter((a, i) => a && answer[i] !== "-" && answer[i] !== "*").length : 0;
   const correct = useMemo(() => (answer ? [...answer].reduce((n, r, i) => n + (r === "*" || (r !== "-" && answers[i] === r) ? 1 : 0), 0) : 0), [answers, answer]);
 
   const toView = () => requestAnimationFrame(() => document.getElementById("paper-view")?.scrollIntoView({ behavior: "smooth", block: "start" }));
@@ -382,6 +417,8 @@ export function PaperView({
       setMode("result");
       markDone(pkey, { s: correct, m: counted, g });
       recordAnswers([...answer].flatMap((r, i) => (r === "-" || r === "*" ? [] : [{ id: `${pkey}#${i + 1}`, right: answers[i] === r }])));
+      // This attempt is marked and saved: the next timed go starts with a clean sheet, not these answers.
+      writeAns(pkey, null);
       track("past_paper_marked", { paper: code, score: correct });
     } else {
       setMode("mark");
@@ -390,8 +427,10 @@ export function PaperView({
     toView();
   };
   const saveMark = () => {
+    // Enter on an empty box would read as 0 and save a zero they never typed.
+    if (typed.trim() === "") return;
     const n = Number(typed);
-    if (!Number.isFinite(n) || n < 0 || (total != null && n > total)) return;
+    if (!Number.isInteger(n) || n < 0 || (total != null && n > total)) return;
     setScore(n);
     setMode("result");
     markDone(pkey, { s: n, m: total, g: gradeOf(n, thresholds) });
@@ -546,7 +585,17 @@ export function PaperView({
         {/* The viewer */}
         <div
           ref={panel}
-          className="relative flex h-[calc(100dvh-110px)] min-h-[520px] flex-col overflow-hidden rounded-[22px] border border-hairline bg-band-c sm:h-[calc(100dvh-124px)] [&:fullscreen]:h-screen [&:fullscreen]:rounded-none"
+          className={cn(
+            "relative flex h-[calc(100dvh-110px)] min-h-[520px] flex-col overflow-hidden rounded-[22px] border border-hairline bg-band-c sm:h-[calc(100dvh-124px)] [&:fullscreen]:h-screen [&:fullscreen]:rounded-none",
+            // On phones the answer bar is fixed at the bottom while practising: keep the page counter and the last lines above it.
+            practising && "max-lg:h-[calc(100dvh-110px-72px-env(safe-area-inset-bottom))] max-lg:min-h-[440px] sm:max-lg:h-[calc(100dvh-124px-72px-env(safe-area-inset-bottom))]",
+          )}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && guide) {
+              setGuide(false);
+              guideBtn.current?.focus();
+            }
+          }}
         >
           <div className="flex items-center gap-2 border-b border-hairline px-2 py-2 sm:px-3">
             <div role="tablist" aria-label="Documents" className="flex min-w-0 gap-1 overflow-x-auto [scrollbar-width:none]">
@@ -587,7 +636,7 @@ export function PaperView({
                   >
                     {minutes ? `${left < 0 ? "+" : ""}${clock(left)}` : clock(elapsed)}
                   </span>
-                  <button type="button" className={cn(iconBtn, "inline-flex", guide && "bg-white/10 text-foreground")} onClick={() => setGuide(!guide)} aria-pressed={guide} aria-label="How this paper is marked" title="How this paper is marked">
+                  <button ref={guideBtn} type="button" className={cn(iconBtn, "inline-flex", guide && "bg-white/10 text-foreground")} onClick={() => setGuide(!guide)} aria-pressed={guide} aria-label="How this paper is marked" title="How this paper is marked">
                     <Icon d={I.guide} />
                   </button>
                   <button type="button" onClick={pause} className="min-h-10 rounded-full px-3 text-[14px] font-semibold text-muted-foreground hover:text-foreground">
@@ -614,7 +663,7 @@ export function PaperView({
                       <Icon d={I.split} />
                     </button>
                   )}
-                  <button type="button" className={cn(iconBtn, "inline-flex", guide && "bg-white/10 text-foreground")} onClick={() => setGuide(!guide)} aria-pressed={guide} aria-label="How this paper is marked" title="How this paper is marked">
+                  <button ref={guideBtn} type="button" className={cn(iconBtn, "inline-flex", guide && "bg-white/10 text-foreground")} onClick={() => setGuide(!guide)} aria-pressed={guide} aria-label="How this paper is marked" title="How this paper is marked">
                     <Icon d={I.guide} />
                   </button>
                   <button type="button" className={cn(iconBtn, "inline-flex", night && "text-gold")} onClick={toggleNight} aria-pressed={night} aria-label="Night colours" title="Night colours">
@@ -679,7 +728,7 @@ export function PaperView({
             <div className="absolute inset-y-0 right-0 z-10 flex w-full max-w-[360px] flex-col border-l border-hairline bg-card shadow-[-24px_0_48px_-24px_rgba(0,0,0,0.6)]" role="dialog" aria-label="How this paper is marked">
               <div className="flex items-center justify-between border-b border-hairline px-5 py-3">
                 <p className="text-[15px] font-semibold text-foreground">How this paper is marked</p>
-                <button type="button" className={cn(iconBtn, "inline-flex")} onClick={() => setGuide(false)} aria-label="Close">
+                <button type="button" className={cn(iconBtn, "inline-flex")} onClick={() => { setGuide(false); guideBtn.current?.focus(); }} aria-label="Close">
                   <Icon d={I.close} />
                 </button>
               </div>
@@ -738,7 +787,7 @@ export function PaperView({
               <p className="flex items-baseline justify-between border-b border-hairline px-5 py-3.5 text-[15px] font-semibold text-foreground">
                 Answer sheet
                 <span className="text-[14px] font-normal tabular-nums text-muted-foreground">
-                  {answered}/{counted}
+                  {answered}/{answerable}
                 </span>
               </p>
               <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
@@ -799,7 +848,7 @@ export function PaperView({
           <div className="flex items-center gap-2 border-t border-hairline-strong bg-band-c/95 px-4 py-3 backdrop-blur-xl">
             {answer ? (
               <button type="button" onClick={() => setSheetOpen((o) => !o)} aria-expanded={sheetOpen} className={cn(ghost, "flex-1")}>
-                {sheetOpen ? "Hide answer sheet" : `Answer sheet · ${answered}/${counted}`}
+                {sheetOpen ? "Hide answer sheet" : `Answer sheet · ${answered}/${answerable}`}
               </button>
             ) : (
               <span className="flex-1 text-[15px] text-muted-foreground">Write your answers on paper.</span>

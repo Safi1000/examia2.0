@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { isFileVideo, toEmbedUrl } from "@/lib/landing";
+
+/** Fired when a player starts, so any other player on the page goes back to its poster (one sound at a time). */
+const PLAY_EVENT = "ht-video-play";
 
 /**
  * Click-to-play video. Renders a gold play button over a poster (or a plain
@@ -33,10 +36,31 @@ export function VideoPlayer({
 }) {
   const [playing, setPlaying] = useState(false);
   const live = playing || (auto && !!src);
+  const id = useId();
+
+  useEffect(() => {
+    if (!playing) return;
+    const onOther = (e: Event) => {
+      if ((e as CustomEvent<string>).detail !== id) setPlaying(false);
+    };
+    window.addEventListener(PLAY_EVENT, onOther);
+    return () => window.removeEventListener(PLAY_EVENT, onOther);
+  }, [playing, id]);
+
+  const play = () => {
+    setPlaying(true);
+    window.dispatchEvent(new CustomEvent(PLAY_EVENT, { detail: id }));
+  };
+  // The play button disappears on click; move focus to the player so keyboard
+  // users keep their place in the page.
+  const focusIfClicked = (n: HTMLElement | null) => {
+    if (n && playing) n.focus({ preventScroll: true });
+  };
 
   if (live && src) {
     return isFileVideo(src) ? (
       <video
+        ref={focusIfClicked}
         src={src}
         title={title}
         poster={poster}
@@ -49,6 +73,7 @@ export function VideoPlayer({
       />
     ) : (
       <iframe
+        ref={focusIfClicked}
         title={title}
         // A tap means "play it", so the clicked player starts with sound.
         src={toEmbedUrl(src, true, auto && !playing)}
@@ -95,7 +120,7 @@ export function VideoPlayer({
         <button
           type="button"
           aria-label={`Play: ${title}`}
-          onClick={() => setPlaying(true)}
+          onClick={play}
           className="group absolute left-1/2 top-1/2 flex min-h-11 min-w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full before:absolute before:-inset-2 before:rounded-full before:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
         >
           <span

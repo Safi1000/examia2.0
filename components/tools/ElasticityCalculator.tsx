@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/cn";
-import { AskHamza, NumberField, Result, fmt, num } from "@/components/tools/ToolBits";
+import { pctChange, pedMeaning, shown, xedMeaning, yedMeaning } from "@/components/tools/calc";
+import { AskHamza, NumberField, Result, amount, fmt } from "@/components/tools/ToolBits";
 
 type Kind = "ped" | "yed" | "xed";
 const LABEL: Record<Kind, { name: string; cause: string }> = {
@@ -18,22 +19,23 @@ export function ElasticityCalculator() {
   const [q1, setQ1] = useState("");
   const [c0, setC0] = useState("");
   const [c1, setC1] = useState("");
-  const [qOld, qNew, cOld, cNew] = [num(q0), num(q1), num(c0), num(c1)];
-  const pq = qOld && qNew !== null ? ((qNew - qOld) / qOld) * 100 : null;
-  const pc = cOld && cNew !== null ? ((cNew - cOld) / cOld) * 100 : null;
+  const [qOld, qNew, cOld, cNew] = [amount(q0), amount(q1), amount(c0), amount(c1)];
+  // A starting figure of 0 cannot give a % change (it would divide by zero).
+  const pq = qOld && qNew !== null ? pctChange(qOld, qNew) : null;
+  const pc = cOld && cNew !== null ? pctChange(cOld, cNew) : null;
   const e = pq !== null && pc ? pq / pc : null;
+  const zeroStart = (qOld === 0 && q1.trim() !== "") || (cOld === 0 && c1.trim() !== "");
+  const noChange = pq !== null && pc === 0;
 
   let meaning = "";
   if (e !== null) {
-    const a = Math.abs(e);
-    if (kind === "ped")
-      meaning =
-        a > 1 ? "Elastic: demand changes by a bigger percentage than price." : a < 1 ? "Inelastic: demand changes by a smaller percentage than price." : "Unitary: demand changes by the same percentage as price.";
-    if (kind === "yed") meaning = e > 0 ? (e > 1 ? "Positive and above 1: a normal good, income elastic (often a luxury)." : "Positive: a normal good.") : e < 0 ? "Negative: an inferior good. People buy less as income rises." : "Zero: income has no effect on demand.";
-    if (kind === "xed") meaning = e > 0 ? "Positive: the goods are substitutes." : e < 0 ? "Negative: the goods are complements." : "Zero: the goods are unrelated.";
+    if (kind === "ped") meaning = pedMeaning(e) + (shown(e) > 0 ? " The sign is positive, so price and quantity moved the same way, which is unusual for demand: check the figures." : "");
+    if (kind === "yed") meaning = yedMeaning(e);
+    if (kind === "xed") meaning = xedMeaning(e);
   }
   const revenue =
     kind === "ped" && qOld !== null && qNew !== null && cOld !== null && cNew !== null ? { before: qOld * cOld, after: qNew * cNew } : null;
+  const revenueMove = revenue ? shown(revenue.after) - shown(revenue.before) : 0;
 
   return (
     <div className="space-y-8">
@@ -44,7 +46,7 @@ export function ElasticityCalculator() {
             type="button"
             onClick={() => setKind(k)}
             aria-pressed={kind === k}
-            className={cn("min-h-10 rounded-full px-4 text-sm font-semibold", kind === k ? "bg-gold text-[#1b1e21]" : "text-body hover:text-foreground")}
+            className={cn("min-h-11 rounded-full px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold", kind === k ? "bg-gold text-[#1b1e21]" : "text-body hover:text-foreground")}
           >
             {k.toUpperCase()}
           </button>
@@ -56,6 +58,17 @@ export function ElasticityCalculator() {
         <NumberField label={`Before: ${LABEL[kind].cause}`} value={c0} onChange={setC0} />
         <NumberField label={`After: ${LABEL[kind].cause}`} value={c1} onChange={setC1} />
       </div>
+      <div aria-live="polite" className="space-y-8">
+      {zeroStart && (
+        <p className="rounded-[16px] border border-hairline bg-card p-5 text-[15px] text-body">
+          A &quot;before&quot; figure of 0 cannot give a percentage change. Enter a before figure above 0.
+        </p>
+      )}
+      {noChange && !zeroStart && (
+        <p className="rounded-[16px] border border-hairline bg-card p-5 text-[15px] text-body">
+          The {LABEL[kind].cause} did not change, so there is no elasticity to work out. Enter different before and after figures.
+        </p>
+      )}
       {e !== null && (
         <div className="grid gap-3 sm:grid-cols-2">
           <Result strong label={LABEL[kind].name} value={fmt(e)} note={meaning} />
@@ -64,11 +77,12 @@ export function ElasticityCalculator() {
             <Result
               label="Total revenue"
               value={`${fmt(revenue.before)} → ${fmt(revenue.after)}`}
-              note={revenue.after > revenue.before ? "Revenue rose." : revenue.after < revenue.before ? "Revenue fell." : "Revenue stayed the same."}
+              note={revenueMove > 0 ? "Revenue rose." : revenueMove < 0 ? "Revenue fell." : "Revenue stayed the same."}
             />
           )}
         </div>
       )}
+      </div>
       {e !== null && <AskHamza tool="elasticity calculator" summary={`${kind.toUpperCase()} came out at ${fmt(e)}.`} />}
     </div>
   );

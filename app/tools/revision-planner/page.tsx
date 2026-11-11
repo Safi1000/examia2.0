@@ -39,7 +39,7 @@ const FAQ = [
   },
   {
     q: "Is my plan saved?",
-    a: "Your checklist ratings are saved on your device. Print the plan or save it as a PDF to keep it.",
+    a: "Your subjects, exam date, hours and checklist ratings are saved on this device, so the plan is still here when you come back. Print it or save it as a PDF to keep a copy.",
   },
 ];
 
@@ -62,7 +62,7 @@ export default async function RevisionPlannerPage({ searchParams }: Props) {
       ]}
       how={
         <div className="space-y-3 text-[17px] leading-relaxed text-body">
-          <p>The weeks up to your first exam are split in three. First, every subtopic of your syllabuses, weak ones first and your subjects mixed so none is left to the end. Then about a third of the time for full past papers. Then a final week on the latest papers and your weakest topics.</p>
+          <p>The weeks up to your first exam are split in three. First, every subtopic of your syllabuses, weak ones first and your subjects mixed so none is left to the end. Then about a third of the time, up to eight weeks, for full past papers. Then a final week on the latest papers and your weakest topics.</p>
           <p>Topics you marked Not sure get the most time, ones you have not rated get normal time, and Confident ones get a quick check.</p>
         </div>
       }

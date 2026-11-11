@@ -55,7 +55,7 @@ export function Nav({ heroCta: startQuiet = false }: { heroCta?: boolean } = {})
       >
         <Link
           href="/"
-          className={`flex shrink-0 items-center rounded-lg ${focusRing}`}
+          className={`flex min-h-11 shrink-0 items-center rounded-lg ${focusRing}`}
           aria-label={`${COMPANY_NAME} home`}
         >
           <Logo className="h-10 sm:h-12" />

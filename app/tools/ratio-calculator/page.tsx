@@ -21,7 +21,7 @@ const FAQ = [
   },
   {
     q: "Is inventory turnover in days or times?",
-    a: "In the IGCSE and O Level syllabus it is in times: cost of goods sold divided by average inventory, where average inventory is opening plus closing inventory divided by two.",
+    a: "The IGCSE and O Level syllabus has both. Rate of inventory turnover is in times: cost of sales divided by average inventory. Inventory turnover is in days: average inventory divided by cost of sales, times 365. Average inventory is opening plus closing inventory divided by two.",
   },
   {
     q: "What is the difference between margin and mark-up?",
@@ -54,10 +54,11 @@ export default function RatioCalculatorPage() {
             <li>Gross margin = gross profit ÷ revenue × 100</li>
             <li>Mark-up = gross profit ÷ cost of sales × 100</li>
             <li>Profit margin = profit for the year ÷ revenue × 100</li>
-            <li>ROCE = net profit before interest ÷ capital employed × 100</li>
+            <li>ROCE = profit for the year before interest ÷ capital employed × 100</li>
             <li>Current ratio = current assets ÷ current liabilities</li>
             <li>Liquid (acid test) ratio = (current assets − inventory) ÷ current liabilities</li>
             <li>Rate of inventory turnover = cost of goods sold ÷ average inventory (times)</li>
+            <li>Inventory turnover = average inventory ÷ cost of sales × 365 (days)</li>
             <li>Trade receivables turnover = trade receivables ÷ credit sales × 365 (days)</li>
             <li>Trade payables turnover = trade payables ÷ credit purchases × 365 (days)</li>
           </ul>

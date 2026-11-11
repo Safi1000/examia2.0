@@ -58,14 +58,14 @@ export function CookieBanner() {
         <button
           type="button"
           onClick={() => answer(true)}
-          className="inline-flex min-h-10 items-center rounded-full bg-gold px-4 text-sm font-semibold text-[#1b1e21] transition-colors hover:bg-[#ffd07a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+          className="inline-flex min-h-11 items-center rounded-full bg-gold px-4 text-sm font-semibold text-[#1b1e21] transition-colors hover:bg-[#ffd07a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
         >
           That&apos;s fine
         </button>
         <button
           type="button"
           onClick={() => answer(false)}
-          className="inline-flex min-h-10 items-center rounded-full border border-hairline-strong px-4 text-sm font-semibold text-body transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+          className="inline-flex min-h-11 items-center rounded-full border border-hairline-strong px-4 text-sm font-semibold text-body transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
         >
           No thanks
         </button>

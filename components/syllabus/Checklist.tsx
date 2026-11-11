@@ -17,7 +17,9 @@ const C = createContext<Ctx>({ ratings: {}, rate: () => {}, ready: false });
 export const storeKey = (code: string) => `ht_syl_${code}`;
 export function readRatings(code: string): Record<string, Rating> {
   try {
-    return JSON.parse(localStorage.getItem(storeKey(code)) ?? "{}") as Record<string, Rating>;
+    const v: unknown = JSON.parse(localStorage.getItem(storeKey(code)) ?? "{}");
+    // A stored "null" or a number would crash the page: only accept a plain object.
+    return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, Rating>) : {};
   } catch {
     return {};
   }

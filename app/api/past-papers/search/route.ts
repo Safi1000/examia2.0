@@ -15,8 +15,23 @@ export const runtime = "nodejs";
 const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
 type Hit = { u: string; c: string; l: string; p: number; s: string; n: number; y: number };
+type Entry = { name: string; code: string; y: number; href: string; c: string; l: string; p: number; text: string; flat: string };
 
-let index: Array<{ name: string; code: string; y: number; href: string; c: string; l: string; p: number; text: string; flat: string }> | null = null;
+const CODES = new Set(PAST_PAPER_SYLLABI.map((s) => s.code));
+
+/**
+ * Recent answers, kept in memory. Every new query scans every page, so a
+ * class typing the same few topics (or a script hammering one URL past the
+ * CDN) is answered from here instead. Small and capped, oldest out first.
+ */
+const recent = new Map<string, unknown>();
+function remember(key: string, value: unknown) {
+  if (recent.size >= 300) recent.delete(recent.keys().next().value as string);
+  recent.set(key, value);
+  return value;
+}
+
+let index: Entry[] | null = null;
 function build() {
   if (index) return index;
   const byName = new Map<string, { href: string; c: string; l: string; code: string; y: number }>();
@@ -47,20 +62,25 @@ function snippet(text: string, q: string): string {
 
 export function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get("q") ?? "").slice(0, 80);
-  const code = req.nextUrl.searchParams.get("code");
-  const type = req.nextUrl.searchParams.get("type");
+  // No code means every syllabus; a code we don't have answers "nothing found" straight away, without a scan.
+  const rawCode = req.nextUrl.searchParams.get("code");
+  const code = rawCode && CODES.has(rawCode) ? rawCode : null;
+  const type = req.nextUrl.searchParams.get("type") === "q" ? "q" : null;
   const flatQ = squash(q);
   const headers = { "Cache-Control": "public, s-maxage=86400, max-age=600" };
-  if (flatQ.length < 3) return Response.json({ q, hits: [], total: 0 }, { headers });
+  if (flatQ.length < 3 || (rawCode && !code)) return Response.json(type ? { q, ids: [] } : { q, hits: [], total: 0, papers: 0 }, { headers });
+  const memo = `${type ?? "p"}|${code ?? ""}|${q.toLowerCase().trim()}`;
+  const known = recent.get(memo);
+  if (known) return Response.json(known, { headers });
 
   if (type === "q") {
     const ids = Object.entries(questionText as unknown as Record<string, string>)
       .filter(([id, t]) => (!code || id.startsWith(`${code}_`)) && t.includes(flatQ))
       .map(([id]) => id);
-    return Response.json({ q, ids }, { headers });
+    return Response.json(remember(memo, { q, ids }), { headers });
   }
 
-  const hits: Hit[] = [];
+  const hits: Array<Hit & { e: Entry }> = [];
   for (const e of build()) {
     if (code && e.code !== code) continue;
     let n = 0;
@@ -69,13 +89,10 @@ export function GET(req: NextRequest) {
       n++;
       at = e.flat.indexOf(flatQ, at + flatQ.length);
     }
-    if (n) hits.push({ u: `${e.href}?page=${e.p}`, c: e.c, l: e.l, p: e.p, s: "", n, y: e.y });
+    if (n) hits.push({ u: `${e.href}?page=${e.p}`, c: e.c, l: e.l, p: e.p, s: "", n, y: e.y, e });
   }
   hits.sort((a, b) => b.y - a.y || b.n - a.n);
-  const top = hits.slice(0, 60);
-  for (const h of top) {
-    const e = index!.find((x) => x.c === h.c && x.p === h.p)!;
-    h.s = snippet(e.text, q);
-  }
-  return Response.json({ q, total: hits.length, papers: new Set(hits.map((h) => h.c)).size, hits: top }, { headers });
+  // Snippets only for the hits that are sent, straight from their own page (no second scan).
+  const top: Hit[] = hits.slice(0, 60).map(({ e, ...h }) => ({ ...h, s: snippet(e.text, q) }));
+  return Response.json(remember(memo, { q, total: hits.length, papers: new Set(hits.map((h) => h.c)).size, hits: top }), { headers });
 }

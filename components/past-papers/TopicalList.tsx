@@ -20,6 +20,26 @@ const ZOOM = 1 / (1 - 2 * MARGIN);
 export function Crop({ seg, night, alt }: { seg: Seg; night: boolean; alt: string }) {
   const h = seg.b - seg.t;
   const [ready, setReady] = useState(false);
+  // A failed image would leave a grey skeleton forever: say so, and let them load it again.
+  const [failed, setFailed] = useState(false);
+  const [tries, setTries] = useState(0);
+  if (failed)
+    return (
+      <div className="flex w-full flex-col items-center justify-center gap-2 border border-hairline-strong bg-card px-4 py-6 text-center" style={{ minHeight: 140 }}>
+        <p className="text-[15px] text-muted-foreground">This question didn&apos;t load.</p>
+        <button
+          type="button"
+          onClick={() => {
+            setFailed(false);
+            setReady(false);
+            setTries((t) => t + 1);
+          }}
+          className="inline-flex min-h-11 items-center rounded-full border border-hairline-strong px-5 text-[15px] font-semibold text-foreground hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+        >
+          Try again
+        </button>
+      </div>
+    );
   return (
     <div
       className={cn("relative w-full overflow-hidden transition-colors duration-500", !ready ? "skeleton" : night ? "bg-[#1b1d20]" : "bg-white")}
@@ -27,13 +47,14 @@ export function Crop({ seg, night, alt }: { seg: Seg; night: boolean; alt: strin
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={seg.img}
+        src={tries ? `${seg.img}?retry=${tries}` : seg.img}
         alt={alt}
         loading="lazy"
         decoding="async"
         width={1100}
         height={Math.round(1100 * seg.r)}
         onLoad={() => setReady(true)}
+        onError={() => setFailed(true)}
         ref={(el) => {
           if (el?.complete && el.naturalWidth && !ready) setReady(true);
         }}
@@ -126,9 +147,22 @@ export function TopicalList({ questions, hasMcq, hasWritten }: { questions: Topi
 
   useEffect(() => {
     const k = new URLSearchParams(window.location.search).get("paper");
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (k === "mcq" || k === "written") setKind(k);
-  }, []);
+    // Back from a paper: the questions they had opened up and the year they picked are still there.
+    try {
+      const v = JSON.parse(sessionStorage.getItem(`ht-pp-topic-${window.location.pathname}`) ?? "null");
+      if (v && typeof v.limit === "number" && v.limit > 12) setLimit(Math.min(v.limit, 600));
+      if (v && typeof v.year === "number" && questions.some((q) => q.y === v.year)) setYear(v.year);
+    } catch {}
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [questions]);
+
+  const remember = (next: { limit?: number; year?: number | null }) => {
+    try {
+      sessionStorage.setItem(`ht-pp-topic-${window.location.pathname}`, JSON.stringify({ limit, year, ...next }));
+    } catch {}
+  };
 
   const years = useMemo(() => [...new Set(questions.map((q) => q.y))].sort((a, b) => b - a), [questions]);
   const shown = questions.filter((q) => (kind === "all" || q.kind === kind) && (!year || q.y === year));
@@ -147,7 +181,11 @@ export function TopicalList({ questions, hasMcq, hasWritten }: { questions: Topi
           </>
         )}
         <label className="sr-only" htmlFor="t-year">Year</label>
-        <select id="t-year" value={year ?? ""} onChange={(e) => setYear(Number(e.target.value) || null)} className={SELECT}>
+        <select id="t-year" value={year ?? ""} onChange={(e) => {
+            const y = Number(e.target.value) || null;
+            setYear(y);
+            remember({ year: y });
+          }} className={SELECT}>
           <option value="">All years</option>
           {years.map((y) => (
             <option key={y} value={y}>
@@ -182,7 +220,10 @@ export function TopicalList({ questions, hasMcq, hasWritten }: { questions: Topi
       )}
       {shown.length > limit && (
         <div className="mt-8 flex justify-center">
-          <button type="button" onClick={() => setLimit(limit + 12)} className="inline-flex min-h-12 items-center rounded-full border border-hairline-strong px-6 text-[15px] font-semibold text-foreground hover:border-gold-border">
+          <button type="button" onClick={() => {
+            setLimit(limit + 12);
+            remember({ limit: limit + 12 });
+          }} className="inline-flex min-h-12 items-center rounded-full border border-hairline-strong px-6 text-[15px] font-semibold text-foreground hover:border-gold-border">
             Show more questions
           </button>
         </div>

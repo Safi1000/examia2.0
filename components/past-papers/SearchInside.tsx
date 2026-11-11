@@ -40,40 +40,64 @@ export function SearchInside({ syllabi, suggestions }: { syllabi: Array<{ code: 
   const [code, setCode] = useState<string | null>(null);
   const [res, setRes] = useState<{ hits: Hit[]; total: number; papers: number } | null>(null);
   const [busy, setBusy] = useState(false);
+  /** The search could not reach the server (offline, timeout): not the same as "no paper mentions that". */
+  const [failed, setFailed] = useState(false);
+  const [tooShort, setTooShort] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  /** Only the newest search may show its results: tapping chips quickly must not let an older, slower answer win. */
+  const latest = useRef(0);
 
   const run = async (text: string, c: string | null) => {
     const t = text.trim();
     const params = new URLSearchParams();
     if (t) params.set("q", t);
     if (c) params.set("code", c);
-    window.history.replaceState(null, "", params.toString() ? `?${params}` : window.location.pathname);
+    // Keep any other parameters in the address (campaign tags), change only ours. Back to this page brings the search back.
+    const url = new URLSearchParams(window.location.search);
+    url.delete("q");
+    url.delete("code");
+    for (const [k, v] of params) url.set(k, v);
+    window.history.replaceState(null, "", url.toString() ? `?${url}` : window.location.pathname);
+    const ticket = ++latest.current;
+    setFailed(false);
     if (t.replace(/[^a-z0-9]/gi, "").length < 3) {
       setRes(null);
+      setBusy(false);
+      setTooShort(t.length > 0);
       return;
     }
+    setTooShort(false);
     setBusy(true);
     try {
       const r = await fetch(`/api/past-papers/search?${params}`);
-      setRes(r.ok ? await r.json() : { hits: [], total: 0, papers: 0 });
+      if (!r.ok) throw new Error(String(r.status));
+      const data = await r.json();
+      if (ticket !== latest.current) return;
+      setRes(data);
       track("paper_text_search", { q: t, code: c });
     } catch {
-      setRes({ hits: [], total: 0, papers: 0 });
+      if (ticket !== latest.current) return;
+      setRes(null);
+      setFailed(true);
     } finally {
-      setBusy(false);
+      if (ticket === latest.current) setBusy(false);
     }
   };
 
   useEffect(() => {
     const u = new URLSearchParams(window.location.search);
     const startQ = u.get("q") ?? "";
-    const startC = u.get("code");
+    // An old or mistyped link with an unknown code would quietly find nothing: search everything instead.
+    const c = u.get("code");
+    const startC = c && syllabi.some((s) => s.code === c) ? c : null;
     /* eslint-disable react-hooks/set-state-in-effect */
     setQ(startQ);
     setCode(startC);
     /* eslint-enable react-hooks/set-state-in-effect */
     if (startQ) void run(startQ, startC);
     else input.current?.focus();
+    // Once, on arrival: the address is read a single time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -133,7 +157,16 @@ export function SearchInside({ syllabi, suggestions }: { syllabi: Array<{ code: 
 
       <div aria-live="polite" className="mt-8">
         {busy && <p className="text-[15px] text-muted-foreground">Searching every paper…</p>}
-        {!busy && !res && (
+        {!busy && failed && (
+          <div className="rounded-[16px] border border-hairline bg-card px-5 py-4 text-[15px] text-muted-foreground">
+            <p>The search didn&apos;t go through. Check your connection and try again.</p>
+            <button type="button" onClick={() => void run(q, code)} className="mt-2 inline-flex min-h-11 items-center font-semibold text-gold hover:underline">
+              Try again
+            </button>
+          </div>
+        )}
+        {!busy && tooShort && <p className="mb-4 text-[15px] text-muted-foreground">Type at least three letters.</p>}
+        {!busy && !res && !failed && (
           <div>
             <p className="text-[15px] text-muted-foreground">Try one of these:</p>
             <ul className="mt-3 flex flex-wrap gap-2">

@@ -38,14 +38,43 @@ const EMPTY: Store = { done: {}, recent: [], seen: {}, wrong: {} };
 const listeners = new Set<() => void>();
 let cache: Store | null = null;
 
+const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+
+/**
+ * Keeps only entries in the shape the pages expect. Older versions of the site,
+ * a half-written save or a hand-edited value must not crash the progress page
+ * or show "NaN%": anything malformed is dropped, the rest is kept.
+ */
+function clean(v: unknown): Store {
+  if (!isObj(v)) return EMPTY;
+  const done: Record<string, DoneEntry> = {};
+  if (isObj(v.done))
+    for (const [k, d] of Object.entries(v.done)) {
+      if (d === true) done[k] = { s: null, m: null, g: null, at: 0 };
+      else if (isObj(d)) {
+        const s = num(d.s);
+        const m = num(d.m);
+        done[k] = { s: s != null && s >= 0 ? s : null, m: m != null && m > 0 ? m : null, g: typeof d.g === "string" && d.g ? d.g : null, at: num(d.at) ?? 0 };
+      }
+    }
+  const recent = (Array.isArray(v.recent) ? v.recent : [])
+    .filter((r): r is RecentEntry => isObj(r) && typeof r.u === "string" && r.u.startsWith("/past-papers/") && typeof r.c === "string")
+    .map((r) => ({ u: r.u, c: r.c, l: typeof r.l === "string" ? r.l : "", at: num(r.at) ?? 0 }))
+    .filter((r, i, a) => a.findIndex((x) => x.u === r.u) === i)
+    .slice(0, 6);
+  const times = (o: unknown) => {
+    const out: Record<string, number> = {};
+    if (isObj(o)) for (const [k, t] of Object.entries(o)) if (num(t) != null) out[k] = t as number;
+    return out;
+  };
+  return { done, recent, seen: times(v.seen), wrong: times(v.wrong) };
+}
+
 function load(): Store {
   if (cache) return cache;
   try {
-    const v = JSON.parse(localStorage.getItem(KEY) ?? "null");
-    cache =
-      v && typeof v === "object"
-        ? { done: v.done ?? {}, recent: Array.isArray(v.recent) ? v.recent : [], seen: v.seen ?? {}, wrong: v.wrong ?? {} }
-        : EMPTY;
+    cache = clean(JSON.parse(localStorage.getItem(KEY) ?? "null"));
   } catch {
     cache = EMPTY;
   }

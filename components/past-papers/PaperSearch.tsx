@@ -12,7 +12,15 @@ import { cn } from "@/lib/cn";
  * The list of papers loads the first time the box is used.
  */
 let rowsPromise: Promise<SearchRow[]> | null = null;
-const loadRows = () => (rowsPromise ??= fetch("/past-papers/search.json").then((r) => (r.ok ? r.json() : [])).catch(() => ((rowsPromise = null), [])));
+/** Resolves to null when the list can't be fetched (offline, slow network), and forgets the failure so the next try fetches again. */
+const loadRows = (): Promise<SearchRow[] | null> =>
+  (rowsPromise ??= fetch("/past-papers/search.json").then((r) => {
+    if (!r.ok) throw new Error(String(r.status));
+    return r.json() as Promise<SearchRow[]>;
+  })).catch(() => {
+    rowsPromise = null;
+    return null;
+  });
 
 const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 const fileName = /^(\d{4})_([msw])(\d{2})(?:_(?:qp|ms|in))?(?:_(\d{1,2}))?$/;
@@ -23,7 +31,9 @@ function match(rows: SearchRow[], q: string): SearchRow[] {
   if (!raw) return [];
   // A file name: 2281_s25_qp_12 → 2281/12/M/J/25
   const f = raw.replace(/\.pdf$/, "").match(fileName);
-  const asCode = f ? `${f[1]}${f[4] ?? ""}${f[4] ? `${SERIES_FROM_FILE[f[2]]}${f[3]}` : ""}` : null;
+  // Without a paper number ("2281_s25") the code alone would match every 2281 paper: list that series instead.
+  if (f && !f[4]) return rows.filter((r) => r.w.includes(`${f[1]}_${f[2]}${f[3]}`));
+  const asCode = f ? `${f[1]}${f[4]}${SERIES_FROM_FILE[f[2]]}${f[3]}` : null;
   const sq = asCode ?? squash(raw);
   // The code on the paper, typed in full or in part.
   if (/^\d{4}/.test(sq)) {
@@ -63,8 +73,11 @@ export function PaperSearch({ autoFocus, compact, quiet, className }: { autoFocu
     return () => document.removeEventListener("pointerdown", close);
   }, []);
 
+  const [failed, setFailed] = useState(false);
   const warm = () => {
-    if (!rows) void loadRows().then(setRows);
+    if (rows) return;
+    setFailed(false);
+    void loadRows().then((r) => (r ? setRows(r) : setFailed(true)));
   };
 
   const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -129,7 +142,14 @@ export function PaperSearch({ autoFocus, compact, quiet, className }: { autoFocu
       </p>
       {showList && (
         <div className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-[20px] border border-hairline-strong bg-card-raised shadow-[0_24px_48px_-12px_rgba(0,0,0,0.6)]">
-          {!rows ? (
+          {!rows && failed ? (
+            <div className="px-5 py-4 text-[15px] text-muted-foreground">
+              <p>Couldn&apos;t load the list of papers. Check your connection.</p>
+              <button type="button" onClick={warm} className="mt-2 inline-flex min-h-11 items-center font-semibold text-gold hover:underline">
+                Try again
+              </button>
+            </div>
+          ) : !rows ? (
             <p className="px-5 py-4 text-[15px] text-muted-foreground">Loading papers…</p>
           ) : shown.length === 0 ? (
             <div className="px-5 py-4 text-[15px] text-muted-foreground">

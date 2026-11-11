@@ -96,6 +96,8 @@ export function FreeLesson() {
                     tabRefs.current[i] = n;
                   }}
                   role="tab"
+                  id={`picker-tab-${i}`}
+                  aria-controls="picker-panel"
                   aria-selected={active}
                   tabIndex={active ? 0 : -1}
                   onKeyDown={(e) => onTabKey(e, i)}
@@ -117,7 +119,12 @@ export function FreeLesson() {
         </div>
 
 
-        <div className="mt-8 grid gap-3 md:mt-10 md:grid-cols-3 md:gap-5">
+        <div
+          id="picker-panel"
+          role="tabpanel"
+          aria-labelledby={`picker-tab-${SUBJECTS.indexOf(subject)}`}
+          className="mt-8 grid gap-3 md:mt-10 md:grid-cols-3 md:gap-5"
+        >
           {cards.map((c) => {
             return (
               <button

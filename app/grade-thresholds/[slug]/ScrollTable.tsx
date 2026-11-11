@@ -28,7 +28,14 @@ export function ScrollTable({ head, rows, caption }: { head: ReactNode[]; rows: 
   return (
     <div>
       <div className="relative">
-        <div ref={box} className="overflow-x-auto rounded-[16px] border border-hairline bg-card [scrollbar-width:thin]">
+        {/* Focusable so keyboard users can scroll the table sideways. */}
+        <div
+          ref={box}
+          tabIndex={0}
+          role="region"
+          aria-label={caption}
+          className="overflow-x-auto rounded-[16px] border border-hairline bg-card [scrollbar-width:thin] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+        >
           <table className="w-full border-collapse text-left text-[15px]">
             {caption && <caption className="sr-only">{caption}</caption>}
             <thead>
