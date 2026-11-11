@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { Crumbs, TrialBox } from "@/components/study/StudyBits";
+import { RelatedLinks, syllabusLinks } from "@/components/study/RelatedLinks";
 import { PastPapersNav } from "@/components/past-papers/Bits";
 import { TopicProgress } from "@/components/past-papers/TopicProgress";
 import { PAST_PAPER_SYLLABI, pastPaperSyllabus, searchName } from "@/lib/past-papers";
@@ -45,7 +46,7 @@ export default async function TopicIndex({ params }: Props) {
       <div className="mx-auto max-w-3xl px-5 pb-20 pt-8 md:pt-12">
         <PastPapersNav className="w-fit max-w-full" />
         <div className="mt-8">
-          <Crumbs trail={[{ name: "Past papers", href: "/past-papers" }, { name: s.short, href: `/past-papers/${s.slug}` }, { name: "Topical" }]} />
+          <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Past papers", href: "/past-papers" }, { name: s.short, href: `/past-papers/${s.slug}` }, { name: "Topical" }]} />
         </div>
         <h1 className="mt-4 text-4xl font-bold leading-[1.06] tracking-tight text-foreground md:text-5xl">{searchName(s)} topical past papers</h1>
         <p className="mt-4 max-w-[56ch] text-lg leading-relaxed text-muted-foreground">
@@ -92,6 +93,8 @@ export default async function TopicIndex({ params }: Props) {
             );
           })}
         </div>
+
+        <RelatedLinks links={syllabusLinks(s.code, ["topical"])} />
 
         <TrialBox
           from={`topical:${s.code}`}

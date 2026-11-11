@@ -13,11 +13,18 @@ import { cn } from "@/lib/cn";
  * (36 KB instead of 4 MB); logo.png stays as the master file.
  */
 const ALT = "Hamza Teaches";
+/**
+ * The same 480px logo through the site's image service, which sends WebP: about
+ * 14 KB instead of the 36 KB PNG, on every page (it is preloaded on each one).
+ * w=640 is the nearest allowed width at or above 480, so the image is never
+ * shrunk; q=75 is the only quality the service allows (next.config qualities).
+ */
+const LOGO_SRC = `/_next/image?url=${encodeURIComponent(logo.src)}&w=640&q=75`;
 
 export function Logo({ className }: { className?: string }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={logo.src} alt={ALT} width={logo.width} height={logo.height} decoding="async" className={cn("w-auto object-contain", className)} />
+    <img src={LOGO_SRC} alt={ALT} width={logo.width} height={logo.height} decoding="async" className={cn("w-auto object-contain", className)} />
   );
 }
 
@@ -30,7 +37,7 @@ export function Wordmark({ className }: { className?: string; markSize?: number 
 export function BrandMark({ size = 28 }: { size?: number }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={logo.src} alt={ALT} width={logo.width} height={logo.height} decoding="async" style={{ height: size }} className="w-auto object-contain" />
+    <img src={LOGO_SRC} alt={ALT} width={logo.width} height={logo.height} decoding="async" style={{ height: size }} className="w-auto object-contain" />
   );
 }
 
@@ -48,7 +55,7 @@ export function LogoTight({ className }: { className?: string }) {
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={logo.src}
+        src={LOGO_SRC}
         alt={ALT}
         decoding="async"
         className="absolute max-w-none"

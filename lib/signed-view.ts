@@ -47,10 +47,17 @@ export interface ViewPayload {
   exp: number;
   /** True for a download link (/api/download); absent for view links. */
   a?: true;
+  /**
+   * Owner: the student's user id. When set, /api/view also wants that
+   * student's sign-in with the request, so a copied link is useless to anyone
+   * else. Left out where the file is read by something that can't send it
+   * (Microsoft's Office viewer, an <img>, the teacher's search indexing).
+   */
+  o?: string;
 }
 
-export function signViewUrl(url: string, name: string): string {
-  const data = seal({ u: url, n: name, exp: Date.now() + TTL_MS });
+export function signViewUrl(url: string, name: string, owner?: string): string {
+  const data = seal({ u: url, n: name, exp: Date.now() + TTL_MS, ...(owner ? { o: owner } : {}) });
   const sig = b64url(createHmac("sha256", secret()).update(data).digest());
   return `/api/view?d=${data}&s=${sig}`;
 }

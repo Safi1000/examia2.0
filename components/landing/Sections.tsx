@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useId, useMemo, useRef, useState } from "react";
 import { PillButton } from "./PillButton";
 import { VideoPlayer } from "./VideoPlayer";
+import { SwipeItem, SwipeRow } from "./ReviewSlider";
 import { useBooking } from "./BookingModal";
 import { SHOT_RATIO, SHOTS as shots, VIDEO_REVIEWS as videoReviews, type VideoReview } from "@/lib/reviews";
 import { FAQS as faqs, posterFor, type LevelName, type SubjectName } from "@/lib/landing";
@@ -76,7 +77,7 @@ export function FreeLesson() {
         </div>
 
         {/* Steps */}
-        <div className="mt-10 flex items-center justify-center gap-3 text-sm">
+        <div className="mt-6 flex items-center justify-center gap-3 text-sm md:mt-10">
           <span className="flex h-7 w-7 items-center justify-center rounded-full border border-gold-border text-xs font-bold text-gold">1</span>
           <span className="font-semibold text-foreground">Subject</span>
           <span className="h-px w-10 bg-hairline-strong" />
@@ -132,14 +133,14 @@ export function FreeLesson() {
                 type="button"
                 aria-haspopup="dialog"
                 onClick={() => open({ from: "home_picker", subject, level: c.level })}
-                className="pc-surface pc-surface-link group relative flex flex-col overflow-hidden rounded-[16px] p-5 text-left md:rounded-[20px] md:p-7 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+                className="pc-surface pc-surface-link group relative flex flex-col overflow-hidden rounded-[16px] p-4 text-left md:rounded-[20px] md:p-7 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
               >
                 <span className="pc-label">{c.label}</span>
                 <span className="mt-1 text-xs tabular-nums text-faint">
                   Cambridge {SUBJECT_PAGES.find((p) => p.subject === subject)?.levels.find((l) => l.level === c.level)?.codes.replace(/O Level |IGCSE |AS Level |A Level /g, "")}
                 </span>
                 <span className="mt-3 text-lg font-extrabold tracking-[-0.02em] text-[#f0ede8] md:text-xl">{c.title}</span>
-                <span className="mt-1.5 text-[15px] leading-relaxed text-muted-foreground md:mt-2">{c.body}</span>
+                <span className="mt-2 text-base leading-relaxed text-muted-foreground md:text-[15px]">{c.body}</span>
                 <span className="mt-5 flex items-center justify-between border-t border-hairline pt-4 text-[15px] font-semibold text-gold md:mt-6">
                   Pick a time
                   <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transform-none">→</span>
@@ -224,7 +225,7 @@ export function Difference() {
         </div>
 
         {/* Phones: side-by-side table */}
-        <div className="pc-surface mt-10 overflow-hidden rounded-[16px] md:hidden">
+        <div className="pc-surface mt-6 overflow-hidden rounded-[16px] md:hidden">
           <table className="w-full table-fixed border-collapse text-left">
             <thead>
               <tr>
@@ -296,8 +297,8 @@ export function MeetHamza() {
   return (
     <section id="meet" className="relative overflow-hidden py-16 md:py-24">
       <div className="mx-auto grid max-w-6xl gap-12 px-5 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:items-center md:gap-16">
-        <div className="relative mx-auto w-full max-w-[240px] sm:max-w-xs md:mx-0 md:max-w-sm">
-          <div className="pc-frame relative aspect-[3/4] w-full overflow-hidden rounded-[20px] bg-card">
+        <div className="relative w-full md:max-w-sm">
+          <div className="pc-frame relative aspect-square w-full md:aspect-[3/4] overflow-hidden rounded-[20px] bg-card">
             <div
               aria-hidden
               className="absolute inset-0 bg-linear-to-br from-[#2a2d31] via-[#1b1e21] to-[#141618]"
@@ -364,22 +365,38 @@ function sized(ratio: number) {
 }
 
 /** The same name and level strip under every review, whatever its type. */
-function ReviewCaption({ name, meta }: { name: string; meta: string }) {
+function ReviewCaption({ name, meta, tile = false }: { name: string; meta: string; tile?: boolean }) {
+  // Phone tiles keep name over level at every phone width, with the card padding.
   return (
-    <figcaption className="flex flex-col gap-0.5 px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:px-3.5 sm:py-2.5">
-      <span className="truncate text-xs font-semibold text-[#f0ede8] sm:text-sm">{name || "Student"}</span>
+    <figcaption
+      className={
+        tile
+          ? "flex flex-col gap-0.5 px-4 py-3"
+          : "flex flex-col gap-0.5 px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:px-3.5 sm:py-2.5"
+      }
+    >
+      <span className={`truncate font-semibold text-[#f0ede8] ${tile ? "text-sm" : "text-xs sm:text-sm"}`}>{name || "Student"}</span>
       <span className="shrink-0 truncate text-xs text-faint">{meta}</span>
     </figcaption>
   );
 }
 
-export function VideoReviewCard({ r }: { r: VideoReview }) {
+/**
+ * `tile`: the shape class for a phone swipe row, where every tile has the same
+ * size. Without it the card keeps the video's own shape (the wall on wider screens).
+ */
+export function VideoReviewCard({ r, tile }: { r: VideoReview; tile?: string }) {
   return (
     <figure
-      style={sized(r.ratio)}
-      className="pc-surface max-w-full overflow-hidden rounded-[12px] transition-[border-color] duration-200 hover:border-[rgba(255,255,255,0.16)]! sm:rounded-[16px]"
+      style={tile ? undefined : sized(r.ratio)}
+      className={`pc-surface overflow-hidden rounded-[12px] transition-[border-color] duration-200 hover:border-[rgba(255,255,255,0.16)]! sm:rounded-[16px] ${
+        tile ? "flex flex-1 flex-col" : "max-w-full"
+      }`}
     >
-      <div className="relative w-full overflow-hidden bg-band-c" style={{ aspectRatio: r.ratio }}>
+      <div
+        className={`relative w-full overflow-hidden bg-band-c ${tile ?? ""}`}
+        style={tile ? undefined : { aspectRatio: r.ratio }}
+      >
         <VideoPlayer
           src={r.src}
           poster={r.poster ?? (r.src ? posterFor(r.src) : undefined)}
@@ -387,17 +404,19 @@ export function VideoReviewCard({ r }: { r: VideoReview }) {
           label="Clip coming soon"
         />
       </div>
-      <ReviewCaption name={r.name} meta={r.meta} />
+      <ReviewCaption name={r.name} meta={r.meta} tile={!!tile} />
     </figure>
   );
 }
 
 /** A WhatsApp screenshot, whole, at its own shape. Tap for full size. */
-function ShotCard({ s }: { s: (typeof shots)[number] }) {
+function ShotCard({ s, tile = false }: { s: (typeof shots)[number]; tile?: boolean }) {
   return (
     <figure
-      style={sized(SHOT_RATIO)}
-      className="pc-surface max-w-full overflow-hidden rounded-[12px] transition-[border-color] duration-200 hover:border-[rgba(255,255,255,0.16)]! sm:rounded-[16px]"
+      style={tile ? undefined : sized(SHOT_RATIO)}
+      className={`pc-surface overflow-hidden rounded-[12px] transition-[border-color] duration-200 hover:border-[rgba(255,255,255,0.16)]! sm:rounded-[16px] ${
+        tile ? "flex flex-1 flex-col" : "max-w-full"
+      }`}
     >
       <a
         href={s.src}
@@ -408,14 +427,12 @@ function ShotCard({ s }: { s: (typeof shots)[number] }) {
       >
         <Image src={s.src} alt={s.alt} width={900} height={1524} sizes="(max-width: 768px) 45vw, 260px" className="h-auto w-full" />
       </a>
-      <ReviewCaption name={s.name} meta={s.meta} />
+      <ReviewCaption name={s.name} meta={s.meta} tile={tile} />
     </figure>
   );
 }
 
 export function Reviews() {
-  // One wall, videos first, then voice notes, then messages. Every card shares
-  // one height (--rh) and keeps its own shape, so rows have no empty space.
   const videos = videoReviews.filter((v) => v.kind === "video");
   const voices = videoReviews.filter((v) => v.kind === "voice");
 
@@ -427,23 +444,42 @@ export function Reviews() {
           <h2 className="mx-auto mt-4 text-[2rem] leading-[1.08] md:text-5xl">What my students say.</h2>
         </div>
 
-        {/* Phones: three tidy runs (videos 3 across, voice notes, messages 3 across),
-            each with its own height. Larger screens: one mixed wall at one height. */}
-        <div className="mt-10 flex flex-wrap items-start justify-center gap-2.5 sm:gap-4 sm:[--rh:280px] md:mt-12 md:[--rh:320px]">
-          {videos.map((r) => (
-            <div key={r.src} className="max-sm:[--rh:178px]">
+        {/* Phones: one swipe row per kind of review (videos, voice notes,
+            messages), every tile in a row the same size. */}
+        <div className="mt-6 space-y-8 md:hidden">
+          <SwipeRow label="Video reviews" size="tile">
+            {videos.map((r) => (
+              <SwipeItem key={r.src}>
+                <VideoReviewCard r={r} tile="aspect-[9/16]" />
+              </SwipeItem>
+            ))}
+          </SwipeRow>
+          <SwipeRow label="Voice note reviews" size="tile">
+            {voices.map((r) => (
+              <SwipeItem key={r.src}>
+                <VideoReviewCard r={r} tile="aspect-square" />
+              </SwipeItem>
+            ))}
+          </SwipeRow>
+          <SwipeRow label="Messages from students" size="tile">
+            {shots.map((s) => (
+              <SwipeItem key={s.src}>
+                <ShotCard s={s} tile />
+              </SwipeItem>
+            ))}
+          </SwipeRow>
+        </div>
+
+        {/* 768px and wider: one mixed wall. Every card shares one height (--rh)
+            and keeps its own shape, so rows have no empty space. */}
+        <div className="mt-12 hidden flex-wrap items-start justify-center gap-4 [--rh:320px] md:flex">
+          {[...videos, ...voices].map((r) => (
+            <div key={r.src}>
               <VideoReviewCard r={r} />
             </div>
           ))}
-          <span aria-hidden className="h-0 basis-full sm:hidden" />
-          {voices.map((r) => (
-            <div key={r.src} className="max-sm:[--rh:104px]">
-              <VideoReviewCard r={r} />
-            </div>
-          ))}
-          <span aria-hidden className="h-0 basis-full sm:hidden" />
           {shots.map((s) => (
-            <div key={s.src} className="max-sm:[--rh:170px]">
+            <div key={s.src}>
               <ShotCard s={s} />
             </div>
           ))}
@@ -506,7 +542,7 @@ export function Faq() {
             Questions people ask me.
           </h2>
         </div>
-        <div className="pc-surface mt-10 rounded-[20px] px-5 md:mt-12 md:px-10">
+        <div className="pc-surface mt-6 rounded-[20px] px-5 md:mt-12 md:px-10">
           {faqs.map((f, i) => (
             <FaqItem key={f.q} q={f.q} a={f.a} defaultOpen={i === 0} last={i === faqs.length - 1} />
           ))}

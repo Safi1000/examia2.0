@@ -5,6 +5,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import "@/components/landing/public-calm.css";
 import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
+import { RelatedLinks } from "@/components/study/RelatedLinks";
 import { CITY_PAGES, cityPage } from "@/lib/city-pages";
 import { GULF_CITY_PAGES, GULF_SOURCES, GULF_ZONES, gulfCityPage, localDay, type GulfCityPage } from "@/lib/gulf-pages";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
@@ -79,6 +80,13 @@ export default async function CityClassesPage({ params }: Props) {
         <Section title="Questions">
           <FaqList items={faq} />
         </Section>
+
+        <RelatedLinks links={[
+            { href: "/past-papers", label: "Past papers with mark schemes" },
+            { href: "/past-papers/topics", label: "Past paper questions by topic" },
+            { href: "/syllabus", label: "Cambridge syllabus checklists" },
+            { href: "/grade-thresholds", label: "Cambridge grade thresholds" },
+          ]} />
       </div>
     </MarketingShell>
   );
@@ -159,6 +167,13 @@ function GulfCity({ c }: { c: GulfCityPage }) {
             </>
           )}
         </p>
+
+        <RelatedLinks links={[
+          { href: "/past-papers", label: "Past papers with mark schemes" },
+          { href: "/past-papers/topics", label: "Past paper questions by topic" },
+          { href: "/syllabus", label: "Cambridge syllabus checklists" },
+          { href: "/grade-thresholds", label: "Cambridge grade thresholds" },
+        ]} />
 
         <p className="mt-8 text-sm leading-relaxed text-faint">
           Sources:{" "}

@@ -24,7 +24,13 @@ const components: MDXComponents = {
       <a href={href} target="_blank" rel="noopener noreferrer" className="font-semibold text-gold underline-offset-4 hover:underline" {...p} />
     ),
   table: (p) => (
-    <div className="mt-6 overflow-x-auto rounded-2xl border border-hairline bg-card [scrollbar-width:thin]">
+    // Focusable so a keyboard user can scroll a wide table sideways with the arrow keys.
+    <div
+      tabIndex={0}
+      role="region"
+      aria-label="Table, scrolls sideways"
+      className="mt-6 overflow-x-auto rounded-2xl border border-hairline bg-card [scrollbar-width:thin] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+    >
       <table className="w-full border-collapse text-left text-[15px] tabular-nums" {...p} />
     </div>
   ),

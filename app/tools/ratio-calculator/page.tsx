@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { RatioCalculator } from "@/components/tools/RatioCalculator";
 import { ToolShell } from "@/components/tools/ToolShell";
+import { topicLink } from "@/components/study/RelatedLinks";
 import { fitTitle } from "@/lib/seo";
 
 const title = "Accounting Ratio Calculator (IGCSE 0452, O Level 7707)";
@@ -46,7 +47,9 @@ export default function RatioCalculatorPage() {
       related={[
         { href: "/blog/igcse-o-level-accounting-formats", label: "Every accounting format you need (0452 and 7707)" },
         { href: "/grade-thresholds/o-level-accounting-7707", label: "O Level Accounting 7707 grade thresholds" },
-      ]}
+        topicLink("0452", "6.1"),
+        topicLink("7707", "6.1"),
+      ].filter((l) => l !== null)}
       how={
         <div className="space-y-3 text-[17px] leading-relaxed text-body">
           <p>These are the formulas from the accounting ratios appendix of the Cambridge IGCSE Accounting 0452 syllabus, which O Level 7707 shares:</p>

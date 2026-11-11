@@ -37,5 +37,5 @@ export async function GET(req: NextRequest) {
     const got = await Promise.all(batch.map((id) => loadNoteText(id)));
     batch.forEach((id, j) => got[j] && have.push(id));
   }
-  return NextResponse.json({ have });
+  return NextResponse.json({ have }, { headers: { "Cache-Control": "private, no-store" } });
 }

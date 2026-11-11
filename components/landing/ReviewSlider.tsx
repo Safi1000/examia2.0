@@ -1,96 +1,144 @@
 "use client";
 
-import { useRef } from "react";
-import Image from "next/image";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 export type Shot = { src: string; name: string; meta: string; alt: string };
 
 /**
- * The wall of WhatsApp screenshots, as a swipeable rail.
+ * One sideways row of identical cards for phones (below 768px). At 768px and
+ * wider the same list is laid out by `className` (a grid or wall), so tablets
+ * and desktops look exactly as before.
  *
- * Scroll-snap does the work — no carousel library, no autoplay, no timers. The
- * arrows just nudge the same scroller, so a phone swipe and a desktop click end
- * up in exactly the same place. Each shot opens full size in a new tab, which is
- * the lightbox the browser already ships.
+ * Native scroll snapping does the work: no dragging code, no autoplay, no
+ * arrows. The row starts on the 20px page gutter and runs off the right edge
+ * so the next card peeks in. Small dots under it follow the scroll position.
  */
-export function ReviewSlider({ shots }: { shots: Shot[] }) {
-  const railRef = useRef<HTMLUListElement>(null);
 
-  function nudge(dir: 1 | -1) {
-    const rail = railRef.current;
-    if (!rail) return;
-    // One card plus its gap, so a tap always lands on a card edge.
-    const card = rail.firstElementChild as HTMLElement | null;
-    const step = card ? card.offsetWidth + 20 : rail.clientWidth * 0.8;
-    rail.scrollBy({ left: dir * step, behavior: "smooth" });
-  }
+const PHONE = "(max-width: 767.98px)";
+
+function subscribePhone(cb: () => void) {
+  const mq = window.matchMedia(PHONE);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+const isPhone = () => window.matchMedia(PHONE).matches;
+const notPhone = () => false;
+
+/** Card widths on phones. "card": one shows fully and the next peeks. "tile": two show and a third peeks. */
+const WIDTH = {
+  card: "max-md:[&>li]:w-[min(80vw,400px)]",
+  tile: "max-md:[&>li]:w-[min(40vw,220px)]",
+} as const;
+
+/** Snap stops closer than this are one resting place (the last cards can't all reach the gutter). */
+const MERGE_PX = 32;
+
+export function SwipeRow({
+  label,
+  labelledBy,
+  size = "card",
+  className = "",
+  children,
+}: {
+  /** Screen reader name for the row (or use `labelledBy`). */
+  label?: string;
+  labelledBy?: string;
+  size?: keyof typeof WIDTH;
+  /** Layout at 768px and wider. */
+  className?: string;
+  /** `SwipeItem`s, in reading order. */
+  children: ReactNode;
+}) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const phone = useSyncExternalStore(subscribePhone, isPhone, notPhone);
+  const [pos, setPos] = useState({ count: 0, active: 0 });
+
+  // Where the row can come to rest, and which of those it is nearest.
+  const measure = useCallback(() => {
+    const el = scroller.current;
+    const list = el?.firstElementChild;
+    if (!el || !list) return;
+    const max = el.scrollWidth - el.clientWidth;
+    if (max <= 1) {
+      setPos((p) => (p.count === 0 ? p : { count: 0, active: 0 }));
+      return;
+    }
+    const pad = parseFloat(getComputedStyle(el).scrollPaddingLeft) || 0;
+    const left = el.getBoundingClientRect().left - el.scrollLeft;
+    const stops: number[] = [];
+    for (const item of Array.from(list.children)) {
+      const at = Math.min(Math.max(item.getBoundingClientRect().left - left - pad, 0), max);
+      const last = stops[stops.length - 1];
+      if (last !== undefined && at - last < MERGE_PX) stops[stops.length - 1] = at;
+      else stops.push(at);
+    }
+    let active = 0;
+    stops.forEach((s, i) => {
+      if (Math.abs(s - el.scrollLeft) < Math.abs(stops[active] - el.scrollLeft)) active = i;
+    });
+    setPos((p) => (p.count === stops.length && p.active === active ? p : { count: stops.length, active }));
+  }, []);
+
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el || !phone) return;
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        measure();
+      });
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    // Fires once on observe too, which gives the first measurement.
+    const ro = new ResizeObserver(onScroll);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      ro.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [phone, measure]);
 
   return (
-    <div className="relative">
-      <ul
-        ref={railRef}
-        className="scrollbar-none flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    <div>
+      <div
+        ref={scroller}
+        role={phone ? "region" : undefined}
+        aria-label={phone ? label : undefined}
+        aria-labelledby={phone ? labelledBy : undefined}
+        // Focusable only where it scrolls, so arrow keys can move it.
+        tabIndex={phone ? 0 : undefined}
+        className="swipe-row max-md:-mx-5 max-md:snap-x max-md:snap-mandatory max-md:scroll-pl-5 max-md:overflow-x-auto max-md:overscroll-x-contain max-md:[-webkit-overflow-scrolling:touch] max-md:[touch-action:pan-x_pan-y] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-gold"
       >
-        {shots.map((s) => (
-          <li
-            key={s.src}
-            className="w-[88vw] max-w-[460px] shrink-0 snap-center sm:w-[440px]"
-          >
-            <figure className="overflow-hidden rounded-[20px] border border-hairline bg-card">
-              <a
-                href={s.src}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group block focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
-                aria-label={`Open ${s.name}'s message full size`}
-              >
-                <div className="relative aspect-[9/13] w-full overflow-hidden bg-band-c">
-                  <Image
-                    src={s.src}
-                    alt={s.alt}
-                    fill
-                    sizes="(max-width: 640px) 88vw, 440px"
-                    className="object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
-                  />
-                  {/* Fade at the foot so a cut-off message reads as "there's more". */}
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[rgba(15,17,19,0.95)] to-transparent"
-                  />
-                  <span className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-gold-border bg-[rgba(20,22,24,0.75)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-gold backdrop-blur">
-                    Tap to read
-                  </span>
-                </div>
-              </a>
-              <figcaption className="flex items-center justify-between border-t border-hairline px-4 py-3">
-                <span className="text-sm font-semibold text-foreground">{s.name}</span>
-                <span className="text-[11px] uppercase tracking-[0.18em] text-faint">{s.meta}</span>
-              </figcaption>
-            </figure>
-          </li>
-        ))}
-      </ul>
-
-      {/* Arrows are an extra, not the only way through: the rail swipes and
-          scrolls on its own, so they stay off touch screens. */}
-      <div className="mt-4 hidden justify-center gap-2 sm:flex">
-        <button
-          type="button"
-          onClick={() => nudge(-1)}
-          aria-label="Previous message"
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-hairline-strong text-muted-foreground transition-colors hover:border-gold-border hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
+        <ul
+          className={`max-md:flex max-md:w-max max-md:gap-3 max-md:px-5 max-md:[&>li]:shrink-0 max-md:[&>li]:snap-start ${WIDTH[size]} ${className}`}
         >
-          ‹
-        </button>
-        <button
-          type="button"
-          onClick={() => nudge(1)}
-          aria-label="Next message"
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-hairline-strong text-muted-foreground transition-colors hover:border-gold-border hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
-        >
-          ›
-        </button>
+          {children}
+        </ul>
       </div>
+      {pos.count > 1 && (
+        <div
+          role="img"
+          aria-label={`Position ${pos.active + 1} of ${pos.count}`}
+          className="mt-4 flex items-center justify-center gap-1.5 md:hidden"
+        >
+          {Array.from({ length: pos.count }, (_, i) => (
+            <span
+              key={i}
+              className={`h-1.5 rounded-full transition-[width,background-color] duration-300 ease-out motion-reduce:transition-none ${
+                i === pos.active ? "w-4 bg-gold" : "w-1.5 bg-hairline-strong"
+              }`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
+}
+
+/** One card in a `SwipeRow`. Every card in a row stretches to the tallest. */
+export function SwipeItem({ className = "", children }: { className?: string; children: ReactNode }) {
+  return <li className={`flex flex-col ${className}`}>{children}</li>;
 }

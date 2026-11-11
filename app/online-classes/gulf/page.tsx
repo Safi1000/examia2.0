@@ -5,6 +5,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import "@/components/landing/public-calm.css";
 import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
+import { RelatedLinks } from "@/components/study/RelatedLinks";
 import { GULF_CITY_PAGES, GULF_ZONES, levelBlocks, shiftHours } from "@/lib/gulf-pages";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 import { LEVEL_LABEL, span } from "@/lib/timetable";
@@ -177,6 +178,15 @@ export default function OnlineClassesGulf() {
         <Section title="Questions from Gulf families">
           <FaqList items={FAQ} />
         </Section>
+
+        <RelatedLinks
+          links={[
+            { href: "/past-papers", label: "Past papers with mark schemes" },
+            { href: "/past-papers/topics", label: "Past paper questions by topic" },
+            { href: "/syllabus", label: "Cambridge syllabus checklists" },
+            { href: "/grade-thresholds", label: "Cambridge grade thresholds" },
+          ]}
+        />
 
         <p className="mt-12 text-sm leading-relaxed text-faint">
           School week and British Council facts come from official sources, listed on each city page and guide.

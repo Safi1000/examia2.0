@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ElasticityCalculator } from "@/components/tools/ElasticityCalculator";
 import { ToolShell } from "@/components/tools/ToolShell";
+import { topicLink } from "@/components/study/RelatedLinks";
 import { fitTitle } from "@/lib/seo";
 
 const title = "Elasticity Calculator: PED, YED and XED";
@@ -38,7 +39,7 @@ export default function Page() {
       subject="Economics"
       level="O Level / IGCSE"
       faq={FAQ}
-      related={[{ href: "/blog/igcse-economics-price-elasticity-of-demand", label: "Price elasticity of demand explained (IGCSE 0455)" }, { href: "/blog/how-to-answer-igcse-o-level-economics-questions", label: "How to answer IGCSE and O Level Economics questions" }]}
+      related={[{ href: "/blog/igcse-economics-price-elasticity-of-demand", label: "Price elasticity of demand explained (IGCSE 0455)" }, { href: "/blog/how-to-answer-igcse-o-level-economics-questions", label: "How to answer IGCSE and O Level Economics questions" }, topicLink("0455", "2.6"), topicLink("2281", "2.6")].filter((l) => l !== null)}
       how={
         <div className="space-y-3 text-[17px] leading-relaxed text-body">
           <p>Each elasticity is a percentage change in quantity demanded divided by a percentage change in something else. Percentage change = (new − old) ÷ old × 100.</p>

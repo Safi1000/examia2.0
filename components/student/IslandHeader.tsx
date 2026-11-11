@@ -90,7 +90,17 @@ export function IslandHeader({
     const restored = () => setRestarts((n) => n + 1);
     el.addEventListener("webglcontextlost", lost);
     el.addEventListener("webglcontextrestored", restored);
-    loadIsland()
+    // three.js (about 150 KB compressed, plus compiling it and starting WebGL) waits
+    // until the browser is idle after Home has painted, so on a phone it never
+    // competes with the page's own scripts and data. The still picture covers the wait.
+    let idle = 0;
+    // Older Safari has no requestIdleCallback: a short timer stands in.
+    const ric = typeof window.requestIdleCallback === "function";
+    const afterIdle = new Promise<void>((resolve) => {
+      idle = ric ? window.requestIdleCallback(() => resolve(), { timeout: 2500 }) : window.setTimeout(resolve, 600);
+    });
+    afterIdle
+      .then(() => (gone ? Promise.reject(new Error("gone")) : loadIsland()))
       .then((mount) => {
         if (gone) return;
         try {
@@ -120,9 +130,13 @@ export function IslandHeader({
           () => (raf = requestAnimationFrame(() => !gone && setLive(true))),
         );
       })
-      .catch((e) => console.warn("[island] could not load", e));
+      .catch((e) => {
+        if (!gone) console.warn("[island] could not load", e);
+      });
     return () => {
       gone = true;
+      if (ric) window.cancelIdleCallback(idle);
+      else window.clearTimeout(idle);
       el.removeEventListener("webglcontextlost", lost);
       el.removeEventListener("webglcontextrestored", restored);
       cancelAnimationFrame(raf);
@@ -170,31 +184,29 @@ export function IslandHeader({
       )}
     >
       <div className="relative aspect-[390/210] w-full [mask-image:linear-gradient(180deg,#000_62%,transparent)] sm:absolute sm:inset-0 sm:-z-20 sm:aspect-auto sm:[mask-image:none]">
-        {/* Plain imgs: the art is already web sized, and they must show before any script runs. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={`${pic("phone")}.webp`}
-          srcSet={`${pic("phone")}.webp 1x, ${pic("phone")}@2x.webp 2x`}
-          alt=""
-          width={390}
-          height={210}
-          loading="eager"
-          decoding="async"
-          draggable={false}
-          className="absolute inset-0 h-full w-full object-cover sm:hidden"
-        />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={`${pic("desktop")}.webp`}
-          srcSet={`${pic("desktop")}.webp 1x, ${pic("desktop")}@2x.webp 2x`}
-          alt=""
-          width={1200}
-          height={360}
-          loading="eager"
-          decoding="async"
-          draggable={false}
-          className="absolute inset-0 hidden h-full w-full object-cover object-right sm:block"
-        />
+        {/* Plain img: the art is already web sized, and it must show before any script runs.
+            One <picture>, so a phone downloads only the phone art (two eager imgs, one
+            display:none, made phones fetch the 50 to 60 KB desktop art too).
+            40rem is Tailwind's sm breakpoint, where the layout switches. */}
+        <picture>
+          <source
+            media="(min-width: 40rem)"
+            srcSet={`${pic("desktop")}.webp 1x, ${pic("desktop")}@2x.webp 2x`}
+            width={1200}
+            height={360}
+          />
+          <img
+            src={`${pic("phone")}.webp`}
+            srcSet={`${pic("phone")}.webp 1x, ${pic("phone")}@2x.webp 2x`}
+            alt=""
+            width={390}
+            height={210}
+            loading="eager"
+            decoding="async"
+            draggable={false}
+            className="absolute inset-0 h-full w-full object-cover sm:object-right"
+          />
+        </picture>
         <div
           ref={art}
           aria-hidden

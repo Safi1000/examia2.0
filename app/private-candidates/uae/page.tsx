@@ -4,6 +4,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import "@/components/landing/public-calm.css";
 import { Crumbs, Section, Table, TrialBox } from "@/components/study/StudyBits";
+import { RelatedLinks } from "@/components/study/RelatedLinks";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 
 /**
@@ -50,7 +51,7 @@ export default function PrivateCandidatesUae() {
       <JsonLd
         data={breadcrumbLd([
           { name: "Home", path: "/" },
-          { name: "Private candidates, UAE", path: "/private-candidates/uae" },
+          { name: "Private candidate guide, UAE", path: "/private-candidates/uae" },
         ])}
       />
       <JsonLd
@@ -171,7 +172,7 @@ export default function PrivateCandidatesUae() {
             </li>
           </ul>
           <p className="mt-6 text-[17px] leading-relaxed text-body">
-            Then the work that actually decides your grade: past papers, marked properly. Classes run from 2:30 pm to 8:30 pm UAE time,
+            Then the work that actually decides your grade: <Link href="/past-papers" className="text-gold hover:underline">past papers</Link>, marked properly. Classes run from 2:30 pm to 8:30 pm UAE time,
             Monday to Friday, and the <Link href="/online-classes/dubai" className="text-gold hover:underline">Dubai</Link> and{" "}
             <Link href="/online-classes/abu-dhabi" className="text-gold hover:underline">Abu Dhabi</Link> pages show each class on your
             clock.
@@ -187,6 +188,15 @@ export default function PrivateCandidatesUae() {
         <Section title="Questions private candidates ask">
           <FaqList items={FAQ} />
         </Section>
+
+        <RelatedLinks
+          links={[
+            { href: "/past-papers", label: "Past papers with mark schemes" },
+            { href: "/past-papers/topics", label: "Past paper questions by topic" },
+            { href: "/syllabus", label: "Cambridge syllabus checklists" },
+            { href: "/grade-thresholds", label: "Cambridge grade thresholds" },
+          ]}
+        />
 
         <p className="mt-12 text-sm leading-relaxed text-faint">
           Sources:{" "}

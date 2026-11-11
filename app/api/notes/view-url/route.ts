@@ -27,7 +27,10 @@ export async function POST(req: NextRequest) {
   // Note ids are always this shape; anything else can't be a note.
   if (!/^[0-9a-f-]{36}$/i.test(noteId)) return NextResponse.json({ error: "not found" }, { status: 404 });
 
-  const sb = createClient(url, key, { global: { headers: { Authorization: `Bearer ${token}` } } });
+  const sb = createClient(url, key, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
   const { data: user } = await sb.auth.getUser();
   if (!user.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
@@ -46,9 +49,16 @@ export async function POST(req: NextRequest) {
   const admin = (user.user.app_metadata as { role?: string } | undefined)?.role === "admin";
   if (!admin && isHidden(String(note.file_type ?? ""))) return NextResponse.json({ error: "not found" }, { status: 404 });
 
+  // A student's PDF is read by our own reader, which sends the sign-in with the
+  // file request, so the link is tied to them. Other files (Word and
+  // PowerPoint through Microsoft's viewer, images) are fetched by something
+  // that can't send it, so they keep the plain short-lived link.
+  const fileType = String(note.file_type ?? "");
+  const owner = !admin && fileType.toLowerCase().includes("pdf") ? user.user.id : undefined;
+
   return NextResponse.json(
     {
-      url: signViewUrl(fileUrl as string, (note.file_name as string) ?? "note"),
+      url: signViewUrl(fileUrl as string, (note.file_name as string) ?? "note", owner),
       fileType: note.file_type ?? "application/octet-stream",
       fileName: (note.file_name as string) ?? "",
     },

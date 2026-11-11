@@ -4,6 +4,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import { Section, TrialBox } from "@/components/study/StudyBits";
 import { PastPapersNav } from "@/components/past-papers/Bits";
+import { RelatedLinks } from "@/components/study/RelatedLinks";
 import { PaperSearch } from "@/components/past-papers/PaperSearch";
 import { ContinueStrip } from "@/components/past-papers/ContinueStrip";
 import { YEAR_RANGE, PAPER_LEVELS, PAST_PAPER_SYLLABI, changeNote } from "@/lib/past-papers";
@@ -106,6 +107,15 @@ export default function PastPapersHub() {
         <Section title="Questions students ask">
           <FaqList items={faq} />
         </Section>
+
+        <RelatedLinks
+          links={[
+            { href: "/syllabus", label: "Cambridge syllabus checklists" },
+            { href: "/grade-thresholds", label: "Cambridge grade thresholds" },
+            { href: "/tools/grade-predictor", label: "Grade predictor" },
+            { href: "/blog", label: "The Exam Room: exam technique and topic guides" },
+          ]}
+        />
 
         <p className="mt-12 text-sm text-faint">Papers, mark schemes and reports are © Cambridge University Press &amp; Assessment, shared here for students&apos; revision.</p>
       </div>

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { Crumbs, TrialBox } from "@/components/study/StudyBits";
+import { RelatedLinks, syllabusLinks } from "@/components/study/RelatedLinks";
 import { PastPapersNav } from "@/components/past-papers/Bits";
 import { TopicalList } from "@/components/past-papers/TopicalList";
 import { PAST_PAPER_SYLLABI, pastPaperSyllabus } from "@/lib/past-papers";
@@ -73,7 +74,7 @@ export default async function TopicPage({ params }: Props) {
       <div className="mx-auto max-w-3xl px-5 pb-20 pt-8 md:pt-12">
         <PastPapersNav className="w-fit max-w-full" />
         <div className="mt-8">
-          <Crumbs trail={[{ name: s.short, href: `/past-papers/${s.slug}` }, { name: "Topical", href: base }, { name: e.sub.num }]} />
+          <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Past papers", href: "/past-papers" }, { name: s.short, href: `/past-papers/${s.slug}` }, { name: "Topical", href: base }, { name: e.sub.num }]} />
         </div>
         <p className="mt-5 text-[14px] font-semibold text-gold">
           {e.topic.num} {e.topic.name}
@@ -121,6 +122,8 @@ export default async function TopicPage({ params }: Props) {
             </Link>
           )}
         </nav>
+
+        <RelatedLinks links={syllabusLinks(s.code, ["checklist"]).filter((l) => !reading.some((r) => r.href === l.href))} />
 
         <TrialBox
           from={`topical:${s.code}:${e.sub.num}`}

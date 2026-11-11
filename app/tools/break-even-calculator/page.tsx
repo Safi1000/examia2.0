@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { BreakEvenCalculator } from "@/components/tools/BreakEvenCalculator";
 import { ToolShell } from "@/components/tools/ToolShell";
+import { topicLink } from "@/components/study/RelatedLinks";
 import { fitTitle } from "@/lib/seo";
 
 const title = "Break-Even Calculator for Business Students";
@@ -38,7 +39,7 @@ export default function Page() {
       subject="Business"
       level="O Level / IGCSE"
       faq={FAQ}
-      related={[{ href: "/blog/igcse-business-0450-justify-evaluate-questions", label: "How to answer IGCSE Business 'justify' questions" }, { href: "/grade-thresholds/igcse-business-0450", label: "IGCSE Business grade thresholds" }]}
+      related={[{ href: "/blog/igcse-business-0450-justify-evaluate-questions", label: "How to answer IGCSE Business 'justify' questions" }, { href: "/grade-thresholds/igcse-business-0450", label: "Grade thresholds for IGCSE Business Studies 0450" }, topicLink("0450", "4.4"), topicLink("7115", "4.4")].filter((l) => l !== null)}
       how={
         <div className="space-y-3 text-[17px] leading-relaxed text-body">
           <p>Contribution per unit = selling price − variable cost per unit. Break-even output = total fixed costs ÷ contribution per unit, rounded up to a whole unit. Break-even revenue = break-even output × selling price. Margin of safety = actual or planned output − break-even output.</p>

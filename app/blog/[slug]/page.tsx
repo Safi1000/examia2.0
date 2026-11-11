@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PAST_PAPER_SYLLABI } from "@/lib/past-papers";
+import { SYLLABI } from "@/lib/syllabus";
 import { JsonLd } from "@/components/JsonLd";
 import { ArticleCta } from "@/components/blog/ArticleCta";
 import { MarketingShell } from "@/components/landing/MarketingShell";
@@ -60,11 +61,13 @@ export default async function ArticlePage({ params }: Props) {
   const resources = [
     ...toolFor.filter(([re]) => re.test(slug)).map(([, href, label]) => ({ href, label })),
     ...PAST_PAPER_SYLLABI.filter((p) => a.code.includes(p.code) || (p.next && a.code.includes(p.next.code))).flatMap((p) => [
-      { href: `/past-papers/${p.slug}/topics`, label: `${p.short} questions by topic` },
+      { href: `/past-papers/${p.slug}/topics`, label: `${p.name} questions by topic` },
       { href: `/past-papers/${p.slug}`, label: `${p.name} past papers` },
     ]),
+    // The checklist for the article's first syllabus: what the syllabus asks, point by point.
+    ...SYLLABI.filter((x) => a.code.includes(x.code)).slice(0, 1).map((x) => ({ href: `/syllabus/${x.slug}`, label: `${x.name} syllabus checklist` })),
     { href: "/tools/exam-countdown", label: "Exam countdown" },
-  ].slice(0, 5);
+  ].slice(0, 6);
 
   return (
     <MarketingShell>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
 import { ArticleList } from "@/components/blog/ArticleList";
+import { RelatedLinks } from "@/components/study/RelatedLinks";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { allArticles, formatDate } from "@/lib/blog";
 import { breadcrumbLd, fitTitle } from "@/lib/seo";
@@ -36,6 +37,16 @@ export default async function BlogPage() {
           </h1>
           <div className="mt-10 md:mt-14">
             <ArticleList articles={articles} dates={dates} />
+          </div>
+          <div className="mx-auto max-w-3xl">
+            <RelatedLinks
+              links={[
+                { href: "/past-papers", label: "Past papers with mark schemes" },
+                { href: "/syllabus", label: "Cambridge syllabus checklists" },
+                { href: "/grade-thresholds", label: "Cambridge grade thresholds" },
+                { href: "/tools", label: "Free tools for Accounting, Business and Economics" },
+              ]}
+            />
           </div>
         </div>
       </section>

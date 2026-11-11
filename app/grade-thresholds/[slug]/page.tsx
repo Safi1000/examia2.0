@@ -6,6 +6,7 @@ import { GradePredictor } from "@/components/landing/GradePredictor";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
 import { ScrollTable as Table } from "./ScrollTable";
+import { RelatedLinks, syllabusLinks } from "@/components/study/RelatedLinks";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 import {
   THRESHOLD_PAGES,
@@ -260,6 +261,8 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
         <Section title="Questions students ask">
           <FaqList items={faq} />
         </Section>
+
+        <RelatedLinks links={syllabusLinks(p.code, ["thresholds"])} />
 
         <Section title="Other syllabuses">
           <ul className="grid gap-3 sm:grid-cols-2">

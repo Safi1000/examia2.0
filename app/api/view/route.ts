@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { isOwnCloudinary, safeFileName, verifyViewUrl } from "@/lib/signed-view";
 
 const RISKY = /^\s*(text\/html|application\/xhtml|image\/svg|text\/xml|application\/xml|text\/javascript|application\/javascript)/i;
@@ -7,11 +8,27 @@ const RISKY = /^\s*(text\/html|application\/xhtml|image\/svg|text\/xml|applicati
  * Streams a note INLINE for reading in the portal.
  *
  * Only reachable with a signature minted by /api/notes/view-url, which checks
- * the caller may see that note. The link dies after a few minutes, so copying
- * it out of the page buys nothing. Unlike /api/download this never sends
+ * the caller may see that note. The link dies after a few minutes, and a
+ * student's PDF link also needs that student's own sign-in with the request. Unlike /api/download this never sends
  * Content-Disposition: attachment — there is no download path for notes.
  */
 export const runtime = "nodejs";
+
+/** The signed-in user's id from the request's Supabase token, or null. Asked of Supabase, so a made-up or expired token never passes. */
+async function userIdFromRequest(req: NextRequest): Promise<string | null> {
+  const auth = req.headers.get("authorization");
+  const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!token || !url || !key) return null;
+  try {
+    const sb = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data } = await sb.auth.getUser(token);
+    return data.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
 
 function parseCloudinaryUrl(url: string) {
   const match = url.match(/res\.cloudinary\.com\/([^/]+)\/([^/]+)\/upload\/(?:v\d+\/)?(.+)/);
@@ -36,6 +53,14 @@ export async function GET(req: NextRequest) {
 
   const payload = verifyViewUrl(data, sig);
   if (!payload) return new NextResponse("Link expired", { status: 403 });
+
+  // A link minted for one student (their PDFs) also needs that student's
+  // sign-in: copied out of the page, it opens nothing for anyone else.
+  if (payload.o) {
+    const uid = await userIdFromRequest(req);
+    if (!uid) return new NextResponse("Sign in to read this note", { status: 401, headers: { "Cache-Control": "private, no-store" } });
+    if (uid !== payload.o) return new NextResponse("Not allowed", { status: 403, headers: { "Cache-Control": "private, no-store" } });
+  }
 
   if (!isOwnCloudinary(payload.u)) return new NextResponse("URL not allowed", { status: 403 });
 

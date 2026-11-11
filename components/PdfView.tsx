@@ -38,6 +38,8 @@ type Anchor = { i: number; fx: number; fy: number; sx: number; sy: number };
 
 type Props = {
   url: string;
+  /** The reader's sign-in, sent with the file request (a student's note link only opens with it). */
+  authToken?: string;
   onFail: () => void;
   /** Open at this page (from a search result, or where they left off). */
   startPage?: number;
@@ -54,7 +56,7 @@ export function PdfView(props: Props) {
   return <PdfReader key={props.url} {...props} />;
 }
 
-function PdfReader({ url, onFail, startPage, highlight, onPage, autoFocus }: Props) {
+function PdfReader({ url, authToken, onFail, startPage, highlight, onPage, autoFocus }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const [doc, setDoc] = useState<PdfDoc | null>(null);
   // Page sizes at scale 1. Until a page is fetched it borrows page 1's size.
@@ -106,7 +108,10 @@ function PdfReader({ url, onFail, startPage, highlight, onPage, autoFocus }: Pro
         const lib = await loadPdfJs();
         if (!alive) return;
         utilRef.current = lib.Util;
-        const task = lib.getDocument({ url });
+        // PDF.js sends the header with every request for the file. Built apart
+        // from the call because the shared PdfLib type only lists url and data.
+        const source: { url: string; httpHeaders?: Record<string, string> } = authToken ? { url, httpHeaders: { Authorization: `Bearer ${authToken}` } } : { url };
+        const task = lib.getDocument(source);
         loading = task;
         const d = (await task.promise) as unknown as PdfDoc;
         loaded = d;
@@ -130,7 +135,7 @@ function PdfReader({ url, onFail, startPage, highlight, onPage, autoFocus }: Pro
       // Closed while still downloading: stop the download too, not only a finished file.
       void (loaded?.destroy?.() ?? loading?.destroy?.())?.catch(() => {});
     };
-  }, [url]);
+  }, [url, authToken]);
 
   // Closing the reader: give every page's drawing memory back straight away,
   // and remember the page even when it closes right after a scroll.

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { Crumbs, Section } from "@/components/study/StudyBits";
+import { RelatedLinks } from "@/components/study/RelatedLinks";
 import { breadcrumbLd, fitTitle } from "@/lib/seo";
 import { SYLLABI, pointCount, subtopicCount } from "@/lib/syllabus";
 
@@ -47,6 +48,14 @@ export default function SyllabusHub() {
             </ul>
           </Section>
         ))}
+        <RelatedLinks
+          links={[
+            { href: "/past-papers", label: "Past papers with mark schemes" },
+            { href: "/past-papers/topics", label: "Past paper questions by topic" },
+            { href: "/grade-thresholds", label: "Cambridge grade thresholds" },
+            { href: "/tools/revision-planner", label: "Revision planner" },
+          ]}
+        />
       </div>
     </MarketingShell>
   );

@@ -65,7 +65,7 @@ export function Hero() {
         </button>
       </div>
 
-      <div className="mx-auto max-w-5xl px-5 pb-12 md:pb-20">
+      <div className="mx-auto max-w-5xl px-5 pb-9 md:pb-20">
         <div
           onClick={() => track("vsl_play")}
           className="pc-frame relative aspect-video w-full overflow-hidden rounded-[20px] bg-band-c md:rounded-[24px]"

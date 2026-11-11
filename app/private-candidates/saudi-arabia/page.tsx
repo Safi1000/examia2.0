@@ -4,6 +4,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import "@/components/landing/public-calm.css";
 import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
+import { RelatedLinks } from "@/components/study/RelatedLinks";
 import { breadcrumbLd, fitTitle } from "@/lib/seo";
 
 /**
@@ -32,7 +33,7 @@ export default function PrivateCandidatesSaudiArabia() {
       <JsonLd
         data={breadcrumbLd([
           { name: "Home", path: "/" },
-          { name: "Private candidates, Saudi Arabia", path: "/private-candidates/saudi-arabia" },
+          { name: "Private candidate guide, Saudi Arabia", path: "/private-candidates/saudi-arabia" },
         ])}
       />
       <JsonLd
@@ -116,6 +117,15 @@ export default function PrivateCandidatesSaudiArabia() {
           from="private-candidates:saudi-arabia"
           title="Your entry. My marking."
           body="Private candidates in Saudi Arabia join the same live classes as school students, and every weekly test is marked by me with written feedback. Start with one free lesson."
+        />
+
+        <RelatedLinks
+          links={[
+            { href: "/past-papers", label: "Past papers with mark schemes" },
+            { href: "/past-papers/topics", label: "Past paper questions by topic" },
+            { href: "/syllabus", label: "Cambridge syllabus checklists" },
+            { href: "/grade-thresholds", label: "Cambridge grade thresholds" },
+          ]}
         />
 
         <p className="mt-12 text-sm leading-relaxed text-faint">

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
+import { SwipeItem, SwipeRow } from "./ReviewSlider";
 
 /**
  * "Inside a lesson": five things a student gets, each with a small drawing of
@@ -11,26 +12,21 @@ function Card({
   title,
   text,
   art,
-  wide = false,
-  zoom,
 }: {
   title: string;
   text: string;
   art: ReactNode;
-  wide?: boolean;
-  /** How much the drawing shrinks on phones so it fills its panel. Desktop is always full size. */
-  zoom: number;
 }) {
+  // Phones: one row of identical cards (same picture shape, title room for two
+  // lines), so titles and text start at the same height in every card.
   return (
-    <div className={`pc-surface flex flex-col overflow-hidden rounded-[16px] md:rounded-[20px] ${wide ? "col-span-2" : ""}`}>
-      <div aria-hidden className="relative flex items-center justify-center overflow-hidden border-b border-hairline bg-[rgba(20,22,24,0.55)] px-2 py-3 md:h-56 md:px-5 md:py-0">
-        <div className="flex w-full justify-center max-md:[zoom:var(--z)]" style={{ ["--z" as string]: zoom }}>
-          {art}
-        </div>
+    <div className="pc-surface flex flex-1 flex-col overflow-hidden rounded-[16px] md:rounded-[20px]">
+      <div aria-hidden className="relative flex items-center justify-center overflow-hidden border-b border-hairline bg-[rgba(20,22,24,0.55)] px-4 max-md:aspect-[4/3] md:h-56 md:px-5">
+        <div className="flex w-full justify-center">{art}</div>
       </div>
       <div className="p-4 md:p-6">
-        <h3 className="text-[15px] leading-snug md:text-lg">{title}</h3>
-        <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground md:mt-1.5 md:text-[15px]">{text}</p>
+        <h3 className="text-lg leading-snug max-md:min-h-[2lh]">{title}</h3>
+        <p className="mt-2 text-base leading-relaxed text-muted-foreground md:mt-1.5 md:text-[15px]">{text}</p>
       </div>
     </div>
   );
@@ -215,17 +211,29 @@ export function InsideLesson() {
       <div className="mx-auto max-w-6xl px-5">
         <div className="text-center">
           <p className="pc-label">What you get</p>
-          <h2 className="mx-auto mt-4 max-w-[22ch] text-[2rem] leading-[1.08] md:text-5xl">Inside my classes.</h2>
+          <h2 id="inside-title" className="mx-auto mt-4 max-w-[22ch] text-[2rem] leading-[1.08] md:text-5xl">Inside my classes.</h2>
           <p className="mx-auto mt-4 max-w-3xl text-balance text-[17px] leading-relaxed text-muted-foreground">
             How my online classes work.
           </p>
         </div>
-        <div className="mt-10 grid grid-cols-2 gap-3 md:mt-12 md:grid-cols-3 md:gap-5">
-          <Card wide zoom={0.82} title="Small live classes" text="On Google Meet or Zoom, cameras on. Ask me anything, any time." art={<LiveArt />} />
-          <Card zoom={0.6} title="Every class recorded" text="Missed a class? Watch it the same night." art={<RecordedArt />} />
-          <Card zoom={0.6} title="Weekly tests, marked by me" text="You see exactly where you lost marks." art={<TestArt />} />
-          <Card zoom={0.6} title="Your own student portal" text="Your notes, tests and marks in one place." art={<PortalArt />} />
-          <Card zoom={0.6} title="Answers that get marks" text="I show you how examiners mark, step by step." art={<MarksArt />} />
+        <div className="mt-6 md:mt-12">
+          <SwipeRow labelledBy="inside-title" className="md:grid md:grid-cols-3 md:gap-5">
+            <SwipeItem className="md:col-span-2">
+              <Card title="Small live classes" text="On Google Meet or Zoom, cameras on. Ask me anything, any time." art={<LiveArt />} />
+            </SwipeItem>
+            <SwipeItem>
+              <Card title="Every class recorded" text="Missed a class? Watch it the same night." art={<RecordedArt />} />
+            </SwipeItem>
+            <SwipeItem>
+              <Card title="Weekly tests, marked by me" text="You see exactly where you lost marks." art={<TestArt />} />
+            </SwipeItem>
+            <SwipeItem>
+              <Card title="Your own student portal" text="Your notes, tests and marks in one place." art={<PortalArt />} />
+            </SwipeItem>
+            <SwipeItem>
+              <Card title="Answers that get marks" text="I show you how examiners mark, step by step." art={<MarksArt />} />
+            </SwipeItem>
+          </SwipeRow>
         </div>
       </div>
     </section>

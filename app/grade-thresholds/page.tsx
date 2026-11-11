@@ -3,6 +3,7 @@ import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import { Crumbs, Section } from "@/components/study/StudyBits";
+import { RelatedLinks } from "@/components/study/RelatedLinks";
 import { SESSIONS } from "@/lib/grade-thresholds";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 import { THRESHOLD_PAGES, gradeShown, gradesOf, pct, sessionsOf, spread } from "@/lib/threshold-pages";
@@ -100,6 +101,14 @@ export default function GradeThresholdsHub() {
         <Section title="Questions students ask">
           <FaqList items={FAQ} />
         </Section>
+
+        <RelatedLinks
+          links={[
+            { href: "/blog/cambridge-grade-thresholds-explained", label: "Cambridge grade thresholds explained" },
+            { href: "/past-papers", label: "Past papers with mark schemes" },
+            { href: "/syllabus", label: "Cambridge syllabus checklists" },
+          ]}
+        />
       </div>
     </MarketingShell>
   );

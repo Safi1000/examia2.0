@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { Crumbs } from "@/components/study/StudyBits";
 import { PastPapersNav } from "@/components/past-papers/Bits";
 import { PAPER_LEVELS, PAST_PAPER_SYLLABI, codesLabel } from "@/lib/past-papers";
 import { hasTopical } from "@/lib/topical";
+import { breadcrumbLd } from "@/lib/seo";
 
 const title = "Topical Past Papers: Accounting, Business, Economics";
 const description = "Cambridge O Level, IGCSE and A Level past paper questions sorted by syllabus topic, Paper 1 and Paper 2, with mark schemes. Free, no ads.";
@@ -20,10 +22,11 @@ export default function TopicsHub() {
   const list = PAST_PAPER_SYLLABI.filter((s) => hasTopical(s.code));
   return (
     <MarketingShell>
+      <JsonLd data={breadcrumbLd([{ name: "Home", path: "/" }, { name: "Past papers", path: "/past-papers" }, { name: "Topical", path: "/past-papers/topics" }])} />
       <div className="mx-auto max-w-3xl px-5 pb-20 pt-8 md:pt-12">
         <PastPapersNav className="w-fit max-w-full" />
         <div className="mt-8">
-          <Crumbs trail={[{ name: "Past papers", href: "/past-papers" }, { name: "Topical" }]} />
+          <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Past papers", href: "/past-papers" }, { name: "Topical" }]} />
         </div>
         <h1 className="mt-4 text-4xl font-bold tracking-tight text-foreground md:text-5xl">Topical past papers</h1>
         <p className="mt-4 max-w-[54ch] text-lg leading-relaxed text-muted-foreground">Every Paper 1 and Paper 2 question, filed under the topic it tests. Weak on one topic? Do every question ever set on it, back to back.</p>

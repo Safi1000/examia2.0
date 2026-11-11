@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { SwipeItem, SwipeRow } from "./ReviewSlider";
 import type { ReactNode } from "react";
 
 /**
@@ -12,28 +13,23 @@ function Card({
   title,
   text,
   art,
-  zoom,
-  className = "",
 }: {
   label: string;
   title: string;
   text: string;
   art: ReactNode;
-  /** How much the drawing shrinks on phones so it fills its panel. Desktop is always full size. */
-  zoom: number;
-  className?: string;
 }) {
+  // Phones: one row of identical cards (same picture shape, title room for two
+  // lines), so label, title and text start at the same height in every card.
   return (
-    <div className={`pc-surface flex flex-col overflow-hidden rounded-[16px] md:rounded-[20px] ${className}`}>
-      <div aria-hidden className="relative flex items-center justify-center overflow-hidden border-b border-hairline bg-[rgba(20,22,24,0.55)] px-2 py-3 md:h-40 md:px-5 md:py-0">
-        <div className="max-md:[zoom:var(--z)]" style={{ ["--z" as string]: zoom }}>
-          {art}
-        </div>
+    <div className="pc-surface flex flex-1 flex-col overflow-hidden rounded-[16px] md:rounded-[20px]">
+      <div aria-hidden className="relative flex items-center justify-center overflow-hidden border-b border-hairline bg-[rgba(20,22,24,0.55)] px-4 max-md:aspect-[16/10] md:h-40 md:px-5">
+        <div>{art}</div>
       </div>
       <div className="p-4 md:p-6">
-        <p className="pc-label max-md:tracking-[0.1em]">{label}</p>
-        <h3 className="mt-1.5 text-[15px] leading-snug md:mt-2 md:text-lg">{title}</h3>
-        <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground md:mt-1.5 md:text-[15px]">{text}</p>
+        <p className="pc-label">{label}</p>
+        <h3 className="mt-2 text-lg leading-snug max-md:min-h-[2lh]">{title}</h3>
+        <p className="mt-2 text-base leading-relaxed text-muted-foreground md:mt-1.5 md:text-[15px]">{text}</p>
       </div>
     </div>
   );
@@ -129,29 +125,33 @@ export function TrustBar() {
       <h2 id="why-title" className="sr-only">
         Why students choose Hamza Teaches for O Level and A Level Accounting, Business and Economics
       </h2>
-      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-3 px-5 md:grid-cols-3 md:gap-5">
-        <Card
-          label="Your teacher"
-          title="Straight As in the subjects I teach"
-          text="I sat these same exams. I teach every class myself, and only these three subjects."
-          art={<TeacherArt />}
-          zoom={0.56}
-        />
-        <Card
-          label="What you learn"
-          title="Your whole syllabus, topic by topic"
-          text="O Level, IGCSE, AS and A Level, Cambridge or Edexcel, with past papers every week."
-          art={<SyllabusArt />}
-          zoom={0.6}
-        />
-        <Card
-          label="How I teach"
-          title="Why first, then the method"
-          text="Every topic starts with why it exists, then the method, then real past paper questions."
-          art={<WhyArt />}
-          zoom={0.8}
-          className="col-span-2 md:col-span-1"
-        />
+      <div className="mx-auto max-w-6xl px-5">
+        <SwipeRow labelledBy="why-title" className="md:grid md:grid-cols-3 md:gap-5">
+          <SwipeItem>
+            <Card
+              label="Your teacher"
+              title="Straight As in the subjects I teach"
+              text="I sat these same exams. I teach every class myself, and only these three subjects."
+              art={<TeacherArt />}
+            />
+          </SwipeItem>
+          <SwipeItem>
+            <Card
+              label="What you learn"
+              title="Your whole syllabus, topic by topic"
+              text="O Level, IGCSE, AS and A Level, Cambridge or Edexcel, with past papers every week."
+              art={<SyllabusArt />}
+            />
+          </SwipeItem>
+          <SwipeItem>
+            <Card
+              label="How I teach"
+              title="Why first, then the method"
+              text="Every topic starts with why it exists, then the method, then real past paper questions."
+              art={<WhyArt />}
+            />
+          </SwipeItem>
+        </SwipeRow>
       </div>
     </section>
   );

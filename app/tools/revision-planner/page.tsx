@@ -59,6 +59,7 @@ export default async function RevisionPlannerPage({ searchParams }: Props) {
       related={[
         { href: "/syllabus", label: "Syllabus checklists: rate your topics first" },
         { href: "/grade-thresholds", label: "Grade thresholds: the marks you need" },
+        { href: "/past-papers/topics", label: "Past paper questions by topic" },
       ]}
       how={
         <div className="space-y-3 text-[17px] leading-relaxed text-body">

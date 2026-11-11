@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { Crumbs, TrialBox } from "@/components/study/StudyBits";
+import { RelatedLinks, syllabusLinks } from "@/components/study/RelatedLinks";
 import { PaperView, type ViewDoc } from "@/components/past-papers/PaperView";
 import { PaperSearch } from "@/components/past-papers/PaperSearch";
 import {
@@ -126,7 +127,7 @@ export default async function PaperPage({ params }: Props) {
       />
       <div className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-5 md:pt-10">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Crumbs trail={[{ name: "Past papers", href: "/past-papers" }, { name: s.short, href: `/past-papers/${s.slug}` }, { name: code }]} />
+          <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Past papers", href: "/past-papers" }, { name: s.short, href: `/past-papers/${s.slug}` }, { name: code }]} />
           <PaperSearch compact className="w-full sm:w-[320px]" />
         </div>
 
@@ -259,6 +260,8 @@ export default async function PaperPage({ params }: Props) {
             </ul>
           </nav>
         </div>
+
+        <RelatedLinks small links={syllabusLinks(s.code)} className="mt-12 max-w-[70ch]" />
 
         <div className="mx-auto max-w-4xl">
           <TrialBox

@@ -4,6 +4,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { Crumbs, Section } from "@/components/study/StudyBits";
 import { WaitlistBox } from "@/components/tools/WaitlistBox";
+import { RelatedLinks } from "@/components/study/RelatedLinks";
 import { breadcrumbLd, fitTitle } from "@/lib/seo";
 
 const title = "Free Tools for Accounting, Business and Economics";
@@ -88,6 +89,13 @@ export default function ToolsHub() {
             </ul>
           </Section>
         ))}
+        <RelatedLinks
+          links={[
+            { href: "/past-papers/topics", label: "Past paper questions by topic" },
+            { href: "/past-papers/search", label: "Search inside past papers" },
+            { href: "/blog", label: "The Exam Room: exam technique and topic guides" },
+          ]}
+        />
         <WaitlistBox source="/tools" />
       </div>
     </MarketingShell>

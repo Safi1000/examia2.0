@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { InvestmentCalculator } from "@/components/tools/InvestmentCalculator";
 import { ToolShell } from "@/components/tools/ToolShell";
+import { topicLink } from "@/components/study/RelatedLinks";
 import { fitTitle } from "@/lib/seo";
 
 const title = "Investment Appraisal Calculator: Payback, ARR, NPV";
@@ -38,7 +39,7 @@ export default function Page() {
       subject="Business"
       level="AS Level"
       faq={FAQ}
-      related={[{ href: "/blog/a-level-business-9609-investment-appraisal", label: "Investment appraisal worked example (9609)" }, { href: "/grade-thresholds/a-level-business-9609", label: "A Level Business 9609 grade thresholds" }]}
+      related={[{ href: "/blog/a-level-business-9609-investment-appraisal", label: "Investment appraisal worked example (9609)" }, { href: "/grade-thresholds/a-level-business-9609", label: "A Level Business 9609 grade thresholds" }, topicLink("9609", "10.3")].filter((l) => l !== null)}
       how={
         <div className="space-y-3 text-[17px] leading-relaxed text-body">
           <p>Payback adds up the yearly inflows until they cover the investment; the part year is (amount still needed ÷ that year&apos;s inflow) × 12 months.</p>

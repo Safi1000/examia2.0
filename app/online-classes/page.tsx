@@ -112,6 +112,12 @@ export default function OnlineClassesPakistan() {
               <span className="text-muted-foreground">for entering without a school.</span>
             </li>
             <li>
+              <Link href="/past-papers" className="text-gold hover:underline">Past papers with mark schemes</Link>
+            </li>
+            <li>
+              <Link href="/syllabus" className="text-gold hover:underline">Cambridge syllabus checklists</Link>
+            </li>
+            <li>
               <Link href="/blog" className="text-gold hover:underline">The Exam Room</Link>{" "}
               <span className="text-muted-foreground">for topic guides and exam technique.</span>
             </li>

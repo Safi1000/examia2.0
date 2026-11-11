@@ -5,6 +5,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { ChecklistProvider, Progress, Rate } from "@/components/syllabus/Checklist";
 import { Crumbs, TrialBox } from "@/components/study/StudyBits";
+import { RelatedLinks, syllabusLinks } from "@/components/study/RelatedLinks";
 import { WaitlistBox } from "@/components/tools/WaitlistBox";
 import { breadcrumbLd, fitTitle } from "@/lib/seo";
 import { SYLLABI, pointCount, resourcesFor, splitPoint, subtopicCount, syllabusBySlug } from "@/lib/syllabus";
@@ -165,6 +166,8 @@ export default async function SyllabusPage({ params }: Props) {
               . © Cambridge University Press &amp; Assessment.
             </p>
           </div>
+
+          <RelatedLinks links={[...syllabusLinks(s.code, ["checklist", "thresholds"]), { href: "/tools/revision-planner", label: "Revision planner" }]} />
 
           <TrialBox
             from={`syllabus:${s.code}`}

@@ -54,7 +54,7 @@ export default function PrivateCandidatesPakistan() {
       <JsonLd
         data={breadcrumbLd([
           { name: "Home", path: "/" },
-          { name: "Private candidates", path: "/private-candidates/pakistan" },
+          { name: "Private candidate guide, Pakistan", path: "/private-candidates/pakistan" },
         ])}
       />
       <JsonLd
@@ -159,14 +159,14 @@ export default function PrivateCandidatesPakistan() {
             caption="Study plan"
             head={["Months", "What to do"]}
             rows={[
-              ["November to January", "Cover the full syllabus once, topic by topic. Make one page of notes per topic."],
-              ["February", "Topic-wise past paper questions for every topic. Mark them strictly with the mark scheme."],
+              ["November to January", <>Cover the full <Link href="/syllabus" className="text-gold hover:underline">syllabus</Link> once, topic by topic. Make one page of notes per topic.</>],
+              ["February", <><Link href="/past-papers/topics" className="text-gold hover:underline">Topic-wise past paper questions</Link> for every topic. Mark them strictly with the mark scheme.</>],
               ["March to April", "Full timed past papers, two a week per subject. Fix every mistake the same week."],
               ["May", "Last three sessions' papers under exam conditions. Revise only your weakest topics."],
             ]}
           />
           <p className="mt-5 text-[17px] leading-relaxed text-body">
-            The hard part on your own is not finding past papers. It is knowing why an answer you thought was right only got half the marks.
+            The hard part on your own is not finding <Link href="/past-papers" className="text-gold hover:underline">past papers</Link>. It is knowing why an answer you thought was right only got half the marks.
             Accounting formats, Business evaluation and Economics analysis are where students studying alone lose the most, because nobody marks
             their written answers.
           </p>

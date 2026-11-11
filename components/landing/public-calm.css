@@ -81,6 +81,23 @@
     0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
+/* Phones: one even rhythm. Every section below the hero gets the same 36px
+   top and bottom, so the space between any two sections is 72px (the hero
+   ends with the same 36px). */
+@media (max-width: 767.98px) {
+  .landing .public-calm > section:not(#top) {
+    padding-block: 36px;
+  }
+  /* Swipe rows (ReviewSlider.tsx): no scrollbar. Outside Tailwind's layer so it
+     beats the site-wide thin scrollbar rule in globals.css. */
+  .swipe-row {
+    scrollbar-width: none;
+  }
+  .swipe-row::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pc-surface-link,
   .pc-surface-link:active {

@@ -35,7 +35,8 @@ export function NoteViewer({
   /** Words to mark (from a search). */
   highlight?: string[];
 }) {
-  const [state, setState] = useState<{ url: string; fileType: string; fileName?: string } | null>(null);
+  // `token` is the sign-in the reader sends with the file request: a student's PDF link only opens with it.
+  const [state, setState] = useState<{ url: string; fileType: string; fileName?: string; token?: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   // "Try again" asks for a fresh link.
   const [attempt, setAttempt] = useState(0);
@@ -129,7 +130,7 @@ export function NoteViewer({
         if (res.status === 404) throw new Error("This note isn't available any more. Ask Hamza if you need it.");
         if (!res.ok) throw new Error("This note didn't open. Check your internet and try again.");
         const body = (await res.json()) as { url: string; fileType: string; fileName?: string };
-        if (!cancelled) setState(body);
+        if (!cancelled) setState({ ...body, token });
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "This note didn't open. Check your internet and try again.");
       }
@@ -205,7 +206,7 @@ export function NoteViewer({
         ) : isOffice ? (
           <iframe src={officeSrc} title={title} className="h-full w-full rounded-md border border-border bg-white" />
         ) : isPdf && !pdfFailed ? (
-          <PdfView url={state.url} onFail={onPdfFail} startPage={page} highlight={highlight} onPage={onPage} autoFocus />
+          <PdfView url={state.url} authToken={state.token} onFail={onPdfFail} startPage={page} highlight={highlight} onPage={onPage} autoFocus />
         ) : isPdf ? (
           // Never fall back to the browser's own PDF viewer: it has Print and Download buttons.
           <div className="max-w-xs text-center">

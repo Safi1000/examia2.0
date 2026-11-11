@@ -8,6 +8,7 @@ import { SyllabusBrowser, type BrowserSeries } from "@/components/past-papers/Sy
 import { PaperSearch } from "@/components/past-papers/PaperSearch";
 import { hasTopical } from "@/lib/topical";
 import { PastPapersNav } from "@/components/past-papers/Bits";
+import { syllabusLinks } from "@/components/study/RelatedLinks";
 import { YEAR_RANGE, searchName, PAST_PAPER_SYLLABI, fileName, paperHref, paperNumbers, papersFor, pastPaperSyllabus, pdfUrl, sessionKey, sessionLabel, sessionsFor } from "@/lib/past-papers";
 import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
 import { syllabusByCode, SYLLABI } from "@/lib/syllabus";
@@ -55,6 +56,7 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
   const thresholds = THRESHOLD_PAGES.find((p) => p.code === s.code);
   const syllabus = syllabusByCode(s.code) ?? SYLLABI.find((x) => x.replaces === s.code) ?? null;
   const next = s.next ? syllabusByCode(s.next.code) : s.revised ? syllabus : null;
+  const tool = syllabusLinks(s.code).find((l) => l.href.startsWith("/tools/"));
   const faq = [
     {
       q: `Where are the ${s.code} mark schemes?`,
@@ -78,7 +80,7 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
           <PastPapersNav className="w-fit max-w-full" />
           <PaperSearch compact className="w-full sm:w-[300px]" />
         </div>
-        <div className="mt-8"><Crumbs trail={[{ name: "Past papers", href: "/past-papers" }, { name: s.short }]} /></div>
+        <div className="mt-8"><Crumbs trail={[{ name: "Home", href: "/" }, { name: "Past papers", href: "/past-papers" }, { name: s.short }]} /></div>
         <h1 className="mt-4 text-4xl font-bold leading-[1.06] tracking-tight text-foreground md:text-5xl">{searchName(s)} past papers</h1>
         {(s.next || s.revised) && (
           <p className="mt-3 text-[15px] text-muted-foreground">
@@ -122,12 +124,17 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
             ))}
             {thresholds && (
               <Link href={`/grade-thresholds/${thresholds.slug}`} className={pill}>
-                Grade thresholds
+                Grade thresholds for {thresholds.name}
               </Link>
             )}
             {syllabus && (
               <Link href={`/syllabus/${syllabus.slug}`} className={pill}>
-                Syllabus checklist
+                {syllabus.name} syllabus checklist
+              </Link>
+            )}
+            {tool && (
+              <Link href={tool.href} className={pill}>
+                {tool.label}
               </Link>
             )}
             <Link href="/tools/grade-predictor" className={pill}>
