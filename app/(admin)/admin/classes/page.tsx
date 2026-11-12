@@ -100,15 +100,47 @@ export default function ClassesPage() {
   const [absentAsk, setAbsentAsk] = useState<{ level: LevelKey; classId: string; ids: string[]; date: string } | null>(null);
   const [lastAbsent, setLastAbsent] = useState<{ level: LevelKey; count: number; date: string; undo: () => void } | null>(null);
 
+  // A class that was on the timetable (its link was made) but never took place: asked about first.
+  const [notHeld, setNotHeld] = useState<{ slot: (typeof slots)[number]; marks: number; lastOfLevel: boolean } | null>(null);
+
+  // The same for a whole day (classes that have started, or any on a past day).
+  const started = live.filter((x) => date < today || nowMs >= x.startMs);
+  const [noneHeld, setNoneHeld] = useState(false);
+  async function markDayNotHeld() {
+    if (workingRef.current) return;
+    const todo = started;
+    workingRef.current = true;
+    setWorking(true);
+    let done = 0;
+    try {
+      // One after another: each save carries the whole timetable.
+      for (const x of todo) {
+        await saveDayChange({ date, level: x.level, subject: x.subject, change: x.extra ? { extra: true, cancelled: true, start: x.start, end: x.end } : { cancelled: true }, notify: false });
+        done++;
+      }
+      // A level's register goes only when none of its classes is left standing that day.
+      const standing = new Set(live.filter((x) => !todo.includes(x)).map((x) => x.classId));
+      let cleared = 0;
+      for (const classId of new Set(todo.map((x) => x.classId))) if (!standing.has(classId)) cleared += portal.clearAttendanceDay(classId, date);
+      toast(`${done} classes marked as not held.${cleared ? ` ${cleared === 1 ? "1 register mark" : `${cleared} register marks`} removed.` : ""}`, "success");
+    } catch (e) {
+      toast(`${done} of ${todo.length} marked as not held, then it stopped. ${e instanceof Error ? e.message : "Try again."}`, "error");
+    } finally {
+      workingRef.current = false;
+      setWorking(false);
+      setNoneHeld(false);
+    }
+  }
+
   /** Change one class on this date only (cancel, move, extra), or undo that change. True when saved. */
-  async function changeDay(level: LevelKey, subject: SubjectKey, change: Omit<Exception, "date" | "level" | "subject"> | null, done: string) {
+  async function changeDay(level: LevelKey, subject: SubjectKey, change: Omit<Exception, "date" | "level" | "subject"> | null, done: string, quiet = false) {
     if (workingRef.current) return false;
     // A cleared time box gives "": that would save and tell students "12:NaN".
     if (change?.start !== undefined && !(isTime(change.start) && isTime(change.end) && change.start < change.end)) {
       toast("Fill in both times, with the end after the start.", "error");
       return false;
     }
-    const notify = tell && date >= today;
+    const notify = !quiet && tell && date >= today;
     workingRef.current = true;
     setWorking(true);
     try {
@@ -299,6 +331,24 @@ export default function ClassesPage() {
                                   }
                                 />
                               )}
+                              {phase !== "later" && date <= today && (
+                                <div>
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    disabled={working}
+                                    onClick={() =>
+                                      setNotHeld({
+                                        slot: s,
+                                        marks: db.attendanceDays.filter((a) => a.classId === s.classId && a.date === date).length,
+                                        lastOfLevel: !live.some((x) => x.level === s.level && slotKey(x) !== key),
+                                      })
+                                    }
+                                  >
+                                    This class didn&apos;t happen
+                                  </Button>
+                                </div>
+                              )}
                               <LinkField
                                 key={`m-${key}-${link?.meetUrl ?? ""}`}
                                 label="Meet link"
@@ -363,6 +413,16 @@ export default function ClassesPage() {
             </div>
           )}
 
+          {date <= today && started.length > 1 && (
+            <button
+              type="button"
+              disabled={working}
+              onClick={() => setNoneHeld(true)}
+              className="mt-4 block h-10 text-sm font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline max-md:h-11"
+            >
+              None of these classes happened
+            </button>
+          )}
           {date >= today && (
             <ExtraClass
               date={date}
@@ -390,6 +450,68 @@ export default function ClassesPage() {
 
       {/* Setup sits quietly under the classes: the day's classes come first. */}
       <GoogleConnect onSynced={() => void reload()} />
+
+      <Modal
+        open={noneHeld}
+        onClose={() => setNoneHeld(false)}
+        title="None of these classes happened?"
+        description={`All ${started.length} classes will show as cancelled for this day. Students are not sent a message.`}
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setNoneHeld(false)}>Keep them</Button>
+            <Button variant="danger" loading={working} onClick={() => void markDayNotHeld()}>
+              None happened
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-2">Any register marks for these classes on this day are removed, so nobody is counted present or absent.</p>
+        <p className="mt-2 text-sm text-ink-3">You can put a class back on afterwards, but removed register marks do not come back.</p>
+      </Modal>
+
+      <Modal
+        open={!!notHeld}
+        onClose={() => setNotHeld(null)}
+        title={notHeld ? `${notHeld.slot.subject} didn't happen?` : ""}
+        description={notHeld ? `${LEVEL_LABEL[notHeld.slot.level]} ${notHeld.slot.subject} will show as cancelled for this day. Students are not sent a message.` : ""}
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setNotHeld(null)}>Keep it</Button>
+            <Button
+              variant="danger"
+              loading={working}
+              onClick={async () => {
+                if (!notHeld) return;
+                const { slot: s, lastOfLevel } = notHeld;
+                const ok = await changeDay(
+                  s.level,
+                  s.subject,
+                  s.extra ? { extra: true, cancelled: true, start: s.start, end: s.end } : { cancelled: true },
+                  `${s.subject} marked as not held.`,
+                  true,
+                );
+                setNotHeld(null);
+                if (!ok || !lastOfLevel) return;
+                const cleared = portal.clearAttendanceDay(s.classId, date);
+                if (cleared) toast(`${cleared === 1 ? "1 register mark" : `${cleared} register marks`} removed for that day.`, "success");
+              }}
+            >
+              It didn&apos;t happen
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-2">
+          {notHeld?.lastOfLevel
+            ? notHeld.marks
+              ? `The ${notHeld.marks === 1 ? "1 register mark" : `${notHeld.marks} register marks`} for this level on this day will be removed, so nobody is counted present or absent.`
+              : "No register marks have been made for this level on this day, and none will be made."
+            : "Another class of this level still stands on this day, so the register is left as it is."}
+        </p>
+        <p className="mt-2 text-sm text-ink-3">You can put the class back on afterwards, but removed register marks do not come back.</p>
+      </Modal>
 
       <Modal
         open={!!absentAsk}

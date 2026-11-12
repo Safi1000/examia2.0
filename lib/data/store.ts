@@ -2479,6 +2479,23 @@ class Store {
     };
   }
 
+  /**
+   * A class day that never took place: every register mark for that level and
+   * date goes, so nobody is counted present or absent for it. Returns how many.
+   */
+  clearAttendanceDay(classId: string, date: string): number {
+    const ids = this.state.attendanceDays.filter((a) => a.classId === classId && a.date === date).map((a) => a.id);
+    if (!ids.length) return 0;
+    const gone = new Set(ids);
+    this.commit((d) => {
+      d.attendanceDays = d.attendanceDays.filter((a) => !gone.has(a.id));
+    });
+    for (let i = 0; i < ids.length; i += 150) {
+      this.run(supabase().from("attendance_days").delete().in("id", ids.slice(i, i + 150)), "clearAttendanceDay");
+    }
+    return ids.length;
+  }
+
   /** The month's percentage, typed by hand or accepted from the daily register. */
   setMonthlyAttendance(studentId: string, month: string, percent: number) {
     const clamped = Math.max(0, Math.min(100, Math.round(percent * 10) / 10));
