@@ -144,7 +144,7 @@ export function RemindersPanel() {
 
   return (
     <Card className="mb-4 overflow-hidden p-0">
-      <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3", (!collapsed || !!running) && "border-b border-border")}>
+      <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-2 py-3 pl-5 pr-3", (!collapsed || !!running) && "border-b border-border")}>
         <h2 className="whitespace-nowrap text-[15px] font-semibold tracking-[-0.01em] text-ink">
           Tell parents <span className="tabular-nums text-ink-3">({reminders.length})</span>
         </h2>
@@ -165,7 +165,7 @@ export function RemindersPanel() {
       </div>
 
       {running && run && (
-        <div className={cn("flex flex-wrap items-center gap-3 bg-surface-2/60 px-4 py-3", !collapsed && "border-b border-border")}>
+        <div className={cn("flex flex-wrap items-center gap-3 bg-surface-2/60 px-5 py-3", !collapsed && "border-b border-border")}>
           <span className="text-sm font-semibold text-ink">
             {displayName(running.student.username)}: report {run.index + 1} of {run.list.length}.{" "}
             {busy ? "Getting it ready." : run.failed ? "It was not sent." : "Sent?"}
@@ -186,7 +186,7 @@ export function RemindersPanel() {
       {!collapsed && (
         <ul className="divide-y divide-border">
           {reminders.slice(0, 25).map((r) => (
-            <li key={key(r)} className="flex flex-wrap items-center gap-3 px-4 py-3">
+            <li key={key(r)} className="flex flex-wrap items-center gap-3 px-5 py-3">
               <Badge tone={KINDS[r.kind].tone}>{KINDS[r.kind].label}</Badge>
               <span className="min-w-0 flex-1 truncate text-sm text-ink">{r.label}</span>
               <Button
@@ -210,7 +210,7 @@ export function RemindersPanel() {
             </li>
           ))}
           {reminders.length > 25 && (
-            <li className="px-4 py-3 text-xs text-ink-3">Showing the first 25. The rest appear as you clear these.</li>
+            <li className="px-5 py-3 text-xs text-ink-3">Showing the first 25. The rest appear as you clear these.</li>
           )}
         </ul>
       )}

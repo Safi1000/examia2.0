@@ -367,7 +367,7 @@ export default function AdminTestsPage() {
   const target = deleteId ? db.tests.find((t) => t.id === deleteId) : null;
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+    <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       <PageHeader
         title="Tests"
         subtitle={`${tests.length} ${tests.length === 1 ? "test" : "tests"}`}
@@ -425,7 +425,7 @@ export default function AdminTestsPage() {
             const stats = statsById.get(t.id) ?? testStats(db, t);
             const cohort = cohortById(db, t.cohortId);
             return (
-              <div key={t.id} className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-3 px-4 py-4 transition-colors hover:bg-white/[0.018] xl:grid-cols-[auto_minmax(0,1fr)_19rem_auto] xl:items-center xl:gap-x-5">
+              <div key={t.id} className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-3 px-4 py-4 transition-colors hover:bg-white/[0.018] lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-x-5 xl:grid-cols-[auto_minmax(0,1fr)_19rem_auto] xl:items-center">
                     <span className="pt-0.5 xl:pt-0">
                       <RowCheck id={t.id} checked={sel.isSelected(t.id)} onToggle={sel.toggle} label={`Select ${t.title}`} />
                     </span>
@@ -447,7 +447,7 @@ export default function AdminTestsPage() {
                     </p>
                     </div>
 
-                <div className="col-span-2 grid grid-cols-3 gap-2 border-t border-border pt-3 xl:col-span-1 xl:border-0 xl:pt-0">
+                <div className="col-span-2 grid grid-cols-3 gap-2 border-t border-border pt-3 lg:col-span-1 lg:col-start-2 lg:max-w-md lg:self-center lg:border-0 lg:pt-0 xl:col-start-auto xl:max-w-none">
                   <Stat label="Submissions" value={String(stats.submissionCount)} />
                   {stats.averagePercent != null ? (
                     <Stat label="Average" value={`${stats.averagePercent}%`} />
@@ -460,7 +460,7 @@ export default function AdminTestsPage() {
                   <Stat label="Completion" value={`${stats.completionPercent}%`} />
                 </div>
 
-                  <div className="col-span-2 flex items-center justify-end gap-1.5 xl:col-span-1">
+                  <div className="col-span-2 flex items-center justify-end gap-1.5 lg:col-span-1">
                     <Link href={`/admin/tests/${t.id}`} className={buttonClasses({ variant: "secondary", size: "sm" })}>
                       <Icon.Edit className="h-4 w-4" /> Edit
                     </Link>

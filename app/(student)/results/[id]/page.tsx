@@ -40,7 +40,7 @@ export default function ResultsPage() {
   }
   if (!submission || submission.status !== "released") {
     return (
-      <div className="mx-auto max-w-2xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+      <div className="mx-auto max-w-2xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
         <BackLink />
         {submission ? (
           <EmptyState
@@ -75,7 +75,7 @@ export default function ResultsPage() {
   const best = personalBest(db, student.id, test, submission, grade.percent);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+    <div className="mx-auto max-w-2xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
       <div className="rise">
       <BackLink />
 
@@ -106,7 +106,7 @@ export default function ResultsPage() {
               {grade.awarded}
               <span className="text-2xl font-bold tracking-[-0.02em] text-ink-3">/{grade.total}</span>
             </p>
-            <p className="mt-2 text-[15px] text-ink-2 tabular-nums">{shownPercent(grade.percent)}% overall</p>
+            <p className="mt-2 text-base text-ink-2 tabular-nums">{shownPercent(grade.percent)}% overall</p>
             {waiting > 0 && (
               <p className="mt-1 text-sm text-ink-3">
                 {waiting === 1 ? "1 answer is" : `${waiting} answers are`} still waiting for my marking.
@@ -171,7 +171,7 @@ export default function ResultsPage() {
         </div>
       </Card>
 
-      <div className="mt-5">
+      <div className="mt-4">
         <StudyCoach db={db} student={student} test={test} submission={submission} />
       </div>
 

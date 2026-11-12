@@ -233,7 +233,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             scrolled ? "border-white/[0.06] bg-paper/90 backdrop-blur-md" : "border-transparent bg-transparent",
           )}
         >
-          <div className="mx-auto flex h-[68px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+          <div className="mx-auto flex h-[68px] max-w-6xl items-center justify-between gap-4 px-5 sm:px-6">
             <Link href="/dashboard" className="flex min-h-11 shrink-0 items-center" aria-label="Home">
               <LogoTight className="h-[18px] sm:h-5" />
             </Link>
@@ -274,7 +274,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         </header>
       )}
       {!inRunner && isWork && (
-        <nav aria-label="Work" className="mx-auto max-w-3xl px-4 pt-5 sm:px-6 md:hidden">
+        <nav aria-label="Work" className="mx-auto max-w-3xl px-5 pt-5 sm:px-6 md:hidden">
           <ul className="grid grid-cols-3 gap-1 rounded-full border border-border bg-surface p-1">
             {[
               ["/tests", "Tests"],
@@ -313,7 +313,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         <nav
           aria-label="Primary"
           data-tabbar
-          className="web-only fixed inset-x-3 bottom-3 z-30 md:hidden"
+          className="web-only fixed inset-x-5 bottom-3 z-30 md:hidden"
           style={{ marginBottom: "env(safe-area-inset-bottom)" }}
         >
           <ul className="grid grid-cols-5 rounded-[22px] border border-white/[0.08] bg-[#1d2023]/[0.97] p-1.5 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.05)]">
@@ -428,7 +428,7 @@ function AccountMenu({
       {open && (
         <div role="menu" className="absolute right-0 top-[52px] w-60 animate-fade-up rounded-2xl border border-white/[0.08] bg-[#1d2023]/95 p-2 shadow-[0_24px_48px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl">
           <div className="px-3 pb-3 pt-2">
-            <p className="text-[15px] font-bold text-ink">{name}</p>
+            <p className="text-base font-bold text-ink">{name}</p>
             {cohort && <CohortTag color={cohort.color} name={cohort.name} className="mt-1 text-xs" />}
           </div>
           <div className="h-px bg-white/[0.06]" />
@@ -436,7 +436,7 @@ function AccountMenu({
             role="menuitem"
             href="/settings"
             onClick={() => setOpen(false)}
-            className="mt-1 flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink"
+            className="mt-1 flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink active:bg-white/[0.08]"
           >
             <NavIcon.Settings className="h-[18px] w-[18px]" />
             Settings
@@ -447,7 +447,7 @@ function AccountMenu({
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => setOpen(false)}
-            className="flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink"
+            className="flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink active:bg-white/[0.08]"
           >
             <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z" />
@@ -462,7 +462,7 @@ function AccountMenu({
                   type="button"
                   role="menuitem"
                   onClick={onSignOut}
-                  className="h-11 flex-1 rounded-xl bg-white/[0.08] text-sm font-semibold text-ink transition-colors hover:bg-white/[0.12]"
+                  className="h-11 flex-1 rounded-xl bg-white/[0.08] text-sm font-semibold text-ink transition-colors hover:bg-white/[0.12] active:bg-white/[0.14]"
                 >
                   Sign out
                 </button>
@@ -471,7 +471,7 @@ function AccountMenu({
                   type="button"
                   role="menuitem"
                   onClick={() => setConfirming(false)}
-                  className="h-11 flex-1 rounded-xl text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink"
+                  className="h-11 flex-1 rounded-xl text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink active:bg-white/[0.08]"
                 >
                   Cancel
                 </button>
@@ -482,7 +482,7 @@ function AccountMenu({
               type="button"
               role="menuitem"
               onClick={() => setConfirming(true)}
-              className="mt-1 flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink"
+              className="mt-1 flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink active:bg-white/[0.08]"
             >
               <NavIcon.Logout className="h-[18px] w-[18px]" />
               Sign out

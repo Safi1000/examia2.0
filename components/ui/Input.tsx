@@ -12,15 +12,36 @@ interface FieldProps {
   wrapperClassName?: string;
 }
 
+interface InputOnly {
+  /**
+   * The filter bar size: the same height as a small button and the filter
+   * chips beside it (40px with a mouse, 44px on touch screens), instead of 48px.
+   */
+  compact?: boolean;
+}
+
+/** One height for every control in a filter or tool row (fields, chips, small buttons). */
+export const controlHeight = "h-10 pointer-coarse:h-11 max-md:h-11";
+
+/**
+ * A field in a filter or tool row, for pages that draw their own <input> or
+ * <select>: pill shaped like the chips and buttons beside it, the same height,
+ * the same hover and the same gold focus ring as every other field.
+ */
+export const filterField =
+  `${controlHeight} rounded-full border border-border-strong bg-surface px-4 text-sm text-ink placeholder:text-ink-3 ` +
+  "transition-colors hover:border-ink-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand " +
+  "disabled:cursor-not-allowed disabled:opacity-60";
+
 const fieldShell =
-  "w-full rounded-md border bg-surface px-3.5 text-ink placeholder:text-ink-3 transition-colors " +
+  "w-full border bg-surface text-ink placeholder:text-ink-3 transition-colors " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand " +
   "disabled:cursor-not-allowed disabled:opacity-60";
 
 export const Input = forwardRef<
   HTMLInputElement,
-  React.InputHTMLAttributes<HTMLInputElement> & FieldProps
->(function Input({ label, hint, error, required, className, wrapperClassName, id, ...rest }, ref) {
+  React.InputHTMLAttributes<HTMLInputElement> & FieldProps & InputOnly
+>(function Input({ label, hint, error, required, className, wrapperClassName, compact, id, ...rest }, ref) {
   const autoId = useId();
   const fieldId = id ?? autoId;
   return (
@@ -35,8 +56,8 @@ export const Input = forwardRef<
         aria-describedby={error ? `${fieldId}-err` : hint ? `${fieldId}-hint` : undefined}
         className={cn(
           fieldShell,
-          "h-12",
-          error ? "border-error" : "border-border-strong",
+          compact ? cn(controlHeight, "rounded-full px-4 text-sm") : "h-12 rounded-md px-3.5",
+          error ? "border-error" : "border-border-strong hover:border-ink-3",
           className,
         )}
         {...rest}
@@ -68,8 +89,8 @@ export const Textarea = forwardRef<
         aria-describedby={error ? `${fieldId}-err` : hint ? `${fieldId}-hint` : undefined}
         className={cn(
           fieldShell,
-          "min-h-28 resize-y py-3 leading-relaxed",
-          error ? "border-error" : "border-border-strong",
+          "min-h-28 resize-y rounded-md px-3.5 py-3 leading-relaxed",
+          error ? "border-error" : "border-border-strong hover:border-ink-3",
           className,
         )}
         {...rest}

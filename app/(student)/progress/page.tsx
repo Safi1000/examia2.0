@@ -82,7 +82,7 @@ export default function ProgressPage() {
   );
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+    <div className="mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
       <div className="rise space-y-10">
       <PageHeader title="My progress" />
 
@@ -186,7 +186,7 @@ export default function ProgressPage() {
           {(data.weak.length > 0 || data.strong.length > 0) && (
             <section className="grid gap-3 sm:grid-cols-2">
               <div className="surface rounded-xl p-5 sm:p-6">
-                <h2 className="text-[17px] font-bold tracking-[-0.01em] text-ink">Fix these next</h2>
+                <h2 className="text-lg font-bold tracking-[-0.01em] text-ink">Fix these next</h2>
                 {data.weak.length === 0 ? (
                   <p className="mt-2 text-sm text-ink-2">No weak topics right now. Nice.</p>
                 ) : (
@@ -219,7 +219,7 @@ export default function ProgressPage() {
                 )}
               </div>
               <div className="surface rounded-xl p-5 sm:p-6">
-                <h2 className="text-[17px] font-bold tracking-[-0.01em] text-ink">Your strengths</h2>
+                <h2 className="text-lg font-bold tracking-[-0.01em] text-ink">Your strengths</h2>
                 {data.strong.length === 0 ? (
                   <p className="mt-2 text-sm text-ink-2">Topics at 75% or more show here.</p>
                 ) : (
@@ -260,7 +260,7 @@ export default function ProgressPage() {
         </>
       )}
 
-      <Link href="/groundwork" className="surface-quiet surface-link flex items-center justify-between gap-3 rounded-xl px-5 py-4 text-[15px] text-ink-2 sm:px-6">
+      <Link href="/groundwork" className="surface-quiet surface-link flex items-center justify-between gap-3 rounded-xl px-5 py-4 text-base text-ink-2 sm:px-6">
         <span>
           Your study time, level and streak are in <span className="font-semibold text-ink">Groundwork</span>
         </span>
@@ -280,7 +280,7 @@ function SyllabusDone({ books }: { books: BookProgress[] }) {
   return (
     <section className="surface rounded-xl p-5 sm:p-6" aria-labelledby="syl-h">
       <div className="flex items-center justify-between gap-3">
-        <h2 id="syl-h" className="text-[17px] font-bold tracking-[-0.01em] text-ink">Syllabus covered</h2>
+        <h2 id="syl-h" className="text-lg font-bold tracking-[-0.01em] text-ink">Syllabus covered</h2>
         <Link href="/notes" className="-my-3 -mr-2 inline-flex min-h-11 items-center px-2 text-sm font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline">
           Notes
         </Link>

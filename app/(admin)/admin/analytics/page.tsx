@@ -8,7 +8,7 @@ import { attendancePercent, cohortById, eligibleStudents, testsForStudent } from
 import { isTestAccount } from "@/lib/display-name";
 import { useNow } from "@/hooks/useNow";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Card, Badge, CohortDot, EmptyState, Icon, TableScroll, Table, Th, Td } from "@/components/ui";
+import { Card, Badge, CohortDot, EmptyState, Icon, TableScroll, Table, Th, Td, filterField, segmentGroup, segmentItem } from "@/components/ui";
 import { BarChart, type Bar } from "@/components/charts/BarChart";
 import { LineChart, type LinePoint } from "@/components/charts/LineChart";
 import { MasteryBar } from "@/components/charts/MasteryBar";
@@ -299,21 +299,18 @@ export default function AnalyticsPage() {
   const hasData = base.released.length > 0;
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+    <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       <PageHeader title="Analytics" subtitle={scopeCohort ? `Filtered to ${scopeCohort.name}` : "All cohorts"} />
 
       {/* Controls row */}
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <div className="flex rounded-lg border border-border bg-surface p-0.5">
+        <div className={segmentGroup}>
           {(["class", "student"] as View[]).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
               aria-pressed={view === v}
-              className={cn(
-                "min-h-10 rounded-md px-4 text-sm font-semibold transition-colors",
-                view === v ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink",
-              )}
+              className={segmentItem(view === v)}
             >
               {v === "class" ? "Class view" : "Student view"}
             </button>
@@ -324,7 +321,7 @@ export default function AnalyticsPage() {
           aria-label="Month"
           value={selectedMonth === "all" ? "all" : activeMonth}
           onChange={(e) => setSelectedMonth(e.target.value)}
-          className="h-11 rounded-lg border border-border bg-surface px-3 text-base text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+          className={filterField}
         >
           {base.allMonths.length > 1 && <option value="all">All time</option>}
           {base.allMonths.map((m) => (
@@ -337,7 +334,7 @@ export default function AnalyticsPage() {
             aria-label="Student"
             value={selectedStudentId}
             onChange={(e) => setSelectedStudentId(e.target.value)}
-            className="h-11 min-w-0 flex-1 basis-48 rounded-lg border border-border bg-surface px-3 text-base text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+            className={cn(filterField, "min-w-0 flex-1 basis-48 sm:max-w-72")}
           >
             <option value="">Pick a student</option>
             {base.students.map((s) => (

@@ -118,9 +118,12 @@ export default function DashboardPage() {
   const lead = classOn ? undefined : todo.find((x) => !x.quiet)?.key;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pb-16 pt-4 sm:px-6 sm:pt-8">
+    // Phones and tablets: one column. Laptops: what to do now on the left, how
+    // the week is going on the right (the same order, read left then right).
+    <div className="mx-auto max-w-3xl px-5 pb-16 pt-4 sm:px-6 sm:pt-8 lg:max-w-6xl">
+      <div className="space-y-10 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,22.5rem)] lg:items-start lg:gap-x-8 lg:space-y-0">
       {/* One entrance for the page: each block rises in, 70ms apart. */}
-      <div className="rise space-y-8">
+      <div className="rise space-y-10">
         <HomeHero name={displayName(student.username).split(" ")[0]} status={status} studentId={student.id} totalMinutes={profile.focus?.totalMinutes} />
 
         <ClassNow db={db} student={student} nowMs={nowMs} />
@@ -179,17 +182,20 @@ export default function DashboardPage() {
 
         {/* Hamza's notices: high up, but one line each so the day's work stays in view. */}
         <AnnouncementsPanel student={student} />
+      </div>
 
+      <div className="rise space-y-10">
         {/* Five quick past paper questions from covered chapters, once a day. */}
         <DailyFive books={books} />
 
         {/* Its Start button stays quiet while something above has the gold one. */}
         <StudyBuddy db={db} student={student} nowMs={nowMs} mission={mission} quiet={toDoCount > 0 || classOn} />
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
           <PerformanceCard perf={perf} targets={profile.targets} asOnly={isAsStudent(student?.id)} attendance={attendance} syllabus={syllabus} />
           <PlanCard week={week} daysLeft={plan.daysLeft} />
         </div>
+      </div>
       </div>
     </div>
   );
@@ -250,9 +256,9 @@ function PerformanceCard({
   });
   return (
     <Link href="/progress" className="surface surface-link flex flex-col rounded-xl p-5 sm:p-6">
-      <p className="text-[17px] font-bold tracking-[-0.01em] text-ink">How you&apos;re doing</p>
+      <p className="text-lg font-bold tracking-[-0.01em] text-ink">How you&apos;re doing</p>
       {!perf || perf.marked < 3 ? (
-        <p className="mt-3 flex-1 text-[15px] text-ink-2">
+        <p className="mt-3 flex-1 text-base text-ink-2">
           {perf ? `${perf.marked} of 3 tests marked. ` : ""}Your grade shows here after three marked tests.
         </p>
       ) : (
@@ -327,13 +333,13 @@ function PlanCard({ week, daysLeft }: { week: PlanWeek | null; daysLeft: number 
   return (
     <Link href="/plan" className="surface surface-link flex flex-col rounded-xl p-5 sm:p-6">
       <div className="flex items-baseline justify-between gap-3">
-        <p className="text-[17px] font-bold tracking-[-0.01em] text-ink">This week</p>
+        <p className="text-lg font-bold tracking-[-0.01em] text-ink">This week</p>
         <span className="text-sm tabular-nums text-ink-2">
           <span className="font-bold text-ink">{daysLeft}</span> days to exams
         </span>
       </div>
       <div className="mt-3 flex-1">
-        <p className="text-[15px] text-ink-2">{week ? PHASE_LABEL[week.phase] : "Your plan"}</p>
+        <p className="text-base text-ink-2">{week ? PHASE_LABEL[week.phase] : "Your plan"}</p>
         {week && week.topics.length > 0 ? (
           <div className="mt-2.5 flex flex-wrap gap-2">
             {week.topics.map((t) => (
@@ -341,7 +347,7 @@ function PlanCard({ week, daysLeft }: { week: PlanWeek | null; daysLeft: number 
             ))}
           </div>
         ) : (
-          <p className="mt-1.5 text-[15px] text-ink-2">Revise this week&apos;s class topics from your notes.</p>
+          <p className="mt-1.5 text-base text-ink-2">Revise this week&apos;s class topics from your notes.</p>
         )}
         {week && week.tests.length > 0 && (
           <p className="mt-2.5 text-sm text-ink-3">

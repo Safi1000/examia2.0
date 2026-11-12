@@ -149,8 +149,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       {/* Who's signed in, and the way out. */}
-      <div className="m-3 flex items-center gap-3 rounded-xl border border-border bg-surface p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs font-bold text-ink ring-1 ring-inset ring-white/[0.08]">
+      <div className="m-3 flex items-center gap-3 rounded-xl border border-border bg-surface p-2.5 md:max-xl:pl-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs font-bold text-ink ring-1 ring-inset ring-white/[0.08] md:max-xl:hidden">
           HS
         </span>
         <span className="min-w-0 flex-1">

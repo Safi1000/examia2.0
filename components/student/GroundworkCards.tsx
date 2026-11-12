@@ -24,7 +24,7 @@ import { ShareMoment } from "@/components/student/ShareMoment";
 import { Icon } from "@/components/ui";
 
 const fmt = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`);
-const card = "surface rounded-[22px] p-5 sm:p-6";
+const card = "surface rounded-xl p-5 sm:p-6";
 const kicker = "text-xs font-semibold uppercase tracking-[0.3em] text-brand";
 
 /** This week: one dot per day, the days target, the weekly streak and hours. */
@@ -240,7 +240,7 @@ export function SundayReview({ week, name }: { week: string; nowMs: number; name
   const minutes = days.reduce((a, b) => a + b, 0);
   const reviewed = Object.values(profile.reviews ?? {}).filter((r) => r.step > 0).length;
   return (
-    <section className="rounded-[22px] border border-brand/35 bg-[linear-gradient(135deg,rgba(251,193,89,0.16),rgba(251,193,89,0.03))] p-5">
+    <section className="rounded-xl border border-brand/35 bg-[linear-gradient(135deg,rgba(251,193,89,0.16),rgba(251,193,89,0.03))] p-5">
       <p className={kicker}>Sunday review</p>
       <h2 className="mt-1.5 text-xl font-extrabold tracking-[-0.01em] text-ink">Your week, {name}.</h2>
       <dl className="mt-4 grid grid-cols-3 gap-2 text-center">

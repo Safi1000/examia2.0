@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Card, Button, Input, Select, Modal, EmptyState, Icon, Badge, Spinner } from "@/components/ui";
+import { Card, Button, Input, Select, Modal, EmptyState, Icon, Badge, Spinner, chipClass, filterField, segmentGroup, segmentItem } from "@/components/ui";
 import type { Note, NoteAssignment } from "@/types";
 import { NoteViewer } from "@/components/NoteViewer";
 import { BulkBar, ConfirmBulk, NameList, RowCheck, SelectAll, outcome, plural, type BulkAction } from "@/components/admin/BulkBar";
@@ -123,10 +123,7 @@ function Chip({ on, onClick, children, disabled }: { on: boolean; onClick: () =>
       aria-pressed={on}
       disabled={disabled}
       onClick={onClick}
-      className={cn(
-        "inline-flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-[13px] font-semibold transition-colors disabled:opacity-40 max-md:min-h-11",
-        on ? "border-white/[0.16] bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "border-border text-ink-3 hover:border-border-strong hover:text-ink",
-      )}
+      className={chipClass(on)}
     >
       {on && <Icon.Check className="h-3.5 w-3.5 text-ink-2" />}
       {children}
@@ -259,7 +256,7 @@ export default function NotesPage() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+    <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       <PageHeader
         title="Notes"
         subtitle={`${showingCount} showing to students${unsharedCount ? ` · ${unsharedCount} not given to a batch yet` : ""}${hiddenCount ? ` · ${hiddenCount} hidden` : ""}`}
@@ -285,14 +282,14 @@ export default function NotesPage() {
       )}
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <div role="tablist" aria-label="View" className="inline-flex rounded-full border border-border p-1">
+        <div role="tablist" aria-label="View" className={segmentGroup}>
           {(["chapters", "all"] as const).map((v) => (
             <button
               key={v}
               role="tab"
               aria-selected={view === v}
               onClick={() => setView(v)}
-              className={cn("h-9 rounded-full px-4 text-sm font-semibold max-md:h-11", view === v ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink")}
+              className={segmentItem(view === v)}
             >
               {v === "chapters" ? "By chapter" : "All notes"}
             </button>
@@ -306,7 +303,7 @@ export default function NotesPage() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Find a note by name"
             aria-label="Find a note by name"
-            className="h-10 w-full rounded-full border border-border bg-surface pl-9 pr-3 text-sm text-ink max-md:h-11 max-md:text-base placeholder:text-ink-3 focus:border-brand focus:outline-none"
+            className={cn(filterField, "w-full pl-9")}
           />
         </label>
       </div>
@@ -320,7 +317,7 @@ export default function NotesPage() {
         />
       ) : view === "chapters" && !q && activeBook?.book ? (
         <>
-          <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="-mx-5 mb-4 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] sm:-mx-8 sm:px-8 [&::-webkit-scrollbar]:hidden">
             {opts.map((o) => (
               <Chip key={o.key} on={o.key === activeBook.key} onClick={() => setBookKey(o.key)}>
                 {o.label}

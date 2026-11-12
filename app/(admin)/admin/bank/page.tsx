@@ -162,7 +162,7 @@ export default function QuestionBankPage() {
   const allTopics = useMemo(() => Array.from(new Set(db.bank.map((b) => b.topic).filter((t) => t.trim()))).sort(), [db.bank]);
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+    <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       <PageHeader
         title="Question bank"
         subtitle={`${db.bank.length} reusable questions`}
@@ -172,15 +172,15 @@ export default function QuestionBankPage() {
       <div className="mb-4 flex flex-wrap gap-2">
         {/* Search and the two menus share one row from tablet width up (each menu
             fills its own row otherwise, which pushed the list down). */}
-        <div className="min-w-0 flex-1 basis-full md:basis-64"><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" aria-label="Search bank" /></div>
+        <div className="min-w-0 flex-1 basis-full md:basis-64"><Input compact type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" aria-label="Search bank" /></div>
         <div className="min-w-0 flex-1 basis-40 md:max-w-56">
-          <Select value={subject} onChange={(e) => setSubject(e.target.value)} aria-label="Subject">
+          <Select compact value={subject} onChange={(e) => setSubject(e.target.value)} aria-label="Subject">
             <option value="all">All subjects</option>
             {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
           </Select>
         </div>
         <div className="min-w-0 flex-1 basis-40 md:max-w-56">
-          <Select value={activeTopic} onChange={(e) => setTopic(e.target.value)} aria-label="Topic">
+          <Select compact value={activeTopic} onChange={(e) => setTopic(e.target.value)} aria-label="Topic">
             <option value="all">All topics</option>
             {topics.map((t) => <option key={t} value={t}>{t}</option>)}
           </Select>

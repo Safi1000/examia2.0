@@ -134,7 +134,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <PortalAmbient />
         <PortalManifest on />
         {/* Persistent sidebar — tablet narrower, desktop full */}
-        <aside className="hidden w-60 shrink-0 border-r border-white/[0.06] md:block lg:w-64">
+        <aside className="hidden w-56 shrink-0 border-r border-white/[0.06] md:block xl:w-64">
           <div className="sticky top-0 h-dvh">
             <Sidebar />
           </div>
@@ -143,11 +143,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Mobile overlay sidebar */}
         {drawerOpen && (
           <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Menu">
-            <div className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} aria-hidden />
+            <div className="absolute inset-0 animate-fade-in bg-black/60" onClick={() => setMobileOpen(false)} aria-hidden />
             <div
               ref={drawerRef}
               tabIndex={-1}
-              className="absolute inset-y-0 left-0 w-72 max-w-[82%] animate-slide-in border-r border-border shadow-[var(--shadow-lg)] outline-none"
+              className="absolute inset-y-0 left-0 w-72 max-w-[82%] animate-drawer-in border-r border-border shadow-[var(--shadow-lg)] outline-none"
             >
               <Sidebar onNavigate={() => setMobileOpen(false)} />
               <button

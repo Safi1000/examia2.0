@@ -2,17 +2,19 @@
 
 import { forwardRef, useId } from "react";
 import { cn } from "@/lib/cn";
-import { Label } from "@/components/ui/Input";
+import { Label, controlHeight } from "@/components/ui/Input";
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
   /** Classes for the outer wrapper. When given, it replaces the default full width, so a page can size the field. */
   wrapperClassName?: string;
+  /** The filter bar size: the same height as a small button and the chips beside it. */
+  compact?: boolean;
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
-  { label, error, className, wrapperClassName, id, children, ...rest },
+  { label, error, className, wrapperClassName, compact, id, children, ...rest },
   ref,
 ) {
   const autoId = useId();
@@ -27,10 +29,11 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${fieldId}-err` : undefined}
           className={cn(
-            "h-12 w-full appearance-none rounded-md border bg-surface pl-3.5 pr-10 text-ink",
+            "w-full appearance-none border bg-surface pr-10 text-ink transition-colors",
+            compact ? cn(controlHeight, "rounded-full pl-4 text-sm") : "h-12 rounded-md pl-3.5",
             "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
             "disabled:cursor-not-allowed disabled:opacity-60",
-            error ? "border-error" : "border-border-strong",
+            error ? "border-error" : "border-border-strong hover:border-ink-3",
             className,
           )}
           {...rest}

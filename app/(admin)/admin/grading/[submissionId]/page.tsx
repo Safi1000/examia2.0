@@ -38,7 +38,7 @@ export default function GradingPage() {
 
   if (!submission || !test || !student) {
     return (
-      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+      <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
         <PageHeader title="Submission not found" back={{ href: "/admin/submissions", label: "Submissions" }} />
         <EmptyState icon={<Icon.Inbox />} title="This submission no longer exists" />
       </div>
@@ -103,7 +103,7 @@ export default function GradingPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+    <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       {/* Ctrl/Cmd + Enter while marking: release and move to the next one,
           wherever the focus is (it used to need a click inside the page first). */}
       <ReleaseShortcut enabled={fullyGraded && !released} onRelease={() => release(!!nextId)} />
@@ -199,7 +199,7 @@ export default function GradingPage() {
       {/* Always in reach at the bottom (no scrolling back up on the iPad). It
           stays after release, so a quick second tap lands on it and not on a
           mark button that was underneath. */}
-      <div className="sticky bottom-3 z-20 mt-6 flex items-center justify-between gap-3 rounded-full border border-border-strong bg-surface/95 py-2 pl-5 pr-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),var(--shadow-lg)] backdrop-blur max-md:bottom-24">
+      <div data-toast-avoid className="sticky bottom-3 z-20 mt-6 flex items-center justify-between gap-3 rounded-full border border-border-strong bg-surface/95 py-2 pl-5 pr-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),var(--shadow-lg)] backdrop-blur max-md:bottom-24">
         <span className="text-sm font-semibold tabular-nums text-ink">
           {awarded}/{total} <span className="font-normal text-ink-3">· {grade.percent}%{released ? " · Released" : ""}</span>
         </span>

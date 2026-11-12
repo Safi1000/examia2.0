@@ -86,7 +86,7 @@ export default function ExportPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+    <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       <PageHeader title="Data export" subtitle="Download a snapshot of your portal data." />
 
       <Card className="mb-5 max-w-2xl p-5">

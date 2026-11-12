@@ -104,8 +104,8 @@ export function NotificationsView() {
   }));
 
   return (
-    <div className="rise mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-4 pt-2">
+    <div className="rise mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
+      <div className="mb-10 flex flex-wrap items-end justify-between gap-x-6 gap-y-4 pt-2">
         <div>
           <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.03em] text-ink sm:text-[2.5rem]">Notifications</h1>
           <p className="mt-3 text-base text-ink-2 tabular-nums">

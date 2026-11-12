@@ -39,7 +39,7 @@ export default function TestsPage() {
   const empty = !groups.open.length && !groups.upcoming.length && !groups.past.length;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+    <div className="mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
       <div className="rise space-y-10">
       <PageHeader title="Tests">
           {groups.open.length

@@ -16,9 +16,9 @@ export default function StudentSettingsPage() {
   const db = useDatabase();
   const student = studentId ? studentById(db, studentId) : null;
   return (
-    <div className="mx-auto max-w-2xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
-      <div className="rise space-y-5">
-      <PageHeader title="Settings" className="mb-3">Your password, notifications and how your portal looks.</PageHeader>
+    <div className="mx-auto max-w-2xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
+      <div className="rise space-y-4">
+      <PageHeader title="Settings" className="mb-10">Your password, notifications and how your portal looks.</PageHeader>
 
       {student && <ProfileSettings db={db} student={student} />}
       {studentId && <NotificationSettings studentId={studentId} />}
@@ -82,7 +82,7 @@ function ChangePassword() {
 
   return (
     <Card className="p-5 sm:p-6">
-      <h2 className="text-[17px] font-bold tracking-[-0.01em] text-ink">Change password</h2>
+      <h2 className="text-lg font-bold tracking-[-0.01em] text-ink">Change password</h2>
       <p className="mt-1 text-sm text-ink-3">Replace the password I gave you with your own.</p>
       <form onSubmit={onSubmit} className="mt-4 space-y-4" noValidate>
         <Input

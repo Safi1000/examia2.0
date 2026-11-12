@@ -106,7 +106,7 @@ function StudentDetail() {
 
   if (!student || !data) {
     return (
-      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+      <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
         <PageHeader title="Student not found" back={{ href: "/admin/roster", label: "Roster" }} />
         <EmptyState icon={<Icon.Users />} title="No such student" />
       </div>
@@ -246,7 +246,7 @@ function StudentDetail() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+    <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       <PageHeader
         title={displayName(student.username)}
         subtitle={[student.username, student.email].filter(Boolean).join(" · ")}

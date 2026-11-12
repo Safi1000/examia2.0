@@ -59,8 +59,8 @@ export default function StudentAssignmentsPage() {
   if (!studentId) return null;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
-      <div className="rise space-y-8">
+    <div className="mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
+      <div className="rise space-y-10">
       <PageHeader title="Homework">Hand in your work as photos or a PDF.</PageHeader>
 
       {assignments.length === 0 && done.length === 0 ? (
@@ -84,7 +84,7 @@ export default function StudentAssignmentsPage() {
 
       {done.length > 0 && (
         <details open={doneOpen} onToggle={(e) => setDoneOpen(e.currentTarget.open)} className="group">
-          <summary className="surface surface-link flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-5 text-[15px] font-semibold text-ink sm:px-6 [&::-webkit-details-marker]:hidden">
+          <summary className="surface surface-link flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-5 text-base font-semibold text-ink sm:px-6 [&::-webkit-details-marker]:hidden">
             <span>
               Done <span className="font-normal text-ink-3 tabular-nums">· {done.length}</span>
             </span>
@@ -194,7 +194,7 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
           overdue && <Badge tone="warning">Overdue</Badge>
         )}
       </div>
-      <h2 className="mt-1.5 text-xl font-bold leading-snug tracking-[-0.015em] text-ink">{assignment.title}</h2>
+      <h2 className="mt-1.5 text-lg font-bold leading-snug tracking-[-0.01em] text-ink">{assignment.title}</h2>
       <p className={cn("mt-1 text-sm tabular-nums", overdue && !mine ? "font-semibold text-warning" : "text-ink-2")}>Due {formatWhen(assignment.dueAt)}</p>
       {/* Past paper homework: the line naming the papers is for Hamza only. */}
       {instructions && <p className="mt-3 max-w-[65ch] whitespace-pre-wrap text-base leading-relaxed text-ink-2">{instructions}</p>}

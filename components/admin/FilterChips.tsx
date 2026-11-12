@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/cn";
+import { chipClass } from "@/components/ui/Segmented";
 
 /**
  * Multi-select filter row. Nothing selected means "all" — the same as the
@@ -22,7 +22,13 @@ export function FilterChips({
     onChange(selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v]);
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={label}>
+    // Laptop and tablet: one row that wraps under its label. Phone: one line that
+    // scrolls sideways to the screen edge, so a long list never stacks three rows deep.
+    <div
+      className="flex items-center gap-1.5 max-sm:-mx-5 max-sm:overflow-x-auto max-sm:px-5 max-sm:[scrollbar-width:none] sm:flex-wrap max-sm:[&::-webkit-scrollbar]:hidden"
+      role="group"
+      aria-label={label}
+    >
       <span className="mr-1 w-16 shrink-0 text-xs font-semibold text-ink-3">{label}</span>
       <Chip active={selected.length === 0} onClick={() => onChange([])}>
         All
@@ -30,7 +36,7 @@ export function FilterChips({
       {options.map((o) => (
         <Chip key={o.value} active={selected.includes(o.value)} onClick={() => toggle(o.value)}>
           {o.label}
-          {o.count !== undefined && <span className="ml-1.5 text-xs tabular-nums opacity-60">{o.count}</span>}
+          {o.count !== undefined && <span className="text-xs tabular-nums opacity-60">{o.count}</span>}
         </Chip>
       ))}
     </div>
@@ -43,12 +49,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={cn(
-        "h-11 rounded-full border px-3.5 text-sm font-semibold transition-colors duration-150 xl:h-9",
-        active
-          ? "border-white/[0.16] bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-          : "border-border bg-transparent text-ink-3 hover:border-border-strong hover:text-ink",
-      )}
+      className={chipClass(active)}
     >
       {children}
     </button>

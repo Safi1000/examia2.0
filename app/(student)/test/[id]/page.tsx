@@ -537,7 +537,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
     <div className="flex min-h-dvh flex-col">
       {/* Focus-mode header with the live countdown */}
       <header className="sticky top-0 z-30 border-b border-hairline bg-paper/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-5 py-3">
           <div className="flex min-w-0 items-center gap-2">
             <div className="min-w-0">
               <p className="truncate text-sm font-bold text-ink">{test.title}</p>
@@ -585,7 +585,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
         <div role="status" className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-paper/95 px-6 text-center backdrop-blur">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand">Time&apos;s up</p>
           <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-ink">Saving your last photos…</h2>
-          <p className="mt-3 max-w-xs text-[15px] text-ink-2">Keep this screen open. Your paper is handed in as soon as they finish.</p>
+          <p className="mt-3 max-w-xs text-base text-ink-2">Keep this screen open. Your paper is handed in as soon as they finish.</p>
         </div>
       )}
 
@@ -593,7 +593,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
         <div role="alertdialog" aria-modal="true" aria-labelledby="pens-down" className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-paper/95 px-6 text-center backdrop-blur">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand">Time&apos;s up</p>
           <h2 id="pens-down" className="mt-3 text-4xl font-extrabold tracking-tight text-ink">Pens down.</h2>
-          <p className="mt-3 max-w-xs text-[15px] text-ink-2">
+          <p className="mt-3 max-w-xs text-base text-ink-2">
             You have {uploadMins} {uploadMins === 1 ? "minute" : "minutes"} to photograph and upload your pages.
           </p>
           <Button ref={pensRef} size="lg" className="mt-8 min-w-60" onClick={() => { setPensDown(false); globalThis.scrollTo({ top: 0 }); }}>
@@ -602,7 +602,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
+      <div className="mx-auto w-full max-w-2xl flex-1 px-5 py-6">
         {uploading ? (
           <div className="animate-fade-up space-y-6">
             <div className="rounded-xl border border-warning/35 bg-warning-soft px-5 py-4">
@@ -634,7 +634,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
       </div>
 
       <footer className="sticky bottom-0 border-t border-hairline bg-paper/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-5 py-3">
           {uploading ? (
             <Button className="w-full" disabled={photosBusy > 0} onClick={() => setConfirmOpen(true)}>
               {photosBusy > 0 ? "Waiting for your photos…" : <>Hand in <Icon.Check className="h-4 w-4" /></>}
@@ -696,7 +696,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
         >
           <Icon.Warn className="h-8 w-8 text-warning" />
           <h2 id="not-handed-in" className="mt-3 text-3xl font-extrabold tracking-tight text-ink">Not handed in yet</h2>
-          <p id="not-handed-in-why" className="mt-3 max-w-xs text-[15px] text-ink-2">
+          <p id="not-handed-in-why" className="mt-3 max-w-xs text-base text-ink-2">
             Your answers are still saved on this phone. Check your internet, then tap Try again. Keep this page open
             until you see Done.
           </p>

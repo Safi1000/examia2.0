@@ -61,6 +61,11 @@
   --animate-scale-in: scale-in 0.15s var(--ease-out) both;
   --animate-slide-in: slide-in 0.25s var(--ease-out) both;
   --animate-low-pulse: low-pulse 1s ease-in-out infinite;
+  /* Short, calm entrances for things that open on top (portal kit only). */
+  --animate-fade-in: fade-in 0.16s ease-out both;
+  --animate-toast-in: toast-in 0.2s var(--ease-out) both;
+  --animate-sheet-up: sheet-up 0.22s var(--ease-out) both;
+  --animate-drawer-in: drawer-in 0.2s var(--ease-out) both;
 }
 
 /* Cohort dots: their names are built at runtime (lib/tokens.ts cohortVar), so
@@ -222,6 +227,22 @@ html:has(.landing) { scroll-behavior: smooth; }
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes sheet-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes drawer-in {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
 @keyframes low-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
@@ -238,7 +259,7 @@ html:has(.landing) { scroll-behavior: smooth; }
 }
 
 /* ---- Loading, one look everywhere ------------------------------------------
-   Placeholders shimmer with a soft gold light instead of blinking; spinners
+   Placeholders shimmer with a soft light instead of blinking (neutral in the portal); spinners
    are a gold arc that breathes as it turns; the splash fills a line slowly and
    sweeps light across the wordmark. Reduced motion: everything holds still. */
 .skeleton {
@@ -263,6 +284,18 @@ html:has(.landing) { scroll-behavior: smooth; }
 }
 @keyframes shimmer {
   to { transform: translateX(100%); }
+}
+/* In the portal the light passing over a placeholder is neutral, not gold:
+   gold stays for actions. (The public pages keep theirs.) */
+html:has(.portal-backdrop) .skeleton::after {
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    color-mix(in srgb, var(--color-ink) 5%, transparent) 42%,
+    color-mix(in srgb, var(--color-ink) 8%, transparent) 50%,
+    color-mix(in srgb, var(--color-ink) 5%, transparent) 58%,
+    transparent 80%
+  );
 }
 
 @keyframes arc-turn {
@@ -322,6 +355,8 @@ html:has(.landing) { scroll-behavior: smooth; }
   45% { transform: scaleX(1); opacity: 1; }
   100% { transform: scaleX(1); opacity: 0; }
 }
+/* In the portal the line is flat gold, without the soft glow it has on the public site. */
+html:has(.portal-backdrop) .route-line { box-shadow: none; }
 .route-fill { animation: route-fill 8s cubic-bezier(0.1, 0.75, 0.2, 1) forwards; }
 .route-done { animation: route-done 0.45s ease-out forwards; }
 
@@ -420,7 +455,7 @@ body {
     background-color: color-mix(in srgb, var(--color-surface) 82%, var(--color-surface-2));
   }
   &:active {
-    transform: scale(0.995);
+    transform: scale(0.985);
   }
 }
 /* A row inside a surface that is itself a link or button. */
@@ -457,7 +492,8 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .rise > * { animation: none !important; }
   /* The animate-* entrances (question changes, sheets, toasts) appear in place. */
-  .animate-fade-up, .animate-rise, .animate-scale-in, .animate-slide-in { animation: none !important; }
+  .animate-fade-up, .animate-rise, .animate-scale-in, .animate-slide-in,
+  .animate-fade-in, .animate-toast-in, .animate-sheet-up, .animate-drawer-in { animation: none !important; }
 }
 
 /* Portal art (components/student/PortalArt.tsx): images fade in once loaded,

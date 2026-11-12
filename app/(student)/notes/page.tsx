@@ -110,7 +110,7 @@ function StudentNotes() {
   const shown = viewing ?? (linked ? { id: linked.id, title: linked.title, page: openPage } : null);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+    <div className="mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
       <Library db={db} student={student} positions={positions} onOpen={open} />
       {shown && (
         <NoteViewer
@@ -212,10 +212,10 @@ function Library({ db, student, positions, onOpen }: { db: Db; student: Student;
                 <button
                   type="button"
                   onClick={() => onOpen({ id: r.note.id, title: r.note.title, page: p.page })}
-                  className="surface surface-link mb-8 flex w-full items-center gap-4 rounded-xl px-5 py-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:px-6"
+                  className="surface surface-link mb-10 flex w-full items-center gap-4 rounded-xl px-5 py-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:px-6"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[13px] font-semibold text-ink-3">Continue reading</span>
+                    <span className="block text-sm font-semibold text-ink-3">Continue reading</span>
                     <span className="mt-1 block truncate text-base font-semibold text-ink">{r.chapter ? r.chapter.name : r.note.title}</span>
                     <span className="mt-2 flex items-center gap-3">
                       <span className="h-1 flex-1 overflow-hidden rounded-full bg-surface-2">
@@ -256,7 +256,7 @@ function Library({ db, student, positions, onOpen }: { db: Db; student: Student;
                 ))}
               </div>
             ) : (
-              <div role="tablist" aria-label="Subjects" className="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div role="tablist" aria-label="Subjects" className="-mx-5 mb-8 flex gap-2 overflow-x-auto px-5 pb-1 sm:-mx-6 sm:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {books.map((s) => (
                   <button
                     key={s.key}
@@ -288,7 +288,7 @@ function Library({ db, student, positions, onOpen }: { db: Db; student: Student;
 
 function Header({ ready }: { ready: number }) {
   return (
-    <div className="mb-7">
+    <div className="mb-6">
       <PageHeader title="Notes">{ready ? "Every chapter, in the order we cover it." : "Your chapters, in the order we cover them."}</PageHeader>
     </div>
   );
@@ -296,7 +296,7 @@ function Header({ ready }: { ready: number }) {
 
 function SearchBox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <div role="search" className="relative mb-7">
+    <div role="search" className="relative mb-6">
       <Icon.Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-ink-3" />
       <label htmlFor="notes-q" className="sr-only">
         Search your notes
@@ -339,11 +339,11 @@ function ShelfView({ shelf, positions, nowMs, onOpen }: { shelf: Shelf; position
   return (
     <div className="space-y-4">
       {book && (
-        <div className="flex items-center justify-between gap-3 px-1 pb-1">
-          <h2 className="min-w-0 truncate text-[20px] font-bold tracking-[-0.02em] text-ink">
+        <div className="flex items-center justify-between gap-3 pb-1">
+          <h2 className="min-w-0 truncate text-xl font-bold leading-tight tracking-[-0.015em] text-ink">
             {LEVEL_SHORT[book.level]} {book.subject}
           </h2>
-          <span className="shrink-0 text-[13px] tabular-nums text-ink-3">
+          <span className="shrink-0 text-sm tabular-nums text-ink-3">
             {out} of {total} ready
           </span>
         </div>
@@ -364,10 +364,10 @@ function ShelfView({ shelf, positions, nowMs, onOpen }: { shelf: Shelf; position
                 className="row-link flex min-h-16 w-full items-center gap-3 px-5 py-4 text-left"
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[13px] text-ink-3">
+                  <span className="block text-sm text-ink-3">
                     Unit {u.num} · {!has ? "Coming soon" : ready === u.chapters.length ? "All ready" : `${ready} of ${u.chapters.length} ready`}
                   </span>
-                  <span className={cn("mt-0.5 block text-[17px] font-semibold leading-snug", has ? "text-ink" : "text-ink-2")}>{u.name}</span>
+                  <span className={cn("mt-0.5 block text-lg font-semibold leading-snug", has ? "text-ink" : "text-ink-2")}>{u.name}</span>
                 </span>
                 <Icon.ChevronRight className={cn("h-4 w-4 shrink-0 text-ink-3 transition-transform duration-200", isOpen && "rotate-90")} />
               </button>
@@ -402,18 +402,18 @@ function ShelfView({ shelf, positions, nowMs, onOpen }: { shelf: Shelf; position
                           }
                           className="row-link -ml-5 flex min-h-12 w-[calc(100%+1.25rem)] items-center gap-3 py-2.5 pl-5 pr-5 text-left focus-visible:bg-surface-2 focus-visible:outline-none"
                         >
-                          <span className="w-10 shrink-0 text-[13px] tabular-nums text-ink-3">{num}</span>
-                          <span className="min-w-0 flex-1 text-[15px] leading-snug text-ink-2">{name}</span>
-                          <span className="shrink-0 text-[13px] text-ink-3">In unit notes</span>
+                          <span className="w-10 shrink-0 text-sm tabular-nums text-ink-3">{num}</span>
+                          <span className="min-w-0 flex-1 text-base leading-snug text-ink-2">{name}</span>
+                          <span className="shrink-0 text-sm text-ink-3">In unit notes</span>
                         </button>
                       </li>
                     );
                   if (!notes)
                     return (
                       <li key={num} className="flex min-h-12 items-center gap-3 py-2.5 pr-5 text-ink-3">
-                        <span className="w-10 shrink-0 text-[13px] tabular-nums opacity-70">{num}</span>
-                        <span className="min-w-0 flex-1 text-[15px] leading-snug opacity-70">{name}</span>
-                        <span className="shrink-0 text-[13px]">Soon</span>
+                        <span className="w-10 shrink-0 text-sm tabular-nums opacity-70">{num}</span>
+                        <span className="min-w-0 flex-1 text-base leading-snug opacity-70">{name}</span>
+                        <span className="shrink-0 text-sm">Soon</span>
                       </li>
                     );
                   return notes.map((n, k) => (
@@ -438,7 +438,7 @@ function ShelfView({ shelf, positions, nowMs, onOpen }: { shelf: Shelf; position
 
       {shelf.more.length > 0 && (
         <section aria-labelledby={`more-${shelf.key}`}>
-          <h3 id={`more-${shelf.key}`} className="mb-2 px-1 text-[13px] font-semibold text-ink-3">
+          <h3 id={`more-${shelf.key}`} className="mb-2 text-sm font-semibold text-ink-3">
             {book ? "More notes" : shelf.label}
           </h3>
           <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
@@ -503,11 +503,11 @@ function NoteRow({
         inset ? "" : "pl-5",
       )}
     >
-      {num !== "" || !showDate ? <span className="w-10 shrink-0 text-[13px] font-semibold tabular-nums text-ink-3">{num}</span> : null}
+      {num !== "" || !showDate ? <span className="w-10 shrink-0 text-sm font-semibold tabular-nums text-ink-3">{num}</span> : null}
       <span className="min-w-0 flex-1">
         <span className="line-clamp-2 text-[16px] font-semibold leading-snug text-ink">{title}</span>
         {(showDate || fresh || k || pos) && (
-          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[13px] text-ink-3">
+          <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-ink-3">
             {showDate && <span>{fmtDate(note.createdAt)}</span>}
             {k && <span>{k}</span>}
             {pos && !done && (
@@ -619,7 +619,7 @@ function SearchResults({ q, readable, onOpen, nowMs }: { q: string; readable: Re
     <div className="space-y-7" aria-live="polite">
       {titleHits.length > 0 && (
         <section>
-          <h2 className="mb-3 px-1 text-[17px] font-bold tracking-[-0.01em] text-ink">Chapters</h2>
+          <h2 className="mb-3 text-xl font-bold leading-tight tracking-[-0.015em] text-ink">Chapters</h2>
           <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
             {titleHits.slice(0, 8).map(({ note, chapter, shelf }) => (
               <li key={note.id}>
@@ -638,7 +638,7 @@ function SearchResults({ q, readable, onOpen, nowMs }: { q: string; readable: Re
       )}
 
       <section>
-        <h2 className="mb-3 px-1 text-[17px] font-bold tracking-[-0.01em] text-ink">Inside your notes</h2>
+        <h2 className="mb-3 text-xl font-bold leading-tight tracking-[-0.015em] text-ink">Inside your notes</h2>
         {loading ? (
           <p className="flex items-center gap-2 py-4 text-sm text-ink-3">
             <Spinner size={16} /> Searching every page…
@@ -671,7 +671,7 @@ function SearchResults({ q, readable, onOpen, nowMs }: { q: string; readable: Re
                         className="row-link flex w-full gap-3 px-5 py-3.5 text-left focus-visible:bg-surface-2 focus-visible:outline-none"
                       >
                         <span className="w-14 shrink-0 pt-0.5 text-xs font-semibold tabular-nums text-ink-3">Page {h.page}</span>
-                        <span className="min-w-0 flex-1 text-[15px] leading-relaxed text-ink-2">
+                        <span className="min-w-0 flex-1 text-base leading-relaxed text-ink-2">
                           <Marked text={h.snippet} terms={terms} />
                         </span>
                       </button>

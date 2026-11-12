@@ -215,6 +215,7 @@ export function BulkBar({
       ref={wrap}
       role="region"
       aria-label="Selected rows"
+      data-toast-avoid
       className="sticky bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-30 mt-3 md:bottom-4"
     >
       <div className="rounded-2xl border border-border-strong bg-surface-2/95 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_18px_40px_-12px_rgba(0,0,0,0.75)] backdrop-blur animate-fade-up xl:flex xl:items-center xl:gap-2">
@@ -254,8 +255,11 @@ export function BulkBar({
                 aria-controls={menuId}
                 onClick={() => setMenu((m) => !m)}
                 disabled={!!busy}
+                aria-label="More actions"
+                // Phones: just the arrow, so the two actions and More keep to one line.
+                className="max-md:w-11 max-md:px-0"
               >
-                More
+                <span className="max-md:hidden">More</span>
                 <svg viewBox="0 0 24 24" className={cn("h-4 w-4 transition-transform", menu && "rotate-180")} fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                   <path d="m6 15 6-6 6 6" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>

@@ -11,7 +11,7 @@ import { isInPersonStudent } from "@/lib/in-person";
 import { isTestAccount } from "@/lib/display-name";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Button, Card, Select, EmptyState, Icon, Modal } from "@/components/ui";
+import { Button, Card, Select, EmptyState, Icon, Modal, filterField, segmentGroup, segmentItem } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { useClassLinks, useSchedule } from "@/lib/classes";
 
@@ -63,7 +63,7 @@ export default function AttendancePage() {
 
   if (db.students.length === 0) {
     return (
-      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+      <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
         <PageHeader title="Attendance" />
         <EmptyState icon={<Icon.Users />} title="No students yet" />
       </div>
@@ -71,7 +71,7 @@ export default function AttendancePage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+    <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       <PageHeader
         title="Attendance"
         subtitle={
@@ -82,24 +82,21 @@ export default function AttendancePage() {
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="flex rounded-lg border border-border bg-surface p-0.5">
+        <div className={segmentGroup}>
           {(["daily", "monthly"] as Mode[]).map((m) => (
             <button
               key={m}
               type="button"
               onClick={() => setMode(m)}
               aria-pressed={mode === m}
-              className={cn(
-                "min-h-9 rounded-md px-3 py-1.5 text-xs font-semibold capitalize transition-colors max-md:min-h-10",
-                mode === m ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink",
-              )}
+              className={cn(segmentItem(mode === m), "capitalize")}
             >
               {m}
             </button>
           ))}
         </div>
 
-        <Select value={classId} onChange={(e) => setClassId(e.target.value)} className="w-auto min-w-40" aria-label="Class">
+        <Select value={classId} onChange={(e) => setClassId(e.target.value)} compact wrapperClassName="min-w-0 flex-1 basis-48 sm:max-w-64" aria-label="Class">
           <option value="">All classes</option>
           {db.classes.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
@@ -113,7 +110,7 @@ export default function AttendancePage() {
           // A typed future date is ignored too: `max` only limits the picker, not the keyboard.
           onChange={(e) => e.target.value && e.target.value <= e.target.max && setDate(mode === "daily" ? e.target.value : `${e.target.value}-01`)}
           max={mode === "daily" ? todayISO() : todayISO().slice(0, 7)}
-          className="h-10 rounded-md border border-border-strong bg-surface px-3 text-sm text-ink max-md:h-11"
+          className={filterField}
           aria-label={mode === "daily" ? "Date" : "Month"}
         />
       </div>

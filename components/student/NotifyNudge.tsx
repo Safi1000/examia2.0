@@ -50,7 +50,7 @@ export function NotifyNudge() {
     <div
       role="region"
       aria-label="Class reminders"
-      className="fixed inset-x-3 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-md animate-fade-up rounded-2xl border border-border bg-[#1d2023]/95 p-4 shadow-[0_24px_48px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl md:bottom-6"
+      className="fixed inset-x-5 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-md animate-fade-up rounded-2xl border border-border bg-[#1d2023]/95 p-4 shadow-[0_24px_48px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl md:bottom-6"
     >
       <p className="font-semibold text-ink">Never miss a class</p>
       <p className="mt-1 text-sm text-ink-2">I&apos;ll send a short reminder when your class is about to start, and tell you when results are out. Never at night, and only a few.</p>

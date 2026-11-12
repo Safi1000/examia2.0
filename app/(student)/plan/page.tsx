@@ -51,7 +51,7 @@ export default function PlanPage() {
 
   if (plan.weeks.length === 0) {
     return (
-      <div className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+      <div className="mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
         <EmptyState icon={<Icon.Flag />} title="Exams are here" message="Good luck. Rest well and trust the work you've done." />
       </div>
     );
@@ -61,7 +61,7 @@ export default function PlanPage() {
   const upcoming = plan.weeks.filter((w) => w.index > current.index);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+    <div className="mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
       <div className="rise space-y-10">
       <PageHeader title="Your plan to the exams">
         It rebuilds itself from your marks, so weak topics come round more often.
@@ -83,7 +83,7 @@ export default function PlanPage() {
       {/* This week */}
       <section className="surface rounded-xl p-5 sm:p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-xl font-bold tracking-[-0.015em] text-ink">This week</h2>
+          <h2 className="text-lg font-bold tracking-[-0.01em] text-ink">This week</h2>
           <p className="text-sm text-ink-2">
             Week of {weekLabel(current.start)} · {PHASE[current.phase].label}
           </p>
@@ -146,7 +146,7 @@ export default function PlanPage() {
         </section>
       )}
 
-      <p className="px-1 text-sm text-ink-3">
+      <p className="text-sm text-ink-3">
         Dates are a guide: exams are taken to start around {new Date(`${EXAMS.start}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}. Your own timetable from school wins.
       </p>
       </div>

@@ -24,7 +24,8 @@ export function Table({
   return (
     <table
       className={cn(
-        "w-full border-collapse text-left text-sm",
+        // Figures line up in columns everywhere (tabular digits change nothing for words).
+        "w-full border-collapse text-left text-sm tabular-nums",
         stickyFirst &&
           "[&_td:first-child]:sticky [&_td:first-child]:left-0 [&_td:first-child]:bg-surface [&_th:first-child]:sticky [&_th:first-child]:left-0 [&_th:first-child]:z-10 [&_th:first-child]:bg-paper",
         className,

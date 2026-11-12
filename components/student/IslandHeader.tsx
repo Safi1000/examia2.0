@@ -179,7 +179,7 @@ export function IslandHeader({
   return (
     <header
       className={cn(
-        "surface relative isolate overflow-hidden rounded-[24px]",
+        "surface relative isolate overflow-hidden rounded-xl",
         className,
       )}
     >
@@ -226,7 +226,7 @@ export function IslandHeader({
         className="absolute inset-0 -z-10 hidden bg-[linear-gradient(90deg,rgba(20,22,24,0.55)_0%,rgba(20,22,24,0.2)_42%,rgba(20,22,24,0)_60%)] sm:block"
       />
       {/* The words stay inside the picture's safe zone: the left half, middle band. */}
-      <div className="px-6 pb-6 pt-2 sm:flex sm:min-h-[232px] sm:max-w-[50%] sm:flex-col sm:justify-center sm:px-8 sm:py-8 lg:max-w-[48%]">
+      <div className="px-5 pb-6 pt-2 sm:flex sm:min-h-[232px] sm:max-w-[50%] sm:flex-col sm:justify-center sm:px-6 sm:py-8 lg:max-w-[48%]">
         {children}
       </div>
     </header>

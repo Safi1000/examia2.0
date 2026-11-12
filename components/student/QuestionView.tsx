@@ -61,7 +61,7 @@ function QuestionViewInner({
       <div className="flex flex-wrap items-center gap-2">
         {question.topic.trim() && <Badge tone="neutral">{question.topic}</Badge>}
         <Pill>{question.marks} {question.marks === 1 ? "mark" : "marks"}</Pill>
-        <span className="text-xs uppercase tracking-wide text-ink-3">{TYPE_LABEL[question.type] ?? question.type}</span>
+        <span className="text-xs font-medium text-ink-3">{TYPE_LABEL[question.type] ?? question.type}</span>
       </div>
       {showPrompt &&
         (pastPaper ? (

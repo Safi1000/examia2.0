@@ -57,7 +57,7 @@ export function AttendanceCard({ db, studentId, nowMs }: { db: Pick<Database, "a
     <section className="surface rounded-xl p-5 sm:p-6" aria-labelledby="att-h">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 id="att-h" className="text-[17px] font-bold tracking-[-0.01em] text-ink">Attendance</h2>
+          <h2 id="att-h" className="text-lg font-bold tracking-[-0.01em] text-ink">Attendance</h2>
           <p className="text-sm text-ink-3">{monthName(data.headMonth)}</p>
         </div>
         <div className="text-right">

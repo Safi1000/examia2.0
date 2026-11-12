@@ -74,7 +74,7 @@ export function RouteProgress() {
   return (
     <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[100] h-[2px]">
       <div
-        className={`h-full origin-left rounded-r-full bg-gradient-to-r from-brand/50 via-brand to-[#ffe0a3] shadow-[0_0_10px_rgba(251,193,89,0.55)] ${
+        className={`route-line h-full origin-left rounded-r-full bg-gradient-to-r from-brand/50 via-brand to-[#ffe0a3] shadow-[0_0_10px_rgba(251,193,89,0.55)] ${
           state === "loading" ? "route-fill" : "route-done"
         }`}
       />

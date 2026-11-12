@@ -26,7 +26,7 @@ export default function WhiteboardPage() {
     },
   ];
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8 *:max-w-3xl">
       <PageHeader title="Whiteboard" subtitle="One board on your tablet and laptop. Write on either, then share the laptop screen in Meet or on the TV." />
       <div className="grid gap-4 sm:grid-cols-2">
         {steps.map((s) => (

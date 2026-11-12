@@ -141,7 +141,7 @@ export default function ClassesPage() {
   if (!student) return null;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+    <div className="mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
       <div className="rise space-y-10">
       <PageHeader title="Classes" eyebrow={`${dayRange(schedule.days)} · Pakistan time`}>
         {today < getSchedule().termStarts && (
@@ -299,7 +299,7 @@ function PastRecordings({ items, twoLevels, watched, onWatch }: { items: PastIte
         Catch up on past classes
       </SectionTitle>
       {subjects.length > 1 && (
-        <div className="mb-3 flex flex-wrap gap-2 px-1" role="group" aria-label="Subject">
+        <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Subject">
           <button type="button" className={chip(!subject)} aria-pressed={!subject} onClick={() => { setSubject(null); setShown(PAGE); }}>
             All
           </button>
@@ -313,7 +313,7 @@ function PastRecordings({ items, twoLevels, watched, onWatch }: { items: PastIte
       <div className="space-y-5">
         {months.map((m) => (
           <div key={m.name}>
-            <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-[0.14em] text-ink-3">{m.name}</p>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-ink-3">{m.name}</p>
             <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
               {m.rows.map((r) => (
                 <li key={r.key}>

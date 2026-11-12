@@ -12,7 +12,7 @@ import { useActivity } from "@/lib/activity-admin";
 import { TRACKING_SINCE, activeDays, areasBetween, daysAgo, fmtAgo, fmtTime, lastSeen, secsBetween, type Area } from "@/lib/activity";
 import { AreaBars, DailyBars, Tile } from "@/components/admin/ActivityParts";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Card, CohortDot, EmptyState, Icon, Spinner } from "@/components/ui";
+import { Card, CohortDot, EmptyState, Icon, Spinner, filterField, segmentGroup, segmentItem } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
 // "7 Nov 2026", from the same date the counts start at.
@@ -99,11 +99,11 @@ export default function ActivityPage() {
   }, [rows, query, sort]);
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+    <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       <PageHeader title="Activity" subtitle="How your students use the portal, so you know who to help. Only you see this." />
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <div role="tablist" aria-label="Period" className="inline-flex rounded-full border border-border p-1">
+        <div role="tablist" aria-label="Period" className={segmentGroup}>
           {([7, 30] as const).map((r) => (
             <button
               key={r}
@@ -111,7 +111,7 @@ export default function ActivityPage() {
               role="tab"
               aria-selected={range === r}
               onClick={() => setRange(r)}
-              className={cn("h-9 rounded-full px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-md:h-11", range === r ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink")}
+              className={segmentItem(range === r)}
             >
               Last {r} days
             </button>
@@ -199,7 +199,7 @@ export default function ActivityPage() {
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Find a student"
                 aria-label="Find a student"
-                className="h-10 w-full rounded-full border border-border bg-surface pl-9 pr-3 text-base text-ink placeholder:text-ink-3 focus:border-brand focus:outline-none max-md:h-11 sm:text-sm"
+                className={cn(filterField, "w-full pl-9")}
               />
             </label>
             <label className="flex items-center gap-2 text-sm text-ink-3">
@@ -207,7 +207,7 @@ export default function ActivityPage() {
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value as Sort)}
-                className="h-10 rounded-full border border-border bg-surface px-3 text-base font-semibold text-ink focus:border-brand focus:outline-none max-md:h-11 sm:text-sm"
+                className={cn(filterField, "font-semibold")}
               >
                 {SORTS.map(([v, l]) => (
                   <option key={v} value={v}>

@@ -78,7 +78,7 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
   if (app)
     return (
       <Card className="p-5 sm:p-6">
-        <h2 className="text-[17px] font-bold tracking-[-0.01em] text-ink">Phone notifications</h2>
+        <h2 className="text-lg font-bold tracking-[-0.01em] text-ink">Phone notifications</h2>
         <p className="mt-1 text-sm text-ink-3">Notifications for the app are in the Me tab.</p>
       </Card>
     );
@@ -139,7 +139,7 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
     <Card className="p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-[17px] font-bold tracking-[-0.01em] text-ink">Phone notifications</h2>
+          <h2 className="text-lg font-bold tracking-[-0.01em] text-ink">Phone notifications</h2>
           <p className="mt-1 text-sm text-ink-3">Only what matters, never at night. At most 2 a day, plus class reminders.</p>
         </div>
         {status === "on" && (

@@ -128,7 +128,7 @@ function nextOpenTest(db: Database, student: Student, currentId: string) {
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 px-5 py-4 text-[15px]">
+    <div className="flex items-center justify-between gap-4 px-5 py-4 text-base">
       <span className="text-ink-2">{label}</span>
       {children}
     </div>

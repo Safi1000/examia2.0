@@ -9,7 +9,7 @@ import { archivedCohortIds } from "@/lib/data/selectors";
 import { displayName, isTestAccount } from "@/lib/display-name";
 import { useStudentProfiles } from "@/lib/student-profiles";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Button, Card, Icon, Modal } from "@/components/ui";
+import { Button, Card, Icon, Modal, chipClass, filterField } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { panelTitle } from "@/components/admin/surface";
 import { LEVEL_LABEL, RECORDING_HOURS, addDays, levelOf, pkDate, slotsOn, useSchedule, type LevelKey } from "@/lib/classes";
@@ -256,7 +256,7 @@ export default function RecordingsPage() {
   const endsIfStarted = nowMs + CATCH_UP_HOURS * 3_600_000;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8 *:max-w-4xl">
       <PageHeader title="Recordings" subtitle="Every class recording so far. Only you see this page." />
 
       {error && !state && (
@@ -366,7 +366,7 @@ export default function RecordingsPage() {
             aria-label="Month"
             value={month}
             onChange={(e) => setMonthPick(e.target.value)}
-            className="h-11 rounded-full border border-border-strong bg-surface px-4 text-base text-ink md:h-10 md:text-sm"
+            className={filterField}
           >
             {months.map((m) => (
               <option key={m} value={m}>
@@ -538,15 +538,10 @@ function order(rows: Row[], levelName: string) {
 
 function Chips({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
   if (options.length < 2) return null;
-  const chip = (on: boolean) =>
-    cn(
-      "inline-flex h-10 items-center rounded-full border px-3.5 text-[13px] font-semibold transition-colors pointer-coarse:h-11",
-      on ? "border-white/[0.14] bg-white/[0.07] text-ink" : "border-white/[0.08] text-ink-3 hover:text-ink",
-    );
   return (
     <div role="group" aria-label={label} className="flex flex-wrap gap-1.5">
       {["all", ...options].map((o) => (
-        <button key={o} type="button" aria-pressed={value === o} onClick={() => onChange(o)} className={chip(value === o)}>
+        <button key={o} type="button" aria-pressed={value === o} onClick={() => onChange(o)} className={chipClass(value === o)}>
           {o === "all" ? `All ${label === "Level" ? "levels" : "subjects"}` : o}
         </button>
       ))}

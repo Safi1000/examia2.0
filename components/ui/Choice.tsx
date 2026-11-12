@@ -45,7 +45,7 @@ export function RadioCard({
       >
         {checked && <span className="h-2.5 w-2.5 rounded-full bg-brand" />}
       </span>
-      <span className="text-[15px] leading-snug text-ink">{label}</span>
+      <span className="text-base leading-snug text-ink">{label}</span>
     </label>
   );
 }

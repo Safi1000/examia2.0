@@ -63,7 +63,7 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
         href="/classes"
         className="surface surface-link flex items-center justify-between gap-3 rounded-xl px-5 py-4 sm:px-6"
       >
-        <span className="text-[15px] text-ink-2">
+        <span className="text-base text-ink-2">
           Next class: <span className="font-semibold text-ink">{next.subject}</span>{" "}
           {next.date === today
             ? "at "
@@ -103,7 +103,7 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
         <div>
           <h2 className="text-[1.75rem] font-extrabold leading-tight tracking-[-0.025em] text-ink">{current.subject}</h2>
           {/* In the Gulf this reads "2:30 PM to 3:10 PM your time (3:30 to 4:10 PM Pakistan)", like the "Next class" line. */}
-          <p className="mt-0.5 text-[15px] text-ink-2 tabular-nums">{spanHere(current.date, current.start, current.end)}</p>
+          <p className="mt-0.5 text-base text-ink-2 tabular-nums">{spanHere(current.date, current.start, current.end)}</p>
         </div>
         {url ? (
           <a

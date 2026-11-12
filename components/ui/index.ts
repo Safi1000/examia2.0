@@ -1,5 +1,6 @@
 export { Button } from "@/components/ui/Button";
-export { Input, Textarea, Label } from "@/components/ui/Input";
+export { Input, Textarea, Label, controlHeight, filterField } from "@/components/ui/Input";
+export { segmentGroup, segmentItem, chipClass } from "@/components/ui/Segmented";
 export { Select } from "@/components/ui/Select";
 export { RadioCard, Checkbox } from "@/components/ui/Choice";
 export { Card, CardHeader, CardBody } from "@/components/ui/Card";

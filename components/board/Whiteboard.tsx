@@ -162,9 +162,13 @@ function useCanvas(draw: (ctx: CanvasRenderingContext2D, w: number, h: number, a
     // part way through a frame, and every frame starts by painting the paper over everything, so the
     // writing blinked.)
     const paintNow = () => {
+      const { w, h, dpr } = size.current;
+      // No size yet (the page still laying out, a hidden or minimised window): wait for one. Painting
+      // a board with no size threw an error, and that error stopped every later frame: the board then
+      // stayed blank, or stuck on an old picture, until the page was reloaded.
+      if (!w || !h) return;
       dirty.current = false;
       const ctx = (c.getContext("2d", { alpha: false }) ?? c.getContext("2d"))!;
-      const { w, h, dpr } = size.current;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       drawRef.current(ctx, w, h, () => {
         dirty.current = true;
@@ -203,8 +207,9 @@ function useCanvas(draw: (ctx: CanvasRenderingContext2D, w: number, h: number, a
     onDpr();
     let raf = 0;
     const loop = () => {
-      if (dirty.current) paintNow();
+      // The next frame is booked first: whatever happens while painting this one, the board keeps drawing.
       raf = requestAnimationFrame(loop);
+      if (dirty.current) paintNow();
     };
     raf = requestAnimationFrame(loop);
     return () => {
@@ -258,6 +263,10 @@ function packOnce(s: Stroke): Stroke {
   }
   return p;
 }
+
+/** What a clean tap can select (besides typed words and pictures): a ruled line, or a tidy box, oval,
+ * axes or T account. Never handwriting, so a tap near writing still leaves its dot. */
+const isRuled = (s: Stroke) => s.kind === "line" || s.kind === "rect" || s.kind === "ellipse" || s.kind === "form";
 
 /** On the laptop: a small dot in the ink's colour as the cursor, instead of a crosshair. */
 const penCursor = (ink: string) =>
@@ -870,14 +879,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const selTextRef = useRef<string | null>(null);
   // The selected straight line (the Move tool, a tap or a drag on it): a gold frame and a small bar
   // with Dotted or Solid, Duplicate and a bin. Only this device knows what is selected.
-  const [selLine, setSelLineState] = useState<{ id: string; dotted: boolean } | null>(null);
+  const [selLine, setSelLineState] = useState<{ id: string; dotted: boolean; line: boolean } | null>(null);
   const selLineRef = useRef<string | null>(null);
   /** The selected line as it is now (also while it is being dragged, when it is drawn on top). */
   const selLineStroke = (): Stroke | undefined => {
     const id = selLineRef.current;
     if (!id) return undefined;
     if (moving.current?.id === id) return moving.current;
-    return strokes.current.find((x) => x.id === id && x.kind === "line");
+    return strokes.current.find((x) => x.id === id && isRuled(x));
   };
   const selectLine = (id: string | null) => {
     // One thing is selected at a time.
@@ -888,7 +897,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     selLineRef.current = id;
     const s = selLineStroke();
     if (!s) selLineRef.current = null;
-    setSelLineState((p) => (!s ? null : p && p.id === s.id && p.dotted === !!s.dotted ? p : { id: s.id, dotted: !!s.dotted }));
+    setSelLineState((p) => (!s ? null : p && p.id === s.id && p.dotted === !!s.dotted ? p : { id: s.id, dotted: !!s.dotted, line: s.kind === "line" }));
   };
   // The Line tool's style, Solid or Dotted: remembered for the next line, and on this device.
   const [lineDotted, setLineDottedState] = useState(false);
@@ -948,7 +957,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     if (selLineRef.current) {
       const l = selLineStroke();
       if (!l) selLineRef.current = null;
-      setSelLineState((p) => (!l ? null : p && p.id === l.id && p.dotted === !!l.dotted ? p : { id: l.id, dotted: !!l.dotted }));
+      setSelLineState((p) => (!l ? null : p && p.id === l.id && p.dotted === !!l.dotted ? p : { id: l.id, dotted: !!l.dotted, line: l.kind === "line" }));
     }
     if (!selTextRef.current) return;
     const s = selStroke();
@@ -2089,14 +2098,14 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   /** Dotted or Solid: this line's style switches in place (one undo step), and the other device sees it. */
   const toggleSelLine = () => {
     const s = selLineStroke();
-    if (!s || moving.current) return;
+    if (!s || s.kind !== "line" || moving.current) return;
     const after: Stroke = { ...s };
     if (s.dotted) delete after.dotted;
     else after.dotted = true;
     strokes.current = strokes.current.map((x) => (x.id === s.id ? after : x));
     commit({ type: "replace", before: [s], after: [after] });
     send({ t: "add", s: packStroke(after) });
-    setSelLineState({ id: after.id, dotted: !!after.dotted });
+    setSelLineState({ id: after.id, dotted: !!after.dotted, line: true });
     requestDraw();
   };
   /** A copy a little down and to the right, selected and ready to drag (one undo step). */
@@ -2725,7 +2734,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     const again = hit.kind === "text" && hit.id === selTextRef.current;
     selectText(hit.kind === "text" ? hit.id : null);
     // A straight line picked up with the Move tool is selected too: its bar has Dotted and Duplicate.
-    selectLine(anyStroke && hit.kind === "line" ? hit.id : null);
+    selectLine(anyStroke && isRuled(hit) ? hit.id : null);
     gesture.current = { mode: "shift", id, erased: [], straightened: false, mv: startMv(hit, sx, sy, again, pt) };
     return true;
   };
@@ -2745,8 +2754,11 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const lineUnder = (sx: number, sy: number, pt: string) => {
     const [wx, wy] = toWorld(cam.current, sx, sy);
     const r = (pt === "touch" ? 20 : pt === "pen" ? 10 : 6) / cam.current.z;
+    // A box, oval, axes or T account is selected the same way, by a tap on its outline. The pen has a
+    // shorter reach there: figures are written right beside those lines, and their dots must stay dots.
+    const rShape = pt === "pen" ? r * 0.6 : r;
     const all = strokes.current;
-    for (let i = all.length - 1; i >= 0; i--) if (all[i].kind === "line" && hitStroke(all[i], wx, wy, r)) return all[i];
+    for (let i = all.length - 1; i >= 0; i--) if (isRuled(all[i]) && hitStroke(all[i], wx, wy, all[i].kind === "line" ? r : rShape)) return all[i];
     return undefined;
   };
   /** A press on the selected line (with a little slack): a drag from here moves it, with any tool. */
@@ -4501,8 +4513,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             <div ref={selLineBarRef} data-selline-bar className={`${PANEL} absolute z-20 flex animate-[scale-in_140ms_ease-out] items-center gap-0.5 p-[3px] motion-reduce:animate-none`} style={{ left: -9999, top: -9999 }}>
               <button
                 type="button"
-                aria-label="Move the line: drag this"
-                {...tipOn("Move", undefined, "Drag this, or the line itself, to move it.")}
+                aria-label={selLine.line ? "Move the line: drag this" : "Move the shape: drag this"}
+                {...tipOn("Move", undefined, selLine.line ? "Drag this, or the line itself, to move it." : "Drag this, or the shape's outline, to move it.")}
                 onPointerDown={onLineGripDown}
                 onPointerMove={onTextGripMove}
                 onPointerUp={onTextGripUp}
@@ -4513,7 +4525,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                 {I.move}
                 Move
               </button>
-              <button
+              {selLine.line && <button
                 type="button"
                 {...tipOn(selLine.dotted ? "Make it solid" : "Make it dotted", "D")}
                 onPointerDown={palmDown}
@@ -4522,7 +4534,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               >
                 {selLine.dotted ? LINE_SOLID : LINE_DOTTED}
                 {selLine.dotted ? "Solid" : "Dotted"}
-              </button>
+              </button>}
               <button
                 type="button"
                 {...tipOn("Duplicate", undefined, "Makes a copy just beside it, ready to drag.")}
@@ -4532,7 +4544,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               >
                 Duplicate
               </button>
-              <button type="button" aria-label="Remove the line" {...tipOn("Remove the line", "Delete")} onPointerDown={palmDown} onClick={() => !palmBlocked() && deleteSelLine()} className={`${PRESS} flex items-center gap-1.5 rounded-[10px] bg-[#E5685A]/[0.14] px-3 text-xs font-semibold text-[#F4A397] hover:bg-[#E5685A]/[0.22] [&_svg]:h-4 [&_svg]:w-4 ${lead ? "h-11" : `h-9 ${HIT}`}`}>
+              <button type="button" aria-label={selLine.line ? "Remove the line" : "Remove the shape"} {...tipOn(selLine.line ? "Remove the line" : "Remove the shape", "Delete")} onPointerDown={palmDown} onClick={() => !palmBlocked() && deleteSelLine()} className={`${PRESS} flex items-center gap-1.5 rounded-[10px] bg-[#E5685A]/[0.14] px-3 text-xs font-semibold text-[#F4A397] hover:bg-[#E5685A]/[0.22] [&_svg]:h-4 [&_svg]:w-4 ${lead ? "h-11" : `h-9 ${HIT}`}`}>
                 {I.trash}
               </button>
               <Divider />

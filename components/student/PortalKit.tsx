@@ -52,12 +52,14 @@ export function SectionTitle({
   live?: boolean;
 }) {
   return (
-    <div className="mb-3 flex items-end justify-between gap-3 px-1">
+    // Flush with the page edge, like the page title above it and the cards below it.
+    <div className="mb-3 flex items-end justify-between gap-3">
       <div className="min-w-0">
-        <h2 id={id} className="flex items-center gap-2 text-[17px] font-bold tracking-[-0.01em] text-ink">
-          {live && <span aria-hidden className="h-1.5 w-1.5 animate-low-pulse rounded-full bg-brand" />}
+        <h2 id={id} className="flex items-center gap-2 text-xl font-bold leading-tight tracking-[-0.015em] text-ink">
           {children}
           {typeof count === "number" && count > 0 && <span className="text-sm font-semibold text-ink-3 tabular-nums">{count}</span>}
+          {/* After the words, so every section title starts on the same line. */}
+          {live && <span aria-hidden className="h-1.5 w-1.5 animate-low-pulse rounded-full bg-brand" />}
         </h2>
         {sub && <p className="mt-0.5 text-sm text-ink-3">{sub}</p>}
       </div>

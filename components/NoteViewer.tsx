@@ -163,7 +163,7 @@ export function NoteViewer({
       aria-modal="true"
       aria-label={title}
     >
-      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-surface pb-1.5 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.375rem,env(safe-area-inset-top))]">
+      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-surface pb-1.5 pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.375rem,env(safe-area-inset-top))]">
         <span className="min-w-0">
           <span className="block truncate text-sm font-semibold text-ink">{title}</span>
           {highlight?.length ? (
@@ -175,7 +175,7 @@ export function NoteViewer({
         <button
           onClick={onClose}
           aria-label="Close"
-          className="ml-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink"
+          className="ml-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink active:bg-surface-2"
         >
           <Icon.Close className="h-5 w-5" />
         </button>
@@ -184,7 +184,7 @@ export function NoteViewer({
       <div className={isPdf && !pdfFailed ? "relative flex-1 overflow-hidden bg-surface-2/40" : "flex flex-1 items-center justify-center overflow-auto bg-surface-2/40 p-3"}>
         {error ? (
           <div className="max-w-xs text-center">
-            <p className="text-[15px] text-ink-2">{error}</p>
+            <p className="text-base text-ink-2">{error}</p>
             {!DEMO && (
               <button
                 type="button"
@@ -210,7 +210,7 @@ export function NoteViewer({
         ) : isPdf ? (
           // Never fall back to the browser's own PDF viewer: it has Print and Download buttons.
           <div className="max-w-xs text-center">
-            <p className="text-[15px] text-ink-2">This note didn&apos;t open. Check your internet and try again.</p>
+            <p className="text-base text-ink-2">This note didn&apos;t open. Check your internet and try again.</p>
             <button
               type="button"
               onClick={() => {

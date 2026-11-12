@@ -71,7 +71,7 @@ export function NotifyCard() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-ink">{copy.title}</p>
-          <p className="mt-1 text-[15px] text-pretty text-ink-2">{copy.body}</p>
+          <p className="mt-1 text-base text-pretty text-ink-2">{copy.body}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {status === "off" ? (

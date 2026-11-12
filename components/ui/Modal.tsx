@@ -147,26 +147,27 @@ export function Modal({
       aria-label={title}
       aria-describedby={description ? descId : undefined}
     >
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 animate-fade-in bg-black/60" onClick={onClose} aria-hidden />
       <div
         ref={panelRef}
         tabIndex={-1}
         className={cn(
           "relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border border-border bg-surface shadow-[var(--shadow-lg)] outline-none",
-          "animate-scale-in sm:max-h-[88dvh] sm:rounded-xl",
+          // Phones: a sheet that rises from the bottom. Wider: a card that settles in place.
+          "max-sm:animate-sheet-up sm:animate-scale-in sm:max-h-[88dvh] sm:rounded-xl",
           sizeClass,
         )}
       >
         <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
           <div className="min-w-0">
-            <h2 className="break-words text-lg font-bold text-ink">{title}</h2>
+            <h2 className="break-words text-lg font-bold tracking-[-0.01em] text-ink">{title}</h2>
             {description && <p id={descId} className="mt-0.5 text-sm text-ink-2">{description}</p>}
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="-mr-2 -mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink"
+            className="-mr-2 -mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:bg-surface-2"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
               <path d="M6 6l12 12M18 6 6 18" strokeLinecap="round" />
@@ -176,7 +177,7 @@ export function Modal({
         {/* overscroll-contain: reaching the end of the dialog never drags the page behind it (iOS). */}
         <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4">{children}</div>
         {footer && (
-          <div className="flex flex-wrap justify-end gap-2 border-t border-border bg-paper/50 px-5 pt-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))]">
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border bg-paper/50 px-5 pt-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))]">
             {footer}
           </div>
         )}

@@ -17,7 +17,7 @@ import { parentNotifications, studentCheckIn, studentNotifications } from "@/lib
 import { uploadImage } from "@/lib/cloudinary";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { ArchiveTabs, archiveFromUrl, type ArchiveView } from "@/components/admin/ArchiveTabs";
-import { Card, Button, Input, Select, Label, CohortDot, Modal, EmptyState, Icon, Badge } from "@/components/ui";
+import { Card, Button, Input, Select, Label, CohortDot, Modal, EmptyState, Icon, Badge, segmentGroup, segmentItem } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { cld } from "@/lib/cld";
 import { LoginDetails } from "@/components/admin/LoginDetails";
@@ -424,7 +424,7 @@ export default function RosterPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+    <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       {bulk && <ImportStudents open onClose={() => setBulk(false)} defaultCohort={cohortId ?? db.cohorts.find((c) => c.active)?.id ?? ""} />}
       {sent && (
         <LoginDetails open kind={sent.kind ?? "welcome"} onClose={() => setSent(null)} username={sent.username} password={sent.password} phone={sent.phone} parent={sent.parent} />
@@ -478,19 +478,16 @@ export default function RosterPage() {
       )}
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search students…" className="max-w-xs" aria-label="Search students" />
+        <Input compact type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search students…" wrapperClassName="w-full sm:w-80" aria-label="Search students" />
         {inPersonIds.size > 0 && (
-          <div role="group" aria-label="Show students" className="inline-flex rounded-full border border-border bg-surface p-1">
+          <div role="group" aria-label="Show students" className={segmentGroup}>
             {([["all", "All"], ["online", "Online"], ["inperson", "In person"]] as const).map(([k, label]) => (
               <button
                 key={k}
                 type="button"
                 aria-pressed={mode === k}
                 onClick={() => setMode(k)}
-                className={cn(
-                  "h-9 rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-md:h-11",
-                  mode === k ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink",
-                )}
+                className={segmentItem(mode === k)}
               >
                 {label}
               </button>

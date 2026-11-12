@@ -138,9 +138,10 @@ export function AttentionList({
                       {note && <span title={note}> · Note: {note}</span>}
                     </p>
                   </div>
+                  {/* Quiet buttons on every row: gold stays for the page's one main action. */}
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
                     {studentLink && (
-                      <a href={studentLink} target="_blank" rel="noopener noreferrer" data-id={s.id} onClick={check} className={buttonClasses({ size: "sm" })}>
+                      <a href={studentLink} target="_blank" rel="noopener noreferrer" data-id={s.id} onClick={check} className={buttonClasses({ variant: "secondary", size: "sm" })}>
                         Message
                       </a>
                     )}
@@ -151,7 +152,7 @@ export function AttentionList({
                         rel="noopener noreferrer"
                         data-id={s.id}
                         onClick={check}
-                        className={buttonClasses({ variant: studentLink ? "secondary" : "primary", size: "sm" })}
+                        className={buttonClasses({ variant: "secondary", size: "sm" })}
                       >
                         Parent
                       </a>

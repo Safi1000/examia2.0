@@ -316,7 +316,7 @@ export default function AdminAssignmentsPage() {
   const target = deleteId ? db.assignments.find((a) => a.id === deleteId) ?? null : null;
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+    <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       <PageHeader
         title="Homework"
         subtitle={`${assignments.length} posted`}

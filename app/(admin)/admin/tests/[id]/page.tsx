@@ -239,7 +239,7 @@ export default function TestEditorPage() {
     setForm((f) => (f ? { ...f, [k]: v } : f));
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+    <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       <PageHeader
         title="Edit test"
         subtitle={test.title}

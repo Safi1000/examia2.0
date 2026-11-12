@@ -229,7 +229,7 @@ export function TimetableEditor({ onDirtyChange }: { onDirtyChange?: (dirty: boo
       })}
 
       {/* Phones: sits above the bottom bar (it used to hide behind it), squared off when it wraps. */}
-      <div className="sticky bottom-4 z-10 ml-auto flex w-fit flex-wrap items-center justify-end gap-2 rounded-full border border-border bg-paper/90 p-1.5 shadow-[0_12px_30px_-12px_rgba(0,0,0,0.7)] backdrop-blur-xl max-md:bottom-[calc(5.75rem+env(safe-area-inset-bottom))] max-sm:rounded-[22px]">
+      <div data-toast-avoid className="sticky bottom-4 z-10 ml-auto flex w-fit flex-wrap items-center justify-end gap-2 rounded-full border border-border bg-paper/90 p-1.5 shadow-[0_12px_30px_-12px_rgba(0,0,0,0.7)] backdrop-blur-xl max-md:bottom-[calc(5.75rem+env(safe-area-inset-bottom))] max-sm:rounded-[22px]">
         <Button
           variant="ghost"
           size="sm"

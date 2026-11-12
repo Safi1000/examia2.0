@@ -193,7 +193,7 @@ export default function TodayPage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
+    <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       <PageHeader
         title={`${greeting(new Date(nowMs))}, Hamza`}
         subtitle={`${new Date(nowMs).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Karachi" })}${cohortName ? ` · ${cohortName}` : " · All cohorts"}`}
@@ -217,7 +217,7 @@ export default function TodayPage() {
       {/* The class to start, from 3 hours before until it ends. */}
       {heroClass && <StartCard slot={heroClass} url={classLinks.find((l) => slotKey(l) === slotKey(heroClass))?.meetUrl ?? null} nowMs={nowMs} />}
       {nextLabel && (
-        <Link href="/admin/classes" className={cn(panelLink, "mb-4 flex min-h-12 items-center justify-between gap-3 px-4 py-3 text-[15px] text-ink-2")}>
+        <Link href="/admin/classes" className={cn(panelLink, "mb-4 flex min-h-14 items-center justify-between gap-3 px-5 py-3 text-[15px] text-ink-2")}>
           <span>
             Next class: <span className="font-semibold text-ink">{nextLabel}</span>
           </span>
@@ -228,7 +228,7 @@ export default function TodayPage() {
       {/* At a glance */}
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((s) => (
-          <a key={s.label} href={s.href} className={cn(panelLink, "px-4 py-3.5")}>
+          <a key={s.label} href={s.href} className={cn(panelLink, "px-5 py-4")}>
             <p className="text-[13px] text-ink-3">{s.label}</p>
             <p className="mt-1 text-[1.75rem] font-semibold leading-tight tabular-nums tracking-[-0.02em] text-ink">{s.value}</p>
           </a>

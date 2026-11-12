@@ -115,7 +115,7 @@ export function StudyBuddy({
           >
             <span className="min-w-0">
               <span className="block text-xs font-semibold text-brand">Today&apos;s mission</span>
-              <span className="mt-0.5 block truncate text-[15px] text-ink">
+              <span className="mt-0.5 block truncate text-base text-ink">
                 <span className="font-semibold">{mission.topic}</span> <span className="text-ink-3">· {mission.subject} · 25 min</span>
               </span>
             </span>

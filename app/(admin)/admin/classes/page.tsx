@@ -15,7 +15,7 @@ import { TimetableEditor } from "@/components/admin/TimetableEditor";
 import { RecordingOpens } from "@/components/admin/RecordingOpens";
 import { saveDayChange } from "@/components/ScheduleGate";
 import type { Exception, SubjectKey } from "@/lib/timetable";
-import { Button, Card, Icon, Modal } from "@/components/ui";
+import { Button, Card, Icon, Modal, segmentGroup, segmentItem } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { panel } from "@/components/admin/surface";
 import {
@@ -153,10 +153,11 @@ export default function ClassesPage() {
   const dayName = dateLabel(date, "long");
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-      <PageHeader title="Classes" />
+    // The console's one page width and edge; the timetable keeps its narrower, easy to scan column.
+    <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8 *:max-w-3xl">
+      <PageHeader title="Classes" subtitle="Today's classes and the weekly timetable." />
 
-      <div className="mb-6 inline-flex rounded-full border border-border bg-surface p-1">
+      <div className={cn(segmentGroup, "mb-6")}>
         {(["day", "week"] as const).map((v) => (
           <button
             key={v}
@@ -167,7 +168,7 @@ export default function ClassesPage() {
               setView(v);
             }}
             aria-pressed={view === v}
-            className={`h-9 rounded-full px-4 text-sm font-semibold transition-colors ${view === v ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink"}`}
+            className={segmentItem(view === v)}
           >
             {v === "day" ? "Day" : "Weekly timetable"}
           </button>

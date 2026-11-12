@@ -90,7 +90,7 @@ export default function GroundworkPage() {
 
       {/* The rest slides up over the world as a frosted sheet. */}
       <div id="groundwork-more" className="scroll-mt-[68px] rounded-t-[32px] border-t border-white/[0.08] bg-paper shadow-[0_-30px_60px_-30px_rgba(0,0,0,.6)]">
-      <div className="mx-auto max-w-5xl space-y-10 px-4 pb-32 pt-8 sm:px-6 sm:pb-16 sm:pt-10">
+      <div className="mx-auto max-w-5xl space-y-10 px-5 pb-32 pt-8 sm:px-6 sm:pb-16 sm:pt-10">
         {sundayWeek && <SundayReview week={sundayWeek} nowMs={nowMs} name={name} />}
 
         <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-2 lg:gap-x-8">
@@ -100,7 +100,7 @@ export default function GroundworkPage() {
 
           {(later.length > 0 || oneThing || practice.length > 0) && (
             <Group title="Today">
-              <ul className="surface divide-y divide-hairline overflow-hidden rounded-[22px]">
+              <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
                 {oneThing && (
                   <li className="flex items-center gap-4 px-5 py-4">
                     <span className="min-w-0 flex-1">
@@ -127,13 +127,13 @@ export default function GroundworkPage() {
                       className="row-link flex min-w-0 flex-1 items-center gap-4 py-4 pl-5 pr-3 text-left"
                     >
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[12px] text-ink-3">
+                        <span className="line-clamp-2 block text-xs text-ink-3">
                           {it.tag} · {it.subject}
                           {it.kind === "homework" ? ` · ${it.why}` : ""}
                         </span>
                         <span className="line-clamp-2 block text-[16px] font-semibold text-ink">{it.title}</span>
                       </span>
-                      <span className="shrink-0 text-[13px] font-medium tabular-nums text-ink-2">{it.minutes} min</span>
+                      <span className="shrink-0 text-sm font-medium tabular-nums text-ink-2">{it.minutes} min</span>
                       {!it.item?.href && (
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-ink-3" aria-hidden>
                           <path d="m9 6 6 6-6 6" />
@@ -145,7 +145,7 @@ export default function GroundworkPage() {
                       <Link
                         href={it.item.href}
                         aria-label={`Open ${it.title} on the Homework page`}
-                        className="row-link flex min-w-11 shrink-0 items-center px-4 text-[13px] font-medium text-ink-3 underline-offset-4 hover:text-ink hover:underline"
+                        className="row-link flex min-w-11 shrink-0 items-center px-4 text-sm font-medium text-ink-3 underline-offset-4 hover:text-ink hover:underline"
                       >
                         Open
                       </Link>
@@ -154,7 +154,7 @@ export default function GroundworkPage() {
                 ))}
                 {moreHomework > 0 && (
                   <li>
-                    <Link href="/assignments" className="row-link flex min-h-11 items-center px-5 py-3 text-[13px] text-ink-3 hover:text-ink">
+                    <Link href="/assignments" className="row-link flex min-h-11 items-center px-5 py-3 text-sm text-ink-3 hover:text-ink">
                       {moreHomework} more homework on your Homework page
                     </Link>
                   </li>
@@ -163,12 +163,12 @@ export default function GroundworkPage() {
                   <li key={p.key}>
                     <Link href={p.href} className="row-link flex w-full items-center gap-4 px-5 py-4 text-left">
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[12px] text-ink-3">
+                        <span className="line-clamp-2 block text-xs text-ink-3">
                           {p.fresh ? "Past papers · new this week" : "Past papers · keep it fresh"} · {p.subject}
                         </span>
                         <span className="line-clamp-2 block text-[16px] font-semibold text-ink">{p.chapter.name}</span>
                       </span>
-                      <span className="shrink-0 text-[13px] font-medium text-ink-2">{p.count} questions</span>
+                      <span className="shrink-0 text-sm font-medium text-ink-2">{p.count} questions</span>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-ink-3" aria-hidden>
                         <path d="m9 6 6 6-6 6" />
                       </svg>
@@ -188,7 +188,7 @@ export default function GroundworkPage() {
         )}
 
         <details className="group">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between surface surface-link rounded-[22px] px-5 py-4 text-[15px] font-semibold text-ink [&::-webkit-details-marker]:hidden">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between surface surface-link rounded-xl px-5 py-4 text-base font-semibold text-ink [&::-webkit-details-marker]:hidden">
             More: study times, your class, history
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-ink-3 transition-transform group-open:rotate-90" aria-hidden>
               <path d="m9 6 6 6-6 6" />
@@ -210,7 +210,7 @@ export default function GroundworkPage() {
               ) : null
             }
           >
-            <div className="surface rounded-[22px] p-2">
+            <div className="surface rounded-xl p-2">
               {top && top.top.length > 0 ? (
                 <ol>
                   {top.top.map((t, i) => (
@@ -249,8 +249,8 @@ export default function GroundworkPage() {
 function Group({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="min-w-0">
-      <div className="mb-3 flex min-h-9 items-center justify-between gap-3 px-1">
-        <h2 className="text-[20px] font-semibold tracking-[-0.02em] text-ink">{title}</h2>
+      <div className="mb-3 flex min-h-9 items-center justify-between gap-3">
+        <h2 className="text-xl font-bold leading-tight tracking-[-0.015em] text-ink">{title}</h2>
         {action}
       </div>
       {children}

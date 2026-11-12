@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Button, Card, Spinner } from "@/components/ui";
+import { Button, Card, EmptyState, Icon, Spinner, chipClass } from "@/components/ui";
 import { DEMO } from "@/lib/demo";
 import { INTERESTS, type Lead } from "@/lib/leads";
 import { waDigits } from "@/lib/phone";
@@ -87,7 +87,7 @@ export default function LeadsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-8">
+    <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       <PageHeader title="Waitlist" subtitle="Students who asked to hear about new tools, guides and courses." />
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {[{ id: "", label: "Everyone" }, ...INTERESTS].map((i) => (
@@ -96,7 +96,7 @@ export default function LeadsPage() {
             type="button"
             onClick={() => setInterest(i.id)}
             aria-pressed={interest === i.id}
-            className={`h-9 rounded-full px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-md:h-11 ${interest === i.id ? "border border-white/[0.16] bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "border border-border text-ink-3 hover:border-border-strong hover:text-ink"}`}
+            className={chipClass(interest === i.id)}
           >
             {i.label}
           </button>
@@ -125,9 +125,11 @@ export default function LeadsPage() {
       ) : leads === null ? (
         <p className="flex items-center gap-2 text-sm text-ink-3"><Spinner size={16} className="text-brand" /> Loading…</p>
       ) : shown.length === 0 ? (
-        <Card className="p-6 text-sm text-ink-2">
-          {leads.length ? "Nobody has asked for this one yet." : "No sign-ups yet. They appear here from the free tools pages."}
-        </Card>
+        <EmptyState
+          icon={<Icon.Users />}
+          title={leads.length ? "Nobody has asked for this one yet." : "No sign-ups yet."}
+          message={leads.length ? undefined : "They appear here from the free tools pages."}
+        />
       ) : (
         <div role="group" aria-label="Sign-ups" onKeyDown={sel.listKeyDown}>
         <SelectAll sel={sel} noun="sign-up" className="px-5" />
