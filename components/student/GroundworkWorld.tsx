@@ -80,11 +80,11 @@ export function GroundworkWorld({
         // A long gap is the tab or the machine pausing, not the world: it is left out.
         if (d > 0 && d < 250) {
           seen++;
-          if (d > 26) slow++;
+          if (d > 22) slow++;
         }
         if (seen >= 180) {
-          // More than half the frames late (under about 40 a second): step down once.
-          if (slow > seen / 2) {
+          // Three frames in ten late (it is dropping below a steady 60): step down once.
+          if (slow > seen * 0.3) {
             setStep((x) => {
               const next = Math.min(2, x + 1);
               try {
@@ -367,7 +367,9 @@ export function pickQuality(): WorldQuality {
  * still forces "low" or "high" (for testing).
  */
 export type WorldTier = { quality: WorldQuality; fps?: number; maxDpr?: number };
-const HIGH_TIER: WorldTier = { quality: "high" };
+// The full look, at one and a half pixels per point at most: on a sharp laptop screen that is a
+// little over half the pixels of drawing every one, for a scene with no fine print in it.
+const HIGH_TIER: WorldTier = { quality: "high", maxDpr: 1.5 };
 let tierMemo: WorldTier | null = null;
 export function pickWorldTier(): WorldTier {
   if (tierMemo) return tierMemo;

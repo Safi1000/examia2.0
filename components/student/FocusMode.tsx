@@ -636,7 +636,9 @@ export default function FocusMode({
   const accent = phase === "rest" ? "#7FD1A6" : "#FBC159";
   const hide = running && idle && pausedLeft == null;
   const fade = cn("transition-opacity duration-700", hide ? "pointer-events-none opacity-0" : "opacity-100");
-  const glass = "bg-white/[0.08] backdrop-blur-2xl [@media(pointer:coarse)]:backdrop-blur-md border border-white/[0.12]";
+  // A light blur everywhere: a heavy one over a moving 3D world is redone on every frame, and that
+  // alone made the room stutter on laptops without a separate graphics card.
+  const glass = "bg-white/[0.10] backdrop-blur-md border border-white/[0.12]";
   const roundBtn = cn("flex h-11 w-11 items-center justify-center rounded-full text-white/85 transition hover:bg-white/15 hover:text-white active:scale-95", glass);
 
   return (
