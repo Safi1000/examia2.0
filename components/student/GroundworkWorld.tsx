@@ -42,10 +42,14 @@ export function GroundworkWorld({
   const reduceMotion = useSyncExternalStore(subscribeReduce, readReduce, () => false);
   const hidden = useSyncExternalStore(subscribeHidden, () => document.visibilityState === "hidden", () => false);
   // A forced quality keeps the device's frame and pixel caps when it is "low".
-  const tier = useMemo(
+  const picked = useMemo(
     () => (autoTier && quality && quality !== autoTier.quality ? (quality === "high" ? HIGH_TIER : { ...autoTier, quality }) : autoTier),
     [autoTier, quality],
   );
+  // A laptop that can't keep the full world smooth (a fanless one, a big sharp screen) steps down
+  // by itself: first fewer pixels, then the light tier. Remembered, so the next visit starts there.
+  const [step, setStep] = useState(readStep);
+  const tier = useMemo(() => (picked && !quality ? stepped(picked, step) : picked), [picked, quality, step]);
 
   // Scrolled out of view (the start screen's world, below the fold): rest, like a hidden tab.
   const root = useRef<HTMLDivElement>(null);
@@ -58,6 +62,48 @@ export function GroundworkWorld({
     return () => io.disconnect();
   }, []);
   const away = hidden || !onScreen;
+
+  // Watch how smoothly the page is drawing while the world runs. Only where a lighter step exists
+  // and no frame cap is set (a capped world is slow on purpose), and never for a forced quality.
+  const canStep = !!tier && !quality && !tier.fps && step < 2 && (tier.quality === "high" || (tier.maxDpr ?? 2) > STEP_DPR);
+  useEffect(() => {
+    if (!canStep || away) return;
+    let raf = 0;
+    let last = 0;
+    let slow = 0;
+    let seen = 0;
+    // The world loads and compiles first: start looking a few seconds in.
+    const begin = window.setTimeout(() => {
+      const tick = (t: number) => {
+        const d = last ? t - last : 0;
+        last = t;
+        // A long gap is the tab or the machine pausing, not the world: it is left out.
+        if (d > 0 && d < 250) {
+          seen++;
+          if (d > 26) slow++;
+        }
+        if (seen >= 180) {
+          // More than half the frames late (under about 40 a second): step down once.
+          if (slow > seen / 2) {
+            setStep((x) => {
+              const next = Math.min(2, x + 1);
+              try {
+                localStorage.setItem(STEP_KEY, String(next));
+              } catch {}
+              return next;
+            });
+          }
+          return;
+        }
+        raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    }, 5000);
+    return () => {
+      clearTimeout(begin);
+      cancelAnimationFrame(raf);
+    };
+  }, [canStep, away, step]);
 
   // Layers: the current world on top; the one before it stays until the new one has drawn.
   const [layers, setLayers] = useState<Array<{ key: number; id: WorldId }>>(() => [{ key: 0, id }]);
@@ -337,6 +383,25 @@ export function pickWorldTier(): WorldTier {
   const low = forced ? base === "low" : base === "low" || touch;
   tierMemo = low ? { quality: "low", fps: touch ? 30 : undefined, maxDpr: phone || modest ? 1.25 : 1.5 } : HIGH_TIER;
   return tierMemo;
+}
+
+const STEP_KEY = "gw_world_step";
+const STEP_DPR = 1.25;
+/** How far this device has stepped down before (0: not at all). */
+function readStep(): number {
+  if (typeof window === "undefined") return 0;
+  try {
+    const n = Number(localStorage.getItem(STEP_KEY));
+    return n === 1 || n === 2 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+/** The tier after stepping down: 1 keeps the look and draws fewer pixels, 2 is the light tier. */
+function stepped(t: WorldTier, step: number): WorldTier {
+  if (step >= 2) return { quality: "low", fps: t.fps, maxDpr: Math.min(t.maxDpr ?? STEP_DPR, STEP_DPR) };
+  if (step === 1) return { ...t, maxDpr: Math.min(t.maxDpr ?? STEP_DPR, STEP_DPR) };
+  return t;
 }
 
 // Canvases of worlds that have gone, whose GPU contexts are let go just after the next paint (see the unmount above).
