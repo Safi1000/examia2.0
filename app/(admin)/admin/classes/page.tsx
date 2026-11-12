@@ -12,7 +12,6 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { GoogleConnect } from "@/components/admin/GoogleConnect";
 import { StartCard } from "@/components/admin/StartCard";
 import { TimetableEditor } from "@/components/admin/TimetableEditor";
-import { RecordingOpens } from "@/components/admin/RecordingOpens";
 import { saveDayChange } from "@/components/ScheduleGate";
 import type { Exception, SubjectKey } from "@/lib/timetable";
 import { Button, Card, Icon, Modal, segmentGroup, segmentItem } from "@/components/ui";
@@ -69,7 +68,6 @@ export default function ClassesPage() {
   // In-person students can join online classes but have no register, so they're left off it.
   const students = useMemo(() => db.students.filter((s) => !off.has(s.cohortId) && !isInPersonStudent(db, s)), [db, off]);
   // Who counts for recordings: the same students, without Hamza's own test account.
-  const counted = useMemo(() => students.filter((s) => !isTestAccount(s)), [students]);
   const enrolled = useMemo(() => {
     const m = new Map<string, Student[]>();
     for (const s of students) for (const sl of slotsForStudent(db, s, date)) m.set(slotKey(sl), [...(m.get(slotKey(sl)) ?? []), s]);
@@ -106,9 +104,8 @@ export default function ClassesPage() {
   // The same for a whole day (classes that have started, or any on a past day).
   const started = live.filter((x) => date < today || nowMs >= x.startMs);
   const [noneHeld, setNoneHeld] = useState(false);
-  async function markDayNotHeld() {
+  async function markDayNotHeld(todo = started) {
     if (workingRef.current) return;
-    const todo = started;
     workingRef.current = true;
     setWorking(true);
     let done = 0;
@@ -129,6 +126,7 @@ export default function ClassesPage() {
       workingRef.current = false;
       setWorking(false);
       setNoneHeld(false);
+      setNotHeld(null);
     }
   }
 
@@ -442,9 +440,6 @@ export default function ClassesPage() {
               }}
             />
           )}
-
-          {/* Who joined, who opened the recording, who did neither: the last 7 days. */}
-          <RecordingOpens db={db} students={counted} nowMs={nowMs} />
         </>
       )}
 
@@ -460,7 +455,7 @@ export default function ClassesPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setNoneHeld(false)}>Keep them</Button>
-            <Button variant="danger" loading={working} onClick={() => void markDayNotHeld()}>
+            <Button variant="danger" loading={working} onClick={() => void markDayNotHeld(started)}>
               None happened
             </Button>
           </>
@@ -474,7 +469,7 @@ export default function ClassesPage() {
         open={!!notHeld}
         onClose={() => setNotHeld(null)}
         title={notHeld ? `${notHeld.slot.subject} didn't happen?` : ""}
-        description={notHeld ? `${LEVEL_LABEL[notHeld.slot.level]} ${notHeld.slot.subject} will show as cancelled for this day. Students are not sent a message.` : ""}
+        description={notHeld ? "Choose how much of this day didn't happen. It will show as cancelled, and students are not sent a message." : ""}
         size="sm"
         footer={
           <>
@@ -498,17 +493,23 @@ export default function ClassesPage() {
                 if (cleared) toast(`${cleared === 1 ? "1 register mark" : `${cleared} register marks`} removed for that day.`, "success");
               }}
             >
-              It didn&apos;t happen
+              Just this class
             </Button>
+            {notHeld && started.filter((x) => x.level === notHeld.slot.level).length > 1 && (
+              <Button variant="danger" disabled={working} onClick={() => void markDayNotHeld(started.filter((x) => x.level === notHeld.slot.level))}>
+                All {LEVEL_LABEL[notHeld.slot.level]} classes
+              </Button>
+            )}
+            {started.length > 1 && (
+              <Button variant="danger" disabled={working} onClick={() => void markDayNotHeld(started)}>
+                The whole day
+              </Button>
+            )}
           </>
         }
       >
         <p className="text-sm text-ink-2">
-          {notHeld?.lastOfLevel
-            ? notHeld.marks
-              ? `The ${notHeld.marks === 1 ? "1 register mark" : `${notHeld.marks} register marks`} for this level on this day will be removed, so nobody is counted present or absent.`
-              : "No register marks have been made for this level on this day, and none will be made."
-            : "Another class of this level still stands on this day, so the register is left as it is."}
+          Register marks for a level are removed once none of its classes is left standing that day, so nobody is counted present or absent.
         </p>
         <p className="mt-2 text-sm text-ink-3">You can put the class back on afterwards, but removed register marks do not come back.</p>
       </Modal>

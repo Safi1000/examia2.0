@@ -62,19 +62,6 @@ export function Nav({ heroCta: startQuiet = false }: { heroCta?: boolean } = {})
         </Link>
 
         <div className="flex items-center gap-1 sm:gap-2">
-          {/* Free resources: where most visitors from Google want to go. Hidden on phones to keep the bar clean. */}
-          <Link
-            href="/past-papers"
-            className={`hidden min-h-11 items-center rounded-full px-3 text-[15px] font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex sm:px-4 ${focusRing}`}
-          >
-            Past papers
-          </Link>
-          <Link
-            href="/tools"
-            className={`hidden min-h-11 items-center rounded-full px-3 text-[15px] font-medium text-muted-foreground transition-colors hover:text-foreground md:inline-flex md:px-4 ${focusRing}`}
-          >
-            Free tools
-          </Link>
           <Link
             href={isStudent ? "/dashboard" : "/login"}
             // Not fetched in the background: the sign-in page brings the whole portal
