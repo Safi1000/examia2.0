@@ -496,7 +496,7 @@ async function classItems(sb: SupabaseClient, students: Reach[], now: number, wi
 
   const [off, { data: joins }] = await Promise.all([
     classOptOuts(sb, rows ?? []),
-    sb.from("class_joins").select("student_id,class_id,subject_id").eq("on_date", today),
+    allRows((a, b) => sb.from("class_joins").select("student_id,class_id,subject_id").eq("on_date", today).order("student_id").order("class_id").order("subject_id").range(a, b)),
   ]);
   const joined = new Set((joins ?? []).map((j) => `${j.student_id}|${j.class_id}|${j.subject_id}`));
   const cohortClasses = new Map<string, Set<string>>();
@@ -627,7 +627,9 @@ async function recordingItems(sb: SupabaseClient, students: Reach[], profiles: M
     sb.from("class_links").select("on_date,class_id,subject_id,recording_url").in("on_date", [twoDaysAgo, yesterday, today]).not("recording_url", "is", null),
     sb.from("classes").select("id,name"),
     sb.from("subjects").select("id,name"),
-    sb.from("class_joins").select("student_id,on_date,class_id,subject_id").in("on_date", [twoDaysAgo, yesterday, today]),
+    allRows((a, b) =>
+      sb.from("class_joins").select("student_id,on_date,class_id,subject_id").in("on_date", [twoDaysAgo, yesterday, today]).order("on_date").order("student_id").order("class_id").order("subject_id").range(a, b),
+    ),
     sb.from("cohort_classes").select("cohort_id,class_id"),
     sb.from("cohort_subjects").select("cohort_id,subject_id"),
   ]);

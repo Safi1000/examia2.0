@@ -124,7 +124,7 @@ export function VideoPlayer({
           className="group absolute left-1/2 top-1/2 flex min-h-11 min-w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full before:absolute before:-inset-2 before:rounded-full before:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
         >
           <span
-            className={`flex items-center justify-center rounded-full bg-gold text-[#1b1e21] shadow-[0_8px_24px_-6px_rgba(0,0,0,0.55)] transition-[background-color,transform] duration-200 ease-out group-hover:scale-[1.04] group-hover:bg-[#ffd07a] group-active:scale-[0.97] motion-reduce:transform-none ${
+            className={`flex items-center justify-center rounded-full bg-gold text-[#1b1e21] shadow-[0_8px_24px_-6px_rgba(0,0,0,0.55)] transition-[background-color,transform] duration-200 ease-out group-hover:scale-[1.04] group-hover:bg-gold-hover group-active:scale-[0.97] motion-reduce:transform-none ${
               big ? "h-16 w-16 md:h-20 md:w-20" : "h-9 w-9 sm:h-14 sm:w-14"
             }`}
           >

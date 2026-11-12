@@ -122,7 +122,7 @@ export function SearchInside({ syllabi, suggestions }: { syllabi: Array<{ code: 
           placeholder="e.g. price elasticity, depreciation, exchange rate"
           className="h-14 min-w-0 flex-1 rounded-full border border-hairline-strong bg-card px-6 text-[16px] text-foreground placeholder:text-faint focus:border-gold-border focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gold"
         />
-        <button type="submit" className="h-14 shrink-0 rounded-full bg-gold px-6 text-[16px] font-semibold text-[#1b1e21] hover:bg-[#ffd07a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+        <button type="submit" className="h-14 shrink-0 rounded-full bg-gold px-6 text-[16px] font-semibold text-[#1b1e21] hover:bg-gold-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
           Search
         </button>
       </form>

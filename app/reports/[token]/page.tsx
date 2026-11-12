@@ -178,7 +178,7 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
         <div className="flex flex-wrap gap-3">
           <a
             href={downloadHref}
-            className="inline-flex h-12 items-center justify-center rounded-full bg-brand px-6 text-[16px] font-semibold text-on-brand transition-colors hover:bg-[#ffd07a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="inline-flex h-12 items-center justify-center rounded-full bg-brand px-6 text-[16px] font-semibold text-on-brand transition-colors hover:bg-gold-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             Download the report
           </a>

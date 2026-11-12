@@ -222,7 +222,7 @@ export function RevisionPlanner({ initial, syllabi: SYLLABI }: { initial?: strin
                 `Hi, I made a revision plan on your site: ${codes.join(", ")}, first exam ${exam}, ${hours} hours a week, ${plan.length} weeks. Can you help me stick to it?`,
               )}
               props={{ from: "tool:revision-planner" }}
-              className="inline-flex min-h-12 items-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] hover:bg-[#ffd07a]"
+              className="inline-flex min-h-12 items-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] hover:bg-gold-hover"
             >
               Get help sticking to it
             </TrackedLink>

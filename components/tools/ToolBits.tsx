@@ -119,7 +119,7 @@ export function AskHamza({ tool, summary }: { tool: string; summary: string }) {
       <TrackedLink
         href={waTextLink(`Hi, I used your ${tool}. ${summary} Can you help me with this?`)}
         props={{ from: `tool:${tool}` }}
-        className="mt-4 inline-flex min-h-12 items-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] transition-colors hover:bg-[#ffd07a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+        className="mt-4 inline-flex min-h-12 items-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] transition-colors hover:bg-gold-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
       >
         Ask on WhatsApp
       </TrackedLink>

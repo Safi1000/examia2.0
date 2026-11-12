@@ -126,7 +126,7 @@ export function Progress({
           <TrackedLink
             href={waTextLink(message)}
             props={{ from: `syllabus:${code}` }}
-            className="mt-5 inline-flex min-h-12 items-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] hover:bg-[#ffd07a]"
+            className="mt-5 inline-flex min-h-12 items-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] hover:bg-gold-hover"
           >
             Send my weak topics to Hamza
           </TrackedLink>

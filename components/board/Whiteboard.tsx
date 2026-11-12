@@ -61,7 +61,7 @@ import {
   toWorld,
   zoomAt,
 } from "@/components/board/engine";
-import { boardDigest, connectBoard, Ledger, viewerRoom, type BoardLink, type BoardMsg } from "@/components/board/sync";
+import { boardDigest, connectBoard, Ledger, type BoardLink, type BoardMsg } from "@/components/board/sync";
 import { deleteBoard, loadBoard, loadIndex, saveBoard, saveIndex, type BoardPage } from "@/components/board/storage";
 import { useDatabase } from "@/lib/data/store";
 import { LEVEL_LABEL, classBoardPages, classPageId, liveSlotsOn, pkDate, slotKey } from "@/lib/timetable";
@@ -1183,8 +1183,6 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const writingView = (w: number, h: number) =>
     areaView(cam.current, w, h, clearInset(h, [topBarRef.current, sidePanelRef.current], [], 0, [toolbarRef.current]));
   const sendView = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // `screen` is a stable ref from useCanvas; the compiler just can't see that.
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const shareView = useCallback(() => {
     if (!lead) return;
     if (!sendView.current)

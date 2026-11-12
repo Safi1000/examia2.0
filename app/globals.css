@@ -110,6 +110,8 @@
   /* Sparse gold (same hue as --color-brand, held fixed here so the marketing
      page never depends on the portal's brand token) */
   --color-gold: #fbc159;
+  /* The one lighter step, for a gold button under the pointer. */
+  --color-gold-hover: #ffd07a;
   --color-gold-tint: rgba(251, 193, 89, 0.12);
   --color-gold-border: rgba(251, 193, 89, 0.3);
 

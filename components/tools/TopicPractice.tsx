@@ -82,7 +82,7 @@ export function TopicPractice({ topics, syllabus }: { topics: Array<{ topic: str
             <div className="mt-5 text-[17px] leading-relaxed text-body">
               <p className="font-semibold text-foreground">{picked === item.correct ? "Right." : `Not this time. The answer is ${item.correct}.`}</p>
               {item.note && <p className="mt-2 text-muted-foreground">{item.note}</p>}
-              <button type="button" onClick={next} className="mt-5 inline-flex min-h-12 items-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] hover:bg-[#ffd07a]">
+              <button type="button" onClick={next} className="mt-5 inline-flex min-h-12 items-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] hover:bg-gold-hover">
                 {i + 1 < items.length ? "Next question" : "See my score"}
               </button>
             </div>

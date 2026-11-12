@@ -313,7 +313,7 @@ export function QuestionModal({
                       }
                     }}
                     placeholder={`Option ${i + 1}`}
-                    className="w-full bg-transparent text-base text-ink outline-none placeholder:text-ink-3"
+                    className="w-full rounded-sm bg-transparent text-base text-ink outline-none placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
                     aria-label={`Option ${i + 1}`}
                   />
                 </div>

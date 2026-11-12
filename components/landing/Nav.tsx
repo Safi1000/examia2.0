@@ -93,7 +93,7 @@ export function Nav({ heroCta: startQuiet = false }: { heroCta?: boolean } = {})
             className={`inline-flex min-h-11 items-center whitespace-nowrap rounded-full border px-4 text-sm font-semibold transition-[background-color,border-color,color,transform] duration-300 active:scale-[0.97] sm:min-h-12 sm:px-6 sm:text-[15px] ${
               heroCta
                 ? "border-white/20 bg-transparent text-foreground hover:border-white/40"
-                : "border-gold bg-gold text-[#1b1e21] hover:bg-[#ffd07a]"
+                : "border-gold bg-gold text-[#1b1e21] hover:bg-gold-hover"
             } ${focusRing}`}
           >
             Book free trial

@@ -30,7 +30,7 @@ type Tab = "qp" | "ms" | "in";
 type Mode = "view" | "practice" | "mark" | "result";
 
 const gold =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-gold px-5 text-[15px] font-semibold text-[#1b1e21] transition-colors hover:bg-[#ffd07a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold disabled:opacity-40";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-gold px-5 text-[15px] font-semibold text-[#1b1e21] transition-colors hover:bg-gold-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold disabled:opacity-40";
 const ghost =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-hairline-strong px-5 text-[15px] font-semibold text-foreground transition-colors hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
 const iconBtn =
@@ -642,7 +642,7 @@ export function PaperView({
                   <button type="button" onClick={pause} className="min-h-10 rounded-full px-3 text-[14px] font-semibold text-muted-foreground hover:text-foreground">
                     {runningSince == null ? "Resume" : "Pause"}
                   </button>
-                  <button type="button" onClick={finish} className="hidden min-h-10 items-center rounded-full bg-gold px-4 text-[14px] font-semibold text-[#1b1e21] hover:bg-[#ffd07a] lg:inline-flex">
+                  <button type="button" onClick={finish} className="hidden min-h-10 items-center rounded-full bg-gold px-4 text-[14px] font-semibold text-[#1b1e21] hover:bg-gold-hover lg:inline-flex">
                     Finish
                   </button>
                 </>

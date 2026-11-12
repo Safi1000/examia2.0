@@ -73,7 +73,7 @@ export function Table({ head, rows, caption }: { head: ReactNode[]; rows: ReactN
 }
 
 const gold =
-  "inline-flex min-h-12 w-full items-center justify-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] transition-colors hover:bg-[#ffd07a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:w-auto";
+  "inline-flex min-h-12 w-full items-center justify-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] transition-colors hover:bg-gold-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:w-auto";
 
 /** The one ask on a study page: a free trial lesson. */
 export function TrialBox({ from, subject, level, title, body }: { from: string; subject?: SubjectName; level?: LevelName; title: string; body: string }) {

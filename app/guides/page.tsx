@@ -40,7 +40,7 @@ const FAQ = [
 ];
 
 const gold =
-  "inline-flex min-h-11 items-center justify-center rounded-full bg-gold px-5 text-[15px] font-semibold text-[#1b1e21] transition-colors hover:bg-[#ffd07a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
+  "inline-flex min-h-11 items-center justify-center rounded-full bg-gold px-5 text-[15px] font-semibold text-[#1b1e21] transition-colors hover:bg-gold-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
 const ghost =
   "inline-flex min-h-11 items-center justify-center rounded-full border border-hairline-strong px-5 text-[15px] font-semibold text-body transition-colors hover:border-gold-border hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
 const tag = "rounded-full border border-gold-border bg-gold-tint px-2.5 py-0.5 text-xs font-semibold text-gold";
@@ -70,7 +70,8 @@ function GuideCard({ g }: { g: Guide }) {
           ))}
         </ul>
         <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3">
-          <span className="text-[26px] font-extrabold tabular-nums tracking-tight text-foreground">{g.price}</span>
+          {/* The price shows only once the guide can be bought. */}
+          {onSale && <span className="text-[26px] font-extrabold tabular-nums tracking-tight text-foreground">{g.price}</span>}
           {onSale ? (
             <TrackedLink href={g.buyUrl} event="guide_buy_click" props={{ guide: g.slug }} className={gold}>
               Buy now

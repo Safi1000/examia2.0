@@ -38,7 +38,7 @@ export function ProgressView({ syllabi, exam }: { syllabi: ProgressSyllabus[]; e
           Do one paper or ten quick questions and this page starts keeping score: grades, scores, and every mistake worth a second look. It lives on your phone. No sign up.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Link href="/past-papers/topics" className="inline-flex min-h-12 items-center rounded-full bg-gold px-6 font-semibold text-[#1b1e21] hover:bg-[#ffd07a]">
+          <Link href="/past-papers/topics" className="inline-flex min-h-12 items-center rounded-full bg-gold px-6 font-semibold text-[#1b1e21] hover:bg-gold-hover">
             Pick a topic
           </Link>
           <Link href="/past-papers" className="inline-flex min-h-12 items-center rounded-full border border-hairline-strong px-6 font-semibold text-foreground hover:border-gold-border">
@@ -125,7 +125,7 @@ export function ProgressView({ syllabi, exam }: { syllabi: ProgressSyllabus[]; e
 
           <div className="mt-5 flex flex-wrap gap-2">
             {next && (
-              <Link href={next.u} className="inline-flex min-h-11 items-center rounded-full bg-gold px-5 text-[15px] font-semibold text-[#1b1e21] hover:bg-[#ffd07a]">
+              <Link href={next.u} className="inline-flex min-h-11 items-center rounded-full bg-gold px-5 text-[15px] font-semibold text-[#1b1e21] hover:bg-gold-hover">
                 Next paper: <span className="ml-1 tabular-nums">{next.c}</span>
               </Link>
             )}

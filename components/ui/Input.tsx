@@ -56,7 +56,7 @@ export const Input = forwardRef<
         aria-describedby={error ? `${fieldId}-err` : hint ? `${fieldId}-hint` : undefined}
         className={cn(
           fieldShell,
-          compact ? cn(controlHeight, "rounded-full px-4 text-sm") : "h-12 rounded-md px-3.5",
+          compact ? cn(controlHeight, "rounded-full px-4 text-base sm:text-sm") : "h-12 rounded-md px-3.5",
           error ? "border-error" : "border-border-strong hover:border-ink-3",
           className,
         )}

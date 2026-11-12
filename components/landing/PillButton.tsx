@@ -17,7 +17,7 @@ const base =
   "group inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-7 py-3 text-[15px] font-semibold transition-[background-color,border-color,color,transform] duration-200 ease-out cursor-pointer select-none active:scale-[0.98] motion-reduce:active:scale-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
 
 const variants = {
-  gold: "bg-gold text-[#1b1e21] hover:bg-[#ffd07a] active:bg-[#f0b444]",
+  gold: "bg-gold text-[#1b1e21] hover:bg-gold-hover active:bg-[#f0b444]",
   ghost: "border border-hairline-strong text-body hover:border-[rgba(255,255,255,0.28)] hover:text-foreground",
 };
 

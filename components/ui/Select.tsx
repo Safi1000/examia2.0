@@ -30,7 +30,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
           aria-describedby={error ? `${fieldId}-err` : undefined}
           className={cn(
             "w-full appearance-none border bg-surface pr-10 text-ink transition-colors",
-            compact ? cn(controlHeight, "rounded-full pl-4 text-sm") : "h-12 rounded-md pl-3.5",
+            compact ? cn(controlHeight, "rounded-full pl-4 text-base sm:text-sm") : "h-12 rounded-md pl-3.5",
             "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
             "disabled:cursor-not-allowed disabled:opacity-60",
             error ? "border-error" : "border-border-strong hover:border-ink-3",

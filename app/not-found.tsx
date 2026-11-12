@@ -25,7 +25,7 @@ export default function NotFound() {
             <Link
               href="/"
               data-hero-cta
-              className="inline-flex min-h-12 items-center rounded-full bg-gold px-7 text-[15px] font-semibold text-[#1b1e21] transition-colors hover:bg-[#ffd07a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+              className="inline-flex min-h-12 items-center rounded-full bg-gold px-7 text-[15px] font-semibold text-[#1b1e21] transition-colors hover:bg-gold-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
             >
               Back to the home page
             </Link>

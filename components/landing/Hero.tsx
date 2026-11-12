@@ -58,7 +58,7 @@ export function Hero() {
           type="button"
           data-hero-cta
           onClick={() => open({ from: "hero" })}
-          className="group mt-9 inline-flex min-h-14 items-center gap-2 rounded-full bg-gold px-8 text-base font-semibold text-[#1b1e21] transition-[background-color,transform] duration-200 ease-out hover:bg-[#ffd07a] active:scale-[0.98] active:bg-[#f0b444] motion-reduce:active:scale-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+          className="group mt-9 inline-flex min-h-14 items-center gap-2 rounded-full bg-gold px-8 text-base font-semibold text-[#1b1e21] transition-[background-color,transform] duration-200 ease-out hover:bg-gold-hover active:scale-[0.98] active:bg-[#f0b444] motion-reduce:active:scale-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
         >
           Book your free trial lesson
           <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transform-none">→</span>
