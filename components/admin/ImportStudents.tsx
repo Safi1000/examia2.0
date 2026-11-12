@@ -46,6 +46,9 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
   const [defClasses, setDefClasses] = useState<string[]>([]);
   const [defSubjects, setDefSubjects] = useState<string[]>([]);
   const [updateExisting, setUpdateExisting] = useState(true);
+  // The whole sheet is students taught in person: tagged as they are made, and no numbers are kept
+  // (the student's number stays on this screen only, to send their login).
+  const [inPerson, setInPerson] = useState(false);
   const [busy, setBusy] = useState<{ done: number; of: number } | null>(null);
   const [made, setMade] = useState<Made[]>([]);
   // Rows that couldn't be saved, and why, kept on screen (not only in a toast).
@@ -119,8 +122,17 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
     for (const p of fresh) {
       const password = passwords[p.line - 1] ?? newPassword();
       try {
-        await store.addStudent({ username: p.username, phone: p.phone, whatsapp: p.parent, cohortId, tempPassword: password, classIds: p.classIds, subjectIds: p.subjectIds });
-        ok.push({ username: p.username, password, phone: p.phone, parent: p.parent });
+        const id = await store.addStudent({
+          username: p.username,
+          phone: inPerson ? undefined : p.phone,
+          whatsapp: inPerson ? undefined : p.parent,
+          cohortId,
+          tempPassword: password,
+          classIds: p.classIds,
+          subjectIds: p.subjectIds,
+        });
+        if (inPerson) store.setInPerson(id, true);
+        ok.push({ username: p.username, password, phone: p.phone, parent: inPerson ? undefined : p.parent });
       } catch (e) {
         failed.push({ line: p.line, username: p.username, why: e instanceof Error ? e.message : "Couldn't be saved" });
       }
@@ -354,6 +366,12 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
             )}
             {!!problems.length && <span className="rounded-full bg-warning-soft px-3 py-1 font-semibold text-warning">{problems.length} to fix</span>}
           </div>
+          {fresh.length > 0 && (
+            <label className="flex min-h-11 items-center gap-2 text-sm text-ink-2">
+              <input type="checkbox" className="h-4 w-4 shrink-0" checked={inPerson} onChange={(e) => setInPerson(e.target.checked)} />
+              These students are taught in person (no register, monthly report or parent messages, and no numbers kept)
+            </label>
+          )}
           {plan.some((p) => p.existing && !p.problem) && (
             <label className="flex min-h-11 items-center gap-2 text-sm text-ink-2">
               <input type="checkbox" className="h-4 w-4 shrink-0" checked={updateExisting} onChange={(e) => setUpdateExisting(e.target.checked)} />
