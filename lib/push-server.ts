@@ -76,12 +76,12 @@ interface Sub {
   auth: string;
 }
 
-type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-type Rows = { data: Row[] | null; error: { message: string } | null };
+export type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+export type Rows = { data: Row[] | null; error: { message: string } | null };
 const PAGE = 1000;
 
 /** Every row of a query, a page at a time (one read stops at 1,000). A failed page fails the whole read. */
-async function allRows(page: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message: string } | null }>): Promise<Rows> {
+export async function allRows(page: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message: string } | null }>): Promise<Rows> {
   const rows: Row[] = [];
   for (let from = 0; from < 200 * PAGE; from += PAGE) {
     const r = await page(from, from + PAGE - 1);
@@ -96,7 +96,7 @@ async function allRows(page: (from: number, to: number) => PromiseLike<{ data: u
 }
 
 /** The same read for a long list of students, 150 ids at a time, joined back together. */
-async function byIds(ids: string[], read: (part: string[]) => Promise<Rows>): Promise<Rows> {
+export async function byIds(ids: string[], read: (part: string[]) => Promise<Rows>): Promise<Rows> {
   const rows: Row[] = [];
   for (let i = 0; i < ids.length; i += 150) {
     const r = await read(ids.slice(i, i + 150));
@@ -304,7 +304,8 @@ export async function notifyAnnouncement(id: string, cohortId: string | null, te
 /** Each student's subjects per level (for students taking two levels), by student id. See lib/levels.ts. */
 export async function levelSubjectsByStudent(sb: SupabaseClient): Promise<Map<string, LevelSubjects>> {
   const out = new Map<string, LevelSubjects>();
-  const { data: rows } = await sb.from("students").select("id,user_id");
+  // Paged: past 1,000 students the rest would lose their per-level subjects.
+  const { data: rows } = await allRows((a, b) => sb.from("students").select("id,user_id").order("id").range(a, b));
   const byUser = new Map((rows ?? []).filter((r) => r.user_id).map((r) => [r.user_id as string, r.id as string]));
   for (let page = 1; page <= 10; page++) {
     const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 1000 });

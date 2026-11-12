@@ -11,7 +11,7 @@ import { isInPersonStudent } from "@/lib/in-person";
 import { isTestAccount } from "@/lib/display-name";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Card, Select, EmptyState, Icon } from "@/components/ui";
+import { Button, Card, Select, EmptyState, Icon, Modal } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { useClassLinks, useSchedule } from "@/lib/classes";
 
@@ -26,6 +26,8 @@ const STATUS: { value: AttendanceStatus; label: string; tone: string }[] = [
 // Pakistan date, so early-morning marks never land on yesterday.
 const todayISO = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date());
 const monthStart = (iso: string) => `${iso.slice(0, 7)}-01`;
+const dayLabel = (iso: string) =>
+  new Date(`${iso}T12:00:00+05:00`).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi", weekday: "long", day: "numeric", month: "long" });
 
 export default function AttendancePage() {
   const db = useDatabase();
@@ -37,6 +39,9 @@ export default function AttendancePage() {
   const [mode, setMode] = useState<Mode>("daily");
   const [classId, setClassId] = useState("");
   const [date, setDate] = useState(todayISO);
+  // "Mark the rest": asked first, then undoable (from the toast, or the line under the counts).
+  const [sweepAsk, setSweepAsk] = useState<{ status: AttendanceStatus; ids: string[]; classId: string | null; date: string } | null>(null);
+  const [lastSweep, setLastSweep] = useState<{ status: AttendanceStatus; count: number; classId: string | null; date: string; undo: () => void } | null>(null);
 
   const students = useMemo(() => {
     const off = archivedCohortIds(db);
@@ -122,8 +127,47 @@ export default function AttendancePage() {
       ) : (
         MonthlySheet({ students, month, onSaved: () => toast("Attendance saved.", "success") })
       )}
+
+      <Modal
+        open={!!sweepAsk}
+        onClose={() => setSweepAsk(null)}
+        title={sweepAsk ? `Mark ${sweepAsk.ids.length} ${sweepAsk.ids.length === 1 ? "student" : "students"} ${sweepAsk.status}?` : ""}
+        description={
+          sweepAsk
+            ? `Everyone not marked yet on ${dayLabel(sweepAsk.date)}${sweepAsk.classId ? ` in ${db.classes.find((c) => c.id === sweepAsk.classId)?.name ?? "this class"}` : ""} will be marked ${sweepAsk.status}.`
+            : ""
+        }
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setSweepAsk(null)}>Cancel</Button>
+            <Button variant={sweepAsk?.status === "absent" ? "danger" : "primary"} onClick={confirmSweep}>
+              {sweepAsk ? `Mark ${sweepAsk.ids.length} ${sweepAsk.status}` : "Mark"}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-2">You can undo this straight after.</p>
+      </Modal>
     </div>
   );
+
+  function confirmSweep() {
+    if (!sweepAsk) return;
+    const { status, ids, classId: cls, date: day } = sweepAsk;
+    setSweepAsk(null);
+    const undoMarks = store.markAttendanceMany(ids, cls, day, status);
+    let undone = false;
+    const undo = () => {
+      if (undone) return;
+      undone = true;
+      const back = undoMarks();
+      setLastSweep(null);
+      toast(back === ids.length ? `${back} put back to not marked.` : `${back} put back to not marked. ${ids.length - back} changed by hand since stay as they are.`, "success");
+    };
+    setLastSweep({ status, count: ids.length, classId: cls, date: day, undo });
+    toast(`${ids.length} marked ${status}.`, "success", { label: "Undo", onClick: undo });
+  }
 
   function DailyRegister({
     students,
@@ -157,10 +201,8 @@ export default function AttendancePage() {
     // counted as "not marked" or swept up by "Mark the rest".
     const unmarked = rows.filter((r) => !r.mark && !r.before && !isTestAccount(r.s));
     const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit", hour12: true });
-    const markRest = (status: AttendanceStatus) => {
-      for (const r of unmarked) store.setAttendance(r.s.id, classId, date, status);
-      toast(`${unmarked.length} marked ${status}.`, "success");
-    };
+    const markRest = (status: AttendanceStatus) => setSweepAsk({ status, ids: unmarked.map((r) => r.s.id), classId, date });
+    const undoable = lastSweep && lastSweep.classId === classId && lastSweep.date === date ? lastSweep : null;
 
     return (
       <>
@@ -181,6 +223,16 @@ export default function AttendancePage() {
             </span>
           )}
         </div>
+        {undoable && (
+          <p className="mb-3 flex flex-wrap items-center gap-x-2 text-sm text-ink-2" role="status">
+            <span>
+              {undoable.count} {undoable.count === 1 ? "student" : "students"} marked {undoable.status} for this day.
+            </span>
+            <button type="button" onClick={undoable.undo} className="min-h-10 font-semibold text-brand underline-offset-2 hover:underline">
+              Undo
+            </button>
+          </p>
+        )}
         <Card className="divide-y divide-border overflow-hidden p-0">
           {rows.map(({ s, mark, join, before, counted }) => (
             <div key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 transition-colors hover:bg-white/[0.018]">

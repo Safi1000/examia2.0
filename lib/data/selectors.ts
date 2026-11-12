@@ -36,6 +36,16 @@ export function isArchivedSubmission(db: Database, sub: Submission, off = archiv
   const st = studentById(db, sub.studentId);
   return (!!t && isArchivedTest(db, t, off)) || (!!st && isArchivedStudent(db, st, off));
 }
+/**
+ * A paper waiting for Hamza's marks: handed in and not released, its test and
+ * student still on the portal, not archived, and not the test account. Today's
+ * "To mark" and the Submissions page both count with this one rule.
+ */
+export function isAwaitingMarking(db: Database, sub: Submission, off = archivedCohortIds(db)): boolean {
+  if (sub.status !== "submitted") return false;
+  const st = studentById(db, sub.studentId);
+  return !!st && !!testById(db, sub.testId) && !isTestAccount(st) && !isArchivedSubmission(db, sub, off);
+}
 export const submissionById = (db: Database, id: string) =>
   db.submissions.find((s) => s.id === id) ?? null;
 
@@ -146,6 +156,16 @@ export function announcementsForStudent(db: Database, student: Student): Announc
   return db.announcements.filter(
     (a) => (a.cohortId === null || a.cohortId === student.cohortId) && +new Date(a.createdAt) >= since,
   );
+}
+
+/**
+ * Who a new notice reaches: its cohort's students (or everyone when it has no
+ * cohort), only while their cohort is switched on, never the test account.
+ * The same rule the server uses to send it to phones (notifyAnnouncement).
+ */
+export function announcementAudience(db: Database, cohortId: string | null): Student[] {
+  const off = archivedCohortIds(db);
+  return db.students.filter((s) => (!cohortId || s.cohortId === cohortId) && !(s.cohortId && off.has(s.cohortId)) && !isTestAccount(s));
 }
 
 /** Work a student is set: nothing whose deadline had passed before they joined (unless they handed it in). */

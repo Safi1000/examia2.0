@@ -6,6 +6,9 @@
  *   node scripts/build-mcq-data.mjs            writes lib/past-paper-mcq.json
  *   node scripts/build-mcq-data.mjs --report   also prints the old crop check
  *
+ * After writing, it runs scripts/check-mcq-keys.mjs (every answer letter
+ * against the mark scheme PDFs) and exits with an error if anything is off.
+ *
  * Reads the question papers (PDF) in ../past-papers and the page images in
  * ../past-papers-web on this computer. Nothing is uploaded or copied: the
  * output is a small table of numbers and the typed wording.
@@ -443,7 +446,8 @@ for (const key of only ? [] : writtenKeys) {
     ip.forEach((P, i) => {
       const text = linesOf(P.items).map((l) => textOf(l.words)).join(" ");
       const body = linesOf(P.items).filter((l) => !FURNITURE(l, P.H)).map((l) => textOf(l.words)).join(" ");
-      if (/\bINSERT\b/.test(text) && text.includes(code)) return; // the cover: names the paper
+      // The cover (page 1) names the paper. Newer inserts print "0450/21/INSERT" on every page, so only page 1 counts.
+      if (i === 0 && /\bINSERT\b/.test(text) && text.includes(code)) return;
       if (!body.trim() || /^\s*BLANK PAGE\s*$/i.test(body)) return;
       if (/Permission to reproduce|copyright acknowledgements/i.test(body) && body.length < 1200 && i === ip.length - 1) return;
       show.push(i + 1);
@@ -469,4 +473,13 @@ if (REPORT) {
   const bad = known.filter((c) => !c.ok);
   console.error(JSON.stringify({ oldChecked: known.length, oldGood: known.length - bad.length, otherNumberInside: bad.filter((c) => c.otherInside).length, previousTail: bad.filter((c) => c.prevTail).length, clipped: bad.filter((c) => c.clipped).length, wrongPage: bad.filter((c) => c.wrongPage).length, sampleBad: bad.slice(0, 15).map((c) => c.id) }, null, 1));
 }
-if (!only) fs.writeFileSync(path.join(SITE, "lib/past-paper-mcq.json"), JSON.stringify(result));
+if (!only) {
+  fs.writeFileSync(path.join(SITE, "lib/past-paper-mcq.json"), JSON.stringify(result));
+  // Prove the answer letters again against the mark schemes (see that script).
+  const { spawnSync } = await import("node:child_process");
+  const check = spawnSync(process.execPath, [path.join(SITE, "scripts/check-mcq-keys.mjs")], { stdio: "inherit" });
+  if (check.status !== 0) {
+    console.error("Answer key check failed: fix the problems above before using this data.");
+    process.exit(1);
+  }
+}

@@ -8,6 +8,7 @@ import { useAdminFilter } from "@/lib/admin-filter";
 import { useNow } from "@/hooks/useNow";
 import { dueReminders, KINDS, type Reminder } from "@/lib/reminders";
 import { buildStudentReport } from "@/lib/report-build";
+import { REPORT_LINK_DAYS, reportLinkDay, reportLinkExpiry } from "@/lib/report-data";
 import { notesConfigured, uploadNote } from "@/lib/cloudinary";
 import { waDigits } from "@/lib/phone";
 import { displayName } from "@/lib/display-name";
@@ -93,6 +94,7 @@ export function RemindersPanel() {
       }
       tab.go(`https://wa.me/${waDigits(number)}?text=${encodeURIComponent(text)}`);
       if (clear) confirmSent(r, reportId);
+      if (clear && reportId) toast(`Link works for ${REPORT_LINK_DAYS} days, until ${reportLinkDay(reportLinkExpiry(), "short")}.`, "success");
       return { ok: true, reportId };
     } catch (err) {
       tab.cancel();
@@ -167,6 +169,9 @@ export function RemindersPanel() {
           <span className="text-sm font-semibold text-ink">
             {displayName(running.student.username)}: report {run.index + 1} of {run.list.length}.{" "}
             {busy ? "Getting it ready." : run.failed ? "It was not sent." : "Sent?"}
+            {!busy && !run.failed && (
+              <span className="font-normal text-ink-3"> Link works for {REPORT_LINK_DAYS} days, until {reportLinkDay(reportLinkExpiry(nowMs), "short")}.</span>
+            )}
           </span>
           {run.failed ? (
             <Button size="sm" disabled={busy !== null} onClick={() => void openInRun(run.list, run.index)}>Try again</Button>

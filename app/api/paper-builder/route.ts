@@ -28,7 +28,7 @@ import {
  *   POST { action: "topics", syllabus, codes, asOnly }          → { topics }
  *   POST { action: "build", syllabus, codes, subs, mcq, written, exclude, seen, seed } → { questions }
  *   POST { action: "swap", syllabus, codes, id, exclude, seen, seed }  → { question }
- *   POST { action: "ms", id }                                    → { name, start, pages, ratios }
+ *   POST { action: "ms", id }                                    → { name, start, end, pages, ratios }
  *   POST { action: "view", urls }                                → { urls, ids }
  *
  * "view" brings pictures saved before the crops were measured again up to
@@ -130,10 +130,25 @@ function mcqPicture(paper: string, n: number): { url: string; typed?: BuiltQuest
   return form === 1 && stem && options?.length === 4 ? { url, typed: { stem, options } } : { url };
 }
 
-function writtenPages(paper: string, n: number): string[] {
+/**
+ * A page that carries nothing of the question: "BLANK PAGE" and the copyright
+ * notice at the back of a paper (the last question's pages used to run onto them).
+ */
+async function fillerPage(name: string, pg: number): Promise<boolean> {
+  const text = (await paperText())[name]?.find((p) => String(p[0]) === String(pg))?.[1];
+  if (text === undefined) return false;
+  const rest = text
+    .replace(/(Permission to reproduce items|where third.party owned material)[\s\S]*$/i, "")
+    .replace(/BLANK\s*PAGE/gi, "")
+    .replace(/^\s*\d{1,2}\s*/, "")
+    .trim();
+  return rest.length < 20;
+}
+
+function writtenPages(paper: string, n: number, skip?: Set<number>): string[] {
   const [code, sess, pv] = paper.split("_");
   const name = `${code}_${sess}_qp_${pv}`;
-  const segs = M.w[paper]?.find(([x]) => x === n)?.[1] ?? [];
+  const segs = (M.w[paper]?.find(([x]) => x === n)?.[1] ?? []).filter(([pg], i) => i === 0 || !skip?.has(pg));
   const ratios = M.r?.[name];
   const cover = D.w[`${paper}#${n}`] ?? null;
   return segs.map(([pg, t, b], i) =>
@@ -158,7 +173,10 @@ async function built(q: PoolItem, syllabus: string, subs: string[], seen: Set<st
     return { ...base, attachments: [pic.url], ...(pic.typed ? { typed: pic.typed } : {}), answer: "ABCD".indexOf(M.k[q.paper][q.n - 1]), marks: 1, minutes: perMark ?? 1.5 };
   }
   // Case studies and data: the insert's pages come with the question.
-  const attachments = [...writtenPages(q.paper, q.n), ...insertUrls(name.replace("_qp_", "_in_"))];
+  const segs = M.w[q.paper]?.find(([x]) => x === q.n)?.[1] ?? [];
+  const skip = new Set<number>();
+  for (const [pg] of segs.slice(1)) if (await fillerPage(name, pg)) skip.add(pg);
+  const attachments = [...writtenPages(q.paper, q.n, skip), ...insertUrls(name.replace("_qp_", "_in_"))];
   const qMarks = (await writtenMarks(q.paper)).get(q.n) ?? null;
   const count = M.w[q.paper].length || 1;
   const mins = perMark && qMarks ? perMark * qMarks : minutes ? minutes / count : 15;
@@ -231,7 +249,12 @@ export async function POST(req: Request) {
     const start = M.m[id];
     const pages = HELD.has(name) ? 0 : (M.n[name] ?? 0);
     if (!start || !pages) return Response.json({ ms: null });
-    return Response.json({ ms: { name, start: Math.min(start, pages), pages, ratios: M.r?.[name] ?? null } });
+    // Where its answers end: the page the next question's answers start on (they may share it), else the last page.
+    const later = Object.entries(M.m)
+      .filter(([k, v]) => k.startsWith(`${p.paper}#`) && Number(k.slice(k.indexOf("#") + 1)) > p.n && v >= start)
+      .map(([, v]) => v);
+    const end = Math.min(pages, later.length ? Math.min(...later) : pages);
+    return Response.json({ ms: { name, start: Math.min(start, pages), end: Math.max(Math.min(start, pages), end), pages, ratios: M.r?.[name] ?? null } });
   }
 
   const codes = Array.isArray(b.codes) ? [...new Set(b.codes.slice(0, 100).filter((c): c is string => typeof c === "string" && ALL_CODES.has(c)))].sort() : [];

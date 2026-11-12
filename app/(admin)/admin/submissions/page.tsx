@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter, useStickyFilter } from "@/lib/admin-filter";
-import { archivedCohortIds, cohortById, inLateWindow, isArchivedSubmission } from "@/lib/data/selectors";
+import { archivedCohortIds, cohortById, inLateWindow, isArchivedSubmission, isAwaitingMarking, studentById } from "@/lib/data/selectors";
 import { displayName } from "@/lib/display-name";
 import { ArchiveTabs, archiveFromUrl, type ArchiveView } from "@/components/admin/ArchiveTabs";
 import { useToast } from "@/components/toast";
@@ -53,6 +53,12 @@ export default function SubmissionsPage() {
     const off = archivedCohortIds(db);
     return new Set(db.submissions.filter((s) => isArchivedSubmission(db, s, off)).map((s) => s.id));
   }, [db]);
+
+  // Papers still to mark: the same rule (and number) as "To mark" on Today, whatever the chips below show.
+  const toMarkCount = useMemo(() => {
+    const off = archivedCohortIds(db);
+    return db.submissions.filter((s) => isAwaitingMarking(db, s, off) && (!cohortId || studentById(db, s.studentId)?.cohortId === cohortId)).length;
+  }, [db, cohortId]);
 
   // Lookups as maps (not a search per row), and 50 rows at a time.
   const [limit, setLimit] = useState(50);
@@ -179,7 +185,7 @@ export default function SubmissionsPage() {
     <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8">
       <PageHeader
         title="Submissions"
-        subtitle={`${rows.length} submission${rows.length === 1 ? "" : "s"}`}
+        subtitle={`${rows.length} submission${rows.length === 1 ? "" : "s"} shown · ${toMarkCount} to mark`}
         actions={releasable.length > 0 ? <Button onClick={() => setBulkOpen(true)}><Icon.Check className="h-4 w-4" /> Release all (MCQ)</Button> : undefined}
       />
 

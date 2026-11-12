@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import type { Announcement } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
-import { cohortById } from "@/lib/data/selectors";
+import { announcementAudience, cohortById } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Button, Textarea, Select, Checkbox, Badge, CohortTag, Modal, EmptyState, Icon } from "@/components/ui";
@@ -71,6 +71,17 @@ export default function AnnouncementsPage() {
     setEditing(null);
   }
 
+  // Who it goes to, worked out the same way the server sends it, so the audience is never a guess.
+  const audience = announcementAudience(db, cohortId || null);
+  const audienceCohort = cohortId ? cohortById(db, cohortId) : null;
+  const activeCohorts = db.cohorts.filter((c) => c.active);
+  const audienceWhere = audienceCohort
+    ? `in ${audienceCohort.name}`
+    : activeCohorts.length
+      ? `across all cohorts (${activeCohorts.map((c) => c.name).join(", ")})`
+      : "across all cohorts";
+  const nobody = editing === "new" && audience.length === 0;
+
   const sorted = [...db.announcements].sort((a, b) => Number(b.pinned) - Number(a.pinned) || +new Date(b.createdAt) - +new Date(a.createdAt));
 
   return (
@@ -126,7 +137,7 @@ export default function AnnouncementsPage() {
         footer={
           <>
             <Button variant="secondary" disabled={posting} onClick={() => setEditing(null)}>Cancel</Button>
-            <Button onClick={() => void save()} loading={posting} disabled={!body.trim()}>{editing === "new" ? "Post" : "Save"}</Button>
+            <Button onClick={() => void save()} loading={posting} disabled={!body.trim() || nobody}>{editing === "new" ? "Post" : "Save"}</Button>
           </>
         }
       >
@@ -139,6 +150,11 @@ export default function AnnouncementsPage() {
             <option value="">All cohorts</option>
             {db.cohorts.filter((c) => c.active || c.id === cohortId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
+          <p className={nobody ? "-mt-2 text-sm text-error" : "-mt-2 text-sm text-ink-2"} role="status">
+            {audience.length === 0
+              ? `Nobody to send it to: there are no students ${audienceWhere} yet${editing === "new" ? ", so Post is off" : ""}.`
+              : `${editing === "new" ? "This goes to" : "This shows to"} ${audience.length} ${audience.length === 1 ? "student" : "students"} ${audienceWhere}.`}
+          </p>
           <Checkbox checked={pinned} onChange={setPinned} label="Pin to the top (always visible, not dismissible)" />
           {editing === "new" && <Checkbox checked={toPhones} onChange={setToPhones} label="Also send to their phones (for something important)" />}
         </div>

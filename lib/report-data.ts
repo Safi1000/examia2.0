@@ -314,3 +314,45 @@ export function reportData(db: Database, studentId: string, month: string, teach
     syllabus,
   };
 }
+
+// ---- The parent's link --------------------------------------------------
+/**
+ * A report link works for 7 days from the moment Hamza sends it (Hamza,
+ * 2026-11-12: "from when I send it"). The date is stored on the row as
+ * `expires_at`; the public lookup (`report_by_token`) and the report page both
+ * refuse the link after it. Pakistan has no daylight saving, so 7 days is
+ * always exactly 168 hours.
+ */
+export const REPORT_LINK_DAYS = 7;
+const DAY_MS = 86_400_000;
+
+/** When a link sent at `sentAt` stops working, as an ISO timestamp. */
+export function reportLinkExpiry(sentAt: Date | number | string = Date.now()): string {
+  return new Date(new Date(sentAt).getTime() + REPORT_LINK_DAYS * DAY_MS).toISOString();
+}
+
+/** True while the link still works. A missing or unreadable date counts as finished. */
+export function isReportLinkLive(expiresAt: string | null | undefined, now: number = Date.now()): boolean {
+  const t = expiresAt ? new Date(expiresAt).getTime() : NaN;
+  return Number.isFinite(t) && t > now;
+}
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/**
+ * The day a link stops, in Pakistan time and a fixed English format, so the
+ * server's or laptop's own settings never change it: "Thursday 19 November"
+ * (long, for parents) or "19 Nov" (short, for Hamza).
+ */
+export function reportLinkDay(expiresAt: string | number | Date, style: "long" | "short" = "long"): string {
+  const d = new Date(expiresAt);
+  if (!Number.isFinite(d.getTime())) return "";
+  const [y, m, day] = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi", year: "numeric", month: "2-digit", day: "2-digit" })
+    .format(d)
+    .split("-")
+    .map(Number);
+  const month = MONTHS[m - 1];
+  if (style === "short") return `${day} ${month.slice(0, 3)}`;
+  return `${WEEKDAYS[new Date(Date.UTC(y, m - 1, day)).getUTCDay()]} ${day} ${month}`;
+}

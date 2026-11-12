@@ -116,15 +116,8 @@ function ScoreRing({ data }: { data: ReportData }) {
 
 function Attendance({ a }: { a: ReportData["attendance"] }) {
   const w = 168;
-  if (!a) {
-    return (
-      <View style={{ width: w }}>
-        <Text style={s.label}>Attendance</Text>
-        <Text style={{ fontSize: 13, fontWeight: 800, color: MUTED, marginTop: 9, lineHeight: 1 }}>Not recorded</Text>
-        <Text style={{ fontSize: 6.8, color: MUTED, marginTop: 6 }}>No register was taken this month.</Text>
-      </View>
-    );
-  }
+  // No register that month: the block is left out, so a forwarded report never reads "not recorded".
+  if (!a) return null;
   const total = a.present + a.late + a.absent;
   const tone = a.percent >= 90 ? GOOD : a.percent >= 75 ? GOLD : BAD;
   const delta = a.last == null ? null : Math.round(a.percent - a.last);

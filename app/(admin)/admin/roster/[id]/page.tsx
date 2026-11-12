@@ -31,6 +31,7 @@ import { StudentActivitySection } from "@/components/admin/ActivityParts";
 import { gradeSubmission } from "@/lib/grading";
 import { topicMastery } from "@/lib/scoring";
 import { buildStudentReport } from "@/lib/report-build";
+import { isReportLinkLive, REPORT_LINK_DAYS, reportLinkDay, reportLinkExpiry } from "@/lib/report-data";
 import { formatTimestamp } from "@/lib/time";
 import { newPassword } from "@/lib/password";
 
@@ -68,6 +69,9 @@ function StudentDetail() {
   const [sending, setSending] = useState(false);
   const { toast } = useToast();
   const [downloading, setDownloading] = useState(false);
+  // The report whose fresh link is being made, for its button's spinner.
+  const [refreshing, setRefreshing] = useState<string | null>(null);
+  const reportNow = useNow();
 
   // Landing here from the roster's WhatsApp button (?report=1) opens the report
   // dialog straight away, so only then fetch the PDF renderer early (it's large).
@@ -110,6 +114,10 @@ function StudentDetail() {
   }
 
   const cohort = cohortById(db, student.cohortId);
+  // This student's reports that went to the parent, newest month first.
+  const sentReports = db.reports
+    .filter((r) => r.studentId === student.id && r.sentAt)
+    .sort((a, b) => b.month.localeCompare(a.month));
 
   function openReport() {
     setReportMonth(data!.months[data!.months.length - 1] ?? "");
@@ -154,7 +162,7 @@ function StudentDetail() {
    * One click: report link into that parent's chat.
    *
    * The PDF is uploaded, recorded with a short private link
-   * (hamzateaches.com/reports/xxxx, live for 90 days, branded preview card in
+   * (hamzateaches.com/reports/xxxx, live for 7 days from now, branded preview card in
    * WhatsApp), and the chat opens with the message already typed — the admin
    * just presses Send. No browser API can attach a file to a chosen
    * conversation, so the link is what travels; it opens the report with a
@@ -170,6 +178,7 @@ function StudentDetail() {
       const text = guardMessage(withLink(reportMessage(), link), withLink(parentReport({ id: student.id, username: student.username }), link), [link]);
       tab.go(`https://wa.me/${waDigits(student.whatsapp)}?text=${encodeURIComponent(text)}`);
       setReportOpen(false);
+      toast(linkLasts(), "success");
     } catch (err) {
       tab.cancel();
       console.error("WhatsApp send failed:", err);
@@ -201,6 +210,34 @@ function StudentDetail() {
     });
     store.markReportSent(record.id);
     return `${window.location.origin}/reports/${record.token}`;
+  }
+
+  /** "Link works for 7 days, until 19 Nov." from this moment. */
+  function linkLasts() {
+    return `Link works for ${REPORT_LINK_DAYS} days, until ${reportLinkDay(reportLinkExpiry(), "short")}.`;
+  }
+
+  /**
+   * "Send a fresh link": the same PDF and note under a new link with 7 new
+   * days. The old link stops at once. Opens the parent's chat like Send does.
+   */
+  async function sendFreshLink(reportId: string, month: string) {
+    if (!student?.whatsapp) return;
+    setRefreshing(reportId);
+    const tab = openLater();
+    try {
+      const record = await store.freshReportLink(reportId);
+      const link = `${window.location.origin}/reports/${record.token}`;
+      const message = parentReport({ id: student.id, username: student.username, month: formatMonthLabel(month.slice(0, 7)) });
+      const text = guardMessage(withLink(message, link), withLink(parentReport({ id: student.id, username: student.username }), link), [link]);
+      tab.go(`https://wa.me/${waDigits(student.whatsapp)}?text=${encodeURIComponent(text)}`);
+      toast(linkLasts(), "success");
+    } catch (err) {
+      tab.cancel();
+      toast(err instanceof Error ? err.message : "Could not make a fresh link.", "error");
+    } finally {
+      setRefreshing(null);
+    }
   }
 
   function reportMessage() {
@@ -385,6 +422,40 @@ function StudentDetail() {
             />
             <p className="mt-1 text-right text-xs tabular-nums text-ink-3">{teacherNote.length}/260 · keeps the report to one page</p>
           </div>
+          <p className="text-sm text-ink-2">
+            Link works for {REPORT_LINK_DAYS} days, until {reportLinkDay(reportLinkExpiry(reportNow), "short")}.
+          </p>
+          {sentReports.length > 0 && (
+            <div>
+              <h3 className="mb-1.5 text-sm font-semibold text-ink-2">Sent reports</h3>
+              <ul className="divide-y divide-border rounded-lg border border-border">
+                {sentReports.map((r) => {
+                  const live = isReportLinkLive(r.expiresAt, reportNow);
+                  return (
+                    <li key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
+                      <span className="min-w-0 flex-1 text-sm text-ink">
+                        {formatMonthLabel(r.month.slice(0, 7))}
+                        <span className="block text-xs text-ink-3">
+                          {live ? `Link live until ${reportLinkDay(r.expiresAt, "short")}` : `Link finished ${reportLinkDay(r.expiresAt, "short")}`}
+                        </span>
+                      </span>
+                      <Badge tone={live ? "success" : "neutral"}>{live ? "Live" : "Finished"}</Badge>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        loading={refreshing === r.id}
+                        disabled={!student.whatsapp || refreshing !== null || sending || downloading}
+                        onClick={() => void sendFreshLink(r.id, r.month)}
+                        title={student.whatsapp ? `Send to ${student.whatsapp}` : "Add the parent's WhatsApp number first"}
+                      >
+                        Send a fresh link
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
         </div>
       </Modal>
     </div>

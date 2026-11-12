@@ -8,7 +8,7 @@ import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { useNow } from "@/hooks/useNow";
 import { useToast } from "@/components/toast";
-import { cohortById, eligibleStudents, testById, archivedCohortIds, isArchivedSubmission, isArchivedTest } from "@/lib/data/selectors";
+import { cohortById, eligibleStudents, testById, archivedCohortIds, isArchivedTest, isAwaitingMarking } from "@/lib/data/selectors";
 import { gradeSubmission } from "@/lib/grading";
 import { isTestAccount } from "@/lib/display-name";
 import { parentTestClosing, studentTestClosing } from "@/lib/portal-messages";
@@ -114,7 +114,7 @@ export default function TodayPage() {
 
     // The same rule as the Submissions page, so the two counts agree.
     const toMark = db.submissions
-      .filter((s) => s.status === "submitted" && studentIds.has(s.studentId) && !isArchivedSubmission(db, s, off))
+      .filter((s) => studentIds.has(s.studentId) && isAwaitingMarking(db, s, off))
       .sort((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""));
 
     // Homework hand-ins still waiting for a reply, oldest first.

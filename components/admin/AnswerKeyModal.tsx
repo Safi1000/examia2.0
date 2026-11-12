@@ -20,7 +20,22 @@ const fileName = (s: string) => s.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g,
  * shown on screen, and copied or saved as text, a picture or a PDF (through Print).
  * Questions keep their number in the test, so written ones leave a gap in the key.
  */
-export function AnswerKeyModal({ open, onClose, title, code, questions }: { open: boolean; onClose: () => void; title: string; code?: string; questions: Question[] }) {
+export function AnswerKeyModal({
+  open,
+  onClose,
+  title,
+  code,
+  questions,
+  onMarkingSheet,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  code?: string;
+  questions: Question[];
+  /** Opens the printable marking sheet (answers, marks and mark schemes) as a PDF. */
+  onMarkingSheet?: () => void;
+}) {
   const { toast } = useToast();
   const rows = useMemo<KeyRow[]>(
     () => questions.flatMap((q, i) => (q.type === "mcq" ? [{ n: i + 1, letter: LETTERS[q.correctIndex] ?? "?" }] : [])),
@@ -117,7 +132,8 @@ ol{list-style:none;padding:0;margin:0;columns:4;column-gap:32px}li{font-size:18p
           <Button variant="secondary" size="sm" onClick={() => void copy()} disabled={!rows.length}>Copy</Button>
           <Button variant="secondary" size="sm" onClick={saveText} disabled={!rows.length}>Save as text</Button>
           <Button variant="secondary" size="sm" onClick={savePicture} disabled={!rows.length}>Save as picture</Button>
-          <Button size="sm" onClick={printKey} disabled={!rows.length}>Print or PDF</Button>
+          <Button size="sm" variant={onMarkingSheet ? "secondary" : "primary"} onClick={printKey} disabled={!rows.length}>Print or PDF</Button>
+          {onMarkingSheet && <Button size="sm" onClick={onMarkingSheet}>Marking sheet PDF</Button>}
         </div>
       }
     >

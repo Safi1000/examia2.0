@@ -15,7 +15,7 @@ import { TimetableEditor } from "@/components/admin/TimetableEditor";
 import { RecordingOpens } from "@/components/admin/RecordingOpens";
 import { saveDayChange } from "@/components/ScheduleGate";
 import type { Exception, SubjectKey } from "@/lib/timetable";
-import { Button, Card, Icon } from "@/components/ui";
+import { Button, Card, Icon, Modal } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { panel } from "@/components/admin/surface";
 import {
@@ -96,6 +96,9 @@ export default function ClassesPage() {
   // (each one also messages the students). The ref blocks a second tap in the same frame.
   const [working, setWorking] = useState(false);
   const workingRef = useRef(false);
+  // "Mark them absent": asked first, then undoable (toast, or the line left in its place).
+  const [absentAsk, setAbsentAsk] = useState<{ level: LevelKey; classId: string; ids: string[]; date: string } | null>(null);
+  const [lastAbsent, setLastAbsent] = useState<{ level: LevelKey; count: number; date: string; undo: () => void } | null>(null);
 
   /** Change one class on this date only (cancel, move, extra), or undo that change. True when saved. */
   async function changeDay(level: LevelKey, subject: SubjectKey, change: Omit<Exception, "date" | "level" | "subject"> | null, done: string) {
@@ -341,15 +344,23 @@ export default function ClassesPage() {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => {
-                  for (const st of n.who) portal.setAttendance(st.id, n.classId, date, "absent");
-                  toast(`Marked ${n.who.length} absent. Change any in Attendance.`, "success");
-                }}
+                onClick={() => setAbsentAsk({ level: n.level, classId: n.classId, ids: n.who.map((st) => st.id), date })}
               >
                 Mark them absent
               </Button>
             </div>
           ))}
+
+          {lastAbsent && lastAbsent.date === date && (
+            <div className={cn(panel, "mt-3 flex flex-wrap items-center justify-between gap-3 px-5 py-3")} role="status">
+              <p className="text-sm text-ink-2">
+                {LEVEL_LABEL[lastAbsent.level]}: {lastAbsent.count === 1 ? "1 student" : `${lastAbsent.count} students`} marked absent.
+              </p>
+              <Button variant="secondary" size="sm" onClick={lastAbsent.undo}>
+                Undo
+              </Button>
+            </div>
+          )}
 
           {date >= today && (
             <ExtraClass
@@ -378,6 +389,46 @@ export default function ClassesPage() {
 
       {/* Setup sits quietly under the classes: the day's classes come first. */}
       <GoogleConnect onSynced={() => void reload()} />
+
+      <Modal
+        open={!!absentAsk}
+        onClose={() => setAbsentAsk(null)}
+        title={absentAsk ? `Mark ${absentAsk.ids.length === 1 ? "1 student" : `${absentAsk.ids.length} students`} absent?` : ""}
+        description={
+          absentAsk
+            ? `${LEVEL_LABEL[absentAsk.level]} students who didn't join any class on ${new Date(`${absentAsk.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi", weekday: "long", day: "numeric", month: "long" })} will be marked absent.`
+            : ""
+        }
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setAbsentAsk(null)}>Cancel</Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (!absentAsk) return;
+                const { level, classId, ids, date: day } = absentAsk;
+                setAbsentAsk(null);
+                const undoMarks = portal.markAttendanceMany(ids, classId, day, "absent");
+                let undone = false;
+                const undo = () => {
+                  if (undone) return;
+                  undone = true;
+                  const back = undoMarks();
+                  setLastAbsent(null);
+                  toast(back === ids.length ? `${back} put back to not marked.` : `${back} put back to not marked. ${ids.length - back} changed by hand since stay as they are.`, "success");
+                };
+                setLastAbsent({ level, count: ids.length, date: day, undo });
+                toast(`Marked ${ids.length} absent. Change any in Attendance.`, "success", { label: "Undo", onClick: undo });
+              }}
+            >
+              {absentAsk ? `Mark ${absentAsk.ids.length} absent` : "Mark absent"}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-2">You can undo this straight after.</p>
+      </Modal>
     </div>
   );
 }

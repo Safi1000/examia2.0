@@ -133,6 +133,28 @@ const subscribe = (l: () => void) => {
 };
 
 /**
+ * The same as usePaperUrls, once, for code outside React (the printed test):
+ * waits for the server's answer and returns the links to draw.
+ */
+export async function currentPaperUrls(urls: string[]): Promise<string[]> {
+  const ask = [...new Set(urls.filter((u) => needsFix(u) && !fixed.has(u)))].slice(0, 300);
+  if (ask.length) {
+    try {
+      const res = await fetch("/api/paper-builder", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "view", urls: ask }) });
+      const body = res.ok ? ((await res.json()) as { urls?: Array<string | null> }) : null;
+      ask.forEach((u, i) => fixed.set(u, body?.urls && i < body.urls.length ? body.urls[i] : u));
+    } catch {
+      // Offline: the old picture is used.
+    }
+  }
+  return urls.flatMap((u) => {
+    if (!needsFix(u)) return [u];
+    const v = fixed.get(u);
+    return v === undefined ? [u] : v === null ? [] : [v];
+  });
+}
+
+/**
  * The links to show, with any older past paper picture swapped for its
  * measured crop (same question, printed number covered) and an insert's cover
  * page dropped. While the answer is on its way, `ready` is false.

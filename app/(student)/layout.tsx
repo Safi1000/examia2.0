@@ -382,8 +382,14 @@ function AccountMenu({
   onSignOut: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  // A mis-tap on Sign out only asks first: a student may not remember their password.
+  const [confirming, setConfirming] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
+  const keep = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (confirming) keep.current?.focus();
+  }, [confirming]);
   useEffect(() => {
     if (!open) return;
     // pointerdown, not mousedown: iPhone may not send a mouse event for a tap
@@ -411,7 +417,7 @@ function AccountMenu({
       <button
         ref={button}
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => { setOpen((o) => !o); setConfirming(false); }}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account"
@@ -448,15 +454,40 @@ function AccountMenu({
             </svg>
             Message Hamza
           </a>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={onSignOut}
-            className="mt-1 flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink"
-          >
-            <NavIcon.Logout className="h-[18px] w-[18px]" />
-            Sign out
-          </button>
+          {confirming ? (
+            <div className="mt-1 rounded-xl bg-white/[0.04] px-3 pb-3 pt-2.5" role="group" aria-label="Sign out of the portal?">
+              <p className="text-sm font-semibold text-ink">Sign out of the portal?</p>
+              <div className="mt-2.5 flex gap-2">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={onSignOut}
+                  className="h-11 flex-1 rounded-xl bg-white/[0.08] text-sm font-semibold text-ink transition-colors hover:bg-white/[0.12]"
+                >
+                  Sign out
+                </button>
+                <button
+                  ref={keep}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => setConfirming(false)}
+                  className="h-11 flex-1 rounded-xl text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => setConfirming(true)}
+              className="mt-1 flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink"
+            >
+              <NavIcon.Logout className="h-[18px] w-[18px]" />
+              Sign out
+            </button>
+          )}
         </div>
       )}
     </div>

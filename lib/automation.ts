@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { LEVEL_LABEL, addDays, at, liveSlotsOn, pkDate, setSchedule, slotsOn } from "@/lib/timetable";
 import { adminUser, loadSchedule, saveAdminMeta } from "@/lib/schedule-server";
 import { accessToken, googleReady } from "@/lib/google";
-import { levelSubjectsByStudent } from "@/lib/push-server";
+import { allRows, levelSubjectsByStudent, type Rows } from "@/lib/push-server";
 import { isTestAccount } from "@/lib/display-name";
 
 /**
@@ -90,14 +90,18 @@ async function catalogue(sb: SupabaseClient) {
  * `subjectIds` empty means any subject of that level.
  */
 export async function studentsIn(sb: SupabaseClient, classId: string, subjectIds: string[], opts: { skipInPerson?: boolean; addedBy?: number } = {}): Promise<string[]> {
-  const [{ data: students }, { data: cohorts }, { data: sc }, { data: ss }, { data: cc }, { data: cs }] = await Promise.all([
-    sb.from("students").select("id,cohort_id,username,created_at"),
-    sb.from("cohorts").select("id,active"),
-    sb.from("student_classes").select("student_id,class_id"),
-    sb.from("student_subjects").select("student_id,subject_id"),
-    sb.from("cohort_classes").select("cohort_id,class_id"),
-    sb.from("cohort_subjects").select("cohort_id,subject_id"),
+  // Paged (one plain read stops at 1,000 rows), and a failed read stops the job
+  // instead of quietly working from half a list.
+  const reads = await Promise.all([
+    allRows((a, b) => sb.from("students").select("id,cohort_id,username,created_at").order("id").range(a, b)),
+    allRows((a, b) => sb.from("cohorts").select("id,active").order("id").range(a, b)),
+    allRows((a, b) => sb.from("student_classes").select("student_id,class_id").order("student_id").order("class_id").range(a, b)),
+    allRows((a, b) => sb.from("student_subjects").select("student_id,subject_id").order("student_id").order("subject_id").range(a, b)),
+    allRows((a, b) => sb.from("cohort_classes").select("cohort_id,class_id").order("cohort_id").order("class_id").range(a, b)),
+    allRows((a, b) => sb.from("cohort_subjects").select("cohort_id,subject_id").order("cohort_id").order("subject_id").range(a, b)),
   ]);
+  must(reads, "students");
+  const [{ data: students }, { data: cohorts }, { data: sc }, { data: ss }, { data: cc }, { data: cs }] = reads;
   const group = (rows: Array<Record<string, string>> | null, k: string, v: string) => {
     const m = new Map<string, Set<string>>();
     for (const r of rows ?? []) m.set(r[k], (m.get(r[k]) ?? new Set()).add(r[v]));
@@ -107,7 +111,7 @@ export async function studentsIn(sb: SupabaseClient, classId: string, subjectIds
   // For the register: students taught in person have none (lib/in-person.ts).
   const inPerson = new Set<string>();
   if (opts.skipInPerson) {
-    const { data: tags } = await sb.from("activities").select("student_id").eq("type", "student_in_person");
+    const tags = must([await allRows((a, b) => sb.from("activities").select("id,student_id").eq("type", "student_in_person").order("id").range(a, b))], "in person")[0].data;
     for (const t of (tags as Array<{ student_id: string | null }> | null) ?? []) if (t.student_id) inPerson.add(t.student_id);
   }
   const levels = await levelSubjectsByStudent(sb);
@@ -129,6 +133,13 @@ export async function studentsIn(sb: SupabaseClient, classId: string, subjectIds
       return !subjectIds.length || !subjects.size || subjectIds.some((x) => subjects.has(x));
     })
     .map((s) => s.id as string);
+}
+
+/** Throws when any paged read failed, so a job never acts on a partial list. */
+function must(reads: Rows[], what: string): Rows[] {
+  const bad = reads.find((r) => r.error);
+  if (bad) throw new Error(`${what}: ${bad.error!.message}`);
+  return reads;
 }
 
 /** Minutes after the start that still count as on time. */
@@ -157,8 +168,10 @@ async function autoLateOn(sb: SupabaseClient, db: Awaited<ReturnType<typeof cata
   const slots = liveSlotsOn(db, date).filter((s) => s.startMs <= now);
   if (!slots.length) return 0;
   const [{ data: joins }, { data: marks }] = await Promise.all([
-    sb.from("class_joins").select("student_id,class_id,subject_id,joined_at").eq("on_date", date),
-    sb.from("attendance_days").select("id,student_id,class_id,status,created_at").eq("on_date", date).eq("status", "present"),
+    allRows((a, b) =>
+      sb.from("class_joins").select("student_id,class_id,subject_id,joined_at").eq("on_date", date).order("student_id").order("class_id").order("subject_id").range(a, b),
+    ),
+    allRows((a, b) => sb.from("attendance_days").select("id,student_id,class_id,status,created_at").eq("on_date", date).eq("status", "present").order("id").range(a, b)),
   ]);
   const late: string[] = [];
   for (const m of marks ?? []) {
@@ -198,10 +211,17 @@ async function autoAbsentOn(sb: SupabaseClient, db: Awaited<ReturnType<typeof ca
     // From 10 minutes after the last class, for three hours. Everything below
     // uses the class's own date, even when the run is after midnight.
     if (now < lastEnd + 10 * 60_000 || now > lastEnd + ABSENT_WINDOW_MS) continue;
-    const { data: joins } = await sb.from("class_joins").select("student_id").eq("on_date", date).eq("class_id", classId);
+    const { data: joins } = await allRows((a, b) =>
+      sb.from("class_joins").select("student_id,subject_id").eq("on_date", date).eq("class_id", classId).order("student_id").order("subject_id").range(a, b),
+    );
     if (!joins?.length) continue;
     const joined = new Set(joins.map((j) => j.student_id as string));
-    const { data: marks } = await sb.from("attendance_days").select("student_id").eq("on_date", date);
+    // A failed read skips this level for this run (the next run tries again).
+    const { data: marks, error: marksError } = await allRows((a, b) => sb.from("attendance_days").select("id,student_id").eq("on_date", date).order("id").range(a, b));
+    if (marksError) {
+      console.error("[automation] absent marks", marksError.message);
+      continue;
+    }
     const hasMark = new Set((marks ?? []).map((m) => m.student_id as string));
     // Only students added before the level's first class that day started: anyone added
     // later (or on a later day) could not have joined, so they are never marked absent.

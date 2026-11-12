@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/admin-auth";
-import { pushReady, serviceClient } from "@/lib/push-server";
+import { allRows, pushReady, serviceClient } from "@/lib/push-server";
 
 /**
  * Admin only: each student's own settings (avatar, targets, weekly goal,
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   if (!(await isAdminRequest(req))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   if (!pushReady()) return NextResponse.json({});
   const sb = serviceClient();
-  const { data: rows } = await sb.from("students").select("id,user_id");
+  const { data: rows } = await allRows((a, b) => sb.from("students").select("id,user_id").order("id").range(a, b));
   const byUser = new Map((rows ?? []).filter((r) => r.user_id).map((r) => [r.user_id as string, r.id as string]));
   const out: Record<string, unknown> = {};
   for (let page = 1; page <= 10; page++) {

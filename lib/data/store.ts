@@ -53,6 +53,7 @@ import type {
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createSeed, type Database } from "@/lib/data/seed";
 import { lateWindows } from "@/lib/data/selectors";
+import { reportLinkExpiry } from "@/lib/report-data";
 import { DEMO } from "@/lib/demo";
 import { supabase } from "@/lib/supabase";
 import { cleanLevels, type LevelSubjects } from "@/lib/levels";
@@ -2321,9 +2322,11 @@ class Store {
   /**
    * Record a generated report and hand back its private link.
    *
-   * One row per student per month: regenerating replaces the PDF and keeps the
-   * same token, so a link already sent to a parent keeps working and shows the
-   * corrected report rather than 404ing.
+   * One row per student per month. Every save gets a NEW token and 7 days from
+   * now: each save is followed by the link going into WhatsApp, so a link
+   * handed out before must not be revived for another week. The old link stops
+   * the moment the new one is made (its parent gets the new one in the same
+   * chat). `markReportSent` then restarts the 7 days from the actual send.
    */
   async saveReport(input: {
     studentId: string;
@@ -2335,7 +2338,7 @@ class Store {
       (r) => r.studentId === input.studentId && r.month === input.month,
     );
     const id = existing?.id ?? genId();
-    const token = existing?.token ?? reportToken();
+    const token = reportToken();
 
     const { data, error } = await supabase()
       .from("reports")
@@ -2347,6 +2350,7 @@ class Store {
           token,
           pdf_url: input.pdfUrl,
           teacher_note: input.teacherNote ?? null,
+          expires_at: reportLinkExpiry(),
         },
         { onConflict: "student_id,month" },
       )
@@ -2366,14 +2370,47 @@ class Store {
     return row;
   }
 
-  /** Stamp a report as sent, so the reminders panel stops asking for it. */
+  /**
+   * Stamp a report as sent, so the reminders panel stops asking for it, and
+   * start its link's 7 days from this moment (the Send or "Sent, next" press).
+   */
   markReportSent(reportId: string) {
-    const sentAt = new Date().toISOString();
+    const now = Date.now();
+    const sentAt = new Date(now).toISOString();
+    const expiresAt = reportLinkExpiry(now);
     this.commit((d) => {
       const r = d.reports.find((x) => x.id === reportId);
-      if (r) r.sentAt = sentAt;
+      if (r) {
+        r.sentAt = sentAt;
+        r.expiresAt = expiresAt;
+      }
     });
-    this.run(supabase().from("reports").update({ sent_at: sentAt }).eq("id", reportId), "markReportSent");
+    this.run(supabase().from("reports").update({ sent_at: sentAt, expires_at: expiresAt }).eq("id", reportId), "markReportSent");
+  }
+
+  /**
+   * A fresh link to a report already made, for "Send a fresh link": same PDF
+   * and note, a new token (the old link stops now) and 7 days from now.
+   * Awaited, so the link only goes out once it really works.
+   */
+  async freshReportLink(reportId: string): Promise<ReportRecord> {
+    const now = Date.now();
+    const { data, error } = await supabase()
+      .from("reports")
+      .update({ token: reportToken(), sent_at: new Date(now).toISOString(), expires_at: reportLinkExpiry(now) })
+      .eq("id", reportId)
+      .select()
+      .single();
+    if (error) {
+      this.report(`freshReportLink: ${error.message}`);
+      throw new Error("Could not make a fresh link. Try again.");
+    }
+    const row = mapReport(data as Row);
+    this.commit((d) => {
+      const idx = d.reports.findIndex((r) => r.id === row.id);
+      if (idx >= 0) d.reports[idx] = row;
+    });
+    return row;
   }
 
   // ---- Attendance -------------------------------------------------------
@@ -2399,6 +2436,47 @@ class Store {
       ),
       "setAttendance",
     );
+  }
+
+  /**
+   * "Mark the rest": one save for every student listed (all unmarked that day).
+   * Returns an undo that removes exactly the marks this made, after the save
+   * has landed, leaving any of them changed by hand since. The undo returns how
+   * many it put back.
+   */
+  markAttendanceMany(studentIds: string[], classId: string | null, date: string, status: AttendanceStatus): () => number {
+    const rows: AttendanceDay[] = studentIds.map((studentId) => ({ id: genId(), studentId, classId, date, status }));
+    if (!rows.length) return () => 0;
+    this.commit((d) => {
+      d.attendanceDays.push(...rows);
+    });
+    // Promise.resolve runs the request once, so the undo can wait for it.
+    const saved = Promise.resolve(
+      supabase()
+        .from("attendance_days")
+        .upsert(
+          rows.map((r) => ({ id: r.id, student_id: r.studentId, class_id: classId, on_date: date, status })),
+          { onConflict: "student_id,class_id,on_date" },
+        ),
+    );
+    this.run(saved, "markAttendanceMany");
+    return () => {
+      const made = new Set(rows.map((r) => r.id));
+      const ids = this.state.attendanceDays.filter((a) => made.has(a.id) && a.status === status).map((a) => a.id);
+      if (!ids.length) return 0;
+      const gone = new Set(ids);
+      this.commit((d) => {
+        d.attendanceDays = d.attendanceDays.filter((a) => !gone.has(a.id));
+      });
+      for (let i = 0; i < ids.length; i += 150) {
+        const part = ids.slice(i, i + 150);
+        this.run(
+          saved.then(() => supabase().from("attendance_days").delete().in("id", part).eq("status", status)),
+          "undoAttendance",
+        );
+      }
+      return ids.length;
+    };
   }
 
   /** The month's percentage, typed by hand or accepted from the daily register. */

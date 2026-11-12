@@ -12,6 +12,7 @@ import { ImportBankModal } from "@/components/admin/ImportBankModal";
 import { ImportDocModal } from "@/components/admin/ImportDocModal";
 import { LateWindowCard } from "@/components/admin/LateWindowCard";
 import { AnswerKeyModal } from "@/components/admin/AnswerKeyModal";
+import { TestPdfModal } from "@/components/admin/TestPdfModal";
 import { Card, CardHeader, CardBody, Button, Input, Select, Badge, Pill, Modal, Icon, EmptyState } from "@/components/ui";
 import { formatWhen, fromLocalInput, toLocalInput } from "@/lib/time";
 import { useNow } from "@/hooks/useNow";
@@ -89,6 +90,7 @@ export default function TestEditorPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [docOpen, setDocOpen] = useState(false);
   const [keyOpen, setKeyOpen] = useState(false);
+  const [pdfOpen, setPdfOpen] = useState(false);
   const [deleteQId, setDeleteQId] = useState<string | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   // Past paper questions: look at one, or swap it for another on the same topic.
@@ -245,6 +247,11 @@ export default function TestEditorPage() {
         actions={
           <>
             <Pill>{test.testCode}</Pill>
+            {questions.length > 0 && (
+              <Button variant="secondary" onClick={() => setPdfOpen(true)}>
+                <Icon.Download className="h-4 w-4" /> Download as PDF
+              </Button>
+            )}
             {test.status !== "draft" && (
               // Give a late student one more day, or reopen a closed test for a day.
               <Button
@@ -545,7 +552,18 @@ export default function TestEditorPage() {
         }}
       />
 
-      <AnswerKeyModal open={keyOpen} onClose={() => setKeyOpen(false)} title={test.title} code={test.testCode} questions={questions} />
+      <AnswerKeyModal
+        open={keyOpen}
+        onClose={() => setKeyOpen(false)}
+        title={test.title}
+        code={test.testCode}
+        questions={questions}
+        onMarkingSheet={() => {
+          setKeyOpen(false);
+          setPdfOpen(true);
+        }}
+      />
+      {pdfOpen && <TestPdfModal open onClose={() => setPdfOpen(false)} test={test} className={db.classes.find((c) => c.id === test.classId)?.name ?? null} />}
 
       <ImportBankModal
         open={importOpen}

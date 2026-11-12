@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { pushReady, serviceClient } from "@/lib/push-server";
+import { allRows, pushReady, serviceClient } from "@/lib/push-server";
 import { currentStats, levelFor } from "@/lib/focus";
 import { displayName, isTestAccount } from "@/lib/display-name";
 import { AVATARS, type Profile } from "@/lib/profile";
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
 
 /** Everyone in the cohort with study time this week, most first. */
 async function buildRows(sb: ReturnType<typeof serviceClient>, cohortId: string): Promise<{ at: number; rows: Row[] }> {
-  const { data: mates } = await sb.from("students").select("id,user_id,username").eq("cohort_id", cohortId);
+  const { data: mates } = await allRows((a, b) => sb.from("students").select("id,user_id,username").eq("cohort_id", cohortId).order("id").range(a, b));
   // Hamza's own test account never shows up in a real student's top 3.
   const byUser = new Map(
     (mates ?? []).filter((m) => m.user_id && !isTestAccount({ username: m.username as string })).map((m) => [m.user_id as string, m]),

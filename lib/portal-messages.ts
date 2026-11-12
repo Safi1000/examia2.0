@@ -82,7 +82,8 @@ export function parentLowScore(w: Who & { pct: number; title?: string; subject?:
 export function parentReport(w: Who & { month?: string }) {
   const p = people(w, "report");
   const month = low(w.month);
-  return parent(p, `${p.hello} here is ${p.whose} progress report${month ? ` for ${month}` : ""}.`);
+  // The link stops 7 days after it is sent (REPORT_LINK_DAYS in lib/report-data).
+  return parent(p, `${p.hello} here is ${p.whose} progress report${month ? ` for ${month}` : ""}. the link works for a week.`);
 }
 
 /** Today's "Parent" button. `facts` are lower-case clauses that follow the name ("missed X"). With none, it is the check-in. */
