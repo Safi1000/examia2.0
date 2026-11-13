@@ -18,7 +18,8 @@ const variantClass: Record<Variant, string> = {
   // Pill buttons, as on the public site: solid gold for the one main action,
   // hairline outline for everything else.
   primary:
-    "bg-brand text-on-brand hover:brightness-110 active:brightness-95",
+    // The icon leans a touch the way the action goes, on a real pointer only: a small sign it is live.
+    "bg-brand text-on-brand hover:brightness-110 active:brightness-95 [&_svg]:transition-transform [&_svg]:duration-200 motion-safe:[@media(hover:hover)]:hover:[&_svg]:translate-x-0.5",
   secondary:
     "bg-transparent text-ink border border-border-strong hover:border-ink-3 hover:bg-surface-2 active:bg-surface-2",
   ghost: "bg-transparent text-ink-2 hover:bg-surface-2 hover:text-ink active:bg-surface-2",

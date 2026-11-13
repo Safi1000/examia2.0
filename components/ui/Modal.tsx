@@ -153,6 +153,8 @@ export function Modal({
         tabIndex={-1}
         className={cn(
           "relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-xl border border-border bg-surface shadow-[var(--shadow-lg)] outline-none",
+          // Wider screens: a little of the page shows through, softly blurred. Phones keep it solid (cheaper, clearer).
+          "sm:bg-surface/[0.93] sm:backdrop-blur-2xl",
           // Phones: a sheet that rises from the bottom. Wider: a card that settles in place.
           "max-sm:animate-sheet-up sm:animate-scale-in sm:max-h-[88dvh] sm:rounded-xl",
           sizeClass,

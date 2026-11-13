@@ -17,6 +17,7 @@ import Link from "next/link";
 import { NavIcon } from "@/components/nav/NavIcons";
 import { cn } from "@/lib/cn";
 import { NotificationBell } from "@/components/NotificationBell";
+import { CommandPalette } from "@/components/admin/CommandPalette";
 import { PortalAmbient } from "@/components/PortalAmbient";
 import { PortalManifest } from "@/components/PortalManifest";
 import { pageTitle, useDocumentTitle } from "@/hooks/usePageTitle";
@@ -178,7 +179,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </button>
               <div className="md:hidden"><LogoTight className="h-5" /></div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
+              <CommandPalette />
               <NotificationBell />
             </div>
           </header>
