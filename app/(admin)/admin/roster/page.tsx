@@ -338,7 +338,7 @@ export default function RosterPage() {
 
   function openNew() {
     setEditing("new");
-    setForm({ inPerson: false, username: "", email: "", whatsapp: "", phone: "", photoUrl: "", cohortId: cohortId ?? db.cohorts[0]?.id ?? "", tempPassword: genPassword(), classIds: [], subjectIds: [], levelSubjects: {} });
+    setForm({ inPerson: false, username: "", email: "", whatsapp: "", phone: "", photoUrl: "", cohortId: cohortId ?? db.cohorts.find((c) => c.active)?.id ?? db.cohorts[0]?.id ?? "", tempPassword: genPassword(), classIds: [], subjectIds: [], levelSubjects: {} });
     setError(null);
   }
   function openEdit(s: Student) {
@@ -798,10 +798,13 @@ export default function RosterPage() {
             </div>
             <p className="mt-1.5 text-xs text-ink-3">Cropped to a square and shrunk to 512px before upload.</p>
           </div>
-          <Select label="Cohort" value={form.cohortId} onChange={(e) => setForm({ ...form, cohortId: e.target.value, classIds: [], subjectIds: [], levelSubjects: {} })}>
-            <option value="">Choose…</option>
-            {db.cohorts.filter((c) => c.active || c.id === form.cohortId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select>
+          {/* One cohort switched on, and they are in it: nothing to choose. */}
+          {!(db.cohorts.filter((c) => c.active).length === 1 && db.cohorts.find((c) => c.active)?.id === form.cohortId) && (
+            <Select label="Cohort" value={form.cohortId} onChange={(e) => setForm({ ...form, cohortId: e.target.value, classIds: [], subjectIds: [], levelSubjects: {} })}>
+              <option value="">Choose…</option>
+              {db.cohorts.filter((c) => c.active || c.id === form.cohortId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          )}
           <div>
             <Label>Classes</Label>
             <p className="mb-2 text-xs text-ink-3">

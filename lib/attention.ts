@@ -11,7 +11,7 @@ import type { StudentActivity } from "@/lib/activity";
 import { lastSeen } from "@/lib/activity";
 import type { ClassJoin, ClassLink } from "@/lib/classes";
 import { addDays, getSchedule, liveSlotsOn, pkDate, RECORDING_HOURS, slotKey, slotsForStudent, type DaySlot } from "@/lib/timetable";
-import { absenceStreak, countsFor, eligibleStudents, joinedMs, testById } from "@/lib/data/selectors";
+import { absenceStreak, countsFor, eligibleStudents, joinedMs, startedMs, testById } from "@/lib/data/selectors";
 import { gradeSubmission } from "@/lib/grading";
 import { currentStats } from "@/lib/focus";
 import { LOW_SCORE } from "@/lib/reminders";
@@ -255,7 +255,7 @@ export function buildAttention(
   const rows: AttentionRow[] = students.map((s) => {
     const reasons: Reason[] = [];
     // Not missed when they joined after it opened (the parent reminder's rule).
-    const missed = recent.filter((r) => r.eligible.has(s.id) && !r.done.has(s.id) && joinedMs(s) <= +new Date(r.t.opensAt)).map((r) => r.t);
+    const missed = recent.filter((r) => r.eligible.has(s.id) && !r.done.has(s.id) && startedMs(db, s, r.t.classId, r.t.subjectId) <= +new Date(r.t.opensAt)).map((r) => r.t);
     if (missed.length) {
       const l = `Missed ${missed.map((t) => t.title).join(", ")}`;
       reasons.push({ kind: "missed_test", label: l, parent: namedOrCounted("missed", missed.map((t) => t.title), "a test", "tests") });
@@ -271,7 +271,7 @@ export function buildAttention(
     const owed = dueRecently.filter(
       (a) =>
         a.cohortId === s.cohortId &&
-        joinedMs(s) < +new Date(a.dueAt) &&
+        startedMs(db, s, a.classId, a.subjectId) < +new Date(a.dueAt) &&
         (!a.classId || s.classIds.includes(a.classId)) &&
         (!a.subjectId || s.subjectIds.includes(a.subjectId)),
     );

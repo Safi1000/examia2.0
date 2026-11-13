@@ -1,6 +1,6 @@
 import type { Database } from "@/lib/data/seed";
 import type { Student } from "@/types";
-import { absenceStreak, archivedCohortIds, countedDays, extensionFor, isArchivedTest, liveStatus, testCoversStudent } from "@/lib/data/selectors";
+import { absenceStreak, archivedCohortIds, countedDays, extensionFor, isArchivedTest, liveStatus, startedMs, testCoversStudent } from "@/lib/data/selectors";
 import { isTestAccount } from "@/lib/display-name";
 import { parentAbsent, parentLowScore, parentMissedTest, parentReport } from "@/lib/portal-messages";
 import { inPersonIds } from "@/lib/in-person";
@@ -70,7 +70,8 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
   for (const test of closed) {
     for (const student of students) {
       if (!testCoversStudent(test, student)) continue;
-      if (new Date(student.createdAt).getTime() > new Date(test.opensAt).getTime()) continue;
+      // Joined, or started this test's subject or level, after it opened: it was not theirs to miss.
+      if (startedMs(db, student, test.classId, test.subjectId) > new Date(test.opensAt).getTime()) continue;
       if (started.has(`${test.id}|${student.id}`)) continue;
       // Reopened just for them and still open: not missed (yet).
       const ext = extensionFor(db, test.id, student.id);

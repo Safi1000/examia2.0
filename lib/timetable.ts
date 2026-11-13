@@ -234,6 +234,19 @@ export function slotsOn(db: Pick<Database, "classes" | "subjects">, date: string
     .sort((a, b) => a.startMs - b.startMs);
 }
 
+/**
+ * When this level's next class in this subject starts (the next two weeks), or
+ * null. Homework set after a class is due at the start of the next one.
+ */
+export function nextClassStart(db: Pick<Database, "classes" | "subjects">, classId: string, subjectId: string, fromMs: number): number | null {
+  const today = pkDate(fromMs);
+  for (let i = 0; i <= 14; i++) {
+    const hit = slotsOn(db, addDays(today, i)).find((s) => !s.cancelled && s.classId === classId && s.subjectId === subjectId && s.startMs > fromMs);
+    if (hit) return hit.startMs;
+  }
+  return null;
+}
+
 /** Classes that are actually happening on a date. */
 export const liveSlotsOn = (db: Pick<Database, "classes" | "subjects">, date: string) => slotsOn(db, date).filter((s) => !s.cancelled);
 

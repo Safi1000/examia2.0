@@ -42,6 +42,7 @@ export function ActivityIcon({ type, className }: { type: ActivityType; classNam
     case "notes_deleted":
       return <Icon.Doc className={cls} />;
     case "student_joined_class":
+    case "student_subject_joined":
     case "student_left_class":
       return <Icon.Users className={cls} />;
     case "well_built":

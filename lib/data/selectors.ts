@@ -2,7 +2,7 @@
  * Pure selectors over the database snapshot, for display. Access itself is
  * enforced by row-level security in supabase/migrations.
  */
-import type { Announcement, AttendanceDay, AttendanceStatus, Student, Submission, Test, TestExtension, TestStats, TestStatus } from "@/types";
+import type { Activity, Announcement, AttendanceDay, AttendanceStatus, Student, Submission, Test, TestExtension, TestStats, TestStatus } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { awardedMarks, percent, totalMarks } from "@/lib/scoring";
 import { takesLevelSubject } from "@/lib/levels";
@@ -68,10 +68,12 @@ export const testCoversStudent = (test: Test, student: Student) =>
   (test.cohortId === null || test.cohortId === student.cohortId) &&
   takesLevelSubject(student, test.classId, test.subjectId);
 
-/** Students the test is assigned to — the denominator for completion (not those who joined after it closed). */
+/** Students the test is assigned to — the denominator for completion (not those who joined, or started its subject or level, after it closed). */
 export const eligibleStudents = (db: Database, test: Test) =>
   db.students.filter(
-    (s) => testCoversStudent(test, s) && (+new Date(test.closesAt) > joinedMs(s) || db.submissions.some((x) => x.testId === test.id && x.studentId === s.id)),
+    (s) =>
+      testCoversStudent(test, s) &&
+      (+new Date(test.closesAt) > startedMs(db, s, test.classId, test.subjectId) || db.submissions.some((x) => x.testId === test.id && x.studentId === s.id)),
   );
 
 /**
@@ -80,6 +82,43 @@ export const eligibleStudents = (db: Database, test: Test) =>
  * notices and notifications) belongs to someone else's history, not theirs.
  */
 export const joinedMs = (s: Pick<Student, "createdAt">) => +new Date(s.createdAt) || 0;
+
+// When each student last started a level or subject they were added to after joining, by "student|class:id" / "student|subject:id".
+const startsMemo = new WeakMap<Activity[], Map<string, number>>();
+function startsOf(activities: Activity[]): Map<string, number> {
+  let m = startsMemo.get(activities);
+  if (m) return m;
+  m = new Map();
+  for (const a of activities) {
+    if (!a.studentId) continue;
+    const key =
+      a.type === "student_subject_joined" && a.subjectId
+        ? `${a.studentId}|subject:${a.subjectId}`
+        : a.type === "student_subject_joined" && a.cohortId
+          ? `${a.studentId}|cohort:${a.cohortId}`
+          : a.type === "student_joined_class" && a.classId
+            ? `${a.studentId}|class:${a.classId}`
+            : "";
+    const at = +new Date(a.createdAt);
+    if (key && at > (m.get(key) ?? 0)) m.set(key, at);
+  }
+  startsMemo.set(activities, m);
+  return m;
+}
+/**
+ * When this student's work in a level and subject starts: the day they joined,
+ * or later, the moment Hamza added that level or subject to them. A test or
+ * homework that was over before then was never theirs.
+ */
+export function startedMs(db: Pick<Database, "activities">, s: Pick<Student, "id" | "createdAt" | "cohortId">, classId: string | null | undefined, subjectId: string | null | undefined): number {
+  const m = startsOf(db.activities);
+  return Math.max(
+    joinedMs(s),
+    m.get(`${s.id}|cohort:${s.cohortId}`) ?? 0,
+    classId ? (m.get(`${s.id}|class:${classId}`) ?? 0) : 0,
+    subjectId ? (m.get(`${s.id}|subject:${subjectId}`) ?? 0) : 0,
+  );
+}
 /** Notices from the few days before joining still count (a welcome note, the session plan). */
 const NOTICE_GRACE_MS = 3 * 86_400_000;
 
@@ -143,11 +182,10 @@ export const testForStudent = (db: Database, id: string, studentId: string | nul
 
 /** Tests a student can see: cohort + class + subject match, never drafts, nothing that closed before they joined (unless they sat it). Late windows applied. */
 export function testsForStudent(db: Database, student: Student): Test[] {
-  const since = joinedMs(student);
   return db.tests
     .filter((t) => t.status !== "draft" && testCoversStudent(t, student))
     .map((t) => asSeenBy(db, t, student.id))
-    .filter((t) => +new Date(t.closesAt) > since || db.submissions.some((s) => s.testId === t.id && s.studentId === student.id));
+    .filter((t) => +new Date(t.closesAt) > startedMs(db, student, t.classId, t.subjectId) || db.submissions.some((s) => s.testId === t.id && s.studentId === student.id));
 }
 
 /** Announcements visible to a student (cohort-scoped), from shortly before they joined onwards. */

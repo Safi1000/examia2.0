@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Assignment } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
-import { archivedCohortIds, joinedMs, studentById } from "@/lib/data/selectors";
+import { archivedCohortIds, startedMs, studentById } from "@/lib/data/selectors";
 import { isTestAccount } from "@/lib/display-name";
 import { studentHomeworkDue } from "@/lib/portal-messages";
 import { uploadAsImages } from "@/lib/cloudinary";
@@ -21,7 +21,7 @@ import { displayName } from "@/lib/display-name";
 import { useNow } from "@/hooks/useNow";
 import { useActivity } from "@/lib/activity-admin";
 import { fmtTime } from "@/lib/activity";
-import { pkDate } from "@/lib/timetable";
+import { nextClassStart, pkDate } from "@/lib/timetable";
 
 type Form = {
   title: string;
@@ -32,6 +32,9 @@ type Form = {
   classId: string;
   subjectId: string;
 };
+
+// A class later today is too soon for homework set now: the deadline is the lesson after it.
+const SOON_MS = 12 * 3_600_000;
 
 const blank = (cohortId: string): Form => ({
   title: "",
@@ -56,7 +59,7 @@ function owedFor(db: Db, a: Assignment, off = archivedCohortIds(db)) {
       !isTestAccount(s) &&
       a.cohortId === s.cohortId &&
       // Joined after the deadline: this homework was never theirs to hand in.
-      joinedMs(s) < +new Date(a.dueAt) &&
+      startedMs(db, s, a.classId, a.subjectId) < +new Date(a.dueAt) &&
       (!a.classId || s.classIds.includes(a.classId)) &&
       (!a.subjectId || s.subjectIds.includes(a.subjectId)) &&
       !handed.has(s.id),
@@ -83,11 +86,28 @@ export default function AdminAssignmentsPage() {
   const [uploading, setUploading] = useState(false);
   // Today's "Homework to reply to" opens straight onto that homework's hand-ins.
   const [openId, setOpenId] = useState<string | null>(null);
+  const [papersOpen, setPapersOpen] = useState(false);
+  // "Set homework" on a class opens the past paper builder with that level and subject chosen.
+  const [papersFor, setPapersFor] = useState<{ classId?: string; subjectId?: string }>({});
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("open");
+    const q = new URLSearchParams(window.location.search);
+    const id = q.get("open");
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (id) setOpenId(id);
+    if (q.get("set") === "papers") {
+      setPapersFor({ classId: q.get("class") ?? undefined, subjectId: q.get("subject") ?? undefined });
+      setPapersOpen(true);
+    }
   }, []);
+  // With one cohort switched on there is nothing to choose: it is used, and its picker is hidden.
+  const activeCohorts = db.cohorts.filter((c) => c.active);
+  const soleCohort = activeCohorts.length === 1 ? activeCohorts[0].id : "";
+  // The deadline follows the class and subject (their next class) until Hamza sets one himself.
+  const [dueTyped, setDueTyped] = useState(false);
+  const dueFor = (classId: string, subjectId: string, fallback: string) => {
+    const next = classId && subjectId ? nextClassStart(db, classId, subjectId, nowMs + SOON_MS) : null;
+    return next ? toLocalInput(new Date(next).toISOString()) : fallback;
+  };
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   // Hand-ins with feedback typed but not sent, so closing the window can ask first.
@@ -95,7 +115,6 @@ export default function AdminAssignmentsPage() {
 
   // From past papers: the questions' pictures go on a normal homework, with a
   // line naming their sources. Kept here while the form is open, for Swap and Remove.
-  const [papersOpen, setPapersOpen] = useState(false);
   const [ppQs, setPpQs] = useState<BuiltQuestion[] | null>(null);
   const [swapping, setSwapping] = useState<string | null>(null);
   const urlsOf = (qs: BuiltQuestion[]) => [...new Set(qs.flatMap((q) => q.attachments))];
@@ -104,6 +123,8 @@ export default function AdminAssignmentsPage() {
     const topic = b.topicNames.length > 1 ? `${b.topicNames[0]} and ${b.topicNames.length - 1} more` : (b.topicNames[0] ?? "Past papers");
     setPapersOpen(false);
     setEditing("new");
+    // The builder already chose the deadline (the class's next lesson, or the one picked there).
+    setDueTyped(true);
     setPpQs(b.questions);
     // Built from past papers is already work worth keeping: any close asks.
     setFormStart("");
@@ -233,7 +254,8 @@ export default function AdminAssignmentsPage() {
   function openNew() {
     setPpQs(null);
     setEditing("new");
-    const f = blank(cohortId ?? db.cohorts[0]?.id ?? "");
+    setDueTyped(false);
+    const f = blank(cohortId ?? (soleCohort || activeCohorts[0]?.id) ?? "");
     setFormStart(JSON.stringify(f));
     setForm(f);
   }
@@ -288,14 +310,16 @@ export default function AdminAssignmentsPage() {
 
   function save() {
     if (!form) return;
-    if (!form.title.trim()) return toast("Give the homework a title.", "error");
     if (!form.dueAt) return toast("Set a due date.", "error");
     if (!form.cohortId) return toast("Choose a cohort.", "error");
     // Pages still uploading would be left off the homework.
     if (uploading) return toast("The worksheet is still uploading. Save once it has finished.", "error");
     if (editing === "new" && +new Date(fromLocalInput(form.dueAt)) <= Date.now()) return toast("That deadline has already passed. Choose a later one.", "error");
     const payload = {
-      title: form.title.trim(),
+      // No title typed: it names itself, "Accounting homework, 13 Nov".
+      title:
+        form.title.trim() ||
+        `${(db.subjects.find((x) => x.id === form.subjectId)?.name ?? "").replace(/ Studies$/, "")} homework, ${new Date(nowMs).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi", day: "numeric", month: "short" })}`.trim().replace(/^homework/, "Homework"),
       instructions: form.instructions.trim() || undefined,
       attachments: form.attachments,
       dueAt: fromLocalInput(form.dueAt),
@@ -450,7 +474,7 @@ export default function AdminAssignmentsPage() {
       >
         {form && (
           <div className="space-y-4">
-            <Input label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Week 5, Partnership accounts" required />
+            <Input label="Title (optional)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Left empty, it names itself: Accounting homework, 13 Nov" />
             <Textarea label="Instructions (optional)" value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })} placeholder="What the students have to do…" />
 
             <div>
@@ -459,22 +483,27 @@ export default function AdminAssignmentsPage() {
                 id="hw-due"
                 type="datetime-local"
                 value={form.dueAt}
-                onChange={(e) => setForm({ ...form, dueAt: e.target.value })}
+                onChange={(e) => {
+                  setDueTyped(true);
+                  setForm({ ...form, dueAt: e.target.value });
+                }}
                 className="h-12 w-full rounded-md border border-border-strong bg-surface px-3 text-base tabular-nums text-ink"
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Select label="Cohort" value={form.cohortId} onChange={(e) => setForm({ ...form, cohortId: e.target.value })}>
-                {/* An assignment needs a cohort: without one, no student can see it. */}
-                <option value="">Choose a cohort</option>
-                {db.cohorts.filter((c) => c.active || c.id === form.cohortId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </Select>
-              <Select label="Class" value={form.classId} onChange={(e) => setForm({ ...form, classId: e.target.value })}>
+            <div className={`grid grid-cols-1 gap-3 ${soleCohort && form.cohortId === soleCohort ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
+              {!(soleCohort && form.cohortId === soleCohort) && (
+                <Select label="Cohort" value={form.cohortId} onChange={(e) => setForm({ ...form, cohortId: e.target.value })}>
+                  {/* An assignment needs a cohort: without one, no student can see it. */}
+                  <option value="">Choose a cohort</option>
+                  {db.cohorts.filter((c) => c.active || c.id === form.cohortId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </Select>
+              )}
+              <Select label="Class" value={form.classId} onChange={(e) => setForm({ ...form, classId: e.target.value, ...(editing === "new" && !dueTyped ? { dueAt: dueFor(e.target.value, form.subjectId, form.dueAt) } : {}) })}>
                 <option value="">All classes</option>
                 {db.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </Select>
-              <Select label="Subject" value={form.subjectId} onChange={(e) => setForm({ ...form, subjectId: e.target.value })}>
+              <Select label="Subject" value={form.subjectId} onChange={(e) => setForm({ ...form, subjectId: e.target.value, ...(editing === "new" && !dueTyped ? { dueAt: dueFor(form.classId, e.target.value, form.dueAt) } : {}) })}>
                 <option value="">All subjects</option>
                 {db.subjects.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
               </Select>
@@ -561,7 +590,7 @@ export default function AdminAssignmentsPage() {
         )}
       </Modal>
 
-      <PastPaperSheet open={papersOpen} onClose={() => setPapersOpen(false)} mode="homework" defaultCohortId={cohortId ?? null} onBuilt={fromPapers} />
+      <PastPaperSheet open={papersOpen} onClose={() => setPapersOpen(false)} mode="homework" defaultCohortId={cohortId ?? null} onBuilt={fromPapers} defaultClassId={papersFor.classId} defaultSubjectId={papersFor.subjectId} />
 
       {/* Hand-ins + feedback */}
       <Modal

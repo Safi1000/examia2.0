@@ -299,6 +299,8 @@ export type ActivityType =
   | "notes_downloaded"
   | "notes_deleted"
   | "student_joined_class"
+  /** Hamza added a subject to a student who was already in the portal: their work in it starts from here. */
+  | "student_subject_joined"
   | "student_left_class"
   | "test_created"
   | "test_updated"

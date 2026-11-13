@@ -633,11 +633,19 @@ class Store {
     const lateReady = Promise.all([
       quiet(sb.from("activities").select("*").eq("type", "test_reopened").gte("created_at", new Date(Date.now() - 2 * 86_400_000).toISOString())),
       this.audience === "student" ? Promise.resolve([] as Activity[]) : quiet(sb.from("activities").select("*").eq("type", "student_in_person")),
+      // When each student started a subject or level they were added to later (see startedMs), read in full.
+      this.audience === "student"
+        ? Promise.resolve([] as Activity[])
+        : quiet(sb.from("activities").select("*").eq("type", "student_subject_joined").not("student_id", "is", null)),
+      // Level joins that say which level (older ones don't, and are left to the ordinary feed).
+      this.audience === "student"
+        ? Promise.resolve([] as Activity[])
+        : quiet(sb.from("activities").select("*").eq("type", "student_joined_class").not("student_id", "is", null).not("class_id", "is", null)),
       // This week's "Well built" notes, so Today never offers to send one twice.
       this.audience === "student"
         ? Promise.resolve([] as Activity[])
         : quiet(sb.from("activities").select("*").eq("type", "well_built").gte("created_at", new Date(Date.now() - 8 * 86_400_000).toISOString())),
-    ]).then(([a, b, c]) => [...a, ...b, ...c]);
+    ]).then(([a, b, s, l, c]) => [...a, ...b, ...s, ...l, ...c]);
     const [coh, stu, tst, sub, ann, bnk, keys, cls, subj, cCls, cSubj, sCls, sSubj, nts, nAssigns, asg, asgSubs, attD, attM, rep, rem, acts] = await Promise.all([
       sb.from("cohorts").select("*").order("created_at"),
       allRows((a, b) => sb.from("students").select("*").order("created_at").order("id").range(a, b)),
@@ -1017,12 +1025,15 @@ class Store {
 
     const who = student?.username ?? "A student";
     for (const id of classIds.filter((c) => !before.includes(c))) {
-      this.logActivity({
+      // Carries the level, so tests and homework set for it before today are not theirs (see startedMs).
+      this.noteStarted({
         type: "student_joined_class",
         title: `${who} joined ${nameOf(id)}`,
         description: this.cohortName(student?.cohortId),
         studentId,
-        link: `/admin/roster/${studentId}`,
+        classId: id,
+        // A brand new student's first level is covered by the day their account was made.
+        local: before.length > 0,
       });
     }
     for (const id of before.filter((c) => !classIds.includes(c))) {
@@ -1077,8 +1088,66 @@ class Store {
       this.pendingWrites--;
     }
   }
+  /**
+   * A note that a student started a level or subject today, kept here at once
+   * (when `local`) and in the activity list. Tests, homework and reminders for
+   * that level or subject from before this moment do not count for them.
+   */
+  private noteStarted(input: { type: "student_joined_class" | "student_subject_joined"; title: string; description?: string; studentId: string; classId?: string; subjectId?: string; cohortId?: string; local: boolean }) {
+    const row: Activity = {
+      id: genId(),
+      type: input.type,
+      title: input.title,
+      description: input.description,
+      studentId: input.studentId,
+      cohortId: input.cohortId ?? null,
+      classId: input.classId ?? null,
+      subjectId: input.subjectId ?? null,
+      link: `/admin/roster/${input.studentId}`,
+      audience: "admin",
+      readBy: [],
+      clearedBy: [],
+      createdAt: new Date().toISOString(),
+    };
+    if (input.local) {
+      this.commit((d) => {
+        d.activities = [row, ...d.activities];
+      });
+    }
+    if (DEMO) return;
+    this.run(
+      supabase().from("activities").insert({
+        id: row.id,
+        type: row.type,
+        title: row.title,
+        description: row.description ?? null,
+        student_id: input.studentId,
+        cohort_id: row.cohortId,
+        class_id: row.classId,
+        subject_id: row.subjectId,
+        link: row.link,
+        audience: "admin",
+      }),
+      "noteStarted",
+    );
+  }
   setStudentSubjects(studentId: string, subjectIds: string[]) {
     const before = this.state.students.find((x) => x.id === studentId)?.subjectIds ?? [];
+    // A subject added to a student already in the portal: their work in it starts now.
+    // (A new student's first subjects are covered by the day their account was made.)
+    if (before.length) {
+      const st = this.state.students.find((x) => x.id === studentId);
+      for (const id of subjectIds.filter((x) => !before.includes(x))) {
+        this.noteStarted({
+          type: "student_subject_joined",
+          title: `${st?.username ?? "A student"} started ${this.state.subjects.find((x) => x.id === id)?.name ?? "a subject"}`,
+          description: this.cohortName(st?.cohortId),
+          studentId,
+          subjectId: id,
+          local: true,
+        });
+      }
+    }
     this.commit((d) => {
       const s = d.students.find((x) => x.id === studentId);
       if (s) s.subjectIds = subjectIds;
@@ -1265,6 +1334,16 @@ class Store {
           cohortId: patch.cohortId ?? s?.cohortId,
           password: patch.tempPassword || undefined,
         });
+    // Moved into another cohort: that cohort's earlier tests and homework are not theirs.
+    if (s && patch.cohortId && patch.cohortId !== s.cohortId) {
+      this.noteStarted({
+        type: "student_subject_joined",
+        title: `${s.username} moved to ${this.cohortName(patch.cohortId) ?? "another cohort"}`,
+        studentId: id,
+        cohortId: patch.cohortId,
+        local: true,
+      });
+    }
     this.commit((d) => {
       const st = d.students.find((x) => x.id === id);
       // Only the fields passed in change (a password reset must not blank the numbers).

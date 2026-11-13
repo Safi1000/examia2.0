@@ -272,15 +272,18 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
         </ul>
       ) : !rows ? (
         <div className="space-y-4">
-          <div>
-            <Label>Cohort they join</Label>
-            <Select value={cohortId} onChange={(e) => setCohortId(e.target.value)}>
-              <option value="">Choose…</option>
-              {db.cohorts.filter((c) => c.active).map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </Select>
-          </div>
+          {/* One cohort switched on, and already chosen: nothing to choose. */}
+          {!(db.cohorts.filter((c) => c.active).length === 1 && db.cohorts.find((c) => c.active)?.id === cohortId) && (
+            <div>
+              <Label>Cohort they join</Label>
+              <Select value={cohortId} onChange={(e) => setCohortId(e.target.value)}>
+                <option value="">Choose…</option>
+                {db.cohorts.filter((c) => c.active).map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </Select>
+            </div>
+          )}
           <button
             type="button"
             onClick={() => fileRef.current?.click()}

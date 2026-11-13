@@ -11,6 +11,7 @@ import { cn } from "@/lib/cn";
 import { levelOfName, subjectOfName } from "@/lib/notes-library";
 import { syllabusProgress } from "@/lib/syllabus-progress";
 import { fromLocalInput, toLocalInput } from "@/lib/time";
+import { nextClassStart } from "@/lib/timetable";
 import {
   covers,
   defaultMix,
@@ -68,15 +69,20 @@ export function PastPaperSheet({
   mode,
   defaultCohortId,
   onBuilt,
+  defaultClassId,
+  defaultSubjectId,
 }: {
   open: boolean;
   onClose: () => void;
   mode: "test" | "homework";
   defaultCohortId: string | null;
   onBuilt: (build: PastPaperBuild) => void;
+  /** Opened from a class: its level and subject are already chosen. */
+  defaultClassId?: string;
+  defaultSubjectId?: string;
 }) {
   if (!open) return null;
-  return <Sheet onClose={onClose} mode={mode} defaultCohortId={defaultCohortId} onBuilt={onBuilt} />;
+  return <Sheet onClose={onClose} mode={mode} defaultCohortId={defaultCohortId} onBuilt={onBuilt} defaultClassId={defaultClassId} defaultSubjectId={defaultSubjectId} />;
 }
 
 function Sheet({
@@ -84,11 +90,15 @@ function Sheet({
   mode,
   defaultCohortId,
   onBuilt,
+  defaultClassId,
+  defaultSubjectId,
 }: {
   onClose: () => void;
   mode: "test" | "homework";
   defaultCohortId: string | null;
   onBuilt: (build: PastPaperBuild) => void;
+  defaultClassId?: string;
+  defaultSubjectId?: string;
 }) {
   const db = useDatabase();
   const cohorts = db.cohorts.filter((c) => c.active);
@@ -105,8 +115,8 @@ function Sheet({
     return list.filter((s) => subjectOfName(s.name));
   }, [db.subjects, cohort]);
 
-  const [classId, setClassId] = useState("");
-  const [subjectId, setSubjectId] = useState("");
+  const [classId, setClassId] = useState(defaultClassId ?? "");
+  const [subjectId, setSubjectId] = useState(defaultSubjectId ?? "");
   const cls = classes.find((c) => c.id === classId) ?? (classes.length === 1 ? classes[0] : undefined);
   const subj = subjects.find((s) => s.id === subjectId) ?? (subjects.length === 1 ? subjects[0] : undefined);
   const level = levelOfName(cls?.name);
@@ -164,9 +174,16 @@ function Sheet({
   const [opens, setOpens] = useState(() => toLocalInput(new Date().toISOString()));
   // Due at the end of a day (11:59 pm Pakistan time, whatever the device's own
   // zone), not at whatever minute the sheet was opened.
-  const [closes, setCloses] = useState(
-    () => `${toLocalInput(new Date(Date.now() + (mode === "test" ? 2 : 3) * DAY).toISOString()).slice(0, 10)}T23:59`,
-  );
+  const [closesTyped, setCloses] = useState("");
+  const [openedAt] = useState(() => Date.now());
+  // Homework is due when that class next meets (three days out when the timetable has no next one);
+  // a test closes in two days. A date Hamza picks himself always wins.
+  const closes = useMemo(() => {
+    if (closesTyped) return closesTyped;
+    const next = mode === "homework" && cls && subj ? nextClassStart(db, cls.id, subj.id, openedAt + DAY / 2) : null;
+    if (next) return toLocalInput(new Date(next).toISOString());
+    return `${toLocalInput(new Date(openedAt + (mode === "test" ? 2 : 3) * DAY).toISOString()).slice(0, 10)}T23:59`;
+  }, [closesTyped, mode, cls, subj, db, openedAt]);
 
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState("");

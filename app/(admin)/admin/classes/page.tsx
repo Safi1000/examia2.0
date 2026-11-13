@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import type { Student } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useNow } from "@/hooks/useNow";
@@ -347,6 +348,14 @@ export default function ClassesPage() {
                                   </Button>
                                 </div>
                               )}
+                              <div>
+                                <Link
+                                  href={`/admin/assignments?set=papers&class=${s.classId}&subject=${s.subjectId}`}
+                                  className="inline-flex h-10 items-center gap-1.5 text-sm font-semibold text-brand hover:underline max-md:h-11"
+                                >
+                                  <Icon.Plus className="h-4 w-4" /> Set homework for this class
+                                </Link>
+                              </div>
                               <LinkField
                                 key={`m-${key}-${link?.meetUrl ?? ""}`}
                                 label="Meet link"
