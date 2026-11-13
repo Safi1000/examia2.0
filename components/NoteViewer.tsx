@@ -11,14 +11,18 @@ import { savePosition } from "@/lib/notes-library";
 import { setActivityNote, setActivityNotePage } from "@/lib/activity-tracker";
 
 /** Word, PowerPoint and Excel: phones can't show these, so Microsoft's free online viewer does. */
+/** A PDF, by its type or its name. */
+const isPdfFile = (f: { fileType: string }, title: string) => f.fileType?.includes("pdf") || /\.pdf($|\?)/i.test(title);
+
 const OFFICE = /\.(pptx?|docx?|xlsx?)$|officedocument|msword|ms-powerpoint|ms-excel/i;
 
 /**
  * Reads a note inside the portal.
  *
  * The file is streamed through a link that is signed server-side and expires in
- * minutes, so there is nothing on the page worth copying and passing around,
- * and no download button anywhere.
+ * minutes, so there is nothing on the page worth copying and passing around.
+ * Saving a copy and printing are there for the students who need them, but
+ * kept quiet: a small three-dot button beside Close, never a headline action.
  */
 export function NoteViewer({
   noteId,
@@ -56,6 +60,55 @@ export function NoteViewer({
     setActivityNote(noteId);
     return () => setActivityNote(null);
   }, [noteId]);
+
+  // The quiet menu (three dots): save a copy, or print. `busy` names the one in progress.
+  const [menu, setMenu] = useState(false);
+  const [busy, setBusy] = useState<"save" | "print" | null>(null);
+  const [menuError, setMenuError] = useState("");
+  async function fetchCopy(): Promise<Blob> {
+    if (!state) throw new Error("not ready");
+    const res = await fetch(state.url, state.token ? { headers: { Authorization: `Bearer ${state.token}` } } : undefined);
+    if (!res.ok) throw new Error("expired");
+    return res.blob();
+  }
+  async function takeCopy(kind: "save" | "print") {
+    if (busy) return;
+    setBusy(kind);
+    setMenuError("");
+    try {
+      const blob = await fetchCopy();
+      const href = URL.createObjectURL(blob);
+      if (kind === "save") {
+        const a = document.createElement("a");
+        a.href = href;
+        a.download = state?.fileName || title;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } else {
+        // Printed from a hidden frame; where a browser can't (most phones), the file opens in a tab to print from there.
+        const frame = document.createElement("iframe");
+        frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+        frame.src = href;
+        frame.onload = () => {
+          try {
+            frame.contentWindow?.focus();
+            frame.contentWindow?.print();
+          } catch {
+            window.open(href, "_blank", "noopener");
+          }
+        };
+        document.body.appendChild(frame);
+        setTimeout(() => frame.remove(), 120_000);
+      }
+      setTimeout(() => URL.revokeObjectURL(href), 120_000);
+      setMenu(false);
+    } catch {
+      setMenuError("That didn't work. Close this note, open it again, and try once more.");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   const onCloseRef = useRef(onClose);
   useEffect(() => {
@@ -164,7 +217,7 @@ export function NoteViewer({
       aria-label={title}
     >
       <div className="flex shrink-0 items-center gap-3 border-b border-border bg-surface pb-1.5 pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.375rem,env(safe-area-inset-top))]">
-        <span className="min-w-0">
+        <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-ink">{title}</span>
           {highlight?.length ? (
             <span className="block truncate text-xs text-ink-3">
@@ -172,10 +225,45 @@ export function NoteViewer({
             </span>
           ) : null}
         </span>
+        {state && (isPdfFile(state, title) || state.fileType?.startsWith("image/")) && (
+          <div className="relative ml-auto shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setMenuError("");
+                setMenu((m) => !m);
+              }}
+              aria-label="More"
+              aria-haspopup="menu"
+              aria-expanded={menu}
+              className="flex h-11 w-11 items-center justify-center rounded-full text-ink-3/70 transition-colors hover:bg-surface-2 hover:text-ink active:bg-surface-2"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+                <circle cx="5" cy="12" r="1.6" />
+                <circle cx="12" cy="12" r="1.6" />
+                <circle cx="19" cy="12" r="1.6" />
+              </svg>
+            </button>
+            {menu && (
+              <>
+                <button type="button" aria-hidden tabIndex={-1} className="fixed inset-0 z-10 cursor-default" onClick={() => setMenu(false)} />
+                <div role="menu" className="absolute right-0 top-12 z-20 w-56 animate-fade-up rounded-xl border border-border bg-surface p-1.5 shadow-[var(--shadow-lg)]">
+                  <button type="button" role="menuitem" disabled={!!busy} onClick={() => void takeCopy("save")} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-60">
+                    {busy === "save" ? "Saving…" : "Save a copy"}
+                  </button>
+                  <button type="button" role="menuitem" disabled={!!busy} onClick={() => void takeCopy("print")} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-60">
+                    {busy === "print" ? "Getting it ready…" : "Print"}
+                  </button>
+                  {menuError && <p role="alert" className="px-3 pb-2 pt-1 text-xs text-error">{menuError}</p>}
+                </div>
+              </>
+            )}
+          </div>
+        )}
         <button
           onClick={onClose}
           aria-label="Close"
-          className="ml-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink active:bg-surface-2"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink active:bg-surface-2"
         >
           <Icon.Close className="h-5 w-5" />
         </button>
