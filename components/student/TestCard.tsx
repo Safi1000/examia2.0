@@ -46,7 +46,7 @@ export function TestCard({
             <Badge tone="neutral"><Icon.Lock className="h-3 w-3" /> Locked</Badge>
             <span className="text-xs text-ink-3">Opens {formatWhen(test.opensAt)}</span>
             {/* Prepare for it in Groundwork before it opens. */}
-            <FocusOnThis kind="test" title={test.title} subject={test.subject} />
+            <FocusOnThis kind="test" title={test.title} subject={test.subject} variant="icon" />
           </>
         )}
 
@@ -58,7 +58,8 @@ export function TestCard({
 
         {window === "open" && !submission && (
           <div className="flex w-full items-center gap-2 sm:w-auto">
-            <FocusOnThis kind="test" title={test.title} subject={test.subject} />
+            {/* Start test is the one action here; Focus stays as a quiet round icon beside it. */}
+            <FocusOnThis kind="test" title={test.title} subject={test.subject} variant="icon" />
             <Link href={`/test/${test.id}`} className={buttonClasses({ variant: lead ? "primary" : "secondary", className: "flex-1 sm:flex-none" })}>
               Start test
             </Link>

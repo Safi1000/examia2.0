@@ -131,11 +131,12 @@ export function DailyFive({ books }: { books: BookProgress[] }) {
   const score = questions.reduce((n, q, i) => n + (picks[i] === q.a ? 1 : 0), 0);
 
   return (
-    <>
+    // A plain row: Home's study card draws the surface and the lines between rows.
+    <li>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="surface surface-link group flex w-full items-center gap-4 rounded-xl px-5 py-4 text-left sm:px-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        className="row-link group flex w-full items-center gap-4 px-5 py-3.5 text-left sm:px-6 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand"
       >
         <Dots total={total} picks={picks} questions={questions} />
         <span className="min-w-0 flex-1">
@@ -158,7 +159,7 @@ export function DailyFive({ books }: { books: BookProgress[] }) {
           <Sheet questions={questions} picks={picks} onAnswer={answer} onClose={() => setOpen(false)} />,
           document.body,
         )}
-    </>
+    </li>
   );
 }
 

@@ -268,20 +268,22 @@ export default function ClassesPage() {
 }
 
 type PastItem = RecordingRow & { closesAt: number; subject: string; level: string };
-const PAGE = 12;
+/** Past classes shown before "Show all": enough to catch up on the latest week, short enough for a phone. */
+const FIRST = 6;
 const monthName = (ymd: string) => new Date(`${ymd}T12:00:00+05:00`).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
 
 /**
  * Older recordings while Hamza has them open: a subject filter, months as
- * headings, newest first, a dozen at a time so a long list stays easy on a phone.
+ * headings, newest first. Only the latest few show until the student asks for
+ * the rest, so a catch-up window of 90 classes doesn't bury the page.
  */
 function PastRecordings({ items, twoLevels, watched, onWatch }: { items: PastItem[]; twoLevels: boolean; watched: Set<string>; onWatch: (key: string) => void }) {
   const [subject, setSubject] = useState<string | null>(null);
-  const [shown, setShown] = useState(PAGE);
+  const [all, setAll] = useState(false);
   const subjects = [...new Set(items.map((i) => i.subject))].sort();
   const list = items.filter((i) => !subject || i.subject === subject).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.subject.localeCompare(b.subject)));
   const latest = Math.max(...items.map((i) => i.closesAt));
-  const visible = list.slice(0, shown);
+  const visible = all ? list : list.slice(0, FIRST);
   const months: Array<{ name: string; rows: PastItem[] }> = [];
   for (const r of visible) {
     const name = monthName(r.date);
@@ -300,11 +302,11 @@ function PastRecordings({ items, twoLevels, watched, onWatch }: { items: PastIte
       </SectionTitle>
       {subjects.length > 1 && (
         <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Subject">
-          <button type="button" className={chip(!subject)} aria-pressed={!subject} onClick={() => { setSubject(null); setShown(PAGE); }}>
+          <button type="button" className={chip(!subject)} aria-pressed={!subject} onClick={() => { setSubject(null); setAll(false); }}>
             All
           </button>
           {subjects.map((s) => (
-            <button key={s} type="button" className={chip(subject === s)} aria-pressed={subject === s} onClick={() => { setSubject(s); setShown(PAGE); }}>
+            <button key={s} type="button" className={chip(subject === s)} aria-pressed={subject === s} onClick={() => { setSubject(s); setAll(false); }}>
               {s}
             </button>
           ))}
@@ -348,13 +350,13 @@ function PastRecordings({ items, twoLevels, watched, onWatch }: { items: PastIte
           </div>
         ))}
       </div>
-      {list.length > shown && (
+      {!all && list.length > FIRST && (
         <button
           type="button"
-          onClick={() => setShown((n) => n + PAGE)}
+          onClick={() => setAll(true)}
           className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-full border border-hairline text-sm font-semibold text-ink-2 hover:text-ink"
         >
-          Show {Math.min(PAGE, list.length - shown)} more ({list.length - shown} left)
+          Show all {list.length}
         </button>
       )}
     </section>

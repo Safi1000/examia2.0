@@ -15,13 +15,11 @@ import { TopicChip } from "@/components/student/TopicChip";
 import { Icon } from "@/components/ui";
 import { formatRelative, formatWhen } from "@/lib/time";
 import { buildStudyPlan, type PlanWeek } from "@/lib/study-plan";
-import { GRADE_FLOOR, performanceSnapshot, sameSubject, shownPercent, type Snapshot } from "@/lib/performance";
+import { performanceSnapshot, shownPercent, type Snapshot } from "@/lib/performance";
 import { StudyBuddy, todaysMission } from "@/components/student/StudyBuddy";
 import { DailyFive } from "@/components/student/DailyFive";
 import { syllabusProgress } from "@/lib/syllabus-progress";
-import type { Profile } from "@/lib/profile";
 import { displayName } from "@/lib/display-name";
-import { isAsStudent } from "@/lib/grading";
 import { cn } from "@/lib/cn";
 import { DEMO } from "@/lib/demo";
 import { FocusOnThis } from "@/components/student/FocusOnThis";
@@ -185,15 +183,19 @@ export default function DashboardPage() {
       </div>
 
       <div className="rise space-y-10">
-        {/* Five quick past paper questions from covered chapters, once a day. */}
-        <DailyFive books={books} />
-
-        {/* Its Start button stays quiet while something above has the gold one. */}
-        <StudyBuddy db={db} student={student} nowMs={nowMs} mission={mission} quiet={toDoCount > 0 || classOn} />
+        {/* One study card, a row each: Daily 5 (five quick past paper questions
+            from covered chapters), today's mission, and Groundwork with its
+            focus block Start. That Start stays quiet while something above has the gold one. */}
+        <section aria-label="Study">
+          <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
+            <DailyFive books={books} />
+            <StudyBuddy db={db} student={student} nowMs={nowMs} mission={mission} quiet={toDoCount > 0 || classOn} />
+          </ul>
+        </section>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-          <PerformanceCard perf={perf} targets={profile.targets} asOnly={isAsStudent(student?.id)} attendance={attendance} syllabus={syllabus} />
-          <PlanCard week={week} daysLeft={plan.daysLeft} />
+          <PerformanceCard perf={perf} attendance={attendance} syllabus={syllabus} />
+          <PlanCard week={week} daysLeft={plan.daysLeft} workOn={perf && perf.marked >= 3 ? perf.weakest : []} />
         </div>
       </div>
       </div>
@@ -233,81 +235,44 @@ function HomeHero({ name, status, studentId, totalMinutes }: { name: string; sta
   );
 }
 
-function PerformanceCard({
-  perf,
-  targets,
-  asOnly,
-  attendance,
-  syllabus,
-}: {
-  perf: Snapshot | null;
-  targets?: Profile["targets"];
-  asOnly?: boolean;
-  attendance: number | null;
-  syllabus: number | null;
-}) {
-  // Each subject against the student's own target, when they set one.
-  const vsTarget = (perf?.bySubject ?? []).flatMap((s) => {
-    const key = Object.keys(targets ?? {}).find((k) => sameSubject(k, s.subject));
-    const raw = key && typeof targets![key] === "string" && targets![key] in GRADE_FLOOR ? targets![key] : undefined;
-    // AS Level has no A*: an old A* target counts as A.
-    const target = raw === "A*" && asOnly ? "A" : raw;
-    return target ? [{ ...s, target, gap: Math.max(0, Math.ceil(GRADE_FLOOR[target] - s.recent)) }] : [];
-  });
+/** A card's title with its "see more" link on the same line, to keep the card short. */
+function CardHead({ title, more }: { title: string; more: string }) {
   return (
-    <Link href="/progress" className="surface surface-link flex flex-col rounded-xl p-5 sm:p-6">
-      <p className="text-lg font-bold tracking-[-0.01em] text-ink">How you&apos;re doing</p>
-      {!perf || perf.marked < 3 ? (
-        <p className="mt-3 flex-1 text-base text-ink-2">
+    <div className="flex items-baseline justify-between gap-3">
+      <p className="text-lg font-bold tracking-[-0.01em] text-ink">{title}</p>
+      <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-ink-2">
+        {more} <Icon.ChevronRight className="h-4 w-4" />
+      </span>
+    </div>
+  );
+}
+
+/**
+ * One strip: grade, attendance and syllabus covered, plus the topics to work
+ * on. The trend, the line chart and each subject against its target live on
+ * Progress, one tap away.
+ */
+function PerformanceCard({ perf, attendance, syllabus }: { perf: Snapshot | null; attendance: number | null; syllabus: number | null }) {
+  const graded = !!perf && perf.marked >= 3;
+  return (
+    <Link href="/progress" className="surface surface-link block rounded-xl px-5 py-4 sm:px-6 sm:py-5">
+      <CardHead title="How you're doing" more="Full progress" />
+      {!graded && (
+        <p className="mt-2 text-sm text-ink-2">
           {perf ? `${perf.marked} of 3 tests marked. ` : ""}Your grade shows here after three marked tests.
         </p>
-      ) : (
-        <div className="mt-3 flex-1">
-          <div className="flex items-end justify-between gap-3">
-            <div className="flex items-end gap-3">
-              <span className="text-5xl font-extrabold leading-none tracking-[-0.03em] text-brand tabular-nums">{perf.grade}</span>
-              <span className="pb-1 text-sm text-ink-2">
-                <span className="font-semibold tabular-nums text-ink">{shownPercent(perf.recent)}%</span> avg
-                <br />
-                <span className="text-xs text-ink-3 tabular-nums">last {Math.min(5, perf.marked)} tests</span>
-              </span>
-            </div>
-            <Sparkline points={perf.points} />
-          </div>
-          {perf.delta != null && Math.abs(perf.delta) >= 1 && (
-            <p className={cn("mt-3 text-sm font-semibold tabular-nums", perf.delta > 0 ? "text-success" : "text-warning")}>
-              {perf.delta > 0 ? "▲" : "▼"} {Math.abs(Math.round(perf.delta))}% vs the tests before
-            </p>
-          )}
-          {vsTarget.length > 0 && (
-            <ul className="mt-3 space-y-1.5">
-              {vsTarget.map((s) => (
-                <li key={s.subject} className="flex items-center justify-between gap-2 text-sm">
-                  <span className="truncate text-ink-2">{s.subject}</span>
-                  <span className="shrink-0 tabular-nums">
-                    <span className="font-semibold text-ink">{s.grade}</span>
-                    <span className="text-ink-3"> → {s.target}</span>
-                    {s.gap > 0 ? <span className="text-warning"> +{s.gap}%</span> : <span className="text-success"> ✓</span>}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {perf.weakest.length > 0 && (
-            <p className="mt-3 text-sm text-ink-2">
-              Work on:{" "}
-              {perf.weakest.map((w, i) => (
-                <span key={w.name}>
-                  {i > 0 && ", "}
-                  <span className="font-semibold text-ink">{w.name}</span> <span className="text-ink-3">{w.percent}%</span>
-                </span>
-              ))}
-            </p>
-          )}
-        </div>
       )}
-      {(attendance != null || syllabus != null) && (
-        <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-hairline pt-4">
+      {(graded || attendance != null || syllabus != null) && (
+        <dl className="mt-3 grid grid-cols-3 gap-3">
+          {graded && (
+            <div>
+              <dt className="text-xs text-ink-3">Grade</dt>
+              <dd className="mt-0.5 flex items-baseline gap-1.5 tabular-nums">
+                <span className="text-lg font-bold text-ink">{perf.grade}</span>
+                <span className="text-xs text-ink-2">{shownPercent(perf.recent)}% avg</span>
+              </dd>
+            </div>
+          )}
           {attendance != null && (
             <div>
               <dt className="text-xs text-ink-3">Attendance</dt>
@@ -322,58 +287,49 @@ function PerformanceCard({
           )}
         </dl>
       )}
-      <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-ink-2">
-        Full progress <Icon.ChevronRight className="h-4 w-4" />
-      </span>
+      {graded && perf.weakest.length > 0 && (
+        <p className="mt-3 line-clamp-2 text-sm text-ink-2">
+          Work on:{" "}
+          {perf.weakest.map((w, i) => (
+            <span key={`${w.subject}|${w.name}`}>
+              {i > 0 && ", "}
+              <span className="font-semibold text-ink">{w.name}</span> <span className="text-ink-3">{w.percent}%</span>
+            </span>
+          ))}
+        </p>
+      )}
     </Link>
   );
 }
 
-function PlanCard({ week, daysLeft }: { week: PlanWeek | null; daysLeft: number }) {
+const topicKey = (t: { subject: string; name: string }) => `${t.subject.trim().toLowerCase()}|${t.name.trim().toLowerCase()}`;
+
+function PlanCard({ week, daysLeft, workOn }: { week: PlanWeek | null; daysLeft: number; workOn: Array<{ subject: string; name: string }> }) {
+  // This week's topics are often the same as "Work on" just above (both start
+  // from the weakest topics): then the chips would only repeat it, so they show
+  // only when the week brings a topic that line does not already name.
+  const shown = new Set(workOn.map(topicKey));
+  const topics = week?.topics ?? [];
+  const newTopics = topics.some((t) => !shown.has(topicKey(t)));
   return (
-    <Link href="/plan" className="surface surface-link flex flex-col rounded-xl p-5 sm:p-6">
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="text-lg font-bold tracking-[-0.01em] text-ink">This week</p>
-        <span className="text-sm tabular-nums text-ink-2">
-          <span className="font-bold text-ink">{daysLeft}</span> days to exams
-        </span>
-      </div>
-      <div className="mt-3 flex-1">
-        <p className="text-base text-ink-2">{week ? PHASE_LABEL[week.phase] : "Your plan"}</p>
-        {week && week.topics.length > 0 ? (
-          <div className="mt-2.5 flex flex-wrap gap-2">
-            {week.topics.map((t) => (
-              <TopicChip key={`${t.subject}|${t.name}`} t={t} />
+    <Link href="/plan" className="surface surface-link block rounded-xl px-5 py-4 sm:px-6 sm:py-5">
+      <CardHead title="This week" more="See your full plan" />
+      <p className="mt-2 text-sm text-ink-2 tabular-nums">
+        <span className="font-bold text-ink">{daysLeft}</span> days to exams
+        {week && <> · {PHASE_LABEL[week.phase]}</>}
+        {week && week.tests.length > 0 && <> · {week.tests.length === 1 ? "1 test" : `${week.tests.length} tests`} this week</>}
+      </p>
+      {topics.length === 0 ? (
+        <p className="mt-1.5 text-sm text-ink-2">Revise this week&apos;s class topics from your notes.</p>
+      ) : (
+        newTopics && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {topics.map((t) => (
+              <TopicChip key={topicKey(t)} t={t} />
             ))}
           </div>
-        ) : (
-          <p className="mt-1.5 text-base text-ink-2">Revise this week&apos;s class topics from your notes.</p>
-        )}
-        {week && week.tests.length > 0 && (
-          <p className="mt-2.5 text-sm text-ink-3">
-            {week.tests.length === 1 ? "1 test" : `${week.tests.length} tests`} this week
-          </p>
-        )}
-      </div>
-      <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-ink-2">
-        See your full plan <Icon.ChevronRight className="h-4 w-4" />
-      </span>
+        )
+      )}
     </Link>
-  );
-}
-
-/** Last few results as a tiny line (no axes: the shape is the point). */
-function Sparkline({ points }: { points: number[] }) {
-  if (points.length < 2) return null;
-  const w = 96;
-  const h = 36;
-  const xy = points.map((p, i) => [(i / (points.length - 1)) * w, h - 3 - (Math.max(0, Math.min(100, p)) / 100) * (h - 6)]);
-  const d = xy.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
-  const [lx, ly] = xy[xy.length - 1];
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden className="shrink-0 overflow-visible">
-      <path d={d} fill="none" stroke="var(--color-brand)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
-      <circle cx={lx} cy={ly} r="3" fill="var(--color-brand)" />
-    </svg>
   );
 }

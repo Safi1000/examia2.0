@@ -11,7 +11,6 @@ import { STUDY_NAME, currentStats, levelFor } from "@/lib/focus";
 import { performanceSnapshot } from "@/lib/performance";
 import { buildStudyPlan } from "@/lib/study-plan";
 import { studentSubjects } from "@/components/student/Welcome";
-import { Avatar } from "@/components/student/Avatar";
 import { Icon } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 import { DEMO } from "@/lib/demo";
@@ -75,8 +74,10 @@ export function todaysMission(db: Database, student: Student, nowMs: number): Mi
 const fmt = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`);
 
 /**
- * Home card for the study space: today's mission, this week's time against the
- * student's goal, their level and streak, and the cohort's top 3 this week.
+ * Two rows for Home's study card: today's mission, then the study space with
+ * this week's time against the student's goal, their level and streak, and a
+ * Start for a free focus block. Home wraps them (with the Daily 5 row) in one
+ * card; the cohort's top 3 lives on the Groundwork page.
  */
 export function StudyBuddy({
   db,
@@ -100,70 +101,66 @@ export function StudyBuddy({
   const pct = Math.min(1, stats.weekMinutes / goalMin);
   // Home passes the mission it already worked out; elsewhere it's computed here.
   const mission = given !== undefined ? given : todaysMission(db, student, nowMs);
-  const top = useTopThree();
-  const r = 22;
+  const r = 16;
   const c = 2 * Math.PI * r;
 
+  // Plain rows (no card of their own): Home's study card draws the surface and the lines between them.
   return (
     <>
-      <section className="surface overflow-hidden rounded-xl">
-        {mission && (
+      {mission && (
+        <li>
           <button
             type="button"
             onClick={() => setOpen("mission")}
-            className="flex w-full items-center justify-between gap-3 border-b border-hairline bg-brand/[0.05] px-5 py-4 text-left transition-colors hover:bg-brand/[0.09] sm:px-6"
+            className="row-link flex w-full items-center gap-4 px-5 py-3.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand sm:px-6"
           >
-            <span className="min-w-0">
-              <span className="block text-xs font-semibold text-brand">Today&apos;s mission</span>
-              <span className="mt-0.5 block truncate text-base text-ink">
-                <span className="font-semibold">{mission.topic}</span> <span className="text-ink-3">· {mission.subject} · 25 min</span>
+            <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.05] text-ink-2">
+              <Icon.Flag className="h-4 w-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold text-ink">Today&apos;s mission</span>
+              <span className="block truncate text-sm text-ink-2">
+                {mission.topic} <span className="text-ink-3">· {mission.subject} · 25 min</span>
               </span>
             </span>
-            <Icon.ChevronRight className="h-4 w-4 shrink-0 text-brand" />
+            <Icon.ChevronRight className="h-4 w-4 shrink-0 text-ink-3" />
           </button>
-        )}
-        <div className="flex items-center gap-4 p-5 sm:px-6">
-          <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden className="shrink-0 -rotate-90">
-            <circle cx="28" cy="28" r={r} fill="none" stroke="var(--color-surface-2)" strokeWidth="6" />
-            {pct > 0 && <circle cx="28" cy="28" r={r} fill="none" stroke="var(--color-brand)" strokeWidth="6" strokeLinecap="round" strokeDasharray={`${c * pct} ${c}`} />}
-          </svg>
-          <div className="min-w-0 flex-1">
-            <Link href="/groundwork" className="inline-flex min-h-11 items-center gap-1 whitespace-nowrap font-semibold text-ink hover:text-brand">
-              {STUDY_NAME} <Icon.ChevronRight className="h-3 w-3" />
-            </Link>
-            <p className="mt-1 text-sm text-ink-2 tabular-nums">
-              <span className="font-semibold text-ink">{fmt(stats.weekMinutes)}</span> <span className="whitespace-nowrap">of {profile.weeklyGoal ?? 5} h this week</span>
-            </p>
-            <p className="text-xs text-ink-3">
-              {level.name}
-              {stats.streak > 1 && <span className="text-brand"> · {stats.streak} day streak</span>}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setOpen("free")}
-            className={
-              quiet
-                ? "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-border-strong px-5 text-sm font-semibold text-ink transition hover:border-ink-3 hover:bg-surface-2 active:scale-[0.98]"
-                : "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-brand px-5 text-sm font-semibold text-on-brand transition hover:brightness-110 active:scale-[0.98]"
-            }
+        </li>
+      )}
+      {/* The whole row opens Groundwork (a stretched link); Start sits on top of it. */}
+      <li className="row-link relative flex items-center gap-4 px-5 py-3.5 sm:px-6">
+        <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden className="shrink-0 -rotate-90">
+          <circle cx="20" cy="20" r={r} fill="none" stroke="var(--color-surface-2)" strokeWidth="5" />
+          {pct > 0 && <circle cx="20" cy="20" r={r} fill="none" stroke="var(--color-brand)" strokeWidth="5" strokeLinecap="round" strokeDasharray={`${c * pct} ${c}`} />}
+        </svg>
+        <div className="min-w-0 flex-1">
+          <Link
+            href="/groundwork"
+            className="block font-semibold text-ink after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-brand"
           >
-            Start <Icon.ChevronRight className="h-4 w-4" />
-          </button>
+            {STUDY_NAME}
+          </Link>
+          <p className="text-sm text-ink-2 tabular-nums">
+            <span className="font-semibold text-ink">{fmt(stats.weekMinutes)}</span> <span className="whitespace-nowrap">of {profile.weeklyGoal ?? 5} h this week</span>
+          </p>
+          <p className="text-xs text-ink-3">
+            {level.name}
+            {stats.streak > 1 && ` · ${stats.streak} day streak`}
+          </p>
         </div>
-        {top && top.top.length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-hairline px-5 py-3.5 text-sm sm:px-6">
-            <span className="text-xs font-semibold text-ink-3">Top this week</span>
-            {top.top.map((t, i) => (
-              <span key={i} className="inline-flex items-center gap-1.5 text-ink-2 tabular-nums">
-                <span className="w-3 text-right text-xs font-bold text-ink-3">{i + 1}</span>
-                <Avatar id={t.avatar} initials={t.name[0]} className="h-5 w-5 text-xs" />
-                <span className="font-semibold text-ink">{t.name}</span> {fmt(t.minutes)}
-              </span>
-            ))}
-          </div>
-        )}
-      </section>
+        <button
+          type="button"
+          onClick={() => setOpen("free")}
+          aria-label={`Start a ${STUDY_NAME} focus block`}
+          className={
+            quiet
+              ? "relative inline-flex h-11 shrink-0 items-center gap-1 rounded-full border border-border-strong px-4 text-sm font-semibold text-ink transition hover:border-ink-3 hover:bg-surface-2 active:scale-[0.98]"
+              : "relative inline-flex h-11 shrink-0 items-center gap-1 rounded-full bg-brand px-4 text-sm font-semibold text-on-brand transition hover:brightness-110 active:scale-[0.98]"
+          }
+        >
+          Start <Icon.ChevronRight className="h-4 w-4" />
+        </button>
+      </li>
       {open &&
         createPortal(
           <FocusMode

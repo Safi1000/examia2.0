@@ -27,8 +27,8 @@ import { EmptyArt, GradeMedallion, PageHeader, SectionTitle } from "@/components
 const FocusMode = dynamic(() => import("@/components/student/FocusMode"), { ssr: false });
 
 /**
- * My progress, in the order a student asks: Where am I? Which subject needs
- * me? Which topics? How did each test go? Then their Groundwork study time.
+ * My progress, in the order a student asks: Where am I? How did each test go?
+ * Which subject needs me? Which topics? Then their Groundwork study time.
  */
 export default function ProgressPage() {
   const { session, profile } = useAuth();
@@ -147,7 +147,30 @@ export default function ProgressPage() {
             </div>
           </section>
 
-          {/* 2. Which subject needs me? */}
+          {/* 2. How did each test go? Students come here straight after a result, so it sits under the summary. */}
+          <section>
+            <SectionTitle count={results.length}>Results</SectionTitle>
+            <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
+              {results.map(({ test, sub, pct }) => (
+                <li key={sub.id}>
+                  <Link href={`/results/${test.id}`} className="row-link flex items-center gap-4 px-5 py-4 sm:px-6">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-hairline bg-surface-2 text-base font-extrabold tracking-[-0.02em] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">{gradeSubmission(test, sub).letter}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold text-ink">{test.title}</span>
+                      <span className="mt-0.5 block text-xs text-ink-3 tabular-nums">
+                        {test.subject}
+                        {sub.submittedAt ? ` · ${formatDate(sub.submittedAt)}` : ""}
+                      </span>
+                    </span>
+                    <span className="shrink-0 tabular-nums text-sm font-semibold text-ink">{shownPercent(pct)}%</span>
+                    <Icon.ChevronRight className="h-4 w-4 shrink-0 text-ink-3" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {/* 3. Which subject needs me? */}
           <section>
             <SectionTitle>By subject</SectionTitle>
             <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
@@ -182,7 +205,7 @@ export default function ProgressPage() {
 
           {pace}
 
-          {/* 3. Which topics? */}
+          {/* 4. Which topics? */}
           {(data.weak.length > 0 || data.strong.length > 0) && (
             <section className="grid gap-3 sm:grid-cols-2">
               <div className="surface rounded-xl p-5 sm:p-6">
@@ -235,28 +258,6 @@ export default function ProgressPage() {
             </section>
           )}
 
-          {/* 4. How did each test go? */}
-          <section>
-            <SectionTitle count={results.length}>Results</SectionTitle>
-            <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
-              {results.map(({ test, sub, pct }) => (
-                <li key={sub.id}>
-                  <Link href={`/results/${test.id}`} className="row-link flex items-center gap-4 px-5 py-4 sm:px-6">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-hairline bg-surface-2 text-base font-extrabold tracking-[-0.02em] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">{gradeSubmission(test, sub).letter}</span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold text-ink">{test.title}</span>
-                      <span className="mt-0.5 block text-xs text-ink-3 tabular-nums">
-                        {test.subject}
-                        {sub.submittedAt ? ` · ${formatDate(sub.submittedAt)}` : ""}
-                      </span>
-                    </span>
-                    <span className="shrink-0 tabular-nums text-sm font-semibold text-ink">{shownPercent(pct)}%</span>
-                    <Icon.ChevronRight className="h-4 w-4 shrink-0 text-ink-3" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
         </>
       )}
 
