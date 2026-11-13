@@ -333,6 +333,8 @@ export default function TestEditorPage() {
             <Input label="Test code" value={form.testCode} onChange={(e) => set("testCode", e.target.value)} />
             <Select
               label="Cohort"
+              // One cohort switched on: the test is for that cohort either way, so the picker is not shown.
+              wrapperClassName={db.cohorts.filter((c) => c.active).length === 1 && (!form.cohortId || db.cohorts.find((c) => c.active)?.id === form.cohortId) ? "hidden" : undefined}
               value={form.cohortId}
               onChange={(e) => {
                 set("cohortId", e.target.value);

@@ -146,10 +146,13 @@ export default function AnnouncementsPage() {
             <Textarea label="Message" value={body} maxLength={MAX} onChange={(e) => setBody(e.target.value)} placeholder="Keep it short and clear…" />
             <p className="mt-1 text-right text-xs text-ink-3 tabular">{body.length} / {MAX}</p>
           </div>
-          <Select label="Audience" value={cohortId} onChange={(e) => setCohortId(e.target.value)}>
-            <option value="">All cohorts</option>
-            {db.cohorts.filter((c) => c.active || c.id === cohortId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select>
+          {/* One cohort switched on: it goes to that cohort, and there is nothing to choose. */}
+          {!(activeCohorts.length === 1 && (!cohortId || cohortId === activeCohorts[0].id)) && (
+            <Select label="Audience" value={cohortId} onChange={(e) => setCohortId(e.target.value)}>
+              <option value="">All cohorts</option>
+              {db.cohorts.filter((c) => c.active || c.id === cohortId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          )}
           <p className={nobody ? "-mt-2 text-sm text-error" : "-mt-2 text-sm text-ink-2"} role="status">
             {audience.length === 0
               ? `Nobody to send it to: there are no students ${audienceWhere} yet${editing === "new" ? ", so Post is off" : ""}.`

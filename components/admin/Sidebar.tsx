@@ -1,12 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useDatabase } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { useAuth } from "@/lib/auth-context";
 import { LogoTight } from "@/components/Brand";
-import { CohortDot } from "@/components/ui";
+import { CohortDot, Icon } from "@/components/ui";
 import { NavIcon } from "@/components/nav/NavIcons";
 import { cn } from "@/lib/cn";
 
@@ -26,7 +27,7 @@ function RecordingsIcon({ active, className }: { active?: boolean; className?: s
 // Grouped by the job you're doing, so the list reads as a console, not a
 // pile of links. `also` lists pages reached from an item that have no item of
 // their own, so the menu still shows where you are.
-const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string; Icon: (typeof NavIcon)[keyof typeof NavIcon]; also?: string[] }> }> = [
+const GROUPS: Array<{ title: string; fold?: boolean; items: Array<{ href: string; label: string; Icon: (typeof NavIcon)[keyof typeof NavIcon]; also?: string[] }> }> = [
   {
     title: "Teach",
     items: [
@@ -34,32 +35,34 @@ const GROUPS: Array<{ title: string; items: Array<{ href: string; label: string;
       { href: "/admin/classes", label: "Classes", Icon: NavIcon.Classes },
       { href: "/admin/recordings", label: "Recordings", Icon: RecordingsIcon },
       { href: "/admin/whiteboard", label: "Whiteboard", Icon: NavIcon.Board },
-      { href: "/admin/tests", label: "Tests", Icon: NavIcon.Tests },
-      { href: "/admin/submissions", label: "Submissions", Icon: NavIcon.Inbox, also: ["/admin/grading"] },
-      { href: "/admin/assignments", label: "Homework", Icon: NavIcon.Assignments },
     ],
   },
   {
-    title: "Library",
+    title: "Work",
     items: [
-      { href: "/admin/bank", label: "Question bank", Icon: NavIcon.Bank },
+      { href: "/admin/tests", label: "Tests", Icon: NavIcon.Tests },
+      { href: "/admin/submissions", label: "Submissions", Icon: NavIcon.Inbox, also: ["/admin/grading"] },
+      { href: "/admin/assignments", label: "Homework", Icon: NavIcon.Assignments },
       { href: "/admin/notes", label: "Notes", Icon: NavIcon.Notes },
-      { href: "/admin/announcements", label: "Announcements", Icon: NavIcon.Megaphone },
     ],
   },
   {
     title: "Students",
     items: [
       { href: "/admin/roster", label: "Roster", Icon: NavIcon.Roster },
-      { href: "/admin/cohorts", label: "Cohorts", Icon: NavIcon.Cohorts },
       { href: "/admin/attendance", label: "Attendance", Icon: NavIcon.Attendance },
-      { href: "/admin/activity", label: "Activity", Icon: NavIcon.Progress },
     ],
   },
   {
-    title: "Insight",
+    // The pages opened now and then: folded away so the ten used every day are all that show.
+    title: "More",
+    fold: true,
     items: [
+      { href: "/admin/announcements", label: "Announcements", Icon: NavIcon.Megaphone },
+      { href: "/admin/bank", label: "Question bank", Icon: NavIcon.Bank },
+      { href: "/admin/activity", label: "Activity", Icon: NavIcon.Progress },
       { href: "/admin/analytics", label: "Analytics", Icon: NavIcon.Analytics },
+      { href: "/admin/cohorts", label: "Cohorts", Icon: NavIcon.Cohorts },
       { href: "/admin/export", label: "Export", Icon: NavIcon.Export },
       { href: "/admin/settings", label: "Settings", Icon: NavIcon.Settings, also: ["/admin/leads"] },
     ],
@@ -73,6 +76,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { logout } = useAuth();
   const { cohortId, setCohortId } = useAdminFilter();
   const cohorts = db.cohorts.filter((c) => c.active);
+  const isActive = (item: { href: string; also?: string[] }) => [item.href, ...(item.also ?? [])].some((h) => pathname === h || pathname.startsWith(`${h}/`));
+  // "More" opens by a tap, and stays open while one of its pages is the one on screen.
+  const [moreOpen, setMoreOpen] = useState(false);
 
   return (
     <div className="flex h-full flex-col bg-paper bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0)_30%)] pb-[env(safe-area-inset-bottom)]">
@@ -84,12 +90,26 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4" aria-label="Admin">
-        {GROUPS.map((g) => (
+        {GROUPS.map((g) => {
+          const open = !g.fold || moreOpen || g.items.some(isActive);
+          return (
           <div key={g.title}>
-            <p className="px-3 pb-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-3">{g.title}</p>
-            <ul className="space-y-0.5">
+            {g.fold ? (
+              <button
+                type="button"
+                aria-expanded={open}
+                onClick={() => setMoreOpen(!open)}
+                className="flex min-h-10 w-full items-center justify-between rounded-[10px] px-3 text-xs font-semibold uppercase tracking-[0.16em] text-ink-3 transition-colors hover:text-ink-2 max-md:min-h-11"
+              >
+                {g.title}
+                <Icon.ChevronRight className={cn("h-4 w-4 transition-transform", open && "rotate-90")} />
+              </button>
+            ) : (
+              <p className="px-3 pb-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-3">{g.title}</p>
+            )}
+            <ul className={cn("space-y-0.5", !open && "hidden")}>
               {g.items.map((item) => {
-                const active = [item.href, ...(item.also ?? [])].some((h) => pathname === h || pathname.startsWith(`${h}/`));
+                const active = isActive(item);
                 return (
                   <li key={item.href}>
                     <Link
@@ -111,9 +131,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               })}
             </ul>
           </div>
-        ))}
+          );
+        })}
 
-        <div>
+        {/* One cohort switched on: there is nothing to choose between, so the filter is not shown. */}
+        <div className={cohorts.length > 1 ? undefined : "hidden"}>
           <p className="px-3 pb-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-3">Viewing</p>
           {/* Switched-off cohorts drop out of the filter, but stay on the
               Cohorts page where they can be switched back on. */}
