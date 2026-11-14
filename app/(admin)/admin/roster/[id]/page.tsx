@@ -280,6 +280,9 @@ function StudentDetail() {
                 <Icon.Users className="h-4 w-4" /> Parent
               </a>
             )}
+            <Link href={`/admin/roster?edit=${student.id}`} className={buttonClasses({ variant: "secondary", size: "sm" })}>
+              <Icon.Edit className="h-4 w-4" /> Edit details
+            </Link>
             <ResetPassword studentId={student.id} username={student.username} phone={student.phone} parent={student.whatsapp} />
             {/* In-person students get no monthly report. */}
             {!isInPersonStudent(db, student) && (

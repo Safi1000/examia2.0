@@ -10,7 +10,7 @@ import { useDatabase, useStore } from "@/lib/data/store";
 import { studentById, testForStudent, submissionFor, testsForStudent } from "@/lib/data/selectors";
 import { useCountdown } from "@/hooks/useCountdown";
 import { useNow } from "@/hooks/useNow";
-import { useDraftAutosave, loadDraft, clearDraft } from "@/hooks/useDraftAutosave";
+import { useDraftAutosave, loadDraft, loadServerDraft, clearDraft } from "@/hooks/useDraftAutosave";
 import { useToast } from "@/components/toast";
 import { CountdownTimer } from "@/components/student/CountdownTimer";
 import { QuestionView, type AnswerChange } from "@/components/student/QuestionView";
@@ -103,13 +103,15 @@ export default function TestRunnerPage() {
       // this runs again the moment it opens. Booting now would build the
       // answer sheet from a paper that has no questions yet.
       if (fresh && Date.now() < new Date(fresh.opensAt).getTime()) return;
-      const d = studentId ? loadDraft(studentId, id) : null;
+      const local = studentId ? loadDraft(studentId, id) : null;
       const live = !!fresh && Date.now() < new Date(fresh.closesAt).getTime();
       const handedIn = !!(studentId && fresh && submissionFor(store.getSnapshot(), studentId, id));
       // The server's start time wins, so clearing the browser or switching
       // device doesn't reset the clock. Looking it up never starts one.
-      const serverStart = fresh ? await store.getTestAttempt(id) : null;
+      const [serverStart, remote] = fresh ? await Promise.all([store.getTestAttempt(id), live && !handedIn ? loadServerDraft(id) : null]) : [null, null];
       if (!active) return;
+      // Answers from this phone, or the server's copy (another device, a phone that died), whichever is newer.
+      const d = remote && (!local || +new Date(remote.savedAt) > +new Date(local.savedAt)) ? remote : local;
       if (live && !handedIn && !d && !serverStart) {
         setGate(true);
         return;
@@ -230,7 +232,7 @@ function ReadyScreen({ test, nowMs, busy, onBegin }: { test: Test; nowMs: number
         </li>
         <li className="flex gap-3">
           <Icon.Check className="mt-1 h-4 w-4 shrink-0 text-ink-3" />
-          <span>Your typed answers and choices are kept on this phone as you go, even if the internet drops.</span>
+          <span>Your typed answers and choices are saved as you go. If the internet drops or your phone switches off, open the test again and they come back.</span>
         </li>
         {test.questions.some((q) => q.type === "photo") && (
           <li className="flex gap-3">

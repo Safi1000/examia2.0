@@ -4,9 +4,9 @@ import { cohortById } from "@/lib/data/selectors";
 import { useMemo, useState } from "react";
 import type { AttendanceStatus } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
-import { useAdminFilter } from "@/lib/admin-filter";
+import { useAdminFilter, useStickyFilter } from "@/lib/admin-filter";
 import { attendancePercent, archivedCohortIds, canBeSwept, countsFor } from "@/lib/data/selectors";
-import { slotsForStudent } from "@/lib/timetable";
+import { addDays, slotsForStudent } from "@/lib/timetable";
 import { isInPersonStudent } from "@/lib/in-person";
 import { isTestAccount } from "@/lib/display-name";
 import { useToast } from "@/components/toast";
@@ -37,7 +37,10 @@ export default function AttendancePage() {
   useSchedule(); // re-render when the timetable loads: class times decide who "Mark the rest" may sweep
 
   const [mode, setMode] = useState<Mode>("daily");
-  const [classId, setClassId] = useState("");
+  // The class stays picked while Hamza moves around the console (as the other pages' filters do).
+  const [pickedClass, setPickedClass] = useStickyFilter("attendance-class");
+  const classId = pickedClass[0] ?? "";
+  const setClassId = (id: string) => setPickedClass(id ? [id] : []);
   const [date, setDate] = useState(todayISO);
   // "Mark the rest": asked first, then undoable (from the toast, or the line under the counts).
   const [sweepAsk, setSweepAsk] = useState<{ status: AttendanceStatus; ids: string[]; classId: string | null; date: string } | null>(null);
@@ -103,6 +106,11 @@ export default function AttendancePage() {
           ))}
         </Select>
 
+        {mode === "daily" && (
+          <button type="button" onClick={() => setDate(addDays(date, -1))} aria-label="Previous day" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border-strong text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11">
+            <Icon.ChevronLeft className="h-4 w-4" />
+          </button>
+        )}
         <input
           type={mode === "daily" ? "date" : "month"}
           value={mode === "daily" ? date : date.slice(0, 7)}
@@ -113,6 +121,11 @@ export default function AttendancePage() {
           className={filterField}
           aria-label={mode === "daily" ? "Date" : "Month"}
         />
+        {mode === "daily" && (
+          <button type="button" disabled={date >= todayISO()} onClick={() => setDate(addDays(date, 1))} aria-label="Next day" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border-strong text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-40 max-md:h-11 max-md:w-11">
+            <Icon.ChevronRight className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       {students.length === 0 ? (
@@ -150,8 +163,11 @@ export default function AttendancePage() {
   );
 
   function confirmSweep() {
-    if (!sweepAsk) return;
-    const { status, ids, classId: cls, date: day } = sweepAsk;
+    if (sweepAsk) doSweep(sweepAsk);
+  }
+  /** Marks everyone listed at once, with Undo straight after. */
+  function doSweep(ask: { status: AttendanceStatus; ids: string[]; classId: string | null; date: string }) {
+    const { status, ids, classId: cls, date: day } = ask;
     setSweepAsk(null);
     const undoMarks = store.markAttendanceMany(ids, cls, day, status);
     let undone = false;
@@ -198,7 +214,12 @@ export default function AttendancePage() {
     // counted as "not marked" or swept up by "Mark the rest".
     const unmarked = rows.filter((r) => !r.mark && !r.before && !isTestAccount(r.s));
     const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit", hour12: true });
-    const markRest = (status: AttendanceStatus) => setSweepAsk({ status, ids: unmarked.map((r) => r.s.id), classId, date });
+    // Present goes straight in (Undo is right there); absent is asked first.
+    const markRest = (status: AttendanceStatus) => {
+      const ask = { status, ids: unmarked.map((r) => r.s.id), classId, date };
+      if (status === "present") doSweep(ask);
+      else setSweepAsk(ask);
+    };
     const undoable = lastSweep && lastSweep.classId === classId && lastSweep.date === date ? lastSweep : null;
 
     return (

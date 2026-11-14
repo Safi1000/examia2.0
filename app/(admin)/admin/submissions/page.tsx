@@ -55,6 +55,13 @@ export default function SubmissionsPage() {
   }, [db]);
 
   // Papers still to mark: the same rule (and number) as "To mark" on Today, whatever the chips below show.
+  // The paper that has waited longest, for "Mark next".
+  const nextToMark = useMemo(() => {
+    const off = archivedCohortIds(db);
+    return db.submissions
+      .filter((s) => isAwaitingMarking(db, s, off) && (!cohortId || studentById(db, s.studentId)?.cohortId === cohortId))
+      .sort((a, b) => +new Date(a.submittedAt ?? 0) - +new Date(b.submittedAt ?? 0))[0];
+  }, [db, cohortId]);
   const toMarkCount = useMemo(() => {
     const off = archivedCohortIds(db);
     return db.submissions.filter((s) => isAwaitingMarking(db, s, off) && (!cohortId || studentById(db, s.studentId)?.cohortId === cohortId)).length;
@@ -79,7 +86,8 @@ export default function SubmissionsPage() {
       .sort(
         (a, b) =>
           (a.sub.status === "released" ? 1 : 0) - (b.sub.status === "released" ? 1 : 0) ||
-          +new Date(b.sub.submittedAt ?? 0) - +new Date(a.sub.submittedAt ?? 0),
+          // Waiting papers oldest first (the order "Next" follows inside marking); marked ones newest first.
+          (a.sub.status === "released" ? -1 : 1) * (+new Date(a.sub.submittedAt ?? 0) - +new Date(b.sub.submittedAt ?? 0)),
       );
   }, [db, cohortId, subjectFilter, classFilter, statuses, view, archived]);
 
@@ -186,7 +194,22 @@ export default function SubmissionsPage() {
       <PageHeader
         title="Submissions"
         subtitle={`${rows.length} submission${rows.length === 1 ? "" : "s"} shown · ${toMarkCount} to mark`}
-        actions={releasable.length > 0 ? <Button onClick={() => setBulkOpen(true)}><Icon.Check className="h-4 w-4" /> Release all (MCQ)</Button> : undefined}
+        actions={
+          releasable.length > 0 || nextToMark ? (
+            <>
+              {releasable.length > 0 && (
+                <Button variant={nextToMark ? "secondary" : "primary"} onClick={() => setBulkOpen(true)}>
+                  <Icon.Check className="h-4 w-4" /> Release all (MCQ)
+                </Button>
+              )}
+              {nextToMark && (
+                <Link href={`/admin/grading/${nextToMark.id}`} className={buttonClasses()}>
+                  Mark next ({toMarkCount}) <Icon.ChevronRight className="h-4 w-4" />
+                </Link>
+              )}
+            </>
+          ) : undefined
+        }
       />
 
       <ArchiveTabs

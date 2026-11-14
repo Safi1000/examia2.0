@@ -71,7 +71,20 @@ export default function RosterPage() {
   const { toast } = useToast();
   const { cohortId } = useAdminFilter();
 
-  const [search, setSearch] = useState("");
+  // The search stays while Hamza opens a student and comes back (this tab only).
+  const [search, setSearchState] = useState(() => {
+    try {
+      return typeof window === "undefined" ? "" : (sessionStorage.getItem("roster-search") ?? "");
+    } catch {
+      return "";
+    }
+  });
+  const setSearch = (v: string) => {
+    setSearchState(v);
+    try {
+      sessionStorage.setItem("roster-search", v);
+    } catch {}
+  };
   const [editing, setEditing] = useState<Student | "new" | null>(null);
   const [form, setForm] = useState({ inPerson: false, username: "", email: "", whatsapp: "", phone: "", photoUrl: "", cohortId: "", tempPassword: "", classIds: [] as string[], subjectIds: [] as string[], levelSubjects: {} as Record<string, string[]> });
   const [error, setError] = useState<string | null>(null);
@@ -341,6 +354,20 @@ export default function RosterPage() {
     setForm({ inPerson: false, username: "", email: "", whatsapp: "", phone: "", photoUrl: "", cohortId: cohortId ?? db.cohorts.find((c) => c.active)?.id ?? db.cohorts[0]?.id ?? "", tempPassword: genPassword(), classIds: [], subjectIds: [], levelSubjects: {} });
     setError(null);
   }
+  // "Edit details" on a student's own page opens their edit box here (?edit=id).
+  const editAsked = useRef(false);
+  useEffect(() => {
+    if (editAsked.current) return;
+    const id = new URLSearchParams(window.location.search).get("edit");
+    if (!id) return;
+    const s = db.students.find((x) => x.id === id);
+    if (!s) return;
+    editAsked.current = true;
+    window.history.replaceState(null, "", window.location.pathname);
+    openEdit(s);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db.students]);
+
   function openEdit(s: Student) {
     setEditing(s);
     setForm({ inPerson: inPersonIds.has(s.id), username: s.username, email: s.email ?? "", whatsapp: s.whatsapp ?? "", phone: s.phone ?? "", photoUrl: s.photoUrl ?? "", cohortId: s.cohortId, tempPassword: "", classIds: [...s.classIds], subjectIds: [...s.subjectIds], levelSubjects: Object.fromEntries(s.classIds.map((c) => [c, [...(s.levelSubjects?.[c] ?? s.subjectIds)]])) });

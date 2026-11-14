@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import type { Answer, Draft } from "@/types";
+import { supabase } from "@/lib/supabase";
+import { DEMO } from "@/lib/demo";
 
 const draftKey = (studentId: string, testId: string) => `examia.draft.${studentId}.${testId}`;
 
@@ -32,6 +34,25 @@ export function loadDraft(studentId: string, testId: string): Draft | null {
   }
 }
 
+/** The server's copy of this student's answers for a test, or null (none, offline, or the preview). */
+export async function loadServerDraft(testId: string): Promise<Draft | null> {
+  if (DEMO || typeof window === "undefined") return null;
+  try {
+    const { data } = await supabase().auth.getSession();
+    const t = data.session?.access_token;
+    if (!t) return null;
+    const ctl = new AbortController();
+    const slow = setTimeout(() => ctl.abort(), 6_000);
+    const res = await fetch(`/api/test-draft?test=${encodeURIComponent(testId)}`, { headers: { Authorization: `Bearer ${t}` }, cache: "no-store", signal: ctl.signal });
+    clearTimeout(slow);
+    if (!res.ok) return null;
+    const j = (await res.json()) as { draft: Draft | null };
+    return j.draft && Array.isArray(j.draft.answers) ? j.draft : null;
+  } catch {
+    return null;
+  }
+}
+
 export function clearDraft(studentId: string, testId: string) {
   if (typeof window === "undefined") return;
   const key = draftKey(studentId, testId);
@@ -45,7 +66,10 @@ export function clearDraft(studentId: string, testId: string) {
  *
  * The last change is never left waiting on the debounce: it is written at once
  * when the page goes away (Back, tab closed, app switched, phone locked).
- * TODO(rls): persist drafts to the backend so they survive device changes.
+ *
+ * A copy also goes to the server (every few seconds while they work, and as
+ * the page goes away), so a phone that dies or a switch of device keeps the
+ * answers too. See loadServerDraft and /api/test-draft.
  */
 export function useDraftAutosave(params: {
   studentId: string;
@@ -57,6 +81,63 @@ export function useDraftAutosave(params: {
 }) {
   const { studentId, testId, answers, currentIndex, startedAt, enabled } = params;
   const pending = useRef<Job | null>(null);
+  // The server copy: the newest draft waiting to go, the sign-in to send it with, and when it last went.
+  const toServer = useRef<Job | null>(null);
+  const token = useRef<string | null>(null);
+  const sentAt = useRef(0);
+
+  useEffect(() => {
+    if (DEMO) return;
+    let live = true;
+    const read = () =>
+      void supabase()
+        .auth.getSession()
+        .then(({ data }) => {
+          if (live) token.current = data.session?.access_token ?? null;
+        });
+    read();
+    const t = window.setInterval(read, 5 * 60_000);
+    return () => {
+      live = false;
+      window.clearInterval(t);
+    };
+  }, []);
+
+  // Every 8 seconds at most, and only when something changed. `keepalive` lets the last one finish as the page closes.
+  useEffect(() => {
+    if (DEMO) return;
+    const send = (closing = false) => {
+      const job = toServer.current;
+      if (!job || !token.current || (clearedAt.get(job.key) ?? 0) > job.queued) return;
+      if (!closing && Date.now() - sentAt.current < 8_000) return;
+      toServer.current = null;
+      sentAt.current = Date.now();
+      void fetch("/api/test-draft", {
+        method: "POST",
+        keepalive: closing,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token.current}` },
+        body: JSON.stringify(job.draft),
+      })
+        .then((r) => {
+          // Not saved: try again with the next change (or the next tick).
+          if (!r.ok && !toServer.current) toServer.current = job;
+        })
+        .catch(() => {
+          if (!toServer.current) toServer.current = job;
+        });
+    };
+    const tick = window.setInterval(() => send(), 4_000);
+    const bye = () => send(true);
+    const onHide = () => document.visibilityState === "hidden" && send(true);
+    window.addEventListener("pagehide", bye);
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      window.clearInterval(tick);
+      window.removeEventListener("pagehide", bye);
+      document.removeEventListener("visibilitychange", onHide);
+      send(true);
+    };
+  }, []);
 
   useEffect(() => {
     if (!enabled) {
@@ -72,6 +153,7 @@ export function useDraftAutosave(params: {
       draft: { testId, studentId, answers, currentIndex, startedAt },
     };
     pending.current = job;
+    toServer.current = job;
     const timer = window.setTimeout(() => {
       if (pending.current !== job) return;
       pending.current = null;

@@ -174,12 +174,16 @@ export default function AdminAssignmentsPage() {
     }
   }
 
+  // Hand-ins on a homework that have no reply from Hamza yet.
+  const owed = (id: string) => db.assignmentSubmissions.filter((s) => s.assignmentId === id && !s.feedback).length;
   const assignments = useMemo(
     () =>
       db.assignments
         .filter((a) => (cohortId ? a.cohortId === cohortId || a.cohortId === null : true))
-        .sort((a, b) => +new Date(b.dueAt) - +new Date(a.dueAt)),
-    [db.assignments, cohortId],
+        // Homework with hand-ins still waiting for a reply comes first, then by due date.
+        .sort((a, b) => Number(owed(b.id) > 0) - Number(owed(a.id) > 0) || +new Date(b.dueAt) - +new Date(a.dueAt)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [db.assignments, db.assignmentSubmissions, cohortId],
   );
 
   // Bulk work on ticked homework (only ever what the cohort filter shows).
@@ -385,6 +389,7 @@ export default function AdminAssignmentsPage() {
                       {[cohort?.name, cls?.name, subj?.name].filter(Boolean).join(" › ") || "All students"}
                       {" · "}
                       {handIns.length} handed in
+                      {handIns.some((h) => !h.feedback) && <span className="font-semibold text-brand"> · {handIns.filter((h) => !h.feedback).length} to reply</span>}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
