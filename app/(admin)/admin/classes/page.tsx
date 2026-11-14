@@ -131,6 +131,26 @@ export default function ClassesPage() {
     }
   }
 
+  /** A make-up day: each chosen class added as an extra on this date, one save after another. */
+  async function setUpMakeUp(list: Array<{ level: LevelKey; subject: SubjectKey; start: string; end: string }>) {
+    if (workingRef.current || !list.length) return;
+    workingRef.current = true;
+    setWorking(true);
+    let done = 0;
+    try {
+      for (const x of list) {
+        await saveDayChange({ date, level: x.level, subject: x.subject, change: { extra: true, start: x.start, end: x.end }, notify: false });
+        done++;
+      }
+      toast(`${done} classes set up for ${dateLabel(date, "short")}. Students see them on Home with the Join button.`, "success");
+    } catch (e) {
+      toast(`${done} of ${list.length} set up, then it stopped. ${e instanceof Error ? e.message : "Try again."}`, "error");
+    } finally {
+      workingRef.current = false;
+      setWorking(false);
+    }
+  }
+
   /** Change one class on this date only (cancel, move, extra), or undo that change. True when saved. */
   async function changeDay(level: LevelKey, subject: SubjectKey, change: Omit<Exception, "date" | "level" | "subject"> | null, done: string, quiet = false) {
     if (workingRef.current) return false;
@@ -244,11 +264,15 @@ export default function ClassesPage() {
           </div>
 
           {!slots.length ? (
-            <Card className="p-6 text-center text-sm text-ink-2">
-              {date < getSchedule().termStarts
-                ? `Classes start on ${dateLabel(getSchedule().termStarts, "long")}.`
-                : "No classes on this day."}
-            </Card>
+            date >= today && date >= getSchedule().termStarts ? (
+              <MakeUpDay date={date} busy={working} onApply={setUpMakeUp} />
+            ) : (
+              <Card className="p-6 text-center text-sm text-ink-2">
+                {date < getSchedule().termStarts
+                  ? `Classes start on ${dateLabel(getSchedule().termStarts, "long")}.`
+                  : "No classes on this day."}
+              </Card>
+            )
           ) : (
             <Card className="overflow-hidden p-0">
               <ul className="divide-y divide-border">
@@ -718,6 +742,108 @@ function DayActions({
 }
 
 /** One-off class on this date (a make-up or revision class). */
+const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+const toTime = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+/**
+ * A day with no classes (a Saturday make-up, a holiday swapped): the usual
+ * weekday classes, level by level. Each level can be left out, or start at
+ * another time; its classes keep their order and length. One tap sets it up.
+ */
+function MakeUpDay({
+  date,
+  busy,
+  onApply,
+}: {
+  date: string;
+  busy: boolean;
+  onApply: (list: Array<{ level: LevelKey; subject: SubjectKey; start: string; end: string }>) => Promise<void>;
+}) {
+  // The regular week's classes, per level, in time order.
+  const levels = useMemo(() => {
+    const by = new Map<LevelKey, Array<{ subject: SubjectKey; start: string; end: string }>>();
+    for (const sl of [...getSchedule().slots].sort((a, b) => a.start.localeCompare(b.start)))
+      if (!(by.get(sl.level) ?? []).some((x) => x.subject === sl.subject)) by.set(sl.level, [...(by.get(sl.level) ?? []), { subject: sl.subject, start: sl.start, end: sl.end }]);
+    return [...by.entries()].map(([level, list]) => ({ level, list }));
+  }, []);
+  const [open, setOpen] = useState(false);
+  const [off, setOff] = useState<Set<LevelKey>>(new Set());
+  const [starts, setStarts] = useState<Partial<Record<LevelKey, string>>>({});
+  const f = cn("h-10 w-[7.5rem] rounded-md border border-border-strong bg-surface px-2.5 text-sm tabular-nums text-ink", touchField);
+
+  const plan = levels.flatMap(({ level, list }) => {
+    if (off.has(level) || !list.length) return [];
+    const from = starts[level];
+    const shift = from && isTime(from) ? toMin(from) - toMin(list[0].start) : 0;
+    return list.map((x) => ({ level, subject: x.subject, start: toTime(toMin(x.start) + shift), end: toTime(toMin(x.end) + shift) }));
+  });
+  const valid = plan.length > 0 && plan.every((x) => toMin(x.end) <= 24 * 60 && x.start < x.end);
+
+  if (!open)
+    return (
+      <Card className="flex flex-col items-center gap-3 p-6 text-center">
+        <p className="text-sm text-ink-2">No classes on this day.</p>
+        <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>
+          Set up a make-up day
+        </Button>
+      </Card>
+    );
+  return (
+    <Card className="space-y-4 p-5">
+      <div>
+        <p className="font-semibold text-ink">Make-up day, {dateLabel(date, "short")}</p>
+        <p className="mt-0.5 text-sm text-ink-3">Your usual classes, in their usual order. Change a level&apos;s start time, or leave a level out.</p>
+      </div>
+      <ul className="divide-y divide-border rounded-lg border border-border">
+        {levels.map(({ level, list }) => {
+          const on = !off.has(level);
+          const mine = plan.filter((x) => x.level === level);
+          return (
+            <li key={level} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+              <label className="flex min-h-11 min-w-[9rem] items-center gap-2.5 text-sm font-semibold text-ink">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-[var(--color-brand)]"
+                  checked={on}
+                  onChange={(e) => setOff((o) => {
+                    const n = new Set(o);
+                    if (e.target.checked) n.delete(level);
+                    else n.add(level);
+                    return n;
+                  })}
+                />
+                {LEVEL_LABEL[level]}
+              </label>
+              {on && (
+                <>
+                  <input
+                    type="time"
+                    className={f}
+                    value={starts[level] ?? list[0]?.start ?? ""}
+                    onChange={(e) => setStarts((x) => ({ ...x, [level]: e.target.value }))}
+                    aria-label={`${LEVEL_LABEL[level]} starts at`}
+                  />
+                  <span className="text-sm text-ink-3">{mine.map((x) => `${x.subject} ${clock(x.start)}`).join(" · ")}</span>
+                </>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {!valid && plan.length > 0 && <p className="text-sm text-error">A level would run past midnight. Choose an earlier start.</p>}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" loading={busy} disabled={!valid} onClick={() => void onApply(plan)}>
+          Set up {plan.length} {plan.length === 1 ? "class" : "classes"}
+        </Button>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+        <span className="text-xs text-ink-3">Students are not messaged. Post an announcement if you want to tell them.</span>
+      </div>
+    </Card>
+  );
+}
+
 function ExtraClass({
   date,
   busy,
