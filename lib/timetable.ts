@@ -92,7 +92,37 @@ export function cleanSchedule(v: unknown): Schedule | null {
     .filter((e) => e.cancelled || !e.start || (HHMM.test(e.start) && HHMM.test(e.end ?? "") && e.start < e.end!))
     .slice(-200)
     .map((e) => ({ date: e.date, level: e.level, subject: e.subject, ...(e.cancelled ? { cancelled: true } : {}), ...(e.start ? { start: e.start, end: e.end } : {}), ...(e.extra ? { extra: true } : {}) }));
-  return { termStarts: x.termStarts, days, slots, exceptions };
+  return { termStarts: x.termStarts, days, slots: slots as WeekSlot[], exceptions: withMakeUps(slots as WeekSlot[], exceptions as Exception[]) };
+}
+
+/**
+ * Make-up days set in code: the usual classes, each level starting at the time
+ * given (null keeps its usual time). Anything already saved for that class on
+ * that date (a cancel, a move) wins, so the Classes page can still change them.
+ */
+const MAKE_UPS: Array<{ date: string; starts: Record<LevelKey, string | null> }> = [
+  // Saturday 14 Nov 2026: A2 and IGCSE at their usual times, AS from 1:30 PM.
+  { date: "2026-11-14", starts: { A2: null, O: null, AS: "13:30" } },
+];
+function withMakeUps(slots: WeekSlot[], exceptions: Exception[]): Exception[] {
+  const out = [...exceptions];
+  const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+  const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  for (const mu of MAKE_UPS) {
+    for (const level of LEVELS) {
+      const mine = slots.filter((x) => x.level === level).sort((a, b) => a.start.localeCompare(b.start));
+      const seen = new Set<string>();
+      const list = mine.filter((x) => !seen.has(x.subject) && seen.add(x.subject));
+      if (!list.length) continue;
+      const from = mu.starts[level];
+      const shift = from ? mins(from) - mins(list[0].start) : 0;
+      for (const x of list) {
+        if (out.some((e) => e.date === mu.date && e.level === level && e.subject === x.subject)) continue;
+        out.push({ date: mu.date, level, subject: x.subject, start: hhmm(mins(x.start) + shift), end: hhmm(mins(x.end) + shift), extra: true });
+      }
+    }
+  }
+  return out;
 }
 
 // The schedule in use. Pages set it once fetched (ScheduleGate), the server per run.
@@ -104,7 +134,9 @@ export const getSchedule = () => active;
 /** True once the saved timetable has been fetched (so edits never start from the default by mistake). */
 export const scheduleLoaded = () => loaded;
 export function setSchedule(s: Schedule | null) {
-  active = s ?? DEFAULT_SCHEDULE;
+  const base = s ?? DEFAULT_SCHEDULE;
+  // Make-up days set in code apply whichever way the timetable arrived.
+  active = { ...base, exceptions: withMakeUps(base.slots, base.exceptions) };
   loaded = true;
   listeners.forEach((l) => l());
 }
