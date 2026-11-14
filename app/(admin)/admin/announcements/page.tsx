@@ -100,7 +100,7 @@ export default function AnnouncementsPage() {
             const cohort = cohortById(db, a.cohortId);
             return (
               <Card key={a.id} ruled={a.pinned} className="p-4">
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                   <div className="min-w-0">
                     <div className="mb-1.5 flex flex-wrap items-center gap-2">
                       {a.pinned && <Badge tone="info"><Icon.Flag className="h-3 w-3" /> Pinned</Badge>}
@@ -112,7 +112,7 @@ export default function AnnouncementsPage() {
                       <p className="mt-1.5 text-xs text-ink-3">Dismissed by {a.dismissedBy.length} {a.dismissedBy.length === 1 ? "student" : "students"}</p>
                     )}
                   </div>
-                  <div className="flex shrink-0 gap-1">
+                  <div className="flex shrink-0 justify-end gap-1">
                     <button type="button" aria-pressed={a.pinned} onClick={() => store.updateAnnouncement(a.id, { pinned: !a.pinned })} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11" aria-label="Pinned" title={a.pinned ? "Unpin" : "Pin"}>
                       <Icon.Flag className={a.pinned ? "h-4 w-4 text-info" : "h-4 w-4"} />
                     </button>

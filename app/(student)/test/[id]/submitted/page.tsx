@@ -23,7 +23,7 @@ export default function SubmittedPage() {
 
   if (!student || !test || !submission) {
     return (
-      <div className="mx-auto max-w-md px-4 py-16 text-center text-ink-2">
+      <div className="mx-auto max-w-md px-5 py-16 text-center text-ink-2">
         Nothing to show here.{" "}
         <Link href="/dashboard" className="inline-flex min-h-11 items-center font-semibold text-brand underline">Back to Home</Link>
       </div>
@@ -38,7 +38,7 @@ export default function SubmittedPage() {
   ).length;
 
   return (
-    <div className="mx-auto max-w-md px-4 pb-16 pt-12">
+    <div className="mx-auto max-w-md px-5 pb-16 pt-12">
       <div className="rise">
       <div className="text-center">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-success/25 bg-success-soft text-success shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_30px_-14px_rgba(111,187,168,0.45)]">

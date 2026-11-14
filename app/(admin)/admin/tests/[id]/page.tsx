@@ -101,7 +101,7 @@ export default function TestEditorPage() {
 
   if (!test || !form) {
     return (
-      <div className="px-4 py-6">
+      <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
         <PageHeader title="Test not found" back={{ href: "/admin/tests", label: "Tests" }} />
         <EmptyState icon={<Icon.Doc />} title="This test no longer exists" />
       </div>

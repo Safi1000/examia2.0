@@ -371,7 +371,7 @@ function BackLink() {
 
 function PendingShell({ title, message }: { title: string; message: string }) {
   return (
-    <div className="mx-auto max-w-md px-4 py-20 text-center">
+    <div className="mx-auto max-w-md px-5 py-20 text-center">
       <h1 className="text-2xl font-extrabold tracking-[-0.025em] text-ink">{title}</h1>
       <p className="mt-2 text-base text-ink-2">{message}</p>
       <Link href="/dashboard" className={buttonClasses({ variant: "secondary", className: "mt-5" })}>

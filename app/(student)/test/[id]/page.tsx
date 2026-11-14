@@ -547,7 +547,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
           <CountdownTimer remaining={remaining} state={state} />
         </div>
         {/* Question map: tap any number to jump. Gold = answered, ring = where you are. */}
-        <nav aria-label="Questions" className={cn("mx-auto flex max-w-2xl items-center gap-3 px-4 pb-3", uploading && "hidden")}>
+        <nav aria-label="Questions" className={cn("mx-auto flex max-w-2xl items-center gap-3 px-5 pb-3", uploading && "hidden")}>
           <ol ref={mapRef} className="-m-1 flex flex-1 gap-1.5 overflow-x-auto p-1 [scrollbar-width:none]">
             {test.questions.map((qq, i) => {
               const done = answers[i] ? isAnswered(answers[i]) : false;
