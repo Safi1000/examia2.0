@@ -192,6 +192,46 @@ export default function RecordingsPage() {
       void reload();
     }
   }
+  // Delete: asked first, then the video goes to Drive's bin and the portal forgets it.
+  const [delAsk, setDelAsk] = useState<Row | null>(null);
+  async function removeOne() {
+    const r0 = delAsk;
+    setDelAsk(null);
+    if (!r0 || busyRef.current) return;
+    busyRef.current = true;
+    setBusy(r0.key);
+    try {
+      const r = await act("delete", { key: r0.key });
+      if (r.error) toast(r.error, "error");
+      else {
+        toast(r.binned === false ? "Removed from the portal. Google didn't answer, so delete the video in Drive yourself." : "Deleted. It's in your Google Drive bin for 30 days.", "success");
+        void reload();
+      }
+    } finally {
+      busyRef.current = false;
+      setBusy(null);
+    }
+  }
+  // The main recordings folder in Drive, opened in a new tab.
+  async function openFolder() {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy("folder");
+    // Opened straight away, so the browser doesn't block it as a pop-up; the address follows.
+    const tab = window.open("about:blank", "_blank");
+    try {
+      const r = await act("folder");
+      if (r.error || !r.folderUrl) {
+        tab?.close();
+        toast(r.error ?? "Couldn't find the folder. Try again.", "error");
+      } else if (tab) tab.location.href = r.folderUrl;
+      else window.location.href = r.folderUrl;
+    } finally {
+      busyRef.current = false;
+      setBusy(null);
+    }
+  }
+
   async function one(key: string, action: "open" | "close") {
     if (busyRef.current) return;
     busyRef.current = true;
@@ -257,7 +297,30 @@ export default function RecordingsPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8 *:max-w-4xl">
-      <PageHeader title="Recordings" subtitle="Every class recording so far. Only you see this page." />
+      <PageHeader
+        title="Recordings"
+        subtitle="Every class recording so far. Only you see this page."
+        actions={
+          <Button variant="secondary" loading={busy === "folder"} onClick={() => void openFolder()}>
+            <Icon.NewTab className="h-4 w-4" /> Recordings folder
+          </Button>
+        }
+      />
+      <Modal
+        open={!!delAsk}
+        onClose={() => setDelAsk(null)}
+        title="Delete this recording?"
+        description={delAsk ? `${delAsk.subject}, ${dayLabel(delAsk.date)}` : ""}
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDelAsk(null)}>Keep it</Button>
+            <Button variant="danger" onClick={() => void removeOne()}>Delete</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-2">Students won&apos;t see it any more. The video goes to the bin in your Google Drive, where you can restore it for 30 days.</p>
+      </Modal>
 
       {error && !state && (
         <Card className="mb-4 p-4 text-sm text-ink-2">
@@ -391,7 +454,7 @@ export default function RecordingsPage() {
               </div>
               <ul className="divide-y divide-border border-t border-border">
                 {g.rows.map((r) => (
-                  <RecordingItem key={r.key} r={r} nowMs={nowMs} busy={busy} opened={openedBy.get(r.key) ?? []} onOne={one} picked={sel.isSelected(r.key)} onPick={sel.toggle} />
+                  <RecordingItem key={r.key} r={r} nowMs={nowMs} busy={busy} opened={openedBy.get(r.key) ?? []} onOne={one} onDelete={setDelAsk} picked={sel.isSelected(r.key)} onPick={sel.toggle} />
                 ))}
               </ul>
             </Card>
@@ -549,12 +612,16 @@ function Chips({ label, value, onChange, options }: { label: string; value: stri
   );
 }
 
+/** The Drive file id in a recording's link, if it is a Drive link. */
+const driveFileId = (url: string) => url.match(/\/d\/([\w-]+)/)?.[1] ?? url.match(/[?&]id=([\w-]+)/)?.[1] ?? null;
+
 function RecordingItem({
   r,
   nowMs,
   busy,
   opened,
   onOne,
+  onDelete,
   picked,
   onPick,
 }: {
@@ -563,6 +630,7 @@ function RecordingItem({
   busy: string | null;
   opened: Student[];
   onOne: (key: string, a: "open" | "close") => void;
+  onDelete: (r: Row) => void;
   picked: boolean;
   onPick: (key: string, range: boolean) => void;
 }) {
@@ -600,6 +668,26 @@ function RecordingItem({
           }}
         >
           Copy link
+        </button>
+        {driveFileId(r.url) && (
+          <a
+            href={`https://drive.google.com/uc?export=download&id=${driveFileId(r.url)}`}
+            target="_blank"
+            rel="noreferrer"
+            className={cn(small, "text-ink-2 hover:bg-surface-2 hover:text-ink")}
+            aria-label={`Download the ${r.subject} recording from ${dayLabel(r.date)}`}
+          >
+            <Icon.Download className="h-3.5 w-3.5" /> Download
+          </a>
+        )}
+        <button
+          type="button"
+          disabled={!!busy}
+          className={cn(small, "text-ink-3 hover:bg-[#E5685A]/[0.12] hover:text-[#F4A397]")}
+          onClick={() => onDelete(r)}
+          aria-label={`Delete the ${r.subject} recording from ${dayLabel(r.date)}`}
+        >
+          <Icon.Trash className="h-3.5 w-3.5" /> Delete
         </button>
         {open ? (
           <button type="button" disabled={!!busy} aria-busy={busy === r.key} className={cn(small, "border border-border-strong text-ink hover:bg-surface-2")} onClick={() => onOne(r.key, "close")}>

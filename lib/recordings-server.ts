@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { RECORDING_HOURS, addDays, at, pkDate, setSchedule, slotsOn } from "@/lib/timetable";
 import { loadSchedule } from "@/lib/schedule-server";
-import { closeLinkSharing, copyRecording, fileIdOf, moveToReplaced, openLinkSharing } from "@/lib/google";
+import { closeLinkSharing, copyRecording, fileIdOf, moveToReplaced, openLinkSharing, trashFile } from "@/lib/google";
 import { CATCH_UP_HOURS, cleanAccess, emptyAccess, openUntil, splitKey, viewOf, type AccessFile } from "@/lib/recording-access";
 
 /**
@@ -231,6 +231,31 @@ export async function closeOne(sb: Sb, token: string, key: string) {
     else x.shared[key] = { f, tries: (x.shared[key]?.tries ?? 0) + 1 };
   });
   return { access: a, closed: closed || !f };
+}
+
+/**
+ * Delete one recording: the file goes to Drive's bin (Hamza can restore it there
+ * for 30 days), and the portal forgets the link, so students no longer see it.
+ * The automation never picks a binned file up again.
+ */
+export async function deleteOne(sb: Sb, token: string | null, key: string) {
+  const row = (await recordingRows(sb)).find((r) => r.key === key);
+  if (!row) throw new Error("This recording is already gone.");
+  const f = fileIdOf(row.url);
+  let binned = false;
+  if (f && token) {
+    try {
+      await trashFile(token, f);
+      binned = true;
+    } catch {}
+  }
+  const { error } = await sb.from("class_links").update({ recording_url: null }).eq("on_date", row.date).eq("class_id", row.classId).eq("subject_id", row.subjectId);
+  if (error) throw new Error("This recording couldn't be removed. Try again.");
+  const a = await mutateAccess(sb, (x) => {
+    delete x.overrides[key];
+    delete x.shared[key];
+  });
+  return { access: a, binned };
 }
 
 // ---- Closing when windows end ---------------------------------------------------

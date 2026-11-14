@@ -1,10 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/admin-auth";
 import { serviceClient } from "@/lib/push-server";
-import { GoogleBusy, accessToken, googleReady } from "@/lib/google";
+import { GoogleBusy, accessToken, googleReady, recordingsFolderUrl } from "@/lib/google";
 import {
   closeOne,
   continueCatchUp,
+  deleteOne,
   endCatchUp,
   openOne,
   readAccess,
@@ -39,7 +40,7 @@ export const maxDuration = 60;
 const noStore = { "Cache-Control": "private, no-store" };
 const storageReady = () => !!(process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.NEXT_PUBLIC_SUPABASE_URL);
 const isKey = (k: unknown): k is string => typeof k === "string" && /^\d{4}-\d{2}-\d{2}\|[A-Za-z0-9_-]{1,64}\|[A-Za-z0-9_-]{1,64}$/.test(k);
-const ACTIONS = ["catchup-start", "catchup-continue", "catchup-retry", "catchup-close", "sweep", "open", "close", "refresh"] as const;
+const ACTIONS = ["catchup-start", "catchup-continue", "catchup-retry", "catchup-close", "sweep", "open", "close", "refresh", "delete", "folder"] as const;
 type Action = (typeof ACTIONS)[number];
 
 /** What the page needs, never the Drive file ids. */
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
   } catch {}
   const action = body.action as Action;
   if (!ACTIONS.includes(action)) return NextResponse.json({ error: "bad request" }, { status: 400, headers: noStore });
-  if ((action === "open" || action === "close") && !isKey(body.key)) return NextResponse.json({ error: "bad request" }, { status: 400, headers: noStore });
+  if ((action === "open" || action === "close" || action === "delete") && !isKey(body.key)) return NextResponse.json({ error: "bad request" }, { status: 400, headers: noStore });
   const keys = Array.isArray(body.keys) ? body.keys.filter(isKey).slice(0, 400) : [];
   if (action === "refresh" && !keys.length) return NextResponse.json({ error: "bad request" }, { status: 400, headers: noStore });
 
@@ -104,7 +105,7 @@ export async function POST(req: NextRequest) {
     throw e;
   }
   // Starting, retrying and ending a window only change the file; everything else needs Google.
-  const needsGoogle = !["catchup-start", "catchup-retry", "catchup-close"].includes(action);
+  const needsGoogle = !["catchup-start", "catchup-retry", "catchup-close", "delete"].includes(action);
   if (!token && needsGoogle)
     return NextResponse.json({ error: "Google isn't connected, so recordings can't be opened or closed. Connect it at the bottom of the Classes page." }, { status: 409, headers: noStore });
 
@@ -134,6 +135,14 @@ export async function POST(req: NextRequest) {
       case "close": {
         const r = await closeOne(sb, token!, body.key as string);
         return NextResponse.json({ ...summarize(r.access, now), closed: r.closed }, { headers: noStore });
+      }
+      case "delete": {
+        const r = await deleteOne(sb, token, body.key as string);
+        return NextResponse.json({ ...summarize(r.access, now), binned: r.binned }, { headers: noStore });
+      }
+      case "folder": {
+        const url = await recordingsFolderUrl(token!);
+        return NextResponse.json({ ...summarize(await readAccess(sb), now), folderUrl: url }, { headers: noStore });
       }
       case "refresh": {
         const r = await refreshLinks(sb, token!, keys, now);

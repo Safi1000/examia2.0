@@ -253,6 +253,16 @@ async function folderPath(token: string, path: string[]): Promise<string> {
   return parent!;
 }
 
+/** Put a file in Drive's bin (it can be restored from there for 30 days). */
+export async function trashFile(token: string, fileId: string) {
+  await g(token, `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=id`, { method: "PATCH", body: JSON.stringify({ trashed: true }) });
+}
+
+/** The address of the main recordings folder in Drive (made if it isn't there yet). */
+export async function recordingsFolderUrl(token: string): Promise<string> {
+  return `https://drive.google.com/drive/folders/${await folderPath(token, [RECORDINGS_ROOT])}`;
+}
+
 /** Move a file into a folder (out of "Meet Recordings"). */
 async function moveInto(token: string, fileId: string, folderId: string) {
   const f = await g<{ parents?: string[] }>(token, `https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents`);

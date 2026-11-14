@@ -140,6 +140,10 @@ export interface TeacherAccess {
 export type TeacherResult = TeacherAccess & {
   closing?: number;
   closed?: boolean;
+  /** Delete: the file went to Drive's bin (false: only the portal link was removed). */
+  binned?: boolean;
+  /** The main recordings folder in Drive. */
+  folderUrl?: string;
   refreshed?: number;
   skipped?: number;
   failed?: Array<{ key: string; why: string }>;
@@ -184,6 +188,8 @@ function demoAct(action: string, body: { key?: string; keys?: string[] }, total:
     a.overrides[body.key] = 0;
     extra.closed = true;
   }
+  if (action === "delete") extra.binned = true;
+  if (action === "folder") extra.folderUrl = "https://drive.google.com/drive/my-drive";
   if (action === "refresh") {
     a.refreshedAt = now;
     Object.assign(extra, { refreshed: body.keys?.length ?? 0, skipped: 0, failed: [], left: [] });
