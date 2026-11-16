@@ -9,6 +9,7 @@ import { useAdminFilter, useStickyFilter } from "@/lib/admin-filter";
 import { archivedCohortIds, cohortById, isArchivedTest, liveStatus, submissionsForTest, testStats } from "@/lib/data/selectors";
 import { ArchiveTabs, archiveFromUrl, type ArchiveView } from "@/components/admin/ArchiveTabs";
 import { useToast } from "@/components/toast";
+import { RowMenu } from "@/components/admin/RowMenu";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Button, Card, Badge, Pill, CohortTag, EmptyState, Modal, Icon, Select } from "@/components/ui";
 import { FilterChips } from "@/components/admin/FilterChips";
@@ -464,23 +465,18 @@ export default function AdminTestsPage() {
                     <Link href={`/admin/tests/${t.id}`} className={buttonClasses({ variant: "secondary", size: "sm" })}>
                       <Icon.Edit className="h-4 w-4" /> Edit
                     </Link>
-                    <button
-                      onClick={() => void duplicate(t.id)}
-                      disabled={copying !== null}
-                      className="flex h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-50 xl:h-10"
-                      aria-label={`Duplicate ${t.title}`}
-                      title="Make a copy to edit: same questions and answers, as a hidden draft"
-                    >
-                      <Icon.Layers className="h-[18px] w-[18px]" />
-                      <span className="hidden sm:inline">{copying === t.id ? "Copying…" : "Duplicate"}</span>
-                    </button>
-                    <button
-                      onClick={() => setDeleteId(t.id)}
-                      className="flex h-11 w-11 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error"
-                      aria-label={`Delete ${t.title}`}
-                    >
-                      <Icon.Trash className="h-[18px] w-[18px]" />
-                    </button>
+                    <RowMenu
+                      label={`More for ${t.title}`}
+                      items={[
+                        {
+                          label: copying === t.id ? "Copying" : "Duplicate",
+                          disabled: copying !== null,
+                          title: "Make a copy to edit: same questions and answers, as a hidden draft",
+                          onSelect: () => void duplicate(t.id),
+                        },
+                        { label: "Delete", danger: true, onSelect: () => setDeleteId(t.id) },
+                      ]}
+                    />
                   </div>
               </div>
             );

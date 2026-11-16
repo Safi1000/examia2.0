@@ -7,7 +7,7 @@ import type { Answer, Question } from "@/types";
 import { useAuth } from "@/lib/auth-context";
 import { useDatabase } from "@/lib/data/store";
 import { studentById, testById, submissionFor, submissionsForStudent } from "@/lib/data/selectors";
-import { Card, Badge, Pill, Icon, EmptyState } from "@/components/ui";
+import { Card, Badge, Icon, EmptyState } from "@/components/ui";
 import { AnnotatedImage } from "@/components/Annotator";
 import { PageStack } from "@/components/PageStack";
 import { PaperText } from "@/components/PaperText";
@@ -94,10 +94,8 @@ export default function ResultsPage() {
             <span aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(34,37,40,0.35)_0%,rgba(34,37,40,0.75)_45%,var(--color-surface)_78%)]" />
           </>
         )}
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold text-ink-2">{test.subject}</span>
-          <Pill>{test.testCode}</Pill>
-        </div>
+        {/* The test code is Hamza's own reference: students only need the subject. */}
+        <p className="min-w-0 text-sm font-semibold text-ink-2">{test.subject}</p>
         <h1 className="mt-4 text-[1.75rem] font-extrabold leading-tight tracking-[-0.03em] text-ink sm:text-[2rem]">{test.title}</h1>
 
         <div className="mt-6 flex items-end justify-between gap-4">
@@ -127,7 +125,7 @@ export default function ResultsPage() {
             <ShareMoment
               label="Share this"
               moment={{
-                kicker: `${test.subject} · ${test.testCode}`,
+                kicker: test.subject,
                 big: best.big,
                 sub: best.sub,
                 name: displayName(student.username).split(" ")[0],

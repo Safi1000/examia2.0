@@ -227,7 +227,7 @@ export function ReviewCard({ weak, nowMs, onStudy }: { weak: Array<{ subject: st
   );
 }
 
-/** The Sunday review: the week in three numbers, then next week's plan. */
+/** The weekly review (shown on Sunday and Monday): the week in three numbers, then next week's plan. */
 export function SundayReview({ week, name }: { week: string; nowMs: number; name: string }) {
   const { profile, updateProfile } = useAuth();
   const target = profile.daysTarget ?? DEFAULT_DAYS_TARGET;
@@ -241,7 +241,7 @@ export function SundayReview({ week, name }: { week: string; nowMs: number; name
   const reviewed = Object.values(profile.reviews ?? {}).filter((r) => r.step > 0).length;
   return (
     <section className="rounded-xl border border-brand/35 bg-[linear-gradient(135deg,rgba(251,193,89,0.16),rgba(251,193,89,0.03))] p-5">
-      <p className={kicker}>Sunday review</p>
+      <p className={kicker}>Weekly review</p>
       <h2 className="mt-1.5 text-xl font-extrabold tracking-[-0.01em] text-ink">Your week, {name}.</h2>
       <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
         {[

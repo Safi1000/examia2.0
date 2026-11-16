@@ -10,6 +10,7 @@ import { LogoTight } from "@/components/Brand";
 import { CohortDot, Icon } from "@/components/ui";
 import { NavIcon } from "@/components/nav/NavIcons";
 import { cn } from "@/lib/cn";
+import { TA_HOME, isTa, taMayOpen } from "@/lib/staff";
 
 /** Recordings: a stack of videos with a gold play mark, drawn like the other menu icons. */
 function RecordingsIcon({ active, className }: { active?: boolean; className?: string }) {
@@ -73,7 +74,12 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const db = useDatabase();
-  const { logout } = useAuth();
+  const { logout, session } = useAuth();
+  const ta = isTa(session);
+  // The assistant's menu: only the pages she may open, in one short list.
+  const groups = ta
+    ? [{ title: "Your work", items: GROUPS.flatMap((g) => g.items).filter((i) => taMayOpen(i.href)) }]
+    : GROUPS;
   const { cohortId, setCohortId } = useAdminFilter();
   const cohorts = db.cohorts.filter((c) => c.active);
   const isActive = (item: { href: string; also?: string[] }) => [item.href, ...(item.also ?? [])].some((h) => pathname === h || pathname.startsWith(`${h}/`));
@@ -83,14 +89,14 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col bg-paper bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0)_30%)] pb-[env(safe-area-inset-bottom)]">
       <div className="px-5 pb-5 pt-6">
-        <Link href="/admin/today" onClick={onNavigate} className="inline-flex">
+        <Link href={ta ? TA_HOME : "/admin/today"} onClick={onNavigate} className="inline-flex">
           <LogoTight className="h-[22px]" />
         </Link>
         <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-ink-3">Teacher console</p>
       </div>
 
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4" aria-label="Admin">
-        {GROUPS.map((g) => {
+        {groups.map((g: (typeof GROUPS)[number]) => {
           const open = !g.fold || moreOpen || g.items.some(isActive);
           return (
           <div key={g.title}>
@@ -173,11 +179,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       {/* Who's signed in, and the way out. */}
       <div className="m-3 flex items-center gap-3 rounded-xl border border-border bg-surface p-2.5 md:max-xl:pl-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs font-bold text-ink ring-1 ring-inset ring-white/[0.08] md:max-xl:hidden">
-          HS
+          {ta ? (session?.staffName || "A").slice(0, 2).toUpperCase() : "HS"}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-semibold text-ink">Hamza Sadaqat</span>
-          <span className="block text-xs text-ink-3">Teacher</span>
+          <span className="block truncate text-[13px] font-semibold text-ink">{ta ? session?.staffName || "Assistant" : "Hamza Sadaqat"}</span>
+          <span className="block text-xs text-ink-3">{ta ? "Teaching assistant" : "Teacher"}</span>
         </span>
         <button
           type="button"

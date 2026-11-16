@@ -262,6 +262,10 @@ export type Role = "student" | "admin";
 export interface Session {
   role: Role;
   studentId?: string; // present when role === "student"
+  /** A teaching assistant's console sign-in: role "admin" with fewer screens (see lib/staff.ts). */
+  staff?: "ta";
+  /** The assistant's name, for the log of what she did. */
+  staffName?: string;
 }
 
 /** Autosaved test-runner draft (survives refresh; per student+test). */

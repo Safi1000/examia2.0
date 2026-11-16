@@ -8,11 +8,13 @@ import type { Profile } from "@/lib/profile";
 import { currentStats } from "@/lib/focus";
 import { useNow } from "@/hooks/useNow";
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/lib/auth-context";
+import { isTa } from "@/lib/staff";
 import Link from "next/link";
 import { Suspense } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useDatabase, useStore } from "@/lib/data/store";
-import { attendancePercent, cohortById, studentById, submissionsForStudent, testById } from "@/lib/data/selectors";
+import { attendancePercent, cohortById, homeworkSetFor, studentById, submissionsForStudent, testById } from "@/lib/data/selectors";
 import { isInPersonStudent } from "@/lib/in-person";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Badge, CohortDot, EmptyState, Icon, Modal } from "@/components/ui";
@@ -58,6 +60,8 @@ function StudentDetail() {
   const params = useParams();
   const id = String(params.id);
   const db = useDatabase();
+  const { session } = useAuth();
+  const ta = isTa(session);
   const profiles = useStudentProfiles();
   const store = useStore();
   const student = studentById(db, id);
@@ -101,8 +105,22 @@ function StudentDetail() {
     // The month in Pakistan: on the 1st, before 5 am, UTC is still in last month.
     const thisMonth = `${new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date()).slice(0, 7)}-01`;
     const attendance = attendancePercent(db, student.id, thisMonth);
-    return { subs, released, mastery: topicMastery(tests, released), points, avg, months, attendance };
-  }, [db, student]);
+    // The latest released result, as a percent.
+    const lastPct = points.length ? Math.round(points[points.length - 1].value) : null;
+    // Homework set for this student (the Homework page's rule, so work from before they started there never counts), newest deadline first.
+    const handIns = new Map(db.assignmentSubmissions.filter((x) => x.studentId === student.id).map((x) => [x.assignmentId, x]));
+    const homework = db.assignments
+      .filter((a) => homeworkSetFor(db, student, a) || handIns.has(a.id))
+      .sort((a, b) => b.dueAt.localeCompare(a.dueAt))
+      .map((a) => {
+        const h = handIns.get(a.id);
+        const dueMs = +new Date(a.dueAt);
+        const state = h ? (+new Date(h.submittedAt) > dueMs ? "late" : "in") : dueMs <= reportNow ? "owed" : "open";
+        return { a, state } as const;
+      });
+    const owed = homework.filter((x) => x.state === "owed").length;
+    return { subs, released, mastery: topicMastery(tests, released), points, avg, months, attendance, lastPct, homework, owed };
+  }, [db, student, reportNow]);
 
   if (!student || !data) {
     return (
@@ -258,6 +276,8 @@ function StudentDetail() {
                 <CohortDot color={cohort.color} />{cohort.name}
               </span>
             )}
+            {/* Owner only from here: numbers, account changes and the parent's report. */}
+            <span data-owner className="contents">
             {student.phone && (
               <a
                 href={`https://wa.me/${waDigits(student.phone)}`}
@@ -290,6 +310,7 @@ function StudentDetail() {
                 <Icon.Download className="h-4 w-4" /> Monthly report
               </Button>
             )}
+            </span>
           </div>
         }
       />
@@ -304,11 +325,12 @@ function StudentDetail() {
       )}
 
       {/* Hamza's own note, near the top so it's the first thing seen before a call. */}
-      <StudentNoteCard studentId={student.id} />
+      {/* Hamza's private note: not the assistant's. */}
+      {!ta && <StudentNoteCard studentId={student.id} />}
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Submissions" value={String(data.subs.length)} />
-        <Stat label="Released" value={String(data.released.length)} />
+        <Stat label="Homework owed" value={String(data.owed)} />
+        <Stat label="Last test" value={data.lastPct === null ? "None yet" : `${data.lastPct}%`} />
         <Stat label="Average" value={data.avg === null ? "None yet" : `${data.avg}%`} />
         <Stat
           label="Attendance this month"
@@ -316,7 +338,7 @@ function StudentDetail() {
         />
       </div>
 
-      {profiles[student.id] && <TheirPortal profile={profiles[student.id]} />}
+      {profiles[student.id] && <TheirPortal profile={profiles[student.id]} initial={displayName(student.username).charAt(0).toUpperCase()} />}
 
       {data.released.length > 0 ? (
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
@@ -336,6 +358,32 @@ function StudentDetail() {
       )}
 
       <StudentActivitySection studentId={student.id} />
+
+      <h2 className="mb-2.5 mt-8 text-[15px] font-semibold tracking-[-0.01em] text-ink">Homework</h2>
+      {data.homework.length === 0 ? (
+        <p className="text-[15px] text-ink-2">No homework set for {displayName(student.username)} yet.</p>
+      ) : (
+        <Card className="divide-y divide-border overflow-hidden p-0">
+          {data.homework.slice(0, 8).map(({ a, state }) => (
+            <div key={a.id} className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <Link href={`/admin/assignments?open=${a.id}`} className="block truncate font-semibold text-ink underline-offset-4 hover:underline">{a.title}</Link>
+                <p className="text-sm tabular-nums text-ink-3">Due {formatTimestamp(a.dueAt)}</p>
+              </div>
+              {state === "in" ? (
+                <Badge tone="success">Handed in</Badge>
+              ) : state === "late" ? (
+                <Badge tone="warning">Late</Badge>
+              ) : state === "owed" ? (
+                <Badge tone="error">Owed</Badge>
+              ) : (
+                <Badge tone="neutral">Not due yet</Badge>
+              )}
+            </div>
+          ))}
+        </Card>
+      )}
+      {data.homework.length > 8 && <p className="mt-2 text-sm text-ink-3">Showing the latest 8 of {data.homework.length}.</p>}
 
       <h2 className="mb-2.5 mt-8 text-[15px] font-semibold tracking-[-0.01em] text-ink">Submissions</h2>
       {data.subs.length === 0 ? (
@@ -475,7 +523,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 /** What the student set for themselves, and their study timer this week. */
-function TheirPortal({ profile }: { profile: Profile }) {
+function TheirPortal({ profile, initial }: { profile: Profile; initial: string }) {
   const nowMs = useNow();
   const focus = currentStats(profile.focus, nowMs);
   // The student's own saved data could hold anything: only real, believable numbers are shown (70 h a week at most, as on Today).
@@ -486,7 +534,8 @@ function TheirPortal({ profile }: { profile: Profile }) {
   const targets = Object.entries(profile.targets ?? {}).filter(([, t]) => typeof t === "string" && ["A*", "A", "B", "C"].includes(t));
   return (
     <Card className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3 p-4">
-      <Avatar id={profile.avatar} initials="?" className="h-10 w-10" />
+      {/* Their chosen picture, else their initial (it used to show a bare "?"). */}
+      <Avatar id={profile.avatar} initials={initial} className="h-10 w-10" />
       {targets.length > 0 && (
         <p className="text-sm text-ink-2">
           Aiming for{" "}

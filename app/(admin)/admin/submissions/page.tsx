@@ -9,6 +9,7 @@ import { displayName } from "@/lib/display-name";
 import { ArchiveTabs, archiveFromUrl, type ArchiveView } from "@/components/admin/ArchiveTabs";
 import { useToast } from "@/components/toast";
 import { stickyHead, tableBox } from "@/components/admin/surface";
+import { RowMenu } from "@/components/admin/RowMenu";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Button, Badge, CohortDot, EmptyState, Icon, TableScroll, Table, Th, Td, Modal } from "@/components/ui";
 import { FilterChips } from "@/components/admin/FilterChips";
@@ -249,7 +250,7 @@ export default function SubmissionsPage() {
         <EmptyState icon={<Icon.Inbox />} title="No submissions" message="Nothing matches the current filters." />
       ) : (
         <div role="group" aria-label="Submissions" onKeyDown={sel.listKeyDown}>
-        <SelectAll sel={sel} noun="submission" />
+        <span data-owner className="contents"><SelectAll sel={sel} noun="submission" /></span>
         <Card className="overflow-hidden p-0">
           <TableScroll className={tableBox}>
             <Table stickyFirst className={stickyHead}>
@@ -271,7 +272,7 @@ export default function SubmissionsPage() {
                   return (
                     <tr key={sub.id}>
                       <Td>
-                        <RowCheck id={sub.id} checked={sel.isSelected(sub.id)} onToggle={sel.toggle} label={`Select ${student?.username ?? "submission"}`} />
+                        <span data-owner className="contents"><RowCheck id={sub.id} checked={sel.isSelected(sub.id)} onToggle={sel.toggle} label={`Select ${student?.username ?? "submission"}`} /></span>
                       </Td>
                       <Td className="font-semibold capitalize">
                         {/* On a phone the actions sit off to the side: the name opens the paper too. */}
@@ -295,7 +296,7 @@ export default function SubmissionsPage() {
                       <Td className="hidden xl:table-cell">{cohort ? <span className="inline-flex items-center gap-1.5 text-ink-2"><CohortDot color={cohort.color} />{cohort.name}</span> : "No cohort"}</Td>
                       <Td className="hidden md:table-cell">
                         {sub.status === "released" ? <Badge tone="success">Released</Badge> : <Badge tone="warning">Awaiting</Badge>}
-                        {sub.autoSubmitted && <span className="ml-1 text-xs text-ink-3">auto</span>}
+                        {sub.autoSubmitted && <span className="ml-1 text-xs text-ink-3" title="Handed in by the timer when time ran out">timed out</span>}
                         {sub.late &&
                           (lateWindow ? (
                             <span className="ml-1 text-xs text-ink-3">late window</span>
@@ -310,9 +311,12 @@ export default function SubmissionsPage() {
                           <Link href={`/admin/grading/${sub.id}`} className={cn(buttonClasses({ variant: "secondary", size: "sm" }), "max-md:hidden")}>
                             {sub.status === "released" ? "Review" : "Grade"}
                           </Link>
-                          <button onClick={() => setDeleteId(sub.id)} className="flex h-11 w-11 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error" aria-label={`Delete ${student?.username ?? "this"} submission`}>
-                            <Icon.Trash className="h-4 w-4" />
-                          </button>
+                          <span data-owner className="contents">
+                            <RowMenu
+                              label={`More for ${student?.username ?? "this"} submission`}
+                              items={[{ label: "Delete", danger: true, onSelect: () => setDeleteId(sub.id) }]}
+                            />
+                          </span>
                         </div>
                       </Td>
                     </tr>
@@ -332,7 +336,7 @@ export default function SubmissionsPage() {
         </div>
       )}
 
-      <BulkBar count={sel.count} onClear={sel.clear} actions={actions} />
+      <span data-owner className="contents"><BulkBar count={sel.count} onClear={sel.clear} actions={actions} /></span>
 
       <Modal
         open={bulkOpen}

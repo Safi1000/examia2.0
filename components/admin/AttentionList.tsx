@@ -93,7 +93,7 @@ export function AttentionList({
         <h2 className={panelTitle}>Students who need you today</h2>
         {studentCount > 0 && (
           <span className="text-sm tabular-nums text-ink-3">
-            {rows.length} of {studentCount} students
+            {rows.length} to check on, of {studentCount} students
           </span>
         )}
       </div>
@@ -158,8 +158,9 @@ export function AttentionList({
                       </a>
                     )}
                     {!studentLink && !parentLink && (
-                      <Link href={`/admin/roster/${s.id}`} className="inline-flex min-h-11 items-center px-1 text-sm text-ink-3 transition-colors hover:text-ink">
-                        Add a number
+                      // Opens the student's details form, where the parent's WhatsApp number goes.
+                      <Link href={`/admin/roster?edit=${s.id}`} className="inline-flex min-h-11 items-center px-1 text-sm text-ink-3 transition-colors hover:text-ink">
+                        Add parent&apos;s number
                       </Link>
                     )}
                     <button type="button" data-id={s.id} onClick={check} className={buttonClasses({ variant: "secondary", size: "sm" })} title="Hide for a week">

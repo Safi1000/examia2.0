@@ -16,6 +16,7 @@ import { isAsStudent } from "@/lib/grading";
 import { useBackToClose } from "@/components/student/useBackToClose";
 import { useFocusTrap } from "@/components/student/useFocusTrap";
 import { useInApp } from "@/lib/in-app";
+import { VAPID } from "@/lib/push-client";
 
 /** The subjects a student takes: their own, else their cohort's, else all. */
 export function studentSubjects(db: Database, student: Student): string[] {
@@ -141,7 +142,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
     },
     {
       title: "What are you aiming for?",
-      sub: "Your target grade in each subject. Home shows how close you are.",
+      sub: "Your target grade in each subject. Progress shows how close you are.",
       body: (
         <div className="space-y-4">
           {subjects.map((sub) => (
@@ -190,7 +191,9 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
         </div>
       ),
     },
-    !app && {
+    // Only where notifications can really be turned on: without the push key
+    // this step could only say "coming soon", so it is left out.
+    !app && !!VAPID && {
       title: "Stay on top of things.",
       sub: "A quiet note when your class is starting, your result is out, a test is about to open or work is due tomorrow. Never at night, and only a few.",
       body: (

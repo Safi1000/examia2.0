@@ -6,7 +6,6 @@ import { useNow } from "@/hooks/useNow";
 import { useDatabase } from "@/lib/data/store";
 import { studentById, submissionFor, testsForStudent } from "@/lib/data/selectors";
 import { TestCard } from "@/components/student/TestCard";
-import { AddToCalendar } from "@/components/student/AddToCalendar";
 import { EmptyState, Icon } from "@/components/ui";
 import { testWindow } from "@/lib/time";
 import { EmptyArt, PageHeader, SectionTitle } from "@/components/student/PortalKit";
@@ -69,12 +68,7 @@ export default function TestsPage() {
       {groups.upcoming.length > 0 && (
         <Section title="Coming up">
           {groups.upcoming.map((t) => (
-            <div key={t.id}>
-              <TestCard test={t} submission={submissionFor(db, student.id, t.id)} nowMs={nowMs} />
-              <div className="mt-1 flex justify-end pr-1">
-                <AddToCalendar test={t} />
-              </div>
-            </div>
+            <TestCard key={t.id} test={t} submission={submissionFor(db, student.id, t.id)} nowMs={nowMs} calendar />
           ))}
         </Section>
       )}

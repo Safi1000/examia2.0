@@ -926,3 +926,8 @@ nav[aria-label="Breadcrumb"] a {
 html[data-app] .web-only {
   display: none !important;
 }
+
+/* The teaching assistant's console: anything marked owner-only is not shown to her (see lib/staff.ts). */
+[data-ta] [data-owner] {
+  display: none !important;
+}

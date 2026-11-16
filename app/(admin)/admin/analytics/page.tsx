@@ -489,7 +489,7 @@ function ClassView({
               )}
               {data.perTest.map(({ test, count, avg, top, pending }) => (
                 <tr key={test.id}>
-                  <Td className="font-semibold">{test.title}</Td>
+                  <Td className="font-semibold"><Link href={`/admin/tests/${test.id}`} className="underline-offset-4 hover:underline">{test.title}</Link></Td>
                   <Td className="text-ink-2">{test.subject}</Td>
                   <Td className="tabular-nums">{count}</Td>
                   <Td className="tabular-nums">

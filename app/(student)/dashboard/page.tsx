@@ -24,6 +24,7 @@ import { cn } from "@/lib/cn";
 import { DEMO } from "@/lib/demo";
 import { FocusOnThis } from "@/components/student/FocusOnThis";
 import { IslandHeader } from "@/components/student/IslandHeader";
+import { overallTarget } from "@/components/student/targets";
 import { SectionTitle } from "@/components/student/PortalKit";
 import { JOIN_EARLY_MIN, pkDate, slotsForStudent, useSchedule } from "@/lib/classes";
 
@@ -74,8 +75,11 @@ export default function DashboardPage() {
   const ym = new Date(nowMs + 5 * 3_600_000).toISOString().slice(0, 7);
   const prevYm = new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7) - 2, 1)).toISOString().slice(0, 7);
   const attendance = attendancePercent(db, student.id, `${ym}-01`) ?? attendancePercent(db, student.id, `${prevYm}-01`);
+  // Chapters covered across their subjects: the same count Progress shows per subject.
   const chapters = books.reduce((a, b) => ({ covered: a.covered + b.covered, total: a.total + b.total }), { covered: 0, total: 0 });
-  const syllabus = chapters.total ? Math.round((chapters.covered / chapters.total) * 100) : null;
+  const syllabus = chapters.total ? chapters : null;
+  // Their target beside the grade, when every subject has the same one.
+  const target = perf ? overallTarget(profile.targets, student, perf.bySubject.map((x) => x.subject)) : undefined;
   const week = plan.weeks.find((w) => w.isCurrent) ?? null;
 
   // One line that answers "what do I do now?".
@@ -100,12 +104,12 @@ export default function DashboardPage() {
     });
 
   const subjectOf = (id?: string | null) => (id ? db.subjects.find((x) => x.id === id)?.name : undefined);
-  type Todo = { key: string; href: string; title: string; meta: string; cta: string; quiet?: boolean; focus?: { kind: "test" | "homework"; subject?: string; id: string } };
+  type Todo = { key: string; href: string; title: string; meta: string; cta: string; /** A shorter word for phones, where the row is tight. */ ctaShort?: string; quiet?: boolean; focus?: { kind: "test" | "homework"; subject?: string; id: string } };
   const todo: Todo[] = [
     ...tests.open.map((t) => ({ key: t.id, href: `/test/${t.id}`, title: t.title, meta: `Test · closes ${formatRelative(t.closesAt, nowMs)}`, cta: "Start", focus: { kind: "test" as const, subject: t.subject, id: t.id } })),
     // Straight to that homework on the Homework page, not the top of the list.
-    ...overdue.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · overdue since ${formatWhen(a.dueAt)}`, cta: "Hand in", focus: { kind: "homework" as const, subject: subjectOf(a.subjectId), id: a.id } })),
-    ...dueSoon.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · due ${formatWhen(a.dueAt)}`, cta: "Hand in", focus: { kind: "homework" as const, subject: subjectOf(a.subjectId), id: a.id } })),
+    ...overdue.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · overdue since ${formatWhen(a.dueAt)}`, cta: "Hand in work", ctaShort: "Hand in", focus: { kind: "homework" as const, subject: subjectOf(a.subjectId), id: a.id } })),
+    ...dueSoon.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · due ${formatWhen(a.dueAt)}`, cta: "Hand in work", ctaShort: "Hand in", focus: { kind: "homework" as const, subject: subjectOf(a.subjectId), id: a.id } })),
     ...newResults,
   ];
   const toDoCount = todo.filter((x) => !x.quiet).length;
@@ -160,7 +164,15 @@ export default function DashboardPage() {
                           : "border border-border-strong text-ink",
                       )}
                     >
-                      {x.cta} <Icon.ChevronRight className="h-4 w-4" />
+                      {x.ctaShort ? (
+                        <>
+                          <span className="sm:hidden">{x.ctaShort}</span>
+                          <span className="hidden sm:inline">{x.cta}</span>
+                        </>
+                      ) : (
+                        x.cta
+                      )}{" "}
+                      <Icon.ChevronRight className="h-4 w-4" />
                     </span>
                   </span>
                 </li>
@@ -194,7 +206,7 @@ export default function DashboardPage() {
         </section>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-          <PerformanceCard perf={perf} attendance={attendance} syllabus={syllabus} />
+          <PerformanceCard perf={perf} attendance={attendance} syllabus={syllabus} target={target} />
           <PlanCard week={week} daysLeft={plan.daysLeft} workOn={perf && perf.marked >= 3 ? perf.weakest : []} />
         </div>
       </div>
@@ -252,7 +264,7 @@ function CardHead({ title, more }: { title: string; more: string }) {
  * on. The trend, the line chart and each subject against its target live on
  * Progress, one tap away.
  */
-function PerformanceCard({ perf, attendance, syllabus }: { perf: Snapshot | null; attendance: number | null; syllabus: number | null }) {
+function PerformanceCard({ perf, attendance, syllabus, target }: { perf: Snapshot | null; attendance: number | null; syllabus: { covered: number; total: number } | null; target?: string }) {
   const graded = !!perf && perf.marked >= 3;
   return (
     <Link href="/progress" className="surface surface-link block rounded-xl px-5 py-4 sm:px-6 sm:py-5">
@@ -271,6 +283,7 @@ function PerformanceCard({ perf, attendance, syllabus }: { perf: Snapshot | null
                 <span className="text-lg font-bold text-ink">{perf.grade}</span>
                 <span className="text-xs text-ink-2">{shownPercent(perf.recent)}% avg</span>
               </dd>
+              {target && <dd className="mt-0.5 text-xs text-ink-3">Target {target}</dd>}
             </div>
           )}
           {attendance != null && (
@@ -281,8 +294,11 @@ function PerformanceCard({ perf, attendance, syllabus }: { perf: Snapshot | null
           )}
           {syllabus != null && (
             <div>
-              <dt className="text-xs text-ink-3">Syllabus covered</dt>
-              <dd className="mt-0.5 text-lg font-bold tabular-nums text-ink">{syllabus}%</dd>
+              <dt className="text-xs text-ink-3">Chapters covered</dt>
+              <dd className="mt-0.5 flex items-baseline gap-1 tabular-nums">
+                <span className="text-lg font-bold text-ink">{syllabus.covered}</span>
+                <span className="text-xs text-ink-2">of {syllabus.total}</span>
+              </dd>
             </div>
           )}
         </dl>

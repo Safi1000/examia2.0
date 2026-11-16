@@ -56,6 +56,8 @@ function StudentNotes() {
   const params = useSearchParams();
   const openId = params.get("open");
   const openPage = Number(params.get("page")) || undefined;
+  // `?shelf=<book key>` opens on that subject (from "Read the notes" links on results, Plan and Progress).
+  const shelfParam = params.get("shelf") ?? undefined;
   const [closedLinked, setClosedLinked] = useState<string | null>(null);
   const linked = openId && openId !== closedLinked ? db.notes.find((n) => n.id === openId) : undefined;
   const [positions, setPositions] = useState<Record<string, NotePos>>({});
@@ -111,7 +113,7 @@ function StudentNotes() {
 
   return (
     <div className="mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
-      <Library db={db} student={student} positions={positions} onOpen={open} />
+      <Library db={db} student={student} positions={positions} onOpen={open} want={shelfParam} />
       {shown && (
         <NoteViewer
           key={`${shown.id}:${shown.page ?? ""}:${shown.highlight?.join(" ") ?? ""}`}
@@ -140,10 +142,12 @@ function useShelves(db: Db, student: Student): Shelf[] {
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 
-function Library({ db, student, positions, onOpen }: { db: Db; student: Student; positions: Record<string, NotePos>; onOpen: (o: Opened) => void }) {
+function Library({ db, student, positions, onOpen, want }: { db: Db; student: Student; positions: Record<string, NotePos>; onOpen: (o: Opened) => void; want?: string }) {
   const shelves = useShelves(db, student);
   const nowMs = useNow();
   const [tab, setTab] = useState<string>("");
+  // A tab they tap wins over the linked one; the linked one wins over the remembered one.
+  const [picked, setPicked] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   useEffect(() => {
     try {
@@ -152,6 +156,7 @@ function Library({ db, student, positions, onOpen }: { db: Db; student: Student;
     } catch {}
   }, []);
   const pick = (k: string) => {
+    setPicked(k);
     setTab(k);
     try {
       localStorage.setItem(TAB_KEY, k);
@@ -179,7 +184,7 @@ function Library({ db, student, positions, onOpen }: { db: Db; student: Student;
   // "For everyone" notes sit under every subject instead of taking a tab of their own.
   const general = shelves.find((s) => s.key === "general");
   const books = shelves.filter((s) => s.key !== "general");
-  const active = books.find((s) => s.key === tab) ?? books[0] ?? general!;
+  const active = books.find((s) => s.key === (picked ?? (want && books.some((b) => b.key === want) ? want : tab))) ?? books[0] ?? general!;
   const ready = readable.size;
 
   // The note they were last reading, if it's still theirs.

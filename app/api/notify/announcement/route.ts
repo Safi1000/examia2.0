@@ -13,7 +13,9 @@ export async function POST(req: NextRequest) {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
   const { data } = await sb.auth.getUser();
-  if ((data.user?.app_metadata as { role?: string } | undefined)?.role !== "admin") {
+  // Owner only: the assistant never sends a notice to every phone.
+  const meta = data.user?.app_metadata as { role?: string; staff?: string } | undefined;
+  if (meta?.role !== "admin" || meta.staff === "ta") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   const { id, cohortId, text } = ((await req.json().catch(() => null)) ?? {}) as { id?: string; cohortId?: string | null; text?: string };

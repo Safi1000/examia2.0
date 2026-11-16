@@ -10,7 +10,7 @@ import { useNow } from "@/hooks/useNow";
 import { studentById, submissionsForStudent, testById, testsForStudent } from "@/lib/data/selectors";
 import { gradeSubmission } from "@/lib/grading";
 import { topicMastery } from "@/lib/scoring";
-import { GRADE_FLOOR, performanceSnapshot, sameSubject, shownPercent } from "@/lib/performance";
+import { GRADE_FLOOR, performanceSnapshot, shownPercent } from "@/lib/performance";
 import { formatDate } from "@/lib/time";
 import { studentSubjects } from "@/components/student/Welcome";
 import { EmptyState, Icon } from "@/components/ui";
@@ -18,7 +18,8 @@ import { cn } from "@/lib/cn";
 import { ShareMoment } from "@/components/student/ShareMoment";
 import { displayName } from "@/lib/display-name";
 import { worldScene } from "@/lib/groundwork";
-import { isAsStudent } from "@/lib/grading";
+import { overallTarget, targetFor as pickedTarget } from "@/components/student/targets";
+import { topicNotesFinder } from "@/components/student/topic-notes";
 import { syllabusProgress, type BookProgress } from "@/lib/syllabus-progress";
 import { AttendanceCard } from "@/components/student/AttendanceCard";
 import type { Mission } from "@/components/student/FocusMode";
@@ -37,6 +38,7 @@ export default function ProgressPage() {
   const student = session?.studentId ? studentById(db, session.studentId) : null;
   const [practise, setPractise] = useState<Mission | null>(null);
   const books = useMemo(() => (student ? syllabusProgress(db, student) : []), [db, student]);
+  const notesFor = useMemo(() => (student ? topicNotesFinder(db, student) : null), [db, student]);
 
   const data = useMemo(() => {
     if (!student) return null;
@@ -66,13 +68,9 @@ export default function ProgressPage() {
 
   if (!student || !data) return null;
   const { results, snap } = data;
-  const targetFor = (subject: string) => {
-    const key = Object.keys(profile.targets ?? {}).find((k) => sameSubject(k, subject));
-    const t = key ? profile.targets![key] : undefined;
-    // AS Level has no A*: an old A* target counts as A.
-    return typeof t === "string" && t in GRADE_FLOOR ? (t === "A*" && isAsStudent(student?.id) ? "A" : t) : undefined;
-  };
-  const noteFor = (topic: string) => db.notes.find((n) => n.title.toLowerCase().includes(topic.toLowerCase()));
+  const targetFor = (subject: string) => pickedTarget(profile.targets, student, subject);
+  // One target beside the overall grade, only when every subject's target is the same.
+  const overall = snap ? overallTarget(profile.targets, student, snap.bySubject.map((x) => x.subject)) : undefined;
 
   const pace = (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 [&>*]:min-w-0">
@@ -117,6 +115,7 @@ export default function ProgressPage() {
                 <div className="pb-1">
                   <p className="text-lg font-semibold tabular-nums text-ink">{shownPercent(snap.recent)}%</p>
                   <p className="text-xs text-ink-3">average of your last {Math.min(5, snap.marked)} tests</p>
+                  {overall && <p className="mt-1 text-xs font-semibold text-ink-2">Target {overall}</p>}
                 </div>
               </div>
               )}
@@ -214,20 +213,32 @@ export default function ProgressPage() {
                   <p className="mt-2 text-sm text-ink-2">No weak topics right now. Nice.</p>
                 ) : (
                   <ul className="mt-3 space-y-3">
-                    {data.weak.map((m, i) => (
-                      <li key={m.topic} className="flex items-center justify-between gap-3">
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-semibold text-ink">{m.name}</span>
-                          <span className="block text-xs text-ink-3 tabular-nums">
-                            {m.subject} · {Math.round(m.percent)}%
-                          </span>
+                    {data.weak.map((m, i) => {
+                      const notes = notesFor?.(m.subject, m.name) ?? null;
+                      const meta = (
+                        <span className="block text-xs text-ink-3 tabular-nums">
+                          {m.subject} · {Math.round(m.percent)}%{notes ? ` · ${notes.label}` : ""}
                         </span>
+                      );
+                      return (
+                      <li key={m.topic} className="flex items-center justify-between gap-3">
+                        {notes ? (
+                          // The topic opens its notes; Practise stays beside it.
+                          <Link href={notes.href} className="group flex min-h-11 min-w-0 flex-col justify-center">
+                            <span className="block truncate text-sm font-semibold text-ink underline decoration-hairline-strong underline-offset-4 group-hover:decoration-ink-3">{m.name}</span>
+                            {meta}
+                          </Link>
+                        ) : (
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold text-ink">{m.name}</span>
+                            {meta}
+                          </span>
+                        )}
                         <button
                           type="button"
                           onClick={() => {
                             // "Open the notes for it" opens that note straight away.
-                            const note = noteFor(m.name);
-                            setPractise({ subject: m.subject, topic: m.name, noteHref: note ? `/notes?open=${note.id}` : undefined });
+                            setPractise({ subject: m.subject, topic: m.name, noteHref: notes?.exact ? notes.href : undefined });
                           }}
                           className={cn(
                             "h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition-colors active:scale-[0.98]",
@@ -237,7 +248,8 @@ export default function ProgressPage() {
                           Practise
                         </button>
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 )}
               </div>
@@ -275,13 +287,13 @@ export default function ProgressPage() {
   );
 }
 
-/** How much of each syllabus the class has covered, from the notes released so far. */
+/** How many chapters of each syllabus the class has covered (a chapter counts once its notes are out). Home shows the same count. */
 function SyllabusDone({ books }: { books: BookProgress[] }) {
   if (!books.length) return null;
   return (
     <section className="surface rounded-xl p-5 sm:p-6" aria-labelledby="syl-h">
       <div className="flex items-center justify-between gap-3">
-        <h2 id="syl-h" className="text-lg font-bold tracking-[-0.01em] text-ink">Syllabus covered</h2>
+        <h2 id="syl-h" className="text-lg font-bold tracking-[-0.01em] text-ink">Chapters covered</h2>
         <Link href="/notes" className="-my-3 -mr-2 inline-flex min-h-11 items-center px-2 text-sm font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline">
           Notes
         </Link>

@@ -30,7 +30,9 @@ async function isAdmin(req: NextRequest): Promise<boolean> {
 
   const { data, error } = await createClient(url, key).auth.getUser(token);
   if (error || !data.user) return false;
-  return (data.user.app_metadata as Record<string, unknown>)?.role === "admin";
+  const meta = data.user.app_metadata as Record<string, unknown>;
+  // Owner only (the assistant does not build tests).
+  return meta?.role === "admin" && meta?.staff !== "ta";
 }
 
 /** Plain text from a PDF, page by page. */

@@ -189,7 +189,7 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
       <div className="flex items-center justify-between gap-2">
         <p className="min-w-0 truncate text-xs font-medium text-ink-3">{subjectName ?? "Homework"}</p>
         {mine ? (
-          <Badge tone="success">{+new Date(mine.submittedAt) > +new Date(assignment.dueAt) ? "Handed in late" : "Handed in"}</Badge>
+          <Badge tone={+new Date(mine.submittedAt) > +new Date(assignment.dueAt) ? "neutral" : "success"}>{+new Date(mine.submittedAt) > +new Date(assignment.dueAt) ? "Handed in late" : "Handed in"}</Badge>
         ) : (
           overdue && <Badge tone="warning">Overdue</Badge>
         )}

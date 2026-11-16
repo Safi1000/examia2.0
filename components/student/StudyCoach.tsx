@@ -9,7 +9,7 @@ import { waTextLink } from "@/lib/landing";
 import { displayName } from "@/lib/display-name";
 import { Card } from "@/components/ui";
 import { cn } from "@/lib/cn";
-import { takesLevelSubject } from "@/lib/levels";
+import { topicNotesFinder } from "@/components/student/topic-notes";
 
 /**
  * "What to work on next": turns marks into the next three concrete steps.
@@ -39,18 +39,9 @@ export function StudyCoach({
   const masteryFor = (subject: string, name: string) =>
     mastery.find((m) => m.subject.toLowerCase() === subject.trim().toLowerCase() && m.name.toLowerCase() === name.toLowerCase());
 
-  // Notes this student can open (same scoping as the Notes page).
-  const noteIds = new Set(
-    db.noteAssignments
-      .filter(
-        (na) =>
-          na.cohortId === student.cohortId &&
-          takesLevelSubject(student, na.classId ?? null, na.subjectId ?? null),
-      )
-      .map((na) => na.noteId),
-  );
-  const noteFor = (topic: string) =>
-    db.notes.find((n) => noteIds.has(n.id) && n.title.toLowerCase().includes(topic.toLowerCase()));
+  // The note for a topic, found the same way the Notes page shelves them
+  // (else that subject's notes, else nothing).
+  const notesFor = topicNotesFinder(db, student);
 
   type Step = { name: string; subject: string; lost?: number; out?: number; redo?: number[]; overall?: number };
   let steps: Step[];
@@ -95,7 +86,7 @@ export function StudyCoach({
       ) : (
         <ol className="mt-4 space-y-4">
           {steps.map((s, i) => {
-            const note = noteFor(s.name);
+            const notes = notesFor(s.subject, s.name);
             const pct = s.overall != null ? Math.round(s.overall) : undefined;
             return (
               <li key={`${s.subject}|${s.name}`} className="border-t border-hairline pt-4 first:border-t-0 first:pt-0">
@@ -132,9 +123,9 @@ export function StudyCoach({
                       ))}
                     </span>
                   )}
-                  {note && (
-                    <Link href={`/notes?open=${note.id}`} className="inline-flex min-h-11 items-center rounded-md border border-border-strong px-3 font-semibold text-ink hover:border-brand">
-                      Read: {note.title}
+                  {notes && (
+                    <Link href={notes.href} className="inline-flex min-h-11 items-center rounded-md border border-border-strong px-3 font-semibold text-ink hover:border-brand">
+                      {notes.label}
                     </Link>
                   )}
                   <a
@@ -143,7 +134,7 @@ export function StudyCoach({
                     rel="noopener noreferrer"
                     className="inline-flex min-h-11 items-center rounded-md px-3 font-semibold text-brand hover:underline"
                   >
-                    Ask about this →
+                    Ask Hamza on WhatsApp
                   </a>
                 </div>
               </li>

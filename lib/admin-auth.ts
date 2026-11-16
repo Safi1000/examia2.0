@@ -1,13 +1,35 @@
 import { createHash, timingSafeEqual } from "crypto";
 import { createClient } from "@supabase/supabase-js";
 
-/** True when the request carries a signed-in admin's Supabase token. */
+/**
+ * Two kinds of staff sign in to the console: Hamza (the owner) and, since
+ * Nov 2026, a teaching assistant. Both carry role "admin" on their account
+ * (the database only knows that one word); the assistant also carries
+ * staff: "ta". Everything here is owner only unless it says "staff".
+ *
+ * This is a guard rail in the site's own routes and screens, not a lock in
+ * the database: see DEVELOPER-LIST.md, item 4, for the real role.
+ */
+export type Staff = { id: string; ta: boolean; name: string };
+
+/** True when the request carries Hamza's own sign-in (never the assistant's). */
 export async function isAdminRequest(req: Request): Promise<boolean> {
   return !!(await adminIdFromRequest(req));
 }
 
-/** The signed-in admin's user id, or null. */
+/** Hamza's user id when the request carries his own sign-in, or null (also for the assistant). */
 export async function adminIdFromRequest(req: Request): Promise<string | null> {
+  const s = await staffFromRequest(req);
+  return s && !s.ta ? s.id : null;
+}
+
+/** True for Hamza or the assistant: the few things she may read. */
+export async function isStaffRequest(req: Request): Promise<boolean> {
+  return !!(await staffFromRequest(req));
+}
+
+/** Whoever of the staff is signed in on this request, or null. */
+export async function staffFromRequest(req: Request): Promise<Staff | null> {
   const token = req.headers.get("authorization")?.replace(/^Bearer /, "");
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -21,7 +43,9 @@ export async function adminIdFromRequest(req: Request): Promise<string | null> {
     });
     // Asked of Supabase itself, so a made-up or expired token never passes.
     const { data } = await sb.auth.getUser();
-    return (data.user?.app_metadata as { role?: string } | undefined)?.role === "admin" ? data.user!.id : null;
+    const meta = data.user?.app_metadata as { role?: string; staff?: string; name?: string } | undefined;
+    if (!data.user || meta?.role !== "admin") return null;
+    return { id: data.user.id, ta: meta.staff === "ta", name: typeof meta.name === "string" ? meta.name.slice(0, 60) : "" };
   } catch {
     return null;
   }

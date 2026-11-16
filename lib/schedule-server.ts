@@ -17,7 +17,8 @@ export async function adminUser(sb: SupabaseClient) {
   for (let page = 1; page <= 10; page++) {
     const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 1000 });
     if (error) throw error;
-    const admins = data.users.filter((u) => (u.app_metadata as { role?: string })?.role === "admin");
+    // Never the assistant's account: the timetable and automations live on Hamza's.
+    const admins = data.users.filter((u) => (u.app_metadata as { role?: string; staff?: string })?.role === "admin" && (u.app_metadata as { staff?: string })?.staff !== "ta");
     const found = admins.find((u) => (u.app_metadata as { schedule?: unknown }).schedule);
     if (found) return found;
     first ??= admins[0] ?? null;

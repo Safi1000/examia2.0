@@ -206,6 +206,24 @@ export function announcementAudience(db: Database, cohortId: string | null): Stu
   return db.students.filter((s) => (!cohortId || s.cohortId === cohortId) && !(s.cohortId && off.has(s.cohortId)) && !isTestAccount(s));
 }
 
+/**
+ * Was this homework set for this student? Its cohort, its level and subject when
+ * set, and not due before they started there. The rule the Homework page's
+ * hand-in list and lib/attention.ts use, as one pure helper for other pages.
+ */
+export function homeworkSetFor(
+  db: Pick<Database, "activities">,
+  s: Pick<Student, "id" | "createdAt" | "cohortId" | "classIds" | "subjectIds">,
+  a: { cohortId: string | null; classId?: string | null; subjectId?: string | null; dueAt: string },
+): boolean {
+  return (
+    a.cohortId === s.cohortId &&
+    startedMs(db, s, a.classId, a.subjectId) < +new Date(a.dueAt) &&
+    (!a.classId || s.classIds.includes(a.classId)) &&
+    (!a.subjectId || s.subjectIds.includes(a.subjectId))
+  );
+}
+
 /** Work a student is set: nothing whose deadline had passed before they joined (unless they handed it in). */
 export function assignmentsForStudent(db: Database, student: Student) {
   const since = joinedMs(student);

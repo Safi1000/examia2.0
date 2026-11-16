@@ -24,7 +24,10 @@ const DEMO_PROFILE_KEY = "ht_demo_profile";
 /** Resolve a Supabase user into the app's session shape (role + studentId). */
 async function resolveSession(user: User): Promise<Session> {
   const isAdmin = (user.app_metadata as Record<string, unknown>)?.role === "admin";
-  if (isAdmin) return { role: "admin" };
+  if (isAdmin) {
+    const meta = user.app_metadata as { staff?: string; name?: string };
+    return meta.staff === "ta" ? { role: "admin", staff: "ta", staffName: typeof meta.name === "string" ? meta.name : "" } : { role: "admin" };
+  }
   // A weak signal at sign-in shouldn't look like "no account": try a few times.
   for (let attempt = 0; ; attempt++) {
     const { data, error } = await supabase().from("students").select("id").eq("user_id", user.id).maybeSingle();
@@ -106,7 +109,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const establishDemo = useCallback(async (role: DemoRole) => {
     setDemoRole(role);
     await getStore().load();
-    setSession(role === "admin" ? { role: "admin" } : { role: "student", studentId: DEMO_STUDENT_ID });
+    // Preview only: ?ta=1 shows the console as the teaching assistant sees it (?ta=0 goes back).
+    let ta = false;
+    try {
+      const q = new URLSearchParams(window.location.search).get("ta");
+      if (q === "1" || q === "0") localStorage.setItem("ht_demo_ta", q);
+      ta = localStorage.getItem("ht_demo_ta") === "1";
+    } catch {}
+    setSession(role === "admin" ? (ta ? { role: "admin", staff: "ta", staffName: "Assistant" } : { role: "admin" }) : { role: "student", studentId: DEMO_STUDENT_ID });
     try {
       setProfile(JSON.parse(localStorage.getItem(DEMO_PROFILE_KEY) ?? "{}") as Profile);
     } catch {}

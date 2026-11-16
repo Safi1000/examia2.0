@@ -73,7 +73,7 @@ export default function TodayPage() {
         .flat()
         .find((s) => s.startMs > nowMs);
   const nextLabel = nextClass
-    ? `${LEVEL_LABEL[nextClass.level]}, ${
+    ? `${LEVEL_LABEL[nextClass.level]} ${nextClass.subject}, ${
         nextClass.date === todayPk
           ? "today"
           : nextClass.date === addDays(todayPk, 1)
@@ -185,11 +185,22 @@ export default function TodayPage() {
     router.push(`/admin/tests/${id}`);
   }
 
+  // The same counts as "Start marking" and the list headings below, so no two numbers disagree.
   const stats = [
-    { label: "To mark", value: data.toMark.length + data.toReply.length, href: "#to-mark" },
-    { label: "Closing in 48 hours", value: data.closing.length, href: "#closing" },
-    { label: "Students to check on", value: data.problems.length, href: "#attention" },
-    { label: "Average, last 30 days", value: data.avg30 === null ? "None yet" : `${data.avg30}%`, href: "/admin/analytics" },
+    {
+      label: "Papers to mark",
+      value: data.toMark.length,
+      href: "#to-mark",
+      note: data.toReply.length ? `Homework to reply: ${data.toReply.length}` : null,
+    },
+    { label: "Closing in 48 hours", value: data.closing.length, href: "#closing", note: null },
+    {
+      label: "Students to check on",
+      value: data.problems.length + data.rotation.length,
+      href: "#attention",
+      note: data.rotation.length ? `${data.problems.length} with a problem` : null,
+    },
+    { label: "Average, last 30 days", value: data.avg30 === null ? "None yet" : `${data.avg30}%`, href: "/admin/analytics", note: null },
   ];
 
   return (
@@ -221,7 +232,7 @@ export default function TodayPage() {
       )}
 
       {/* Notices below the class: side by side on a laptop, so they read as two small things, not two big bars. */}
-      <div className="grid gap-x-4 lg:grid-cols-2 [&>*]:min-w-0">
+      <div className="grid items-start gap-x-4 lg:grid-cols-2 [&>*]:min-w-0">
       <NotifyCoverage />
 
       {/* Parents to message: a skipped test, 2+ absences in a row, a result under 70%, monthly reports. Hidden when there's nothing. */}
@@ -235,6 +246,7 @@ export default function TodayPage() {
           <a key={s.label} href={s.href} className={cn(panelLink, "px-5 py-4")}>
             <p className="text-[13px] text-ink-3">{s.label}</p>
             <p className="mt-1 text-[1.75rem] font-semibold leading-tight tabular-nums tracking-[-0.02em] text-ink">{s.value}</p>
+            {s.note && <p className="mt-0.5 text-[13px] tabular-nums text-ink-3">{s.note}</p>}
           </a>
         ))}
       </div>

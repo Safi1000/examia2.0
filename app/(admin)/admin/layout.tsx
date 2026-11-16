@@ -18,6 +18,7 @@ import { NavIcon } from "@/components/nav/NavIcons";
 import { cn } from "@/lib/cn";
 import { NotificationBell } from "@/components/NotificationBell";
 import { CommandPalette } from "@/components/admin/CommandPalette";
+import { TA_HOME, isTa, taMayOpen } from "@/lib/staff";
 import { PortalAmbient } from "@/components/PortalAmbient";
 import { PortalManifest } from "@/components/PortalManifest";
 import { pageTitle, useDocumentTitle } from "@/hooks/usePageTitle";
@@ -57,6 +58,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const isAdmin = session?.role === "admin";
   const pathname = usePathname();
+  const ta = isTa(session);
+  useEffect(() => {
+    if (ta && !taMayOpen(pathname)) router.replace(TA_HOME);
+  }, [ta, pathname, router]);
   useDocumentTitle(isAdmin ? pageTitle(pathname, TITLES, "Teacher console") : "Teacher sign in · Hamza Teaches");
 
   useSessionTimeout(
@@ -118,13 +123,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return <Splash />;
   }
   if (!isAdmin) return <AdminLogin />;
+  // The assistant only ever lands on her own pages; anything else sends her to her marking list.
+  if (ta && !taMayOpen(pathname)) return <Splash />;
   if (!ready) {
     return <Splash />;
   }
 
   return (
     <AdminFilterProvider>
-      <div className="relative isolate flex min-h-dvh">
+      <div className="relative isolate flex min-h-dvh" data-ta={ta ? "" : undefined}>
         {/* Keyboard users can jump past the sidebar straight to the page. */}
         <a
           href="#admin-main"

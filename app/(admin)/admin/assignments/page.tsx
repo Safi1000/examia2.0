@@ -9,6 +9,7 @@ import { isTestAccount } from "@/lib/display-name";
 import { studentHomeworkDue } from "@/lib/portal-messages";
 import { uploadAsImages } from "@/lib/cloudinary";
 import { useToast } from "@/components/toast";
+import { RowMenu } from "@/components/admin/RowMenu";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { PageStack, PaperImage } from "@/components/PageStack";
 import { PastPaperSheet, classHistoryIds, paperBuilder, type PastPaperBuild } from "@/components/admin/PastPaperSheet";
@@ -19,6 +20,8 @@ import { BulkBar, ConfirmBulk, NameList, OneByOne, RowCheck, SelectAll, plural, 
 import { useSelection } from "@/lib/use-selection";
 import { displayName } from "@/lib/display-name";
 import { useNow } from "@/hooks/useNow";
+import { useAuth } from "@/lib/auth-context";
+import { staffLog } from "@/lib/staff";
 import { useActivity } from "@/lib/activity-admin";
 import { fmtTime } from "@/lib/activity";
 import { nextClassStart, pkDate } from "@/lib/timetable";
@@ -342,6 +345,7 @@ export default function AdminAssignmentsPage() {
   const ppUrls = new Set(ppQs ? urlsOf(ppQs) : []);
   const open = openId ? db.assignments.find((a) => a.id === openId) ?? null : null;
   const target = deleteId ? db.assignments.find((a) => a.id === deleteId) ?? null : null;
+  const off = archivedCohortIds(db);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
@@ -349,10 +353,10 @@ export default function AdminAssignmentsPage() {
         title="Homework"
         subtitle={`${assignments.length} posted`}
         actions={
-          <>
+          <span data-owner className="contents">
             <Button variant="secondary" onClick={() => setPapersOpen(true)}><Icon.Layers className="h-4 w-4" /> From past papers</Button>
             <Button onClick={openNew}><Icon.Plus className="h-4 w-4" /> New homework</Button>
-          </>
+          </span>
         }
       />
 
@@ -361,21 +365,24 @@ export default function AdminAssignmentsPage() {
           icon={<Icon.Doc />}
           title="No homework yet"
           message="Post work with a deadline; students hand in photos or a PDF."
-          action={<Button onClick={openNew}><Icon.Plus className="h-4 w-4" /> New homework</Button>}
+          action={<span data-owner className="contents"><Button onClick={openNew}><Icon.Plus className="h-4 w-4" /> New homework</Button></span>}
         />
       ) : (
         <div role="group" aria-label="Homework" onKeyDown={sel.listKeyDown}>
-        <SelectAll sel={sel} noun="homework" />
+        <span data-owner className="contents"><SelectAll sel={sel} noun="homework" /></span>
         <Card className="divide-y divide-border overflow-hidden p-0">
           {assignments.map((a) => {
             const handIns = db.assignmentSubmissions.filter((s) => s.assignmentId === a.id);
+            // "3 of 5": the same people as the hand-ins window (who handed in, plus who it was set for and hasn't), without the test account.
+            const handedReal = handIns.filter((h) => !isTestAccount(studentById(db, h.studentId)));
+            const setForCount = new Set([...handedReal.map((h) => h.studentId), ...owedFor(db, a, off).map((s) => s.id)]).size;
             const overdue = +new Date(a.dueAt) < nowMs;
             const cohort = db.cohorts.find((c) => c.id === a.cohortId);
             const cls = db.classes.find((c) => c.id === a.classId);
             const subj = db.subjects.find((x) => x.id === a.subjectId);
             return (
               <div key={a.id} className="flex items-start gap-3 px-4 py-4 transition-colors hover:bg-white/[0.018]">
-                <span className="pt-1">
+                <span data-owner className="pt-1">
                   <RowCheck id={a.id} checked={sel.isSelected(a.id)} onToggle={sel.toggle} label={`Select ${a.title}`} />
                 </span>
                 <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-3">
@@ -388,7 +395,7 @@ export default function AdminAssignmentsPage() {
                     <p className="mt-0.5 text-sm tabular-nums text-ink-3">
                       {[cohort?.name, cls?.name, subj?.name].filter(Boolean).join(" › ") || "All students"}
                       {" · "}
-                      {handIns.length} handed in
+                      {handedReal.length} of {setForCount} handed in
                       {handIns.some((h) => !h.feedback) && <span className="font-semibold text-brand"> · {handIns.filter((h) => !h.feedback).length} to reply</span>}
                     </p>
                   </div>
@@ -396,16 +403,12 @@ export default function AdminAssignmentsPage() {
                     <Button variant="secondary" size="sm" onClick={() => setOpenId(a.id)}>
                       Hand-ins ({handIns.length})
                     </Button>
-                    <Button variant="secondary" size="sm" onClick={() => openEdit(a)}>
-                      <Icon.Edit className="h-4 w-4" /> Edit
-                    </Button>
-                    <button
-                      onClick={() => setDeleteId(a.id)}
-                      className="flex h-11 w-11 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error"
-                      aria-label={`Delete ${a.title}`}
-                    >
-                      <Icon.Trash className="h-[18px] w-[18px]" />
-                    </button>
+                    <span data-owner className="contents">
+                      <Button variant="secondary" size="sm" onClick={() => openEdit(a)}>
+                        <Icon.Edit className="h-4 w-4" /> Edit
+                      </Button>
+                      <RowMenu label={`More for ${a.title}`} items={[{ label: "Delete", danger: true, onSelect: () => setDeleteId(a.id) }]} />
+                    </span>
                   </div>
                 </div>
               </div>
@@ -415,7 +418,7 @@ export default function AdminAssignmentsPage() {
         </div>
       )}
 
-      <BulkBar count={sel.count} onClear={sel.clear} actions={bulkActions} />
+      <span data-owner className="contents"><BulkBar count={sel.count} onClear={sel.clear} actions={bulkActions} /></span>
 
       <ConfirmBulk
         open={ask === "extend"}
@@ -631,6 +634,7 @@ export default function AdminAssignmentsPage() {
 function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (id: string, on: boolean) => void }) {
   const db = useDatabase();
   const store = useStore();
+  const { session } = useAuth();
   const { toast } = useToast();
   const nowMs = useNow();
   // Still waiting for a reply first, oldest hand-in first.
@@ -680,6 +684,7 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
             {/* Before the deadline only: no nudging towards late work. */}
             {open && s.phone && (
               <a
+                data-owner
                 href={`https://wa.me/${s.phone.replace(/\D/g, "")}?text=${encodeURIComponent(studentHomeworkDue({ id: s.id, username: s.username, title: a!.title, due }))}`}
                 target="_blank"
                 rel="noreferrer"
@@ -720,7 +725,7 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
             <FeedbackBox
               initial={s.feedback ?? ""}
               onDirty={(on) => onUnsent(s.id, on)}
-              onSave={(text) => { store.setAssignmentFeedback(s.id, text); onUnsent(s.id, false); toast("Feedback sent.", "success"); }}
+              onSave={(text) => { store.setAssignmentFeedback(s.id, text); onUnsent(s.id, false); toast("Feedback sent.", "success"); staffLog(session, `replied to ${student?.username ?? "a student"}'s homework`); }}
             />
           </div>
         );

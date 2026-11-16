@@ -5,6 +5,7 @@ import type { Announcement } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { announcementAudience, cohortById } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
+import { RowMenu } from "@/components/admin/RowMenu";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Button, Textarea, Select, Checkbox, Badge, CohortTag, Modal, EmptyState, Icon } from "@/components/ui";
 import { formatDate } from "@/lib/time";
@@ -119,9 +120,7 @@ export default function AnnouncementsPage() {
                     <button type="button" onClick={() => openEdit(a)} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11" aria-label="Edit">
                       <Icon.Edit className="h-4 w-4" />
                     </button>
-                    <button type="button" onClick={() => setDeleting(a)} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-error-soft hover:text-error max-md:h-11 max-md:w-11" aria-label="Delete">
-                      <Icon.Trash className="h-4 w-4" />
-                    </button>
+                    <RowMenu items={[{ label: "Delete", danger: true, onSelect: () => setDeleting(a) }]} />
                   </div>
                 </div>
               </Card>

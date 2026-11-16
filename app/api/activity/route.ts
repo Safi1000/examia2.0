@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { isAdminRequest } from "@/lib/admin-auth";
+import { isStaffRequest } from "@/lib/admin-auth";
 import { serviceClient } from "@/lib/push-server";
 import { pkDate, addDays } from "@/lib/timetable";
 import { AREAS, addSecs, mergeNote, type Area, type DayActivity, type MonthFile, type NoteActivity, type StudentActivity } from "@/lib/activity";
@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
 const recent = new Map<string, { at: number; body: unknown }>();
 
 export async function GET(req: NextRequest) {
-  if (!(await isAdminRequest(req))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!(await isStaffRequest(req))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   if (!storageReady()) return NextResponse.json({ students: {} });
   const key = `${req.nextUrl.searchParams.get("from") ?? ""}|${req.nextUrl.searchParams.get("student") ?? ""}`;
   const hit = recent.get(key);

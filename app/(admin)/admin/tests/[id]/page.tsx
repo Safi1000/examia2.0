@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import type { Question } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
-import { liveStatus, submissionsForTest, testById } from "@/lib/data/selectors";
+import Link from "next/link";
+import { isAwaitingMarking, liveStatus, submissionsForTest, testById } from "@/lib/data/selectors";
+import { buttonClasses } from "@/components/ui/Button";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { QuestionModal, type QuestionDraft } from "@/components/admin/QuestionModal";
@@ -115,6 +117,10 @@ export default function TestEditorPage() {
   const canPublish = canSave && questions.length > 0 && noMarks === 0;
   // Scripts already handed in: editing a question now changes their marks.
   const sat = submissionsForTest(db, id).filter((x) => x.status !== "in_progress").length;
+  // Papers on this test waiting for marks (the Submissions page's rule), oldest first.
+  const toMarkHere = submissionsForTest(db, id)
+    .filter((x) => isAwaitingMarking(db, x))
+    .sort((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""));
   const totalMarks = questions.reduce((n, q) => n + Math.max(0, q.marks), 0);
 
   async function swap(q: Question) {
@@ -246,6 +252,16 @@ export default function TestEditorPage() {
         back={{ href: "/admin/tests", label: "Tests" }}
         actions={
           <>
+            {/* Quiet way to this test's papers: the first one to mark, or the Submissions list. */}
+            {toMarkHere.length > 0 ? (
+              <Link href={`/admin/grading/${toMarkHere[0].id}`} className={buttonClasses({ variant: "ghost" })}>
+                Mark papers ({toMarkHere.length})
+              </Link>
+            ) : sat > 0 ? (
+              <Link href="/admin/submissions" className={buttonClasses({ variant: "ghost" })}>
+                Submissions ({sat})
+              </Link>
+            ) : null}
             <Pill>{test.testCode}</Pill>
             {questions.length > 0 && (
               <Button variant="secondary" onClick={() => setPdfOpen(true)}>

@@ -15,6 +15,7 @@ import { BulkBar, ConfirmBulk, NameList, OneByOne, RowCheck, SelectAll, copyText
 import { useSelection } from "@/lib/use-selection";
 import { parentNotifications, studentCheckIn, studentNotifications } from "@/lib/portal-messages";
 import { uploadImage } from "@/lib/cloudinary";
+import { RowMenu } from "@/components/admin/RowMenu";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { ArchiveTabs, archiveFromUrl, type ArchiveView } from "@/components/admin/ArchiveTabs";
 import { Card, Button, Input, Select, Label, CohortDot, Modal, EmptyState, Icon, Badge, segmentGroup, segmentItem } from "@/components/ui";
@@ -460,10 +461,10 @@ export default function RosterPage() {
         title="Roster"
         subtitle={`${students.length} ${students.length === 1 ? "student" : "students"}`}
         actions={
-          <>
+          <span data-owner className="contents">
             <Button variant="secondary" onClick={() => setBulk(true)} disabled={db.cohorts.length === 0}>Import students</Button>
             <Button onClick={openNew} disabled={db.cohorts.length === 0}><Icon.Plus className="h-4 w-4" /> Add student</Button>
-          </>
+          </span>
         }
       />
 
@@ -539,7 +540,8 @@ export default function RosterPage() {
         />
       ) : (
         <div role="group" aria-label="Students" onKeyDown={sel.listKeyDown}>
-        <SelectAll sel={sel} noun="student" />
+        {/* Owner only: the assistant looks students up, she does not change or message them. */}
+        <span data-owner className="contents"><SelectAll sel={sel} noun="student" /></span>
         <Card className="divide-y divide-border overflow-hidden p-0">
           {students.map((s) => {
             const cohort = cohortById(db, s.cohortId);
@@ -553,7 +555,7 @@ export default function RosterPage() {
               : null;
             return (
               <div key={s.id} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-white/[0.018] sm:flex-nowrap sm:items-center">
-                <span className="pt-2.5 sm:pt-0">
+                <span data-owner className="pt-2.5 sm:pt-0">
                   <RowCheck id={s.id} checked={sel.isSelected(s.id)} onToggle={sel.toggle} label={`Select ${s.username}`} />
                 </span>
                 <Link href={`/admin/roster/${s.id}`} className="group flex min-w-0 flex-1 basis-[calc(100%-2.5rem)] items-start gap-3 sm:basis-auto sm:items-center">
@@ -594,7 +596,7 @@ export default function RosterPage() {
                   </div>
                 </Link>
                 {/* On a phone the actions sit on their own line, so nothing runs off the screen. */}
-                <div className="ml-auto flex shrink-0 gap-1">
+                <div data-owner className="ml-auto flex shrink-0 gap-1">
                   {s.phone && (
                     <a
                       href={`https://wa.me/${waDigits(s.phone)}`}
@@ -624,9 +626,7 @@ export default function RosterPage() {
                   <button onClick={() => openEdit(s)} className="flex h-10 w-10 items-center justify-center rounded-full transition-colors max-md:h-11 max-md:w-11 text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label={`Edit ${s.username}`}>
                     <Icon.Edit className="h-4 w-4" />
                   </button>
-                  <button onClick={() => setDeleting(s)} className="flex h-10 w-10 items-center justify-center rounded-full transition-colors max-md:h-11 max-md:w-11 text-ink-3 hover:bg-error-soft hover:text-error" aria-label={`Delete ${s.username}`}>
-                    <Icon.Trash className="h-4 w-4" />
-                  </button>
+                  <RowMenu label={`More for ${s.username}`} items={[{ label: "Delete", danger: true, onSelect: () => setDeleting(s) }]} />
                 </div>
               </div>
             );
@@ -635,7 +635,7 @@ export default function RosterPage() {
         </div>
       )}
 
-      <BulkBar count={sel.count} onClear={sel.clear} actions={actions} />
+      <span data-owner className="contents"><BulkBar count={sel.count} onClear={sel.clear} actions={actions} /></span>
 
       <ConfirmBulk
         open={ask === "message"}
