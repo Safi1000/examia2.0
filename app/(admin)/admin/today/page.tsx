@@ -209,11 +209,6 @@ export default function TodayPage() {
       {/* Only shows when something needs you: Google, the timer, a missing link or recording. */}
       <HealthLine />
 
-      <NotifyCoverage />
-
-      {/* Parents to message: a skipped test, 2+ absences in a row, a result under 70%, monthly reports. Hidden when there's nothing. */}
-      <RemindersPanel />
-
       {/* The class to start, from 3 hours before until it ends. */}
       {heroClass && <StartCard slot={heroClass} url={classLinks.find((l) => slotKey(l) === slotKey(heroClass))?.meetUrl ?? null} nowMs={nowMs} />}
       {nextLabel && (
@@ -224,6 +219,15 @@ export default function TodayPage() {
           <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-sm text-ink-3">Classes <Icon.ChevronRight className="h-3.5 w-3.5" aria-hidden /></span>
         </Link>
       )}
+
+      {/* Notices below the class: side by side on a laptop, so they read as two small things, not two big bars. */}
+      <div className="grid gap-x-4 lg:grid-cols-2 [&>*]:min-w-0">
+      <NotifyCoverage />
+
+      {/* Parents to message: a skipped test, 2+ absences in a row, a result under 70%, monthly reports. Hidden when there's nothing. */}
+      <RemindersPanel />
+
+      </div>
 
       {/* At a glance */}
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
