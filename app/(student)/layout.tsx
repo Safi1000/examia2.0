@@ -188,22 +188,14 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     { href: "/notes", label: "Notes", short: "Notes", Icon: NavIcon.Notes },
     { href: "/progress", label: "Progress", short: "Progress", Icon: NavIcon.Progress },
   ];
-  // Phones: five tabs. "Work" holds Tests, Homework and Notes behind a switch.
-  const WORK = ["/tests", "/assignments", "/notes"];
-  const isWork = WORK.includes(pathname) || pathname.startsWith("/results") || /^\/test\/[^/]+\/submitted$/.test(pathname);
-  // Work opens where something is waiting: open tests first, else homework.
+  // Phones: five plain tabs, each page one tap away (Hamza, Nov 2026: students could not find things
+  // behind the old "Work" tab). Progress and Groundwork open from Home and from the account menu.
   const due = dueFor(db, student, nowMs);
   const testsDue = due.openTests.length;
   const homeworkDue = due.overdue.length + due.dueSoon.filter((a) => +new Date(a.dueAt) - nowMs < 3 * 86_400_000).length;
-  const workHref = testsDue ? "/tests" : homeworkDue ? "/assignments" : "/tests";
-  const counts: Record<string, number> = { "/tests": testsDue, "/assignments": homeworkDue };
-  const phoneLinks = [
-    links[0],
-    links[1],
-    links[3],
-    { href: workHref, label: "Work", short: "Work", Icon: NavIcon.Tests, work: true, badge: testsDue + homeworkDue },
-    links[6],
-  ];
+  const phoneLinks = [links[0], links[1], { ...links[2], badge: testsDue }, { ...links[4], badge: homeworkDue }, links[5]];
+  // On a phone, pages with no tab of their own light up Home (they open from it).
+  const fromHome = ["/plan", "/progress", "/groundwork", "/settings", "/notifications"];
   // Results and the Done screen after a test belong to Tests; the full plan opens from Home.
   const inTests = pathname.startsWith("/results") || /^\/test\/[^/]+\/submitted$/.test(pathname);
   const isActive = (href: string) =>
@@ -273,35 +265,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           </div>
         </header>
       )}
-      {!inRunner && isWork && (
-        <nav aria-label="Work" className="mx-auto max-w-3xl px-5 pt-5 sm:px-6 md:hidden">
-          <ul className="grid grid-cols-3 gap-1 rounded-full border border-border bg-surface p-1">
-            {[
-              ["/tests", "Tests"],
-              ["/assignments", "Homework"],
-              ["/notes", "Notes"],
-            ].map(([href, label]) => {
-              const on = isActive(href);
-              return (
-                <li key={href}>
-                  <Link
-                    href={href}
-                    aria-current={on ? "page" : undefined}
-                    className={cn("flex h-11 items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition-colors", on ? "bg-white/[0.11] text-ink shadow-[0_1px_3px_rgba(0,0,0,0.35)]" : "text-ink-3 hover:text-ink")}
-                  >
-                    {label}
-                    {!!counts[href] && (
-                      <span className={cn("min-w-5 rounded-full px-1.5 text-center text-xs font-bold leading-5 tabular-nums", "bg-brand/15 text-brand")}>
-                        {counts[href]}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-      )}
       <main id="main" tabIndex={-1} className="focus:outline-none">
         <ScheduleGate>{children}</ScheduleGate>
       </main>
@@ -318,32 +281,14 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         >
           <ul className="grid grid-cols-5 rounded-[22px] border border-white/[0.08] bg-[#1d2023]/[0.97] p-1.5 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.05)]">
             {phoneLinks.map((l) => {
-              const active = "work" in l ? isWork : isActive(l.href);
-              // Groundwork sits in the middle as a raised gold button (no room for its full name).
-              if ("feature" in l && l.feature)
-                return (
-                  <li key={l.href} className="flex items-center justify-center">
-                    <Link
-                      href={l.href}
-                      aria-label={l.label}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "-mt-5 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-brand text-on-brand shadow-[0_10px_24px_-8px_rgba(251,193,89,0.6)] ring-4 transition-transform active:scale-95",
-                        // One ring colour at a time: two together and the page colour always won.
-                        active ? "ring-brand/30" : "ring-paper",
-                      )}
-                    >
-                      <l.Icon active className="h-[22px] w-[22px] [&_g]:fill-current [&_g]:stroke-current" />
-                    </Link>
-                  </li>
-                );
+              const active = isActive(l.href) || (l.href === "/dashboard" && fromHome.includes(pathname));
               return (
                 <li key={l.href}>
                   <Link
                     href={l.href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex h-[52px] flex-col items-center justify-center gap-1 rounded-2xl text-xs font-semibold tracking-wide transition-colors duration-300 active:scale-95",
+                      "flex h-[52px] flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-semibold transition-colors duration-300 active:scale-95",
                       active ? "bg-brand/[0.12] text-brand" : "text-ink-3",
                     )}
                   >
@@ -432,6 +377,25 @@ function AccountMenu({
             {cohort && <CohortTag color={cohort.color} name={cohort.name} className="mt-1 text-xs" />}
           </div>
           <div className="h-px bg-white/[0.06]" />
+          {/* Phones: the two pages with no tab of their own. */}
+          <Link
+            role="menuitem"
+            href="/progress"
+            onClick={() => setOpen(false)}
+            className="mt-1 flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink active:bg-white/[0.08] md:hidden"
+          >
+            <NavIcon.Progress className="h-[18px] w-[18px]" />
+            Progress
+          </Link>
+          <Link
+            role="menuitem"
+            href="/groundwork"
+            onClick={() => setOpen(false)}
+            className="mt-1 flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink active:bg-white/[0.08] md:hidden"
+          >
+            <NavIcon.Groundwork className="h-[18px] w-[18px]" />
+            Groundwork
+          </Link>
           <Link
             role="menuitem"
             href="/settings"
