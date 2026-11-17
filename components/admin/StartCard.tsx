@@ -1,23 +1,25 @@
 "use client";
 
 import { Icon } from "@/components/ui";
+import { buttonClasses } from "@/components/ui/Button";
 import { LEVEL_LABEL, clock, span, type DaySlot } from "@/lib/timetable";
 
 /** "Start class": the one thing Hamza needs as a class comes up. */
 export function StartCard({ slot, url, nowMs }: { slot: DaySlot; url: string | null; nowMs: number }) {
   const live = nowMs >= slot.startMs;
   const mins = Math.max(1, Math.round((slot.startMs - nowMs) / 60_000));
+  // The one gold-tinted card in the console: the class that is about to start.
   return (
-    <section className="mb-4 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-brand/25 bg-surface bg-[linear-gradient(180deg,rgba(251,193,89,0.07),rgba(251,193,89,0)_70%)] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+    <section className="mb-4 flex flex-wrap items-center justify-between gap-4 rounded-card border border-brand/25 bg-[color-mix(in_srgb,var(--color-brand)_6%,var(--color-surface))] p-5 sm:p-6">
       <div>
-        <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.3em] text-brand">
-          <span className="h-2 w-2 rounded-full bg-brand motion-safe:animate-low-pulse" />
+        <p className="label-quiet flex items-center gap-2 text-brand">
+          <span className="h-2 w-2 rounded-full bg-brand" />
           {live ? "Live now" : mins < 60 ? `Starts in ${mins} min` : `Next at ${clock(slot.start)}`}
         </p>
-        <h2 className="mt-1.5 text-2xl font-bold tracking-[-0.02em] text-ink">
-          {slot.subject} <span className="text-lg font-semibold text-ink-2">· {LEVEL_LABEL[slot.level]}</span>
+        <h2 className="mt-1.5 text-xl font-bold tracking-[-0.02em] text-ink">
+          {slot.subject} <span className="text-base font-semibold text-ink-2">· {LEVEL_LABEL[slot.level]}</span>
         </h2>
-        <p className="text-sm text-ink-2">
+        <p className="mt-0.5 text-sm tabular-nums text-ink-2">
           {span(slot.start, slot.end)}
         </p>
       </div>
@@ -31,7 +33,7 @@ export function StartCard({ slot, url, nowMs }: { slot: DaySlot; url: string | n
               // One tap: Meet opens in a new tab, and this tab becomes the board, ready to share.
               setTimeout(() => window.location.assign("/teach/present"), 300);
             }}
-            className="inline-flex h-12 items-center gap-2 rounded-full bg-brand px-7 text-base font-semibold text-on-brand transition hover:brightness-110 active:scale-[0.98]"
+            className={buttonClasses({ size: "lg" })}
           >
             Start class <Icon.ChevronRight className="h-4 w-4" />
           </a>

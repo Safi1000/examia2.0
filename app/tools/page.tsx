@@ -6,6 +6,7 @@ import { Crumbs, Section } from "@/components/study/StudyBits";
 import { WaitlistBox } from "@/components/tools/WaitlistBox";
 import { RelatedLinks } from "@/components/study/RelatedLinks";
 import { breadcrumbLd, fitTitle } from "@/lib/seo";
+import "@/components/landing/public-calm.css";
 
 const title = "Free Tools for Accounting, Business and Economics";
 const description =
@@ -69,7 +70,7 @@ export default function ToolsHub() {
         </p>
         {GROUPS.map((g) => (
           <Section key={g.title} title={g.title}>
-            <ul className="surface divide-y divide-hairline overflow-hidden rounded-[20px]">
+            <ul className="pc-surface divide-y divide-hairline overflow-hidden rounded-card">
               {g.tools.map((t) => (
                 <li key={t.href}>
                   <Link
@@ -77,10 +78,10 @@ export default function ToolsHub() {
                     className="row-link group flex min-h-16 items-center gap-4 px-5 py-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-gold"
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[17px] font-semibold text-foreground transition-colors group-hover:text-gold">{t.name}</span>
-                      <span className="mt-1 block text-[15px] leading-relaxed text-muted-foreground">{t.what}</span>
+                      <span className="block text-base font-semibold text-foreground">{t.name}</span>
+                      <span className="mt-1 block text-sm leading-relaxed text-muted-foreground">{t.what}</span>
                     </span>
-                    <svg aria-hidden viewBox="0 0 20 20" className="h-5 w-5 shrink-0 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-gold" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg aria-hidden viewBox="0 0 20 20" className="h-5 w-5 shrink-0 text-faint transition-[color,transform] duration-150 group-hover:translate-x-0.5 group-hover:text-foreground" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="m8 5 5 5-5 5" />
                     </svg>
                   </Link>

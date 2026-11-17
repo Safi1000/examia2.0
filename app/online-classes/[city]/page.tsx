@@ -57,21 +57,21 @@ export default async function CityClassesPage({ params }: Props) {
       <JsonLd data={faqLd(faq)} />
       <div className="public-calm mx-auto max-w-3xl px-5 pb-24 pt-12 md:pt-20">
         <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Online classes", href: "/online-classes" }, { name: c.city }]} />
-        <h1 className="mt-8 text-[2.25rem] leading-[1.08] md:text-5xl">{c.heading}</h1>
+        <h1 className="mt-8 text-title leading-[1.1] sm:text-title-lg">{c.heading}</h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">{c.intro}</p>
 
         {c.local.map((l) => (
           <Section key={l.title} title={l.title}>
-            <p className="text-[17px] leading-relaxed text-body">{l.body}</p>
+            <p className="text-lg leading-relaxed text-body">{l.body}</p>
           </Section>
         ))}
 
         <Section title="Everything else">
-          <p className="text-[17px] leading-relaxed text-body">
+          <p className="text-lg leading-relaxed text-body">
             Class times, what is included and the syllabuses covered are on the{" "}
-            <Link href="/online-classes" className="text-gold hover:underline">online classes page</Link>. Entering without a school? Read the{" "}
-            <Link href="/private-candidates/pakistan" className="text-gold hover:underline">private candidate guide</Link>. Checking your marks?
-            Use the <Link href="/grade-thresholds" className="text-gold hover:underline">official grade thresholds</Link>.
+            <Link href="/online-classes" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">online classes page</Link>. Entering without a school? Read the{" "}
+            <Link href="/private-candidates/pakistan" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">private candidate guide</Link>. Checking your marks?
+            Use the <Link href="/grade-thresholds" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">official grade thresholds</Link>.
           </p>
         </Section>
 
@@ -115,7 +115,7 @@ function GulfCity({ c }: { c: GulfCityPage }) {
             { name: c.city },
           ]}
         />
-        <h1 className="mt-8 text-[2.25rem] leading-[1.08] md:text-5xl">{c.heading}</h1>
+        <h1 className="mt-8 text-title leading-[1.1] sm:text-title-lg">{c.heading}</h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">{c.intro}</p>
 
         <Section
@@ -124,11 +124,11 @@ function GulfCity({ c }: { c: GulfCityPage }) {
         >
           <div className="space-y-4">
             {localDay(zone.behindPk).map((d) => (
-              <div key={d.level} className="pc-surface rounded-[16px] px-5 py-4">
+              <div key={d.level} className="pc-surface rounded-tile px-5 py-4">
                 <p className="font-semibold text-foreground">
                   {d.level} <span className="font-normal text-muted-foreground">· {d.time}</span>
                 </p>
-                <ul className="mt-3 space-y-1.5 text-[15px] text-body">
+                <ul className="mt-3 space-y-1.5 text-base text-body">
                   {d.classes.map((k) => (
                     <li key={k.subject} className="flex justify-between gap-4">
                       <span>{k.subject}</span>
@@ -143,7 +143,7 @@ function GulfCity({ c }: { c: GulfCityPage }) {
 
         {c.local.map((l) => (
           <Section key={l.title} title={l.title}>
-            <div className="space-y-4 text-[17px] leading-relaxed text-body">
+            <div className="space-y-4 text-lg leading-relaxed text-body">
               {l.body.map((para) => (
                 <p key={para.slice(0, 32)}>{para}</p>
               ))}
@@ -157,13 +157,13 @@ function GulfCity({ c }: { c: GulfCityPage }) {
 
         <TrialBox from={`city:${c.slug}`} title={c.trial.title} body={c.trial.body} />
 
-        <p className="mt-12 text-[17px] leading-relaxed text-body">
+        <p className="mt-12 text-lg leading-relaxed text-body">
           How the classes work, for every Gulf country, is on the{" "}
-          <Link href="/online-classes/gulf" className="text-gold hover:underline">page for Gulf students</Link>.
+          <Link href="/online-classes/gulf" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">page for Gulf students</Link>.
           {c.guide && (
             <>
               {" "}Entering without a school? Read the{" "}
-              <Link href={c.guide.href} className="text-gold hover:underline">{c.guide.label}</Link>.
+              <Link href={c.guide.href} className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">{c.guide.label}</Link>.
             </>
           )}
         </p>
@@ -180,7 +180,7 @@ function GulfCity({ c }: { c: GulfCityPage }) {
           {c.sources.map((k, i) => (
             <span key={k}>
               {i > 0 && ", "}
-              <a href={GULF_SOURCES[k].href} className="hover:text-gold" rel="noopener">
+              <a href={GULF_SOURCES[k].href} className="underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:text-muted-foreground" rel="noopener">
                 {GULF_SOURCES[k].label}
               </a>
             </span>

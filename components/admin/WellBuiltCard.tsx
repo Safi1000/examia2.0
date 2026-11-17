@@ -106,15 +106,15 @@ export function WellBuiltCard({ db, profiles, nowMs, cohortId }: { db: Database;
   }
 
   return (
-    <Card className="mt-4 p-5 lg:mt-5">
+    <Card className="mt-4 p-5 sm:p-6 lg:mt-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className={panelTitle}>Focused most this week</h2>
-        <span className="text-xs text-ink-3">Groundwork minutes since Monday · only you see this</span>
+        <span className="text-sm text-ink-3">Groundwork minutes since Monday · only you see this</span>
       </div>
       {top.length === 0 ? (
-        <p className="mt-2 text-[15px] text-ink-2">No Groundwork study logged this week yet.</p>
+        <p className="mt-2 text-base text-ink-2">No Groundwork study logged this week yet.</p>
       ) : (
-        <ol className="mt-3 divide-y divide-border border-t border-border">
+        <ol className="mt-3 divide-y divide-hairline border-t border-hairline">
           {top.map((x, i) => {
             const done = praised.has(x.s.id);
             return (
@@ -122,7 +122,7 @@ export function WellBuiltCard({ db, profiles, nowMs, cohortId }: { db: Database;
                 <span className="w-4 shrink-0 text-right text-sm font-semibold tabular-nums text-ink-3">{i + 1}</span>
                 <Avatar id={x.avatar} initials={x.name[0]} level={x.level} className="h-10 w-10 text-sm" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold text-ink">{x.name}</span>
+                  <span className="block truncate text-base font-semibold text-ink">{x.name}</span>
                   <span className="block text-sm tabular-nums text-ink-3">
                     {fmt(x.minutes)}
                     {x.streak > 1 ? ` · ${x.streak} day streak` : ""}

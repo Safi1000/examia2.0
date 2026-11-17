@@ -75,13 +75,13 @@ export default async function McqPaperPage({ params }: Props) {
           <McqChecker paper={p} name={name} id={`${s.slug}/${paperSlug(p)}`} />
         </div>
 
-        <p className="mt-10 text-[15px] leading-relaxed text-muted-foreground">
+        <p className="mt-10 text-base leading-relaxed text-muted-foreground">
           Got your score? Put it into the{" "}
-          <Link href="/tools/grade-predictor" className="text-gold hover:underline">
+          <Link href="/tools/grade-predictor" className="font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 hover:decoration-foreground">
             grade predictor
           </Link>{" "}
           with your other paper&apos;s mark to see the grade it points to. More papers for this syllabus are on the{" "}
-          <Link href={base} className="text-gold hover:underline">
+          <Link href={base} className="font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 hover:decoration-foreground">
             {s.code} checker page
           </Link>
           .

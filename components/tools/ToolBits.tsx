@@ -2,7 +2,54 @@
 
 import { useId, type ReactNode } from "react";
 import { TrackedLink } from "@/components/landing/TrackedLink";
+import { cn } from "@/lib/cn";
 import { waTextLink } from "@/lib/landing";
+import "@/components/landing/public-calm.css";
+
+/*
+ * One look for every free tool, so the calculators read as one family:
+ * the same field, label, switch, chip, result and buttons everywhere.
+ * Chosen options are a quiet off-white step; gold is only the action.
+ */
+const ring = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
+/** The label above every field. */
+export const fieldLabel = "mb-2 block text-sm font-semibold text-foreground";
+/** The plain line under a field (a hint or the chosen date). */
+export const fieldNote = "mt-1.5 block text-sm leading-snug text-muted-foreground";
+/** A raw input or select: 48px, 16px text, a clear edge, the gold focus ring. */
+export const fieldBox = `h-12 w-full rounded-field border border-hairline-strong bg-card px-4 text-base text-foreground outline-none transition-colors duration-150 placeholder:text-faint hover:border-white/25 ${ring} [color-scheme:dark]`;
+/** The pill that holds a two or three way switch. */
+export const segGroup = "inline-flex max-w-full flex-wrap gap-1 rounded-full border border-hairline bg-card p-1";
+/** One option inside segGroup. */
+export const seg = (on: boolean) =>
+  cn(
+    "min-h-11 rounded-full px-4 text-sm font-semibold transition-colors duration-150",
+    ring,
+    on ? "bg-white/[0.09] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-muted-foreground hover:text-foreground",
+  );
+/** A filter or pick-several chip. */
+export const chip = (on: boolean) =>
+  cn(
+    "min-h-11 rounded-full border px-4 text-sm font-semibold transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98]",
+    ring,
+    on
+      ? "border-white/[0.16] bg-white/[0.09] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+      : "border-hairline-strong text-muted-foreground hover:border-white/25 hover:text-foreground",
+  );
+/** The one gold action. */
+export const goldAction = `inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-6 text-base font-semibold text-band-b transition-[background-color,transform] duration-150 hover:bg-gold-hover active:scale-[0.98] disabled:opacity-50 ${ring}`;
+/** Every other button: an outline pill. */
+export const quietAction = `inline-flex min-h-12 items-center justify-center rounded-full border border-hairline-strong px-6 text-base font-semibold text-foreground transition-[background-color,border-color,transform] duration-150 hover:border-white/25 hover:bg-white/[0.04] active:scale-[0.98] ${ring}`;
+/** A small text action (add a row, start again). */
+export const textAction = `inline-flex min-h-11 items-center rounded-full text-sm font-semibold text-muted-foreground underline-offset-4 transition-colors duration-150 hover:text-foreground hover:underline ${ring}`;
+
+/** A link inside a sentence: off-white, underlined, never gold. */
+export const inlineLink = "font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:decoration-foreground";
+
+/** A calm one-paragraph message where a result would be (nothing to show yet, or why not). */
+export function Notice({ children }: { children: ReactNode }) {
+  return <p className="pc-surface rounded-tile p-5 text-base leading-relaxed text-muted-foreground">{children}</p>;
+}
 
 /** Shared pieces for the free calculators: inputs, results and the ask. */
 export function NumberField({
@@ -31,11 +78,11 @@ export function NumberField({
   const describedBy = [problem ? `${id}-err` : null, hint ? `${id}-hint` : null].filter(Boolean).join(" ") || undefined;
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-foreground">
+      <label htmlFor={id} className={fieldLabel}>
         {label}
       </label>
       <div
-        className={`flex h-12 items-center rounded-[12px] border bg-card px-4 transition-colors hover:border-gold-border/60 focus-within:border-gold-border focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-gold ${problem ? "border-error-x" : "border-hairline-strong"}`}
+        className={`flex h-12 items-center rounded-field border bg-card px-4 transition-colors duration-150 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-gold ${problem ? "border-error-x" : "border-hairline-strong hover:border-white/25"}`}
       >
         {prefix && <span className="mr-2 text-muted-foreground">{prefix}</span>}
         <input
@@ -44,10 +91,10 @@ export function NumberField({
           autoComplete="off"
           value={value}
           // Commas, spaces and currency signs are dropped, so "Rs 1,250" reads as 1250.
-          onChange={(e) => onChange(e.target.value.replace(/[^\d.\-]/g, ""))}
+          onChange={(e) => onChange(e.target.value.replace(/[\u2212\u2013\u2014]/g, "-").replace(/[^\d.\-]/g, ""))}
           aria-invalid={problem ? true : undefined}
           aria-describedby={describedBy}
-          className="w-full min-w-0 bg-transparent text-[16px] tabular-nums text-foreground outline-none"
+          className="w-full min-w-0 bg-transparent text-base tabular-nums text-foreground outline-none placeholder:text-faint"
           // The box around it draws the focus ring; the site-wide ring would draw a second one inside it.
           style={{ outline: "none" }}
           placeholder="0"
@@ -55,12 +102,12 @@ export function NumberField({
         {suffix && <span className="ml-2 shrink-0 text-muted-foreground">{suffix}</span>}
       </div>
       {problem && (
-        <p id={`${id}-err`} className="mt-1.5 text-[13px] leading-snug text-error-x">
+        <p id={`${id}-err`} className="mt-1.5 text-sm leading-snug text-error-x">
           {problem}
         </p>
       )}
       {hint && (
-        <p id={`${id}-hint`} className="mt-1.5 text-[13px] leading-snug text-muted-foreground">
+        <p id={`${id}-hint`} className={fieldNote}>
           {hint}
         </p>
       )}
@@ -100,12 +147,16 @@ export const fmt = (n: number, dp = 2) => {
   return /^-0(\.0+)?$/.test(s) ? "0" : s;
 };
 
+/**
+ * One result: its name, one key number (large, tabular) and a plain line under it.
+ * The headline result (strong) spans the full row, so it leads and the rest pair up below it.
+ */
 export function Result({ label, value, note, strong }: { label: string; value: string; note?: ReactNode; strong?: boolean }) {
   return (
-    <div className={`rounded-[16px] border p-5 ${strong ? "border-gold-border bg-card-raised" : "border-hairline bg-card"}`}>
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 text-3xl font-bold tabular-nums text-foreground">{value}</p>
-      {note && <p className="mt-2 text-[15px] leading-relaxed text-body">{note}</p>}
+    <div className={cn("pc-surface flex flex-col rounded-tile p-5", strong && "sm:col-span-2")}>
+      <p className="text-sm font-semibold text-muted-foreground">{label}</p>
+      <p className={cn("mt-2 break-words font-bold leading-tight tabular-nums text-foreground", strong ? "text-title sm:text-title-lg" : "text-title")}>{value}</p>
+      {note && <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{note}</p>}
     </div>
   );
 }
@@ -113,13 +164,13 @@ export function Result({ label, value, note, strong }: { label: string; value: s
 /** Send the working to Hamza on WhatsApp, typed out, to ask about it. */
 export function AskHamza({ tool, summary }: { tool: string; summary: string }) {
   return (
-    <div className="rounded-[16px] border border-hairline bg-card p-5">
-      <p className="font-semibold text-foreground">Not sure what your answer means for the exam?</p>
-      <p className="mt-1 text-[15px] text-muted-foreground">Send it to me on WhatsApp, already typed out, and ask.</p>
+    <div className="pc-surface rounded-card p-5 sm:p-6">
+      <p className="text-base font-semibold text-foreground">Not sure what your answer means for the exam?</p>
+      <p className="mt-1 text-base text-muted-foreground">Send it to me on WhatsApp, already typed out, and ask.</p>
       <TrackedLink
         href={waTextLink(`Hi, I used your ${tool}. ${summary} Can you help me with this?`)}
         props={{ from: `tool:${tool}` }}
-        className="mt-4 inline-flex min-h-12 items-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] transition-colors hover:bg-gold-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+        className={cn("mt-4", goldAction)}
       >
         Ask on WhatsApp
       </TrackedLink>

@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { TopicalQuestion, Seg } from "@/lib/topical";
 import { cn } from "@/lib/cn";
-import { recordAnswers, useNight, useProgress } from "./progress";
+import { recordAnswers, unrecord, useNight, useProgress } from "./progress";
 import { NightToggle } from "./Bits";
 
 /** A quiet drop-down that fits a phone. */
 const SELECT =
-  "h-11 min-w-0 flex-1 appearance-none rounded-full border border-hairline-strong bg-card pl-4 pr-4 text-[15px] font-semibold text-foreground focus:border-gold-border focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gold sm:flex-none sm:pr-6";
+  "h-11 min-w-0 flex-1 appearance-none rounded-full border border-hairline-strong bg-card pl-4 pr-4 text-sm font-semibold text-foreground transition-colors duration-150 hover:border-white/25 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gold sm:flex-none sm:pr-6";
 
 
 /** Cambridge pages have wide white margins: crop them so the question fills the width (easier to read on a phone). */
@@ -26,7 +26,7 @@ export function Crop({ seg, night, alt }: { seg: Seg; night: boolean; alt: strin
   if (failed)
     return (
       <div className="flex w-full flex-col items-center justify-center gap-2 border border-hairline-strong bg-card px-4 py-6 text-center" style={{ minHeight: 140 }}>
-        <p className="text-[15px] text-muted-foreground">This question didn&apos;t load.</p>
+        <p className="text-sm text-muted-foreground">This question didn&apos;t load.</p>
         <button
           type="button"
           onClick={() => {
@@ -34,7 +34,7 @@ export function Crop({ seg, night, alt }: { seg: Seg; night: boolean; alt: strin
             setReady(false);
             setTries((t) => t + 1);
           }}
-          className="inline-flex min-h-11 items-center rounded-full border border-hairline-strong px-5 text-[15px] font-semibold text-foreground hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+          className="inline-flex min-h-11 items-center rounded-full border border-hairline-strong px-5 text-sm font-semibold text-foreground transition-colors duration-150 hover:border-white/25 hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
         >
           Try again
         </button>
@@ -74,7 +74,7 @@ function McqCard({ q, night }: { q: TopicalQuestion; night: boolean }) {
   };
   return (
     <>
-      <div className="overflow-hidden rounded-[12px]">
+      <div className="overflow-hidden rounded-field">
         <Crop seg={q.segs[0]} night={night} alt={`Question ${q.n} from ${q.c}`} />
       </div>
       <div role="group" aria-label="Your answer" className="mt-3 grid grid-cols-4 gap-2">
@@ -89,9 +89,9 @@ function McqCard({ q, night }: { q: TopicalQuestion; night: boolean }) {
               onClick={() => answer(L)}
               aria-label={`Answer ${L}${pick ? (right ? ", correct" : mine ? ", your answer, wrong" : "") : ""}`}
               className={cn(
-                "flex h-12 items-center justify-center rounded-[12px] border text-lg font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
-                !pick && "border-hairline-strong text-foreground hover:border-gold hover:bg-gold-tint",
-                pick && right && "border-success bg-success text-[#10201c]",
+                "flex h-12 items-center justify-center rounded-field border text-lg font-bold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
+                !pick && "border-hairline-strong text-foreground hover:border-white/25 hover:bg-white/[0.04]",
+                pick && right && "border-success bg-success-soft text-success",
                 pick && mine && !right && "border-error bg-error-soft text-error",
                 pick && !right && !mine && "border-hairline text-faint",
               )}
@@ -101,7 +101,7 @@ function McqCard({ q, night }: { q: TopicalQuestion; night: boolean }) {
           );
         })}
       </div>
-      <p aria-live="polite" className="mt-2 min-h-6 text-[14px]">
+      <p aria-live="polite" className="mt-2 min-h-6 text-sm">
         {pick && (pick === q.a ? <span className="text-success">Right.</span> : <span className="text-error-x">The answer is {q.a}. Saved to your mistakes.</span>)}
       </p>
     </>
@@ -111,19 +111,19 @@ function McqCard({ q, night }: { q: TopicalQuestion; night: boolean }) {
 function WrittenCard({ q, night, done, onDone }: { q: TopicalQuestion; night: boolean; done: boolean; onDone: () => void }) {
   return (
     <>
-      <div className="overflow-hidden rounded-[12px]">
+      <div className="overflow-hidden rounded-field">
         {q.segs.map((seg, i) => (
           <Crop key={i} seg={seg} night={night} alt={`Question ${q.n} from ${q.c}, part ${i + 1}`} />
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px] font-semibold">
-        <Link href={`${q.href}?doc=ms${q.ms ? `&page=${q.ms}` : ""}`} className="inline-flex min-h-10 items-center text-gold hover:underline">
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-semibold">
+        <Link href={`${q.href}?doc=ms${q.ms ? `&page=${q.ms}` : ""}`} className="inline-flex min-h-11 items-center text-foreground underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:decoration-foreground">
           Mark scheme
         </Link>
-        <Link href={q.href} className="inline-flex min-h-10 items-center text-muted-foreground hover:text-foreground">
+        <Link href={q.href} className="inline-flex min-h-11 items-center text-muted-foreground hover:text-foreground">
           Whole paper
         </Link>
-        <button type="button" onClick={onDone} aria-pressed={done} className={cn("ml-auto inline-flex min-h-10 items-center rounded-full px-3", done ? "text-success" : "text-muted-foreground hover:text-foreground")}>
+        <button type="button" onClick={onDone} aria-pressed={done} className={cn("ml-auto inline-flex min-h-11 items-center rounded-full px-3", done ? "text-success" : "text-muted-foreground hover:text-foreground")}>
           {done ? "Done ✓" : "Mark as done"}
         </button>
       </div>
@@ -169,7 +169,7 @@ export function TopicalList({ questions, hasMcq, hasWritten }: { questions: Topi
 
   return (
     <div>
-      <div className="sticky top-[84px] z-20 -mx-5 flex items-center gap-2 border-b border-hairline bg-[color-mix(in_srgb,var(--color-band-b)_92%,transparent)] px-5 py-3 backdrop-blur-xl sm:top-[96px]">
+      <div className="sticky top-[84px] z-30 -mx-5 flex items-center gap-2 border-b border-hairline bg-band-a px-5 py-3 sm:top-[96px]">
         {hasMcq && hasWritten && (
           <>
             <label className="sr-only" htmlFor="t-kind">Question type</label>
@@ -199,21 +199,21 @@ export function TopicalList({ questions, hasMcq, hasWritten }: { questions: Topi
       </div>
 
       {shown.length === 0 ? (
-        <p className="mt-8 text-[17px] text-muted-foreground">No questions for that mix. Try another year.</p>
+        <p className="pc-surface mt-8 rounded-tile p-5 text-base text-muted-foreground">No questions for that mix. Try another year.</p>
       ) : (
         <ol className="mt-6 space-y-6">
           {shown.slice(0, limit).map((q) => (
-            <li key={q.id} className="rounded-[20px] border border-hairline bg-card p-4 sm:p-5">
-              <p className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 text-[13px]">
-                <Link href={q.href} className="inline-flex min-h-10 items-center font-semibold tabular-nums text-muted-foreground hover:text-gold">
+            <li key={q.id} className="pc-surface rounded-card p-4 sm:p-5">
+              <p className="mb-3 flex flex-wrap items-center justify-between gap-x-3 text-sm">
+                <Link href={q.href} className="inline-flex min-h-11 items-center font-semibold tabular-nums text-foreground transition-colors duration-150 hover:text-muted-foreground">
                   {q.c} · Question {q.n}
                 </Link>
-                <span className="text-faint">
+                <span className="tabular-nums text-faint">
                   {q.kind === "mcq" ? "Multiple choice" : `Paper ${q.num}`} · {SERIES[q.s]} {q.y}
                   {seen[q.id] ? <span className="ml-2 text-success">✓</span> : null}
                 </span>
               </p>
-              {q.kind === "mcq" ? <McqCard q={q} night={night} /> : <WrittenCard q={q} night={night} done={!!seen[q.id]} onDone={() => recordAnswers([{ id: q.id, right: true }])} />}
+              {q.kind === "mcq" ? <McqCard q={q} night={night} /> : <WrittenCard q={q} night={night} done={!!seen[q.id]} onDone={() => (seen[q.id] ? unrecord(q.id) : recordAnswers([{ id: q.id, right: true }]))} />}
             </li>
           ))}
         </ol>
@@ -223,7 +223,7 @@ export function TopicalList({ questions, hasMcq, hasWritten }: { questions: Topi
           <button type="button" onClick={() => {
             setLimit(limit + 12);
             remember({ limit: limit + 12 });
-          }} className="inline-flex min-h-12 items-center rounded-full border border-hairline-strong px-6 text-[15px] font-semibold text-foreground hover:border-gold-border">
+          }} className="inline-flex min-h-12 items-center rounded-full border border-hairline-strong px-6 text-base font-semibold text-foreground transition-[background-color,border-color,transform] duration-150 hover:border-white/25 hover:bg-white/[0.04] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
             Show more questions
           </button>
         </div>

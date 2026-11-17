@@ -41,7 +41,7 @@ export default function Page() {
       faq={FAQ}
       related={[{ href: "/blog/a-level-business-9609-investment-appraisal", label: "Investment appraisal worked example (9609)" }, { href: "/grade-thresholds/a-level-business-9609", label: "A Level Business 9609 grade thresholds" }, topicLink("9609", "10.3")].filter((l) => l !== null)}
       how={
-        <div className="space-y-3 text-[17px] leading-relaxed text-body">
+        <div className="space-y-3 text-lg leading-relaxed text-body">
           <p>Payback adds up the yearly inflows until they cover the investment; the part year is (amount still needed ÷ that year&apos;s inflow) × 12 months.</p>
           <p>ARR = average annual profit ÷ average investment × 100. Average profit = (total inflows − (cost − residual value)) ÷ years. Average investment = (cost + residual value) ÷ 2.</p>
           <p>NPV discounts each year&apos;s inflow by (1 + r) to the power of the year, adds them, and subtracts the investment. In the exam you will usually be given discount factors: use those.</p>

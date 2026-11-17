@@ -70,15 +70,15 @@ export function RelatedLinks({ links, small, className }: { links: RelatedLink[]
       >
         Keep exploring
       </h2>
-      <ul className={cn("divide-y divide-hairline border-y border-hairline text-[17px]", small ? "mt-3" : "mt-6")}>
+      <ul className={cn("divide-y divide-hairline border-y border-hairline text-lg", small ? "mt-3" : "mt-6")}>
         {list.map((l) => (
           <li key={l.href}>
             <Link
               href={l.href}
-              className="group flex min-h-14 items-center justify-between gap-4 py-3 font-semibold text-foreground transition-colors hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+              className="group flex min-h-14 items-center justify-between gap-4 py-3 font-semibold text-foreground transition-colors duration-150 hover:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
             >
               {l.label}
-              <span aria-hidden className="text-faint transition-colors group-hover:text-gold">
+              <span aria-hidden className="text-faint transition-colors duration-150 group-hover:text-foreground">
                 →
               </span>
             </Link>

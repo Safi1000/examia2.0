@@ -50,7 +50,7 @@ export function RecordingOpens({ db, students, nowMs }: { db: Database; students
   if (ready === false) return null;
   return (
     <Card className="mt-6 overflow-hidden p-0">
-      <div className="px-4 pb-3 pt-4 sm:px-5">
+      <div className="px-5 pb-4 pt-5 sm:px-6">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <h2 className={panelTitle}>Recordings, last 7 days</h2>
           {/* Every recording so far, and opening or closing them for students. */}
@@ -58,16 +58,16 @@ export function RecordingOpens({ db, students, nowMs }: { db: Database; students
             All recordings <Icon.ChevronRight className="h-4 w-4" />
           </Link>
         </div>
-        <p className="mt-1 max-w-[65ch] text-[13px] text-ink-3">
+        <p className="mt-1 max-w-[65ch] text-sm text-ink-3">
           The minutes beside a name are how long the recording was open on their screen in the portal. An open only counts while the recording is open to students. Only you see this.
         </p>
       </div>
       {ready === null ? (
-        <p className="border-t border-border px-4 py-4 text-sm text-ink-3 sm:px-5">Loading…</p>
+        <p className="border-t border-hairline px-5 py-4 text-base text-ink-3 sm:px-6">Loading…</p>
       ) : !rows.length ? (
-        <p className="border-t border-border px-4 py-4 text-sm text-ink-2 sm:px-5">No recordings from the last 7 days yet.</p>
+        <p className="border-t border-hairline px-5 py-4 text-base text-ink-2 sm:px-6">No recordings from the last 7 days yet.</p>
       ) : (
-        <ul className="divide-y divide-border border-t border-border">
+        <ul className="divide-y divide-hairline border-t border-hairline">
           {rows.map((r) => {
             const isOpen = open === r.key;
             const summary = profilesReady
@@ -80,15 +80,15 @@ export function RecordingOpens({ db, students, nowMs }: { db: Database; students
                   data-key={r.key}
                   onClick={toggle}
                   aria-expanded={isOpen}
-                  className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.018] sm:px-5"
+                  className="flex min-h-14 w-full items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-white/[0.02] sm:px-6"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold text-ink">
+                    <span className="block truncate text-base font-semibold text-ink">
                       {r.slot.subject} <span className="font-normal text-ink-3">· {LEVEL_LABEL[r.slot.level]} · {dayShort(r.slot.startMs)}</span>
                     </span>
-                    <span className="block text-[13px] tabular-nums text-ink-2">{summary}</span>
+                    <span className="block text-sm tabular-nums text-ink-2">{summary}</span>
                   </span>
-                  <Icon.ChevronRight className={cn("h-4 w-4 shrink-0 text-ink-3 transition-transform", isOpen && "rotate-90")} aria-hidden />
+                  <Icon.ChevronRight className={cn("h-4 w-4 shrink-0 text-ink-3 transition-transform duration-200 ease-[var(--ease-out)]", isOpen && "rotate-90")} aria-hidden />
                 </button>
                 {isOpen && <Groups r={r} profilesReady={profilesReady} profiles={profiles} />}
               </li>
@@ -103,8 +103,8 @@ export function RecordingOpens({ db, students, nowMs }: { db: Database; students
 function Groups({ r, profilesReady, profiles }: { r: SlotRecording; profilesReady: boolean; profiles: Record<string, Profile> }) {
   const names = (list: Student[]) => list.map((s) => displayName(s.username)).join(", ");
   return (
-    <div className="space-y-3 border-t border-border bg-surface-2/40 px-4 py-4 text-sm sm:px-5">
-      {r.noJoinData && <p className="text-[13px] text-ink-3">No joins or attendance were recorded for this class, so these groups may not be right.</p>}
+    <div className="space-y-3 border-t border-hairline bg-surface-2/40 px-5 py-4 text-sm sm:px-6">
+      {r.noJoinData && <p className="text-sm text-ink-3">No joins or attendance were recorded for this class, so these groups may not be right.</p>}
       <Group title={`Joined live (${r.joined.length})`}>{r.joined.length ? names(r.joined) : "Nobody"}</Group>
       {profilesReady ? (
         <>
@@ -143,14 +143,14 @@ function Groups({ r, profilesReady, profiles }: { r: SlotRecording; profilesRead
                         href={link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex min-h-9 items-center rounded-full border border-border-strong px-3 text-sm font-semibold text-ink transition-colors hover:border-ink-3 hover:bg-surface-2 max-md:min-h-11"
+                        className="inline-flex min-h-10 items-center rounded-full border border-border-strong px-3.5 text-sm font-semibold text-ink transition-colors hover:border-ink-3 hover:bg-surface-2 max-md:min-h-11"
                       >
                         Remind {displayName(s.username)}
                       </a>
                     ) : (
                       <span
                         key={s.id}
-                        className="inline-flex min-h-9 items-center rounded-full bg-surface-2 px-3 text-sm text-ink-3"
+                        className="inline-flex min-h-10 items-center rounded-full bg-surface-2 px-3.5 text-sm text-ink-3"
                         title={r.open ? "No number saved" : undefined}
                       >
                         {displayName(s.username)}
@@ -158,13 +158,13 @@ function Groups({ r, profilesReady, profiles }: { r: SlotRecording; profilesRead
                     );
                   })}
                 </span>
-                {!r.open && <span className="mt-1.5 block text-[13px] text-ink-3">The recording has closed for students.</span>}
+                {!r.open && <span className="mt-1.5 block text-sm text-ink-3">The recording has closed for students.</span>}
               </>
             )}
           </Group>
         </>
       ) : (
-        <p className="text-[13px] text-ink-3">Checking who opened the recording…</p>
+        <p className="text-sm text-ink-3">Checking who opened the recording…</p>
       )}
     </div>
   );
@@ -173,7 +173,7 @@ function Groups({ r, profilesReady, profiles }: { r: SlotRecording; profilesRead
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-[13px] font-semibold text-ink-3">{title}</p>
+      <p className="label-quiet text-ink-3">{title}</p>
       <div className="mt-0.5 text-ink-2">{children}</div>
     </div>
   );

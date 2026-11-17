@@ -88,7 +88,7 @@ export function AttentionList({
   };
 
   return (
-    <Card id="attention" className="min-w-0 scroll-mt-24 p-5 lg:col-span-2">
+    <Card id="attention" className="min-w-0 scroll-mt-24 p-5 sm:p-6 lg:col-span-2">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h2 className={panelTitle}>Students who need you today</h2>
         {studentCount > 0 && (
@@ -97,9 +97,9 @@ export function AttentionList({
           </span>
         )}
       </div>
-      {loadingMore && rows.length > 0 && <p className="mt-1 text-xs text-ink-3">Still checking Groundwork, recordings and sign-ins.</p>}
+      {loadingMore && rows.length > 0 && <p className="mt-1 text-sm text-ink-3">Still checking Groundwork, recordings and portal visits.</p>}
       {rows.length === 0 ? (
-        <p className="mt-2 text-[15px] text-ink-2">
+        <p className="mt-2 text-base text-ink-2">
           {studentCount === 0 ? (
             <>
               No students here yet. Add them in{" "}
@@ -110,7 +110,7 @@ export function AttentionList({
           )}
         </p>
       ) : (
-        <ul className="mt-3 divide-y divide-border">
+        <ul className="mt-3 divide-y divide-hairline">
           {shown.map((r, i) => {
             const s = r.student;
             const studentLink = waTo(s.phone, studentMessage(r, nowMs));
@@ -119,10 +119,10 @@ export function AttentionList({
             const firstRotation = r.rotation && (i === 0 || !shown[i - 1].rotation);
             return (
               <li key={s.id} className={cn("py-3.5", firstRotation && i > 0 && "border-t-border-strong")}>
-                {firstRotation && <p className="mb-2 text-[13px] font-semibold text-ink-3">Not spoken to lately</p>}
+                {firstRotation && <p className="mb-2 label-quiet text-ink-3">Not spoken to lately</p>}
                 <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2.5">
                   <div className="min-w-0 flex-1 basis-64">
-                    <Link href={`/admin/roster/${s.id}`} className="font-semibold text-ink underline-offset-4 hover:underline">
+                    <Link href={`/admin/roster/${s.id}`} className="text-base font-semibold text-ink underline-offset-4 hover:underline">
                       {displayName(s.username)}
                     </Link>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -133,7 +133,7 @@ export function AttentionList({
                       {r.rotation && r.doingWell && <Badge tone="success">Doing well</Badge>}
                     </div>
                     {r.good && <p className="mt-1.5 text-sm text-ink-2">{r.good}</p>}
-                    <p className="mt-1 truncate text-[13px] text-ink-3">
+                    <p className="mt-1 truncate text-sm text-ink-3">
                       {r.lastChecked ? `Last checked in ${shortDate(r.lastChecked)}` : "Not checked in yet"}
                       {note && <span title={note}> · Note: {note}</span>}
                     </p>
@@ -182,7 +182,7 @@ export function AttentionList({
                 </div>
                 {editing === s.id && (
                   <div className="mt-3 max-w-xl">
-                    <p className="mb-1.5 text-[13px] font-semibold text-ink-3">{NOTE_LABEL}</p>
+                    <p className="mb-1.5 label-quiet text-ink-3">{NOTE_LABEL}</p>
                     <NoteEditor studentId={s.id} onDone={closeNote} autoFocus />
                   </div>
                 )}

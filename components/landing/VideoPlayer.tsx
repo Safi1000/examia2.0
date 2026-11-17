@@ -88,11 +88,11 @@ export function VideoPlayer({
   return (
     <div className={`relative h-full w-full ${className}`}>
       {poster ? (
-        // The still is shown whole (no zoom-crop) over a blurred copy of itself.
+        // The still is shown whole (no zoom-crop) on the card's own dark ground. It used to sit over a
+        // blurred copy of itself: about twenty live blurs on the home page, which made phones stutter
+        // while swiping the review rows, and a second download for every still.
         <>
           {/* The hero poster is the largest thing on a phone's first screen (Google's LCP), so it is fetched first. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={sized(poster, 64)} alt="" aria-hidden loading={big ? "eager" : "lazy"} className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={sized(poster, big ? 1080 : 640)}
@@ -106,10 +106,7 @@ export function VideoPlayer({
           />
         </>
       ) : (
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-linear-to-br from-[#2a2d31] via-[#1b1e21] to-[#141618]"
-        />
+        <div aria-hidden className="absolute inset-0 bg-band-c" />
       )}
       <span
         aria-hidden
@@ -124,8 +121,8 @@ export function VideoPlayer({
           className="group absolute left-1/2 top-1/2 flex min-h-11 min-w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full before:absolute before:-inset-2 before:rounded-full before:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
         >
           <span
-            className={`flex items-center justify-center rounded-full bg-gold text-[#1b1e21] shadow-[0_8px_24px_-6px_rgba(0,0,0,0.55)] transition-[background-color,transform] duration-200 ease-out group-hover:scale-[1.04] group-hover:bg-gold-hover group-active:scale-[0.97] motion-reduce:transform-none ${
-              big ? "h-16 w-16 md:h-20 md:w-20" : "h-9 w-9 sm:h-14 sm:w-14"
+            className={`flex items-center justify-center rounded-full text-band-b shadow-[0_8px_24px_-6px_rgba(0,0,0,0.55)] transition-[background-color,transform] duration-200 ease-[var(--ease-out)] group-active:scale-[0.98] motion-reduce:transform-none ${
+              big ? "h-16 w-16 bg-gold group-hover:bg-gold-hover md:h-20 md:w-20" : "h-9 w-9 bg-ink group-hover:bg-body sm:h-14 sm:w-14"
             }`}
           >
             <svg viewBox="0 0 22 22" fill="currentColor" className={`ml-0.5 ${big ? "h-[22px] w-[22px]" : "h-3.5 w-3.5 sm:h-[18px] sm:w-[18px]"}`}>
@@ -135,7 +132,7 @@ export function VideoPlayer({
         </button>
       ) : (
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="rounded-full border border-hairline-strong bg-[rgba(20,22,24,0.7)] px-4 py-1.5 text-xs text-faint backdrop-blur">
+          <span className="rounded-full border border-hairline-strong bg-band-c/80 px-4 py-1.5 text-xs text-faint">
             {label}
           </span>
         </div>

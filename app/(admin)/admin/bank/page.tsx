@@ -193,18 +193,18 @@ export default function QuestionBankPage() {
       ) : (
         <div role="group" aria-label="Questions" onKeyDown={sel.listKeyDown}>
         <SelectAll sel={sel} noun="question" />
-        <Card as="ul" className="divide-y divide-border overflow-hidden p-0">
+        <Card as="ul" className="divide-y divide-hairline overflow-hidden p-0">
           {items.slice(0, limit).map((b) => (
-            <li key={b.id} className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-white/[0.018]">
+            <li key={b.id} className="flex items-start gap-3 px-4 py-3 transition-colors duration-150 hover:bg-white/[0.018] sm:px-5">
               <div className="pt-0.5"><RowCheck id={b.id} checked={sel.isSelected(b.id)} onToggle={sel.toggle} label={`Select: ${b.prompt.slice(0, 60)}`} /></div>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone="neutral">{b.subject}</Badge>
                   {b.topic.trim() && <Badge tone="neutral">{b.topic}</Badge>}
-                  <span className="text-xs text-ink-3">{b.type === "mcq" ? "Choice" : b.type === "photo" ? "Photo" : "Written"}</span>
+                  <Badge tone="neutral">{b.type === "mcq" ? "Choice" : b.type === "photo" ? "Photo" : "Written"}</Badge>
                   <Pill>{b.marks}m</Pill>
                 </div>
-                <p className="mt-1.5 max-w-[75ch] text-pretty text-sm leading-relaxed text-ink">{b.prompt}</p>
+                <p className="mt-1.5 max-w-[75ch] text-pretty text-base leading-relaxed text-ink">{b.prompt}</p>
               </div>
               <div className="flex shrink-0 gap-1">
                 <button onClick={() => { setEditing(b); setModalOpen(true); }} className="flex h-11 w-11 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink" aria-label="Edit question">
@@ -316,7 +316,18 @@ export default function QuestionBankPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button variant="danger" onClick={() => { if (deleteId) store.deleteBankItem(deleteId); setDeleteId(null); toast("Deleted.", "success"); }}>Delete</Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                const item = db.bank.find((b) => b.id === deleteId);
+                if (deleteId) store.deleteBankItem(deleteId);
+                setDeleteId(null);
+                // The same undo as deleting several at once.
+                toast("Question deleted from the bank.", "success", item ? { label: "Undo", onClick: () => { store.addBankItem(strip(item)); toast("Question back in the bank.", "success"); } } : undefined);
+              }}
+            >
+              Delete
+            </Button>
           </>
         }
       >

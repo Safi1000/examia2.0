@@ -421,12 +421,12 @@ export default function AdminTestsPage() {
         <>
         <div role="group" aria-label="Tests" onKeyDown={sel.listKeyDown}>
         <SelectAll sel={sel} noun="test" />
-        <Card className="divide-y divide-border overflow-hidden p-0">
+        <Card className="divide-y divide-hairline overflow-hidden p-0">
           {tests.map((t) => {
             const stats = statsById.get(t.id) ?? testStats(db, t);
             const cohort = cohortById(db, t.cohortId);
             return (
-              <div key={t.id} className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-3 px-4 py-4 transition-colors hover:bg-white/[0.018] lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-x-5 xl:grid-cols-[auto_minmax(0,1fr)_19rem_auto] xl:items-center">
+              <div key={t.id} className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-3 px-4 py-4 transition-colors duration-150 hover:bg-white/[0.018] sm:px-5 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-x-5 xl:grid-cols-[auto_minmax(0,1fr)_19rem_auto] xl:items-center">
                     <span className="pt-0.5 xl:pt-0">
                       <RowCheck id={t.id} checked={sel.isSelected(t.id)} onToggle={sel.toggle} label={`Select ${t.title}`} />
                     </span>
@@ -448,7 +448,7 @@ export default function AdminTestsPage() {
                     </p>
                     </div>
 
-                <div className="col-span-2 grid grid-cols-3 gap-2 border-t border-border pt-3 lg:col-span-1 lg:col-start-2 lg:max-w-md lg:self-center lg:border-0 lg:pt-0 xl:col-start-auto xl:max-w-none">
+                <div className="col-span-2 grid grid-cols-3 gap-2 border-t border-hairline pt-3 lg:col-span-1 lg:col-start-2 lg:max-w-md lg:self-center lg:border-0 lg:pt-0 xl:col-start-auto xl:max-w-none">
                   <Stat label="Submissions" value={String(stats.submissionCount)} />
                   {stats.averagePercent != null ? (
                     <Stat label="Average" value={`${stats.averagePercent}%`} />
@@ -543,7 +543,7 @@ export default function AdminTestsPage() {
           type="datetime-local"
           value={bulkClose}
           onChange={(e) => setBulkClose(e.target.value)}
-          className="h-12 w-full rounded-md border border-border-strong bg-surface px-3 text-base tabular-nums text-ink"
+          className="h-12 w-full rounded-field border border-field bg-surface px-3.5 text-base tabular-nums text-ink transition-colors hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           aria-label="New close time (Pakistan time)"
           aria-invalid={!!bulkCloseProblem}
         />
@@ -625,7 +625,13 @@ export default function AdminTestsPage() {
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
         title="Delete test?"
-        description={target ? `"${target.title}" and its submissions will be removed.` : ""}
+        description={
+          target
+            ? handedIn(target.id)
+              ? `"${target.title}" goes, with ${plural(handedIn(target.id), "handed in paper")} and their results.`
+              : `"${target.title}" will be removed.`
+            : ""
+        }
         footer={
           <>
             <Button variant="secondary" onClick={() => setDeleteId(null)}>Cancel</Button>
@@ -651,7 +657,7 @@ export default function AdminTestsPage() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="xl:text-right">
-      <p className="text-[15px] font-semibold tabular-nums text-ink">{value}</p>
+      <p className="text-base font-semibold tabular-nums text-ink">{value}</p>
       <p className="text-xs text-ink-3">{label}</p>
     </div>
   );

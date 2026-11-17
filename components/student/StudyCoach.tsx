@@ -76,7 +76,7 @@ export function StudyCoach({
 
   return (
     <Card className="p-5 sm:p-6">
-      <h2 className="text-lg font-bold text-ink">
+      <h2 className="text-xl font-bold tracking-[-0.015em] text-ink">
         {test ? "What to work on next" : "Your next three steps"}
       </h2>
       {steps.length === 0 ? (
@@ -117,14 +117,14 @@ export function StudyCoach({
                     <span className="inline-flex flex-wrap items-center gap-1.5">
                       <span className="text-ink-2">Redo</span>
                       {s.redo.map((n) => (
-                        <a key={n} href={`#q-${n}`} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-border-strong px-2.5 font-semibold text-ink hover:border-brand">
+                        <a key={n} href={`#q-${n}`} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border-strong px-3 font-semibold tabular-nums text-ink transition-colors duration-150 hover:border-ink-3 hover:bg-surface-2">
                           Q{n}
                         </a>
                       ))}
                     </span>
                   )}
                   {notes && (
-                    <Link href={notes.href} className="inline-flex min-h-11 items-center rounded-md border border-border-strong px-3 font-semibold text-ink hover:border-brand">
+                    <Link href={notes.href} className="inline-flex min-h-11 items-center rounded-full border border-border-strong px-4 font-semibold text-ink transition-colors duration-150 hover:border-ink-3 hover:bg-surface-2">
                       {notes.label}
                     </Link>
                   )}
@@ -132,7 +132,7 @@ export function StudyCoach({
                     href={waTextLink(`Hi Hamza, it's ${first}. I'm stuck on ${s.name} (${s.subject})${test ? ` from ${test.title}` : ""}. Can you help me with it?`)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex min-h-11 items-center rounded-md px-3 font-semibold text-brand hover:underline"
+                    className="inline-flex min-h-11 items-center px-3 font-semibold text-ink-2 hover:text-ink"
                   >
                     Ask Hamza on WhatsApp
                   </a>

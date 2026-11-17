@@ -18,7 +18,7 @@ export const segmentGroup = "inline-flex shrink-0 items-center rounded-full bord
 /** One option inside segmentGroup. Its tap area reaches the group's full height. */
 export function segmentItem(on: boolean) {
   return cn(
-    "relative inline-flex h-8 items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-[background-color,color] duration-150 pointer-coarse:h-9 max-md:h-9",
+    "relative inline-flex h-8 items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-[background-color,color] duration-150 pointer-coarse:h-[38px] max-md:h-[38px]",
     "before:absolute before:inset-x-0 before:-inset-y-[3px] before:content-['']",
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
     on ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-ink-3 hover:text-ink",

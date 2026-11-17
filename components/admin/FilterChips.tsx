@@ -29,7 +29,7 @@ export function FilterChips({
       role="group"
       aria-label={label}
     >
-      <span className="mr-1 w-16 shrink-0 text-xs font-semibold text-ink-3">{label}</span>
+      <span className="label-quiet mr-1 w-16 shrink-0 text-ink-3">{label}</span>
       <Chip active={selected.length === 0} onClick={() => onChange([])}>
         All
       </Chip>

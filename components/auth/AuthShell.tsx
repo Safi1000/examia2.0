@@ -63,15 +63,15 @@ export function AuthShell({
   }, [onSecret]);
 
   return (
-    <main className="relative isolate flex min-h-dvh items-center justify-center overflow-hidden bg-[#0f1113] px-6 py-14">
+    <main className="group/auth relative isolate flex min-h-dvh items-center justify-center overflow-hidden bg-[#0f1113] px-6 py-14">
       {/* Two slow gold lights, a vignette and a whisper of grain. */}
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 bg-[#0f1113]">
         <div
-          className="auth-orb-a absolute left-1/2 top-1/2 h-[520px] w-[520px] rounded-full opacity-[0.16] blur-[90px]"
+          className="auth-orb-a absolute left-1/2 top-1/2 group-focus-within/auth:[animation-play-state:paused] h-[520px] w-[520px] rounded-full opacity-[0.16] blur-[90px]"
           style={{ background: "radial-gradient(closest-side, var(--color-brand), transparent)" }}
         />
         <div
-          className="auth-orb-b absolute left-1/2 top-1/2 h-[380px] w-[620px] rounded-full opacity-[0.08] blur-[100px]"
+          className="auth-orb-b absolute left-1/2 top-1/2 group-focus-within/auth:[animation-play-state:paused] h-[380px] w-[620px] rounded-full opacity-[0.08] blur-[100px]"
           style={{ background: "radial-gradient(closest-side, #e8a24a, transparent)" }}
         />
         <div
@@ -79,7 +79,7 @@ export function AuthShell({
           style={{ background: "radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.65) 100%)" }}
         />
         <div
-          className="absolute inset-0 opacity-[0.05] mix-blend-overlay"
+          className="hidden"
           style={{
             backgroundImage:
               "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
@@ -107,10 +107,10 @@ export function AuthShell({
         </div>
 
         <p
-          className="auth-reveal mt-7 flex items-center justify-center gap-2 text-[12px] font-semibold uppercase tracking-[0.16em] text-ink-3"
+          className="auth-reveal mt-7 flex items-center justify-center gap-2 text-sm font-medium text-ink-3"
           style={{ animationDelay: "260ms" }}
         >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden>
             <rect x="5" y="11" width="14" height="10" rx="2" />
             <path d="M8 11V8a4 4 0 018 0v3" />
           </svg>
@@ -119,7 +119,7 @@ export function AuthShell({
 
         {greeting && (
           <p
-            className="auth-reveal mt-5 text-center text-[32px] leading-none text-brand"
+            className="auth-reveal mt-5 text-center text-title-lg leading-none text-brand"
             style={{ fontFamily: "var(--font-caveat)", animationDelay: "420ms" }}
           >
             {greeting}
@@ -131,7 +131,7 @@ export function AuthShell({
         </div>
 
         {footer && (
-          <div className="auth-reveal mt-10 text-center text-[14px] text-ink-3" style={{ animationDelay: "760ms" }}>
+          <div className="auth-reveal mt-10 text-center text-sm text-ink-3" style={{ animationDelay: "760ms" }}>
             {footer}
           </div>
         )}
@@ -141,13 +141,13 @@ export function AuthShell({
 }
 
 /** Quiet label above a field, readable at a glance. */
-export const labelClass = "mb-2 block text-[14px] font-semibold text-ink-2";
+export const labelClass = "mb-2 block text-sm font-semibold text-ink-2";
 
 export const fieldClass =
-  "w-full h-[52px] rounded-2xl border border-white/[0.16] bg-white/[0.035] px-4 text-[16px] tracking-wide text-ink " +
-  "shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-sm placeholder:text-ink-3/50 " +
-  "transition-[border-color,background-color,box-shadow] duration-300 hover:border-white/[0.24] " +
-  "focus:border-brand/50 focus:bg-white/[0.05] focus:shadow-[0_0_0_4px_rgba(251,193,89,0.08)] focus:outline-none " +
+  "w-full h-[52px] rounded-field border border-white/[0.16] bg-white/[0.035] px-4 text-base tracking-wide text-ink " +
+  "placeholder:text-ink-3/80 " +
+  "transition-[border-color,background-color] duration-200 ease-[var(--ease-out)] hover:border-white/[0.24] " +
+  "focus:border-brand/50 focus:bg-white/[0.05] focus:outline-none " +
   "disabled:cursor-not-allowed disabled:opacity-50 " +
   // Browser autofill paints its own square box: repaint it in the field's colour.
   "[&:-webkit-autofill]:[-webkit-text-fill-color:var(--color-ink)] [&:-webkit-autofill]:shadow-[inset_0_0_0_1000px_#191c1f] [&:-webkit-autofill]:[caret-color:var(--color-ink)]";
@@ -240,7 +240,7 @@ export function AuthAlert({ tone, children }: { tone: "error" | "warning"; child
     <p
       role="alert"
       className={cn(
-        "mt-6 flex items-start gap-2 text-[13px] leading-snug",
+        "mt-6 flex items-start gap-2 text-sm leading-snug",
         tone === "error" ? "text-error" : "text-warning",
       )}
     >
@@ -256,19 +256,19 @@ export function SubmitButton({ busy, disabled, children }: { busy: boolean; disa
       type="submit"
       disabled={disabled || busy}
       className={cn(
-        "auth-btn group relative mt-10 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-full px-4",
-        "bg-[linear-gradient(180deg,#ffd27e,#f2b44a)] text-[15px] font-semibold text-[#1a1d20]",
-        "shadow-[0_8px_22px_-12px_rgba(251,193,89,0.6)] transition-[filter,transform,opacity] hover:brightness-105 active:scale-[0.99]",
+        "group relative mt-10 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-full px-4",
+        "bg-brand text-base font-semibold text-on-brand",
+        "transition-[background-color,color,transform] duration-200 ease-[var(--ease-out)] hover:bg-gold-hover active:scale-[0.98]",
         "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand",
-        "disabled:cursor-not-allowed disabled:border disabled:border-brand/30 disabled:bg-none disabled:bg-transparent disabled:text-brand/70 disabled:shadow-none",
+        "disabled:cursor-not-allowed disabled:border disabled:border-white/[0.16] disabled:bg-transparent disabled:text-ink-3 disabled:hover:bg-transparent",
       )}
     >
       {busy ? (
-        <Spinner size={16} className="text-[#1a1d20]" label="Signing in" />
+        <Spinner size={16} className="text-on-brand" label="Signing in" />
       ) : (
         <>
           {children}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="transition-transform group-hover:translate-x-0.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5">
             <path d="M5 12h14M13 6l6 6-6 6" />
           </svg>
         </>

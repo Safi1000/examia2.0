@@ -69,19 +69,19 @@ export default async function TopicIndex({ params }: Props) {
                     if (!e.questions.length)
                       return (
                         <li key={e.sub.num} className="flex min-h-14 items-center gap-3 py-3 text-faint">
-                          <span className="w-10 shrink-0 text-[14px] tabular-nums">{e.sub.num}</span>
-                          <span className="flex-1">{e.sub.name}</span>
-                          <span className="text-[13px]">New topic</span>
+                          <span className="w-10 shrink-0 text-sm tabular-nums">{e.sub.num}</span>
+                          <span className="flex-1 text-base">{e.sub.name}</span>
+                          <span className="shrink-0 text-sm">New topic</span>
                         </li>
                       );
                     return (
                       <li key={e.sub.num}>
                         <Link href={`${url}/${e.slug}`} className="group flex min-h-14 items-center gap-3 py-3">
-                          <span className="w-10 shrink-0 text-[14px] tabular-nums text-faint">{e.sub.num}</span>
-                          <span className="flex-1 font-semibold text-foreground group-hover:text-gold">{e.sub.name}</span>
-                          <span className="hidden text-[13px] text-faint sm:inline">{[mcq && "MCQ", written && "Written"].filter(Boolean).join(" · ")}</span>
+                          <span className="w-10 shrink-0 text-sm tabular-nums text-faint">{e.sub.num}</span>
+                          <span className="flex-1 text-base font-semibold text-foreground underline-offset-4 group-hover:underline">{e.sub.name}</span>
+                          <span className="hidden shrink-0 text-sm text-faint sm:inline">{[mcq && "Multiple choice", written && "Written"].filter(Boolean).join(" · ")}</span>
                           <TopicProgress ids={e.questions.map((q) => q.id)} />
-                          <svg aria-hidden viewBox="0 0 20 20" className="h-4 w-4 shrink-0 text-faint group-hover:text-gold" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg aria-hidden viewBox="0 0 20 20" className="h-4 w-4 shrink-0 text-faint transition-colors duration-150 group-hover:text-foreground" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="m8 5 5 5-5 5" />
                           </svg>
                         </Link>

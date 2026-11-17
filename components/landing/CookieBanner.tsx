@@ -46,11 +46,11 @@ export function CookieBanner() {
     <div
       role="dialog"
       aria-label="Cookie choice"
-      className="fixed bottom-3 left-3 right-20 z-[45] rounded-2xl border border-hairline-strong bg-[rgba(33,36,39,0.92)] p-4 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:bottom-7 sm:left-7 sm:right-auto sm:max-w-sm"
+      className="pc-surface fixed bottom-3 left-3 right-20 z-[45] rounded-card p-4 sm:bottom-7 sm:left-7 sm:right-auto sm:max-w-sm"
     >
       <p className="text-sm leading-relaxed text-body">
         I use one advertising cookie to see which ads bring students here. Is that okay?{" "}
-        <Link href="/privacy" className="text-gold underline-offset-2 hover:underline">
+        <Link href="/privacy" className="text-ink underline decoration-hairline-strong underline-offset-4 hover:decoration-current">
           Privacy policy
         </Link>
       </p>
@@ -58,7 +58,7 @@ export function CookieBanner() {
         <button
           type="button"
           onClick={() => answer(true)}
-          className="inline-flex min-h-11 items-center rounded-full bg-gold px-4 text-sm font-semibold text-[#1b1e21] transition-colors hover:bg-gold-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+          className="inline-flex min-h-11 items-center rounded-full bg-gold px-4 text-sm font-semibold text-band-b transition-colors duration-200 hover:bg-gold-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
         >
           That&apos;s fine
         </button>
@@ -87,7 +87,7 @@ export function CookieChoiceReset() {
         setDone(true);
         setTimeout(() => window.location.reload(), 400);
       }}
-      className="inline-flex min-h-10 items-center rounded-full border border-hairline-strong px-4 text-sm font-semibold text-body transition-colors hover:border-gold-border hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+      className="inline-flex min-h-11 items-center rounded-full border border-hairline-strong px-4 text-sm font-semibold text-body transition-colors hover:border-white/[0.28] hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
     >
       {done ? "Cleared. Reloading..." : "Change my cookie choice"}
     </button>

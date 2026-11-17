@@ -112,7 +112,7 @@ export const GULF_CITY_PAGES: GulfCityPage[] = [
         title: "Friday is the easy day",
         body: [
           "Since January 2026, KHDA requires Dubai private schools to finish by 11:30 am on Fridays, and Saturday and Sunday are the weekend. That leaves three hours between the end of school and the first class on a Friday, more than on any other day.",
-          "Monday to Thursday depends on your school's own hours. If yours runs late, the recording of every class stays open for 24 hours.",
+          "Monday to Thursday depends on your school's own hours. If yours runs late, the recording of every class stays open for 48 hours.",
         ],
       },
       {
@@ -188,7 +188,7 @@ export const GULF_CITY_PAGES: GulfCityPage[] = [
       {
         title: "If school runs past 1:30 pm",
         body: [
-          "Only the A2 block starts that early. O Level starts at 3:30 pm and AS at 5:30 pm Riyadh time. If you are A2 and your school day runs late, the recording stays open for 24 hours.",
+          "Only the A2 block starts that early. O Level starts at 3:30 pm and AS at 5:30 pm Riyadh time. If you are A2 and your school day runs late, the recording stays open for 48 hours.",
         ],
       },
       {
@@ -243,7 +243,7 @@ export const GULF_CITY_PAGES: GulfCityPage[] = [
     faq: [
       {
         q: "I am A2 and school ends after 1:30 pm. What happens?",
-        a: "The A2 block runs from 1:30 pm to 3:30 pm Saudi time. Watch the recording the same day: it stays open for 24 hours. O Level and AS start later, at 3:30 pm and 5:30 pm.",
+        a: "The A2 block runs from 1:30 pm to 3:30 pm Saudi time. Watch the recording the same day: it stays open for 48 hours. O Level and AS start later, at 3:30 pm and 5:30 pm.",
       },
     ],
     sources: ["saWeek", "saRegions2025", "saPrivateSchools", "bcSa"],
@@ -264,7 +264,7 @@ export const GULF_CITY_PAGES: GulfCityPage[] = [
         title: "School and class, side by side",
         body: [
           "Schools in Qatar run Sunday to Thursday, with a shorter day on Thursday. Friday is not a school day, so your Friday class is a quiet weekend session, and Sunday has school but no class.",
-          "If school runs past the first class at 1:30 pm, it only affects A2. The recording stays open for 24 hours.",
+          "If school runs past the first class at 1:30 pm, it only affects A2. The recording stays open for 48 hours.",
         ],
       },
       {

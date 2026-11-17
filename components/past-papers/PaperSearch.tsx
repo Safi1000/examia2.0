@@ -98,7 +98,7 @@ export function PaperSearch({ autoFocus, compact, quiet, className }: { autoFocu
   const showList = open && q.trim().length > 0;
   return (
     <div ref={box} className={cn("relative", className)}>
-      <label htmlFor={`${id}-q`} className={compact || quiet ? "sr-only" : "mb-2 block text-[15px] font-semibold text-foreground"}>
+      <label htmlFor={`${id}-q`} className={compact || quiet ? "sr-only" : "mb-2 block text-sm font-semibold text-foreground"}>
         Find a paper
       </label>
       <div className="relative">
@@ -132,8 +132,8 @@ export function PaperSearch({ autoFocus, compact, quiet, className }: { autoFocu
           onKeyDown={onKey}
           placeholder={compact ? "Search any paper, e.g. 2281/12/M/J/25" : "Try 2281/12/M/J/25 or economics june 2024"}
           className={cn(
-            "w-full rounded-full border border-hairline-strong bg-card pl-14 pr-5 text-[16px] text-foreground placeholder:text-faint focus:border-gold-border focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gold",
-            compact ? "h-12" : "h-14 md:h-16 md:text-[17px]",
+            "w-full rounded-full border border-hairline-strong bg-card pl-14 pr-5 text-base text-foreground transition-colors duration-150 placeholder:text-faint hover:border-white/25 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gold",
+            compact ? "h-12" : "h-14 md:h-16 md:text-lg",
           )}
         />
       </div>
@@ -141,20 +141,20 @@ export function PaperSearch({ autoFocus, compact, quiet, className }: { autoFocu
         {showList && rows ? `${results.length} ${results.length === 1 ? "paper" : "papers"} found` : ""}
       </p>
       {showList && (
-        <div className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-[20px] border border-hairline-strong bg-card-raised shadow-[0_24px_48px_-12px_rgba(0,0,0,0.6)]">
+        <div className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-card border border-hairline-strong bg-card-raised shadow-[0_24px_48px_-12px_rgba(0,0,0,0.6)]">
           {!rows && failed ? (
-            <div className="px-5 py-4 text-[15px] text-muted-foreground">
+            <div className="px-5 py-4 text-base text-muted-foreground">
               <p>Couldn&apos;t load the list of papers. Check your connection.</p>
-              <button type="button" onClick={warm} className="mt-2 inline-flex min-h-11 items-center font-semibold text-gold hover:underline">
+              <button type="button" onClick={warm} className="mt-2 inline-flex min-h-11 items-center font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 hover:decoration-foreground">
                 Try again
               </button>
             </div>
           ) : !rows ? (
-            <p className="px-5 py-4 text-[15px] text-muted-foreground">Loading papers…</p>
+            <p className="px-5 py-4 text-base text-muted-foreground">Loading papers…</p>
           ) : shown.length === 0 ? (
-            <div className="px-5 py-4 text-[15px] text-muted-foreground">
+            <div className="px-5 py-4 text-base text-muted-foreground">
               <p>No paper code matches that.</p>
-              <Link href={`/past-papers/search?q=${encodeURIComponent(q.trim())}`} className="mt-2 inline-flex min-h-11 items-center font-semibold text-gold hover:underline">
+              <Link href={`/past-papers/search?q=${encodeURIComponent(q.trim())}`} className="mt-2 inline-flex min-h-11 items-center font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 hover:decoration-foreground">
                 Search inside the papers for &ldquo;{q.trim()}&rdquo; →
               </Link>
             </div>
@@ -165,22 +165,22 @@ export function PaperSearch({ autoFocus, compact, quiet, className }: { autoFocu
                   <Link
                     href={r.u}
                     onMouseEnter={() => setActive(i)}
-                    className={cn("flex min-h-14 flex-col justify-center px-5 py-2.5", i === active ? "bg-gold-tint" : "hover:bg-gold-tint")}
+                    className={cn("flex min-h-14 flex-col justify-center px-5 py-2.5 transition-colors duration-150", i === active ? "bg-white/[0.06]" : "hover:bg-white/[0.06]")}
                   >
-                    <span className="font-semibold tabular-nums text-foreground">{r.c}</span>
-                    <span className="text-[14px] leading-snug text-muted-foreground">{r.l}</span>
+                    <span className="text-base font-semibold tabular-nums text-foreground">{r.c}</span>
+                    <span className="text-sm leading-snug text-muted-foreground">{r.l}</span>
                   </Link>
                 </li>
               ))}
               {!/^\d/.test(q.trim()) && (
                 <li>
-                  <Link href={`/past-papers/search?q=${encodeURIComponent(q.trim())}`} className="flex min-h-12 items-center border-t border-hairline px-5 text-[15px] font-semibold text-gold hover:bg-gold-tint">
+                  <Link href={`/past-papers/search?q=${encodeURIComponent(q.trim())}`} className="flex min-h-12 items-center border-t border-hairline px-5 text-sm font-semibold text-foreground transition-colors duration-150 hover:bg-white/[0.06]">
                     Search inside the papers for &ldquo;{q.trim()}&rdquo; →
                   </Link>
                 </li>
               )}
               {results.length > shown.length && (
-                <li className="px-5 pb-2 pt-1 text-[14px] text-faint">
+                <li className="px-5 pb-2 pt-1 text-sm text-faint">
                   {results.length - shown.length} more. Add a year or paper number to narrow it.
                 </li>
               )}

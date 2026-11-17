@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import { Icon, Spinner } from "@/components/ui";
+import { buttonClasses } from "@/components/ui/Button";
 import { PdfView } from "@/components/PdfView";
 import { useBackToClose } from "@/components/student/useBackToClose";
 import { DEMO } from "@/lib/demo";
@@ -211,16 +212,16 @@ export function NoteViewer({
       // No right-click menu (no "Print…", "Save image as…") and no dragging pages out.
       onContextMenu={(e) => e.preventDefault()}
       onDragStart={(e) => e.preventDefault()}
-      className="fixed inset-0 z-50 flex flex-col bg-paper outline-none select-none [-webkit-touch-callout:none]"
+      className="fixed inset-0 z-[70] flex flex-col bg-paper outline-none select-none [-webkit-touch-callout:none]"
       role="dialog"
       aria-modal="true"
       aria-label={title}
     >
-      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-surface pb-1.5 pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.375rem,env(safe-area-inset-top))]">
+      <div className="flex shrink-0 items-center gap-3 border-b border-hairline bg-surface pb-1.5 pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.375rem,env(safe-area-inset-top))]">
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-ink">{title}</span>
+          <span className="block truncate text-base font-semibold text-ink">{title}</span>
           {highlight?.length ? (
-            <span className="block truncate text-xs text-ink-3">
+            <span className="block truncate text-sm text-ink-3">
               Showing &ldquo;{highlight.join(" ")}&rdquo;{page ? ` on page ${page}` : ""}
             </span>
           ) : null}
@@ -247,14 +248,14 @@ export function NoteViewer({
             {menu && (
               <>
                 <button type="button" aria-hidden tabIndex={-1} className="fixed inset-0 z-10 cursor-default" onClick={() => setMenu(false)} />
-                <div role="menu" className="absolute right-0 top-12 z-20 w-56 animate-fade-up rounded-xl border border-border bg-surface p-1.5 shadow-[var(--shadow-lg)]">
-                  <button type="button" role="menuitem" disabled={!!busy} onClick={() => void takeCopy("save")} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-60">
+                <div role="menu" className="absolute right-0 top-12 z-20 w-56 animate-fade-up rounded-tile border border-hairline-strong bg-surface p-1.5 shadow-[var(--shadow-lg)]">
+                  <button type="button" role="menuitem" disabled={!!busy} onClick={() => void takeCopy("save")} className="flex min-h-11 w-full items-center rounded-field px-3 text-left text-base font-medium text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink disabled:opacity-60">
                     {busy === "save" ? "Saving…" : "Save a copy"}
                   </button>
-                  <button type="button" role="menuitem" disabled={!!busy} onClick={() => void takeCopy("print")} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-60">
+                  <button type="button" role="menuitem" disabled={!!busy} onClick={() => void takeCopy("print")} className="flex min-h-11 w-full items-center rounded-field px-3 text-left text-base font-medium text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink disabled:opacity-60">
                     {busy === "print" ? "Getting it ready…" : "Print"}
                   </button>
-                  {menuError && <p role="alert" className="px-3 pb-2 pt-1 text-xs text-error">{menuError}</p>}
+                  {menuError && <p role="alert" className="px-3 pb-2 pt-1 text-sm text-error">{menuError}</p>}
                 </div>
               </>
             )}
@@ -280,7 +281,7 @@ export function NoteViewer({
                   setError(null);
                   setAttempt((n) => n + 1);
                 }}
-                className="mt-4 inline-flex h-11 items-center rounded-full bg-brand px-6 text-sm font-semibold text-on-brand transition hover:brightness-110"
+                className={buttonClasses({ className: "mt-4" })}
               >
                 Try again
               </button>
@@ -289,10 +290,10 @@ export function NoteViewer({
         ) : !state ? (
           <div className="flex flex-col items-center gap-3 text-ink-3">
             <Spinner size={28} />
-            <span className="text-sm">Opening…</span>
+            <span className="text-base text-ink-2">Opening…</span>
           </div>
         ) : isOffice ? (
-          <iframe src={officeSrc} title={title} className="h-full w-full rounded-md border border-border bg-white" />
+          <iframe src={officeSrc} title={title} className="h-full w-full rounded-field border border-hairline bg-white" />
         ) : isPdf && !pdfFailed ? (
           <PdfView url={state.url} authToken={state.token} onFail={onPdfFail} startPage={page} highlight={highlight} onPage={onPage} autoFocus />
         ) : isPdf ? (
@@ -306,16 +307,16 @@ export function NoteViewer({
                 setState(null);
                 setAttempt((n) => n + 1);
               }}
-              className="mt-4 inline-flex h-11 items-center rounded-full bg-brand px-6 text-sm font-semibold text-on-brand transition hover:brightness-110"
+              className={buttonClasses({ className: "mt-4" })}
             >
               Try again
             </button>
           </div>
         ) : isImage ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={state.url} alt={title} className="max-h-full max-w-full rounded-md" />
+          <img src={state.url} alt={title} className="max-h-full max-w-full rounded-field" />
         ) : (
-          <iframe src={state.url} title={title} className="h-full w-full rounded-md border border-border bg-surface" />
+          <iframe src={state.url} title={title} className="h-full w-full rounded-field border border-hairline bg-surface" />
         )}
       </div>
     </div>,

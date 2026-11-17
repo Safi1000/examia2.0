@@ -65,9 +65,9 @@ export function ImportBankModal({
       }
     >
       <div className="mb-3 flex flex-wrap gap-2">
-        <div className="min-w-0 flex-1 basis-56"><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search questions…" aria-label="Search bank" /></div>
+        <div className="min-w-0 flex-1 basis-56"><Input compact value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search questions…" aria-label="Search bank" /></div>
         <div className="min-w-0 flex-1 basis-40 sm:max-w-52">
-          <Select value={subject} onChange={(e) => setSubject(e.target.value)} aria-label="Filter subject">
+          <Select compact value={subject} onChange={(e) => setSubject(e.target.value)} aria-label="Filter subject">
             <option value="all">All subjects</option>
             {subjects.map((s) => <option key={s} value={s}>{s}</option>)}
           </Select>
@@ -81,7 +81,7 @@ export function ImportBankModal({
           {items.slice(0, limit).map((b) => (
             <li
               key={b.id}
-              className={"flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2.5 " + (selected.has(b.id) ? "border-brand bg-brand-soft" : "border-border bg-surface")}
+              className={"flex cursor-pointer items-start gap-3 rounded-field border px-4 py-3 transition-colors duration-150 " + (selected.has(b.id) ? "border-white/[0.16] bg-white/[0.09]" : "border-border bg-surface hover:bg-surface-2")}
               onClick={() => toggle(b.id)}
             >
               {/* The row click already toggles: the box's own clicks stop here so one tap is one toggle. */}
@@ -91,9 +91,9 @@ export function ImportBankModal({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone="neutral">{b.subject}</Badge>
-                  <span className="text-xs uppercase tracking-wide text-ink-3">{b.type} · {b.topic} · {b.marks}m</span>
+                  <span className="text-xs text-ink-3">{b.type === "mcq" ? "Choice" : b.type === "photo" ? "Photo" : "Written"} · {b.topic} · {b.marks}m</span>
                 </div>
-                <p className="mt-1 text-sm text-ink">{b.prompt}</p>
+                <p className="mt-1 text-base text-ink">{b.prompt}</p>
               </div>
             </li>
           ))}

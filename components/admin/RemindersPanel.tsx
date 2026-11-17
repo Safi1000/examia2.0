@@ -12,6 +12,7 @@ import { REPORT_LINK_DAYS, reportLinkDay, reportLinkExpiry } from "@/lib/report-
 import { notesConfigured, uploadNote } from "@/lib/cloudinary";
 import { waDigits } from "@/lib/phone";
 import { displayName } from "@/lib/display-name";
+import { usePausedIds } from "@/lib/paused";
 import { guardMessage, withLink } from "@/lib/outgoing-message";
 import { parentReport } from "@/lib/portal-messages";
 import { useToast } from "@/components/toast";
@@ -39,7 +40,10 @@ export function RemindersPanel() {
 
   // What is due follows the clock in 5-minute steps, not every 30 second tick.
   const tick = Math.floor(nowMs / 300_000) * 300_000;
-  const reminders = useMemo(() => dueReminders(db, tick, cohortId), [db, tick, cohortId]);
+  // Paused students are left out; the list redraws when a pause changes.
+  const pausedIds = usePausedIds();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- pausedIds is read inside dueReminders
+  const reminders = useMemo(() => dueReminders(db, tick, cohortId), [db, tick, cohortId, pausedIds]);
   const reportRun = useMemo(() => reminders.filter((r) => r.kind === "report_due"), [reminders]);
 
   if (!reminders.length && !run) return null;
@@ -55,7 +59,7 @@ export function RemindersPanel() {
     const month = r.ref.slice(0, 7);
     const built = await buildStudentReport(db, r.student.id, month);
     if (!built) {
-      toast(`Could not build the report for ${r.student.username}.`, "error");
+      toast(`Could not build the report for ${displayName(r.student.username)}.`, "error");
       return null;
     }
     const { url } = await uploadNote(new File([built.blob], built.fileName, { type: "application/pdf" }));
@@ -72,7 +76,7 @@ export function RemindersPanel() {
   async function open(r: Reminder, clear = true): Promise<{ ok: boolean; reportId: string | null }> {
     const number = r.student.whatsapp;
     if (!number) {
-      toast(`${r.student.username} has no parent WhatsApp number saved.`, "error");
+      toast(`${displayName(r.student.username)} has no parent WhatsApp number saved.`, "error");
       return { ok: false, reportId: null };
     }
     setBusy(key(r));
@@ -145,7 +149,7 @@ export function RemindersPanel() {
   return (
     <Card className="mb-4 overflow-hidden p-0">
       <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-2 py-3 pl-5 pr-3", (!collapsed || !!running) && "border-b border-border")}>
-        <h2 className="whitespace-nowrap text-[15px] font-semibold tracking-[-0.01em] text-ink">
+        <h2 className="whitespace-nowrap text-base font-semibold tracking-[-0.01em] text-ink">
           Tell parents <span className="tabular-nums text-ink-3">({reminders.length})</span>
         </h2>
         {reportRun.length > 0 && !running && (
@@ -184,11 +188,11 @@ export function RemindersPanel() {
       )}
 
       {!collapsed && (
-        <ul className="divide-y divide-border">
+        <ul className="divide-y divide-hairline">
           {reminders.slice(0, 25).map((r) => (
             <li key={key(r)} className="flex flex-wrap items-center gap-3 px-5 py-3">
               <Badge tone={KINDS[r.kind].tone}>{KINDS[r.kind].label}</Badge>
-              <span className="min-w-0 flex-1 truncate text-sm text-ink">{r.label}</span>
+              <span className="min-w-0 flex-1 truncate text-base text-ink">{r.label}</span>
               <Button
                 size="sm"
                 variant="secondary"
@@ -202,7 +206,7 @@ export function RemindersPanel() {
               <button
                 type="button"
                 onClick={() => confirmSent(r)}
-                className="min-h-11 px-2 text-xs font-semibold text-ink-3 hover:text-ink"
+                className="min-h-11 px-2 text-sm font-semibold text-ink-3 transition-colors hover:text-ink"
                 title="Stop showing this"
               >
                 Done
@@ -210,7 +214,7 @@ export function RemindersPanel() {
             </li>
           ))}
           {reminders.length > 25 && (
-            <li className="px-5 py-3 text-xs text-ink-3">Showing the first 25. The rest appear as you clear these.</li>
+            <li className="px-5 py-3 text-sm text-ink-3">Showing the first 25. The rest appear as you clear these.</li>
           )}
         </ul>
       )}

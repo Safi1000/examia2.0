@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { Student } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { Icon, Spinner } from "@/components/ui";
+import { buttonClasses } from "@/components/ui/Button";
 import { formatRelative } from "@/lib/time";
 import { useSchedule, JOIN_EARLY_MIN, addDays, clockHere, spanHere, joinClass, pkDate, slotKey, slotsForStudent, useClassLinks, type DaySlot } from "@/lib/classes";
 
@@ -61,19 +62,23 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
     return (
       <Link
         href="/classes"
-        className="surface surface-link flex items-center justify-between gap-3 rounded-xl px-5 py-4 sm:px-6"
+        className="surface surface-link flex items-center justify-between gap-3 rounded-card p-5 sm:p-6"
       >
-        <span className="text-base text-ink-2">
-          Next class: <span className="font-semibold text-ink">{next.subject}</span>{" "}
-          {next.date === today
-            ? "at "
-            : next.date === addDays(today, 1)
-              ? "tomorrow at "
-              : `${new Date(`${next.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Karachi" })}, `}
-          {/* "7:30 PM" never breaks across two lines. */}
-          <span className="whitespace-nowrap">{clockHere(next.date, next.start)}</span>
+        <span className="min-w-0">
+          <span className="label-quiet block text-ink-3">Next class</span>
+          <span className="mt-0.5 block text-base text-ink-2">
+            <span className="font-semibold text-ink">{next.subject}</span>
+            <span aria-hidden className="mx-1.5 text-ink-3">·</span>
+            {next.date === today
+              ? "today, "
+              : next.date === addDays(today, 1)
+                ? "tomorrow, "
+                : `${new Date(`${next.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Karachi" })}, `}
+            {/* "7:30 PM" never breaks across two lines. */}
+            <span className="whitespace-nowrap tabular-nums">{clockHere(next.date, next.start)}</span>
+          </span>
         </span>
-        <Icon.ChevronRight className="h-4 w-4 text-ink-3" />
+        <Icon.ChevronRight className="h-5 w-5 shrink-0 text-ink-3" />
       </Link>
     );
   }
@@ -94,14 +99,14 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
   }
 
   return (
-    <section className="relative overflow-hidden rounded-xl border border-brand/30 bg-surface bg-[linear-gradient(135deg,rgba(251,193,89,0.16),rgba(251,193,89,0.04)_60%)] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_18px_40px_-22px_rgba(251,193,89,0.35)] sm:p-6">
+    <section className="relative overflow-hidden rounded-card border border-brand/30 bg-surface bg-[linear-gradient(135deg,rgba(251,193,89,0.16),rgba(251,193,89,0.04)_60%)] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:p-6">
       <p className="label-quiet flex items-center gap-2 text-brand">
-        <span className="h-2 w-2 animate-low-pulse rounded-full bg-brand" />
+        <span className="h-2 w-2 rounded-full bg-brand" />
         {started ? "Class is live" : `Starts ${formatRelative(new Date(current.startMs).toISOString(), nowMs)}`}
       </p>
       <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-[1.75rem] font-extrabold leading-tight tracking-[-0.025em] text-ink">{current.subject}</h2>
+          <h2 className="text-title font-bold tracking-[-0.025em] text-ink">{current.subject}</h2>
           {/* In the Gulf this reads "2:30 PM to 3:10 PM your time (3:30 to 4:10 PM Pakistan)", like the "Next class" line. */}
           <p className="mt-0.5 text-base text-ink-2 tabular-nums">{spanHere(current.date, current.start, current.end)}</p>
         </div>
@@ -113,13 +118,13 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
               e.preventDefault();
               void join(current, url);
             }}
-            className="inline-flex h-12 items-center gap-2 rounded-full bg-brand px-7 text-base font-semibold text-on-brand shadow-[0_10px_24px_-10px_rgba(251,193,89,0.75)] transition hover:brightness-110 active:scale-[0.98]"
+            className={buttonClasses({ size: "lg" })}
           >
             {joining === slotKey(current) ? "Joining…" : <>{started && after ? "Rejoin" : "Join class"} <Icon.ChevronRight className="h-4 w-4" /></>}
           </a>
         ) : (
           <p className="max-w-[16rem] text-sm text-ink-2">{ready === null ? (
-            <span className="inline-flex items-center gap-2"><Spinner size={15} />Getting your class link…</span>
+            <span className="inline-flex items-center gap-2"><Spinner size={16} />Getting your class link…</span>
           ) : offline ? "No connection right now. Join shows up here when you're back online." : "The Join button appears here when I open the class."}</p>
         )}
       </div>
@@ -137,12 +142,12 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
                 e.preventDefault();
                 void join(after, urlFor(after)!);
               }}
-              className="inline-flex h-11 items-center gap-1.5 rounded-full border border-brand/50 px-5 text-sm font-semibold text-ink transition hover:bg-brand hover:text-on-brand"
+              className={buttonClasses({ variant: "secondary" })}
             >
               {joining === slotKey(after) ? "Joining…" : <>Join {after.subject} <Icon.ChevronRight className="h-4 w-4" /></>}
             </a>
           ) : (
-            <span className="text-xs text-ink-3">{ready === null ? "Checking…" : offline ? "Join shows up when you're back online." : "Join appears when I open it."}</span>
+            <span className="text-sm text-ink-3">{ready === null ? "Checking…" : offline ? "Join shows up when you're back online." : "Join appears when I open it."}</span>
           )}
         </div>
       )}

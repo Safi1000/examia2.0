@@ -9,7 +9,7 @@ import { NotificationSettings } from "@/components/student/NotificationSettings"
 import { ProfileSettings } from "@/components/student/ProfileSettings";
 import { useDatabase } from "@/lib/data/store";
 import { studentById } from "@/lib/data/selectors";
-import { PageHeader } from "@/components/student/PortalKit";
+import { PageHeader, SectionTitle } from "@/components/student/PortalKit";
 
 export default function StudentSettingsPage() {
   const studentId = useAuth().session?.studentId;
@@ -17,8 +17,8 @@ export default function StudentSettingsPage() {
   const student = studentId ? studentById(db, studentId) : null;
   return (
     <div className="mx-auto max-w-2xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
-      <div className="rise space-y-4">
-      <PageHeader title="Settings" className="mb-10">Your password, notifications and how your portal looks.</PageHeader>
+      <div className="rise space-y-10">
+      <PageHeader title="Settings">How your portal looks, your notifications and your password.</PageHeader>
 
       {student && <ProfileSettings db={db} student={student} />}
       {studentId && <NotificationSettings studentId={studentId} />}
@@ -81,10 +81,10 @@ function ChangePassword() {
   }
 
   return (
+    <section aria-labelledby="password-title">
+    <SectionTitle id="password-title" sub="Replace the password I gave you with your own.">Change password</SectionTitle>
     <Card className="p-5 sm:p-6">
-      <h2 className="text-lg font-bold tracking-[-0.01em] text-ink">Change password</h2>
-      <p className="mt-1 text-sm text-ink-3">Replace the password I gave you with your own.</p>
-      <form onSubmit={onSubmit} className="mt-4 space-y-4" noValidate>
+      <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Input
           label="Current password"
           type="password"
@@ -113,10 +113,11 @@ function ChangePassword() {
           error={error?.field === "confirm" ? error.msg : undefined}
           required
         />
-        <Button type="submit" loading={busy} disabled={!current || !next || !confirm}>
+        <Button type="submit" size="lg" loading={busy} disabled={!current || !next || !confirm} className="w-full sm:w-auto">
           Change password
         </Button>
       </form>
     </Card>
+    </section>
   );
 }

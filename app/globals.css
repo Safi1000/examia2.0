@@ -38,12 +38,26 @@
   --color-success-soft: #162926;
   --color-warning: #f0a040;
   --color-warning-soft: #2c2010;
-  --color-error: #E5685A;
+  --color-error: #EC7A6D;
   --color-error-soft: #2c1512;
   --color-info: #6a9fd8;
   --color-info-soft: #182436;
 
+  /* ---- Type scale (November look and feel pass): 12 label, 14 meta, 16 body,
+     18 lead, 20 section (Tailwind's xs to xl), plus the two page-title sizes. ---- */
+  --text-title: 1.75rem;          /* page title on phones (28px) */
+  --text-title--line-height: 1.1;
+  --text-title-lg: 2.25rem;       /* page title on desktop (36px) */
+  --text-title-lg--line-height: 1.08;
+
+  /* A field's edge: 3:1 against the card it sits on, so a field looks like a field. */
+  --color-field: #6b7178;
+
   /* ---- Radii ---- */
+  /* By role: card 20px, tile (inside a card) 16px, field and row 12px; buttons and chips are full pills. */
+  --radius-card: 1.25rem;
+  --radius-tile: 1rem;
+  --radius-field: 0.75rem;
   --radius-xs: 0.375rem;
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
@@ -52,7 +66,6 @@
 
   /* ---- Motion ---- */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* ---- Animations (referenced as Tailwind `animate-*`) ---- */
   --animate-fade-up: fade-up 0.32s var(--ease-out) both;
@@ -116,7 +129,7 @@
   --color-gold-border: rgba(251, 193, 89, 0.3);
 
   /* Text */
-  --color-foreground: #ffffff;
+  --color-foreground: #f0ede8; /* warm off-white, never pure white */
   --color-muted-foreground: #b0b6bb;
   --color-body: #eef0f2;
   --color-faint: #969ca2; /* lifted from #868c92 so small text passes 4.5:1 on cards too */
@@ -182,27 +195,6 @@ html:has(.landing) { scroll-behavior: smooth; }
   to { stroke-dashoffset: 0; }
 }
 
-/* Pulsing ring around the play button */
-@keyframes hamza-pulse-ring {
-  0% { transform: scale(1); opacity: 0.55; }
-  100% { transform: scale(1.6); opacity: 0; }
-}
-
-.landing .pulse-ring {
-  animation: hamza-pulse-ring 2.4s ease-out infinite;
-}
-
-/* Staggered fade-in for the floating activity cards + level cards */
-@keyframes hamza-float-in {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.landing .float-in {
-  opacity: 0;
-  animation: hamza-float-in 0.7s ease-out forwards;
-}
-
 /* Shadows + texture vars cascade here so they stay swappable */
 :root {
   /* Flat on dark: cards separate by surface step + hairline. */
@@ -251,10 +243,6 @@ html:has(.landing) { scroll-behavior: smooth; }
 }
 @keyframes draw {
   to { stroke-dashoffset: 0; }
-}
-@keyframes splash-bar {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(300%); }
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -471,12 +459,11 @@ body {
   }
 }
 /* The small muted label above a group of numbers or a heading. */
+/* Sentence case, no tracked capitals (the portal's label style since the November pass). */
 @utility label-quiet {
-  font-size: 0.75rem;
-  line-height: 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
   font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
 }
 
 /* ---- Page entrance (one per page) -------------------------------------------
@@ -669,18 +656,16 @@ textarea:-webkit-autofill:focus {
     radial-gradient(42vmax 34vmax at var(--ax) var(--ay), rgba(251, 193, 89, 0.075), transparent 70%),
     radial-gradient(28vmax 22vmax at calc(100% - var(--ax)) calc(100% - var(--ay)), rgba(251, 193, 89, 0.045), transparent 70%);
 }
-/* Portal pages only (the backdrop exists nowhere else): native checkboxes,
-   ranges and select menus draw dark and gold instead of the browser's light blue. */
-html:has(.portal-backdrop) {
+/* The whole site is dark only: native checkboxes, ranges and select menus
+   draw dark and gold instead of the browser's light blue or a white list. */
+html {
   color-scheme: dark;
   accent-color: var(--color-brand);
 }
 
+/* Still on every public page: the gold light and the grid hold their place. */
 .landing-backdrop__ambient {
-  background:
-    radial-gradient(42vmax 34vmax at var(--ax) var(--ay), rgba(251, 193, 89, 0.11), transparent 70%),
-    radial-gradient(28vmax 22vmax at calc(100% - var(--ax)) calc(100% - var(--ay)), rgba(251, 193, 89, 0.045), transparent 70%);
-  transition: background-position 0.6s ease-out;
+  background: radial-gradient(46vmax 30vmax at 50% 8%, rgba(251, 193, 89, 0.07), transparent 70%);
 }
 .landing-backdrop__grid {
   background-image:
@@ -689,21 +674,8 @@ html:has(.portal-backdrop) {
     linear-gradient(rgba(251, 193, 89, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(251, 193, 89, 0.05) 1px, transparent 1px);
   background-size: 72px 72px, 72px 72px, 288px 288px, 288px 288px;
-  /* Drifts a few pixels against the cursor (Backdrop.tsx) for a sense of depth. */
-  transform: translate3d(var(--gx, 0px), var(--gy, 0px), 0);
-  transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
-  inset: -24px !important;
-  mask-image: radial-gradient(75% 65% at var(--ax) var(--ay), #000 0%, transparent 85%);
-}
-.landing-backdrop__cursor {
-  opacity: 0;
-  transition: opacity 0.6s ease;
-  background:
-    radial-gradient(520px circle at var(--mx) var(--my), rgba(251, 193, 89, 0.09), transparent 65%),
-    radial-gradient(140px circle at var(--mx) var(--my), rgba(251, 193, 89, 0.05), transparent 70%);
-}
-.landing-backdrop[data-cursor="on"] .landing-backdrop__cursor {
-  opacity: 1;
+  opacity: 0.55;
+  mask-image: radial-gradient(70% 55% at 50% 12%, #000 0%, transparent 85%);
 }
 .landing-backdrop__vignette {
   background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.45) 100%);
@@ -730,25 +702,6 @@ html:has(.portal-backdrop) {
   transform: translateX(130%);
 }
 
-/* Cards with data-spot get a soft gold light under the cursor (position set in Backdrop.tsx). */
-[data-spot] {
-  position: relative;
-}
-[data-spot]::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  border-radius: inherit;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.35s ease;
-  background: radial-gradient(280px circle at var(--cx, 50%) var(--cy, 50%), rgba(251, 193, 89, 0.09), transparent 65%);
-}
-[data-spot]:hover::before {
-  opacity: 1;
-}
-
 /* Public header: a floating see-through glass bar (components/landing/Nav.tsx). */
 .glass-bar {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025));
@@ -767,6 +720,20 @@ html:has(.portal-backdrop) {
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
     inset 0 -1px 0 rgba(0, 0, 0, 0.2),
     0 18px 40px -18px rgba(0, 0, 0, 0.6);
+}
+
+/* Phones and tablets: the same pill, without the live blur behind it. A header
+   that blurs everything scrolling under it repaints on every frame, which is
+   what makes a phone stutter. A solid charcoal reads the same at a glance, and
+   no page text ghosts through it. */
+@media (pointer: coarse), (max-width: 767px) {
+  .glass-bar,
+  .glass-bar--scrolled {
+    backdrop-filter: none;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025)),
+      rgb(36, 39, 42);
+  }
 }
 
 /* Homepage logo intro (components/landing/IntroLogo.tsx): about 1 second, then gone. */
@@ -930,4 +897,81 @@ html[data-app] .web-only {
 /* The teaching assistant's console: anything marked owner-only is not shown to her (see lib/staff.ts). */
 [data-ta] [data-owner] {
   display: none !important;
+}
+
+/* ---- Scroll reveals (public pages) -------------------------------------------
+   components/landing/Reveal.tsx adds .reveal-on to <html> once it is watching,
+   and .is-in to each [data-reveal] block the first time it comes into view.
+   The block eases up into place; inside it, anything marked va-* plays once:
+     va-fill   a bar grows from the left          va-pop    a tick or mark appears
+     va-rise   a line of chat comes up             va-draw   a pen line draws itself
+     va-stamp  the score lands
+   Only opacity, position, size and stroke move (cheap on phones), each once,
+   no bounce. `--rd` staggers blocks, `--d` delays a part inside its block.
+   Without JavaScript, or with reduced motion, everything is simply there. */
+.va-draw {
+  stroke-dasharray: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .reveal-on [data-reveal] {
+    opacity: 0;
+    translate: 0 18px;
+  }
+  .reveal-on [data-reveal].is-in {
+    opacity: 1;
+    translate: 0 0;
+    transition:
+      opacity 0.6s var(--ease-out) var(--rd, 0ms),
+      translate 0.7s var(--ease-out) var(--rd, 0ms);
+  }
+  /* The ticket is handed over: it comes up and settles from a steeper tilt. */
+  .reveal-on [data-reveal="ticket"] {
+    translate: 0 30px;
+    rotate: -6deg;
+  }
+  .reveal-on [data-reveal="ticket"].is-in {
+    rotate: 0deg;
+    transition:
+      opacity 0.6s var(--ease-out),
+      translate 0.9s var(--ease-out),
+      rotate 0.9s var(--ease-out);
+  }
+
+  .reveal-on [data-reveal] :is(.va-fill, .va-pop, .va-rise, .va-draw, .va-stamp) {
+    transition:
+      opacity 0.45s var(--ease-out),
+      scale 0.7s var(--ease-out),
+      translate 0.6s var(--ease-out),
+      stroke-dashoffset 0.8s var(--ease-out);
+    transition-delay: calc(var(--rd, 0ms) + var(--d, 250ms));
+  }
+  .reveal-on [data-reveal] .va-fill {
+    transform-origin: left center;
+  }
+  .reveal-on [data-reveal]:not(.is-in) .va-fill {
+    scale: 0 1;
+  }
+  .reveal-on [data-reveal]:not(.is-in) .va-pop {
+    opacity: 0;
+    scale: 0.5;
+  }
+  .reveal-on [data-reveal]:not(.is-in) .va-rise {
+    opacity: 0;
+    translate: 0 8px;
+  }
+  .reveal-on [data-reveal]:not(.is-in) .va-draw {
+    stroke-dashoffset: 1;
+  }
+  .reveal-on [data-reveal]:not(.is-in) .va-stamp {
+    opacity: 0;
+    scale: 1.7;
+  }
+  /* Laptops: the cards of a row arrive one after another. On phones each card
+     plays when it is swiped into view instead. */
+  @media (min-width: 768px) {
+    .swipe-row li:nth-child(2) [data-reveal] { --rd: 90ms; }
+    .swipe-row li:nth-child(3) [data-reveal] { --rd: 180ms; }
+    .swipe-row li:nth-child(4) [data-reveal] { --rd: 90ms; }
+    .swipe-row li:nth-child(5) [data-reveal] { --rd: 180ms; }
+  }
 }

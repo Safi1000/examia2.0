@@ -34,9 +34,9 @@ export function ScrollTable({ head, rows, caption }: { head: ReactNode[]; rows: 
           tabIndex={0}
           role="region"
           aria-label={caption}
-          className="overflow-x-auto rounded-[16px] border border-hairline bg-card [scrollbar-width:thin] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+          className="overflow-x-auto rounded-tile border border-hairline bg-card [scrollbar-width:thin] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
         >
-          <table className="w-full border-collapse text-left text-[15px]">
+          <table className="w-full border-collapse text-left text-sm sm:text-base">
             {caption && <caption className="sr-only">{caption}</caption>}
             <thead>
               <tr className="bg-card-raised">
@@ -46,8 +46,8 @@ export function ScrollTable({ head, rows, caption }: { head: ReactNode[]; rows: 
                     scope="col"
                     className={
                       i === 0
-                        ? "sticky left-0 z-10 whitespace-nowrap bg-card-raised px-4 py-3 text-[13px] font-semibold text-muted-foreground"
-                        : "whitespace-nowrap px-4 py-3 text-right text-[13px] font-semibold text-muted-foreground"
+                        ? "sticky left-0 z-10 whitespace-nowrap bg-card-raised px-4 py-3 text-xs font-semibold text-muted-foreground"
+                        : "whitespace-nowrap px-4 py-3 text-right text-xs font-semibold text-muted-foreground"
                     }
                   >
                     {h}
@@ -76,11 +76,11 @@ export function ScrollTable({ head, rows, caption }: { head: ReactNode[]; rows: 
         </div>
         <div
           aria-hidden
-          className={`pointer-events-none absolute inset-y-px right-px w-10 rounded-r-[15px] bg-gradient-to-l from-card to-transparent transition-opacity duration-300 ${more ? "opacity-100" : "opacity-0"}`}
+          className={`pointer-events-none absolute inset-y-px right-px w-10 rounded-r-[15px] bg-gradient-to-l from-card to-transparent transition-opacity duration-200 ${more ? "opacity-100" : "opacity-0"}`}
         />
       </div>
       {more && (
-        <p aria-hidden className="mt-2 text-right text-[13px] text-faint">
+        <p aria-hidden className="mt-2 text-right text-xs text-faint">
           Swipe for more columns →
         </p>
       )}

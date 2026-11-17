@@ -131,19 +131,19 @@ export function CommandPalette() {
         onClick={show}
         aria-haspopup="dialog"
         aria-label="Search and quick actions"
-        className="flex h-10 items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] pl-3 pr-2 text-sm text-ink-3 transition-colors hover:border-white/[0.14] hover:text-ink-2 max-md:h-11 max-md:w-11 max-md:justify-center max-md:p-0"
+        className="flex h-10 items-center gap-2 rounded-full border border-hairline bg-white/[0.03] pl-3 pr-2 text-sm text-ink-3 transition-colors hover:border-hairline-strong hover:text-ink-2 max-md:h-11 max-md:w-11 max-md:justify-center max-md:p-0"
       >
         <Icon.Search className="h-4 w-4" />
         <span className="max-md:hidden">Search</span>
-        <kbd className="ml-3 rounded-md border border-white/[0.1] px-1.5 py-0.5 font-sans text-[11px] font-semibold text-ink-3 max-md:hidden">⌘K</kbd>
+        <kbd className="ml-3 rounded-full border border-hairline px-2 py-0.5 font-sans text-xs font-semibold text-ink-3 max-md:hidden">⌘K</kbd>
       </button>
 
       {open && (
         <div className="fixed inset-0 z-[70] flex items-start justify-center px-4 pt-[12dvh]" role="dialog" aria-modal="true" aria-label="Search and quick actions">
-          <div className="absolute inset-0 animate-fade-in bg-black/50" onClick={close} aria-hidden />
-          <div className="relative flex max-h-[70dvh] w-full max-w-xl animate-scale-in flex-col overflow-hidden rounded-2xl border border-white/[0.1] bg-surface/[0.93] shadow-[var(--shadow-lg)] backdrop-blur-2xl">
-            <div className="flex items-center gap-3 border-b border-white/[0.08] px-4">
-              <Icon.Search className="h-[18px] w-[18px] shrink-0 text-ink-3" />
+          <div className="absolute inset-0 animate-fade-in bg-black/60" onClick={close} aria-hidden />
+          <div className="relative flex max-h-[70dvh] w-full max-w-xl animate-scale-in flex-col overflow-hidden rounded-card border border-hairline-strong bg-surface shadow-[var(--shadow-lg)]">
+            <div className="flex items-center gap-3 border-b border-hairline px-4">
+              <Icon.Search className="h-5 w-5 shrink-0 text-ink-3" />
               <input
                 autoFocus
                 value={query}
@@ -156,19 +156,19 @@ export function CommandPalette() {
                 aria-label="Search"
                 className="h-14 w-full bg-transparent text-base text-ink outline-none placeholder:text-ink-3"
               />
-              <kbd className="rounded-md border border-white/[0.1] px-1.5 py-0.5 font-sans text-[11px] font-semibold text-ink-3">Esc</kbd>
+              <kbd className="rounded-full border border-hairline px-2 py-0.5 font-sans text-xs font-semibold text-ink-3">Esc</kbd>
             </div>
             <ul ref={list} className="flex-1 overflow-y-auto overscroll-contain p-2">
               {rows.length === 0 && <li className="px-3 py-6 text-center text-sm text-ink-3">Nothing matches that.</li>}
               {rows.map((r, i) => (
                 <li key={r.key}>
-                  {(i === 0 || rows[i - 1].group !== r.group) && <p className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-[0.16em] text-ink-3 first:pt-1">{r.group}</p>}
+                  {(i === 0 || rows[i - 1].group !== r.group) && <p className="label-quiet px-3 pb-1 pt-3 text-ink-3 first:pt-1">{r.group}</p>}
                   <button
                     type="button"
                     data-i={i}
                     onClick={onPick}
                     onMouseMove={onHover}
-                    className={cn("flex min-h-11 w-full items-center justify-between gap-3 rounded-[10px] px-3 text-left text-sm font-semibold transition-colors", i === cur ? "bg-white/[0.08] text-ink" : "text-ink-2")}
+                    className={cn("flex min-h-11 w-full items-center justify-between gap-3 rounded-field px-3 text-left text-sm font-semibold transition-colors duration-150", i === cur ? "bg-white/[0.08] text-ink" : "text-ink-2")}
                   >
                     <span className="truncate">{r.label}</span>
                     {r.hint ? <span className="shrink-0 truncate text-xs font-normal text-ink-3">{r.hint}</span> : i === cur && <Icon.ChevronRight className="h-4 w-4 shrink-0 text-ink-3" />}

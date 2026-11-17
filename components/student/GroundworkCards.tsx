@@ -21,11 +21,12 @@ import {
   type StudySlot,
 } from "@/lib/groundwork";
 import { ShareMoment } from "@/components/student/ShareMoment";
-import { Icon } from "@/components/ui";
+import { Icon, chipClass } from "@/components/ui";
+import { buttonClasses } from "@/components/ui/Button";
 
 const fmt = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`);
-const card = "surface rounded-xl p-5 sm:p-6";
-const kicker = "text-xs font-semibold uppercase tracking-[0.3em] text-brand";
+const card = "surface rounded-card p-5 sm:p-6";
+const kicker = "label-quiet text-ink-3";
 
 /** This week: one dot per day, the days target, the weekly streak and hours. */
 export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
@@ -39,17 +40,17 @@ export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
     <section className={card}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[28px] font-semibold leading-tight tracking-[-0.03em] text-ink">
+          <p className="text-title font-semibold tracking-[-0.025em] tabular-nums text-ink">
             {streak.thisWeek} of {target} days
           </p>
-          <p className="mt-0.5 text-sm text-ink-3">
+          <p className="mt-1 text-sm text-ink-3">
             {fmt(stats.weekMinutes)} this week · {level.name}
           </p>
         </div>
         {streak.weeks > 0 && (
           <div className="text-right">
-            <p className="text-[28px] font-semibold leading-tight tabular-nums text-brand">{streak.weeks}</p>
-            <p className="text-[12px] text-ink-3">{streak.weeks === 1 ? "week streak" : "weeks in a row"}</p>
+            <p className="text-title font-semibold tabular-nums text-brand">{streak.weeks}</p>
+            <p className="mt-1 text-xs text-ink-3">{streak.weeks === 1 ? "week streak" : "weeks in a row"}</p>
           </div>
         )}
       </div>
@@ -58,7 +59,7 @@ export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
           <li key={d.date} className="flex flex-col items-center gap-1.5">
             <span
               className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold ${
-                d.minutes > 0 ? "bg-brand text-on-brand" : d.isToday ? "border-2 border-brand/60 text-ink" : d.isFuture ? "border border-border text-ink-3" : "bg-surface-2 text-ink-3"
+                d.minutes > 0 ? "bg-ink text-paper" : d.isToday ? "border-2 border-ink-3 text-ink" : d.isFuture ? "border border-border text-ink-3" : "bg-surface-2 text-ink-3"
               }`}
               title={d.minutes ? fmt(d.minutes) : "No study"}
             >
@@ -69,12 +70,12 @@ export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
         ))}
       </ol>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-        <label className="flex items-center gap-2 text-xs text-ink-3">
+        <label className="flex items-center gap-2 text-sm text-ink-3">
           Goal
           <select
             value={target}
             onChange={(e) => updateProfile({ daysTarget: Number(e.target.value) })}
-            className="h-11 rounded-full border border-border bg-surface-2 px-3 text-base font-semibold text-ink sm:text-sm"
+            className="h-11 rounded-field border border-field bg-surface px-3 text-base font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:text-sm"
           >
             {DAYS_TARGETS.map((t) => (
               <option key={t} value={t}>
@@ -118,7 +119,7 @@ export function SlotsCard({ nowMs }: { nowMs: number }) {
     <section className={card}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[17px] font-semibold text-ink">
+          <p className="text-lg font-semibold text-ink">
             {next ? (
               <>
                 Next: {DAY_SHORT[next.slot.day]} at {clock12(next.slot.time)}
@@ -127,9 +128,9 @@ export function SlotsCard({ nowMs }: { nowMs: number }) {
               "Pick when you’ll study"
             )}
           </p>
-          <p className="text-sm text-ink-3">{next ? "Your phone reminds you at each one." : "A set time, every week, is what turns studying into a habit."}</p>
+          <p className="mt-1 text-sm text-ink-3">{next ? "Your phone reminds you at each one." : "A set time, every week, is what turns studying into a habit."}</p>
         </div>
-        <button type="button" onClick={startEdit} className="h-11 shrink-0 rounded-full bg-surface-2 px-4 text-sm font-semibold text-ink hover:bg-surface-2/70">
+        <button type="button" onClick={startEdit} className={buttonClasses({ variant: "secondary", size: "sm", className: "shrink-0" })}>
           {slots.length ? "Edit" : "Set times"}
         </button>
       </div>
@@ -143,9 +144,9 @@ export function SlotsCard({ nowMs }: { nowMs: number }) {
         </ul>
       )}
       {open && (
-        <div className="mt-4 space-y-4 rounded-2xl bg-surface-2 p-4">
+        <div className="mt-4 space-y-4 rounded-tile bg-surface-2 p-4">
           <div>
-            <p className="text-xs font-semibold text-ink-2">Days</p>
+            <p className="label-quiet text-ink-2">Days</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {[1, 2, 3, 4, 5, 6, 0].map((d) => (
                 <button
@@ -153,16 +154,16 @@ export function SlotsCard({ nowMs }: { nowMs: number }) {
                   type="button"
                   aria-pressed={days.includes(d)}
                   onClick={() => setDays(days.includes(d) ? days.filter((x) => x !== d) : [...days, d])}
-                  className={`h-11 min-w-12 rounded-full px-3 text-sm font-semibold ${days.includes(d) ? "bg-brand text-on-brand" : "border border-border text-ink-2"}`}
+                  className={`${chipClass(days.includes(d))} min-w-12 justify-center`}
                 >
                   {DAY_SHORT[d]}
                 </button>
               ))}
             </div>
           </div>
-          <label className="block text-xs font-semibold text-ink-2">
+          <label className="label-quiet block text-ink-2">
             Time
-            <select value={time} onChange={(e) => setTime(e.target.value)} className="mt-2 block h-11 w-full rounded-xl border border-border bg-surface px-3 text-base text-ink sm:text-sm">
+            <select value={time} onChange={(e) => setTime(e.target.value)} className="mt-2 block h-12 w-full rounded-field border border-field bg-surface px-3.5 text-base font-normal text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
               {SLOT_TIMES.map((t) => (
                 <option key={t} value={t}>
                   {clock12(t)}
@@ -171,14 +172,14 @@ export function SlotsCard({ nowMs }: { nowMs: number }) {
             </select>
           </label>
           <div className="flex gap-2">
-            <button type="button" onClick={save} className="h-11 flex-1 rounded-full bg-brand text-sm font-semibold text-on-brand">
+            <button type="button" onClick={save} className={buttonClasses({ className: "flex-1" })}>
               Save
             </button>
-            <button type="button" onClick={() => setOpen(false)} className="h-11 rounded-full px-4 text-sm text-ink-3">
+            <button type="button" onClick={() => setOpen(false)} className={buttonClasses({ variant: "ghost" })}>
               Cancel
             </button>
           </div>
-          <p className="text-xs text-ink-3">
+          <p className="text-sm text-ink-3">
             Reminders need notifications on (<Link href="/settings" className="underline">Settings</Link>). No reminders after 10 pm.
           </p>
         </div>
@@ -197,25 +198,25 @@ export function ReviewCard({ weak, nowMs, onStudy }: { weak: Array<{ subject: st
     <section className={card}>
       <p className={kicker}>Review due</p>
       {!weak.length ? (
-        <p className="mt-2 text-sm text-ink-2">Topics you lose marks on in tests come back here to review, until they stick.</p>
+        <p className="mt-2 text-base text-ink-2">Topics you lose marks on in tests come back here to review, until they stick.</p>
       ) : !due.length ? (
-        <p className="mt-2 text-sm text-ink-2">
+        <p className="mt-2 text-base text-ink-2">
           All caught up. {later.length ? `Next review: ${later[0].topic}, ${new Date(`${later[0].due}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}.` : ""}
         </p>
       ) : (
-        <ul className="mt-3 divide-y divide-border">
+        <ul className="mt-3 divide-y divide-hairline">
           {due.slice(0, 5).map((q) => (
             <li key={q.key} className="flex items-center justify-between gap-3 py-3">
               <button type="button" onClick={() => onStudy(q)} className="min-w-0 text-left">
-                <span className="block truncate font-semibold text-ink">{q.topic}</span>
-                <span className="block text-xs text-ink-3">
+                <span className="block truncate text-base font-semibold text-ink">{q.topic}</span>
+                <span className="block text-sm text-ink-3">
                   {q.subject} · review {q.step + 1} of 4
                 </span>
               </button>
               <button
                 type="button"
                 onClick={() => updateProfile((p) => ({ reviews: reviewDone(p.reviews, q.key, nowMs) }))}
-                className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-border-strong px-4 text-sm font-semibold text-ink hover:border-brand/60"
+                className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-border-strong px-4 text-sm font-semibold text-ink transition-colors duration-150 hover:border-ink-3 hover:bg-surface-2"
               >
                 <Icon.Check className="h-4 w-4" /> Reviewed
               </button>
@@ -240,27 +241,27 @@ export function SundayReview({ week, name }: { week: string; nowMs: number; name
   const minutes = days.reduce((a, b) => a + b, 0);
   const reviewed = Object.values(profile.reviews ?? {}).filter((r) => r.step > 0).length;
   return (
-    <section className="rounded-xl border border-brand/35 bg-[linear-gradient(135deg,rgba(251,193,89,0.16),rgba(251,193,89,0.03))] p-5">
+    <section className="rounded-card border border-brand/30 bg-brand-soft p-5 sm:p-6">
       <p className={kicker}>Weekly review</p>
-      <h2 className="mt-1.5 text-xl font-extrabold tracking-[-0.01em] text-ink">Your week, {name}.</h2>
+      <h2 className="mt-1.5 text-xl font-bold tracking-[-0.015em] text-ink">Your week, {name}.</h2>
       <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
         {[
           [`${studied}/${target}`, "study days"],
           [fmt(minutes), "studied"],
           [String(reviewed), "topics reviewed"],
         ].map(([v, l]) => (
-          <div key={l} className="rounded-2xl bg-surface/70 px-2 py-3">
+          <div key={l} className="rounded-tile bg-surface px-2 py-3">
             <dt className="sr-only">{l}</dt>
-            <dd className="text-lg font-extrabold text-ink">{v}</dd>
+            <dd className="text-lg font-bold tabular-nums text-ink">{v}</dd>
             <dd className="text-xs text-ink-3">{l}</dd>
           </div>
         ))}
       </dl>
-      <p className="mt-4 text-sm text-ink-2">
+      <p className="mt-4 text-base text-ink-2">
         {studied >= target ? "Target hit. Keep the same times next week." : "Next week, pick times you can keep. Fewer, kept, beats many, missed."}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" onClick={() => updateProfile({ weekReviewed: week })} className="h-11 rounded-full bg-brand px-5 text-sm font-semibold text-on-brand">
+        <button type="button" onClick={() => updateProfile({ weekReviewed: week })} className={buttonClasses()}>
           Done, plan set
         </button>
         {studied >= target && (

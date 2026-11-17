@@ -36,7 +36,7 @@ export const CITY_PAGES: CityPage[] = [
       },
       {
         title: "Load-shedding or a bad connection",
-        body: "Every class is recorded and the recording stays open for 24 hours, so a power cut or a weak signal does not mean a missed lesson.",
+        body: "Every class is recorded and the recording stays open for 48 hours, so a power cut or a weak signal does not mean a missed lesson.",
       },
     ],
     faq: [
@@ -102,7 +102,7 @@ export const CITY_PAGES: CityPage[] = [
       },
       {
         title: "Recorded the same night",
-        body: "Miss a class for a school event or a family plan and you can watch the recording within 24 hours.",
+        body: "Miss a class for a school event or a family plan and you can watch the recording for 48 hours after.",
       },
     ],
     faq: [

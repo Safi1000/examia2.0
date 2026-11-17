@@ -133,20 +133,20 @@ export default async function PaperPage({ params }: Props) {
 
         <header className="mt-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
           <div className="min-w-0">
-            <h1 className="text-[26px] font-bold leading-tight tracking-tight text-foreground md:text-4xl">
+            <h1 className="text-title font-bold leading-tight tracking-tight text-foreground md:text-4xl">
               <span className="tabular-nums">{code}</span>
-              <span className="block text-[17px] font-medium leading-snug text-muted-foreground md:text-xl">
+              <span className="block text-lg font-medium leading-snug text-muted-foreground md:text-xl">
                 {s.name} · {sessionLabel(p.session)} · {paperTitle(p)}
                 {variantText(p)}
               </span>
             </h1>
           </div>
-          <ul className="flex flex-wrap gap-2 text-[14px] text-muted-foreground">
+          <ul className="flex flex-wrap gap-2 text-sm tabular-nums text-muted-foreground">
             {p.minutes && <li className="rounded-full border border-hairline px-3 py-1">{time(p.minutes)}</li>}
             {p.marks && <li className="rounded-full border border-hairline px-3 py-1">{p.marks} marks</li>}
             {f.qp.pages > 0 && <li className="rounded-full border border-hairline px-3 py-1">{f.qp.pages} pages</li>}
           </ul>
-          <p className="w-full text-[13px] tabular-nums text-faint">
+          <p className="w-full break-words text-xs tabular-nums text-faint">
             Files: {f.qp.name}
             {f.ms ? ` · ${f.ms.name}` : ""}
             {f.insert ? ` · ${f.insert.name}` : ""}
@@ -172,14 +172,14 @@ export default async function PaperPage({ params }: Props) {
           <h2 id="about-h" className="text-lg font-semibold text-foreground">
             About this paper
           </h2>
-          <p className="mt-2 text-[16px] leading-relaxed text-muted-foreground">{about}</p>
+          <p className="mt-2 text-base leading-relaxed text-muted-foreground">{about}</p>
           {inPaper.length > 0 && (
-            <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
+            <p className="mt-4 text-base leading-relaxed text-muted-foreground">
               Topics in this paper:{" "}
               {inPaper.map((t, i) => (
                 <span key={t.slug}>
                   {i > 0 && " · "}
-                  <Link href={`/past-papers/${s.slug}/topics/${t.slug}`} className="text-foreground underline decoration-gold/40 underline-offset-4 hover:decoration-gold">
+                  <Link href={`/past-papers/${s.slug}/topics/${t.slug}`} className="text-foreground underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:decoration-foreground">
                     {t.sub.name}
                   </Link>
                 </span>
@@ -189,15 +189,15 @@ export default async function PaperPage({ params }: Props) {
         </section>
 
         {textPages.length > 0 && (
-          <details className="group mt-8 max-w-[70ch] rounded-[18px] border border-hairline bg-card px-5 py-1 open:pb-5">
-            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-[15px] font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+          <details className="pc-surface group mt-8 max-w-[70ch] rounded-card px-5 py-1 open:pb-5">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-base font-semibold text-foreground [&::-webkit-details-marker]:hidden">
               Read the question paper as text
-              <span aria-hidden className="text-gold transition-transform group-open:rotate-45">+</span>
+              <span aria-hidden className="text-lg text-faint transition-transform duration-200 group-open:rotate-45">+</span>
             </summary>
-            <div className="mt-2 space-y-5 text-[15px] leading-relaxed text-muted-foreground">
+            <div className="mt-2 space-y-5 text-sm leading-relaxed text-muted-foreground">
               {textPages.map(([n, t]) => (
                 <section key={n} aria-label={`Page ${n}`}>
-                  <h3 className="text-[13px] font-semibold text-faint">Page {n}</h3>
+                  <h3 className="text-xs font-semibold text-faint">Page {n}</h3>
                   <p className="mt-1 whitespace-pre-line">{t}</p>
                 </section>
               ))}
@@ -211,26 +211,26 @@ export default async function PaperPage({ params }: Props) {
               <h2 id="gt-h" className="text-lg font-semibold text-foreground">
                 Grade thresholds
               </h2>
-              <p className="mt-1 text-[15px] text-muted-foreground">
+              <p className="mt-1 text-sm text-muted-foreground">
                 Minimum marks out of {t.max} on {p.code}/{p.pv}, {sessionLabel(p.session)}.
               </p>
               <ul className="mt-4 flex flex-wrap gap-2">
                 {t.grades.map(([g, n]) => (
-                  <li key={g} className="min-w-[64px] rounded-[14px] border border-hairline bg-card px-3 py-2.5 text-center">
-                    <span className="block text-[13px] font-semibold text-muted-foreground">{g}</span>
+                  <li key={g} className="pc-surface min-w-[64px] rounded-tile px-3 py-2.5 text-center">
+                    <span className="block text-xs font-semibold text-muted-foreground">{g}</span>
                     <span className="block text-xl font-bold tabular-nums text-foreground">{n}</span>
                   </li>
                 ))}
               </ul>
               {(f.er || f.gt) && (
-                <p className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-[15px]">
+                <p className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm">
                   {f.er && (
-                    <a href={f.er} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center font-semibold text-gold hover:underline">
+                    <a href={f.er} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:decoration-foreground">
                       Examiner report
                     </a>
                   )}
                   {f.gt && (
-                    <a href={f.gt} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center font-semibold text-gold hover:underline">
+                    <a href={f.gt} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:decoration-foreground">
                       Full threshold table
                     </a>
                   )}
@@ -252,8 +252,8 @@ export default async function PaperPage({ params }: Props) {
                 .map(({ o, l }) => (
                   <li key={o.key}>
                     <Link href={paperHref(s.slug, o)} className="group flex min-h-12 items-center justify-between gap-3 py-2.5">
-                      <span className="font-semibold tabular-nums text-foreground group-hover:text-gold">{cieCode(o)}</span>
-                      <span className="text-[14px] text-faint">{l}</span>
+                      <span className="text-base font-semibold tabular-nums text-foreground underline-offset-4 group-hover:underline">{cieCode(o)}</span>
+                      <span className="text-sm text-faint">{l}</span>
                     </Link>
                   </li>
                 ))}

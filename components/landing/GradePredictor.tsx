@@ -19,10 +19,10 @@ import {
 } from "@/lib/grade-predictor";
 
 const inputCls =
-  "h-12 w-full rounded-xl border border-hairline-strong bg-band-c px-4 text-base tabular-nums text-foreground outline-none placeholder:text-faint focus:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
+  "h-12 w-full rounded-field border border-hairline-strong bg-band-c px-4 text-base tabular-nums text-foreground outline-none placeholder:text-faint focus:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
 
 const chipCls =
-  "relative flex min-h-12 cursor-pointer items-center justify-center rounded-2xl border border-hairline-strong px-2 py-2 text-center text-sm font-semibold leading-tight text-muted-foreground transition-colors hover:text-foreground has-[:checked]:border-gold has-[:checked]:bg-gold has-[:checked]:text-[#1b1e21] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-gold sm:rounded-full sm:px-4 sm:text-[15px]";
+  "relative flex min-h-12 cursor-pointer items-center justify-center rounded-tile border border-hairline-strong px-2 py-2 text-center text-sm font-semibold leading-tight text-muted-foreground transition-colors duration-200 hover:text-foreground has-[:checked]:border-white/[0.16] has-[:checked]:bg-white/[0.09] has-[:checked]:text-ink has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-gold sm:rounded-full sm:px-4 sm:text-base";
 
 function Segmented<T extends string>({
   legend,
@@ -134,7 +134,7 @@ export function GradePredictor({ initial }: { initial?: { subject: Subject; qual
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <form className="min-w-0 rounded-[20px] border border-hairline bg-card/80 p-6 backdrop-blur-sm md:p-8" onSubmit={(e) => e.preventDefault()}>
+      <form className="pc-surface min-w-0 rounded-card p-6 md:p-8" onSubmit={(e) => e.preventDefault()}>
         <div className="space-y-8">
           <Segmented legend="1. Subject" name={`${uid}-s`} options={SUBJECTS} value={subject} onChange={reset(setSubject)} />
           <Segmented
@@ -189,12 +189,12 @@ export function GradePredictor({ initial }: { initial?: { subject: Subject; qual
         ref={resultRef}
         aria-live="polite"
         aria-label="Your predicted grade"
-        className="min-w-0 scroll-mt-28 rounded-[20px] border border-gold-border/60 bg-band-c/80 p-6 backdrop-blur-sm md:p-8"
+        className="pc-surface min-w-0 scroll-mt-28 rounded-card p-6 md:p-8"
       >
         {!result || !syl ? (
           <div>
             <p className="text-sm font-semibold text-foreground">Your grade shows here</p>
-            <p className="mt-2 text-[17px] leading-relaxed text-muted-foreground">
+            <p className="mt-2 text-lg leading-relaxed text-muted-foreground">
               Enter your marks for {papers.length === 4 ? "all four papers" : "both papers"}.
             </p>
           </div>
@@ -215,7 +215,7 @@ export function GradePredictor({ initial }: { initial?: { subject: Subject; qual
             <p className="mt-4 font-hand text-2xl font-bold leading-snug text-gold">{roast(result.grade)}</p>
 
             {result.range && result.range.low !== result.range.high && (
-              <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
+              <p className="mt-3 text-base leading-relaxed text-muted-foreground">
                 Over the last four exam sessions, these marks earned anything from {g(result.range.low)} to{" "}
                 {g(result.range.high)}, depending on the paper.
               </p>
@@ -227,7 +227,7 @@ export function GradePredictor({ initial }: { initial?: { subject: Subject; qual
                 <span key={gr} className="absolute top-0 h-2 w-px bg-band-c" style={{ left: `${(min / result.max) * 100}%` }} />
               ))}
             </div>
-            <div className="relative mt-2 h-4 text-[11px] tabular-nums text-faint" aria-hidden>
+            <div className="relative mt-2 h-4 text-xs tabular-nums text-faint" aria-hidden>
               {Object.entries(result.set.thresholds)
                 .filter(([, min], i, arr) => i === 0 || arr[i - 1][1] - min >= result.max * 0.04)
                 .map(([gr, min]) => (
@@ -238,9 +238,9 @@ export function GradePredictor({ initial }: { initial?: { subject: Subject; qual
             </div>
 
             {ahead && (
-              <div className="mt-7 rounded-2xl border border-gold-border bg-gold-tint p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold">For May / June 2027</p>
-                <p className="mt-2 text-[15px] leading-relaxed text-body">
+              <div className="mt-7 rounded-tile bg-white/[0.04] p-4">
+                <p className="text-sm font-semibold text-faint">For May / June 2027</p>
+                <p className="mt-2 text-base leading-relaxed text-body">
                   {result.next ? (
                     <>
                       To be safe for <strong className="text-foreground">{g(ahead.grade)}</strong>, aim for{" "}
@@ -277,7 +277,7 @@ export function GradePredictor({ initial }: { initial?: { subject: Subject; qual
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => track("whatsapp_click", { from: "grade_predictor", subject, qual, grade: result.grade })}
-                className="btn-shine flex min-h-12 w-full items-center justify-center rounded-full bg-gold px-6 py-3.5 text-center text-[15px] font-semibold text-[#1b1e21] transition-[background-color,transform] hover:bg-gold-hover active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+                className="flex min-h-12 w-full items-center justify-center rounded-full bg-gold px-6 py-3.5 text-center text-base font-semibold text-band-b transition-[background-color,transform] duration-200 ease-[var(--ease-out)] hover:bg-gold-hover active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
               >
                 {cta}
               </a>
@@ -286,7 +286,7 @@ export function GradePredictor({ initial }: { initial?: { subject: Subject; qual
             <button
               type="button"
               onClick={() => void shareCard(g(result.grade), subject, qual)}
-              className="mt-4 flex min-h-12 w-full items-center justify-center rounded-full border border-hairline-strong px-6 text-[15px] font-semibold text-foreground transition-colors hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+              className="mt-4 flex min-h-12 w-full items-center justify-center rounded-full border border-hairline-strong px-6 text-base font-semibold text-foreground transition-colors duration-200 hover:border-white/[0.28] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
             >
               Share my grade card
             </button>
@@ -327,8 +327,8 @@ function MarksNeeded({ syl, qual }: { syl: NonNullable<ReturnType<typeof syllabu
   const need = marksNeeded(syl, target);
   const g = (x: string) => gradeLabel(qual, x);
   return (
-    <section className="min-w-0 rounded-[20px] border border-hairline bg-card/80 p-6 backdrop-blur-sm md:p-8">
-      <h3 className="text-sm font-semibold text-foreground">What do I need for…</h3>
+    <section className="pc-surface min-w-0 rounded-card p-6 md:p-8">
+      <h3 className="text-base font-semibold text-foreground">What do I need for…</h3>
       <div className="mt-3 grid grid-cols-4 gap-2" role="radiogroup" aria-label="Target grade">
         {grades.map((gr) => (
           <button
@@ -337,8 +337,8 @@ function MarksNeeded({ syl, qual }: { syl: NonNullable<ReturnType<typeof syllabu
             role="radio"
             aria-checked={target === gr}
             onClick={() => setTarget(gr)}
-            className={`min-h-12 rounded-full border text-[15px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${
-              target === gr ? "border-gold bg-gold text-[#1b1e21]" : "border-hairline-strong text-muted-foreground hover:text-foreground"
+            className={`min-h-12 rounded-full border text-base font-semibold transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${
+              target === gr ? "border-white/[0.16] bg-white/[0.09] text-ink" : "border-hairline-strong text-muted-foreground hover:text-foreground"
             }`}
           >
             {g(gr)}
@@ -347,13 +347,13 @@ function MarksNeeded({ syl, qual }: { syl: NonNullable<ReturnType<typeof syllabu
       </div>
       {need && (
         <div className="mt-5">
-          <p className="text-[17px] leading-relaxed text-body">
+          <p className="text-lg leading-relaxed text-body">
             About <strong className="text-foreground">{need.percent}%</strong> was enough for {g(need.grade)} on every paper in the last
             four sessions:
           </p>
           <ul className="mt-3 grid grid-cols-2 gap-3">
             {need.perPaper.map((m, i) => (
-              <li key={i} className="rounded-xl border border-hairline bg-band-c px-4 py-3">
+              <li key={i} className="rounded-tile bg-white/[0.04] px-4 py-3">
                 <p className="text-xs text-faint">Paper {i + 1}</p>
                 <p className="text-lg font-semibold tabular-nums text-foreground">
                   {m} <span className="text-sm font-normal text-faint">/ {syl.papers[i]}</span>

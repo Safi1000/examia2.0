@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { appraise } from "@/components/tools/calc";
-import { AskHamza, NumberField, Result, amount, fieldError, fmt, num } from "@/components/tools/ToolBits";
+import { AskHamza, Notice, NumberField, Result, amount, fieldError, fieldLabel, fmt, num, textAction } from "@/components/tools/ToolBits";
 
 /**
  * Payback, accounting rate of return (ARR) and net present value (NPV) for
@@ -35,21 +35,19 @@ export function InvestmentCalculator() {
         <NumberField label="Discount rate" value={rate} onChange={setRate} suffix="%" />
       </div>
       <div>
-        <p className="mb-2 text-sm font-semibold text-foreground">Net cash inflow each year</p>
+        <p className={fieldLabel}>Net cash inflow each year</p>
         <div className="grid gap-3 sm:grid-cols-3">
           {flows.map((f, i) => (
             <NumberField key={i} label={`Year ${i + 1}`} value={f} allowNegative onChange={(x) => setFlows((s) => s.map((y, j) => (j === i ? x : y)))} />
           ))}
         </div>
-        <button type="button" onClick={() => setFlows((s) => [...s, ""])} className="mt-1 inline-flex min-h-11 items-center rounded-md text-sm font-semibold text-gold underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+        <button type="button" onClick={() => setFlows((s) => [...s, ""])} className={`mt-2 ${textAction}`}>
           Add a year
         </button>
       </div>
       <div aria-live="polite" className="space-y-8">
       {gaps && (
-        <p className="rounded-[16px] border border-hairline bg-card p-5 text-[15px] text-body">
-          Fill in every year up to the last one you used. Enter 0 for a year with no cash inflow.
-        </p>
+        <Notice>Fill in every year up to the last one you used. Enter 0 for a year with no cash inflow.</Notice>
       )}
       {res && (
         <div className="grid gap-3 sm:grid-cols-2">

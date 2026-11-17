@@ -73,7 +73,7 @@ export default function PrivateCandidatesPakistan() {
 
       <article className="public-calm mx-auto max-w-3xl px-5 pb-24 pt-12 md:pt-20">
         <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Private candidate guide, Pakistan" }]} />
-        <h1 className="mt-8 text-[2.25rem] leading-[1.08] md:text-5xl">
+        <h1 className="mt-8 text-title leading-[1.1] sm:text-title-lg">
           Sitting O Level, IGCSE or A Level as a private candidate in Pakistan
         </h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
@@ -82,7 +82,7 @@ export default function PrivateCandidatesPakistan() {
         </p>
 
         <Section title="Who sits as a private candidate">
-          <ul className="list-disc space-y-2 pl-5 text-[17px] leading-relaxed text-body">
+          <ul className="list-disc space-y-2 pl-5 text-lg leading-relaxed text-body">
             <li>Students whose school does not offer the subject, such as O Level Accounting at a school without a commerce teacher.</li>
             <li>Students taking a gap year, studying at home, or finishing A Levels after leaving school.</li>
             <li>Students retaking a subject to improve a grade for a university or scholarship application.</li>
@@ -94,7 +94,7 @@ export default function PrivateCandidatesPakistan() {
           title="How registration works"
           intro={<p>In Pakistan, private candidates enter Cambridge exams through the British Council, not through Cambridge directly.</p>}
         >
-          <ol className="list-decimal space-y-3 pl-5 text-[17px] leading-relaxed text-body">
+          <ol className="list-decimal space-y-3 pl-5 text-lg leading-relaxed text-body">
             <li>
               <strong className="text-foreground">Create an account in the British Council registration system (SRS).</strong> A parent or guardian
               completes it if you are under 18.
@@ -140,14 +140,14 @@ export default function PrivateCandidatesPakistan() {
               ["May / June 2027", "Not published yet", "Expect a similar February to March window"],
             ]}
           />
-          <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
+          <p className="mt-4 text-base leading-relaxed text-muted-foreground">
             Modified papers and access arrangements have earlier deadlines (for October / November 2026 they were 29 June and 21 July 2026).
             Apply early if you need them.
           </p>
         </Section>
 
         <Section title="May / June or October / November?">
-          <p className="text-[17px] leading-relaxed text-body">
+          <p className="text-lg leading-relaxed text-body">
             May / June is the main session and the one most students sit. October / November is smaller and is
             often used for retakes and for finishing A Level after AS. If you are starting a subject from zero now, aim for May / June 2027 and
             keep October / November 2027 as your backup.
@@ -159,24 +159,24 @@ export default function PrivateCandidatesPakistan() {
             caption="Study plan"
             head={["Months", "What to do"]}
             rows={[
-              ["November to January", <>Cover the full <Link href="/syllabus" className="text-gold hover:underline">syllabus</Link> once, topic by topic. Make one page of notes per topic.</>],
-              ["February", <><Link href="/past-papers/topics" className="text-gold hover:underline">Topic-wise past paper questions</Link> for every topic. Mark them strictly with the mark scheme.</>],
+              ["November to January", <>Cover the full <Link href="/syllabus" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">syllabus</Link> once, topic by topic. Make one page of notes per topic.</>],
+              ["February", <><Link href="/past-papers/topics" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">Topic-wise past paper questions</Link> for every topic. Mark them strictly with the mark scheme.</>],
               ["March to April", "Full timed past papers, two a week per subject. Fix every mistake the same week."],
               ["May", "Last three sessions' papers under exam conditions. Revise only your weakest topics."],
             ]}
           />
-          <p className="mt-5 text-[17px] leading-relaxed text-body">
-            The hard part on your own is not finding <Link href="/past-papers" className="text-gold hover:underline">past papers</Link>. It is knowing why an answer you thought was right only got half the marks.
+          <p className="mt-5 text-lg leading-relaxed text-body">
+            The hard part on your own is not finding <Link href="/past-papers" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">past papers</Link>. It is knowing why an answer you thought was right only got half the marks.
             Accounting formats, Business evaluation and Economics analysis are where students studying alone lose the most, because nobody marks
             their written answers.
           </p>
-          <p className="mt-4 text-[17px] leading-relaxed text-body">
+          <p className="mt-4 text-lg leading-relaxed text-body">
             To see the marks you need, use the{" "}
-            <Link href="/grade-thresholds" className="text-gold hover:underline">
+            <Link href="/grade-thresholds" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">
               official grade thresholds
             </Link>{" "}
             and the{" "}
-            <Link href="/tools/grade-predictor" className="text-gold hover:underline">
+            <Link href="/tools/grade-predictor" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">
               grade predictor
             </Link>
             .
@@ -195,11 +195,11 @@ export default function PrivateCandidatesPakistan() {
 
         <p className="mt-12 text-sm leading-relaxed text-faint">
           Sources:{" "}
-          <a href="https://www.britishcouncil.pk/exam/international-schools-igcse-a-levels/private-candidates/registration" className="hover:text-gold" rel="noopener">
+          <a href="https://www.britishcouncil.pk/exam/international-schools-igcse-a-levels/private-candidates/registration" className="underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:text-muted-foreground" rel="noopener">
             British Council Pakistan, private candidate registration
           </a>
           ,{" "}
-          <a href="https://www.britishcouncil.pk/exam/international-schools-igcse-a-levels/private-candidates/results/retakes-remarking" className="hover:text-gold" rel="noopener">
+          <a href="https://www.britishcouncil.pk/exam/international-schools-igcse-a-levels/private-candidates/results/retakes-remarking" className="underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:text-muted-foreground" rel="noopener">
             retakes and remarks
           </a>
           . Fees and dates change each session: always confirm on the British Council page before you pay.

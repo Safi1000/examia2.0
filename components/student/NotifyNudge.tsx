@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useToast } from "@/components/toast";
 import { enablePush, pushStatus } from "@/lib/push-client";
 import { useInApp } from "@/lib/in-app";
+import { Button } from "@/components/ui/Button";
 
 /**
  * One gentle ask, once: for students who skipped notifications in the
@@ -50,33 +51,32 @@ export function NotifyNudge() {
     <div
       role="region"
       aria-label="Class reminders"
-      className="fixed inset-x-5 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-md animate-fade-up rounded-2xl border border-border bg-[#1d2023]/95 p-4 shadow-[0_24px_48px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl md:bottom-6"
+      className="fixed inset-x-5 bottom-[calc(6.75rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-md animate-fade-up rounded-card border border-hairline-strong bg-surface p-5 shadow-[0_24px_48px_-16px_rgba(0,0,0,0.8)] md:bottom-6"
     >
-      <p className="font-semibold text-ink">Never miss a class</p>
-      <p className="mt-1 text-sm text-ink-2">I&apos;ll send a short reminder when your class is about to start, and tell you when results are out. Never at night, and only a few.</p>
-      <div className="mt-3 flex gap-2">
-        <button
-          type="button"
+      <p className="text-base font-semibold text-ink">Never miss a class</p>
+      <p className="mt-1 text-sm text-ink-2">A short note when your class starts or your result is out. Never at night, and only a few.</p>
+      <div className="mt-4 flex gap-2">
+        <Button
           disabled={busy}
           onClick={async () => {
             setBusy(true);
             // Say how it went: before, a failed or blocked attempt closed the card as if it had worked.
             try {
               const next = await enablePush();
-              if (next === "on") toast("Reminders are on. I'll let you know before each class.", "success");
+              if (next === "on") toast("Reminders are on. I'll keep them few and short.", "success");
               else if (next === "blocked") toast("Notifications are blocked on this phone. Allow them in your browser settings.", "info");
             } catch {
               toast("Couldn't turn them on. You can try again in Settings.", "error");
             }
             done();
           }}
-          className="h-11 flex-1 rounded-full bg-brand text-sm font-semibold text-on-brand disabled:opacity-60"
+          className="flex-1"
         >
           {busy ? "Turning on…" : "Turn on reminders"}
-        </button>
-        <button type="button" disabled={busy} onClick={done} className="h-11 rounded-full px-4 text-sm font-semibold text-ink-3 hover:text-ink">
+        </Button>
+        <Button variant="ghost" disabled={busy} onClick={done}>
           Not now
-        </button>
+        </Button>
       </div>
     </div>
   );

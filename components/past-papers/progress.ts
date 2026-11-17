@@ -142,6 +142,16 @@ export function recordAnswers(results: Array<{ id: string; right: boolean }>) {
   save({ ...s, seen, wrong });
 }
 
+/** Take a question back off the seen list (a mis-tapped "Mark as done"). */
+export function unrecord(id: string) {
+  const s = load();
+  const seen = { ...s.seen };
+  const wrong = { ...s.wrong };
+  delete seen[id];
+  delete wrong[id];
+  save({ ...s, seen, wrong });
+}
+
 /** Night reading: paper pages shown light-on-dark. A per-device choice. */
 const NIGHT = "ht-pp-night";
 const nightListeners = new Set<() => void>();

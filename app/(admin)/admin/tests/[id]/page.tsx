@@ -67,7 +67,6 @@ export default function TestEditorPage() {
   useEffect(() => {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", warn);
     // In-app links (the sidebar, "Tests") do not fire beforeunload, so they
     // are caught here, before Next.js handles the click.
     const onLink = (e: MouseEvent) => {
@@ -128,6 +127,8 @@ export default function TestEditorPage() {
     const from = idsInText(q.prompt)[0];
     const family = from ? familyOfCode(parseId(from)?.code ?? "") : null;
     if (!from || !family) return;
+    // Students who already answered it would be marked against the new question's answer.
+    if (sat > 0 && !window.confirm(`${sat === 1 ? "1 student has" : `${sat} students have`} already handed this test in. Swapping this question changes their marks for it. Swap anyway?`)) return;
     setSwapping(q.id);
     try {
       const exclude = [...classHistoryIds(db, test.cohortId, test.classId), ...questions.flatMap((x) => idsInText(x.prompt))];
@@ -304,12 +305,12 @@ export default function TestEditorPage() {
         }
       />
       {test.status === "draft" && (
-        <p className="mb-4 rounded-md border border-border bg-surface px-4 py-3 text-sm text-ink-2">
+        <p className="mb-4 rounded-tile bg-surface-2 px-4 py-3 text-sm text-ink-2">
           <span className="font-semibold text-ink">Draft.</span> Students can&apos;t see this test yet. Check the questions, then press Publish.
         </p>
       )}
       {!canPublish && (
-        <p className="mb-4 rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-warning">
+        <p className="mb-4 rounded-tile border border-warning/30 bg-warning-soft px-4 py-3 text-sm text-warning">
           {!canSave
             ? "Give the test a title to save it."
             : questions.length === 0
@@ -322,7 +323,7 @@ export default function TestEditorPage() {
         {/* Settings */}
         <div className="space-y-5 lg:col-span-2">
         <Card>
-          <CardHeader><h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Details</h2></CardHeader>
+          <CardHeader><h2 className="text-base font-semibold text-ink">Details</h2></CardHeader>
           <CardBody className="space-y-4">
             <Input label="Title" value={form.title} onChange={(e) => set("title", e.target.value)} required />
             <div className="grid grid-cols-2 gap-3">
@@ -399,14 +400,14 @@ export default function TestEditorPage() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               <div>
                 <label htmlFor="test-opens" className="mb-1.5 block text-sm font-semibold text-ink-2">Opens</label>
-                <input id="test-opens" type="datetime-local" value={form.opensAt} onChange={(e) => set("opensAt", e.target.value)} className="h-12 w-full min-w-0 rounded-md border border-border-strong bg-surface px-3 text-base tabular-nums text-ink" />
+                <input id="test-opens" type="datetime-local" value={form.opensAt} onChange={(e) => set("opensAt", e.target.value)} className="h-12 w-full min-w-0 rounded-field border border-field bg-surface px-3.5 text-base tabular-nums text-ink transition-colors hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" />
               </div>
               <div>
                 <label htmlFor="test-closes" className="mb-1.5 block text-sm font-semibold text-ink-2">Closes</label>
-                <input id="test-closes" type="datetime-local" value={form.closesAt} onChange={(e) => set("closesAt", e.target.value)} className="h-12 w-full min-w-0 rounded-md border border-border-strong bg-surface px-3 text-base tabular-nums text-ink" />
+                <input id="test-closes" type="datetime-local" value={form.closesAt} onChange={(e) => set("closesAt", e.target.value)} className="h-12 w-full min-w-0 rounded-field border border-field bg-surface px-3.5 text-base tabular-nums text-ink transition-colors hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" />
               </div>
             </div>
-            <p className="text-xs text-ink-3">
+            <p className="text-sm text-ink-3">
               {test.status === "draft"
                 ? "Pakistan time. Goes live when you press Publish; closes on its own at the close time."
                 : "Pakistan time. Students see it from the open time; it closes on its own at the close time."}
@@ -420,7 +421,7 @@ export default function TestEditorPage() {
         <Card className="min-w-0 lg:col-span-3">
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
+              <h2 className="text-base font-semibold text-ink">
                 Questions <span className="tabular-nums text-ink-3">({questions.length})</span>
                 {totalMarks > 0 && <span className="ml-2 text-sm font-normal tabular-nums text-ink-3">{totalMarks} mark{totalMarks === 1 ? "" : "s"}</span>}
               </h2>
@@ -431,7 +432,7 @@ export default function TestEditorPage() {
                   </Button>
                 )}
                 <Button variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
-                  <Icon.Bank className="h-4 w-4" /> Import
+                  <Icon.Bank className="h-4 w-4" /> From bank
                 </Button>
                 <Button variant="secondary" size="sm" onClick={() => setDocOpen(true)}>
                   <Icon.Doc className="h-4 w-4" /> Paste or upload
@@ -444,14 +445,14 @@ export default function TestEditorPage() {
           </CardHeader>
           <CardBody>
             {sat > 0 && questions.length > 0 && (
-              <p className="mb-3 text-sm text-ink-2">
+              <p className="mb-4 text-sm text-ink-2">
                 {sat === 1 ? "1 student has" : `${sat} students have`} already handed this in. Changing or deleting a question changes their marks.
               </p>
             )}
             {questions.length === 0 ? (
               <EmptyState icon={<Icon.Doc />} title="No questions yet" message="Add a question or import from the bank." />
             ) : (
-              <ul className="space-y-2">
+              <ul className="-mx-5 -my-4 divide-y divide-hairline">
                 {questions.map((q, i) => (
                   <li
                     key={q.id}
@@ -459,13 +460,13 @@ export default function TestEditorPage() {
                     onDragStart={() => setDragIndex(i)}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={() => onDrop(i)}
-                    className="rounded-md border border-border bg-surface p-3"
+                    className="px-5 py-3 transition-colors duration-150 hover:bg-white/[0.018]"
                   >
                     {/* One line of labels and tools, then the question at full width (roomy on a phone). */}
                     <div className="flex items-start gap-2">
                       <span className="mt-2.5 hidden cursor-grab text-ink-3 sm:block" aria-hidden><Icon.Grip className="h-4 w-4" /></span>
                       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 pt-2">
-                        <span className="text-xs font-semibold tabular-nums text-ink-3">Q{i + 1}</span>
+                        <span className="text-sm font-semibold tabular-nums text-ink-3">Q{i + 1}</span>
                         <Badge tone="neutral">{TYPE_LABEL[q.type]}</Badge>
                         {q.topic.trim() && <Badge tone="neutral" className="max-w-full truncate">{q.topic}</Badge>}
                         <Pill>{q.marks}m</Pill>
@@ -489,15 +490,15 @@ export default function TestEditorPage() {
                       {isPastPaper(q) ? (
                         // Past paper: the wording students see (if typed), and the source in small text for Hamza only.
                         <>
-                          {withoutSources(q.prompt) && <PaperText text={withoutSources(q.prompt)} className="mt-1.5 line-clamp-3 text-sm text-ink" />}
-                          <p className="mt-1 text-xs text-ink-3">
+                          {withoutSources(q.prompt) && <PaperText text={withoutSources(q.prompt)} className="mt-1.5 line-clamp-3 text-base text-ink" />}
+                          <p className="mt-1 text-sm text-ink-3">
                             {q.type === "mcq" ? (q.options.every((o) => /^[A-D]$/.test(o.trim())) ? "Picture with A to D" : "Typed") : "Pages, photo answer"} · {idsInText(q.prompt).map(sourceLabel).join(", ")}
                           </p>
                         </>
                       ) : q.prompt.trim() ? (
-                        <p className="mt-1.5 text-sm text-ink">{q.prompt}</p>
+                        <p className="mt-1.5 text-base text-ink">{q.prompt}</p>
                       ) : (
-                        <p className="mt-1.5 text-sm italic text-ink-3">Answer the attached paper</p>
+                        <p className="mt-1.5 text-base italic text-ink-3">Answer the attached paper</p>
                       )}
                       {q.marks <= 0 && (
                         <label className="mt-2 flex items-center gap-2 text-sm text-ink-2">
@@ -509,10 +510,10 @@ export default function TestEditorPage() {
                             placeholder="?"
                             onBlur={(e) => { if (Number(e.target.value) > 0) setQuestionMarks(q, Number(e.target.value)); }}
                             onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                            className="h-11 w-20 rounded-lg border border-warning/50 bg-surface px-3 text-center text-base font-semibold tabular-nums text-ink"
+                            className="h-11 w-20 rounded-field border border-warning/50 bg-surface px-3 text-center text-base font-semibold tabular-nums text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                             aria-label={`Marks for question ${i + 1}`}
                           />
-                          <span className="text-xs text-ink-3">from the paper</span>
+                          <span className="text-sm text-ink-3">from the paper</span>
                         </label>
                       )}
                       {idsInText(q.prompt).length > 0 && (
@@ -540,7 +541,7 @@ export default function TestEditorPage() {
                     {/* The question itself, full width under the row (readable on a phone). */}
                     {/* The question exactly as students will see it. */}
                     {viewing === q.id && (
-                      <div className="mt-1 rounded-lg border border-hairline bg-paper/40 p-3 sm:ml-6 sm:p-4">
+                      <div className="mt-1 rounded-tile bg-paper/40 p-3 sm:ml-6 sm:p-4">
                         <PastPaperPreview question={q} />
                       </div>
                     )}

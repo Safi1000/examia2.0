@@ -30,9 +30,9 @@ type Tab = "qp" | "ms" | "in";
 type Mode = "view" | "practice" | "mark" | "result";
 
 const gold =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-gold px-5 text-[15px] font-semibold text-[#1b1e21] transition-colors hover:bg-gold-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold disabled:opacity-40";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-gold px-5 text-sm font-semibold text-band-b transition-[background-color,transform] duration-150 hover:bg-gold-hover active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold disabled:opacity-40";
 const ghost =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-hairline-strong px-5 text-[15px] font-semibold text-foreground transition-colors hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-hairline-strong px-5 text-sm font-semibold text-foreground transition-[background-color,border-color,transform] duration-150 hover:border-white/25 hover:bg-white/[0.04] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
 const iconBtn =
   "h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold disabled:opacity-30 disabled:hover:bg-transparent";
 
@@ -167,14 +167,14 @@ function PageImg({ src, n, doc, night }: { src: string; n: number; doc: ViewDoc;
   if (failed)
     return (
       <div className="flex w-full flex-col items-center justify-center gap-3 rounded-[4px] border border-hairline-strong bg-card px-6 text-center" style={{ aspectRatio: `1 / ${ratio}` }}>
-        <p className="text-[15px] text-muted-foreground">Page {n} didn&apos;t load. Check your connection.</p>
+        <p className="text-sm text-muted-foreground">Page {n} didn&apos;t load. Check your connection.</p>
         <button
           type="button"
           onClick={() => {
             setFailed(false);
             setTries((t) => t + 1);
           }}
-          className="inline-flex min-h-11 items-center rounded-full border border-hairline-strong px-5 text-[15px] font-semibold text-foreground hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+          className="inline-flex min-h-11 items-center rounded-full border border-hairline-strong px-5 text-sm font-semibold text-foreground transition-colors duration-150 hover:border-white/25 hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
         >
           Try again
         </button>
@@ -203,14 +203,14 @@ function Bubbles({ answers, set, keyStr }: { answers: string[]; set: (i: number,
       {[...keyStr].map((k, i) => {
         if (k === "-" || k === "*")
           return (
-            <li key={i} className="flex min-h-10 items-center gap-3">
-              <span className="w-6 shrink-0 text-right text-[14px] font-semibold tabular-nums text-faint">{i + 1}</span>
-              <span className="text-[14px] text-faint">{k === "-" ? "Removed by Cambridge" : "Mark given to everyone"}</span>
+            <li key={i} className="flex min-h-11 items-center gap-3">
+              <span className="w-6 shrink-0 text-right text-sm font-semibold tabular-nums text-faint">{i + 1}</span>
+              <span className="text-sm text-faint">{k === "-" ? "Removed by Cambridge" : "Mark given to everyone"}</span>
             </li>
           );
         return (
           <li key={i} className="flex items-center gap-3">
-            <span className="w-6 shrink-0 text-right text-[14px] font-semibold tabular-nums text-muted-foreground">{i + 1}</span>
+            <span className="w-6 shrink-0 text-right text-sm font-semibold tabular-nums text-muted-foreground">{i + 1}</span>
             <span role="radiogroup" aria-label={`Question ${i + 1}`} className="flex gap-1.5">
               {["A", "B", "C", "D"].map((L) => {
                 const on = answers[i] === L;
@@ -223,8 +223,9 @@ function Bubbles({ answers, set, keyStr }: { answers: string[]; set: (i: number,
                     aria-label={L}
                     onClick={() => set(i, on ? "" : L)}
                     className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-full border text-[14px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
-                      on ? "border-gold bg-gold text-[#1b1e21]" : "border-hairline-strong text-muted-foreground hover:border-gold-border hover:text-foreground",
+                      "flex h-11 w-11 items-center justify-center rounded-full border text-sm font-semibold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
+                      // A shaded answer reads like pencil on the sheet: off-white, not gold.
+                      on ? "border-body bg-body text-band-b" : "border-hairline-strong text-muted-foreground hover:border-white/25 hover:text-foreground",
                     )}
                   >
                     {L}
@@ -487,10 +488,10 @@ export function PaperView({
     <div id="paper-view" className="scroll-mt-[96px] sm:scroll-mt-[108px]">
       {/* Result */}
       {mode === "result" && score != null && (
-        <div className="mb-5 rounded-[24px] border border-gold-border bg-card-raised p-6 md:p-8" role="status">
+        <div className="pc-surface mb-5 rounded-card p-5 sm:p-6" role="status">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
-              <p className="text-[14px] font-semibold text-gold">Your result</p>
+              <p className="text-sm font-semibold text-muted-foreground">Your result</p>
               <p className="mt-2 text-6xl font-bold tabular-nums leading-none text-foreground">
                 {score}
                 {total != null && <span className="text-3xl text-muted-foreground"> / {total}</span>}
@@ -498,13 +499,13 @@ export function PaperView({
             </div>
             {grade && (
               <div className="text-right">
-                <p className="text-[14px] text-muted-foreground">Grade on this paper</p>
-                <p className="text-6xl font-bold leading-none text-gold">{grade}</p>
+                <p className="text-sm font-semibold text-muted-foreground">Grade on this paper</p>
+                <p className="mt-2 text-6xl font-bold leading-none text-gold">{grade}</p>
               </div>
             )}
           </div>
           {thresholds && grade && (
-            <p className="mt-5 max-w-[62ch] text-[16px] leading-relaxed text-muted-foreground">
+            <p className="mt-5 max-w-[62ch] text-base leading-relaxed text-muted-foreground">
               From Cambridge&apos;s thresholds for this exact paper in {thresholds.series}.{" "}
               {(() => {
                 const idx = thresholds.grades.findIndex(([g]) => g === grade);
@@ -518,7 +519,7 @@ export function PaperView({
             <ul className="mt-5 flex flex-wrap gap-1.5" aria-label="Questions you missed">
               {[...answer].map((r, i) =>
                 answers[i] === r || r === "-" || r === "*" ? null : (
-                  <li key={i} className="rounded-full border border-hairline bg-card px-3 py-1.5 text-[14px] tabular-nums text-muted-foreground">
+                  <li key={i} className="rounded-full border border-hairline bg-white/[0.03] px-3 py-1.5 text-sm tabular-nums text-muted-foreground">
                     <span className="font-semibold text-foreground">Q{i + 1}</span> {answers[i] ? <span className="text-error-x">{answers[i]}</span> : "blank"} → <span className="font-semibold text-success">{r}</span>
                   </li>
                 ),
@@ -549,7 +550,7 @@ export function PaperView({
       {/* Marking a written paper */}
       {mode === "mark" && (
         <form
-          className="mb-5 flex flex-wrap items-end gap-3 rounded-[24px] border border-gold-border bg-card-raised p-6 md:p-8"
+          className="pc-surface mb-5 flex flex-wrap items-end gap-3 rounded-card p-5 sm:p-6"
           onSubmit={(e) => {
             e.preventDefault();
             saveMark();
@@ -557,10 +558,10 @@ export function PaperView({
         >
           <div className="w-full">
             <p className="text-lg font-semibold text-foreground">Mark it with the mark scheme</p>
-            <p className="mt-1 max-w-[60ch] text-[16px] text-muted-foreground">Add up your marks honestly, then put your total in.</p>
+            <p className="mt-1 max-w-[60ch] text-base text-muted-foreground">Add up your marks honestly, then put your total in.</p>
           </div>
           <label className="block">
-            <span className="mb-1.5 block text-[14px] font-semibold text-muted-foreground">Your mark{total != null ? ` out of ${total}` : ""}</span>
+            <span className="mb-2 block text-sm font-semibold text-foreground">Your mark{total != null ? ` out of ${total}` : ""}</span>
             <input
               type="number"
               inputMode="numeric"
@@ -568,16 +569,16 @@ export function PaperView({
               max={total ?? undefined}
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
-              className="h-12 w-32 rounded-[12px] border border-hairline-strong bg-card px-4 text-[17px] tabular-nums text-foreground focus:border-gold-border focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gold"
+              className="h-12 w-32 rounded-field border border-hairline-strong bg-card px-4 text-lg tabular-nums text-foreground transition-colors duration-150 hover:border-white/25 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gold"
             />
           </label>
           <button type="submit" className={gold} disabled={typed === "" || (total != null && Number(typed) > total)}>
             {thresholds ? "Show my grade" : "Save"}
           </button>
-          <button type="button" onClick={reset} className="min-h-11 rounded-full px-3 text-[15px] font-semibold text-muted-foreground hover:text-foreground">
+          <button type="button" onClick={reset} className="min-h-11 rounded-full px-3 text-sm font-semibold text-muted-foreground transition-colors duration-150 hover:text-foreground">
             Cancel
           </button>
-          {total != null && Number(typed) > total && <p className="w-full text-[15px] text-error-x">The most this paper can get is {total}.</p>}
+          {total != null && Number(typed) > total && <p className="w-full text-sm text-error-x">The most this paper can get is {total}.</p>}
         </form>
       )}
 
@@ -586,7 +587,7 @@ export function PaperView({
         <div
           ref={panel}
           className={cn(
-            "relative flex h-[calc(100dvh-110px)] min-h-[520px] flex-col overflow-hidden rounded-[22px] border border-hairline bg-band-c sm:h-[calc(100dvh-124px)] [&:fullscreen]:h-screen [&:fullscreen]:rounded-none",
+            "relative flex h-[calc(100dvh-110px)] min-h-[520px] flex-col overflow-hidden rounded-card border border-hairline bg-band-c sm:h-[calc(100dvh-124px)] [&:fullscreen]:h-screen [&:fullscreen]:rounded-none",
             // On phones the answer bar is fixed at the bottom while practising: keep the page counter and the last lines above it.
             practising && "max-lg:h-[calc(100dvh-110px-72px-env(safe-area-inset-bottom))] max-lg:min-h-[440px] sm:max-lg:h-[calc(100dvh-124px-72px-env(safe-area-inset-bottom))]",
           )}
@@ -610,8 +611,8 @@ export function PaperView({
                     setSplit(false);
                   }}
                   className={cn(
-                    "min-h-10 shrink-0 whitespace-nowrap rounded-full px-4 text-[14px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold",
-                    !split && tab === t.id ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground",
+                    "min-h-10 shrink-0 whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-colors duration-150 pointer-coarse:min-h-11 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold",
+                    !split && tab === t.id ? "bg-white/[0.09] text-foreground" : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {t.id === "qp" ? (
@@ -632,17 +633,17 @@ export function PaperView({
                   <span
                     role="timer"
                     aria-label={minutes ? (left >= 0 ? "Time left" : "Over time") : "Time taken"}
-                    className={cn("px-2 text-lg font-bold tabular-nums", minutes && left < 0 ? "text-warning" : minutes && left < 5 * 60_000 ? "text-gold" : "text-foreground")}
+                    className={cn("px-2 text-lg font-bold tabular-nums", minutes && left < 0 ? "text-error-x" : minutes && left < 5 * 60_000 ? "text-warning" : "text-foreground")}
                   >
                     {minutes ? `${left < 0 ? "+" : ""}${clock(left)}` : clock(elapsed)}
                   </span>
                   <button ref={guideBtn} type="button" className={cn(iconBtn, "inline-flex", guide && "bg-white/10 text-foreground")} onClick={() => setGuide(!guide)} aria-pressed={guide} aria-label="How this paper is marked" title="How this paper is marked">
                     <Icon d={I.guide} />
                   </button>
-                  <button type="button" onClick={pause} className="min-h-10 rounded-full px-3 text-[14px] font-semibold text-muted-foreground hover:text-foreground">
+                  <button type="button" onClick={pause} className="min-h-10 rounded-full px-3 text-sm font-semibold text-muted-foreground transition-colors duration-150 hover:text-foreground pointer-coarse:min-h-11">
                     {runningSince == null ? "Resume" : "Pause"}
                   </button>
-                  <button type="button" onClick={finish} className="hidden min-h-10 items-center rounded-full bg-gold px-4 text-[14px] font-semibold text-[#1b1e21] hover:bg-gold-hover lg:inline-flex">
+                  <button type="button" onClick={finish} className="hidden min-h-10 items-center rounded-full bg-gold px-4 text-sm font-semibold text-band-b transition-[background-color,transform] duration-150 hover:bg-gold-hover active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold lg:inline-flex">
                     Finish
                   </button>
                 </>
@@ -652,7 +653,7 @@ export function PaperView({
                     <button type="button" className={cn(iconBtn, "inline-flex")} onClick={() => setZoom(ZOOMS[Math.max(0, zi - 1)])} disabled={zi <= 0} aria-label="Zoom out">
                       <Icon d={I.minus} />
                     </button>
-                    <span className="w-12 text-center text-[13px] tabular-nums text-muted-foreground">{Math.round(zoom * 100)}%</span>
+                    <span className="w-12 text-center text-xs tabular-nums text-muted-foreground">{Math.round(zoom * 100)}%</span>
                     <button type="button" className={cn(iconBtn, "inline-flex")} onClick={() => setZoom(ZOOMS[Math.min(ZOOMS.length - 1, zi + 1)])} disabled={zi >= ZOOMS.length - 1} aria-label="Zoom in">
                       <Icon d={I.plus} />
                     </button>
@@ -666,7 +667,7 @@ export function PaperView({
                   <button ref={guideBtn} type="button" className={cn(iconBtn, "inline-flex", guide && "bg-white/10 text-foreground")} onClick={() => setGuide(!guide)} aria-pressed={guide} aria-label="How this paper is marked" title="How this paper is marked">
                     <Icon d={I.guide} />
                   </button>
-                  <button type="button" className={cn(iconBtn, "inline-flex", night && "text-gold")} onClick={toggleNight} aria-pressed={night} aria-label="Night colours" title="Night colours">
+                  <button type="button" className={cn(iconBtn, "inline-flex", night && "bg-white/10 text-foreground")} onClick={toggleNight} aria-pressed={night} aria-label="Night colours" title="Night colours">
                     <Icon d={I.night} />
                   </button>
                   <button type="button" className={cn(iconBtn, "web-only hidden sm:inline-flex")} onClick={print} aria-label={`Print ${current.label}`} title="Print">
@@ -686,7 +687,7 @@ export function PaperView({
           </div>
           {practising && minutes ? (
             <div className="h-0.5 bg-hairline" aria-hidden>
-              <div className={cn("h-full transition-[width] duration-1000", left < 0 ? "bg-warning" : "bg-gold")} style={{ width: `${Math.min(100, (elapsed / limit) * 100)}%` }} />
+              <div className={cn("h-full transition-[width] duration-1000", left < 0 ? "bg-error-x" : "bg-muted-foreground")} style={{ width: `${Math.min(100, (elapsed / limit) * 100)}%` }} />
             </div>
           ) : null}
 
@@ -694,7 +695,7 @@ export function PaperView({
             <div className="grid min-h-0 flex-1 grid-cols-2 gap-px bg-hairline">
               {[qp, ms].map((d) => (
                 <div key={d.id} className="min-h-0 overflow-y-auto bg-band-c px-4 py-4" tabIndex={0} aria-label={d.label}>
-                  <p className="mb-3 text-center text-[13px] font-semibold text-faint">{d.label}</p>
+                  <p className="mb-3 text-center text-xs font-semibold text-faint">{d.label}</p>
                   <Pages doc={d} zoom={1} night={night} />
                 </div>
               ))}
@@ -711,13 +712,13 @@ export function PaperView({
                     setJump(resume);
                     setResume(null);
                   }}
-                  className="absolute bottom-4 left-4 rounded-full border border-gold-border bg-band-b/90 px-4 py-2 text-[13px] font-semibold text-gold backdrop-blur transition-opacity hover:bg-band-b"
+                  className="absolute bottom-4 left-4 min-h-10 rounded-full border border-hairline-strong bg-band-b px-4 text-sm font-semibold text-foreground transition-colors duration-150 hover:border-white/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
                 >
                   Continue from page {resume}
                 </button>
               )}
               {current.pages > 0 && (
-                <span className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-hairline-strong bg-band-b/90 px-3.5 py-1.5 text-[13px] font-semibold tabular-nums text-foreground backdrop-blur">
+                <span className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-hairline-strong bg-band-b px-3.5 py-1.5 text-xs font-semibold tabular-nums text-foreground">
                   {page} / {current.pages}
                 </span>
               )}
@@ -727,15 +728,15 @@ export function PaperView({
           {guide && (
             <div className="absolute inset-y-0 right-0 z-10 flex w-full max-w-[360px] flex-col border-l border-hairline bg-card shadow-[-24px_0_48px_-24px_rgba(0,0,0,0.6)]" role="dialog" aria-label="How this paper is marked">
               <div className="flex items-center justify-between border-b border-hairline px-5 py-3">
-                <p className="text-[15px] font-semibold text-foreground">How this paper is marked</p>
+                <p className="text-base font-semibold text-foreground">How this paper is marked</p>
                 <button type="button" className={cn(iconBtn, "inline-flex")} onClick={() => { setGuide(false); guideBtn.current?.focus(); }} aria-label="Close">
                   <Icon d={I.close} />
                 </button>
               </div>
-              <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5 text-[14px] leading-relaxed">
+              <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5 text-sm leading-relaxed">
                 {minutes && (answer ? answer.length : marks) ? (
                   <section>
-                    <h3 className="text-[13px] font-semibold text-faint">Pace</h3>
+                    <h3 className="text-xs font-semibold text-faint">Pace</h3>
                     <p className="mt-1 text-muted-foreground">
                       {answer
                         ? `About ${minutesWord(minutes / answer.length)} a question. If one is taking much longer, move on and come back.`
@@ -745,7 +746,7 @@ export function PaperView({
                 ) : null}
                 {!answer && (
                   <section>
-                    <h3 className="text-[13px] font-semibold text-faint">What the question is asking</h3>
+                    <h3 className="text-xs font-semibold text-faint">What the question is asking</h3>
                     <dl className="mt-2 space-y-2">
                       {COMMAND_WORDS.map(([k, v]) => (
                         <div key={k}>
@@ -757,11 +758,11 @@ export function PaperView({
                   </section>
                 )}
                 <section>
-                  <h3 className="text-[13px] font-semibold text-faint">Mark scheme shorthand</h3>
+                  <h3 className="text-xs font-semibold text-faint">Mark scheme shorthand</h3>
                   <dl className="mt-2 space-y-2">
                     {MS_WORDS.map(([k, v]) => (
                       <div key={k} className="flex gap-3">
-                        <dt className="w-14 shrink-0 font-semibold text-gold">{k}</dt>
+                        <dt className="w-14 shrink-0 font-semibold text-foreground">{k}</dt>
                         <dd className="text-muted-foreground">{v}</dd>
                       </div>
                     ))}
@@ -769,9 +770,9 @@ export function PaperView({
                 </section>
                 {report && (
                   <section>
-                    <h3 className="text-[13px] font-semibold text-faint">Where marks were lost</h3>
+                    <h3 className="text-xs font-semibold text-faint">Where marks were lost</h3>
                     <p className="mt-1 text-muted-foreground">The examiner report says what students did well and where they dropped marks in this series.</p>
-                    <a href={report} target="_blank" rel="noopener" className="mt-2 inline-flex min-h-11 items-center font-semibold text-gold hover:underline">
+                    <a href={report} target="_blank" rel="noopener" className="mt-2 inline-flex min-h-11 items-center font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:decoration-foreground">
                       Read the examiner report
                     </a>
                   </section>
@@ -783,10 +784,10 @@ export function PaperView({
 
         {practising && answer && (
           <aside className="hidden lg:block" aria-label="Answer sheet">
-            <div className="flex h-[calc(100dvh-124px)] min-h-[520px] flex-col rounded-[22px] border border-hairline bg-card">
-              <p className="flex items-baseline justify-between border-b border-hairline px-5 py-3.5 text-[15px] font-semibold text-foreground">
+            <div className="pc-surface flex h-[calc(100dvh-124px)] min-h-[520px] flex-col rounded-card">
+              <p className="flex items-baseline justify-between border-b border-hairline px-5 py-3.5 text-base font-semibold text-foreground">
                 Answer sheet
-                <span className="text-[14px] font-normal tabular-nums text-muted-foreground">
+                <span className="text-sm font-normal tabular-nums text-muted-foreground">
                   {answered}/{answerable}
                 </span>
               </p>
@@ -810,13 +811,13 @@ export function PaperView({
             {minutes ? `Practise it timed · ${minutes} min` : "Practise it timed"}
           </button>
           {mine ? (
-            <p className="flex items-center gap-3 text-[15px] text-muted-foreground">
+            <p className="flex items-center gap-3 text-sm tabular-nums text-muted-foreground">
               <span>
                 <span className="font-semibold text-success">Done</span>
                 {mine.s != null && mine.m ? ` · ${mine.s}/${mine.m}` : ""}
                 {mine.g ? ` · grade ${mine.g}` : ""}
               </span>
-              <button type="button" onClick={() => unmarkDone(pkey)} className="min-h-11 rounded-full px-2 font-semibold hover:text-foreground">
+              <button type="button" onClick={() => unmarkDone(pkey)} className="min-h-11 rounded-full px-2 font-semibold transition-colors duration-150 hover:text-foreground">
                 Unmark
               </button>
             </p>
@@ -828,12 +829,12 @@ export function PaperView({
                 if (ms) setTab("ms");
                 toView();
               }}
-              className="min-h-11 rounded-full px-3 text-[15px] font-semibold text-muted-foreground hover:text-foreground"
+              className="min-h-11 rounded-full px-3 text-sm font-semibold text-muted-foreground transition-colors duration-150 hover:text-foreground"
             >
               Already did it? Enter your mark
             </button>
           )}
-          {answer && <span className="text-[14px] text-faint">Multiple choice: marked for you the moment you finish.</span>}
+          {answer && <span className="text-sm text-faint">Multiple choice: marked for you the moment you finish.</span>}
         </div>
       )}
 
@@ -845,13 +846,13 @@ export function PaperView({
               <Bubbles answers={answers} set={setAns} keyStr={answer} />
             </div>
           )}
-          <div className="flex items-center gap-2 border-t border-hairline-strong bg-band-c/95 px-4 py-3 backdrop-blur-xl">
+          <div className="flex items-center gap-2 border-t border-hairline-strong bg-band-c px-4 py-3">
             {answer ? (
               <button type="button" onClick={() => setSheetOpen((o) => !o)} aria-expanded={sheetOpen} className={cn(ghost, "flex-1")}>
                 {sheetOpen ? "Hide answer sheet" : `Answer sheet · ${answered}/${answerable}`}
               </button>
             ) : (
-              <span className="flex-1 text-[15px] text-muted-foreground">Write your answers on paper.</span>
+              <span className="flex-1 text-sm text-muted-foreground">Write your answers on paper.</span>
             )}
             <button type="button" onClick={finish} className={gold}>
               {answer ? "Mark it" : "Finish"}

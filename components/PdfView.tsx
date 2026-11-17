@@ -539,8 +539,8 @@ function PdfReader({ url, authToken, onFail, startPage, highlight, onPage, autoF
         )}
       </div>
       {doc && (
-        <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-paper/90 p-1 shadow-lg backdrop-blur-xl">
-          <span className="whitespace-nowrap pl-3 pr-1 text-xs tabular-nums text-ink-2">
+        <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-hairline-strong bg-surface p-1 shadow-lg">
+          <span className="whitespace-nowrap pl-3 pr-1 text-sm tabular-nums text-ink-2">
             <span className="sr-only">
               Page {page} of {sizes.length}
             </span>

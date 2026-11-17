@@ -15,7 +15,7 @@ const useViewer = () => useSyncExternalStore(noSubscribe, hasPdfViewer, () => tr
 export function ReportPreview({ src, initialShow }: { src: string; initialShow: boolean }) {
   const viewer = useViewer();
   if (!initialShow || !viewer) return null;
-  return <iframe src={src} title="Monthly report" className="mt-8 h-[70vh] w-full rounded-[20px] border border-hairline bg-surface" />;
+  return <iframe src={src} title="Monthly report" className="mt-8 h-[70vh] w-full rounded-card border border-hairline bg-surface" />;
 }
 
 /** "Open the report" in a new tab, only where the browser can show a PDF itself. The page leaves it out on Android. */
@@ -27,7 +27,7 @@ export function OpenReportLink({ href }: { href: string }) {
       href={href}
       target="_blank"
       rel="noopener"
-      className="inline-flex h-12 items-center justify-center rounded-full border border-hairline px-6 text-[16px] font-semibold text-ink transition-colors hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+      className="inline-flex h-12 select-none items-center justify-center rounded-full border border-border-strong px-7 text-base font-semibold text-ink transition-[background-color,border-color,transform] duration-150 ease-[var(--ease-out)] hover:border-ink-3 hover:bg-surface-2 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
     >
       Open the report
     </a>

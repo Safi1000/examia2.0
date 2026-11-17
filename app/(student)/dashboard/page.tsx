@@ -13,8 +13,10 @@ import { ClassNow } from "@/components/student/ClassNow";
 import { NotifyCard } from "@/components/student/NotifyCard";
 import { TopicChip } from "@/components/student/TopicChip";
 import { Icon } from "@/components/ui";
+import { buttonClasses } from "@/components/ui/Button";
 import { formatRelative, formatWhen } from "@/lib/time";
-import { buildStudyPlan, type PlanWeek } from "@/lib/study-plan";
+import { buildStudyPlan, type PlanWeek, type StudyPlan } from "@/lib/study-plan";
+import { examDateLabel, nextExam, paperName } from "@/lib/exam-dates";
 import { performanceSnapshot, shownPercent, type Snapshot } from "@/lib/performance";
 import { StudyBuddy, todaysMission } from "@/components/student/StudyBuddy";
 import { DailyFive } from "@/components/student/DailyFive";
@@ -126,43 +128,40 @@ export default function DashboardPage() {
       <div className="space-y-10 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,22.5rem)] lg:items-start lg:gap-x-8 lg:space-y-0">
       {/* One entrance for the page: each block rises in, 70ms apart. */}
       <div className="rise space-y-10">
-        <HomeHero name={displayName(student.username).split(" ")[0]} status={status} studentId={student.id} totalMinutes={profile.focus?.totalMinutes} />
-
-        <ClassNow db={db} student={student} nowMs={nowMs} />
+        {/* The greeting and the next class are one thought: 12px apart, then the usual gap to the next section. */}
+        <div className="space-y-3">
+          <HomeHero name={displayName(student.username).split(" ")[0]} status={status} studentId={student.id} totalMinutes={profile.focus?.totalMinutes} />
+          <ClassNow db={db} student={student} nowMs={nowMs} />
+        </div>
         <NotifyCard />
 
         {todo.length > 0 && (
           <section aria-labelledby="todo-title">
-            <SectionTitle id="todo-title" live={toDoCount > 0} count={toDoCount}>
+            <SectionTitle id="todo-title" count={toDoCount}>
               {toDoCount > 0 ? "To do" : "New for you"}
             </SectionTitle>
-            <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
+            <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
               {todo.map((x) => (
                 // The whole row opens the item (a stretched link); "Focus on this" sits on top of it.
                 // Phones: the title gets the full width, with the date and buttons on the line under it.
                 // Wider screens: title and date on the left, buttons on the right.
                 <li
                   key={x.key}
-                  className="row-link relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-5 py-4 [grid-template-areas:'title_title'_'meta_actions'] sm:gap-y-0.5 sm:px-6 sm:[grid-template-areas:'title_actions'_'meta_actions']"
+                  className="row-link relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-5 py-4 [grid-template-areas:'title_title'_'meta_meta'_'actions_actions'] sm:gap-y-0.5 sm:px-6 sm:[grid-template-areas:'title_actions'_'meta_actions']"
                 >
                   <Link
                     href={x.href}
-                    className="line-clamp-2 break-words font-semibold text-ink [grid-area:title] after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-brand"
+                    className="line-clamp-2 break-words text-base font-semibold text-ink [grid-area:title] after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-brand"
                   >
                     {x.title}
                     <span className="sr-only">, {x.cta}</span>
                   </Link>
                   <span className="block text-sm text-ink-3 tabular-nums [grid-area:meta]">{x.meta}</span>
-                  <span className="flex items-center gap-3 [grid-area:actions]">
-                    {x.focus && <FocusOnThis kind={x.focus.kind} title={x.title} subject={x.focus.subject} href={x.href} id={x.focus.id} variant="icon" />}
+                  <span className="flex items-center justify-end gap-3 max-sm:mt-1 [grid-area:actions]">
+                    {x.focus && <FocusOnThis kind={x.focus.kind} title={x.title} subject={x.focus.subject} href={x.href} id={x.focus.id} />}
                     <span
                       aria-hidden
-                      className={cn(
-                        "inline-flex h-10 shrink-0 items-center gap-1 rounded-full px-4 text-sm font-semibold transition-colors",
-                        x.key === lead
-                          ? "bg-brand text-on-brand shadow-[0_8px_20px_-10px_rgba(251,193,89,0.7)]"
-                          : "border border-border-strong text-ink",
-                      )}
+                      className={buttonClasses({ variant: x.key === lead ? "primary" : "secondary", size: "sm", className: "shrink-0" })}
                     >
                       {x.ctaShort ? (
                         <>
@@ -182,7 +181,7 @@ export default function DashboardPage() {
         )}
 
         {todo.length === 0 && (
-          <div className="surface flex items-center gap-4 rounded-xl px-5 py-4 sm:px-6">
+          <div className="surface flex items-center gap-4 rounded-card p-5 sm:p-6">
             <p className="text-base text-ink-2">
               <span className="block font-semibold text-ink">Nothing due right now.</span>
               {tests.next ? `Next test opens ${formatWhen(tests.next.opensAt)}.` : "New tests and homework show up here."}
@@ -199,15 +198,15 @@ export default function DashboardPage() {
             from covered chapters), today's mission, and Groundwork with its
             focus block Start. That Start stays quiet while something above has the gold one. */}
         <section aria-label="Study">
-          <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
+          <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
             <DailyFive books={books} />
             <StudyBuddy db={db} student={student} nowMs={nowMs} mission={mission} quiet={toDoCount > 0 || classOn} />
           </ul>
         </section>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
           <PerformanceCard perf={perf} attendance={attendance} syllabus={syllabus} target={target} />
-          <PlanCard week={week} daysLeft={plan.daysLeft} workOn={perf && perf.marked >= 3 ? perf.weakest : []} />
+          <PlanCard week={week} plan={plan} nowMs={nowMs} workOn={perf && perf.marked >= 3 ? perf.weakest : []} />
         </div>
       </div>
       </div>
@@ -239,7 +238,7 @@ function HomeHero({ name, status, studentId, totalMinutes }: { name: string; sta
       <p className="label-quiet text-ink-2">
         {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
       </p>
-      <h1 className="mt-2.5 break-words text-[2rem] font-extrabold leading-[1.04] tracking-[-0.03em] text-ink [text-shadow:0_2px_18px_rgba(0,0,0,0.35)] sm:text-[2.5rem] lg:text-[2.75rem]">
+      <h1 className="mt-2 break-words text-title font-bold tracking-[-0.025em] text-ink [text-shadow:0_2px_18px_rgba(0,0,0,0.35)] sm:text-title-lg">
         {greeting()}, {name}.
       </h1>
       <p className="mt-3 max-w-[40ch] text-base leading-relaxed text-pretty text-ink-2">{status}</p>
@@ -267,10 +266,10 @@ function CardHead({ title, more }: { title: string; more: string }) {
 function PerformanceCard({ perf, attendance, syllabus, target }: { perf: Snapshot | null; attendance: number | null; syllabus: { covered: number; total: number } | null; target?: string }) {
   const graded = !!perf && perf.marked >= 3;
   return (
-    <Link href="/progress" className="surface surface-link block rounded-xl px-5 py-4 sm:px-6 sm:py-5">
+    <Link href="/progress" className="surface surface-link block rounded-card p-5 sm:p-6">
       <CardHead title="How you're doing" more="Full progress" />
       {!graded && (
-        <p className="mt-2 text-sm text-ink-2">
+        <p className="mt-2 text-base text-ink-2">
           {perf ? `${perf.marked} of 3 tests marked. ` : ""}Your grade shows here after three marked tests.
         </p>
       )}
@@ -289,7 +288,7 @@ function PerformanceCard({ perf, attendance, syllabus, target }: { perf: Snapsho
           {attendance != null && (
             <div>
               <dt className="text-xs text-ink-3">Attendance</dt>
-              <dd className={cn("mt-0.5 text-lg font-bold tabular-nums", attendance >= 90 ? "text-success" : attendance >= 75 ? "text-ink" : "text-warning")}>{Math.round(attendance)}%</dd>
+              <dd className={cn("mt-0.5 text-lg font-bold tabular-nums", attendance >= 75 ? "text-ink" : "text-warning")}>{Math.round(attendance)}%</dd>
             </div>
           )}
           {syllabus != null && (
@@ -320,7 +319,11 @@ function PerformanceCard({ perf, attendance, syllabus, target }: { perf: Snapsho
 
 const topicKey = (t: { subject: string; name: string }) => `${t.subject.trim().toLowerCase()}|${t.name.trim().toLowerCase()}`;
 
-function PlanCard({ week, daysLeft, workOn }: { week: PlanWeek | null; daysLeft: number; workOn: Array<{ subject: string; name: string }> }) {
+function PlanCard({ week, plan, nowMs, workOn }: { week: PlanWeek | null; plan: StudyPlan; nowMs: number; workOn: Array<{ subject: string; name: string }> }) {
+  const daysLeft = plan.daysLeft;
+  // This student's own next paper (Cambridge's timetable), when their papers are known.
+  const paper = nextExam(plan.papers, nowMs);
+  const first = paper && plan.papers[0] === paper;
   // This week's topics are often the same as "Work on" just above (both start
   // from the weakest topics): then the chips would only repeat it, so they show
   // only when the week brings a topic that line does not already name.
@@ -328,15 +331,35 @@ function PlanCard({ week, daysLeft, workOn }: { week: PlanWeek | null; daysLeft:
   const topics = week?.topics ?? [];
   const newTopics = topics.some((t) => !shown.has(topicKey(t)));
   return (
-    <Link href="/plan" className="surface surface-link block rounded-xl px-5 py-4 sm:px-6 sm:py-5">
+    <Link href="/plan" className="surface surface-link block rounded-card p-5 sm:p-6">
       <CardHead title="This week" more="See your full plan" />
-      <p className="mt-2 text-sm text-ink-2 tabular-nums">
-        <span className="font-bold text-ink">{daysLeft}</span> days to exams
-        {week && <> · {PHASE_LABEL[week.phase]}</>}
-        {week && week.tests.length > 0 && <> · {week.tests.length === 1 ? "1 test" : `${week.tests.length} tests`} this week</>}
-      </p>
+      {paper ? (
+        // The countdown to their own paper: the number, then which paper and the day it is sat.
+        <div className="mt-3 flex items-center gap-4">
+          <p className="min-w-[2ch] text-title font-bold leading-none tracking-[-0.025em] text-ink tabular-nums">{daysLeft}</p>
+          <p className="min-w-0 text-sm leading-snug text-ink-2">
+            <span className="block">
+              {daysLeft === 0 ? "Today:" : `${daysLeft === 1 ? "day" : "days"} to your ${first ? "first" : "next"} paper`}
+            </span>
+            <span className="block truncate font-semibold text-ink">
+              {paperName(paper)}
+              <span className="font-normal text-ink-3"> · {examDateLabel(paper.date, nowMs)}</span>
+            </span>
+          </p>
+        </div>
+      ) : (
+        <p className="mt-2 text-sm text-ink-2 tabular-nums">
+          <span className="font-bold text-ink">{daysLeft}</span> {daysLeft === 1 ? "day" : "days"} to exams
+        </p>
+      )}
+      {week && (
+        <p className={cn("text-sm text-ink-2 tabular-nums", paper ? "mt-3 border-t border-hairline pt-3" : "mt-1")}>
+          {PHASE_LABEL[week.phase]}
+          {week.tests.length > 0 && <> · {week.tests.length === 1 ? "1 test" : `${week.tests.length} tests`} this week</>}
+        </p>
+      )}
       {topics.length === 0 ? (
-        <p className="mt-1.5 text-sm text-ink-2">Revise this week&apos;s class topics from your notes.</p>
+        <p className="mt-1.5 text-base text-ink-2">Revise this week&apos;s class topics from your notes.</p>
       ) : (
         newTopics && (
           <div className="mt-3 flex flex-wrap gap-2">

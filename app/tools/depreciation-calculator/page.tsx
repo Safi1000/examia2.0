@@ -41,7 +41,7 @@ export default function Page() {
       faq={FAQ}
       related={[{ href: "/blog/a-level-accounting-depreciation-questions", label: "A Level Accounting depreciation questions, worked" }, { href: "/blog/igcse-o-level-accounting-formats", label: "Every accounting format you need" }, topicLink("0452", "4.2"), topicLink("9706", "1.3")].filter((l) => l !== null)}
       how={
-        <div className="space-y-3 text-[17px] leading-relaxed text-body">
+        <div className="space-y-3 text-lg leading-relaxed text-body">
           <p>Straight line: (cost − residual value) ÷ useful life, the same charge every year. Reducing balance: rate × net book value at the start of the year, so the charge falls each year.</p>
           <p>Accumulated depreciation is the total charged so far. Net book value (called carrying amount at A Level) is cost minus accumulated depreciation, and is what goes on the statement of financial position.</p>
         </div>

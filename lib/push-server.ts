@@ -107,7 +107,18 @@ export async function byIds(ids: string[], read: (part: string[]) => Promise<Row
 }
 
 /** Apply rules 2, 3 and 5, then send. Returns how many went out. */
-async function deliver(sb: SupabaseClient, items: Item[]): Promise<number> {
+async function deliver(sb: SupabaseClient, all: Item[]): Promise<number> {
+  if (!all.length) return 0;
+  // Paused students get nothing on their phones. If the accounts can't be
+  // read this once, the notices still go out rather than everyone missing them.
+  let items = all;
+  try {
+    const { pausedStudentIds } = await import("@/lib/paused-server");
+    const paused = await pausedStudentIds(sb);
+    if (paused.size) items = all.filter((i) => !paused.has(i.studentId));
+  } catch (e) {
+    console.error("[push] paused list", e);
+  }
   if (!items.length) return 0;
   webpush.setVapidDetails(
     process.env.VAPID_SUBJECT || "mailto:hamzasadakat7@gmail.com",

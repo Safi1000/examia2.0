@@ -53,7 +53,7 @@ export default async function TopicPage({ params }: Props) {
   const hasMcq = e.questions.some((q) => q.kind === "mcq");
   const hasWritten = e.questions.some((q) => q.kind === "written");
   // Newest first; multiple choice before written within a series, so a student checks the idea before writing.
-  const questions = [...e.questions].sort((a, b) => b.y - a.y || a.s.localeCompare(b.s) || (a.kind === b.kind ? a.c.localeCompare(b.c) || a.n - b.n : a.kind === "mcq" ? -1 : 1));
+  const questions = e.questions.toSorted((a, b) => b.y - a.y || a.s.localeCompare(b.s) || (a.kind === b.kind ? a.c.localeCompare(b.c) || a.n - b.n : a.kind === "mcq" ? -1 : 1));
   const base = `/past-papers/${s.slug}/topics`;
   const syl = currentSyllabus(s);
   const reading = [
@@ -76,11 +76,11 @@ export default async function TopicPage({ params }: Props) {
         <div className="mt-8">
           <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Past papers", href: "/past-papers" }, { name: s.short, href: `/past-papers/${s.slug}` }, { name: "Topical", href: base }, { name: e.sub.num }]} />
         </div>
-        <p className="mt-5 text-[14px] font-semibold text-gold">
+        <p className="mt-5 text-sm font-semibold text-muted-foreground">
           {e.topic.num} {e.topic.name}
         </p>
         <h1 className="mt-1 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{e.sub.name}</h1>
-        <p className="mt-4 max-w-[58ch] text-[17px] leading-relaxed text-muted-foreground">
+        <p className="mt-4 max-w-[58ch] text-lg leading-relaxed text-muted-foreground">
           {hasMcq && hasWritten
             ? "Warm up with a few multiple choice. Then try a written one and mark it the way an examiner would."
             : hasMcq
@@ -93,12 +93,12 @@ export default async function TopicPage({ params }: Props) {
         </div>
 
         {reading.length > 0 && (
-          <p className="mt-12 text-[15px] text-muted-foreground">
+          <p className="mt-12 text-base text-muted-foreground">
             Read next:{" "}
             {reading.map((l, i) => (
               <span key={l.href}>
                 {i > 0 && " · "}
-                <Link href={l.href} className="text-foreground underline decoration-gold/50 underline-offset-4 hover:decoration-gold">
+                <Link href={l.href} className="text-foreground underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:decoration-foreground">
                   {l.label}
                 </Link>
               </span>
@@ -108,17 +108,17 @@ export default async function TopicPage({ params }: Props) {
 
         <nav aria-label="Other topics" className="mt-8 grid gap-3 sm:grid-cols-2">
           {prev ? (
-            <Link href={`${base}/${prev.slug}`} className="rounded-[16px] border border-hairline bg-card px-5 py-4 hover:border-gold-border">
-              <span className="block text-[13px] text-faint">← {prev.sub.num}</span>
-              <span className="block font-semibold text-foreground">{prev.sub.name}</span>
+            <Link href={`${base}/${prev.slug}`} className="pc-surface pc-surface-link flex h-full flex-col rounded-tile px-5 py-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+              <span className="block text-sm tabular-nums text-faint">← {prev.sub.num}</span>
+              <span className="mt-0.5 block text-base font-semibold text-foreground">{prev.sub.name}</span>
             </Link>
           ) : (
             <span />
           )}
           {next && (
-            <Link href={`${base}/${next.slug}`} className="rounded-[16px] border border-hairline bg-card px-5 py-4 text-right hover:border-gold-border">
-              <span className="block text-[13px] text-faint">{next.sub.num} →</span>
-              <span className="block font-semibold text-foreground">{next.sub.name}</span>
+            <Link href={`${base}/${next.slug}`} className="pc-surface pc-surface-link flex h-full flex-col rounded-tile px-5 py-4 text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+              <span className="block text-sm tabular-nums text-faint">{next.sub.num} →</span>
+              <span className="mt-0.5 block text-base font-semibold text-foreground">{next.sub.name}</span>
             </Link>
           )}
         </nav>

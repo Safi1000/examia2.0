@@ -10,6 +10,7 @@ import { useNow } from "@/hooks/useNow";
 import { NoteViewer } from "@/components/NoteViewer";
 import { cn } from "@/lib/cn";
 import { EmptyArt, PageHeader } from "@/components/student/PortalKit";
+import { chipClass, segmentGroup, segmentItem } from "@/components/ui/Segmented";
 import type { Note, Student } from "@/types";
 import { shelvesFor, type Shelf } from "@/lib/note-shelves";
 import { DEMO } from "@/lib/demo";
@@ -196,7 +197,7 @@ function Library({ db, student, positions, onOpen, want }: { db: Db; student: St
     return (
       <>
         <Header ready={0} />
-        <EmptyState icon={<Icon.Doc />} art={<EmptyArt name="empty-no-notes-yet" />} title="No notes yet" message="Your chapters show up here, in the order we cover them." />
+        <EmptyState icon={<Icon.Doc />} art={<EmptyArt name="empty-no-notes-yet" />} title="No notes yet" message="Your chapters show up here, in the order I teach them." />
       </>
     );
   }
@@ -217,7 +218,7 @@ function Library({ db, student, positions, onOpen, want }: { db: Db; student: St
                 <button
                   type="button"
                   onClick={() => onOpen({ id: r.note.id, title: r.note.title, page: p.page })}
-                  className="surface surface-link mb-10 flex w-full items-center gap-4 rounded-xl px-5 py-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:px-6"
+                  className="surface surface-link mb-10 flex w-full items-center gap-4 rounded-card p-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:p-6"
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold text-ink-3">Continue reading</span>
@@ -225,13 +226,13 @@ function Library({ db, student, positions, onOpen, want }: { db: Db; student: St
                     <span className="mt-2 flex items-center gap-3">
                       <span className="h-1 flex-1 overflow-hidden rounded-full bg-surface-2">
                         <span
-                          className="block h-full rounded-full bg-brand"
+                          className="block h-full rounded-full bg-ink-2"
                           style={{
                             width: `${Math.round((p.page / p.pages) * 100)}%`,
                           }}
                         />
                       </span>
-                      <span className="shrink-0 text-xs tabular-nums text-ink-3">
+                      <span className="shrink-0 text-sm tabular-nums text-ink-3">
                         Page {p.page} of {p.pages}
                       </span>
                     </span>
@@ -244,19 +245,16 @@ function Library({ db, student, positions, onOpen, want }: { db: Db; student: St
           {books.length > 1 &&
             (books.length <= 3 ? (
               // Two or three subjects: one segmented control, like iOS.
-              <div role="tablist" aria-label="Subjects" className="mb-8 grid auto-cols-fr grid-flow-col gap-1 rounded-full border border-hairline bg-surface p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <div role="tablist" aria-label="Subjects" className={cn(segmentGroup, "mb-8 w-full")}>
                 {books.map((s) => (
                   <button
                     key={s.key}
                     role="tab"
                     aria-selected={active.key === s.key}
                     onClick={() => pick(s.key)}
-                    className={cn(
-                      "min-h-11 min-w-0 truncate rounded-full px-2 text-[14px] font-semibold transition-all",
-                      active.key === s.key ? "bg-white/[0.11] text-ink shadow-[0_1px_3px_rgba(0,0,0,0.35)]" : "text-ink-3 hover:text-ink",
-                    )}
+                    className={cn(segmentItem(active.key === s.key), "min-w-0 flex-1 basis-0")}
                   >
-                    {s.label}
+                    <span className="min-w-0 truncate">{s.label}</span>
                   </button>
                 ))}
               </div>
@@ -268,10 +266,7 @@ function Library({ db, student, positions, onOpen, want }: { db: Db; student: St
                     role="tab"
                     aria-selected={active.key === s.key}
                     onClick={() => pick(s.key)}
-                    className={cn(
-                      "flex min-h-11 shrink-0 items-center whitespace-nowrap rounded-full px-4 text-[14px] font-semibold transition-colors",
-                      active.key === s.key ? "bg-ink text-surface" : "bg-surface-2 text-ink-2 hover:text-ink",
-                    )}
+                    className={chipClass(active.key === s.key)}
                   >
                     {s.label}
                   </button>
@@ -294,7 +289,7 @@ function Library({ db, student, positions, onOpen, want }: { db: Db; student: St
 function Header({ ready }: { ready: number }) {
   return (
     <div className="mb-6">
-      <PageHeader title="Notes">{ready ? "Every chapter, in the order we cover it." : "Your chapters, in the order we cover them."}</PageHeader>
+      <PageHeader title="Notes">{ready ? "Every chapter, in the order I teach it." : "Your chapters, in the order I teach them."}</PageHeader>
     </div>
   );
 }
@@ -302,7 +297,7 @@ function Header({ ready }: { ready: number }) {
 function SearchBox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div role="search" className="relative mb-6">
-      <Icon.Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-ink-3" />
+      <Icon.Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-3" />
       <label htmlFor="notes-q" className="sr-only">
         Search your notes
       </label>
@@ -314,7 +309,7 @@ function SearchBox({ value, onChange }: { value: string; onChange: (v: string) =
         placeholder="Search inside your notes"
         autoComplete="off"
         enterKeyHint="search"
-        className="h-12 w-full rounded-full border border-hairline bg-surface pl-11 shadow-[inset_0_1px_2px_rgba(0,0,0,0.25)] pr-11 text-base text-ink placeholder:text-ink-3 transition-colors focus:border-brand/60 focus:bg-surface focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+        className="h-12 w-full rounded-full border border-field bg-surface pl-12 pr-11 text-base text-ink placeholder:text-ink-3 transition-colors duration-150 hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand [&::-webkit-search-cancel-button]:hidden"
       />
       {value && (
         <button
@@ -360,7 +355,7 @@ function ShelfView({ shelf, positions, nowMs, onOpen }: { shelf: Shelf; position
         const has = ready > 0;
         const isOpen = openUnits[u.num] ?? has;
         return (
-          <section key={u.num} aria-labelledby={`u-${shelf.key}-${u.num}`} className="surface overflow-hidden rounded-xl">
+          <section key={u.num} aria-labelledby={`u-${shelf.key}-${u.num}`} className="surface overflow-hidden rounded-card">
             <h3 id={`u-${shelf.key}-${u.num}`}>
               <button
                 type="button"
@@ -374,7 +369,7 @@ function ShelfView({ shelf, positions, nowMs, onOpen }: { shelf: Shelf; position
                   </span>
                   <span className={cn("mt-0.5 block text-lg font-semibold leading-snug", has ? "text-ink" : "text-ink-2")}>{u.name}</span>
                 </span>
-                <Icon.ChevronRight className={cn("h-4 w-4 shrink-0 text-ink-3 transition-transform duration-200", isOpen && "rotate-90")} />
+                <Icon.ChevronRight className={cn("h-5 w-5 shrink-0 text-ink-3 transition-transform duration-200 ease-[var(--ease-out)]", isOpen && "rotate-90")} />
               </button>
             </h3>
             {isOpen && (
@@ -446,7 +441,7 @@ function ShelfView({ shelf, positions, nowMs, onOpen }: { shelf: Shelf; position
           <h3 id={`more-${shelf.key}`} className="mb-2 text-sm font-semibold text-ink-3">
             {book ? "More notes" : shelf.label}
           </h3>
-          <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
+          <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
             {shelf.more.map((n) => (
               <li key={n.id}>
                 <NoteRow
@@ -510,7 +505,7 @@ function NoteRow({
     >
       {num !== "" || !showDate ? <span className="w-10 shrink-0 text-sm font-semibold tabular-nums text-ink-3">{num}</span> : null}
       <span className="min-w-0 flex-1">
-        <span className="line-clamp-2 text-[16px] font-semibold leading-snug text-ink">{title}</span>
+        <span className="line-clamp-2 text-base font-semibold leading-snug text-ink">{title}</span>
         {(showDate || fresh || k || pos) && (
           <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-ink-3">
             {showDate && <span>{fmtDate(note.createdAt)}</span>}
@@ -522,14 +517,14 @@ function NoteRow({
             )}
             {done && (
               <span className="inline-flex items-center gap-1 text-success">
-                <Icon.Check className="h-3 w-3" /> Read
+                <Icon.Check className="h-4 w-4" /> Read
               </span>
             )}
-            {fresh && <span className="rounded-full bg-brand-soft px-2 py-px font-semibold text-brand">New</span>}
+            {fresh && <span className="rounded-full bg-surface-2 px-2 py-px text-xs font-semibold text-ink">New</span>}
           </span>
         )}
       </span>
-      <Icon.ChevronRight className="h-4 w-4 shrink-0 text-ink-3" />
+      <Icon.ChevronRight className="h-5 w-5 shrink-0 text-ink-3" />
     </button>
   );
 }
@@ -602,7 +597,8 @@ function SearchResults({ q, readable, onOpen, nowMs }: { q: string; readable: Re
               q,
               hits: [],
               more: false,
-              error: e instanceof Error ? e.message : "Search didn't work.",
+              // Our own messages read well; a dropped connection's raw "Failed to fetch" does not.
+              error: e instanceof Error && !(e instanceof TypeError) ? e.message : "Search didn't work. Check your internet and try again.",
             });
         });
     }, 350);
@@ -625,7 +621,7 @@ function SearchResults({ q, readable, onOpen, nowMs }: { q: string; readable: Re
       {titleHits.length > 0 && (
         <section>
           <h2 className="mb-3 text-xl font-bold leading-tight tracking-[-0.015em] text-ink">Chapters</h2>
-          <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
+          <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
             {titleHits.slice(0, 8).map(({ note, chapter, shelf }) => (
               <li key={note.id}>
                 <NoteRow
@@ -645,20 +641,20 @@ function SearchResults({ q, readable, onOpen, nowMs }: { q: string; readable: Re
       <section>
         <h2 className="mb-3 text-xl font-bold leading-tight tracking-[-0.015em] text-ink">Inside your notes</h2>
         {loading ? (
-          <p className="flex items-center gap-2 py-4 text-sm text-ink-3">
+          <p className="flex items-center gap-2 py-4 text-base text-ink-2">
             <Spinner size={16} /> Searching every page…
           </p>
         ) : state.error ? (
-          <p className="py-4 text-sm text-ink-3">{state.error}</p>
+          <p className="py-4 text-base text-ink-2">{state.error}</p>
         ) : groups.size === 0 ? (
-          <p className="py-4 text-sm text-ink-3">Nothing inside your notes says &ldquo;{q}&rdquo;. Try a shorter word, like the key term on its own.</p>
+          <p className="py-4 text-base text-ink-2">Nothing inside your notes says &ldquo;{q}&rdquo;. Try a shorter word, like the key term on its own.</p>
         ) : (
           <ul className="space-y-3">
             {[...groups].map(([id, hits]) => (
-              <li key={id} className="surface overflow-hidden rounded-xl">
+              <li key={id} className="surface overflow-hidden rounded-card">
                 <p className="border-b border-hairline px-5 py-3.5 text-base font-semibold leading-snug text-ink">
                   {name(id)}
-                  <span className="ml-2 text-xs font-medium text-ink-3">{readable.get(id)?.shelf.label}</span>
+                  <span className="ml-2 text-sm font-medium text-ink-3">{readable.get(id)?.shelf.label}</span>
                 </p>
                 <ul className="divide-y divide-hairline">
                   {hits.map((h) => (
@@ -675,7 +671,7 @@ function SearchResults({ q, readable, onOpen, nowMs }: { q: string; readable: Re
                         }
                         className="row-link flex w-full gap-3 px-5 py-3.5 text-left focus-visible:bg-surface-2 focus-visible:outline-none"
                       >
-                        <span className="w-14 shrink-0 pt-0.5 text-xs font-semibold tabular-nums text-ink-3">Page {h.page}</span>
+                        <span className="w-16 shrink-0 pt-0.5 text-sm font-semibold tabular-nums text-ink-3">Page {h.page}</span>
                         <span className="min-w-0 flex-1 text-base leading-relaxed text-ink-2">
                           <Marked text={h.snippet} terms={terms} />
                         </span>
@@ -687,7 +683,7 @@ function SearchResults({ q, readable, onOpen, nowMs }: { q: string; readable: Re
             ))}
           </ul>
         )}
-        {!loading && state.more && <p className="mt-3 text-xs text-ink-3">Showing the best matches. Add another word to narrow it down.</p>}
+        {!loading && state.more && <p className="mt-3 text-sm text-ink-3">Showing the best matches. Add another word to narrow it down.</p>}
       </section>
     </div>
   );

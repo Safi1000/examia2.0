@@ -62,7 +62,7 @@ export function PaperCrop({
             e.stopPropagation();
             setAttempt((n) => n + 1);
           }}
-          className="inline-flex min-h-11 items-center rounded-full border border-border-strong px-4 text-sm font-semibold text-ink"
+          className="inline-flex min-h-11 items-center rounded-full border border-border-strong px-4 text-sm font-semibold text-ink transition-[background-color,transform] duration-150 ease-[var(--ease-out)] hover:bg-surface-2 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         >
           Try again
         </button>

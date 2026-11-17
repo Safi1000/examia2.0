@@ -290,7 +290,7 @@ export default function SubmissionsPage() {
                           ) : (
                             <Badge tone="warning">Awaiting</Badge>
                           )}
-                          {sub.late && !lateWindow && <span className="font-semibold text-error">late</span>}
+                          {sub.late && !lateWindow && <Badge tone="error" className="capitalize">late</Badge>}
                         </span>
                       </Td>
                       <Td className="hidden xl:table-cell">{cohort ? <span className="inline-flex items-center gap-1.5 text-ink-2"><CohortDot color={cohort.color} />{cohort.name}</span> : "No cohort"}</Td>
@@ -301,7 +301,7 @@ export default function SubmissionsPage() {
                           (lateWindow ? (
                             <span className="ml-1 text-xs text-ink-3">late window</span>
                           ) : (
-                            <span className="ml-1 text-xs font-semibold text-error">late</span>
+                            <Badge tone="error" className="ml-1 capitalize">late</Badge>
                           ))}
                       </Td>
                       <Td className="hidden whitespace-nowrap font-semibold tabular-nums md:table-cell">{sub.status === "released" ? `${grade.percent}% · ${grade.letter}` : <span className="font-normal text-ink-3">Not yet</span>}</Td>
@@ -326,7 +326,7 @@ export default function SubmissionsPage() {
             </Table>
           </TableScroll>
           {rows.length > limit && (
-            <div className="flex justify-center border-t border-border p-2">
+            <div className="flex justify-center border-t border-hairline p-2">
               <button type="button" onClick={() => setLimit((n) => n + 100)} className="h-11 rounded-full px-5 text-sm font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink">
                 Show more ({rows.length - limit} left)
               </button>
@@ -341,8 +341,8 @@ export default function SubmissionsPage() {
       <Modal
         open={bulkOpen}
         onClose={() => setBulkOpen(false)}
-        title="Release all MCQ results?"
-        description={`${releasable.length} ungraded submission${releasable.length === 1 ? "" : "s"} in the current filter.`}
+        title="Release all multiple choice results?"
+        description={`${releasable.length} paper${releasable.length === 1 ? "" : "s"} waiting in the current filter, already marked automatically.`}
         footer={
           <>
             <Button variant="secondary" onClick={() => setBulkOpen(false)}>Cancel</Button>

@@ -139,7 +139,7 @@ function BookPicker({ opts, picked, onToggle, disabled }: { opts: BookOpt[]; pic
     <div className="space-y-2">
       {levels.map((lv) => (
         <div key={lv} className="flex flex-wrap items-center gap-1.5">
-          <span className="w-full text-xs text-ink-3 sm:w-28 sm:shrink-0">{LEVEL_SHORT[lv]}</span>
+          <span className="w-full text-sm text-ink-3 sm:w-28 sm:shrink-0">{LEVEL_SHORT[lv]}</span>
           {opts
             .filter((o) => o.book?.level === lv)
             .map((o) => (
@@ -281,13 +281,13 @@ export default function NotesPage() {
 
       {unsearchable.length > 0 && (
         <Card className="mb-5 flex flex-wrap items-center gap-3 p-4">
-          <Icon.Search className="h-5 w-5 shrink-0 text-brand" />
+          <Icon.Search className="h-5 w-5 shrink-0 text-ink-3" />
           <p className="min-w-0 flex-1 text-sm text-ink-2">
             {indexing
               ? `Reading note ${Math.min(indexing.done + 1, indexing.total)} of ${indexing.total}… keep this page open.`
               : `${unsearchable.length} older PDF${unsearchable.length === 1 ? " isn't" : "s aren't"} searchable yet. Students can't find words inside ${unsearchable.length === 1 ? "it" : "them"}.`}
           </p>
-          <Button size="sm" onClick={() => void makeSearchable()} loading={!!indexing} disabled={!!indexing}>
+          <Button size="sm" variant="secondary" onClick={() => void makeSearchable()} loading={!!indexing} disabled={!!indexing}>
             Make them searchable
           </Button>
         </Card>
@@ -407,7 +407,7 @@ function NoteActions({
   onDelete: () => void;
 }) {
   const hidden = isHidden(note.fileType);
-  const btn = "inline-flex h-9 items-center rounded-full px-3 text-[13px] font-semibold text-ink-2 hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:px-2.5";
+  const btn = "inline-flex h-10 items-center rounded-full px-3 text-sm font-semibold text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:px-2.5";
   return (
     <div className="flex flex-wrap items-center gap-1">
       {hidden && <Badge tone="warning">Hidden</Badge>}
@@ -464,11 +464,11 @@ function BookView({ db, opt, actions, onUpload }: { db: Db; opt: BookOpt; action
   const done = all.filter(({ u, c }) => bySlot.has(c) || bySlot.has(`U${u}`)).length;
 
   const row = (n: Note, label: string, sub?: string) => (
-    <div key={n.id} className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3", isHidden(n.fileType) && "opacity-60")}>
-      <span className="w-10 shrink-0 text-[13px] font-semibold tabular-nums text-brand">{label}</span>
+    <div key={n.id} className={cn("flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 sm:px-5", isHidden(n.fileType) && "opacity-60")}>
+      <span className="w-10 shrink-0 text-sm font-semibold tabular-nums text-ink-2">{label}</span>
       <span className="min-w-0 flex-1 basis-[calc(100%-3.25rem)] sm:basis-0">
-        <span className="block text-[15px] font-semibold text-ink">{n.title}</span>
-        <span className="block text-xs text-ink-3">
+        <span className="block text-base font-semibold text-ink">{n.title}</span>
+        <span className="block text-sm text-ink-3">
           {sub ? `${sub} · ` : ""}
           {n.fileName} · {new Date(n.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
         </span>
@@ -491,11 +491,11 @@ function BookView({ db, opt, actions, onUpload }: { db: Db; opt: BookOpt; action
         const unitNotes = bySlot.get(`U${u.num}`) ?? [];
         return (
           <Card key={u.num} className="overflow-hidden p-0">
-            <div className="border-b border-border px-4 py-3">
-              <span className="block text-[13px] text-ink-3">Unit {u.num}</span>
-              <span className="block text-[17px] font-semibold leading-snug text-ink">{u.name}</span>
+            <div className="border-b border-hairline px-4 py-4 sm:px-5">
+              <span className="block text-sm text-ink-3">Unit {u.num}</span>
+              <span className="block text-lg font-semibold leading-snug text-ink">{u.name}</span>
             </div>
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-hairline">
               {unitNotes.map((n) => row(n, "Unit", "The whole unit"))}
               {u.chapters.map(([c, name]) => {
                 const list = bySlot.get(c);
@@ -507,14 +507,14 @@ function BookView({ db, opt, actions, onUpload }: { db: Db; opt: BookOpt; action
                     type="button"
                     onClick={() => onUpload(c)}
                     aria-label={`Upload ${c} ${name}`}
-                    className="group flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface-2 active:bg-surface-2"
+                    className="group flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left transition-colors duration-150 hover:bg-white/[0.018] active:bg-surface-2 sm:px-5"
                   >
-                    <span className="w-10 shrink-0 text-[13px] tabular-nums text-ink-3">{c}</span>
-                    <span className="min-w-0 flex-1 text-[15px] text-ink-3">
+                    <span className="w-10 shrink-0 text-sm tabular-nums text-ink-3">{c}</span>
+                    <span className="min-w-0 flex-1 text-base text-ink-3">
                       {name}
                       {unitNotes.length ? " · in the unit notes" : ""}
                     </span>
-                    <Icon.Plus className="h-4 w-4 shrink-0 text-ink-3 group-hover:text-brand" />
+                    <Icon.Plus className="h-4 w-4 shrink-0 text-ink-3 transition-colors group-hover:text-ink" />
                   </button>
                 );
               })}
@@ -524,8 +524,8 @@ function BookView({ db, opt, actions, onUpload }: { db: Db; opt: BookOpt; action
       })}
       {more.length > 0 && (
         <Card className="overflow-hidden p-0">
-          <p className="border-b border-border px-4 py-3 font-semibold text-ink">More notes (not on a chapter)</p>
-          <div className="divide-y divide-border">{more.map((n) => row(n, ""))}</div>
+          <p className="border-b border-hairline px-4 py-4 text-lg font-semibold text-ink sm:px-5">More notes (not on a chapter)</p>
+          <div className="divide-y divide-hairline">{more.map((n) => row(n, ""))}</div>
         </Card>
       )}
     </div>
@@ -713,23 +713,23 @@ function AllNotes({
       </ConfirmBulk>
 
       {list.length === 0 ? (
-        <p className="py-10 text-center text-sm text-ink-3">{q ? "No note has that name." : "No notes yet."}</p>
+        <p className="py-10 text-center text-base text-ink-3">{q ? "No note has that name." : "No notes yet."}</p>
       ) : (
         <div role="group" aria-label="Notes" onKeyDown={sel.listKeyDown}>
         <SelectAll sel={sel} noun="note" className="px-4" />
-        <div className="space-y-2.5">
+        <Card className="divide-y divide-hairline overflow-hidden p-0">
           {list.map((n) => {
             const books = booksOf(n, db.noteAssignments, opts);
             const assigned = assignmentsOf(n.id, db.noteAssignments).length > 0;
             return (
-              <Card key={n.id} className={cn("p-4", isHidden(n.fileType) && "opacity-70")}>
+              <div key={n.id} className={cn("px-4 py-4 transition-colors duration-150 hover:bg-white/[0.018] sm:px-5", isHidden(n.fileType) && "opacity-70")}>
                 <div className="flex flex-wrap items-start gap-3">
                   <span className="pt-1.5">
                     <RowCheck id={n.id} checked={sel.isSelected(n.id)} onToggle={sel.toggle} label={`Select ${n.title}`} />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-ink">{n.title}</p>
-                    <p className="text-xs text-ink-3">
+                    <p className="text-base font-semibold text-ink">{n.title}</p>
+                    <p className="text-sm text-ink-3">
                       {n.fileName} · {new Date(n.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                     </p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
@@ -739,19 +739,19 @@ function AllNotes({
                         </Badge>
                       )}
                       {books.map((b) => (
-                        <span key={b.key} className="rounded-full border border-border bg-surface-2 px-2.5 py-0.5 text-xs text-ink-2">
+                        <Badge key={b.key} tone="neutral">
                           {b.label}
-                        </span>
+                        </Badge>
                       ))}
-                      {assigned && !books.length && <span className="rounded-full border border-border bg-surface-2 px-2.5 py-0.5 text-xs text-ink-2">Shared with a batch</span>}
+                      {assigned && !books.length && <Badge tone="neutral">Shared with a batch</Badge>}
                     </div>
                   </div>
                   {actions(n)}
                 </div>
-              </Card>
+              </div>
             );
           })}
-        </div>
+        </Card>
         </div>
       )}
       <BulkBar count={sel.count} onClear={sel.clear} actions={bulkActions} />
@@ -944,6 +944,7 @@ function UploadModal({
     if (!DEMO && !notesConfigured()) return setError("Note uploads aren't set up yet. Ask your developer to check the file storage settings.");
     setBusy(true);
     let ok = 0;
+    let bad = 0;
     // Two at a time: quick, and kind to a home connection.
     const queue = [...todo];
     const worker = async () => {
@@ -953,6 +954,7 @@ function UploadModal({
         if (!row || (row.status !== "ready" && row.status !== "failed")) continue;
         if (!row.books.length) {
           patch(row.key, { status: "failed", error: "Choose who gets it" });
+          bad++;
           continue;
         }
         patch(row.key, { status: "uploading", progress: 0, error: undefined });
@@ -1004,12 +1006,16 @@ function UploadModal({
           ok++;
         } catch (e) {
           patch(row.key, { status: "failed", error: e instanceof Error ? e.message : "Didn't upload." });
+          bad++;
         }
       }
     };
     await Promise.all([worker(), worker()]);
     setBusy(false);
-    if (ok) toast(`${ok} note${ok === 1 ? "" : "s"} published.`, "success");
+    // Say plainly when some didn't go, not just how many did.
+    if (ok && bad) toast(`${ok} note${ok === 1 ? "" : "s"} published. ${bad} didn't upload: press Publish again to retry ${bad === 1 ? "it" : "them"}.`, "info");
+    else if (ok) toast(`${ok} note${ok === 1 ? "" : "s"} published.`, "success");
+    else if (bad) toast(`${bad === 1 ? "The note didn't" : `None of the ${bad} notes`} upload. Check your internet and press Publish again.`, "error");
   }
 
   const waiting = rows.filter((r) => r.status === "ready" || r.status === "failed").length;
@@ -1038,11 +1044,11 @@ function UploadModal({
       <div className="space-y-6">
         <section>
           <p className="mb-2 text-sm font-semibold text-ink">1. Who are these for?</p>
-          <p className="mb-2.5 text-xs text-ink-3">Tick every class that should get them. Files in a folder like &ldquo;AS / Accounting&rdquo; are picked up on their own.</p>
+          <p className="mb-3 text-sm text-ink-3">Tick every class that should get them. Files in a folder like &ldquo;AS / Accounting&rdquo; are picked up on their own.</p>
           <BookPicker opts={allOpts} picked={defaults} onToggle={(k) => applyDefaults(toggle(defaults, k))} disabled={busy} />
           {activeCohorts.length > 1 && (
             <>
-              <p className="mb-2 mt-4 text-xs font-semibold text-ink-2">Batches</p>
+              <p className="mb-2 mt-4 text-sm font-semibold text-ink-2">Batches</p>
               <div className="flex flex-wrap gap-2">
                 {activeCohorts.map((c) => (
                   <Chip key={c.id} on={cohorts.includes(c.id)} onClick={() => setCohorts(toggle(cohorts, c.id))} disabled={busy}>
@@ -1050,7 +1056,7 @@ function UploadModal({
                   </Chip>
                 ))}
               </div>
-              <p className="mt-1.5 text-xs text-ink-3">Only batches that take that class and subject get the note.</p>
+              <p className="mt-1.5 text-sm text-ink-3">Only batches that take that class and subject get the note.</p>
             </>
           )}
         </section>
@@ -1068,9 +1074,9 @@ function UploadModal({
               setDrag(false);
               addFiles(e.dataTransfer.files);
             }}
-            className={cn("rounded-2xl border-2 border-dashed px-4 py-6 text-center transition-colors", drag ? "border-brand bg-brand-soft" : "border-border")}
+            className={cn("rounded-tile border-2 border-dashed px-4 py-6 text-center transition-colors duration-150", drag ? "border-ink-3 bg-surface-2" : "border-border-strong")}
           >
-            <p className="text-sm text-ink-2">Drop PDFs here, as many as you like</p>
+            <p className="text-base text-ink-2">Drop PDFs here, as many as you like</p>
             <div className="mt-3 flex flex-wrap justify-center gap-2">
               <Button size="sm" variant="secondary" onClick={() => fileRef.current?.click()} disabled={busy}>
                 Choose files
@@ -1079,7 +1085,7 @@ function UploadModal({
                 Choose a folder
               </Button>
             </div>
-            <p className="mt-2 text-xs text-ink-3">PDF works best (students can search inside it). Word, PowerPoint, Excel and images work too.</p>
+            <p className="mt-3 text-sm text-ink-3">PDF works best (students can search inside it). Word, PowerPoint, Excel and images work too.</p>
             <input ref={fileRef} type="file" multiple accept={ACCEPT} className="hidden" onChange={(e) => e.target.files && (addFiles(e.target.files), (e.target.value = ""))} />
             <input
               ref={folderRef}
@@ -1101,11 +1107,11 @@ function UploadModal({
                 const titles = [...plan(r).keys()];
                 const anyChapter = r.books.some((k) => r.slots[k]);
                 return (
-                  <li key={r.key} className="rounded-2xl border border-border bg-surface p-3.5">
+                  <li key={r.key} className="rounded-tile bg-surface-2 p-4">
                     <div className="flex items-start gap-3">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs text-ink-3">{r.file.name}</p>
-                        <p className="mt-0.5 text-[15px] font-semibold text-ink">{titles.length ? titles.join("  ·  ") : r.title}</p>
+                        <p className="truncate text-sm text-ink-3">{r.file.name}</p>
+                        <p className="mt-0.5 text-base font-semibold text-ink">{titles.length ? titles.join("  ·  ") : r.title}</p>
                       </div>
                       <RowStatus r={r} onRemove={() => setRows((rs) => rs.filter((x) => x.key !== r.key))} />
                     </div>
@@ -1114,10 +1120,10 @@ function UploadModal({
                         {r.editing || !r.books.length ? (
                           <BookPicker opts={allOpts} picked={r.books} onToggle={(k) => toggleBook(r, k)} />
                         ) : (
-                          <p className="text-[13px] text-ink-3">
+                          <p className="text-sm text-ink-3">
                             For {r.books.map((k) => optOf(k)?.label).filter(Boolean).join(", ")}
                             {" · "}
-                            <button type="button" onClick={() => patch(r.key, { editing: true })} className="font-semibold text-brand hover:underline">
+                            <button type="button" onClick={() => patch(r.key, { editing: true })} className="font-semibold text-ink underline-offset-4 hover:underline">
                               Change
                             </button>
                           </p>
@@ -1128,10 +1134,10 @@ function UploadModal({
                           const older = olderOn(k, r.slots[k] ?? "");
                           return (
                             <div key={k} className="space-y-1.5">
-                              <p className="text-xs font-semibold text-ink-2">{o.label}: where does it go?</p>
+                              <p className="text-sm font-semibold text-ink-2">{o.label}: where does it go?</p>
                               <SlotSelect book={o.book} value={r.slots[k] ?? ""} onChange={(v) => patch(r.key, (x) => ({ slots: { ...x.slots, [k]: v } }))} label={`${o.label} chapter`} />
                               {older.map((n) => (
-                                <label key={n.id} className="flex items-center gap-2 text-xs text-ink-2">
+                                <label key={n.id} className="flex min-h-11 items-center gap-2 text-sm text-ink-2">
                                   <input
                                     type="checkbox"
                                     checked={r.hideOld.includes(n.id)}
@@ -1155,7 +1161,7 @@ function UploadModal({
             </ul>
           </section>
         )}
-        {error && <p className="rounded-md border border-error/30 bg-error-soft px-3 py-2 text-sm font-medium text-error">{error}</p>}
+        {error && <p className="rounded-tile border border-error/30 bg-error-soft px-4 py-3 text-sm font-medium text-error">{error}</p>}
       </div>
     </Modal>
   );
@@ -1164,7 +1170,7 @@ function UploadModal({
 function RowStatus({ r, onRemove }: { r: Row; onRemove: () => void }) {
   if (r.status === "ready")
     return (
-      <button type="button" onClick={onRemove} aria-label={`Remove ${r.file.name}`} className="-mr-1.5 -mt-1.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-surface-2 hover:text-ink">
+      <button type="button" onClick={onRemove} aria-label={`Remove ${r.file.name}`} className="-mr-1.5 -mt-1.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-surface hover:text-ink">
         <Icon.Close className="h-4 w-4" />
       </button>
     );
@@ -1172,8 +1178,8 @@ function RowStatus({ r, onRemove }: { r: Row; onRemove: () => void }) {
     return (
       <span className="flex w-24 shrink-0 flex-col items-end gap-1 pt-1">
         <span className="text-xs tabular-nums text-ink-3">{Math.round(r.progress * 100)}%</span>
-        <span className="h-1 w-full overflow-hidden rounded-full bg-surface-2">
-          <span className="block h-full bg-brand transition-[width]" style={{ width: `${r.progress * 100}%` }} />
+        <span className="h-1 w-full overflow-hidden rounded-full bg-surface">
+          <span className="block h-full bg-ink-2 transition-[width] duration-200" style={{ width: `${r.progress * 100}%` }} />
         </span>
       </span>
     );
@@ -1252,7 +1258,7 @@ function AssignModal({ db, store, opts, note, onClose }: { db: Db; store: Store;
   }
 
   return (
-    <Modal open onClose={onClose} title={note.title} size="md" footer={<Button onClick={onClose}>Done</Button>}>
+    <Modal open onClose={onClose} title={note.title} size="md" footer={<Button variant="secondary" onClick={onClose}>Done</Button>}>
       <div className="space-y-6">
         <section>
           <p className="mb-2 text-sm font-semibold text-ink">Goes to now</p>
@@ -1261,12 +1267,12 @@ function AssignModal({ db, store, opts, note, onClose }: { db: Db; store: Store;
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {current.map((a) => (
-                <span key={a.id} className="flex items-center gap-1 rounded-full border border-border bg-surface-2 py-0.5 pl-3 text-xs text-ink-2">
+                <span key={a.id} className="flex items-center gap-1 rounded-full bg-surface-2 py-0.5 pl-3 text-sm text-ink-2">
                   {label(a)}
                   <button
                     type="button"
                     onClick={() => window.confirm(`Stop showing this note to ${label(a)}?`) && store.deleteNoteAssignment(a.id)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-ink-3 hover:text-error"
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-ink-3 transition-colors hover:text-error"
                     aria-label={`Stop showing to ${label(a)}`}
                   >
                     <Icon.Close className="h-3.5 w-3.5" />

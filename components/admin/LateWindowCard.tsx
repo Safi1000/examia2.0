@@ -6,7 +6,7 @@ import { useDatabase, useStore } from "@/lib/data/store";
 import { archivedCohortIds, lateWindows, testCoversStudent } from "@/lib/data/selectors";
 import { useNow } from "@/hooks/useNow";
 import { useToast } from "@/components/toast";
-import { Card, CardHeader, CardBody, Button, Select } from "@/components/ui";
+import { Card, CardHeader, CardBody, Button, Select, chipClass } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { SITE_URL } from "@/lib/seo";
@@ -80,20 +80,20 @@ export function LateWindowCard({ test }: { test: Test }) {
   return (
     <Card>
       <CardHeader>
-        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Let one student sit it late</h2>
+        <h2 className="text-base font-semibold tracking-[-0.01em] text-ink">Let one student sit it late</h2>
         <p className="mt-1 text-sm text-ink-3">For a student who missed it. Only they see it open; everyone else still sees it closed.</p>
       </CardHeader>
       <CardBody className="space-y-4">
         {windows.length > 0 && (
-          <ul className="divide-y divide-border rounded-md border border-border">
+          <ul className="divide-y divide-hairline rounded-tile bg-surface-2">
             {windows.map((w) => {
               const done = handedIn.has(w.studentId);
               const wa = done ? null : whatsapp(w.student, w.until);
               return (
-                <li key={w.studentId} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
+                <li key={w.studentId} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-ink">{nameOf(w.student)}</p>
-                    <p className={cn("text-xs", done ? "text-success" : "text-ink-3")}>
+                    <p className="truncate text-base font-semibold text-ink">{nameOf(w.student)}</p>
+                    <p className={cn("text-sm", done ? "text-success" : "text-ink-3")}>
                       {done ? "Handed in" : `Open until ${pkTime(w.until)} · ${left(+new Date(w.until) - nowMs)}`}
                     </p>
                   </div>
@@ -141,11 +141,7 @@ export function LateWindowCard({ test }: { test: Test }) {
                     type="button"
                     aria-pressed={hours === h}
                     onClick={() => setHours(h)}
-                    className={cn(
-                      "h-11 rounded-md border text-sm font-semibold tabular-nums transition",
-                      "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                      hours === h ? "border-brand bg-brand/12 text-brand" : "border-border-strong bg-surface text-ink-2 hover:text-ink",
-                    )}
+                    className={cn(chipClass(hours === h), "justify-center px-2 tabular-nums")}
                   >
                     {h} hours
                   </button>
@@ -153,17 +149,17 @@ export function LateWindowCard({ test }: { test: Test }) {
               </div>
             </fieldset>
             {endsBeforeClose && (
-              <p className="text-xs text-ink-3">The test is open for everyone until {pkTime(test.closesAt)}, so this window changes nothing yet. Pick a longer one, or come back after it closes.</p>
+              <p className="text-sm text-ink-3">The test is open for everyone until {pkTime(test.closesAt)}, so this window changes nothing yet. Pick a longer one, or come back after it closes.</p>
             )}
             {resultsOut && (
-              <p className="rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-xs text-warning">
+              <p className="rounded-field border border-warning/30 bg-warning-soft px-3 py-2 text-sm text-warning">
                 Some results for this test are already out, so classmates may have seen the answers.
               </p>
             )}
             <Button fullWidth disabled={!picked || endsBeforeClose} onClick={open}>
               {picked ? `Open for ${nameOf(picked)} for ${hours} hours` : "Open for this student"}
             </Button>
-            <p className="text-xs text-ink-3">They get a notification, and their timer is the normal {test.durationMinutes} minutes. Results for this test wait until their window ends, and you release theirs yourself after marking.</p>
+            <p className="text-sm text-ink-3">They get a notification, and their timer is the normal {test.durationMinutes} minutes. Results for this test wait until their window ends, and you release theirs yourself after marking.</p>
           </>
         )}
       </CardBody>

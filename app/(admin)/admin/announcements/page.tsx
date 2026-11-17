@@ -83,7 +83,7 @@ export default function AnnouncementsPage() {
       : "across all cohorts";
   const nobody = editing === "new" && audience.length === 0;
 
-  const sorted = [...db.announcements].sort((a, b) => Number(b.pinned) - Number(a.pinned) || +new Date(b.createdAt) - +new Date(a.createdAt));
+  const sorted = db.announcements.toSorted((a, b) => Number(b.pinned) - Number(a.pinned) || +new Date(b.createdAt) - +new Date(a.createdAt));
 
   return (
     <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
@@ -100,25 +100,25 @@ export default function AnnouncementsPage() {
           {sorted.map((a) => {
             const cohort = cohortById(db, a.cohortId);
             return (
-              <Card key={a.id} ruled={a.pinned} className="p-4">
+              <Card key={a.id} ruled={a.pinned} className="p-5 sm:p-6">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                   <div className="min-w-0">
                     <div className="mb-1.5 flex flex-wrap items-center gap-2">
                       {a.pinned && <Badge tone="info"><Icon.Flag className="h-3 w-3" /> Pinned</Badge>}
-                      {cohort ? <CohortTag color={cohort.color} name={cohort.name} className="text-xs" /> : <span className="text-xs text-ink-3">All cohorts</span>}
-                      <span className="text-xs tabular-nums text-ink-3">{formatDate(a.createdAt)}</span>
+                      {cohort ? <CohortTag color={cohort.color} name={cohort.name} className="text-xs" /> : <span className="text-sm text-ink-3">All cohorts</span>}
+                      <span className="text-sm tabular-nums text-ink-3">{formatDate(a.createdAt)}</span>
                     </div>
-                    <p className="max-w-[75ch] whitespace-pre-line break-words text-pretty text-sm leading-relaxed text-ink">{a.body}</p>
+                    <p className="max-w-[75ch] whitespace-pre-line break-words text-pretty text-base leading-relaxed text-ink">{a.body}</p>
                     {!a.pinned && (
-                      <p className="mt-1.5 text-xs text-ink-3">Dismissed by {a.dismissedBy.length} {a.dismissedBy.length === 1 ? "student" : "students"}</p>
+                      <p className="mt-1.5 text-sm text-ink-3">Dismissed by {a.dismissedBy.length} {a.dismissedBy.length === 1 ? "student" : "students"}</p>
                     )}
                   </div>
                   <div className="flex shrink-0 justify-end gap-1">
                     <button type="button" aria-pressed={a.pinned} onClick={() => store.updateAnnouncement(a.id, { pinned: !a.pinned })} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11" aria-label="Pinned" title={a.pinned ? "Unpin" : "Pin"}>
-                      <Icon.Flag className={a.pinned ? "h-4 w-4 text-info" : "h-4 w-4"} />
+                      <Icon.Flag className={a.pinned ? "h-5 w-5 text-info" : "h-5 w-5"} />
                     </button>
                     <button type="button" onClick={() => openEdit(a)} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11" aria-label="Edit">
-                      <Icon.Edit className="h-4 w-4" />
+                      <Icon.Edit className="h-5 w-5" />
                     </button>
                     <RowMenu items={[{ label: "Delete", danger: true, onSelect: () => setDeleting(a) }]} />
                   </div>
@@ -143,7 +143,7 @@ export default function AnnouncementsPage() {
         <div className="space-y-4">
           <div>
             <Textarea label="Message" value={body} maxLength={MAX} onChange={(e) => setBody(e.target.value)} placeholder="Keep it short and clear…" />
-            <p className="mt-1 text-right text-xs text-ink-3 tabular">{body.length} / {MAX}</p>
+            <p className="mt-1.5 text-right text-sm tabular-nums text-ink-3">{body.length} / {MAX}</p>
           </div>
           {/* One cohort switched on: it goes to that cohort, and there is nothing to choose. */}
           {!(activeCohorts.length === 1 && (!cohortId || cohortId === activeCohorts[0].id)) && (
@@ -173,7 +173,7 @@ export default function AnnouncementsPage() {
           </>
         }
       >
-        <p className="text-sm text-ink-2">Students will no longer see this message.</p>
+        <p className="text-base text-ink-2">Students will no longer see this message.</p>
       </Modal>
     </div>
   );

@@ -3,7 +3,7 @@ import { LANDING } from "@/lib/landing";
 import { Logo } from "@/components/Brand";
 
 const linkCls =
-  "inline-flex min-h-11 items-center text-[15px] text-muted-foreground transition-colors hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
+  "inline-flex min-h-11 items-center text-base text-muted-foreground transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
 
 // Three links, one row: the footer stays calm (the header keeps only Login and the free trial). The other free pages are reached from Free tools,
 // from each other, and from the links at the foot of every study page.
@@ -47,10 +47,10 @@ export function Footer() {
         <div className="mt-8 flex w-full flex-col items-center justify-between gap-1 border-t border-hairline pb-16 pt-6 text-sm text-faint sm:flex-row sm:pb-2 sm:pr-20">
           <p>© {year} {LANDING.brand}</p>
           <div className="flex items-center gap-6">
-            <Link href="/privacy" className="inline-flex min-h-11 items-center transition-colors hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+            <Link href="/privacy" className="inline-flex min-h-11 items-center transition-colors hover:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
               Privacy policy
             </Link>
-            <Link href="/terms" className="inline-flex min-h-11 items-center transition-colors hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+            <Link href="/terms" className="inline-flex min-h-11 items-center transition-colors hover:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
               Terms
             </Link>
           </div>

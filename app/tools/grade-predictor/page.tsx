@@ -34,13 +34,13 @@ export default function GradePredictorPage() {
       <section className="pb-16 pt-14 md:pb-24 md:pt-20">
         <div className="mx-auto max-w-6xl px-5 text-center">
           <nav aria-label="Breadcrumb" className="text-sm text-faint">
-            <Link href="/" className="hover:text-gold">Home</Link>
+            <Link href="/" className="hover:text-foreground">Home</Link>
             <span aria-hidden className="mx-2">/</span>
-            <Link href="/tools" className="hover:text-gold">Free tools</Link>
+            <Link href="/tools" className="hover:text-foreground">Free tools</Link>
             <span aria-hidden className="mx-2">/</span>
             <span aria-current="page" className="text-muted-foreground">Grade predictor</span>
           </nav>
-          <h1 className="mx-auto mt-8 max-w-[18ch] text-4xl font-bold leading-[1.05] tracking-tight text-foreground md:text-6xl">
+          <h1 className="mx-auto mt-8 max-w-[18ch] text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">
             Where would your mock marks land you?
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-balance text-lg leading-relaxed text-muted-foreground">

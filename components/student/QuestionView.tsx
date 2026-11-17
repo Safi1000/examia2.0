@@ -4,7 +4,7 @@ import { cld } from "@/lib/cld";
 import { trackUpload, useUploadsInProgress } from "@/lib/upload-tracker";
 import { memo, useRef, useState } from "react";
 import type { Answer, Question } from "@/types";
-import { RadioCard, Textarea, Pill, Badge, Icon } from "@/components/ui";
+import { RadioCard, Textarea, Badge, Icon } from "@/components/ui";
 import { uploadAsImages } from "@/lib/cloudinary";
 import { readPhotoTakenAt, withTakenTime } from "@/lib/photo-time";
 import { useToast } from "@/components/toast";
@@ -60,22 +60,25 @@ function QuestionViewInner({
     <div>
       <div className="flex flex-wrap items-center gap-2">
         {question.topic.trim() && <Badge tone="neutral">{question.topic}</Badge>}
-        <Pill>{question.marks} {question.marks === 1 ? "mark" : "marks"}</Pill>
-        <span className="text-xs font-medium text-ink-3">{TYPE_LABEL[question.type] ?? question.type}</span>
+        <span className="text-sm text-ink-2 tabular-nums">
+          {question.marks} {question.marks === 1 ? "mark" : "marks"}
+          <span aria-hidden className="mx-1.5 text-ink-3">·</span>
+          {TYPE_LABEL[question.type] ?? question.type}
+        </span>
       </div>
       {showPrompt &&
         (pastPaper ? (
-          <PaperText text={prompt} className="mt-3 text-lg font-semibold leading-snug text-ink" />
+          <PaperText text={prompt} className="mt-4 text-lg font-medium leading-relaxed text-ink" />
         ) : (
-          <p className="mt-3 whitespace-pre-wrap text-lg font-semibold leading-snug text-ink">{prompt}</p>
+          <p className="mt-4 whitespace-pre-wrap text-lg font-medium leading-relaxed text-ink">{prompt}</p>
         ))}
       {showPictures && (
-        <div className="mt-3">
+        <div className="mt-4">
           <PageStack urls={question.attachments!} label={pastPaper ? "The question" : "Question paper"} />
         </div>
       )}
 
-      <div className="mt-5">
+      <div className="mt-6">
         {question.type === "mcq" && pictureChoice && (
           <fieldset>
             <legend className="sr-only">Choose your answer: A, B, C or D</legend>
@@ -127,7 +130,7 @@ function QuestionViewInner({
               aria-label="Your answer"
             />
             {question.showCounter && question.maxLength && (
-              <p className="mt-1.5 text-right text-xs text-ink-3 tabular">
+              <p className="mt-1.5 text-right text-xs tabular-nums text-ink-3">
                 {(answer.text ?? "").length} / {question.maxLength}
               </p>
             )}
@@ -251,9 +254,9 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
                 loading="lazy"
                 decoding="async"
                 alt={`Answer image ${i + 1}`}
-                className="h-32 w-full rounded-lg border border-border bg-surface-2 object-cover"
+                className="h-32 w-full rounded-tile border border-hairline bg-surface-2 object-cover"
               />
-              <span className="absolute left-1.5 top-1.5 rounded bg-paper/80 px-1.5 text-xs font-bold text-ink backdrop-blur tabular">
+              <span className="absolute left-2 top-2 rounded-full bg-paper/85 px-2 text-xs font-bold tabular-nums text-ink">
                 {i + 1}
               </span>
               <button
@@ -261,7 +264,7 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
                 onClick={() => remove(url)}
                 disabled={uploading}
                 aria-label={`Remove image ${i + 1}`}
-                className="absolute right-1 top-1 flex h-11 w-11 disabled:opacity-40 items-center justify-center rounded-md bg-paper/85 text-ink-2 backdrop-blur transition-colors hover:bg-error hover:text-paper"
+                className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full bg-paper/85 text-ink-2 transition-colors duration-150 hover:bg-error hover:text-paper disabled:opacity-40"
               >
                 <Icon.Close className="h-4 w-4" />
               </button>
@@ -285,12 +288,12 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
             disabled={uploading}
             onClick={() => inputRef.current?.click()}
             className={cn(
-              "flex w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed bg-surface text-ink-2 transition-colors disabled:opacity-60",
+              "flex w-full flex-col items-center justify-center gap-2 rounded-tile border-2 border-dashed bg-surface px-5 text-ink-2 transition-colors duration-150 ease-[var(--ease-out)] disabled:opacity-60",
               urls.length ? "min-h-24 py-4" : "min-h-40",
-              dragging ? "border-brand bg-brand-soft/40" : "border-border-strong hover:border-brand hover:bg-brand-soft/40",
+              dragging ? "border-ink-3 bg-surface-2 text-ink" : "border-border-strong hover:border-ink-3 hover:bg-surface-2 hover:text-ink",
             )}
           >
-            <Icon.Camera className="h-7 w-7" />
+            <Icon.Camera className="h-6 w-6" />
             <span className="text-base font-semibold">
               {uploading
                 ? `Uploading ${batchLabel(progress)}`
@@ -300,10 +303,10 @@ function PhotoAnswer({ answer, onChange }: { answer: Answer; onChange: (next: An
             </span>
             {uploading && (
               <span className="h-1.5 w-44 overflow-hidden rounded-full bg-surface-2" aria-hidden>
-                <span className="block h-full rounded-full bg-brand transition-[width] duration-300" style={{ width: `${Math.max(4, progress * 100)}%` }} />
+                <span className="block h-full rounded-full bg-ink-2 transition-[width] duration-200" style={{ width: `${Math.max(4, progress * 100)}%` }} />
               </span>
             )}
-            <span className="text-xs text-ink-3">
+            <span className="text-sm tabular-nums text-ink-3">
               {urls.length
                 ? `${urls.length} of ${MAX_PHOTOS} pages added`
                 : "One clear photo for each page of your working."}

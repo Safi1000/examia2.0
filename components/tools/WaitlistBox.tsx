@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { INTERESTS, type InterestId } from "@/lib/leads";
+import { chip, fieldBox, fieldLabel, goldAction } from "@/components/tools/ToolBits";
 
 const LEVELS = ["O Level", "IGCSE", "AS Level", "A2 Level"];
 const SUBJECTS = ["Accounting", "Business", "Economics"];
@@ -22,8 +23,6 @@ export function WaitlistBox({ source }: { source: string }) {
   const [state, setState] = useState<"idle" | "sending" | "done">("idle");
   const [error, setError] = useState("");
   const toggle = <T,>(list: T[], set: (v: T[]) => void, x: T) => set(list.includes(x) ? list.filter((y) => y !== x) : [...list, x]);
-  const chip = (on: boolean) =>
-    cn("min-h-11 rounded-full border px-4 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold", on ? "border-gold bg-gold text-[#1b1e21]" : "border-hairline-strong text-body hover:border-gold-border");
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -45,37 +44,37 @@ export function WaitlistBox({ source }: { source: string }) {
 
   if (state === "done")
     return (
-      <div className="mt-16 rounded-[20px] border border-gold-border bg-card p-6 md:p-8">
+      <div className="pc-surface mt-16 rounded-card p-5 sm:p-6">
         <p className="text-xl font-semibold text-foreground">You are on the list.</p>
-        <p className="mt-2 text-[15px] text-muted-foreground">I will message you on WhatsApp when there is something new for your subjects. No spam, ever.</p>
+        <p className="mt-2 text-base text-muted-foreground">I will message you on WhatsApp when there is something new for your subjects. No spam, ever.</p>
       </div>
     );
 
   return (
-    <form onSubmit={send} className="mt-16 space-y-5 rounded-[20px] border border-hairline bg-card p-6 md:p-8">
+    <form onSubmit={send} className="pc-surface mt-16 space-y-6 rounded-card p-5 sm:p-6">
       <div>
         <h2 className="text-2xl font-bold leading-tight text-foreground">First to know. Free.</h2>
-        <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">New tools, revision guides and courses are on the way. Tell me what you want and I will message you when it is ready.</p>
+        <p className="mt-2 text-base leading-relaxed text-muted-foreground">New tools, revision guides and courses are on the way. Tell me what you want and I will message you when it is ready.</p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block">
-          <span className="mb-1.5 block text-sm font-semibold text-foreground">First name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" className="h-12 w-full rounded-[12px] border border-hairline-strong bg-card px-4 text-[16px] text-foreground outline-none focus:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold" />
+          <span className={fieldLabel}>First name</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" className={fieldBox} />
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-sm font-semibold text-foreground">WhatsApp number</span>
+          <span className={fieldLabel}>WhatsApp number</span>
           <input
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             type="tel"
             autoComplete="tel"
             placeholder="+92 300 1234567"
-            className="h-12 w-full rounded-[12px] border border-hairline-strong bg-card px-4 text-[16px] text-foreground outline-none placeholder:text-faint focus:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+            className={fieldBox}
           />
         </label>
       </div>
       <fieldset>
-        <legend className="mb-2 text-sm font-semibold text-foreground">Level</legend>
+        <legend className={fieldLabel}>Level</legend>
         <div className="flex flex-wrap gap-2">
           {LEVELS.map((l) => (
             <button key={l} type="button" aria-pressed={level === l} onClick={() => setLevel(l)} className={chip(level === l)}>
@@ -85,7 +84,7 @@ export function WaitlistBox({ source }: { source: string }) {
         </div>
       </fieldset>
       <fieldset>
-        <legend className="mb-2 text-sm font-semibold text-foreground">Subjects</legend>
+        <legend className={fieldLabel}>Subjects</legend>
         <div className="flex flex-wrap gap-2">
           {SUBJECTS.map((s) => (
             <button key={s} type="button" aria-pressed={subjects.includes(s)} onClick={() => toggle(subjects, setSubjects, s)} className={chip(subjects.includes(s))}>
@@ -95,7 +94,7 @@ export function WaitlistBox({ source }: { source: string }) {
         </div>
       </fieldset>
       <fieldset>
-        <legend className="mb-2 text-sm font-semibold text-foreground">Tell me about</legend>
+        <legend className={fieldLabel}>Tell me about</legend>
         <div className="flex flex-wrap gap-2">
           {INTERESTS.map((i) => (
             <button key={i.id} type="button" aria-pressed={interests.includes(i.id)} onClick={() => toggle(interests, setInterests, i.id)} className={chip(interests.includes(i.id))}>
@@ -107,15 +106,15 @@ export function WaitlistBox({ source }: { source: string }) {
       {/* Left empty by people; filled by bots. */}
       <input value={website} onChange={(e) => setWebsite(e.target.value)} tabIndex={-1} autoComplete="off" aria-hidden className="hidden" name="website" />
       {error && (
-        <p role="alert" className="text-[15px] text-error-x">
+        <p role="alert" className="text-sm text-error-x">
           {error}
         </p>
       )}
-      <button type="submit" disabled={state === "sending"} className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] hover:bg-gold-hover disabled:opacity-60 sm:w-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+      <button type="submit" disabled={state === "sending"} className={cn(goldAction, "w-full sm:w-auto")}>
         {state === "sending" ? "Sending…" : "Put me on the list"}
       </button>
-      <p className="text-[13px] text-muted-foreground">
-        Only used to message you about these. See the <Link href="/privacy" className="underline hover:text-gold">privacy policy</Link>.
+      <p className="text-sm text-muted-foreground">
+        Only used to message you about these. See the <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">privacy policy</Link>.
       </p>
     </form>
   );

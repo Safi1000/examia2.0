@@ -19,13 +19,13 @@ export function RadioCard({
   return (
     <label
       className={cn(
-        "flex min-h-[52px] items-center gap-3 rounded-md border px-4 py-3 transition-colors",
+        "flex min-h-[52px] items-center gap-3 rounded-field border px-4 py-3 transition-colors",
         // The real radio is visually hidden, so the card shows the keyboard focus ring.
         "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand",
         disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer",
         checked
-          ? "border-brand bg-brand-soft"
-          : "border-border-strong bg-surface hover:border-brand/50 hover:bg-surface-2",
+          ? "border-white/[0.16] bg-white/[0.09]"
+          : "border-border-strong bg-surface hover:border-ink-3 hover:bg-surface-2",
       )}
     >
       <input

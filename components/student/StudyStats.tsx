@@ -33,12 +33,12 @@ export function StudyStats({ nowMs }: { nowMs: number }) {
   const weekMax = Math.max(1, ...subjects.map(([, m]) => m));
 
   return (
-    <Card className="space-y-6 p-5">
+    <Card className="space-y-6 p-5 sm:p-6">
       <div className="flex items-center gap-4">
         <Avatar id={profile.avatar} initials={initials} level={level.index} className="h-16 w-16 text-xl" />
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink-3">{STUDY_NAME}</p>
-          <p className="text-lg font-extrabold text-ink">
+          <p className="label-quiet text-ink-3">{STUDY_NAME}</p>
+          <p className="text-lg font-bold text-ink">
             {level.name} <span className="text-sm font-medium text-ink-3">· {Math.round(total / 6) / 10} h studied</span>
           </p>
           {level.next ? (
@@ -46,18 +46,18 @@ export function StudyStats({ nowMs }: { nowMs: number }) {
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2" aria-hidden>
                 <div className="h-full rounded-full bg-brand" style={{ width: `${Math.max(3, level.progress * 100)}%` }} />
               </div>
-              <p className="mt-1.5 text-xs text-ink-3">
+              <p className="mt-1.5 text-sm text-ink-3">
                 {Math.ceil(level.toNext)} h to {level.next.name}, and a new avatar frame
               </p>
             </>
           ) : (
-            <p className="mt-1 text-xs text-brand">Top level reached.</p>
+            <p className="mt-1 text-sm text-ink-2">Top level reached.</p>
           )}
         </div>
       </div>
 
       <div>
-        <p className="mb-2 text-sm font-semibold text-ink">Study calendar</p>
+        <p className="mb-2 text-base font-semibold text-ink">Study calendar</p>
         <div className="flex max-w-md gap-[3px]" role="img" aria-label="Study minutes per day for the last 12 weeks">
           {Array.from({ length: WEEKS }, (_, w) => (
             <div key={w} className="flex flex-1 flex-col gap-[3px]">
@@ -76,14 +76,14 @@ export function StudyStats({ nowMs }: { nowMs: number }) {
             </div>
           ))}
         </div>
-        <p className="mt-2 text-xs text-ink-3">
+        <p className="mt-2 text-sm text-ink-3">
           {stats.streak > 1 ? `${stats.streak} day streak. ` : ""}Each square is a day; brighter means more study.
         </p>
       </div>
 
       {subjects.length > 0 && (
         <div>
-          <p className="mb-2 text-sm font-semibold text-ink">This week</p>
+          <p className="mb-2 text-base font-semibold text-ink">This week</p>
           <ul className="space-y-2">
             {subjects.map(([sub, m]) => (
               <li key={sub} className="flex items-center gap-3 text-sm">
@@ -98,7 +98,7 @@ export function StudyStats({ nowMs }: { nowMs: number }) {
         </div>
       )}
 
-      <p className="text-xs text-ink-3">Levels: {LEVELS.map((l) => `${l.name} ${l.hours} h`).join(" · ")}</p>
+      <p className="text-sm text-ink-3">Levels: {LEVELS.map((l) => `${l.name} ${l.hours} h`).join(" · ")}</p>
     </Card>
   );
 }

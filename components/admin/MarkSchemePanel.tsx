@@ -44,8 +44,8 @@ export function MarkSchemePanel({ prompt }: { prompt: string }) {
   // Said plainly, instead of leaving an empty half of the screen beside the answer.
   if (ms === "none" || ms === "failed") {
     return (
-      <section aria-label="Mark scheme" className="min-w-0 rounded-md border border-border bg-surface-2/40 p-4 text-sm text-ink-2">
-        <p className="font-semibold text-ink">Mark scheme</p>
+      <section aria-label="Mark scheme" className="min-w-0 rounded-tile bg-surface-2 p-4 text-sm text-ink-2">
+        <p className="text-base font-semibold text-ink">Mark scheme</p>
         {ms === "none" ? (
           <p className="mt-1">There is no mark scheme on file for {sourceLabel(id)}.</p>
         ) : (
@@ -54,7 +54,7 @@ export function MarkSchemePanel({ prompt }: { prompt: string }) {
             <button
               type="button"
               onClick={() => { setMs(null); setAttempt((n) => n + 1); }}
-              className="mt-2 inline-flex min-h-11 items-center rounded-full border border-border-strong px-4 font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
+              className="mt-3 inline-flex min-h-11 items-center rounded-full border border-border-strong px-4 font-semibold text-ink transition-colors duration-150 hover:border-ink-3 hover:bg-surface"
             >
               Try again
             </button>
@@ -67,17 +67,17 @@ export function MarkSchemePanel({ prompt }: { prompt: string }) {
 
   return (
     <section aria-label={`Mark scheme for ${sourceLabel(id)}`} className="min-w-0 space-y-2">
-      <p className="text-sm font-semibold text-ink">Mark scheme</p>
-      <div ref={box} className="max-h-[26rem] overflow-auto rounded-md border border-border bg-white">
+      <p className="text-base font-semibold text-ink">Mark scheme</p>
+      <div ref={box} className="max-h-[26rem] overflow-auto rounded-tile border border-hairline bg-white">
         {ms ? <PaperImage key={url} url={url} width={1100} alt={`Mark scheme, page ${page}`} loading="eager" /> : <div className="skeleton h-72" aria-busy="true" aria-label="Loading the mark scheme" />}
       </div>
       {ms && (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-ink-3">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
           <button
             type="button"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="h-11 min-w-11 rounded-full border border-border-strong px-3 text-ink-2 transition-colors hover:bg-surface-2 disabled:opacity-40"
+            className="h-11 min-w-11 rounded-full border border-border-strong px-3 text-base text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink disabled:opacity-40"
             aria-label="Previous mark scheme page"
           >
             ‹
@@ -87,7 +87,7 @@ export function MarkSchemePanel({ prompt }: { prompt: string }) {
             type="button"
             onClick={() => setPage((p) => Math.min(ms.pages, p + 1))}
             disabled={page >= ms.pages}
-            className="h-11 min-w-11 rounded-full border border-border-strong px-3 text-ink-2 transition-colors hover:bg-surface-2 disabled:opacity-40"
+            className="h-11 min-w-11 rounded-full border border-border-strong px-3 text-base text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink disabled:opacity-40"
             aria-label="Next mark scheme page"
           >
             ›

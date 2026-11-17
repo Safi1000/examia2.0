@@ -14,6 +14,7 @@ import { GRADE_FLOOR, performanceSnapshot, shownPercent } from "@/lib/performanc
 import { formatDate } from "@/lib/time";
 import { studentSubjects } from "@/components/student/Welcome";
 import { EmptyState, Icon } from "@/components/ui";
+import { buttonClasses } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { ShareMoment } from "@/components/student/ShareMoment";
 import { displayName } from "@/lib/display-name";
@@ -95,27 +96,27 @@ export default function ProgressPage() {
         <>
           {/* 1. Where am I? */}
           <section className="grid gap-3 sm:grid-cols-3">
-            <div className="relative overflow-hidden rounded-xl border border-brand/25 bg-surface bg-[linear-gradient(135deg,rgba(251,193,89,0.13),rgba(251,193,89,0.02)_65%)] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_18px_40px_-24px_rgba(251,193,89,0.3)] sm:col-span-2 sm:p-6">
-              <p className="text-sm font-semibold text-brand">{snap.marked >= 3 ? "On track for" : "Your grade"}</p>
+            <div className="surface relative overflow-hidden rounded-card p-5 sm:col-span-2 sm:p-6">
+              <p className="text-sm font-semibold text-ink-3">{snap.marked >= 3 ? "On track for" : "Your grade"}</p>
               {snap.marked < 3 ? (
                 <div className="mt-2">
                   <div className="flex gap-1.5" aria-hidden>
                     {[0, 1, 2].map((i) => (
-                      <span key={i} className={cn("h-2 w-10 rounded-full", i < snap.marked ? "bg-brand" : "bg-surface-2")} />
+                      <span key={i} className={cn("h-2 w-10 rounded-full", i < snap.marked ? "bg-ink" : "bg-surface-2")} />
                     ))}
                   </div>
                   <p className="mt-3 text-lg font-semibold text-ink">
                     {snap.marked} of 3 tests marked
                   </p>
-                  <p className="text-sm text-ink-3">Your grade shows after three, so one test can’t decide it.</p>
+                  <p className="mt-0.5 text-sm text-ink-3">Your grade shows after three, so one test can’t decide it.</p>
                 </div>
               ) : (
-              <div className="mt-3 flex items-end gap-4">
-                <GradeMedallion grade={snap.grade} size={96} />
-                <div className="pb-1">
-                  <p className="text-lg font-semibold tabular-nums text-ink">{shownPercent(snap.recent)}%</p>
-                  <p className="text-xs text-ink-3">average of your last {Math.min(5, snap.marked)} tests</p>
-                  {overall && <p className="mt-1 text-xs font-semibold text-ink-2">Target {overall}</p>}
+              <div className="mt-4 flex items-center gap-5">
+                <GradeMedallion grade={snap.grade} size={88} />
+                <div>
+                  <p className="text-title font-bold leading-none tracking-[-0.025em] tabular-nums text-ink">{shownPercent(snap.recent)}%</p>
+                  <p className="mt-1.5 text-sm text-ink-2">average of your last {Math.min(5, snap.marked)} tests</p>
+                  {overall && <p className="mt-1 text-sm font-semibold text-ink-2">Target {overall}</p>}
                 </div>
               </div>
               )}
@@ -133,36 +134,36 @@ export default function ProgressPage() {
                 </div>
               )}
             </div>
-            <div className="surface flex items-center justify-between gap-4 rounded-xl px-5 py-4 sm:block sm:p-6">
+            <div className="surface flex items-center justify-between gap-4 rounded-card p-5 sm:block sm:p-6">
               <div>
                 <p className="text-sm font-semibold text-ink-3">Tests done</p>
-                <p className="mt-0.5 text-xs text-ink-3 sm:hidden">{data.setCount - data.handed > 0 ? `${data.setCount - data.handed} missed` : "None missed"}</p>
+                <p className="mt-0.5 text-sm text-ink-3 sm:hidden">{data.setCount - data.handed > 0 ? `${data.setCount - data.handed} missed` : "None missed"}</p>
               </div>
-              <p className="text-3xl font-extrabold tracking-[-0.02em] tabular-nums text-ink sm:mt-2">
+              <p className="text-title font-bold tracking-[-0.025em] tabular-nums text-ink sm:mt-2">
                 {data.handed}
                 <span className="text-lg font-semibold text-ink-3"> / {data.setCount}</span>
               </p>
-              <p className="mt-1 hidden text-xs text-ink-3 sm:block">{data.setCount - data.handed > 0 ? `${data.setCount - data.handed} missed` : "None missed"}</p>
+              <p className="mt-1 hidden text-sm text-ink-3 sm:block">{data.setCount - data.handed > 0 ? `${data.setCount - data.handed} missed` : "None missed"}</p>
             </div>
           </section>
 
           {/* 2. How did each test go? Students come here straight after a result, so it sits under the summary. */}
           <section>
             <SectionTitle count={results.length}>Results</SectionTitle>
-            <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
+            <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
               {results.map(({ test, sub, pct }) => (
                 <li key={sub.id}>
                   <Link href={`/results/${test.id}`} className="row-link flex items-center gap-4 px-5 py-4 sm:px-6">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-hairline bg-surface-2 text-base font-extrabold tracking-[-0.02em] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">{gradeSubmission(test, sub).letter}</span>
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-hairline bg-surface-2 text-base font-bold tracking-[-0.02em] text-ink">{gradeSubmission(test, sub).letter}</span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold text-ink">{test.title}</span>
-                      <span className="mt-0.5 block text-xs text-ink-3 tabular-nums">
+                      <span className="block truncate text-base font-semibold text-ink">{test.title}</span>
+                      <span className="mt-0.5 block text-sm text-ink-3 tabular-nums">
                         {test.subject}
                         {sub.submittedAt ? ` · ${formatDate(sub.submittedAt)}` : ""}
                       </span>
                     </span>
                     <span className="shrink-0 tabular-nums text-sm font-semibold text-ink">{shownPercent(pct)}%</span>
-                    <Icon.ChevronRight className="h-4 w-4 shrink-0 text-ink-3" />
+                    <Icon.ChevronRight className="h-5 w-5 shrink-0 text-ink-3" />
                   </Link>
                 </li>
               ))}
@@ -172,26 +173,26 @@ export default function ProgressPage() {
           {/* 3. Which subject needs me? */}
           <section>
             <SectionTitle>By subject</SectionTitle>
-            <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
+            <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
               {snap.bySubject.map((s) => {
                 const target = targetFor(s.subject);
                 const gap = target ? Math.max(0, Math.ceil(GRADE_FLOOR[target] - s.recent)) : null;
                 return (
-                  <li key={s.subject} className="px-5 py-5 sm:px-6">
+                  <li key={s.subject} className="px-5 py-4 sm:px-6">
                     <div>
                     <div className="flex items-baseline justify-between gap-3">
-                      <p className="min-w-0 truncate font-semibold text-ink">{s.subject}</p>
+                      <p className="min-w-0 truncate text-base font-semibold text-ink">{s.subject}</p>
                       <p className="flex shrink-0 items-baseline gap-2">
                         <span className="text-sm tabular-nums text-ink-3">{shownPercent(s.recent)}%</span>
-                        <span className="w-9 text-right text-2xl font-extrabold leading-none tracking-[-0.02em] text-ink">{s.grade}</span>
+                        <span className="w-9 text-right text-xl font-bold leading-none tracking-[-0.02em] text-ink">{s.grade}</span>
                       </p>
                     </div>
-                    <div className="relative mt-3 h-1.5 rounded-full bg-white/[0.07]" aria-hidden>
-                      <div className="h-full rounded-full bg-brand/80" style={{ width: `${Math.max(2, Math.min(100, s.recent))}%` }} />
+                    <div className="relative mt-3 h-1.5 rounded-full bg-surface-2" aria-hidden>
+                      <div className="h-full rounded-full bg-ink-3" style={{ width: `${Math.max(2, Math.min(100, s.recent))}%` }} />
                       {target && <span className="absolute -top-1 h-3.5 w-0.5 rounded bg-ink" style={{ left: `${GRADE_FLOOR[target]}%` }} />}
                     </div>
                     {target && (
-                      <p className={cn("mt-2 text-xs font-semibold", gap ? "text-warning" : "text-success")}>
+                      <p className={cn("mt-2 text-sm font-semibold", gap ? "text-warning" : "text-success")}>
                         {gap ? `${gap}% to your ${target}` : `On track for ${target}`}
                       </p>
                     )}
@@ -207,16 +208,16 @@ export default function ProgressPage() {
           {/* 4. Which topics? */}
           {(data.weak.length > 0 || data.strong.length > 0) && (
             <section className="grid gap-3 sm:grid-cols-2">
-              <div className="surface rounded-xl p-5 sm:p-6">
+              <div className="surface rounded-card p-5 sm:p-6">
                 <h2 className="text-lg font-bold tracking-[-0.01em] text-ink">Fix these next</h2>
                 {data.weak.length === 0 ? (
-                  <p className="mt-2 text-sm text-ink-2">No weak topics right now. Nice.</p>
+                  <p className="mt-2 text-base text-ink-2">No weak topics right now. Nice.</p>
                 ) : (
                   <ul className="mt-3 space-y-3">
                     {data.weak.map((m, i) => {
                       const notes = notesFor?.(m.subject, m.name) ?? null;
                       const meta = (
-                        <span className="block text-xs text-ink-3 tabular-nums">
+                        <span className="mt-0.5 block text-sm text-ink-3 tabular-nums">
                           {m.subject} · {Math.round(m.percent)}%{notes ? ` · ${notes.label}` : ""}
                         </span>
                       );
@@ -225,12 +226,12 @@ export default function ProgressPage() {
                         {notes ? (
                           // The topic opens its notes; Practise stays beside it.
                           <Link href={notes.href} className="group flex min-h-11 min-w-0 flex-col justify-center">
-                            <span className="block truncate text-sm font-semibold text-ink underline decoration-hairline-strong underline-offset-4 group-hover:decoration-ink-3">{m.name}</span>
+                            <span className="block truncate text-base font-semibold text-ink underline decoration-hairline-strong underline-offset-4 group-hover:decoration-ink-3">{m.name}</span>
                             {meta}
                           </Link>
                         ) : (
                           <span className="min-w-0">
-                            <span className="block truncate text-sm font-semibold text-ink">{m.name}</span>
+                            <span className="block truncate text-base font-semibold text-ink">{m.name}</span>
                             {meta}
                           </span>
                         )}
@@ -240,10 +241,7 @@ export default function ProgressPage() {
                             // "Open the notes for it" opens that note straight away.
                             setPractise({ subject: m.subject, topic: m.name, noteHref: notes?.exact ? notes.href : undefined });
                           }}
-                          className={cn(
-                            "h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition-colors active:scale-[0.98]",
-                            i === 0 ? "bg-brand text-on-brand" : "border border-border-strong text-ink hover:border-brand/60",
-                          )}
+                          className={buttonClasses({ variant: i === 0 ? "primary" : "secondary", size: "sm", className: "shrink-0" })}
                         >
                           Practise
                         </button>
@@ -253,10 +251,10 @@ export default function ProgressPage() {
                   </ul>
                 )}
               </div>
-              <div className="surface rounded-xl p-5 sm:p-6">
+              <div className="surface rounded-card p-5 sm:p-6">
                 <h2 className="text-lg font-bold tracking-[-0.01em] text-ink">Your strengths</h2>
                 {data.strong.length === 0 ? (
-                  <p className="mt-2 text-sm text-ink-2">Topics at 75% or more show here.</p>
+                  <p className="mt-2 text-base text-ink-2">Topics at 75% or more show here.</p>
                 ) : (
                   <ul className="mt-3 flex flex-wrap gap-2">
                     {data.strong.map((m) => (
@@ -273,11 +271,11 @@ export default function ProgressPage() {
         </>
       )}
 
-      <Link href="/groundwork" className="surface-quiet surface-link flex items-center justify-between gap-3 rounded-xl px-5 py-4 text-base text-ink-2 sm:px-6">
+      <Link href="/groundwork" className="surface-quiet surface-link flex items-center justify-between gap-3 rounded-card p-5 text-base text-ink-2 sm:p-6">
         <span>
           Your study time, level and streak are in <span className="font-semibold text-ink">Groundwork</span>
         </span>
-        <Icon.ChevronRight className="h-4 w-4 shrink-0 text-ink-3" />
+        <Icon.ChevronRight className="h-5 w-5 shrink-0 text-ink-3" />
       </Link>
 
       </div>
@@ -291,7 +289,7 @@ export default function ProgressPage() {
 function SyllabusDone({ books }: { books: BookProgress[] }) {
   if (!books.length) return null;
   return (
-    <section className="surface rounded-xl p-5 sm:p-6" aria-labelledby="syl-h">
+    <section className="surface rounded-card p-5 sm:p-6" aria-labelledby="syl-h">
       <div className="flex items-center justify-between gap-3">
         <h2 id="syl-h" className="text-lg font-bold tracking-[-0.01em] text-ink">Chapters covered</h2>
         <Link href="/notes" className="-my-3 -mr-2 inline-flex min-h-11 items-center px-2 text-sm font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline">
@@ -303,16 +301,16 @@ function SyllabusDone({ books }: { books: BookProgress[] }) {
           const pct = b.total ? Math.round((b.covered / b.total) * 100) : 0;
           return (
             <li key={b.key}>
-              <div className="flex items-baseline justify-between gap-3 text-sm">
-                <span className="min-w-0 truncate font-medium text-ink">{b.label}</span>
-                <span className="shrink-0 tabular-nums text-ink-3">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="min-w-0 truncate text-base font-semibold text-ink">{b.label}</span>
+                <span className="shrink-0 text-sm tabular-nums text-ink-3">
                   {b.covered} of {b.total} chapters
                 </span>
               </div>
-              <div className="mt-2 h-1.5 rounded-full bg-white/[0.07]" aria-hidden>
-                <div className="h-full rounded-full bg-brand/80" style={{ width: `${pct > 0 ? Math.max(2, pct) : 0}%` }} />
+              <div className="mt-2 h-1.5 rounded-full bg-surface-2" aria-hidden>
+                <div className="h-full rounded-full bg-ink-3" style={{ width: `${pct > 0 ? Math.max(2, pct) : 0}%` }} />
               </div>
-              {b.latest && <p className="mt-1.5 truncate text-xs text-ink-3">Latest: {b.latest.name}</p>}
+              {b.latest && <p className="mt-1.5 truncate text-sm text-ink-3">Latest: {b.latest.name}</p>}
             </li>
           );
         })}

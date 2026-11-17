@@ -1454,7 +1454,7 @@ class Store {
       opensAt: createdAt,
       closesAt: new Date(now + 7 * 86_400_000).toISOString(),
       createdAt,
-      questions: [...src.questions].sort((a, b) => a.order - b.order).map((q, i) => ({ ...q, id: genId(), order: i })),
+      questions: src.questions.toSorted((a, b) => a.order - b.order).map((q, i) => ({ ...q, id: genId(), order: i })),
     };
     this.commit((d) => d.tests.push(copy));
     if (DEMO) return id;

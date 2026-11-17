@@ -8,6 +8,7 @@ import { clearRunning, loadRunning, minutesToAdd, ownRunning, saveRunning } from
 import { useBackToClose } from "@/components/student/useBackToClose";
 import { AWAY_GRACE_MS, awayFor, awayLabel, creditedAway, hideTip, setFocusRoomOpen, tipHidden } from "@/components/student/focus-away";
 import { cn } from "@/lib/cn";
+import { buttonClasses } from "@/components/ui/Button";
 import { displayName } from "@/lib/display-name";
 import { worldScene, reviewDone, topicKey } from "@/lib/groundwork";
 import { worldFor, type WorldPhase } from "@/lib/groundwork-worlds";
@@ -636,10 +637,10 @@ export default function FocusMode({
   const accent = phase === "rest" ? "#7FD1A6" : "#FBC159";
   const hide = running && idle && pausedLeft == null;
   const fade = cn("transition-opacity duration-700", hide ? "pointer-events-none opacity-0" : "opacity-100");
-  // A light blur everywhere: a heavy one over a moving 3D world is redone on every frame, and that
+  // A solid dark tint, no blur: a blur over a moving 3D world is redone on every frame, and that
   // alone made the room stutter on laptops without a separate graphics card.
-  const glass = "bg-white/[0.10] backdrop-blur-md border border-white/[0.12]";
-  const roundBtn = cn("flex h-11 w-11 items-center justify-center rounded-full text-white/85 transition hover:bg-white/15 hover:text-white active:scale-95", glass);
+  const glass = "bg-paper/70 border border-hairline-strong";
+  const roundBtn = cn("flex h-11 w-11 items-center justify-center rounded-full text-white/85 transition-[background-color,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-paper/90 hover:text-white active:scale-[0.98]", glass);
 
   return (
     <div
@@ -672,7 +673,7 @@ export default function FocusMode({
       >
         {/* Top bar */}
         <div className={cn("flex h-14 shrink-0 items-center justify-between gap-3", fade)}>
-          <p className="min-w-0 truncate text-[11px] font-semibold uppercase tracking-[0.3em] text-white/70">
+          <p className="label-quiet min-w-0 truncate text-white/70">
             {running ? (phase === "rest" ? "Break" : subject) : STUDY_NAME}
           </p>
           {/* The picker hangs from the whole group (right aligned), so on a phone it stays on screen. */}
@@ -702,12 +703,12 @@ export default function FocusMode({
         {phase === "setup" && (
           <div className="flex flex-1 flex-col items-center justify-center pb-8 text-center">
             {mission && (
-              <p className="mb-8 max-w-xs truncate text-[13px] text-white/55">
+              <p className="mb-8 max-w-xs truncate text-sm text-white/60">
                 {mission.tag ? `${mission.tag} · ` : ""}
                 {mission.topic}
               </p>
             )}
-            <label className="relative inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full px-3 text-[15px] font-medium text-white/80 hover:text-white">
+            <label className="relative inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full px-3 text-base font-medium text-white/80 transition-colors duration-150 hover:text-white">
               {subject}
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                 <path d="m6 9 6 6 6-6" />
@@ -729,7 +730,7 @@ export default function FocusMode({
                 +
               </button>
             </div>
-            <p className="mt-3 text-[13px] text-white/45">then a {restMin} minute break</p>
+            <p className="mt-3 text-sm text-white/55">then a {restMin} minute break</p>
             <div role="radiogroup" aria-label="Length" className="mt-5 flex items-center gap-1.5">
               {LENGTHS.map((m) => (
                 <button
@@ -739,8 +740,8 @@ export default function FocusMode({
                   aria-checked={focusMin === m}
                   onClick={() => setFocusMin(m)}
                   className={cn(
-                    "min-h-11 min-w-14 rounded-full px-3 text-[13px] font-medium tabular-nums transition-colors active:scale-[0.97]",
-                    focusMin === m ? "bg-white/[0.16] text-white" : "text-white/50 hover:text-white/80",
+                    "min-h-11 min-w-14 rounded-full px-3 text-sm font-semibold tabular-nums transition-colors duration-150 active:scale-[0.98]",
+                    focusMin === m ? "bg-white/[0.16] text-white" : "text-white/55 hover:text-white/80",
                   )}
                 >
                   {m} min
@@ -755,22 +756,22 @@ export default function FocusMode({
                   role="radio"
                   aria-checked={sound === x.id}
                   onClick={() => setSound(x.id)}
-                  className={cn("min-h-11 rounded-full px-3 text-[13px] transition-colors", sound === x.id ? "font-semibold text-white" : "text-white/40 hover:text-white/75")}
+                  className={cn("min-h-11 rounded-full px-3 text-sm transition-colors duration-150", sound === x.id ? "bg-white/[0.16] font-semibold text-white" : "text-white/55 hover:text-white/80")}
                 >
                   {x.id === "off" ? "Silence" : x.label}
                 </button>
               ))}
             </div>
-            <button type="button" onClick={startBlock} className="mt-8 h-14 w-full max-w-xs rounded-full bg-white text-base font-semibold text-black transition hover:bg-white/90 active:scale-[0.98]">
+            <button type="button" onClick={startBlock} className={buttonClasses({ size: "lg", className: "mt-8 w-full max-w-xs" })}>
               Start
             </button>
             {mission?.noteHref && (
-              <Link href={mission.noteHref} className="mt-3 inline-flex min-h-11 items-center text-[13px] font-medium text-white/60 hover:text-white">
+              <Link href={mission.noteHref} className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-white/70 transition-colors duration-150 hover:text-white">
                 Open the notes first
               </Link>
             )}
             {tip && (
-              <p className="mt-4 flex max-w-xs items-center gap-1 text-left text-[12px] leading-snug text-white/50">
+              <p className="mt-4 flex max-w-xs items-center gap-1 text-left text-xs leading-snug text-white/60">
                 <span>Tip: turn on Do Not Disturb or a Focus mode before you start.</span>
                 <button
                   type="button"
@@ -791,17 +792,17 @@ export default function FocusMode({
         {running && (
           <div className="flex flex-1 flex-col items-center justify-start pt-2" onClick={() => setIdle(false)}>
             {/* A small pill under the top bar, so the world and the builder fill the screen. No blur on touch screens: it would sit over the live 3D canvas. */}
-            <div className="flex h-9 items-center gap-2 rounded-full border border-[rgba(244,241,234,0.16)] bg-[rgba(15,20,32,0.55)] pl-3.5 pr-4 lg:h-10 [@media(pointer:fine)]:backdrop-blur-sm">
+            <div className="flex h-10 items-center gap-2 rounded-full border border-hairline-strong bg-paper/70 pl-3.5 pr-4">
               <span aria-hidden className={cn("h-1.5 w-1.5 shrink-0 rounded-full", pausedLeft != null && "opacity-40")} style={{ background: accent }} />
-              <span className={cn("text-[17px] font-normal leading-none tabular-nums lg:text-[20px]", pausedLeft != null ? "text-ink/60" : "text-ink")} role="timer" aria-live="off">
+              <span className={cn("text-lg font-normal leading-none tabular-nums lg:text-xl", pausedLeft != null ? "text-ink/60" : "text-ink")} role="timer" aria-live="off">
                 {clock(left)}
               </span>
-              <span className="text-[12px] leading-none text-ink/65">{pausedLeft != null ? "paused" : phase === "rest" ? "break" : "left"}</span>
+              <span className="text-xs leading-none text-ink/65">{pausedLeft != null ? "paused" : phase === "rest" ? "break" : "left"}</span>
             </div>
-            {phase === "rest" && <p className="mt-2.5 text-[12px] text-ink/65 [text-shadow:0_1px_8px_rgba(0,0,0,.5)]">Stand up, drink some water</p>}
+            {phase === "rest" && <p className="mt-2.5 text-xs text-ink/65 [text-shadow:0_1px_8px_rgba(0,0,0,.5)]">Stand up, drink some water</p>}
             {phase === "rest" && (
               <figure className="mb-4 mt-auto max-w-sm px-6 pt-6 text-center [text-shadow:0_1px_10px_rgba(0,0,0,.55)]">
-                <blockquote className="text-[15px] leading-snug text-white/80 [text-wrap:balance]">“{quote.text}”</blockquote>
+                <blockquote className="text-base leading-snug text-white/80 [text-wrap:balance]">“{quote.text}”</blockquote>
                 {quote.by && <figcaption className="mt-1 text-xs text-white/40">{quote.by}</figcaption>}
               </figure>
             )}
@@ -810,22 +811,22 @@ export default function FocusMode({
 
         {sheet && (
           <div className="shrink-0 pb-2">
-            <div role="alertdialog" aria-labelledby="gw-away-title" className={cn("away-in mx-auto w-full max-w-sm rounded-[24px] p-5 text-center", glass)}>
-              <p id="gw-away-title" className="text-[15px] font-medium leading-snug text-white [text-wrap:balance]">
+            <div role="alertdialog" aria-labelledby="gw-away-title" className={cn("away-in mx-auto w-full max-w-sm rounded-card p-5 text-center", glass)}>
+              <p id="gw-away-title" className="text-base font-medium leading-snug text-white [text-wrap:balance]">
                 You were away {awayLabel(sheet.ms)}. The builder waited.
               </p>
               <button
                 ref={resumeBtn}
                 type="button"
                 onClick={backAndResume}
-                className="mt-4 h-12 w-full rounded-full bg-brand text-[15px] font-semibold text-black transition hover:bg-brand-strong active:scale-[0.98]"
+                className={buttonClasses({ size: "lg", fullWidth: true, className: "mt-4" })}
               >
                 Resume
               </button>
               <button
                 type="button"
                 onClick={backFromPaper}
-                className="mt-2 h-12 w-full rounded-full border border-white/25 text-[15px] font-semibold text-white transition hover:bg-white/10 active:scale-[0.98]"
+                className={buttonClasses({ variant: "secondary", size: "lg", fullWidth: true, className: "mt-2" })}
               >
                 I was studying on paper
               </button>
@@ -840,12 +841,12 @@ export default function FocusMode({
                 <button type="button" onClick={() => void end()} className={cn(roundBtn, "h-14 w-14")} aria-label="End session">
                   <Glyph.X />
                 </button>
-                <span className="text-[11px] text-white/60">End</span>
+                <span className="text-xs text-white/70">End</span>
               </div>
               <button
                 type="button"
                 onClick={phase === "rest" ? skipBreak : togglePause}
-                className="flex h-[76px] w-[76px] items-center justify-center rounded-full bg-white text-black shadow-[0_18px_40px_-12px_rgba(0,0,0,.6)] transition active:scale-95"
+                className="flex h-[76px] w-[76px] items-center justify-center rounded-full bg-ink text-paper shadow-[0_18px_40px_-12px_rgba(0,0,0,.6)] transition-transform duration-150 ease-[var(--ease-out)] active:scale-[0.98]"
                 aria-label={phase === "rest" ? "Skip the break" : pausedLeft != null ? "Resume" : "Pause"}
               >
                 {phase === "rest" || pausedLeft != null ? <Glyph.Play /> : <Glyph.Pause />}
@@ -859,7 +860,7 @@ export default function FocusMode({
                 >
                   <Glyph.Sound off={sound === "off"} />
                 </button>
-                <span className="text-[11px] text-white/60">{SOUNDS.find((s) => s.id === sound)?.label}</span>
+                <span className="text-xs text-white/70">{SOUNDS.find((s) => s.id === sound)?.label}</span>
               </div>
             </div>
           </div>
@@ -868,27 +869,27 @@ export default function FocusMode({
         {phase === "done" && receipt && (
           <div className="flex flex-1 flex-col items-center gap-6 py-6">
             <div className="text-center">
-              <h2 className="text-[1.75rem] font-semibold tracking-[-0.02em]">Nicely done.</h2>
-              <p className="mt-1 text-sm text-white/70">
+              <h2 className="text-title font-semibold tracking-[-0.025em]">Nicely done.</h2>
+              <p className="mt-2 text-base text-white/75">
                 {mission?.item
                   ? `${receipt.focusedMin} ${receipt.focusedMin === 1 ? "minute" : "minutes"} on ${mission.item.title}. Added to your week.`
                   : `${receipt.focusedMin} minutes of ${subject} added to your week.`}
               </p>
               {mission?.item?.href && (
-                <Link href={mission.item.href} className="mt-2 inline-flex min-h-11 items-center text-[13px] font-medium text-white/60 underline-offset-4 hover:text-white hover:underline">
+                <Link href={mission.item.href} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-white/70 underline-offset-4 hover:text-white hover:underline">
                   {mission.item.kind === "test" ? "Go to the test" : "Go to the homework"}
                 </Link>
               )}
             </div>
 
             {receipt.intention && finished == null && (
-              <div className={cn("w-full max-w-[340px] rounded-[22px] p-4 text-center", glass)}>
-                <p className="text-sm text-white/80">Did you finish it?</p>
+              <div className={cn("w-full max-w-[340px] rounded-card p-5 text-center", glass)}>
+                <p className="text-base text-white/85">Did you finish it?</p>
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => setFinished(true)} className="h-11 rounded-full bg-white text-sm font-semibold text-black active:scale-[0.98]">
+                  <button type="button" onClick={() => setFinished(true)} className={buttonClasses({ variant: "secondary" })}>
                     Yes
                   </button>
-                  <button type="button" onClick={() => setFinished(false)} className="h-11 rounded-full border border-white/20 text-sm font-semibold text-white active:scale-[0.98]">
+                  <button type="button" onClick={() => setFinished(false)} className={buttonClasses({ variant: "secondary" })}>
                     Not yet
                   </button>
                 </div>
@@ -896,10 +897,10 @@ export default function FocusMode({
             )}
 
             {mission && !mission.item && subject === mission.subject && (
-              <div className={cn("w-full max-w-[340px] rounded-[22px] p-4 text-center", glass)}>
-                <p className="text-sm text-white/80">How did {mission.topic} go?</p>
+              <div className={cn("w-full max-w-[340px] rounded-card p-5 text-center", glass)}>
+                <p className="text-base text-white/85">How did {mission.topic} go?</p>
                 {checked ? (
-                  <p className="mt-2 text-sm text-white/70">{checked === "got" ? "Good. It comes back in a few days so it sticks." : "No problem. It's back on your plan tomorrow."}</p>
+                  <p className="mt-2 text-base text-white/75">{checked === "got" ? "Good. It comes back in a few days so it sticks." : "No problem. It's back on your plan tomorrow."}</p>
                 ) : (
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <button
@@ -909,7 +910,7 @@ export default function FocusMode({
                         const key = topicKey(mission.subject, mission.topic);
                         updateProfile((latest) => ({ reviews: reviewDone(latest.reviews, key, Date.now()) }));
                       }}
-                      className="h-11 rounded-full bg-white text-sm font-semibold text-black active:scale-[0.98]"
+                      className={buttonClasses({ variant: "secondary" })}
                     >
                       Got it
                     </button>
@@ -921,7 +922,7 @@ export default function FocusMode({
                         const tomorrow = addDays(pkDate(Date.now()), 1);
                         updateProfile((latest) => ({ reviews: { ...latest.reviews, [key]: { step: latest.reviews?.[key]?.step ?? 0, due: tomorrow } } }));
                       }}
-                      className="h-11 rounded-full border border-white/20 text-sm font-semibold text-white active:scale-[0.98]"
+                      className={buttonClasses({ variant: "secondary" })}
                     >
                       Still shaky
                     </button>
@@ -933,12 +934,12 @@ export default function FocusMode({
             <Receipt r={receipt} />
 
             <div className="flex w-full max-w-[340px] flex-col gap-2 pb-4">
-              <button type="button" onClick={startBlock} className="h-12 rounded-full bg-white text-sm font-semibold text-black active:scale-[0.98]">
+              <button type="button" onClick={startBlock} className={buttonClasses({ size: "lg" })}>
                 Another {focusMin} minutes
               </button>
               <div className="grid grid-cols-2 gap-2">
                 <ShareReceipt r={receipt} scene={scene} />
-                <button type="button" onClick={close} className="h-12 rounded-full border border-white/20 text-sm font-semibold text-white active:scale-[0.98]">
+                <button type="button" onClick={close} className={buttonClasses({ variant: "secondary", size: "lg" })}>
                   Finish
                 </button>
               </div>
@@ -959,7 +960,7 @@ export default function FocusMode({
   );
 }
 
-const S = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
+const S = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.75, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
 const Glyph = {
   X: () => (
     <svg {...S}>

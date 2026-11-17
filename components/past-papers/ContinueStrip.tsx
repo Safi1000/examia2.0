@@ -15,7 +15,7 @@ export function ContinueStrip() {
           Pick up where you left off
         </h2>
         {finished > 0 && (
-          <p className="hidden text-[14px] text-muted-foreground sm:block">
+          <p className="hidden text-sm tabular-nums text-muted-foreground sm:block">
             {finished} {finished === 1 ? "paper" : "papers"} done on this device
           </p>
         )}
@@ -23,9 +23,9 @@ export function ContinueStrip() {
       <ul className="mt-4 flex snap-x gap-3 overflow-x-auto pb-2 [scrollbar-width:none]">
         {recent.map((r) => (
           <li key={r.u} className="w-[240px] shrink-0 snap-start">
-            <Link href={r.u} className="block h-full rounded-[16px] border border-hairline bg-card px-4 py-3.5 transition-colors hover:border-gold-border">
-              <span className="block font-semibold tabular-nums text-foreground">{r.c}</span>
-              <span className="mt-0.5 line-clamp-2 block text-[14px] leading-snug text-muted-foreground">{r.l}</span>
+            <Link href={r.u} className="pc-surface pc-surface-link block h-full rounded-tile px-4 py-3.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+              <span className="block text-base font-semibold tabular-nums text-foreground">{r.c}</span>
+              <span className="mt-0.5 line-clamp-2 block text-sm leading-snug text-muted-foreground">{r.l}</span>
             </Link>
           </li>
         ))}

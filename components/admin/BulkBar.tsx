@@ -74,7 +74,7 @@ function Box({ state }: { state: "none" | "some" | "all" }) {
     <span
       aria-hidden
       className={cn(
-        "flex h-5 w-5 items-center justify-center rounded-[6px] border transition-colors duration-150 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand",
+        "flex h-5 w-5 items-center justify-center rounded-xs border transition-colors duration-150 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand",
         state !== "none" ? "border-ink/80 bg-ink text-paper" : "border-border-strong bg-surface hover:border-ink-3",
       )}
     >
@@ -122,7 +122,7 @@ export function SelectAll({ sel, noun, className }: { sel: Selection; noun: stri
           Select all {sel.total}
         </button>
       )}
-      <span className="hidden text-xs text-ink-3 pointer-fine:inline">Shift-click ticks a range. Esc clears.</span>
+      <span className="hidden text-sm text-ink-3 pointer-fine:inline">Shift-click ticks a range. Esc clears.</span>
     </div>
   );
 }
@@ -218,7 +218,7 @@ export function BulkBar({
       data-toast-avoid
       className="sticky bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-30 mt-3 md:bottom-4"
     >
-      <div className="rounded-2xl border border-border-strong bg-surface-2/95 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_18px_40px_-12px_rgba(0,0,0,0.75)] backdrop-blur animate-fade-up xl:flex xl:items-center xl:gap-2">
+      <div className="rounded-card border border-hairline-strong bg-surface-2 px-3 py-2 shadow-[var(--shadow-lg)] animate-fade-up xl:flex xl:items-center xl:gap-2">
         {/* Phone and tablet: the count and Clear on top, the actions below. Wide laptop: one line. */}
         <div className="flex items-center justify-between gap-2 xl:contents">
           <span className={cn("pl-1 text-sm font-semibold tabular-nums text-ink", !status && "whitespace-nowrap")} aria-live="polite">
@@ -268,7 +268,7 @@ export function BulkBar({
                 <div
                   id={menuId}
                   role="menu"
-                  className="absolute bottom-full right-0 z-40 mb-2 w-64 max-w-full overflow-hidden rounded-xl border border-border-strong bg-surface-2 py-1 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.8)]"
+                  className="absolute bottom-full right-0 z-40 mb-2 w-64 max-w-full overflow-hidden rounded-tile border border-hairline-strong bg-surface-2 py-1 shadow-[var(--shadow-lg)]"
                 >
                   {safe.map((a, i) => (
                     <button
@@ -288,7 +288,7 @@ export function BulkBar({
                       {a.label}
                     </button>
                   ))}
-                  {danger.length > 0 && <div className="my-1 border-t border-border" role="separator" />}
+                  {danger.length > 0 && <div className="my-1 border-t border-hairline" role="separator" />}
                   {danger.map((a) => (
                     <button
                       key={a.id}
@@ -382,8 +382,8 @@ export function ConfirmBulk({
       <div className="space-y-3 text-sm text-ink-2">
         {children}
         {ack && (
-          <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border border-error/30 bg-error-soft px-3 py-2.5 text-ink">
-            <input type="checkbox" checked={acked} onChange={(e) => setAcked(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-error,#e5484d)]" />
+          <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-field border border-error/30 bg-error-soft px-3 py-2.5 text-ink">
+            <input type="checkbox" checked={acked} onChange={(e) => setAcked(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-error)]" />
             <span>{ack}</span>
           </label>
         )}
@@ -526,7 +526,7 @@ export function OneByOne({
             {s.detail && <p className="text-sm tabular-nums text-ink-3">{s.detail}</p>}
           </div>
           {s.message && (
-            <p className="max-h-56 overflow-y-auto whitespace-pre-wrap rounded-md border border-border bg-surface px-3 py-2.5 text-sm leading-relaxed text-ink-2">{s.message}</p>
+            <p className="max-h-56 overflow-y-auto whitespace-pre-wrap rounded-field border border-hairline bg-surface px-3 py-2.5 text-sm leading-relaxed text-ink-2">{s.message}</p>
           )}
           {opened.has(s.id) && <p className="text-sm text-ink-3">Opened. Send it there, then come back for the next one.</p>}
           {/* Progress dots for short runs. */}

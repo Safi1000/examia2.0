@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ratio } from "@/components/tools/calc";
-import { AskHamza, NumberField, Result, amount, fmt, num } from "@/components/tools/ToolBits";
+import { AskHamza, Notice, NumberField, Result, amount, fmt, num } from "@/components/tools/ToolBits";
 
 /**
  * Accounting ratios exactly as the Cambridge IGCSE 0452 and O Level 7707
@@ -83,7 +83,7 @@ export function RatioCalculator() {
         {out.length > 0 ? `${out.length} ${out.length === 1 ? "ratio" : "ratios"} worked out: ${out.map((r) => r.label).join(", ")}.` : ""}
       </p>
       {out.length === 0 ? (
-        <p className="rounded-[16px] border border-hairline bg-card p-5 text-[15px] text-muted-foreground">Fill in the figures you have. Each ratio appears as soon as its figures are in.</p>
+        <Notice>Fill in the figures you have. Each ratio appears as soon as its figures are in.</Notice>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {out.map((r, i) => (

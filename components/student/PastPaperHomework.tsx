@@ -55,14 +55,14 @@ export function PastPaperHomework({ urls }: { urls: string[] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  if (!groups || groups.key !== key) return <div className="skeleton h-40 w-full rounded-lg" aria-busy="true" aria-label="Loading the questions" />;
+  if (!groups || groups.key !== key) return <div className="skeleton h-40 w-full rounded-tile" aria-busy="true" aria-label="Loading the questions" />;
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-ink-2">For a multiple choice question, write its number and your letter: for example, 1 B.</p>
+      <p className="text-base leading-relaxed text-ink-2">For a multiple choice question, write its number and your letter: for example, 1 B.</p>
       {groups.list.map((g) => (
         <section key={g.title} aria-label={g.title}>
-          <h3 className="mb-2 text-sm font-bold text-ink">{g.title}</h3>
+          <h3 className="mb-2 text-sm font-semibold text-ink">{g.title}</h3>
           <PageStack urls={g.urls} label={g.title} />
         </section>
       ))}

@@ -16,6 +16,7 @@ import { TimetableEditor } from "@/components/admin/TimetableEditor";
 import { saveDayChange } from "@/components/ScheduleGate";
 import type { Exception, SubjectKey } from "@/lib/timetable";
 import { Button, Card, Icon, Modal, segmentGroup, segmentItem } from "@/components/ui";
+import { buttonClasses } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { panel } from "@/components/admin/surface";
 import {
@@ -269,11 +270,11 @@ export default function ClassesPage() {
                 />
               </label>
               {date !== today ? (
-                <button type="button" onClick={() => setPicked(today)} className="mx-auto block text-xs font-semibold text-brand hover:underline">
+                <button type="button" onClick={() => setPicked(today)} className="mx-auto block text-sm font-semibold text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline">
                   Back to today
                 </button>
               ) : (
-                <p className="text-xs text-ink-3">Today</p>
+                <p className="text-sm text-ink-3">Today</p>
               )}
             </div>
             <Button variant="ghost" size="sm" onClick={() => step(1)} aria-label="Next class day">
@@ -283,14 +284,14 @@ export default function ClassesPage() {
 
           {!slots.length ? (
             date >= today && date >= getSchedule().termStarts ? (
-              <Card className="flex flex-col items-center gap-3 p-6 text-center">
-                <p className="text-sm text-ink-2">No classes on this day.</p>
+              <Card className="flex flex-col items-center gap-3 p-5 text-center sm:p-6">
+                <p className="text-base text-ink-2">No classes on this day.</p>
                 <Button size="sm" variant="secondary" onClick={() => setExtraFor(date)}>
                   Set up classes on this day
                 </Button>
               </Card>
             ) : (
-              <Card className="p-6 text-center text-sm text-ink-2">
+              <Card className="p-5 text-center text-base text-ink-2 sm:p-6">
                 {date < getSchedule().termStarts
                   ? `Classes start on ${dateLabel(getSchedule().termStarts, "long")}.`
                   : "No classes on this day."}
@@ -298,7 +299,7 @@ export default function ClassesPage() {
             )
           ) : (
             <Card className="overflow-hidden p-0">
-              <ul className="divide-y divide-border">
+              <ul className="divide-y divide-hairline">
                 {slots.map((s) => {
                   const key = slotKey(s);
                   const link = linkFor(s);
@@ -308,13 +309,13 @@ export default function ClassesPage() {
                   const isOpen = openRow === key;
                   return (
                     <li key={key} className={cn(s.cancelled && "opacity-60")}>
-                      <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                      <div className="flex items-center gap-3 px-5 py-3.5 sm:px-6">
                         <span className="w-14 shrink-0 text-sm font-semibold tabular-nums text-ink">{timeLabel(s.start)}</span>
                         <span className="min-w-0 flex-1">
-                          <span className={cn("block truncate font-semibold text-ink", s.cancelled && "line-through")}>
+                          <span className={cn("block truncate text-base font-semibold text-ink", s.cancelled && "line-through")}>
                             {s.subject} <span className="font-normal text-ink-3">· {LEVEL_LABEL[s.level]}</span>
                           </span>
-                          <span className="block text-xs text-ink-3">
+                          <span className="block text-sm text-ink-3">
                             {s.cancelled
                               ? "Cancelled for this day"
                               : phase === "live" && date === today
@@ -325,7 +326,7 @@ export default function ClassesPage() {
                           </span>
                         </span>
                         {phase === "live" && date === today && !s.cancelled && link?.meetUrl && (
-                          <a href={link.meetUrl} target="_blank" rel="noreferrer" className="hidden h-9 items-center rounded-full bg-brand px-4 text-xs font-semibold text-on-brand sm:inline-flex">
+                          <a href={link.meetUrl} target="_blank" rel="noreferrer" className={buttonClasses({ variant: "secondary", size: "sm", className: "max-sm:hidden" })}>
                             Open
                           </a>
                         )}
@@ -333,15 +334,15 @@ export default function ClassesPage() {
                           type="button"
                           onClick={() => setOpenRow(isOpen ? null : key)}
                           aria-expanded={isOpen}
-                          className="h-9 shrink-0 rounded-full px-3 text-xs font-semibold text-ink-3 hover:bg-surface-2 hover:text-ink pointer-coarse:h-11 pointer-coarse:px-4"
+                          className={buttonClasses({ variant: "ghost", size: "sm", className: "shrink-0" })}
                         >
                           {isOpen ? "Close" : "More"}
                         </button>
                       </div>
                       {isOpen && (
-                        <div className="space-y-3 border-t border-border bg-surface-2/40 px-4 py-4 sm:px-5">
+                        <div className="space-y-3 border-t border-hairline bg-surface-2/40 px-5 py-4 sm:px-6">
                           {(s.cancelled || phase === "later") && date >= today && (
-                            <label className="flex min-h-11 items-center gap-2 text-xs text-ink-2 md:min-h-0">
+                            <label className="flex min-h-11 items-center gap-2 text-sm text-ink-2 md:min-h-0">
                               <input type="checkbox" checked={tell} onChange={(e) => setTell(e.target.checked)} className="h-4 w-4 accent-[var(--color-brand)]" />
                               Tell the students in this class if I change it
                             </label>
@@ -398,7 +399,7 @@ export default function ClassesPage() {
                               <div>
                                 <Link
                                   href={`/admin/assignments?set=papers&class=${s.classId}&subject=${s.subjectId}`}
-                                  className="inline-flex h-10 items-center gap-1.5 text-sm font-semibold text-brand hover:underline max-md:h-11"
+                                  className="inline-flex h-10 items-center gap-1.5 text-sm font-semibold text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline max-md:h-11"
                                 >
                                   <Icon.Plus className="h-4 w-4" /> Set homework for this class
                                 </Link>
@@ -422,7 +423,7 @@ export default function ClassesPage() {
                                 />
                               )}
                               {phase !== "later" && who.length > joined && joined > 0 && (
-                                <p className="text-xs text-ink-3">
+                                <p className="text-sm text-ink-3">
                                   Not joined:{" "}
                                   {who
                                     .filter((w) => !isTestAccount(w) && !joins.some((j) => slotKey(j) === key && j.studentId === w.id))
@@ -443,7 +444,7 @@ export default function ClassesPage() {
 
           {noShows.map((n) => (
             <div key={n.level} className={cn(panel, "mt-3 flex flex-wrap items-center justify-between gap-3 px-5 py-3")}>
-              <p className="text-sm text-ink-2">
+              <p className="text-base text-ink-2">
                 {LEVEL_LABEL[n.level]}: {n.who.length === 1 ? "1 student" : `${n.who.length} students`} didn&apos;t join any class today.
               </p>
               <Button
@@ -458,7 +459,7 @@ export default function ClassesPage() {
 
           {lastAbsent && lastAbsent.date === date && (
             <div className={cn(panel, "mt-3 flex flex-wrap items-center justify-between gap-3 px-5 py-3")} role="status">
-              <p className="text-sm text-ink-2">
+              <p className="text-base text-ink-2">
                 {LEVEL_LABEL[lastAbsent.level]}: {lastAbsent.count === 1 ? "1 student" : `${lastAbsent.count} students`} marked absent.
               </p>
               <Button variant="secondary" size="sm" onClick={lastAbsent.undo}>
@@ -667,7 +668,7 @@ function LinkField({
   };
   return (
     <div className="flex items-center gap-2">
-      <span className="w-20 shrink-0 text-xs font-semibold text-ink-3">{label}</span>
+      <span className="label-quiet w-20 shrink-0 text-ink-3">{label}</span>
       <input
         type="url"
         inputMode="url"
@@ -684,7 +685,7 @@ function LinkField({
         onKeyDown={(e) => e.key === "Enter" && void commit(value)}
         onBlur={() => void commit(value)}
         className={cn(
-          "h-10 min-w-0 flex-1 rounded-md border border-border-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3",
+          "h-10 min-w-0 flex-1 rounded-field border border-field bg-surface px-3 text-sm text-ink placeholder:text-ink-3 transition-colors hover:border-ink-2",
           touchField,
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:opacity-60",
         )}
@@ -721,8 +722,8 @@ function DayActions({
   const [moving, setMoving] = useState(false);
   const [start, setStart] = useState(slot.start);
   const [end, setEnd] = useState(slot.end);
-  const small = "h-9 rounded-full px-3 text-xs font-semibold transition-colors pointer-coarse:h-11 pointer-coarse:px-4 disabled:opacity-50";
-  const timeBox = cn("h-9 rounded-md border border-border-strong bg-surface px-2 text-sm text-ink", touchField);
+  const small = "h-10 rounded-full px-3.5 text-sm font-semibold transition-colors pointer-coarse:h-11 pointer-coarse:px-4 disabled:opacity-50";
+  const timeBox = cn("h-10 rounded-field border border-field bg-surface px-2.5 text-sm tabular-nums text-ink", touchField);
   const valid = isTime(start) && isTime(end) && start < end;
   if (moving)
     return (
@@ -734,7 +735,7 @@ function DayActions({
           type="button"
           disabled={!valid || busy}
           aria-busy={busy}
-          className={`${small} bg-brand text-on-brand`}
+          className={buttonClasses({ size: "sm" })}
           onClick={() => void onMove(start, end).then((ok) => ok && setMoving(false))}
         >
           {busy ? "Saving" : "Save"}
@@ -789,14 +790,14 @@ function ExtraClassesSheet({
 }) {
   const levels = useMemo(() => {
     const by = new Map<LevelKey, Array<{ subject: SubjectKey; start: string; end: string }>>();
-    for (const sl of [...getSchedule().slots].sort((a, b) => a.start.localeCompare(b.start)))
+    for (const sl of getSchedule().slots.toSorted((a, b) => a.start.localeCompare(b.start)))
       if (!(by.get(sl.level) ?? []).some((x) => x.subject === sl.subject)) by.set(sl.level, [...(by.get(sl.level) ?? []), { subject: sl.subject, start: sl.start, end: sl.end }]);
     return [...by.entries()].map(([level, list]) => ({ level, list }));
   }, []);
   const [day, setDay] = useState(initial ?? today);
   const [off, setOff] = useState<Set<LevelKey>>(new Set());
   const [starts, setStarts] = useState<Partial<Record<LevelKey, string>>>({});
-  const f = cn("h-10 rounded-md border border-border-strong bg-surface px-2.5 text-sm tabular-nums text-ink", touchField);
+  const f = cn("h-10 rounded-field border border-field bg-surface px-2.5 text-sm tabular-nums text-ink", touchField);
 
   const plan = levels.flatMap(({ level, list }) => {
     if (off.has(level) || !list.length) return [];
@@ -837,7 +838,7 @@ function ExtraClassesSheet({
           <input type="date" className={cn(f, "w-full max-w-[14rem]")} value={day} min={today} onChange={(e) => setDay(e.target.value)} />
           {day && !past && <span className="mt-1.5 block text-sm text-ink-3">{dateLabel(day, "long")}</span>}
         </label>
-        <ul className="divide-y divide-border rounded-lg border border-border">
+        <ul className="divide-y divide-hairline rounded-tile bg-surface-2">
           {levels.map(({ level, list }) => {
             const on = !off.has(level);
             const mine = plan.filter((x) => x.level === level);
@@ -867,7 +868,7 @@ function ExtraClassesSheet({
           })}
         </ul>
         {late && <p className="text-sm text-error">A level would run past midnight. Choose an earlier start.</p>}
-        <p className="text-xs text-ink-3">Students are not messaged. Post an announcement if you want to tell them. The weekly timetable stays as it is.</p>
+        <p className="text-sm text-ink-3">Students are not messaged. Post an announcement if you want to tell them. The weekly timetable stays as it is.</p>
       </div>
     </Modal>
   );
@@ -887,16 +888,16 @@ function ExtraClass({
   const [subject, setSubject] = useState<SubjectKey>("Economics");
   const [start, setStart] = useState("16:00");
   const [end, setEnd] = useState("16:40");
-  const f = cn("h-10 rounded-md border border-border-strong bg-surface px-2.5 text-sm text-ink", touchField);
+  const f = cn("h-10 rounded-field border border-field bg-surface px-2.5 text-sm text-ink", touchField);
   if (!open)
     return (
-      <button type="button" onClick={() => setOpen(true)} className="mt-4 inline-flex h-10 items-center gap-1.5 text-sm font-semibold text-brand hover:underline">
+      <button type="button" onClick={() => setOpen(true)} className="mt-4 inline-flex h-10 items-center gap-1.5 text-sm font-semibold text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline max-md:h-11">
         <Icon.Plus className="h-4 w-4" /> Add an extra class on this day
       </button>
     );
   return (
-    <Card className="mt-4 flex flex-wrap items-center gap-2 p-4">
-      <span className="w-full text-sm font-semibold text-ink">
+    <Card className="mt-4 flex flex-wrap items-center gap-2 p-5 sm:p-6">
+      <span className="w-full text-base font-semibold text-ink">
         Extra class on {dateLabel(date, "short")}
       </span>
       <select className={f} value={level} onChange={(e) => setLevel(e.target.value as LevelKey)} aria-label="Level">

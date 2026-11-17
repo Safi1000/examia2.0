@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, Card, Icon } from "@/components/ui";
+import { Button, Card, Icon, chipClass } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { saveWeekly } from "@/components/ScheduleGate";
 import { useSchedule, useScheduleLoaded } from "@/lib/classes";
@@ -21,7 +21,7 @@ const DAYS = [
 ];
 
 const field =
-  "h-10 rounded-md border border-border-strong bg-surface px-2.5 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-md:h-11 max-md:text-base";
+  "h-10 rounded-field border border-field bg-surface px-2.5 text-sm tabular-nums text-ink transition-colors hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-md:h-11 max-md:text-base";
 
 const LEAVE = "You have timetable changes that aren't saved. Leave them?";
 
@@ -156,7 +156,7 @@ export function TimetableEditor({ onDirtyChange }: { onDirtyChange?: (dirty: boo
           Loading your saved timetable. You can save changes once it is here.
         </p>
       )}
-      <Card className="space-y-4 p-5">
+      <Card className="space-y-4 p-5 sm:p-6">
         <div className="flex flex-wrap items-end gap-4">
           <label className="text-sm">
             <span className="mb-1.5 block font-semibold text-ink">Classes start on</span>
@@ -173,10 +173,7 @@ export function TimetableEditor({ onDirtyChange }: { onDirtyChange?: (dirty: boo
                     type="button"
                     aria-pressed={on}
                     onClick={() => setDraft({ ...draft, days: on ? draft.days.filter((x) => x !== d) : [...draft.days, d].sort() })}
-                    className={cn(
-                      "h-10 min-w-12 rounded-full border px-3 text-sm font-semibold transition-colors pointer-coarse:h-11",
-                      on ? "border-brand bg-brand text-on-brand" : "border-border-strong text-ink-2 hover:text-ink",
-                    )}
+                    className={cn(chipClass(on), "min-w-12 justify-center")}
                   >
                     {label}
                   </button>
@@ -191,16 +188,16 @@ export function TimetableEditor({ onDirtyChange }: { onDirtyChange?: (dirty: boo
         const rows = order.map((i) => ({ s: draft.slots[i], i })).filter(({ s }) => s.level === level);
         return (
           <Card key={level} className="overflow-hidden">
-            <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
-              <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">{LEVEL_LABEL[level]}</h3>
+            <div className="flex items-center justify-between gap-3 border-b border-hairline px-5 py-3.5 sm:px-6">
+              <h3 className="text-base font-semibold tracking-[-0.01em] text-ink">{LEVEL_LABEL[level]}</h3>
               <Button size="sm" variant="ghost" onClick={() => addSlot(level)}>
                 <Icon.Plus className="h-4 w-4" /> Add class
               </Button>
             </div>
-            {rows.length === 0 && <p className="px-5 py-4 text-sm text-ink-3">No classes for this level.</p>}
-            <ul className="divide-y divide-border">
+            {rows.length === 0 && <p className="px-5 py-4 text-base text-ink-3 sm:px-6">No classes for this level.</p>}
+            <ul className="divide-y divide-hairline">
               {rows.map(({ s, i }) => (
-                <li key={i} className="flex flex-wrap items-center gap-2 px-5 py-3">
+                <li key={i} className="flex flex-wrap items-center gap-2 px-5 py-3 sm:px-6">
                   {/* Phones: subject and bin on one line, the two times on the next. */}
                   <select className={cn(field, "min-w-32 max-sm:min-w-0 max-sm:flex-1 max-sm:basis-[calc(100%-3.25rem)]")} value={s.subject} onChange={(e) => setSlot(i, { subject: e.target.value as SubjectKey })} aria-label="Subject">
                     {SUBJECTS.map((x) => (
@@ -229,7 +226,7 @@ export function TimetableEditor({ onDirtyChange }: { onDirtyChange?: (dirty: boo
       })}
 
       {/* Phones: sits above the bottom bar (it used to hide behind it), squared off when it wraps. */}
-      <div data-toast-avoid className="sticky bottom-4 z-10 ml-auto flex w-fit flex-wrap items-center justify-end gap-2 rounded-full border border-border bg-paper/90 p-1.5 shadow-[0_12px_30px_-12px_rgba(0,0,0,0.7)] backdrop-blur-xl max-md:bottom-[calc(5.75rem+env(safe-area-inset-bottom))] max-sm:rounded-[22px]">
+      <div data-toast-avoid className="sticky bottom-4 z-30 ml-auto flex w-fit flex-wrap items-center justify-end gap-2 rounded-full border border-hairline-strong bg-surface p-1.5 shadow-[var(--shadow-lg)] max-md:bottom-[calc(5.75rem+env(safe-area-inset-bottom))] max-sm:rounded-card">
         <Button
           variant="ghost"
           size="sm"

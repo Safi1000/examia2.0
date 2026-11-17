@@ -24,12 +24,13 @@ export function GET(req: NextRequest) {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: "140px 110px",
-          background: "radial-gradient(circle at 80% 10%, #2E2510 0%, #1B1E21 55%)",
+          // Flat warm charcoal: the gold grade is the one bright thing on the card.
+          background: "#1B1E21",
           color: "#F0EDE8",
           fontFamily: "sans-serif",
         }}
       >
-        <div style={{ display: "flex", fontSize: 34, letterSpacing: 8, color: "#FBC159" }}>MY PREDICTED GRADE</div>
+        <div style={{ display: "flex", fontSize: 44, fontWeight: 600, color: "#B0B6BB" }}>My predicted grade</div>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", fontSize: 440, fontWeight: 800, lineHeight: 1, color: "#FBC159" }}>{grade}</div>
           <div style={{ display: "flex", marginTop: 40, fontSize: 64, fontWeight: 700 }}>{subject}</div>

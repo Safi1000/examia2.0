@@ -25,6 +25,8 @@ const SITE = process.env.NOTES_SITE || "https://www.hamzateaches.com";
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, "../../notes/output");
 const STATE = join(ROOT, ".uploaded.json");
+// A note whose name doesn't say its chapter: { "A2/Economics/Efficiency.pdf": "7.3" }
+const CHAPTERS = join(ROOT, ".chapters.json");
 const LEVELS = ["IGCSE and O Level", "AS", "A2"];
 const SUBJECTS = ["Accounting", "Business", "Economics"];
 
@@ -54,6 +56,10 @@ function findKey() {
 
 function listPdfs() {
   const out = [];
+  let pinned = {};
+  try {
+    pinned = JSON.parse(readFileSync(CHAPTERS, "utf8"));
+  } catch {}
   for (const level of LEVELS)
     for (const subject of SUBJECTS) {
       const dir = join(ROOT, level, subject);
@@ -63,7 +69,7 @@ function listPdfs() {
         const path = join(dir, f);
         const rel = relative(ROOT, path);
         if (only.length && !only.some((o) => rel.includes(o))) continue;
-        out.push({ path, rel, level, subject, fileName: f, title: f.replace(/\.pdf$/i, "") });
+        out.push({ path, rel, level, subject, fileName: f, title: typeof pinned[rel] === "string" ? `${pinned[rel]}.` : f.replace(/\.pdf$/i, "") });
       }
     }
   return out;

@@ -47,7 +47,7 @@ export default function LeadsPage() {
   const label = (id: string) => INTERESTS.find((i) => i.id === id)?.label ?? id;
   const { toast } = useToast();
 
-  // Ticked sign-ups: only ever ones the chosen interest shows.
+  // Ticked signups: only ever ones the chosen interest shows.
   const ids = useMemo(() => shown.map((l) => l.id), [shown]);
   const sel = useSelection(ids);
   const chosen = shown.filter((l) => sel.isSelected(l.id));
@@ -108,7 +108,7 @@ export default function LeadsPage() {
         )}
       </div>
       {failed ? (
-        <Card className="p-6 text-sm text-ink-2">
+        <Card className="p-5 text-base text-ink-2 sm:p-6">
           The waitlist didn&apos;t load. Nothing is lost.{" "}
           <button
             type="button"
@@ -117,32 +117,32 @@ export default function LeadsPage() {
               setLeads(null);
               setAttempt((n) => n + 1);
             }}
-            className="inline-flex min-h-11 items-center font-semibold text-brand underline-offset-2 hover:underline"
+            className="inline-flex min-h-11 items-center font-semibold text-ink underline underline-offset-4"
           >
             Try again
           </button>
         </Card>
       ) : leads === null ? (
-        <p className="flex items-center gap-2 text-sm text-ink-3"><Spinner size={16} className="text-brand" /> Loading…</p>
+        <p className="flex items-center gap-2 text-sm text-ink-3"><Spinner size={16} className="text-ink-3" /> Loading…</p>
       ) : shown.length === 0 ? (
         <EmptyState
           icon={<Icon.Users />}
-          title={leads.length ? "Nobody has asked for this one yet." : "No sign-ups yet."}
+          title={leads.length ? "Nobody has asked for this one yet." : "No signups yet."}
           message={leads.length ? undefined : "They appear here from the free tools pages."}
         />
       ) : (
-        <div role="group" aria-label="Sign-ups" onKeyDown={sel.listKeyDown}>
-        <SelectAll sel={sel} noun="sign-up" className="px-5" />
+        <div role="group" aria-label="Signups" onKeyDown={sel.listKeyDown}>
+        <SelectAll sel={sel} noun="signup" className="px-5" />
         <Card className="overflow-hidden p-0">
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-hairline">
             {shown.map((l) => (
-              <li key={l.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm transition-colors hover:bg-white/[0.018]">
+              <li key={l.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm transition-colors hover:bg-white/[0.02]">
                 <RowCheck id={l.id} checked={sel.isSelected(l.id)} onToggle={sel.toggle} label={`Select ${l.name}`} />
                 <span className="min-w-0 flex-1">
-                  <span className="block font-semibold text-ink">
+                  <span className="block text-base font-semibold text-ink">
                     {l.name} <span className="font-normal text-ink-3">· {[l.level, ...l.subjects].filter(Boolean).join(", ")}</span>
                   </span>
-                  <span className="block text-xs text-ink-3">
+                  <span className="block text-sm text-ink-3">
                     {l.interests.map(label).join(" · ") || "No preference"} · from {l.source || "site"} · {new Date(l.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Asia/Karachi" })}
                   </span>
                 </span>

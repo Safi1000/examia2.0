@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Answer, Question } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { useDatabase } from "@/lib/data/store";
-import { Button, Modal, Select, Icon, Badge, Pill } from "@/components/ui";
+import { Button, Modal, Select, Icon, Badge, Pill, chipClass } from "@/components/ui";
 import { QuestionView } from "@/components/student/QuestionView";
 import { PageStack } from "@/components/PageStack";
 import { cn } from "@/lib/cn";
@@ -357,7 +357,7 @@ function Sheet({
               </p>
             ) : !topics ? (
               <div className="space-y-2" aria-busy="true" aria-label="Loading topics">
-                {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton h-12 rounded-lg" />)}
+                {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton h-12 rounded-field" />)}
               </div>
             ) : (
               <>
@@ -366,7 +366,7 @@ function Sheet({
                     ? `${coveredSubs.length} ${coveredSubs.length === 1 ? "topic is" : "topics are"} ticked: the chapters this class has notes for.`
                     : "No notes are out for this class yet, so nothing is ticked. Pick the topics to test."}
                 </p>
-                <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+                <ul className="divide-y divide-hairline overflow-hidden rounded-tile border border-hairline">
                   {topics.map((t) => {
                     const own = t.subs.filter((s) => s.mcq + s.written > 0);
                     if (!own.length) return null;
@@ -381,15 +381,15 @@ function Sheet({
                             type="button"
                             onClick={() => setOpenTopic(expanded ? null : t.num)}
                             aria-expanded={expanded}
-                            className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-md px-2 text-left hover:bg-white/[0.03]"
+                            className="flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-field px-2 text-left transition-colors duration-150 hover:bg-surface-2"
                           >
-                            <span className="min-w-0 flex-1 truncate text-[15px] text-ink"><span className="tabular-nums text-ink-3">{t.num}</span>&nbsp; {t.name}</span>
-                            <span className="shrink-0 text-xs tabular-nums text-ink-3">{on} of {own.length}</span>
+                            <span className="min-w-0 flex-1 truncate text-base text-ink"><span className="tabular-nums text-ink-3">{t.num}</span>&nbsp; {t.name}</span>
+                            <span className="shrink-0 text-sm tabular-nums text-ink-3">{on} of {own.length}</span>
                             <Icon.ChevronRight className={cn("h-4 w-4 shrink-0 text-ink-3 transition-transform duration-200", expanded && "rotate-90")} />
                           </button>
                         </div>
                         {expanded && (
-                          <ul className="border-t border-border bg-paper/40 py-1">
+                          <ul className="border-t border-hairline bg-paper/40 py-1">
                             {own.map((s) => (
                               <li key={s.num} className="flex min-h-11 items-center pl-6 pr-3">
                                 <Tick
@@ -398,7 +398,7 @@ function Sheet({
                                   label={`${s.num} ${s.name}`}
                                   text={<><span className="tabular-nums text-ink-3">{s.num}</span>&nbsp; {s.name}</>}
                                 />
-                                <span className="ml-auto shrink-0 pl-3 text-xs tabular-nums text-ink-3">
+                                <span className="ml-auto shrink-0 pl-3 text-sm tabular-nums text-ink-3">
                                   {[s.mcq ? `${s.mcq} MCQ` : "", s.written ? `${s.written} written` : ""].filter(Boolean).join(" · ")}
                                 </span>
                               </li>
@@ -463,10 +463,7 @@ function Chips({ label, options, value, onChange, empty }: { label: string; opti
             role="radio"
             aria-checked={on}
             onClick={() => onChange(o.value)}
-            className={cn(
-              "min-h-11 rounded-full border px-4 text-[15px] font-semibold transition-colors duration-150",
-              on ? "border-ink/40 bg-white/[0.09] text-ink" : "border-border-strong text-ink-2 hover:bg-surface-2 hover:text-ink",
-            )}
+            className={chipClass(on)}
           >
             {o.label}
           </button>
@@ -495,7 +492,7 @@ function Tick({ checked, mixed, onChange, label, text }: { checked: boolean; mix
           <span className="h-0.5 w-2.5 rounded bg-current" />
         ) : null}
       </span>
-      {text && <span className="min-w-0 text-[15px] text-ink">{text}</span>}
+      {text && <span className="min-w-0 text-base text-ink">{text}</span>}
     </label>
   );
 }
@@ -511,15 +508,15 @@ function TextButton({ onClick, children }: { onClick: () => void; children: Reac
 function Stepper({ label, hint, value, max, onChange }: { label: string; hint: string; value: number; max: number; onChange: (v: number) => void }) {
   const set = (v: number) => onChange(Math.max(0, Math.min(max, v)));
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3">
+    <div className="flex items-center justify-between gap-3 rounded-tile bg-surface-2 px-4 py-3">
       <div className="min-w-0">
-        <p className="text-[15px] font-semibold text-ink">{label}</p>
-        <p className="text-xs text-ink-3">{hint}</p>
+        <p className="text-base font-semibold text-ink">{label}</p>
+        <p className="text-sm text-ink-3">{hint}</p>
       </div>
       <div className="flex shrink-0 items-center gap-1">
-        <button type="button" onClick={() => set(value - 1)} disabled={value <= 0} aria-label={`One less ${label.toLowerCase()}`} className="h-11 w-11 rounded-full text-lg font-semibold text-ink-2 transition-colors hover:bg-surface-2 disabled:opacity-35">−</button>
+        <button type="button" onClick={() => set(value - 1)} disabled={value <= 0} aria-label={`One less ${label.toLowerCase()}`} className="h-11 w-11 rounded-full text-lg font-semibold text-ink-2 transition-colors duration-150 hover:bg-surface hover:text-ink disabled:opacity-35">−</button>
         <span className="w-7 text-center text-lg font-semibold tabular-nums text-ink" aria-live="polite">{value}</span>
-        <button type="button" onClick={() => set(value + 1)} disabled={value >= max} aria-label={`One more ${label.toLowerCase()}`} className="h-11 w-11 rounded-full text-lg font-semibold text-ink-2 transition-colors hover:bg-surface-2 disabled:opacity-35">+</button>
+        <button type="button" onClick={() => set(value + 1)} disabled={value >= max} aria-label={`One more ${label.toLowerCase()}`} className="h-11 w-11 rounded-full text-lg font-semibold text-ink-2 transition-colors duration-150 hover:bg-surface hover:text-ink disabled:opacity-35">+</button>
       </div>
     </div>
   );
@@ -529,7 +526,7 @@ function DateField({ id, label, value, onChange }: { id: string; label: string; 
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-ink-2">{label}</label>
-      <input id={id} type="datetime-local" value={value} onChange={(e) => onChange(e.target.value)} className="h-12 w-full rounded-md border border-border-strong bg-surface px-3 tabular-nums text-ink" />
+      <input id={id} type="datetime-local" value={value} onChange={(e) => onChange(e.target.value)} className="h-12 w-full rounded-field border border-field bg-surface px-3.5 text-base tabular-nums text-ink transition-colors hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand" />
     </div>
   );
 }
@@ -555,9 +552,9 @@ function ReviewItem({
   const question = useMemo(() => ({ ...questionFromBuilt(q), id: `review-${q.id}`, order: index }) as Question, [q, index]);
   const form = q.kind === "written" ? "Written, photo answer" : mode === "homework" || !q.typed ? "Picture with A to D" : "Typed";
   return (
-    <li className="rounded-lg border border-border p-3 sm:p-4">
+    <li className="rounded-tile border border-hairline p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-bold tabular-nums text-ink">Question {index + 1}</span>
+        <span className="text-base font-semibold tabular-nums text-ink">Question {index + 1}</span>
         <Badge tone="neutral">{form}</Badge>
         {q.seen && <Badge tone="warning">Set for this class before</Badge>}
         <span className="ml-auto flex items-center gap-1">
@@ -582,8 +579,8 @@ function ReviewItem({
         </span>
       </div>
       {/* Where it came from: for Hamza only. */}
-      <p className="mt-1 text-xs text-ink-3">{q.label}{q.kind === "written" && q.marks === null ? " · marks to type in the draft" : ""}</p>
-      <div className="mt-3 rounded-lg border border-hairline bg-paper/40 p-3 sm:p-4">
+      <p className="mt-1 text-sm text-ink-3">{q.label}{q.kind === "written" && q.marks === null ? " · marks to type in the draft" : ""}</p>
+      <div className="mt-3 rounded-tile bg-paper/40 p-3 sm:p-4">
         {mode === "test" ? (
           <PastPaperPreview question={question} />
         ) : (
@@ -613,7 +610,7 @@ export function PastPaperPreview({ question }: { question: Question }) {
         <div className="mb-2 flex flex-wrap items-center gap-2">
           {question.topic.trim() && <Badge tone="neutral">{question.topic}</Badge>}
           <Pill>{question.marks > 0 ? `${question.marks} ${question.marks === 1 ? "mark" : "marks"}` : "Marks to type"}</Pill>
-          <span className="text-xs uppercase tracking-wide text-ink-3">Photo answer</span>
+          <span className="text-xs text-ink-3">Photo answer</span>
         </div>
         {question.attachments?.length ? <PageStack urls={question.attachments} label="The question" /> : null}
       </div>

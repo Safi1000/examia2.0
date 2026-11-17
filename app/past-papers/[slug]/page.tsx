@@ -34,8 +34,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+/** One row of the "Keep exploring" list: the same quiet rows as on every other study page. */
 const pill =
-  "inline-flex min-h-11 items-center rounded-full border border-hairline px-4 text-[15px] font-semibold text-foreground transition-colors hover:border-gold-border hover:text-gold";
+  "flex min-h-14 items-center justify-between gap-4 py-3 font-semibold text-foreground transition-colors duration-150 after:shrink-0 after:font-normal after:text-faint after:content-['→'] hover:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
 
 export default async function PastPaperSyllabusPage({ params }: Props) {
   const s = pastPaperSyllabus((await params).slug);
@@ -83,21 +84,21 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
         <div className="mt-8"><Crumbs trail={[{ name: "Home", href: "/" }, { name: "Past papers", href: "/past-papers" }, { name: s.short }]} /></div>
         <h1 className="mt-4 text-4xl font-bold leading-[1.06] tracking-tight text-foreground md:text-5xl">{searchName(s)} past papers</h1>
         {(s.next || s.revised) && (
-          <p className="mt-3 text-[15px] text-muted-foreground">
+          <p className="mt-3 text-base text-muted-foreground">
             {s.next ? `${s.next.code} replaces ${s.code} from ${s.next.from}.` : `New syllabus from ${s.revised}, same code.`}
             {next && (
               <>
                 {" "}
-                <Link href={`/syllabus/${next.slug}`} className="text-gold hover:underline">
+                <Link href={`/syllabus/${next.slug}`} className="font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 hover:decoration-foreground">
                   What changed
                 </Link>
               </>
             )}
           </p>
         )}
-        <p className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-[15px] font-semibold">
+        <p className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-base font-semibold">
           {hasTopical(s.code) && (
-            <Link href={`/past-papers/${s.slug}/topics`} className="text-foreground underline decoration-gold/50 underline-offset-[6px] hover:decoration-gold">
+            <Link href={`/past-papers/${s.slug}/topics`} className="inline-flex min-h-11 items-center text-foreground underline decoration-hairline-strong underline-offset-[6px] transition-colors duration-150 hover:decoration-foreground">
               Revise by topic
             </Link>
           )}
@@ -116,7 +117,7 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
         />
 
         <Section title="Keep exploring">
-          <nav aria-label="Also for this syllabus" className="flex flex-wrap gap-2">
+          <nav aria-label="Also for this syllabus" className="flex flex-col divide-y divide-hairline border-y border-hairline text-lg">
             {others.map((o) => (
               <Link key={o.code} href={`/past-papers/${o.slug}`} className={pill}>
                 {o.level === s.level ? o.short : `${o.level === "AS and A Level" ? "A Level" : o.level} ${o.code}`} papers
@@ -148,7 +149,7 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
             {faq.map((f) => (
               <div key={f.q}>
                 <dt className="font-semibold text-foreground">{f.q}</dt>
-                <dd className="mt-1.5 text-[17px] leading-relaxed text-muted-foreground">{f.a}</dd>
+                <dd className="mt-1.5 text-lg leading-relaxed text-muted-foreground">{f.a}</dd>
               </div>
             ))}
           </dl>

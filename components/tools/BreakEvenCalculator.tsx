@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { breakEven } from "@/components/tools/calc";
-import { AskHamza, NumberField, Result, amount, fmt } from "@/components/tools/ToolBits";
+import { AskHamza, Notice, NumberField, Result, amount, fmt } from "@/components/tools/ToolBits";
 
 /** Break-even, contribution and margin of safety, the way Business papers ask for them. */
 export function BreakEvenCalculator() {
@@ -27,9 +27,7 @@ export function BreakEvenCalculator() {
       </div>
       <div aria-live="polite" className="space-y-8">
         {res && !be && (
-          <p className="rounded-[16px] border border-hairline bg-card p-5 text-[15px] text-body">
-            The price does not cover the variable cost, so every unit sold adds to the loss. There is no break-even point.
-          </p>
+          <Notice>The price does not cover the variable cost, so every unit sold adds to the loss. There is no break-even point.</Notice>
         )}
         {be && (
           <div className="grid gap-3 sm:grid-cols-2">

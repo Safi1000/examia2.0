@@ -26,6 +26,11 @@ import { isPublicPath } from "@/lib/public-paths";
  * the cookie banner (CookieBanner.tsx); everyone else gets it straight away.
  * No <noscript> image, so nothing is sent without that check.
  *
+ * Speed: the pixel (about 210 KB, more than the site's own code) is fetched one
+ * second after the page has finished loading, so it never competes with the
+ * first screen. Hamza's choice (17 Nov 2026), knowing a visit that ends inside
+ * that second is not counted. Accepting the cookie banner still loads it at once.
+ *
  * Never inside the phone app (html[data-app] / HamzaTeachesApp user agent):
  * the app promises the stores no ads tracking, so no Apple tracking prompt is needed.
  */
@@ -63,7 +68,10 @@ s.parentNode.insertBefore(t,s)}(window,document,'script',
 fbq('init', '${META_PIXEL_ID}');
 fbq('track', 'PageView');
 };
-if(!window.__htNeedsConsent||choice==='yes')window.__htLoadPixel();
+if(!window.__htNeedsConsent||choice==='yes'){
+var go=function(){setTimeout(window.__htLoadPixel,1000);};
+if(document.readyState==='complete')go();else window.addEventListener('load',go,{once:true});
+}
 })();`}
       </Script>
     </>

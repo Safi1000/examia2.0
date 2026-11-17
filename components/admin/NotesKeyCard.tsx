@@ -90,10 +90,10 @@ export function NotesKeyCard() {
   return (
     <Card className="max-w-2xl">
       <CardHeader>
-        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Notes from Claude</h2>
+        <h2 className="text-base font-semibold text-ink">Notes from Claude</h2>
       </CardHeader>
       <CardBody className="space-y-4">
-        <p className="text-sm text-ink-2">
+        <p className="text-base text-ink-2">
           Lets Claude on this Mac file finished notes on the right chapter for you. The key can only add notes. It can&apos;t read students, marks or anything else.
         </p>
         {failed && (
@@ -103,7 +103,7 @@ export function NotesKeyCard() {
           </p>
         )}
         {saved && (
-          <p className="rounded-lg border border-border-strong bg-surface-2 px-4 py-3 text-sm text-ink-2">
+          <p className="rounded-tile bg-surface-2 px-4 py-3 text-sm text-ink-2">
             Done. A file called <span className="font-semibold text-ink">{KEY_FILE}</span> was saved to your Downloads. Leave it there and tell Claude it&apos;s ready.
           </p>
         )}
@@ -118,7 +118,7 @@ export function NotesKeyCard() {
               <Button variant="secondary" loading={busy} onClick={() => void make()}>{state.on ? "Make a new key" : "Make upload key"}</Button>
               {state.on && <Button variant="ghost" disabled={busy} onClick={() => void off()}>Switch off</Button>}
             </div>
-            {state.on && <p className="text-xs text-ink-3">A new key replaces the old one, which stops working.</p>}
+            {state.on && <p className="text-sm text-ink-3">A new key replaces the old one, which stops working.</p>}
           </>
         )}
       </CardBody>

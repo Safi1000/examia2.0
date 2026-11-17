@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { cn } from "@/lib/cn";
 import { reducingBalance, straightLine, type DepRow } from "@/components/tools/calc";
-import { AskHamza, NumberField, amount, fieldError, fmt } from "@/components/tools/ToolBits";
+import { AskHamza, NumberField, amount, fieldError, fmt, seg, segGroup } from "@/components/tools/ToolBits";
 
 /** A year-by-year depreciation schedule: straight line or reducing balance. */
 export function DepreciationCalculator() {
@@ -30,7 +29,7 @@ export function DepreciationCalculator() {
 
   return (
     <div className="space-y-8">
-      <div className="inline-flex gap-1 rounded-full border border-hairline bg-card p-1">
+      <div className={segGroup}>
         {(
           [
             ["straight", "Straight line"],
@@ -42,7 +41,7 @@ export function DepreciationCalculator() {
             type="button"
             onClick={() => setMethod(k)}
             aria-pressed={method === k}
-            className={cn("min-h-11 rounded-full px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold", method === k ? "bg-gold text-[#1b1e21]" : "text-body hover:text-foreground")}
+            className={seg(method === k)}
           >
             {l}
           </button>
@@ -66,23 +65,23 @@ export function DepreciationCalculator() {
         {ok ? `Schedule ready: ${rows.length} years, year 1 charge ${fmt(rows[0].charge)}, final net book value ${fmt(rows[rows.length - 1].nbv)}.` : ""}
       </p>
       {ok && (
-        <div className="overflow-x-auto rounded-[16px] border border-hairline">
-          <table className="w-full text-left text-[14px] sm:text-[15px]">
-            <thead className="bg-card-raised text-[13px] text-muted-foreground">
+        <div className="pc-surface overflow-x-auto rounded-tile">
+          <table className="w-full text-left text-sm sm:text-base">
+            <thead className="text-xs text-muted-foreground">
               <tr>
-                <th scope="col" className="px-2 py-3 align-bottom first:pl-3 last:pr-3 sm:px-4">Year</th>
-                <th scope="col" className="px-2 py-3 align-bottom first:pl-3 last:pr-3 sm:px-4">Depreciation charge</th>
-                <th scope="col" className="px-2 py-3 align-bottom first:pl-3 last:pr-3 sm:px-4">Accumulated depreciation</th>
-                <th scope="col" className="px-2 py-3 align-bottom first:pl-3 last:pr-3 sm:px-4">Net book value (carrying amount)</th>
+                <th scope="col" className="px-2 py-3 align-bottom font-semibold first:pl-3 last:pr-3 sm:px-4">Year</th>
+                <th scope="col" className="px-2 py-3 text-right align-bottom font-semibold first:pl-3 last:pr-3 sm:px-4">Depreciation charge</th>
+                <th scope="col" className="px-2 py-3 text-right align-bottom font-semibold first:pl-3 last:pr-3 sm:px-4">Accumulated depreciation</th>
+                <th scope="col" className="px-2 py-3 text-right align-bottom font-semibold first:pl-3 last:pr-3 sm:px-4">Net book value (carrying amount)</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
                 <tr key={row.year} className="border-t border-hairline tabular-nums">
                   <th scope="row" className="py-3 pl-3 pr-2 font-semibold text-foreground sm:px-4">{row.year}</th>
-                  <td className="px-2 py-3 text-body sm:px-4">{fmt(row.charge)}</td>
-                  <td className="px-2 py-3 text-body sm:px-4">{fmt(row.acc)}</td>
-                  <td className="py-3 pl-2 pr-3 text-foreground sm:px-4">{fmt(row.nbv)}</td>
+                  <td className="px-2 py-3 text-right text-body sm:px-4">{fmt(row.charge)}</td>
+                  <td className="px-2 py-3 text-right text-body sm:px-4">{fmt(row.acc)}</td>
+                  <td className="py-3 pl-2 pr-3 text-right font-semibold text-foreground sm:px-4">{fmt(row.nbv)}</td>
                 </tr>
               ))}
             </tbody>

@@ -12,6 +12,7 @@ import { performanceSnapshot } from "@/lib/performance";
 import { buildStudyPlan } from "@/lib/study-plan";
 import { studentSubjects } from "@/components/student/Welcome";
 import { Icon } from "@/components/ui";
+import { buttonClasses } from "@/components/ui/Button";
 import { supabase } from "@/lib/supabase";
 import { DEMO } from "@/lib/demo";
 import type { Mission } from "@/components/student/FocusMode";
@@ -114,11 +115,11 @@ export function StudyBuddy({
             onClick={() => setOpen("mission")}
             className="row-link flex w-full items-center gap-4 px-5 py-3.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand sm:px-6"
           >
-            <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.05] text-ink-2">
-              <Icon.Flag className="h-4 w-4" />
+            <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-2">
+              <Icon.Flag className="h-5 w-5" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block font-semibold text-ink">Today&apos;s mission</span>
+              <span className="block text-base font-semibold text-ink">Today&apos;s mission</span>
               <span className="block truncate text-sm text-ink-2">
                 {mission.topic} <span className="text-ink-3">· {mission.subject} · 25 min</span>
               </span>
@@ -136,7 +137,7 @@ export function StudyBuddy({
         <div className="min-w-0 flex-1">
           <Link
             href="/groundwork"
-            className="block font-semibold text-ink after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-brand"
+            className="block text-base font-semibold text-ink after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-brand"
           >
             {STUDY_NAME}
           </Link>
@@ -152,11 +153,7 @@ export function StudyBuddy({
           type="button"
           onClick={() => setOpen("free")}
           aria-label={`Start a ${STUDY_NAME} focus block`}
-          className={
-            quiet
-              ? "relative inline-flex h-11 shrink-0 items-center gap-1 rounded-full border border-border-strong px-4 text-sm font-semibold text-ink transition hover:border-ink-3 hover:bg-surface-2 active:scale-[0.98]"
-              : "relative inline-flex h-11 shrink-0 items-center gap-1 rounded-full bg-brand px-4 text-sm font-semibold text-on-brand transition hover:brightness-110 active:scale-[0.98]"
-          }
+          className={buttonClasses({ variant: quiet ? "secondary" : "primary", className: "relative shrink-0 gap-1 px-4" })}
         >
           Start <Icon.ChevronRight className="h-4 w-4" />
         </button>

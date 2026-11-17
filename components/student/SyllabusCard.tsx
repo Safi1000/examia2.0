@@ -39,7 +39,7 @@ export function SyllabusCard({ books, index }: { books: BookProgress[]; index: T
   const multiLevel = new Set(books.map((b) => b.level)).size > 1;
 
   return (
-    <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+    <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
       {books.map((b) => {
         const pct = b.total ? Math.round((b.covered / b.total) * 100) : 0;
         // Next in teaching order after the newest chapter out.
@@ -49,25 +49,26 @@ export function SyllabusCard({ books, index }: { books: BookProgress[]; index: T
         const open = openKey === b.key;
         const done = b.chapters.filter((c) => c.out);
         return (
-          <li key={b.key} className="px-5 py-4">
+          <li key={b.key} className="px-5 py-4 sm:px-6">
             <div className="flex items-baseline justify-between gap-3">
-              <p className="min-w-0 truncate text-[16px] font-semibold text-ink">{multiLevel ? `${LEVEL_SHORT[b.level]} ${b.subject}` : b.subject}</p>
+              <p className="min-w-0 truncate text-base font-semibold text-ink">{multiLevel ? `${LEVEL_SHORT[b.level]} ${b.subject}` : b.subject}</p>
               <p className="shrink-0 text-sm tabular-nums text-ink-2">
                 {b.covered} of {b.total} chapters
               </p>
             </div>
-            <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/[0.06]" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${b.subject}: ${pct}% of the syllabus covered`}>
-              <div className="h-full rounded-full bg-brand transition-[width] duration-700" style={{ width: `${Math.max(pct, b.covered ? 3 : 0)}%` }} />
+            <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-surface-2" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${b.subject}: ${pct}% of the syllabus covered`}>
+              <div className="h-full rounded-full bg-brand transition-[width] duration-200 ease-[var(--ease-out)]" style={{ width: `${Math.max(pct, b.covered ? 3 : 0)}%` }} />
             </div>
 
             {b.latest ? (
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="mt-3 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                {/* Phones: always the line, then the button under it, so every subject is laid out the same whatever the chapter name's length. */}
                 <p className="min-w-0 text-sm text-ink-3">
                   Latest: <span className="text-ink-2">{b.latest.name}</span>
                   {next && <span className="hidden sm:inline"> · next up: {next.name}</span>}
                 </p>
                 {latest && (
-                  <Link href={latest.href} className="inline-flex min-h-11 shrink-0 items-center rounded-full bg-brand/12 px-3.5 text-sm font-semibold text-brand transition hover:bg-brand/20">
+                  <Link href={latest.href} className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-border-strong px-4 text-sm font-semibold text-ink transition-colors duration-150 hover:border-ink-3 hover:bg-surface-2">
                     {latest.count} past paper questions
                   </Link>
                 )}
@@ -89,11 +90,11 @@ export function SyllabusCard({ books, index }: { books: BookProgress[]; index: T
                     {done.map((c) => {
                       const t = topicalFor(index, b.paperCode, c.num);
                       return (
-                        <li key={c.num} className="flex min-h-10 items-center gap-3 text-[14px]">
+                        <li key={c.num} className="flex min-h-10 items-center gap-3 text-sm">
                           <span className="w-10 shrink-0 tabular-nums text-ink-3">{c.num}</span>
                           <span className="min-w-0 flex-1 truncate text-ink">{c.name}</span>
                           {t ? (
-                            <Link href={t.href} className="inline-flex min-h-11 shrink-0 items-center text-sm font-medium text-brand hover:underline">
+                            <Link href={t.href} className="inline-flex min-h-11 shrink-0 items-center text-sm font-semibold text-ink-2 hover:text-ink hover:underline">
                               {t.count} questions
                             </Link>
                           ) : (

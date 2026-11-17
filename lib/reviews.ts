@@ -44,7 +44,7 @@ export const VIDEO_REVIEWS: VideoReview[] = [
 export const SHOT_RATIO = 900 / 1524;
 
 export const SHOTS: Shot[] = [
-  { src: "/reviews/armaan.jpg", name: "Armaan", meta: "AS Level", alt: "WhatsApp message from Armaan about his Business classes" },
+  { src: "/reviews/armaan.jpg", name: "Armaan", meta: "AS Level", alt: "WhatsApp message from Armaan: Learning Business under your guidance has been an incredible experience. Before starting this class, I felt a lot of anxiety and doubt... I now feel fully prepared for my exams." },
   { src: "/reviews/talal.jpg", name: "Talal", meta: "O Level", alt: "WhatsApp message from Talal about his Business classes" },
   { src: "/reviews/meerab.jpg", name: "Meerab", meta: "AS Level", alt: "WhatsApp message from Meerab about her classes" },
 ];

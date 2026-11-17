@@ -208,7 +208,7 @@ export const FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: "I'm starting from zero. Is that okay?",
-    a: "Yes. Starting from zero is easier than fixing shaky basics. We start with why a topic exists, then the steps. You won't feel behind.",
+    a: "Yes. Starting from zero is easier than fixing shaky basics. I start with why a topic exists, then the steps. You won't feel behind.",
   },
   {
     q: "I live outside Pakistan. Can I join?",

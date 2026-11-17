@@ -38,9 +38,9 @@ export function TestPdfModal({ open, onClose, test, className }: { open: boolean
   }
 
   const row = (kind: Kind, title: string, text: string) => (
-    <div key={kind} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-surface px-4 py-3">
+    <div key={kind} className="flex flex-wrap items-center justify-between gap-3 rounded-tile bg-surface-2 px-4 py-3">
       <div className="min-w-0 flex-1">
-        <p className="text-[15px] font-semibold text-ink">{title}</p>
+        <p className="text-base font-semibold text-ink">{title}</p>
         <p className="mt-0.5 text-sm text-ink-2">{text}</p>
       </div>
       <Button size="sm" variant={kind === "paper" ? "primary" : "secondary"} onClick={() => void make(kind)} loading={busy === kind} disabled={empty || (busy !== null && busy !== kind)}>

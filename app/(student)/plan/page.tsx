@@ -7,7 +7,9 @@ import { useDatabase } from "@/lib/data/store";
 import { useNow } from "@/hooks/useNow";
 import { studentById, testById } from "@/lib/data/selectors";
 import { buildStudyPlan, EXAMS, type PlanWeek } from "@/lib/study-plan";
+import { cn } from "@/lib/cn";
 import { dueFor } from "@/lib/due";
+import { EXAM_SERIES, daysUntil, examDateLabel, nextExam, paperName } from "@/lib/exam-dates";
 import { formatWhen } from "@/lib/time";
 import { TopicChip } from "@/components/student/TopicChip";
 import { topicNotesFinder } from "@/components/student/topic-notes";
@@ -43,6 +45,8 @@ const PHASE: Record<PlanWeek["phase"], { label: string; tasks: Task[] }> = {
   },
 };
 
+/** "1 h 45 min", "2 h", "45 min". */
+const duration = (m: number) => [m >= 60 ? `${Math.floor(m / 60)} h` : "", m % 60 ? `${m % 60} min` : ""].filter(Boolean).join(" ");
 const weekLabel = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 const taskText = (t: Task) => (typeof t === "string" ? t : t.text);
 /** The day the countdown counts to (the same date the footer names). */
@@ -70,6 +74,7 @@ export default function PlanPage() {
     );
   }
 
+  const paper = nextExam(plan.papers, nowMs);
   const current = plan.weeks.find((w) => w.isCurrent) ?? plan.weeks[0];
   const upcoming = plan.weeks.filter((w) => w.index > current.index);
 
@@ -81,20 +86,59 @@ export default function PlanPage() {
       </PageHeader>
 
       {/* Countdown: one surface, two numbers split by a hairline. */}
-      <div className="surface grid grid-cols-2 divide-x divide-hairline rounded-xl">
-        <div className="px-5 py-5 sm:px-6">
-          <p className="text-sm text-ink-2">Days to exams</p>
-          <p className="mt-1.5 text-[2.75rem] font-extrabold leading-none tracking-[-0.03em] text-brand tabular-nums">{plan.daysLeft}</p>
-          <p className="mt-2 text-xs text-ink-3">Until {examStart({ day: "numeric", month: "short", year: "numeric" })}</p>
+      <div className="surface grid grid-cols-2 divide-x divide-hairline rounded-card">
+        <div className="p-5 sm:p-6">
+          {/* One-line labels on both sides, so the two numbers sit on the same line. */}
+          <p className="text-sm text-ink-2">{paper ? `${plan.papers[0] === paper ? "First" : "Next"} paper in` : "Exams in"}</p>
+          <p className="mt-2 flex items-baseline gap-1.5 text-title-lg font-bold leading-none tracking-[-0.025em] text-brand tabular-nums">
+            {plan.daysLeft}
+            <span className="text-base font-semibold tracking-normal text-ink-2">{plan.daysLeft === 1 ? "day" : "days"}</span>
+          </p>
+          <p className="mt-2 text-sm text-ink-3">
+            {paper ? `${paperName(paper)}, ${examDateLabel(paper.date, nowMs)}` : `Until ${examStart({ day: "numeric", month: "short", year: "numeric" })}`}
+          </p>
         </div>
-        <div className="px-5 py-5 sm:px-6">
-          <p className="text-sm text-ink-2">Weeks left</p>
-          <p className="mt-1.5 text-[2.75rem] font-extrabold leading-none tracking-[-0.03em] text-ink tabular-nums">{plan.weeksLeft}</p>
+        <div className="p-5 sm:p-6">
+          <p className="text-sm text-ink-2">Weeks to go</p>
+          <p className="mt-2 text-title-lg font-bold leading-none tracking-[-0.025em] text-ink tabular-nums">{plan.weeksLeft}</p>
         </div>
       </div>
 
+      {/* Their own papers, in the order they are sat. */}
+      {plan.papers.length > 0 && (
+        <section aria-labelledby="papers-title">
+          <SectionTitle id="papers-title" count={plan.papers.length}>
+            Your papers
+          </SectionTitle>
+          <ol className="surface divide-y divide-hairline overflow-hidden rounded-card">
+            {plan.papers.map((p) => {
+              const d = daysUntil(p.date, nowMs);
+              return (
+                <li key={`${p.level}-${p.subject}-${p.paper}`} className={cn("flex items-center gap-4 px-5 py-3.5 sm:px-6", d < 0 && "opacity-55")}>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-base font-semibold text-ink">{paperName(p)}</span>
+                    {/* Each fact stays whole; the line only ever breaks between facts. */}
+                    <span className="flex flex-wrap gap-x-1.5 text-sm text-ink-2 tabular-nums [&>span]:whitespace-nowrap">
+                      <span>{examDateLabel(p.date, nowMs)}</span>
+                      <span><span aria-hidden className="text-ink-3">· </span>{duration(p.minutes)}</span>
+                      {p.multipleChoice && <span><span aria-hidden className="text-ink-3">· </span>multiple choice</span>}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-right text-sm tabular-nums text-ink-2">
+                    {d < 0 ? "Done" : d === 0 ? <span className="font-semibold text-brand">Today</span> : <><span className="text-base font-bold text-ink">{d}</span> {d === 1 ? "day" : "days"}</>}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="mt-3 text-sm text-ink-3">
+            From {EXAM_SERIES.source}. If your statement of entry shows a different date, that one is right: tell me.
+          </p>
+        </section>
+      )}
+
       {/* This week */}
-      <section className="surface rounded-xl p-5 sm:p-6">
+      <section className="surface rounded-card p-5 sm:p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-lg font-bold tracking-[-0.01em] text-ink">This week</h2>
           <p className="text-sm text-ink-2">
@@ -124,13 +168,13 @@ export default function PlanPage() {
               <li key={t.id} className="flex items-center gap-3 py-3 text-base text-ink">
                 {open ? (
                   <Link href={`/test/${t.id}`} className={rowLink}>
-                    <Icon.Doc className="h-4 w-4 shrink-0 text-ink-2" />
+                    <Icon.Doc className="h-5 w-5 shrink-0 text-ink-2" />
                     <span className="min-w-0 flex-1 font-semibold">Test: {t.title}</span>
-                    <Icon.ChevronRight className="h-4 w-4 shrink-0 text-ink-3" />
+                    <Icon.ChevronRight className="h-5 w-5 shrink-0 text-ink-3" />
                   </Link>
                 ) : (
                   <>
-                    <Icon.Lock className="h-4 w-4 shrink-0 text-ink-3" />
+                    <Icon.Lock className="h-5 w-5 shrink-0 text-ink-3" />
                     <span className="min-w-0 flex-1">
                       <span className="block font-semibold text-ink-2">Test: {t.title}</span>
                       <span className="block text-sm text-ink-3">Opens {formatWhen(opensAt!)}</span>
@@ -143,14 +187,14 @@ export default function PlanPage() {
           {homework.map((a) => (
             <li key={a.id} className="flex items-center gap-3 py-3 text-base text-ink">
               <Link href={`/assignments#a-${a.id}`} className={rowLink}>
-                <Icon.Camera className="h-4 w-4 shrink-0 text-ink-2" />
+                <Icon.Camera className="h-5 w-5 shrink-0 text-ink-2" />
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">Homework: {a.title}</span>
                   <span className="block text-sm text-ink-3">
                     {+new Date(a.dueAt) <= nowMs ? "Overdue since" : "Due"} {formatWhen(a.dueAt)}
                   </span>
                 </span>
-                <Icon.ChevronRight className="h-4 w-4 shrink-0 text-ink-3" />
+                <Icon.ChevronRight className="h-5 w-5 shrink-0 text-ink-3" />
               </Link>
             </li>
           ))}
@@ -159,16 +203,16 @@ export default function PlanPage() {
               {typeof task === "string" ? (
                 <>
                   {/* A plain dot: a reminder, not something to tick off. */}
-                  <span aria-hidden className="flex h-4 w-4 shrink-0 items-center justify-center">
+                  <span aria-hidden className="flex h-5 w-5 shrink-0 items-center justify-center">
                     <span className="h-1.5 w-1.5 rounded-full bg-ink-3" />
                   </span>
                   {task}
                 </>
               ) : (
                 <Link href={task.href} className={rowLink}>
-                  <Icon.Doc className="h-4 w-4 shrink-0 text-ink-2" />
+                  <Icon.Doc className="h-5 w-5 shrink-0 text-ink-2" />
                   <span className="min-w-0 flex-1">{task.text}</span>
-                  <Icon.ChevronRight className="h-4 w-4 shrink-0 text-ink-3" />
+                  <Icon.ChevronRight className="h-5 w-5 shrink-0 text-ink-3" />
                 </Link>
               )}
             </li>
@@ -180,10 +224,10 @@ export default function PlanPage() {
       {upcoming.length > 0 && (
         <section aria-labelledby="ahead">
           <SectionTitle id="ahead">The weeks ahead</SectionTitle>
-          <ol className="surface divide-y divide-hairline overflow-hidden rounded-xl">
+          <ol className="surface divide-y divide-hairline overflow-hidden rounded-card">
             {upcoming.map((w) => (
               <li key={w.index} className="flex flex-col gap-1.5 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                <span className="shrink-0 text-sm text-ink-2">
+                <span className="shrink-0 text-base text-ink-2">
                   <span className="font-semibold text-ink tabular-nums">{weekLabel(w.start)}</span> · {PHASE[w.phase].label}
                 </span>
                 <span className="text-sm text-ink-2 sm:text-right">
@@ -201,9 +245,11 @@ export default function PlanPage() {
         </section>
       )}
 
-      <p className="text-sm text-ink-3">
-        Dates are a guide: the {EXAMS.name} exams are taken to start around {examStart({ day: "numeric", month: "long", year: "numeric" })}. Your own timetable from school wins.
-      </p>
+      {plan.papers.length === 0 && (
+        <p className="text-sm text-ink-3">
+          Dates are a guide. I count down to {examStart({ day: "numeric", month: "long", year: "numeric" })}, roughly when the {EXAMS.name} exams start. Your own exam timetable always wins.
+        </p>
+      )}
       </div>
     </div>
   );

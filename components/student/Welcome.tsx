@@ -17,6 +17,11 @@ import { useBackToClose } from "@/components/student/useBackToClose";
 import { useFocusTrap } from "@/components/student/useFocusTrap";
 import { useInApp } from "@/lib/in-app";
 import { VAPID } from "@/lib/push-client";
+import { Button } from "@/components/ui/Button";
+
+/** A big option tile, chosen: the neutral off-white step. Gold stays for the Next button. */
+const tile = (on: boolean) =>
+  on ? "border-white/[0.16] bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "border-border-strong text-ink-2 hover:border-ink-3 hover:text-ink";
 
 /** The subjects a student takes: their own, else their cohort's, else all. */
 export function studentSubjects(db: Database, student: Student): string[] {
@@ -100,16 +105,16 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
       title: `Welcome, ${first}.`,
       sub: "This is where everything for your classes lives. Here's how it works, in 20 seconds.",
       body: (
-        <ul className="space-y-3">
+        <ul className="surface divide-y divide-hairline rounded-card">
           {[
-            { icon: <NavIcon.Classes active className="h-6 w-6" />, t: "Join class from Home", d: "A gold Join button appears 5 minutes before each class. One tap and you are in." },
-            { icon: <NavIcon.Tests active className="h-6 w-6" />, t: "One list of what's due", d: "Tests and homework show on Home with their deadlines. Tests and Homework each have their own tab, and a gold number means something is waiting." },
-            { icon: <NavIcon.Progress active className="h-6 w-6" />, t: "See where you stand", d: "Your grade, your weak topics and this week's plan, updated after every test." },
+            { icon: <NavIcon.Classes className="h-6 w-6" />, t: "Join class from Home", d: "A gold Join button appears 5 minutes before each class. One tap and you are in." },
+            { icon: <NavIcon.Tests className="h-6 w-6" />, t: "One list of what's due", d: "Tests and homework show on Home with their deadlines. Tests and Homework each have their own tab, and a gold number means something is waiting." },
+            { icon: <NavIcon.Progress className="h-6 w-6" />, t: "See where you stand", d: "Your grade, your weak topics and this week's plan, updated after every test." },
           ].map((x) => (
-            <li key={x.t} className="flex gap-4 rounded-2xl border border-border bg-surface p-4">
-              <span className="mt-0.5 shrink-0">{x.icon}</span>
+            <li key={x.t} className="flex gap-4 px-5 py-4">
+              <span className="mt-0.5 shrink-0 text-ink-2">{x.icon}</span>
               <span>
-                <span className="block font-semibold text-ink">{x.t}</span>
+                <span className="block text-base font-semibold text-ink">{x.t}</span>
                 <span className="mt-0.5 block text-sm text-ink-2">{x.d}</span>
               </span>
             </li>
@@ -130,8 +135,8 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
               aria-label={`Avatar: ${a.label}`}
               onClick={() => setAvatar(a.id)}
               className={cn(
-                "aspect-square rounded-full p-1 transition-all",
-                avatar === a.id ? "scale-105 ring-2 ring-brand ring-offset-2 ring-offset-paper" : "opacity-70 hover:opacity-100",
+                "aspect-square rounded-full p-1 transition-opacity duration-150",
+                avatar === a.id ? "ring-2 ring-ink/80 ring-offset-2 ring-offset-paper" : "opacity-70 hover:opacity-100",
               )}
             >
               <Avatar id={a.id} className="h-full w-full" />
@@ -147,7 +152,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
         <div className="space-y-4">
           {subjects.map((sub) => (
             <div key={sub}>
-              <p className="mb-2 text-sm font-semibold text-ink">{sub}</p>
+              <p className="mb-2 text-base font-semibold text-ink">{sub}</p>
               <div className="grid grid-cols-4 gap-2">
                 {TARGETS.filter((t) => t !== "A*" || !isAsStudent(student.id)).map((t) => (
                   <button
@@ -156,8 +161,8 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
                     aria-pressed={targets[sub] === t}
                     onClick={() => setTargets({ ...targets, [sub]: t })}
                     className={cn(
-                      "h-12 rounded-full border text-base font-bold transition-colors",
-                      targets[sub] === t ? "border-brand bg-brand text-on-brand" : "border-border-strong text-ink-2 hover:text-ink",
+                      "h-12 rounded-full border text-base font-bold transition-colors duration-150 active:scale-[0.98]",
+                      tile(targets[sub] === t),
                     )}
                   >
                     {t}
@@ -181,8 +186,8 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
               aria-pressed={goal === h}
               onClick={() => setGoal(h)}
               className={cn(
-                "h-16 rounded-2xl border text-lg font-bold transition-colors",
-                goal === h ? "border-brand bg-brand text-on-brand" : "border-border-strong text-ink-2 hover:text-ink",
+                "h-16 rounded-tile border text-lg font-bold transition-colors duration-150 active:scale-[0.98]",
+                tile(goal === h),
               )}
             >
               {h} hours
@@ -204,24 +209,25 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
       title: "You're set.",
       sub: "Here's your portal, made for you.",
       body: (
-        <div className="space-y-3">
-          <div className="flex items-center gap-4 rounded-2xl border border-border bg-surface p-4">
+        // One card, a row each, split by hairlines.
+        <div className="surface divide-y divide-hairline rounded-card">
+          <div className="flex items-center gap-4 px-5 py-4">
             <Avatar id={avatar} initials={initials} className="h-14 w-14 text-lg" />
-            <div>
-              <p className="font-semibold text-ink">{name}</p>
+            <div className="min-w-0">
+              <p className="truncate text-base font-semibold text-ink">{name}</p>
               {goal ? <p className="text-sm text-ink-2">{goal} hours of study a week</p> : null}
             </div>
           </div>
           {picked.length > 0 && (
-            <div className="rounded-2xl border border-border bg-surface p-4 text-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink-3">Aiming for</p>
-              <p className="mt-1.5 text-ink">{picked.map((sub) => `${targets[sub]} in ${sub}`).join(" · ")}</p>
+            <div className="px-5 py-4 text-base">
+              <p className="label-quiet text-ink-3">Aiming for</p>
+              <p className="mt-1 text-ink">{picked.map((sub) => `${targets[sub]} in ${sub}`).join(" · ")}</p>
             </div>
           )}
           {nextDay && (
-            <div className="rounded-2xl border border-border bg-surface p-4 text-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-ink-3">Your classes</p>
-              <p className="mt-1.5 text-ink">
+            <div className="px-5 py-4 text-base">
+              <p className="label-quiet text-ink-3">Your classes</p>
+              <p className="mt-1 text-ink">
                 <span className="font-semibold">{nextDayLabel}:</span> {nextDay.slots.map((sl) => sl.subject).join(", ")},{" "}
                 {spanHere(nextDay.date, nextDay.slots[0].start, nextDay.slots[nextDay.slots.length - 1].end)}
               </p>
@@ -242,24 +248,25 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
   }
 
   return (
-    <div ref={dialog} tabIndex={-1} onKeyDown={onKeyDown} role="dialog" aria-modal="true" aria-labelledby="welcome-title" className="fixed inset-0 z-[60] overflow-y-auto overscroll-contain outline-none bg-paper/97 backdrop-blur-xl">
+    <div ref={dialog} tabIndex={-1} onKeyDown={onKeyDown} role="dialog" aria-modal="true" aria-labelledby="welcome-title" className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-paper outline-none">
       <div className="mx-auto flex min-h-dvh max-w-md flex-col px-6 py-10">
         <div className="flex items-center justify-between">
           <div className="flex gap-1.5" aria-hidden>
             {steps.map((_, i) => (
-              <span key={i} className={cn("h-1.5 rounded-full transition-all", i === step ? "w-8 bg-brand" : i < step ? "w-4 bg-brand/50" : "w-4 bg-surface-2")} />
+              <span key={i} className={cn("h-1.5 rounded-full transition-[width,background-color] duration-200 ease-[var(--ease-out)]", i === step ? "w-8 bg-ink" : i < step ? "w-4 bg-ink-3" : "w-4 bg-surface-2")} />
             ))}
           </div>
           <span className="sr-only">
             Step {step + 1} of {steps.length}
           </span>
-          <button type="button" onClick={finish} className="h-11 px-3 text-sm font-semibold text-ink-3 hover:text-ink">
+          {/* Nothing left to skip on the last step: "Open my portal" is the way on. The space is kept so the dots don't move. */}
+          <Button variant="ghost" onClick={finish} className={cn("-mr-3", last && "invisible")} tabIndex={last ? -1 : undefined} aria-hidden={last || undefined}>
             Skip
-          </button>
+          </Button>
         </div>
 
         <div key={step} className="animate-fade-up mt-12 flex-1">
-          <h1 id="welcome-title" ref={heading} tabIndex={-1} className="text-[1.9rem] font-extrabold leading-tight tracking-[-0.02em] text-ink outline-none">
+          <h1 id="welcome-title" ref={heading} tabIndex={-1} className="text-title font-bold tracking-[-0.025em] text-ink outline-none">
             {s.title}
           </h1>
           <p className="mt-2 text-base text-ink-2">{s.sub}</p>
@@ -268,19 +275,15 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
 
         <div className="mt-10 flex gap-3">
           {step > 0 && (
-            <button type="button" onClick={() => setStep(step - 1)} className="h-12 rounded-full border border-border-strong px-6 text-sm font-semibold text-ink">
+            <Button variant="secondary" size="lg" onClick={() => setStep(step - 1)}>
               Back
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
-            onClick={forward}
-            className="h-12 flex-1 rounded-full bg-brand text-base font-semibold text-on-brand transition hover:brightness-110 active:scale-[0.98]"
-          >
+          <Button size="lg" onClick={forward} className="flex-1">
             {last ? "Open my portal" : step === 0 ? "Let's set it up" : "Next"}
-          </button>
+          </Button>
         </div>
-        <p className="mt-4 text-center text-xs text-ink-3">You can change any of this later in Settings.</p>
+        <p className="mt-4 text-center text-sm text-ink-3">You can change any of this later in Settings.</p>
       </div>
     </div>
   );

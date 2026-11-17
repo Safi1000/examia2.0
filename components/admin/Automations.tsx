@@ -71,22 +71,22 @@ export function HealthLine() {
   }
 
   return (
-    <div className="mb-4 space-y-2 rounded-xl border border-warning/30 bg-warning-soft px-5 py-4" role="status">
+    <div className="mb-4 space-y-2 rounded-card border border-warning/30 bg-warning-soft px-5 py-4" role="status">
       {issues.map((i) => (
         <div key={i.kind} className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-ink">{i.text}</p>
           {i.kind === "google" && (
-            <Link href="/admin/classes" className="text-sm font-semibold text-brand hover:underline">
+            <Link href="/admin/classes" className="text-sm font-semibold text-ink underline underline-offset-4">
               Reconnect
             </Link>
           )}
           {i.kind === "links" && (
-            <button type="button" disabled={busy} onClick={() => void makeLinks()} className="text-sm font-semibold text-brand hover:underline disabled:opacity-50">
+            <button type="button" disabled={busy} onClick={() => void makeLinks()} className="text-sm font-semibold text-ink underline underline-offset-4 disabled:opacity-50">
               {busy ? "Working…" : "Make them now"}
             </button>
           )}
           {i.kind === "recording" && (
-            <Link href="/admin/classes" className="text-sm font-semibold text-brand hover:underline">
+            <Link href="/admin/classes" className="text-sm font-semibold text-ink underline underline-offset-4">
               Open Classes
             </Link>
           )}
@@ -141,7 +141,7 @@ export function AutomationSettings() {
   return (
     <Card className="max-w-2xl">
       <CardHeader>
-        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Automations</h2>
+        <h2 className="text-base font-semibold tracking-[-0.01em] text-ink">Automations</h2>
       </CardHeader>
       <CardBody>
         <p className="mb-2 text-sm text-ink-3">
@@ -159,14 +159,14 @@ export function AutomationSettings() {
             </button>
           </div>
         ) : !settings ? (
-          <p className="flex items-center gap-2 py-3 text-sm text-ink-3"><Spinner size={16} className="text-brand" /> Loading…</p>
+          <p className="flex items-center gap-2 py-3 text-sm text-ink-3"><Spinner size={16} className="text-ink-3" /> Loading…</p>
         ) : (
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-hairline">
             {SWITCHES.map((s) => (
               <li key={s.key} className="flex items-start justify-between gap-4 py-4">
                 <span>
-                  <span className="block text-sm font-semibold text-ink">{s.label}</span>
-                  <span className="mt-0.5 block text-xs leading-relaxed text-ink-3">{s.detail}</span>
+                  <span className="block text-base font-semibold text-ink">{s.label}</span>
+                  <span className="mt-0.5 block text-sm leading-relaxed text-ink-3">{s.detail}</span>
                 </span>
                 <button
                   type="button"

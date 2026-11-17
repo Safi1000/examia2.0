@@ -71,11 +71,11 @@ export default function StudentAssignmentsPage() {
           message="When I set homework, it appears here with its due date."
         />
       ) : assignments.length === 0 ? (
-        <div className="surface flex items-center gap-4 rounded-xl px-5 py-4 sm:px-6">
+        <div className="surface flex items-center gap-4 rounded-card p-5 sm:p-6">
           <p className="text-base font-semibold text-ink">All handed in. Nothing to do right now.</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {assignments.map((a) => (
             <AssignmentCard key={a.id} assignment={a} studentId={studentId} lead={a.id === assignments.find((x) => !handedIn(x))?.id} />
           ))}
@@ -84,14 +84,14 @@ export default function StudentAssignmentsPage() {
 
       {done.length > 0 && (
         <details open={doneOpen} onToggle={(e) => setDoneOpen(e.currentTarget.open)} className="group">
-          <summary className="surface surface-link flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-5 text-base font-semibold text-ink sm:px-6 [&::-webkit-details-marker]:hidden">
+          <summary className="surface surface-link flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 rounded-card px-5 text-base font-semibold text-ink sm:px-6 [&::-webkit-details-marker]:hidden">
             <span>
               Done <span className="font-normal text-ink-3 tabular-nums">· {done.length}</span>
             </span>
-            <Icon.ChevronRight className="h-4 w-4 text-ink-3 transition-transform group-open:rotate-90" />
+            <Icon.ChevronRight className="h-5 w-5 text-ink-3 transition-transform duration-200 ease-[var(--ease-out)] group-open:rotate-90" />
           </summary>
           {doneOpen && (
-            <div className="mt-4 space-y-4">
+            <div className="mt-3 space-y-3">
               {done.map((a) => (
                 <AssignmentCard key={a.id} assignment={a} studentId={studentId} />
               ))}
@@ -135,12 +135,31 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
       await store.submitAssignment(assignment.id, studentId, before.filter((u) => u !== url));
       toast(`Page ${i + 1} removed.`, "default", {
         label: "Undo",
-        onClick: () => void store.submitAssignment(assignment.id, studentId, before).catch(() => {}),
+        onClick: () =>
+          void store
+            .submitAssignment(assignment.id, studentId, before)
+            .catch(() => toast("Couldn't put that page back. Check your internet, then add it again.", "error")),
       });
     } catch (err) {
       toast(err instanceof Error ? err.message : "Couldn't remove it. Try again.", "error");
     } finally {
       setRemoving(false);
+    }
+  }
+
+  // Pages that uploaded but didn't save (the hand-in itself failed).
+  const [unsaved, setUnsaved] = useState<string[] | null>(null);
+  async function saveAgain() {
+    if (!unsaved) return;
+    setUploading(true);
+    try {
+      await store.submitAssignment(assignment.id, studentId, unsaved);
+      setUnsaved(null);
+      toast("Handed in.", "success");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Not handed in. Check your internet and try again.", "error");
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -152,6 +171,9 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
     }
     setUploading(true);
     setProgress(0);
+    // The full page list once the photos are up, kept if saving it fails, so a
+    // weak signal at that last step never means uploading everything again.
+    let list: string[] | null = null;
     try {
       const parts = accepted.map(() => 0);
       // Two at a time: ten photos at once on phone data often stalled and failed together.
@@ -174,9 +196,12 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
       const failed = results.length - results.filter((r) => r.status === "fulfilled").length;
       if (!pages.length) throw new Error("Nothing uploaded. Check your internet and try again.");
       if (failed) toast(failed === 1 ? "1 file didn't upload. Add it again." : `${failed} files didn't upload. Add them again.`, "error");
-      await store.submitAssignment(assignment.id, studentId, [...(replace ? [] : (mine?.fileUrls ?? [])), ...pages]);
+      list = [...(replace ? [] : (mine?.fileUrls ?? [])), ...pages];
+      await store.submitAssignment(assignment.id, studentId, list);
+      setUnsaved(null);
       toast(replace ? "Replaced." : "Handed in.", "success");
     } catch (err) {
+      if (list) setUnsaved(list);
       toast(err instanceof Error ? err.message : "Upload failed. Try again.", "error");
     } finally {
       setUploading(false);
@@ -194,7 +219,7 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
           overdue && <Badge tone="warning">Overdue</Badge>
         )}
       </div>
-      <h2 className="mt-1.5 text-lg font-bold leading-snug tracking-[-0.01em] text-ink">{assignment.title}</h2>
+      <h2 className="mt-1.5 text-base font-semibold leading-snug text-ink">{assignment.title}</h2>
       <p className={cn("mt-1 text-sm tabular-nums", overdue && !mine ? "font-semibold text-warning" : "text-ink-2")}>Due {formatWhen(assignment.dueAt)}</p>
       {/* Past paper homework: the line naming the papers is for Hamza only. */}
       {instructions && <p className="mt-3 max-w-[65ch] whitespace-pre-wrap text-base leading-relaxed text-ink-2">{instructions}</p>}
@@ -207,7 +232,7 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
 
       {mine && mine.fileUrls.length > 0 && (
         <div className="mt-5 border-t border-hairline pt-4">
-          <p className="mb-2 text-xs font-semibold text-ink-3 tabular-nums">
+          <p className="mb-2 text-sm tabular-nums text-ink-3">
             Your work · {mine.fileUrls.length} {mine.fileUrls.length === 1 ? "page" : "pages"} · handed in {formatTimestamp(mine.submittedAt)}
           </p>
           <PageStack urls={mine.fileUrls} label="Your work" />
@@ -220,13 +245,13 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
                 replacing.current = true;
                 fileRef.current?.click();
               }}
-              className="mt-2 inline-flex h-11 items-center gap-1.5 rounded-full border border-border-strong px-3 text-xs font-semibold text-ink-2 transition-colors hover:border-brand hover:text-ink disabled:opacity-40"
+              className="mt-3 inline-flex h-11 items-center gap-1.5 rounded-full border border-border-strong px-4 text-sm font-semibold text-ink-2 transition-colors duration-150 hover:border-ink-3 hover:text-ink disabled:opacity-40"
             >
-              <Icon.Refresh className="h-3.5 w-3.5" /> Replace this photo
+              <Icon.Refresh className="h-4 w-4" /> Replace this photo
             </button>
           )}
           {!mine.feedback && mine.fileUrls.length > 1 && (
-            <ul className="mt-2 flex flex-wrap gap-2" aria-label="Remove a page">
+            <ul className="mt-3 flex flex-wrap gap-2" aria-label="Remove a page">
               {mine.fileUrls.map((url, i) => (
                 <li key={url}>
                   <button
@@ -234,9 +259,9 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
                     disabled={uploading || removing}
                     data-url={url}
                     onClick={(e) => void removePage(e)}
-                    className="inline-flex h-11 items-center gap-1.5 rounded-full border border-border-strong px-3 text-xs font-semibold text-ink-2 transition-colors hover:border-error hover:text-error disabled:opacity-40"
+                    className="inline-flex h-11 items-center gap-1.5 rounded-full border border-border-strong px-4 text-sm font-semibold text-ink-2 transition-colors duration-150 hover:border-error hover:text-error disabled:opacity-40"
                   >
-                    <Icon.Close className="h-3.5 w-3.5" /> Remove page {i + 1}
+                    <Icon.Close className="h-4 w-4" /> Remove page {i + 1}
                   </button>
                 </li>
               ))}
@@ -246,7 +271,7 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
       )}
 
       {mine?.feedback && (
-        <div className="mt-4 rounded-lg border border-hairline bg-surface-2/70 px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+        <div className="mt-4 rounded-tile bg-surface-2 p-4">
           <p className="label-quiet text-ink-3">From Hamza</p>
           <p className="mt-1.5 whitespace-pre-wrap text-base leading-relaxed text-ink">{mine.feedback}</p>
         </div>
@@ -282,14 +307,22 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
         {uploading && (
           <div className="mt-2.5 flex items-center gap-2.5" role="status">
             <span className="h-1.5 w-40 overflow-hidden rounded-full bg-surface-2" aria-hidden>
-              <span className="block h-full rounded-full bg-brand transition-[width] duration-300" style={{ width: `${Math.max(4, progress * 100)}%` }} />
+              <span className="block h-full rounded-full bg-ink-2 transition-[width] duration-200" style={{ width: `${Math.max(4, progress * 100)}%` }} />
             </span>
-            <span className="text-xs font-semibold text-ink-2">{progress >= 0.99 ? "Almost done…" : `Uploading ${Math.round(progress * 100)}%`}</span>
+            <span className="text-sm font-semibold tabular-nums text-ink-2">{progress >= 0.99 ? "Almost done…" : `Uploading ${Math.round(progress * 100)}%`}</span>
           </div>
         )}
-        {mine?.feedback && <p className="mt-1.5 text-xs text-ink-3">I&apos;ve already replied. If you add pages, message me so I see them.</p>}
-        {overdue && !mine && <p className="mt-1.5 text-xs text-ink-3">The deadline has passed, but you can still hand it in.</p>}
-        {!mine && !uploading && <p className="mt-1.5 text-xs text-ink-3">Take a clear photo of each page, or pick a PDF. You can add more pages after.</p>}
+        {unsaved && !uploading && (
+          <div role="alert" className="mt-3 rounded-tile border border-warning/35 bg-warning-soft p-4">
+            <p className="text-sm text-ink">Your photos uploaded, but the hand-in didn&apos;t reach me. Check your internet, then tap Try again.</p>
+            <Button variant="secondary" className="mt-3" onClick={() => void saveAgain()}>
+              <Icon.Refresh className="h-4 w-4" /> Try again
+            </Button>
+          </div>
+        )}
+        {mine?.feedback && <p className="mt-2 text-sm text-ink-3">I&apos;ve already replied. If you add pages, message me so I see them.</p>}
+        {overdue && !mine && <p className="mt-2 text-sm text-ink-3">The deadline has passed, but you can still hand it in.</p>}
+        {!mine && !uploading && <p className="mt-2 text-sm text-ink-3">Take a clear photo of each page, or pick a PDF. You can add more pages after.</p>}
       </div>
     </Card>
   );

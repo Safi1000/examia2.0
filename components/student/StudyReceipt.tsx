@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { photoSrc, type Scene } from "@/lib/groundwork";
 import { Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
+import { buttonClasses } from "@/components/ui/Button";
 
 /**
  * The study receipt: a till-roll summary of a Groundwork session (when, what,
@@ -398,30 +399,30 @@ export function ShareReceipt({ r, scene }: { r: ReceiptData; scene?: Scene }) {
         type="button"
         onClick={() => void go()}
         aria-busy={busy}
-        className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white/12 px-5 text-sm font-semibold text-white backdrop-blur-xl transition hover:bg-white/20 active:scale-[0.98]"
+        className={buttonClasses({ variant: "secondary", size: "lg", className: "px-5" })}
       >
         <Icon.Share className="h-4 w-4" />
         {busy ? "Printing…" : failed ? "Try again" : "Share receipt"}
       </button>
       {preview &&
         createPortal(
-          <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Your study receipt" onClick={() => setPreview(null)}>
-            <div className="w-full max-w-sm rounded-[24px] bg-[#1a1d20] p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label="Your study receipt" onClick={() => setPreview(null)}>
+            <div className="w-full max-w-sm rounded-card border border-hairline bg-surface p-5" onClick={(e) => e.stopPropagation()}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={preview} alt="Your study receipt" className="mx-auto max-h-[60dvh] rounded-2xl" />
+              <img src={preview} alt="Your study receipt" className="mx-auto max-h-[60dvh] rounded-tile" />
               <div className="mt-4 grid gap-2">
-                <a ref={save} href={preview} download={file} className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white text-sm font-semibold text-black">
+                <a ref={save} href={preview} download={file} className={buttonClasses({ size: "lg", fullWidth: true })}>
                   <Icon.Download className="h-4 w-4" /> Save image
                 </a>
                 <a
                   href={`https://wa.me/?text=${encodeURIComponent(text)}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex h-12 items-center justify-center rounded-full border border-white/15 text-sm font-semibold text-white"
+                  className={buttonClasses({ variant: "secondary", size: "lg", fullWidth: true })}
                 >
                   Send on WhatsApp
                 </a>
-                <button type="button" onClick={() => setPreview(null)} className="h-11 text-sm text-white/60">
+                <button type="button" onClick={() => setPreview(null)} className={buttonClasses({ variant: "ghost", fullWidth: true })}>
                   Close
                 </button>
               </div>

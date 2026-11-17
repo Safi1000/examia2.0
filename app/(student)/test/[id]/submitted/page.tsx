@@ -23,9 +23,9 @@ export default function SubmittedPage() {
 
   if (!student || !test || !submission) {
     return (
-      <div className="mx-auto max-w-md px-5 py-16 text-center text-ink-2">
+      <div className="mx-auto max-w-md px-5 py-16 text-center text-base text-ink-2">
         Nothing to show here.{" "}
-        <Link href="/dashboard" className="inline-flex min-h-11 items-center font-semibold text-brand underline">Back to Home</Link>
+        <Link href="/dashboard" className="inline-flex min-h-11 items-center font-semibold text-ink underline underline-offset-4 hover:text-ink-2">Back to Home</Link>
       </div>
     );
   }
@@ -34,18 +34,18 @@ export default function SubmittedPage() {
   const next = nextOpenTest(db, student, test.id);
 
   const answered = submission.answers.filter((a) =>
-    a.type === "mcq" ? typeof a.selectedIndex === "number" : a.type === "text" ? !!a.text?.trim() : !!a.photoDataUrl,
+    a.type === "mcq" ? typeof a.selectedIndex === "number" : a.type === "text" ? !!a.text?.trim() : !!(a.photoUrls?.length || a.photoDataUrl),
   ).length;
 
   return (
     <div className="mx-auto max-w-md px-5 pb-16 pt-12">
       <div className="rise">
       <div className="text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-success/25 bg-success-soft text-success shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_30px_-14px_rgba(111,187,168,0.45)]">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-success/25 bg-success-soft text-success">
           <Icon.Check className="h-8 w-8" />
         </div>
-        <h1 className="mt-5 text-[2rem] font-extrabold leading-none tracking-[-0.03em] text-ink">Done.</h1>
-        <p className="mt-2.5 text-base text-ink-2">
+        <h1 className="mt-5 text-title font-bold tracking-[-0.025em] text-ink sm:text-title-lg">Done.</h1>
+        <p className="mt-2 text-base leading-relaxed text-ink-2">
           {submission.autoSubmitted ? "Time ran out, so I handed it in for you." : "Your answers are saved. Sit tight."}
         </p>
       </div>
@@ -57,7 +57,7 @@ export default function SubmittedPage() {
           <span className="font-semibold text-ink tabular-nums">{answered} / {test.questions.length}</span>
         </Row>
         )}
-        <Row label="Submitted at">
+        <Row label="Handed in at">
           <span className="text-right text-ink tabular-nums">{submission.submittedAt ? formatTimestamp(submission.submittedAt) : "Not yet"}</span>
         </Row>
         {/* Unknown (an older paper): leave the row out rather than say "0s". */}
@@ -70,12 +70,12 @@ export default function SubmittedPage() {
           {submission.autoSubmitted ? (
             <Badge tone="warning">Handed in at time up</Badge>
           ) : (
-            <Badge tone="success">Submitted</Badge>
+            <Badge tone="success">Handed in</Badge>
           )}
         </Row>
       </Card>
 
-      <p className="mt-6 text-center text-base text-ink-2">
+      <p className="mt-6 text-center text-base leading-relaxed text-ink-2">
         I&apos;ll mark this and release your result soon.
         {days != null && (
           <span className="mt-1 block font-semibold text-ink">
@@ -85,11 +85,11 @@ export default function SubmittedPage() {
       </p>
 
       {next ? (
-        <Link href={`/test/${next.id}`} className={buttonClasses({ fullWidth: true, className: "mt-4" })}>
+        <Link href={`/test/${next.id}`} className={buttonClasses({ size: "lg", fullWidth: true, className: "mt-6" })}>
           Next: {next.title}
         </Link>
       ) : (
-        <Link href="/notes" className={buttonClasses({ fullWidth: true, className: "mt-4" })}>
+        <Link href="/notes" className={buttonClasses({ size: "lg", fullWidth: true, className: "mt-6" })}>
           Revise in Notes while you wait
         </Link>
       )}
@@ -129,7 +129,7 @@ function nextOpenTest(db: Database, student: Student, currentId: string) {
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 px-5 py-4 text-base">
-      <span className="text-ink-2">{label}</span>
+      <span className="shrink-0 text-ink-2">{label}</span>
       {children}
     </div>
   );

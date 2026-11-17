@@ -100,7 +100,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       {children}
       {state && (
         <div
-          className="landing-portal fixed inset-0 z-[100] flex items-end justify-center bg-[rgba(0,0,0,0.7)] backdrop-blur-sm sm:items-center sm:p-6"
+          className="landing-portal fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-6"
           onClick={(e) => {
             if (e.target === e.currentTarget) requestClose();
           }}
@@ -110,20 +110,20 @@ export function BookingProvider({ children }: { children: ReactNode }) {
             role="dialog"
             aria-modal="true"
             aria-labelledby="booking-title"
-            className="relative flex max-h-[92dvh] w-full max-w-2xl flex-col rounded-t-[24px] border border-hairline bg-card sm:rounded-[24px]"
+            className="relative flex max-h-[92dvh] w-full max-w-2xl flex-col rounded-t-card border border-hairline bg-card sm:rounded-card"
           >
             <div className="flex items-start justify-between gap-4 border-b border-hairline px-6 py-5 md:px-8">
               <div>
-                <h2 id="booking-title" className="text-xl font-bold text-foreground md:text-2xl">
+                <h2 id="booking-title" className="text-xl font-bold text-ink">
                   Book your free trial lesson
                 </h2>
-                <p className="mt-1 text-[15px] text-muted-foreground">Pick what suits you. I confirm on WhatsApp.</p>
+                <p className="mt-1 text-base text-muted-foreground">Pick what suits you. I confirm on WhatsApp.</p>
               </div>
               <button
                 type="button"
                 aria-label="Close"
                 onClick={requestClose}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-faint hover:bg-card-raised hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-faint transition-colors duration-200 hover:bg-card-raised hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
                   <path d="M2 2l10 10M12 2L2 12" />

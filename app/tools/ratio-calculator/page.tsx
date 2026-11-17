@@ -51,7 +51,7 @@ export default function RatioCalculatorPage() {
         topicLink("7707", "6.1"),
       ].filter((l) => l !== null)}
       how={
-        <div className="space-y-3 text-[17px] leading-relaxed text-body">
+        <div className="space-y-3 text-lg leading-relaxed text-body">
           <p>These are the formulas from the accounting ratios appendix of the Cambridge IGCSE Accounting 0452 syllabus, which O Level 7707 shares:</p>
           <ul className="list-disc space-y-1.5 pl-5">
             <li>Gross margin = gross profit ÷ revenue × 100</li>

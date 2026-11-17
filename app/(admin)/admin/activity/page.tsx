@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useDatabase } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
-import { archivedCohortIds, cohortById } from "@/lib/data/selectors";
+import { archivedCohortIds, cohortById, joinedMs } from "@/lib/data/selectors";
 import { displayName, isTestAccount } from "@/lib/display-name";
 import { useNow } from "@/hooks/useNow";
 import { addDays, pkDate } from "@/lib/timetable";
@@ -84,7 +84,8 @@ export default function ActivityPage() {
     return { secs, active, areas, topNotes, notesOpened: readers.size };
   }, [rows, from, today, db.notes]);
 
-  const quiet = rows.filter((r) => daysAgo(r.seen, nowMs) >= 7).sort((a, b) => (a.seen ?? 0) - (b.seen ?? 0));
+  // A student added this week can't have gone quiet yet ("never signed in" would be unfair on day one).
+  const quiet = rows.filter((r) => daysAgo(r.seen, nowMs) >= 7 && nowMs - joinedMs(r.s) >= 7 * 864e5).sort((a, b) => (a.seen ?? 0) - (b.seen ?? 0));
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -117,18 +118,18 @@ export default function ActivityPage() {
             </button>
           ))}
         </div>
-        {from < TRACKING_SINCE && <span className="text-xs text-ink-3">Counted from {trackedFrom}, when tracking began</span>}
+        {from < TRACKING_SINCE && <span className="text-sm text-ink-3">Counted from {trackedFrom}, when tracking began</span>}
       </div>
 
       {error ? (
-        <Card className="p-6 text-sm text-ink-2">
+        <Card className="p-5 text-base text-ink-2 sm:p-6">
           Activity didn&apos;t load.{" "}
-          <button type="button" onClick={reload} className="inline-flex min-h-11 items-center font-semibold text-brand underline-offset-2 hover:underline">
+          <button type="button" onClick={reload} className="inline-flex min-h-11 items-center font-semibold text-ink underline underline-offset-4">
             Try again
           </button>
         </Card>
       ) : !data ? (
-        <Card className="flex items-center gap-3 p-6 text-sm text-ink-3">
+        <Card className="flex items-center gap-3 p-5 text-base text-ink-3 sm:p-6">
           <Spinner size={18} /> Loading activity…
         </Card>
       ) : students.length === 0 ? (
@@ -143,17 +144,17 @@ export default function ActivityPage() {
           </div>
 
           {quiet.length > 0 && (
-            <Card className="mt-3 p-5">
+            <Card className="mt-3 p-5 sm:p-6">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="font-semibold text-ink">Gone quiet</h2>
-                <span className="text-xs text-ink-3">Not in the portal for a week or more</span>
+                <h2 className="text-base font-semibold tracking-[-0.01em] text-ink">Gone quiet</h2>
+                <span className="text-sm text-ink-3">Not in the portal for a week or more</span>
               </div>
               <ul className="mt-3 flex flex-wrap gap-2">
                 {quiet.slice(0, 30).map(({ s, seen }) => (
                   <li key={s.id}>
                     <Link
                       href={`/admin/roster/${s.id}#activity`}
-                      className="inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-full border border-border bg-surface px-3 text-sm text-ink hover:border-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-md:h-11"
+                      className="inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-full border border-border bg-surface px-3.5 text-sm text-ink transition-colors hover:border-border-strong hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-md:h-11"
                     >
                       {displayName(s.username)}
                       <span className="text-xs text-ink-3">{seen ? fmtAgo(seen, nowMs) : "never signed in"}</span>
@@ -161,17 +162,17 @@ export default function ActivityPage() {
                   </li>
                 ))}
               </ul>
-              {quiet.length > 30 && <p className="mt-2 text-xs text-ink-3">And {quiet.length - 30} more.</p>}
+              {quiet.length > 30 && <p className="mt-2 text-sm text-ink-3">And {quiet.length - 30} more.</p>}
             </Card>
           )}
 
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
-            <Card className="min-w-0 p-5">
-              <h2 className="mb-3 text-sm font-semibold text-ink">Where the time goes</h2>
+            <Card className="min-w-0 p-5 sm:p-6">
+              <h2 className="mb-3 text-base font-semibold tracking-[-0.01em] text-ink">Where the time goes</h2>
               <AreaBars areas={totals.areas} />
             </Card>
-            <Card className="min-w-0 p-5">
-              <h2 className="mb-3 text-sm font-semibold text-ink">Most-read notes</h2>
+            <Card className="min-w-0 p-5 sm:p-6">
+              <h2 className="mb-3 text-base font-semibold tracking-[-0.01em] text-ink">Most-read notes</h2>
               {totals.topNotes.length ? (
                 <ol className="space-y-2.5">
                   {totals.topNotes.map((n) => (
@@ -189,8 +190,8 @@ export default function ActivityPage() {
             </Card>
           </div>
 
-          <div className="mb-3 mt-8 flex flex-wrap items-center gap-3">
-            <h2 className="mr-auto text-base font-semibold text-ink">Students</h2>
+          <div className="mb-3 mt-10 flex flex-wrap items-center gap-3">
+            <h2 className="mr-auto text-xl font-semibold tracking-[-0.015em] text-ink">Students</h2>
             <label className="relative min-w-0 basis-full sm:max-w-xs sm:flex-1 sm:basis-auto">
               <Icon.Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" />
               <input
@@ -219,23 +220,23 @@ export default function ActivityPage() {
           </div>
 
           {list.length === 0 ? (
-            <p className="py-6 text-center text-sm text-ink-3">No student matches &ldquo;{query}&rdquo;.</p>
+            <p className="py-6 text-center text-base text-ink-3">No student matches &ldquo;{query}&rdquo;.</p>
           ) : (
-            <Card className="divide-y divide-border overflow-hidden p-0">
+            <Card className="divide-y divide-hairline overflow-hidden p-0">
               {list.map(({ s, a, secs, on, notes, seen }) => {
                 const cohort = cohortById(db, s.cohortId);
                 return (
                   <Link
                     key={s.id}
                     href={`/admin/roster/${s.id}#activity`}
-                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 py-3.5 transition-colors hover:bg-surface-2/60 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto]"
+                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 py-3.5 transition-colors hover:bg-white/[0.02] sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto]"
                   >
                     <span className="min-w-0">
                       <span className="flex items-center gap-2">
                         {cohort ? <CohortDot color={cohort.color} /> : <span className="w-2.5 shrink-0" aria-hidden />}
-                        <span className="truncate font-semibold text-ink">{displayName(s.username)}</span>
+                        <span className="truncate text-base font-semibold text-ink">{displayName(s.username)}</span>
                       </span>
-                      <span className="mt-0.5 block truncate text-xs text-ink-3">
+                      <span className="mt-0.5 block truncate text-sm text-ink-3">
                         Seen {fmtAgo(seen, nowMs).toLowerCase()}
                         {notes ? ` · ${notes} ${notes === 1 ? "note" : "notes"}` : ""}
                         {` · ${on} ${on === 1 ? "day" : "days"} active`}
@@ -252,7 +253,7 @@ export default function ActivityPage() {
               })}
             </Card>
           )}
-          <p className="mt-3 text-xs text-ink-3">Only active time counts: the portal open and in front, and the student reading, tapping or typing.</p>
+          <p className="mt-3 text-sm text-ink-3">Only active time counts: the portal open and in front, and the student reading, tapping or typing.</p>
         </>
       )}
     </div>

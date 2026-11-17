@@ -127,8 +127,8 @@ export function SwipeRow({
           {Array.from({ length: pos.count }, (_, i) => (
             <span
               key={i}
-              className={`h-1.5 rounded-full transition-[width,background-color] duration-300 ease-out motion-reduce:transition-none ${
-                i === pos.active ? "w-4 bg-gold" : "w-1.5 bg-hairline-strong"
+              className={`h-1.5 rounded-full transition-[width,background-color] duration-200 ease-[var(--ease-out)] motion-reduce:transition-none ${
+                i === pos.active ? "w-4 bg-muted-foreground" : "w-1.5 bg-hairline-strong"
               }`}
             />
           ))}

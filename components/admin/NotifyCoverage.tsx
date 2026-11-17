@@ -53,10 +53,10 @@ export function NotifyCoverage() {
   const have = total - missing.length;
 
   return (
-    <Card className="mb-4 p-5">
+    <Card className="mb-4 p-5 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Class reminders</h2>
+          <h2 className="text-base font-semibold tracking-[-0.01em] text-ink">Class reminders</h2>
           <p className="mt-0.5 text-sm tabular-nums text-ink-3">
             On for {have} of {total} students. {missing.length} {missing.length === 1 ? "has" : "have"} not turned them on yet.
           </p>
@@ -69,13 +69,13 @@ export function NotifyCoverage() {
         <div className="h-full rounded-full bg-ink-3" style={{ width: `${Math.round((have / total) * 100)}%` }} />
       </div>
       {open && (
-        <ul className="mt-4 divide-y divide-border">
+        <ul className="mt-4 divide-y divide-hairline">
           {missing.map((s) => {
             const number = s.phone ?? s.whatsapp;
             const text = s.phone ? studentNotifications({ id: s.id, username: s.username }) : parentNotifications({ id: s.id, username: s.username });
             return (
               <li key={s.id} className="flex min-h-11 flex-wrap items-center justify-between gap-2 py-1.5 text-sm">
-                <span className="font-medium text-ink">{displayName(s.username)}</span>
+                <span className="text-base font-semibold text-ink">{displayName(s.username)}</span>
                 {number ? (
                   <a
                     href={`https://wa.me/${waDigits(number)}?text=${encodeURIComponent(text)}`}
@@ -86,7 +86,7 @@ export function NotifyCoverage() {
                     Remind on WhatsApp{s.phone ? "" : " (parent)"}
                   </a>
                 ) : (
-                  <span className="text-xs text-ink-3">No number saved</span>
+                  <span className="text-sm text-ink-3">No number saved</span>
                 )}
               </li>
             );

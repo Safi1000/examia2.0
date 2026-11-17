@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { cn } from "@/lib/cn";
 import { pctChange, pedMeaning, shown, xedMeaning, yedMeaning } from "@/components/tools/calc";
-import { AskHamza, NumberField, Result, amount, fmt } from "@/components/tools/ToolBits";
+import { AskHamza, Notice, NumberField, Result, amount, fmt, seg, segGroup } from "@/components/tools/ToolBits";
 
 type Kind = "ped" | "yed" | "xed";
 const LABEL: Record<Kind, { name: string; cause: string }> = {
@@ -39,14 +38,14 @@ export function ElasticityCalculator() {
 
   return (
     <div className="space-y-8">
-      <div className="inline-flex flex-wrap gap-1 rounded-full border border-hairline bg-card p-1">
+      <div className={segGroup}>
         {(Object.keys(LABEL) as Kind[]).map((k) => (
           <button
             key={k}
             type="button"
             onClick={() => setKind(k)}
             aria-pressed={kind === k}
-            className={cn("min-h-11 rounded-full px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold", kind === k ? "bg-gold text-[#1b1e21]" : "text-body hover:text-foreground")}
+            className={seg(kind === k)}
           >
             {k.toUpperCase()}
           </button>
@@ -60,14 +59,10 @@ export function ElasticityCalculator() {
       </div>
       <div aria-live="polite" className="space-y-8">
       {zeroStart && (
-        <p className="rounded-[16px] border border-hairline bg-card p-5 text-[15px] text-body">
-          A &quot;before&quot; figure of 0 cannot give a percentage change. Enter a before figure above 0.
-        </p>
+        <Notice>A &quot;before&quot; figure of 0 cannot give a percentage change. Enter a before figure above 0.</Notice>
       )}
       {noChange && !zeroStart && (
-        <p className="rounded-[16px] border border-hairline bg-card p-5 text-[15px] text-body">
-          The {LABEL[kind].cause} did not change, so there is no elasticity to work out. Enter different before and after figures.
-        </p>
+        <Notice>The {LABEL[kind].cause} did not change, so there is no elasticity to work out. Enter different before and after figures.</Notice>
       )}
       {e !== null && (
         <div className="grid gap-3 sm:grid-cols-2">

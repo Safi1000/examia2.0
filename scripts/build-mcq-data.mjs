@@ -96,7 +96,7 @@ async function readPdf(file) {
 /** Items grouped into lines by baseline. */
 function linesOf(items) {
   const solid = items.filter((i) => i.s.trim() || i.w > 0);
-  const sorted = [...solid].sort((a, b) => a.base - b.base || a.x - b.x);
+  const sorted = solid.toSorted((a, b) => a.base - b.base || a.x - b.x);
   const lines = [];
   for (const it of sorted) {
     const last = lines[lines.length - 1];

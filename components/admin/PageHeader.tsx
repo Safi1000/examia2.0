@@ -21,8 +21,8 @@ export function PageHeader({
       )}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-balance text-[1.75rem] font-bold leading-[1.1] tracking-[-0.025em] text-ink sm:text-[2rem]">{title}</h1>
-          {subtitle && <p className="mt-1.5 text-pretty text-[15px] text-ink-3">{subtitle}</p>}
+          <h1 className="text-balance text-title font-bold tracking-[-0.025em] text-ink sm:text-title-lg">{title}</h1>
+          {subtitle && <p className="mt-2 max-w-[60ch] text-pretty text-base leading-relaxed text-ink-2">{subtitle}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>

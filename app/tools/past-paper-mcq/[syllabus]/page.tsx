@@ -7,6 +7,7 @@ import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
 import { TopicPractice } from "@/components/tools/TopicPractice";
 import { liveSyllabuses, paperName, questionLink, paperSlug, papersFor, syllabusBySlug, syllabusName, topicQuestions } from "@/lib/mcq-papers";
 import { breadcrumbLd } from "@/lib/seo";
+import "@/components/landing/public-calm.css";
 
 export const dynamicParams = false;
 export function generateStaticParams() {
@@ -63,15 +64,15 @@ export default async function McqSyllabusPage({ params }: Props) {
         </p>
 
         <Section title="Timed mock papers">
-          <ul className="space-y-3">
+          <ul className="pc-surface divide-y divide-hairline overflow-hidden rounded-card">
             {papers.map((p) => (
               <li key={paperSlug(p)}>
                 <Link
                   href={`/tools/past-paper-mcq/${s.slug}/${paperSlug(p)}`}
-                  className="flex items-center justify-between gap-4 rounded-[16px] border border-hairline bg-card px-5 py-4 text-foreground hover:border-gold-border"
+                  className="row-link flex min-h-16 items-center justify-between gap-4 px-5 py-4 text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-gold"
                 >
-                  <span>{paperName(s, p)}</span>
-                  <span className="text-sm tabular-nums text-muted-foreground">
+                  <span className="min-w-0 text-base font-semibold">{paperName(s, p)}</span>
+                  <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
                     {p.answers.length} questions · {p.minutes} min
                   </span>
                 </Link>
@@ -95,7 +96,7 @@ export default async function McqSyllabusPage({ params }: Props) {
 
         <p className="mt-12 text-sm leading-relaxed text-faint">
           Question papers and mark schemes are Cambridge&apos;s, linked from its{" "}
-          <a href={s.pastPapers} className="hover:text-gold" rel="noopener">
+          <a href={s.pastPapers} className="underline underline-offset-4 hover:text-muted-foreground" rel="noopener">
             {s.code} past papers page
           </a>
           . Topic tags and explanations are mine.

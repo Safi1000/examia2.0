@@ -5,6 +5,7 @@ import { MarketingShell } from "@/components/landing/MarketingShell";
 import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
 import { MCQ_SYLLABUSES, liveSyllabuses, papersFor, syllabusName } from "@/lib/mcq-papers";
 import { breadcrumbLd } from "@/lib/seo";
+import "@/components/landing/public-calm.css";
 
 /**
  * The past paper multiple-choice checker: one entry per Cambridge MCQ paper
@@ -40,13 +41,13 @@ export default function PastPaperMcqHub() {
         </p>
 
         <Section title="How it works">
-          <ol className="list-decimal space-y-3 pl-5 text-[17px] leading-relaxed text-body">
+          <ol className="list-decimal space-y-3 pl-5 text-lg leading-relaxed text-body">
             <li>Choose your syllabus and a paper. Each one links to the official question paper on the Cambridge website.</li>
             <li>Start the timer if you want exam conditions. It runs for the same time as the real paper.</li>
             <li>Shade your answers on the answer sheet, then mark it. Your answers are saved on your device as you go.</li>
             <li>Or practise one topic at a time: the checker takes you through real past paper questions on that topic, one by one, and opens the official paper at each question.</li>
           </ol>
-          <p className="mt-5 text-[15px] leading-relaxed text-muted-foreground">
+          <p className="mt-5 text-base leading-relaxed text-muted-foreground">
             The questions belong to Cambridge, so they are never copied here. You work from the official paper, and the answers come from
             the official mark scheme.
           </p>
@@ -54,7 +55,7 @@ export default function PastPaperMcqHub() {
 
         {subjects.map((subject) => (
           <Section key={subject} title={subject}>
-            <ul className="space-y-3">
+            <ul className="pc-surface divide-y divide-hairline overflow-hidden rounded-card">
               {MCQ_SYLLABUSES.filter((s) => s.subject === subject).map((s) => {
                 const count = papersFor(s.slug).length;
                 const label = `${syllabusName(s)}, Paper ${s.paper}`;
@@ -63,17 +64,17 @@ export default function PastPaperMcqHub() {
                     {count ? (
                       <Link
                         href={`/tools/past-paper-mcq/${s.slug}`}
-                        className="flex items-center justify-between gap-4 rounded-[16px] border border-hairline bg-card px-5 py-4 text-foreground hover:border-gold-border"
+                        className="row-link flex min-h-16 items-center justify-between gap-4 px-5 py-4 text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-gold"
                       >
-                        <span>{label}</span>
-                        <span className="text-sm text-muted-foreground">
+                        <span className="min-w-0 text-base font-semibold">{label}</span>
+                        <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
                           {count} {count === 1 ? "paper" : "papers"}
                         </span>
                       </Link>
                     ) : (
-                      <div className="flex items-center justify-between gap-4 rounded-[16px] border border-hairline px-5 py-4 text-muted-foreground">
-                        <span>{label}</span>
-                        <span className="text-sm text-faint">Papers coming</span>
+                      <div className="flex min-h-16 items-center justify-between gap-4 px-5 py-4 text-muted-foreground">
+                        <span className="min-w-0 text-base font-semibold">{label}</span>
+                        <span className="shrink-0 text-sm text-faint">Papers coming</span>
                       </div>
                     )}
                   </li>
@@ -83,7 +84,7 @@ export default function PastPaperMcqHub() {
           </Section>
         ))}
 
-        <p className="mt-8 text-[15px] leading-relaxed text-muted-foreground">
+        <p className="mt-8 text-base leading-relaxed text-muted-foreground">
           Business has no multiple-choice paper. For A Level Accounting, the multiple-choice paper is the AS Paper 1.
         </p>
 

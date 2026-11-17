@@ -32,13 +32,13 @@ export function TestCard({
   const closingSoon = window === "open" && +new Date(test.closesAt) - nowMs < 24 * 3600 * 1000;
 
   return (
-    <Card className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+    <Card className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
       <div className="min-w-0">
         {/* The test code is Hamza's own reference: students only need the subject. */}
         <p className="text-xs font-medium text-ink-3">{test.subject}</p>
-        <h3 className="mt-1 text-lg font-bold leading-snug tracking-[-0.01em] text-ink">{test.title}</h3>
+        <h3 className="mt-1 text-base font-semibold leading-snug text-ink">{test.title}</h3>
         <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-ink-2 tabular-nums">
-          <span className="inline-flex items-center gap-1"><Icon.Clock className="h-3.5 w-3.5" />{test.durationMinutes} min</span>
+          <span className="inline-flex items-center gap-1"><Icon.Clock className="h-4 w-4" />{test.durationMinutes} min</span>
           {/* Questions stay hidden until a test opens: don't show "0 questions". */}
           {test.questions.length > 0 && <span>{test.questions.length} {test.questions.length === 1 ? "question" : "questions"}</span>}
         </p>
@@ -48,7 +48,7 @@ export function TestCard({
         {window === "future" && (
           <>
             <Badge tone="neutral"><Icon.Lock className="h-3 w-3" /> Locked</Badge>
-            <span className="text-xs text-ink-3">Opens {formatWhen(test.opensAt)}</span>
+            <span className="text-sm text-ink-3">Opens {formatWhen(test.opensAt)}</span>
             {calendar && <AddToCalendar test={test} />}
           </>
         )}
@@ -70,9 +70,9 @@ export function TestCard({
         )}
 
         {window === "open" && submitted && (
-          <div className="text-right">
-            <Badge tone="neutral">Submitted</Badge>
-            <p className="mt-1 text-xs text-ink-3">Awaiting results</p>
+          <div className="sm:text-right">
+            <Badge tone="neutral">Handed in</Badge>
+            <p className="mt-1 text-sm text-ink-3">Awaiting results</p>
           </div>
         )}
 
@@ -89,16 +89,16 @@ export function TestCard({
         )}
 
         {window === "closed" && submitted && (
-          <div className="text-right">
+          <div className="sm:text-right">
             <Badge tone="warning">Awaiting results</Badge>
-            <p className="mt-1 text-xs text-ink-3">Closed {formatDate(test.closesAt)}</p>
+            <p className="mt-1 text-sm text-ink-3">Closed {formatDate(test.closesAt)}</p>
           </div>
         )}
 
         {window === "closed" && !submission && (
           <div className="text-right">
             <Badge tone="neutral">Closed</Badge>
-            <p className="mt-1 text-xs text-ink-3">Not attempted</p>
+            <p className="mt-1 text-sm text-ink-3">Not attempted</p>
           </div>
         )}
       </div>

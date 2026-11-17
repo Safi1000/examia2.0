@@ -130,9 +130,9 @@ function signedFileHref(report: ReportRow): string {
 function NoReport({ title, line }: { title: string; line: string }) {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center px-5 text-center">
-      <p className="text-[14px] font-semibold text-brand">{COMPANY_NAME}</p>
-      <h1 className="mt-3 font-display text-2xl font-bold text-ink">{title}</h1>
-      <p className="mt-3 text-[16px] leading-relaxed text-ink-2">{line}</p>
+      <p className="text-sm font-semibold text-brand">{COMPANY_NAME}</p>
+      <h1 className="mt-3 text-balance font-display text-title font-bold tracking-[-0.025em] text-ink">{title}</h1>
+      <p className="mt-3 text-pretty text-base leading-relaxed text-ink-2">{line}</p>
     </main>
   );
 }
@@ -160,17 +160,17 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
   return (
     <main className="mx-auto min-h-dvh max-w-2xl px-5 py-10 md:py-16">
       <header className="border-b border-hairline pb-6">
-        <p className="text-[14px] font-semibold text-brand">{COMPANY_NAME}</p>
-        <h1 className="mt-2 break-words font-display text-3xl font-bold tracking-tight text-ink md:text-4xl">
+        <p className="text-sm font-semibold text-brand">{COMPANY_NAME}</p>
+        <h1 className="mt-2 text-balance break-words font-display text-title font-bold tracking-[-0.025em] text-ink sm:text-title-lg">
           {whose(report.student_name)} monthly report
         </h1>
-        <p className="mt-2 text-[16px] tabular-nums text-ink-2">{monthLabel(report.month)}</p>
+        <p className="mt-2 text-lg tabular-nums text-ink-2">{monthLabel(report.month)}</p>
       </header>
 
       {report.teacher_note && (
-        <section className="surface mt-8 rounded-[20px] px-5 py-5">
-          <h2 className="text-[14px] font-semibold text-brand">From the teacher</h2>
-          <p className="mt-2 max-w-[68ch] whitespace-pre-wrap break-words text-[16px] leading-relaxed text-ink">{report.teacher_note}</p>
+        <section className="surface mt-8 rounded-card p-5 sm:p-6">
+          <h2 className="label-quiet text-ink-3">A note from Hamza</h2>
+          <p className="mt-2 max-w-[68ch] whitespace-pre-wrap break-words text-base leading-relaxed text-ink">{report.teacher_note}</p>
         </section>
       )}
 
@@ -178,14 +178,14 @@ export default async function ReportPage({ params }: { params: Promise<{ token: 
         <div className="flex flex-wrap gap-3">
           <a
             href={downloadHref}
-            className="inline-flex h-12 items-center justify-center rounded-full bg-brand px-6 text-[16px] font-semibold text-on-brand transition-colors hover:bg-gold-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="inline-flex h-12 select-none items-center justify-center rounded-full bg-brand px-7 text-base font-semibold text-on-brand transition-[filter,transform] duration-150 ease-[var(--ease-out)] hover:brightness-110 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             Download the report
           </a>
           {preview && <OpenReportLink href={inlineHref} />}
         </div>
-        {!preview && <p className="mt-3 text-[16px] text-ink-2">The report opens as a PDF on your phone.</p>}
-        <p className="mt-3 text-[16px] text-ink-2">This link works until {reportLinkDay(report.expires_at)}.</p>
+        {!preview && <p className="mt-3 text-base text-ink-2">The report opens as a PDF on your phone.</p>}
+        <p className="mt-3 text-base text-ink-2">This link works until {reportLinkDay(report.expires_at)}.</p>
       </section>
 
       <ReportPreview src={`${inlineHref}#toolbar=0`} initialShow={preview} />

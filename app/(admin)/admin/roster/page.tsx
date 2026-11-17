@@ -18,7 +18,7 @@ import { uploadImage } from "@/lib/cloudinary";
 import { RowMenu } from "@/components/admin/RowMenu";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { ArchiveTabs, archiveFromUrl, type ArchiveView } from "@/components/admin/ArchiveTabs";
-import { Card, Button, Input, Select, Label, CohortDot, Modal, EmptyState, Icon, Badge, segmentGroup, segmentItem } from "@/components/ui";
+import { Card, Button, Input, Select, Label, CohortDot, Modal, EmptyState, Icon, Badge, segmentGroup, segmentItem, chipClass } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { cld } from "@/lib/cld";
 import { LoginDetails } from "@/components/admin/LoginDetails";
@@ -26,6 +26,8 @@ import { ImportStudents } from "@/components/admin/ImportStudents";
 import { newPassword } from "@/lib/password";
 import { fixPhone } from "@/lib/import-students";
 import { displayName, isTestAccount } from "@/lib/display-name";
+import { supabase } from "@/lib/supabase";
+import { setPausedIds, usePausedIds } from "@/lib/paused";
 
 const genPassword = newPassword;
 
@@ -51,12 +53,7 @@ function ChipToggle({
             type="button"
             aria-pressed={on}
             onClick={() => onToggle(item.id)}
-            className={cn(
-              "min-h-10 rounded-md border px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-md:min-h-11",
-              on
-                ? "border-brand bg-brand-soft text-brand"
-                : "border-border text-ink-2 hover:border-border-strong hover:text-ink",
-            )}
+            className={chipClass(on)}
           >
             {item.name}
           </button>
@@ -111,6 +108,8 @@ export default function RosterPage() {
     }
   }
   const [deleting, setDeleting] = useState<Student | null>(null);
+  // Students whose access is paused (they sign in to a blank screen, get no reminders and are not marked absent).
+  const pausedIds = usePausedIds();
   // Bulk work: tick students, then act on them all in one go.
   const [bulkClass, setBulkClass] = useState("");
   const [bulkCohort, setBulkCohort] = useState("");
@@ -177,6 +176,38 @@ export default function RosterPage() {
     setAsk(null);
     sel.clear();
     toast(outcome(done, verb, problems, "student"), problems.length ? (done ? "info" : "error") : "success", done && undo ? { label: "Undo", onClick: undo } : undefined);
+  }
+
+  /** Pause or resume access. A paused student signs in to a blank screen; nothing of theirs is removed. */
+  async function setAccess(list: Student[], pause: boolean) {
+    if (!list.length) return;
+    const label = (n: number) => (n === 1 ? displayName(list[0].username) : plural(n, "student"));
+    try {
+      const { data } = await supabase().auth.getSession();
+      const res = await fetch("/api/admin/access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token ?? ""}` },
+        body: JSON.stringify({ ids: list.map((s) => s.id), paused: pause }),
+      });
+      const out = (await res.json().catch(() => null)) as { done?: string[]; failed?: Array<{ id: string; why: string }>; error?: string } | null;
+      if (!res.ok || !out) return toast(out?.error && res.status !== 403 ? out.error : "Couldn't change access. Try again.", "error");
+      const done = out.done ?? [];
+      const failed = out.failed ?? [];
+      const next = new Set(pausedIds);
+      done.forEach((id) => (pause ? next.add(id) : next.delete(id)));
+      setPausedIds(next);
+      sel.clear();
+      const nameOf = (id: string) => displayName(list.find((s) => s.id === id)?.username ?? "");
+      const trouble = failed.length ? ` Not changed: ${failed.slice(0, 5).map((f) => `${nameOf(f.id)} (${f.why})`).join(", ")}${failed.length > 5 ? " and more" : ""}.` : "";
+      if (!done.length) return toast(`Nothing changed.${trouble}`, "error");
+      toast(
+        `${label(done.length)} ${pause ? "paused. A blank screen, no reminders and no absent marks until you resume them." : "resumed. The portal is open for them again."}${trouble}`,
+        failed.length ? "info" : "success",
+        { label: "Undo", onClick: () => void setAccess(list.filter((s) => done.includes(s.id)), !pause) },
+      );
+    } catch {
+      toast("Couldn't change access. Check your internet and try again.", "error");
+    }
   }
 
   async function runCohort() {
@@ -307,13 +338,15 @@ export default function RosterPage() {
     ...(db.subjects.length ? [{ id: "subjects", label: "Set subjects", run: () => setAsk("subjects") }] : []),
     { id: "tag", label: "Tag in person or online", run: () => setAsk("tag") },
     { id: "export", label: "Download as spreadsheet", run: exportRows },
+    ...(chosen.some((s) => !pausedIds.has(s.id)) ? [{ id: "pause", label: "Pause access", run: () => void setAccess(real.filter((s) => !pausedIds.has(s.id)), true) }] : []),
+    ...(chosen.some((s) => pausedIds.has(s.id)) ? [{ id: "resume", label: "Resume access", run: () => void setAccess(chosen.filter((s) => pausedIds.has(s.id)), false) }] : []),
     { id: "delete", label: "Delete", danger: true, run: () => setAsk("delete") },
   ];
 
   // Classes/subjects available for the selected cohort in the form
   const selectedCohort = db.cohorts.find((c) => c.id === form.cohortId);
   // Every level, the cohort's own first: a student can also take a second level (AS and A2 together).
-  const availableClasses = [...db.classes].sort(
+  const availableClasses = db.classes.toSorted(
     (a, b) => Number(!selectedCohort?.classIds.includes(a.id)) - Number(!selectedCohort?.classIds.includes(b.id)),
   );
   const twoLevels = form.classIds.length > 1;
@@ -474,15 +507,19 @@ export default function RosterPage() {
         const unset = db.students.filter((s) => !off.has(s.cohortId) && (!s.classIds.length || !s.subjectIds.length));
         if (!unset.length || !db.classes.length) return null;
         return (
-          <div className="mb-4 rounded-xl border border-warning/30 bg-warning-soft px-4 py-3 text-sm leading-relaxed text-ink">
+          <div className="mb-4 rounded-tile border border-warning/30 bg-warning-soft px-4 py-3 text-sm leading-relaxed text-ink">
             {unset.length === 1 ? "1 student has" : `${unset.length} students have`} no level or subjects set, so subject tests, notes and assignments
             don&apos;t reach them. Tap a name to pick them:{" "}
-            {unset.slice(0, 12).map((s, i) => (
+            {unset.slice(0, 12).map((s, i, all) => (
+              // The comma stays glued to its name, so a line never starts with one.
               <span key={s.id}>
-                {i > 0 && ", "}
-                <button type="button" onClick={() => openEdit(s)} className="font-semibold capitalize text-ink underline decoration-warning/60 underline-offset-4 hover:decoration-warning">
-                  {s.username}
-                </button>
+                <span className="whitespace-nowrap">
+                  <button type="button" onClick={() => openEdit(s)} className="font-semibold capitalize text-ink underline decoration-warning/60 underline-offset-4 hover:decoration-warning">
+                    {displayName(s.username)}
+                  </button>
+                  {i < all.length - 1 && ","}
+                </span>
+                {i < all.length - 1 && " "}
               </span>
             ))}
             {unset.length > 12 && ` and ${unset.length - 12} more`}.
@@ -542,7 +579,7 @@ export default function RosterPage() {
         <div role="group" aria-label="Students" onKeyDown={sel.listKeyDown}>
         {/* Owner only: the assistant looks students up, she does not change or message them. */}
         <span data-owner className="contents"><SelectAll sel={sel} noun="student" /></span>
-        <Card className="divide-y divide-border overflow-hidden p-0">
+        <Card className="divide-y divide-hairline overflow-hidden p-0">
           {students.map((s) => {
             const cohort = cohortById(db, s.cohortId);
             const released = releasedCount.get(s.id) ?? 0;
@@ -554,9 +591,9 @@ export default function RosterPage() {
               ? db.classes.filter((c) => s.classIds.includes(c.id)).map((c) => c.id).map((cid) => `${db.classes.find((x) => x.id === cid)?.name ?? ""}: ${(s.levelSubjects?.[cid] ?? s.subjectIds).map(nameOf).filter(Boolean).join(", ")}`)
               : null;
             return (
-              <div key={s.id} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 px-4 py-3 transition-colors hover:bg-white/[0.018] sm:flex-nowrap sm:items-center">
+              <div key={s.id} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 px-5 py-3 transition-colors hover:bg-white/[0.02] sm:flex-nowrap sm:items-center">
                 <span data-owner className="pt-2.5 sm:pt-0">
-                  <RowCheck id={s.id} checked={sel.isSelected(s.id)} onToggle={sel.toggle} label={`Select ${s.username}`} />
+                  <RowCheck id={s.id} checked={sel.isSelected(s.id)} onToggle={sel.toggle} label={`Select ${displayName(s.username)}`} />
                 </span>
                 <Link href={`/admin/roster/${s.id}`} className="group flex min-w-0 flex-1 basis-[calc(100%-2.5rem)] items-start gap-3 sm:basis-auto sm:items-center">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-2 font-display text-sm font-bold uppercase text-ink-2">
@@ -569,10 +606,11 @@ export default function RosterPage() {
                   </span>
                   <div className="min-w-0">
                     <p className="flex min-w-0 items-center gap-2">
-                      <span className="truncate font-semibold capitalize text-ink underline-offset-4 group-hover:underline">{s.username}</span>
+                      <span className="truncate text-base font-semibold capitalize text-ink underline-offset-4 group-hover:underline">{displayName(s.username)}</span>
                       {inPersonIds.has(s.id) && <Badge tone="neutral" className="shrink-0">In person</Badge>}
                       {/* Hamza's practice account: left out of reminders, Today, activity, analytics and the leaderboard. */}
                       {isTestAccount(s) && <Badge tone="neutral" className="shrink-0">Test account</Badge>}
+                      {pausedIds.has(s.id) && <Badge tone="warning" className="shrink-0">Paused</Badge>}
                     </p>
                     <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm text-ink-2">
                       {cohort && <CohortDot color={cohort.color} />}
@@ -582,13 +620,13 @@ export default function RosterPage() {
                     {(classNames.length > 0 || subjectNames.length > 0) && (
                       <div className="mt-1.5 flex flex-wrap gap-1">
                         {perLevel ? perLevel.map((n) => (
-                          <span key={n} className="rounded-md bg-surface-2 px-1.5 py-0.5 text-xs text-ink-2">{n}</span>
+                          <span key={n} className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-ink-2">{n}</span>
                         )) : <>
                         {classNames.map((n) => (
-                          <span key={n} className="rounded-md border border-border px-1.5 py-0.5 text-xs text-ink-2">{n}</span>
+                          <span key={n} className="rounded-full border border-hairline-strong px-2 py-0.5 text-xs text-ink-2">{n}</span>
                         ))}
                         {subjectNames.map((n) => (
-                          <span key={n} className="rounded-md bg-surface-2 px-1.5 py-0.5 text-xs text-ink-2">{n}</span>
+                          <span key={n} className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-ink-2">{n}</span>
                         ))}
                         </>}
                       </div>
@@ -603,10 +641,10 @@ export default function RosterPage() {
                       target="_blank"
                       rel="noreferrer"
                       className="flex h-10 w-10 items-center justify-center rounded-full transition-colors max-md:h-11 max-md:w-11 text-ink-3 hover:bg-surface-2 hover:text-ink"
-                      aria-label={`WhatsApp ${s.username}`}
-                      title={`Chat with ${s.username}: ${s.phone}`}
+                      aria-label={`WhatsApp ${displayName(s.username)}`}
+                      title={`Chat with ${displayName(s.username)}: ${s.phone}`}
                     >
-                      <Icon.Users className="h-4 w-4" />
+                      <Icon.Users className="h-5 w-5" />
                     </a>
                   )}
                   {/* Straight to the report dialog, which is where the send lives. In-person students get no monthly report. */}
@@ -615,18 +653,21 @@ export default function RosterPage() {
                     href={`/admin/roster/${s.id}?report=1`}
                     className={cn(
                       "flex h-10 w-10 items-center justify-center rounded-full transition-colors max-md:h-11 max-md:w-11",
-                      s.whatsapp ? "text-success hover:bg-success-soft" : "pointer-events-none text-ink-3/40",
+                      s.whatsapp ? "text-ink-2 hover:bg-surface-2 hover:text-ink" : "pointer-events-none text-ink-3/40",
                     )}
-                    aria-label={s.whatsapp ? `Send ${s.username}'s report on WhatsApp` : `${s.username} has no WhatsApp number`}
+                    aria-label={s.whatsapp ? `Send ${displayName(s.username)}'s report on WhatsApp` : `${displayName(s.username)} has no WhatsApp number`}
                     title={s.whatsapp ? `Send report to ${s.whatsapp}` : "Add the parent's WhatsApp number first"}
                   >
-                    <Icon.Megaphone className="h-4 w-4" />
+                    <Icon.Megaphone className="h-5 w-5" />
                   </Link>
                   )}
-                  <button onClick={() => openEdit(s)} className="flex h-10 w-10 items-center justify-center rounded-full transition-colors max-md:h-11 max-md:w-11 text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label={`Edit ${s.username}`}>
-                    <Icon.Edit className="h-4 w-4" />
+                  <button onClick={() => openEdit(s)} className="flex h-10 w-10 items-center justify-center rounded-full transition-colors max-md:h-11 max-md:w-11 text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label={`Edit ${displayName(s.username)}`}>
+                    <Icon.Edit className="h-5 w-5" />
                   </button>
-                  <RowMenu label={`More for ${s.username}`} items={[{ label: "Delete", danger: true, onSelect: () => setDeleting(s) }]} />
+                  <RowMenu label={`More for ${displayName(s.username)}`} items={[
+                    pausedIds.has(s.id) ? { label: "Resume access", onSelect: () => void setAccess([s], false) } : { label: "Pause access", onSelect: () => void setAccess([s], true) },
+                    { label: "Delete", danger: true, onSelect: () => setDeleting(s) },
+                  ]} />
                 </div>
               </div>
             );
@@ -756,13 +797,13 @@ export default function RosterPage() {
         <div className="space-y-4">
           <Input label="Username" value={form.username} onChange={(e) => { setForm({ ...form, username: e.target.value }); setError(null); }} required autoCapitalize="none" autoCorrect="off" spellCheck={false} />
           <Input label="Email (optional)" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          <div className="rounded-md border border-border bg-surface-2 px-4 py-3">
+          <div className="rounded-tile bg-surface-2 px-4 py-3">
             <Checkbox
               checked={form.inPerson}
               onChange={(v) => setForm({ ...form, inPerson: v })}
               label={<span className="font-semibold text-ink">Taught in person</span>}
             />
-            <p className="mt-1.5 pl-[30px] text-xs text-ink-3">
+            <p className="mt-1.5 pl-[30px] text-sm text-ink-3">
               A physical student: classes, recordings and tests in the portal. No phone numbers, register, monthly report or parent messages.
             </p>
           </div>
@@ -817,13 +858,13 @@ export default function RosterPage() {
                 <button
                   type="button"
                   onClick={() => setForm({ ...form, photoUrl: "" })}
-                  className="text-sm font-semibold text-ink-3 hover:text-error"
+                  className="min-h-11 text-sm font-semibold text-ink-3 transition-colors hover:text-error"
                 >
                   Remove
                 </button>
               )}
             </div>
-            <p className="mt-1.5 text-xs text-ink-3">Cropped to a square and shrunk to 512px before upload.</p>
+            <p className="mt-1.5 text-sm text-ink-3">Cropped to a square and shrunk to 512px before upload.</p>
           </div>
           {/* One cohort switched on, and they are in it: nothing to choose. */}
           {!(db.cohorts.filter((c) => c.active).length === 1 && db.cohorts.find((c) => c.active)?.id === form.cohortId) && (
@@ -834,7 +875,7 @@ export default function RosterPage() {
           )}
           <div>
             <Label>Classes</Label>
-            <p className="mb-2 text-xs text-ink-3">
+            <p className="mb-2 text-sm text-ink-3">
               {form.cohortId ? "Pick their level. Taking two (AS and A2 together)? Pick both." : "Select a cohort first to see available classes."}
             </p>
             <ChipToggle
@@ -848,10 +889,10 @@ export default function RosterPage() {
             <div className="space-y-3">
               <div>
                 <Label>Subjects at each level</Label>
-                <p className="text-xs text-ink-3">Their timetable, Join button, reminders, tests and notes follow these.</p>
+                <p className="text-sm text-ink-3">Their timetable, Join button, reminders, tests and notes follow these.</p>
               </div>
               {db.classes.filter((c) => form.classIds.includes(c.id)).map(({ id: cid, name }) => (
-                <div key={cid} className="rounded-xl border border-border p-3">
+                <div key={cid} className="rounded-tile bg-surface-2 p-4">
                   <p className="mb-2 text-sm font-semibold text-ink">{name}</p>
                   <ChipToggle items={availableSubjects} selected={form.levelSubjects[cid] ?? []} onToggle={(id) => toggleLevelSubject(cid, id)} />
                 </div>
@@ -860,7 +901,7 @@ export default function RosterPage() {
           ) : (
             <div>
               <Label>Subjects</Label>
-              <p className="mb-2 text-xs text-ink-3">
+              <p className="mb-2 text-sm text-ink-3">
                 {form.cohortId ? "Select which subjects this student takes." : "Select a cohort first to see available subjects."}
               </p>
               <ChipToggle
@@ -879,13 +920,13 @@ export default function RosterPage() {
               <Input value={form.tempPassword} onChange={(e) => setForm({ ...form, tempPassword: e.target.value })} className="flex-1" aria-label={editing === "new" ? "Temporary password" : "New password"} autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false} />
               <Button type="button" variant="secondary" onClick={() => setForm({ ...form, tempPassword: genPassword() })}>Generate</Button>
             </div>
-            <p className="mt-1.5 text-xs text-ink-3">
+            <p className="mt-1.5 text-sm text-ink-3">
               {editing === "new"
                 ? "Share this with the student for the first time they sign in."
                 : "Leave blank and their password stays the same. Changing the username or numbers never changes it."}
             </p>
           </div>
-          {error && <p className="rounded-md border border-error/30 bg-error-soft px-3 py-2 text-sm font-medium text-error">{error}</p>}
+          {error && <p className="rounded-field border border-error/30 bg-error-soft px-3 py-2 text-sm font-medium text-error">{error}</p>}
         </div>
       </Modal>
 

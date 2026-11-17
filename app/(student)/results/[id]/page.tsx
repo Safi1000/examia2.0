@@ -79,7 +79,7 @@ export default function ResultsPage() {
       <div className="rise">
       <BackLink />
 
-      <Card className="relative isolate mt-4 overflow-hidden p-5 sm:p-7">
+      <Card className="relative isolate mt-4 overflow-hidden p-5 sm:p-6">
         {/* A personal best or a top grade gets the celebration picture behind the score. */}
         {(best || grade.letter === "A*" || grade.letter === "A") && (
           <>
@@ -96,13 +96,13 @@ export default function ResultsPage() {
         )}
         {/* The test code is Hamza's own reference: students only need the subject. */}
         <p className="min-w-0 text-sm font-semibold text-ink-2">{test.subject}</p>
-        <h1 className="mt-4 text-[1.75rem] font-extrabold leading-tight tracking-[-0.03em] text-ink sm:text-[2rem]">{test.title}</h1>
+        <h1 className="mt-2 text-balance text-title font-bold tracking-[-0.025em] text-ink">{test.title}</h1>
 
         <div className="mt-6 flex items-end justify-between gap-4">
           <div>
             <p className="text-[3.25rem] font-extrabold leading-none tracking-[-0.035em] tabular-nums text-ink">
               {grade.awarded}
-              <span className="text-2xl font-bold tracking-[-0.02em] text-ink-3">/{grade.total}</span>
+              <span className="text-title font-bold tracking-[-0.02em] text-ink-3">/{grade.total}</span>
             </p>
             <p className="mt-2 text-base text-ink-2 tabular-nums">{shownPercent(grade.percent)}% overall</p>
             {waiting > 0 && (
@@ -144,7 +144,7 @@ export default function ResultsPage() {
                   <a
                     href={`#q-${x.n}`}
                     aria-label={`Question ${x.n}, ${x.lost} ${x.lost === 1 ? "mark" : "marks"} lost`}
-                    className="inline-flex min-h-11 items-center rounded-full border border-hairline bg-surface-2/70 px-3.5 text-sm font-semibold tabular-nums text-ink-2 transition hover:border-hairline-strong hover:text-ink"
+                    className="inline-flex min-h-11 items-center rounded-full border border-border px-3.5 text-sm font-semibold tabular-nums text-ink-2 transition-colors duration-150 ease-[var(--ease-out)] hover:border-border-strong hover:text-ink"
                   >
                     Q{x.n} <span className="ml-1.5 text-warning">−{x.lost}</span>
                   </a>
@@ -157,7 +157,7 @@ export default function ResultsPage() {
         <div className="mt-6 flex flex-wrap gap-x-5 gap-y-1 border-t border-hairline pt-4 text-sm text-ink-2 tabular-nums">
           <span className="inline-flex items-center gap-1.5">
             <Icon.Check className="h-4 w-4 text-ink-3" />
-            Submitted {submission.submittedAt ? formatTimestamp(submission.submittedAt) : "not yet"}
+            Handed in {submission.submittedAt ? formatTimestamp(submission.submittedAt) : "not yet"}
           </span>
           {/* Unknown on older papers: say nothing rather than "0s". */}
           {!!submission.durationSeconds && submission.durationSeconds > 0 && (
@@ -257,14 +257,14 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
                 <li
                   key={oi}
                   className={cn(
-                    "flex items-center gap-2.5 rounded-lg border px-3.5 py-2.5 text-base",
+                    "flex items-center gap-3 rounded-field border px-4 py-3 text-base leading-snug",
                     correct
                       ? "border-success/35 bg-success-soft text-success"
                       : chosen && pickedWrong
                         ? "border-error/35 bg-error-soft text-error"
                         : chosen
-                          ? "border-border-strong bg-surface-2/70 text-ink"
-                          : "border-hairline bg-surface-2/40 text-ink-2",
+                          ? "border-border-strong bg-surface-2 text-ink"
+                          : "border-transparent bg-surface-2 text-ink-2",
                   )}
                 >
                   {correct ? (
@@ -296,7 +296,7 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
         })()}
 
         {question.type === "text" && (
-          <div className="whitespace-pre-wrap rounded-lg border border-hairline bg-surface-2/50 p-4 text-base leading-relaxed text-ink">
+          <div className="whitespace-pre-wrap rounded-tile bg-surface-2 p-4 text-base leading-relaxed text-ink">
             {answer?.text ? answer.text : <span className="italic text-ink-3">(blank)</span>}
           </div>
         )}
@@ -313,18 +313,18 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
                     url={url}
                     shapes={answer?.annotations?.[url] ?? []}
                     alt={`Your answer to question ${index + 1}, image ${i + 1}`}
-                    className={cn("mx-auto block rounded-md border border-border bg-surface-2", big === url ? "w-full" : "max-h-64 w-auto max-w-full")}
+                    className={cn("mx-auto block rounded-tile border border-hairline bg-surface-2", big === url ? "w-full" : "max-h-64 w-auto max-w-full")}
                   />
                 </button>
               ))}
-              <p className="text-center text-xs text-ink-3">Tap a page to make it bigger.</p>
+              <p className="text-center text-sm text-ink-3">Tap a page to make it bigger.</p>
             </div>
           );
         })()}
       </div>
 
       {answer?.feedback && (
-        <div className="mt-4 rounded-lg border border-hairline bg-surface-2/70 px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+        <div className="mt-4 rounded-tile bg-surface-2 p-4">
           <p className="label-quiet text-ink-3">From Hamza</p>
           <p className="mt-1.5 whitespace-pre-wrap text-base leading-relaxed text-ink">{answer.feedback}</p>
         </div>
@@ -370,10 +370,10 @@ function BackLink() {
 function PendingShell({ title, message }: { title: string; message: string }) {
   return (
     <div className="mx-auto max-w-md px-5 py-20 text-center">
-      <h1 className="text-2xl font-extrabold tracking-[-0.025em] text-ink">{title}</h1>
+      <h1 className="text-balance text-title font-bold tracking-[-0.025em] text-ink">{title}</h1>
       <p className="mt-2 text-base text-ink-2">{message}</p>
       <Link href="/dashboard" className={buttonClasses({ variant: "secondary", className: "mt-5" })}>
-        Back to home
+        Back to Home
       </Link>
     </div>
   );

@@ -51,7 +51,7 @@ export default async function ExamCountdownPage({ searchParams }: Props) {
         { href: "/grade-thresholds", label: "Grade thresholds: the marks you need" },
       ]}
       how={
-        <div className="space-y-3 text-[17px] leading-relaxed text-body">
+        <div className="space-y-3 text-lg leading-relaxed text-body">
           <p>
             The countdown runs to the day of your paper. The pace assumes you finish learning new content before the past paper weeks start ({new Date(`${EXAMS.pastPapersFrom}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}, or four weeks before your paper if that is sooner) and splits your syllabus&apos;s subtopics evenly across the weeks left.
           </p>

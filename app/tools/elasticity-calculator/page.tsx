@@ -41,7 +41,7 @@ export default function Page() {
       faq={FAQ}
       related={[{ href: "/blog/igcse-economics-price-elasticity-of-demand", label: "Price elasticity of demand explained (IGCSE 0455)" }, { href: "/blog/how-to-answer-igcse-o-level-economics-questions", label: "How to answer IGCSE and O Level Economics questions" }, topicLink("0455", "2.6"), topicLink("2281", "2.6")].filter((l) => l !== null)}
       how={
-        <div className="space-y-3 text-[17px] leading-relaxed text-body">
+        <div className="space-y-3 text-lg leading-relaxed text-body">
           <p>Each elasticity is a percentage change in quantity demanded divided by a percentage change in something else. Percentage change = (new − old) ÷ old × 100.</p>
           <p>PED divides by the % change in the good&apos;s price, YED by the % change in income, XED by the % change in the price of another good. Keep the minus sign: for YED and XED the sign is the answer.</p>
         </div>

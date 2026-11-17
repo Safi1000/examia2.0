@@ -10,7 +10,8 @@ import { useNow } from "@/hooks/useNow";
 import { useToast } from "@/components/toast";
 import { cohortById, eligibleStudents, testById, archivedCohortIds, isArchivedTest, isAwaitingMarking } from "@/lib/data/selectors";
 import { gradeSubmission } from "@/lib/grading";
-import { isTestAccount } from "@/lib/display-name";
+import { displayName, isTestAccount } from "@/lib/display-name";
+import { usePausedIds } from "@/lib/paused";
 import { parentTestClosing, studentTestClosing } from "@/lib/portal-messages";
 import { useStudentProfiles } from "@/lib/student-profiles";
 import { useActivity } from "@/lib/activity-admin";
@@ -30,16 +31,18 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { Button, Card, Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
-import { countPill, panelLink, panelTitle } from "@/components/admin/surface";
+import { countPill, panelLink, panelTitle, statLabel, statNote, statTile, statValue } from "@/components/admin/surface";
 import { PortalArt } from "@/components/student/PortalArt";
 
 const DAY = 86_400_000;
-const nameOf = (s: Student) => s.username.charAt(0).toUpperCase() + s.username.slice(1);
+// The tidied name ("ali.k2" shows as "Ali K"), never the raw username.
+const nameOf = (s: Student) => displayName(s.username) || s.username;
 const waTo = (e164: string | undefined, text: string) =>
   e164 ? `https://wa.me/${e164.replace(/\D/g, "")}?text=${encodeURIComponent(text)}` : null;
 
 function greeting(d: Date) {
-  const h = d.getHours();
+  // Pakistan time, like the date under it, whatever zone the laptop or tablet is set to.
+  const h = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: "Asia/Karachi" }).format(d));
   return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 }
 
@@ -72,14 +75,15 @@ export default function TodayPage() {
     : Array.from({ length: 8 }, (_, i) => liveSlotsOn(db, addDays(todayPk, i)))
         .flat()
         .find((s) => s.startMs > nowMs);
+  const nextName = nextClass ? `${LEVEL_LABEL[nextClass.level]} ${nextClass.subject}` : "";
   const nextLabel = nextClass
-    ? `${LEVEL_LABEL[nextClass.level]} ${nextClass.subject}, ${
+    ? `${
         nextClass.date === todayPk
           ? "today"
           : nextClass.date === addDays(todayPk, 1)
             ? "tomorrow"
             : new Date(`${nextClass.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short", timeZone: "Asia/Karachi" })
-      } at ${clock(nextClass.start)}`
+      }, ${clock(nextClass.start)}`
     : null;
   // "Checked" is saved with the reminder log, so it holds on the laptop and
   // the tablet alike (older ticks made on this device still count).
@@ -101,11 +105,13 @@ export default function TodayPage() {
 
   // The heavy sums below follow the clock in 5-minute steps, not every 30 s tick.
   const tick = Math.floor(nowMs / 300_000) * 300_000;
+  // Paused students are left out of every list here until resumed.
+  const pausedIds = usePausedIds();
   const data = useMemo(() => {
     // Switched-off cohorts are archived: they never show up on Today. Nor does
     // Hamza's own test account (its papers still open from Submissions).
     const off = archivedCohortIds(db);
-    const inScope = (s: Student) => !off.has(s.cohortId) && !isTestAccount(s) && (cohortId === null || s.cohortId === cohortId);
+    const inScope = (s: Student) => !off.has(s.cohortId) && !isTestAccount(s) && !pausedIds.has(s.id) && (cohortId === null || s.cohortId === cohortId);
     const testInScope = (t: Test) =>
       !isArchivedTest(db, t, off) && (cohortId === null || t.cohortId === null || t.cohortId === cohortId);
     const students = db.students.filter(inScope);
@@ -170,7 +176,7 @@ export default function TodayPage() {
     const weak = weakTopics(db, cohortId).map((w) => ({ ...w, available: retestQuestions(db, w.subject, w.name).length }));
 
     return { toMark, toReply, closing, problems, rotation, avg30, weak, studentCount: students.length, hasResults };
-  }, [db, cohortId, tick, checked, profiles, profilesReady, weekLinks, weekJoins, weekReady, weekAgo, todayPk, activity.data]);
+  }, [db, cohortId, tick, checked, profiles, profilesReady, weekLinks, weekJoins, weekReady, weekAgo, todayPk, activity.data, pausedIds]);
 
   const cohortName = cohortId ? cohortById(db, cohortId)?.name : null;
 
@@ -210,7 +216,8 @@ export default function TodayPage() {
         subtitle={`${new Date(nowMs).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Karachi" })}${cohortName ? ` · ${cohortName}` : " · All cohorts"}`}
         actions={
           data.toMark[0] ? (
-            <Link href={`/admin/grading/${data.toMark[0].id}`} className={buttonClasses()}>
+            // One gold button per view: while a class is about to start, Start class is the gold one.
+            <Link href={`/admin/grading/${data.toMark[0].id}`} className={buttonClasses({ variant: heroClass ? "secondary" : "primary" })}>
               Start marking ({data.toMark.length})
             </Link>
           ) : undefined
@@ -223,9 +230,15 @@ export default function TodayPage() {
       {/* The class to start, from 3 hours before until it ends. */}
       {heroClass && <StartCard slot={heroClass} url={classLinks.find((l) => slotKey(l) === slotKey(heroClass))?.meetUrl ?? null} nowMs={nowMs} />}
       {nextLabel && (
-        <Link href="/admin/classes" className={cn(panelLink, "mb-4 flex min-h-14 items-center justify-between gap-3 px-5 py-3 text-[15px] text-ink-2")}>
-          <span>
-            Next class: <span className="font-semibold text-ink">{nextLabel}</span>
+        <Link href="/admin/classes" className={cn(panelLink, "mb-4 flex min-h-14 items-center justify-between gap-3 px-5 py-3 text-base text-ink-2")}>
+          {/* A quiet label, then one clean line: the class, the day and the time. */}
+          <span className="min-w-0">
+            <span className="label-quiet block text-ink-3">Next class</span>
+            <span className="mt-0.5 block text-base text-ink-2">
+              <span className="font-semibold text-ink">{nextName}</span>
+              <span aria-hidden className="mx-1.5 text-ink-3">·</span>
+              <span className="whitespace-nowrap tabular-nums">{nextLabel}</span>
+            </span>
           </span>
           <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-sm text-ink-3">Classes <Icon.ChevronRight className="h-3.5 w-3.5" aria-hidden /></span>
         </Link>
@@ -243,25 +256,25 @@ export default function TodayPage() {
       {/* At a glance */}
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((s) => (
-          <a key={s.label} href={s.href} className={cn(panelLink, "px-5 py-4")}>
-            <p className="text-[13px] text-ink-3">{s.label}</p>
-            <p className="mt-1 text-[1.75rem] font-semibold leading-tight tabular-nums tracking-[-0.02em] text-ink">{s.value}</p>
-            {s.note && <p className="mt-0.5 text-[13px] tabular-nums text-ink-3">{s.note}</p>}
+          <a key={s.label} href={s.href} className={cn(panelLink, statTile)}>
+            <p className={statLabel}>{s.label}</p>
+            <p className={statValue}>{s.value}</p>
+            {s.note && <p className={statNote}>{s.note}</p>}
           </a>
         ))}
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2 lg:gap-5">
         {/* To mark */}
-        <Card id="to-mark" className="scroll-mt-24 p-5">
+        <Card id="to-mark" className="scroll-mt-24 p-5 sm:p-6">
           <h2 className={panelTitle}>To mark</h2>
           {data.toMark.length === 0 ? (
             <div className="mt-3 flex items-center gap-4">
               <PortalArt group="scenes" name="empty-nothing-to-mark" width={72} height={72} sized className="-my-1 shrink-0" imgClassName="object-contain" />
-              <p className="text-[15px] text-ink-2">{data.toReply.length ? "No test papers waiting." : "All marked. Nothing waiting."}</p>
+              <p className="text-base text-ink-2">{data.toReply.length ? "No test papers waiting." : "All marked. Nothing waiting."}</p>
             </div>
           ) : (
-            <ul className="mt-3 divide-y divide-border">
+            <ul className="mt-3 divide-y divide-hairline">
               {data.toMark.slice(0, 6).map((sub) => {
                 const st = db.students.find((x) => x.id === sub.studentId);
                 const t = testById(db, sub.testId);
@@ -270,9 +283,9 @@ export default function TodayPage() {
                 const days = waited > 2 * DAY ? Math.floor(waited / DAY) : 0;
                 return (
                   <li key={sub.id}>
-                    <Link href={`/admin/grading/${sub.id}`} className="group -mx-2 flex min-h-12 items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-white/[0.025]">
+                    <Link href={`/admin/grading/${sub.id}`} className="group -mx-2 flex min-h-12 items-center justify-between gap-3 rounded-field px-2 py-2.5 transition-colors hover:bg-white/[0.025]">
                       <span className="min-w-0">
-                        <span className="font-semibold text-ink">{st ? nameOf(st) : "Student"}</span>
+                        <span className="block truncate text-base font-semibold text-ink">{st ? nameOf(st) : "Student"}</span>
                         <span className="block truncate text-sm text-ink-2">{t?.title}</span>
                       </span>
                       <span className="shrink-0 text-right text-sm tabular-nums text-ink-3">
@@ -292,16 +305,16 @@ export default function TodayPage() {
           )}
           {data.toReply.length > 0 && (
             <>
-              <h3 className="mt-5 border-t border-border pt-4 text-[13px] font-semibold text-ink-3">Homework to reply to</h3>
-              <ul className="mt-1 divide-y divide-border">
+              <h3 className="label-quiet mt-5 border-t border-hairline pt-4 text-ink-3">Homework to reply to</h3>
+              <ul className="mt-1 divide-y divide-hairline">
                 {Object.entries(
                   data.toReply.reduce<Record<string, number>>((m, x) => ((m[x.assignmentId] = (m[x.assignmentId] ?? 0) + 1), m), {}),
                 )
                   .slice(0, 4)
                   .map(([aid, n]) => (
                     <li key={aid}>
-                      <Link href={`/admin/assignments?open=${aid}`} className="-mx-2 flex min-h-12 items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-white/[0.025]">
-                        <span className="min-w-0 truncate font-semibold text-ink">{db.assignments.find((a) => a.id === aid)?.title ?? "Homework"}</span>
+                      <Link href={`/admin/assignments?open=${aid}`} className="-mx-2 flex min-h-12 items-center justify-between gap-3 rounded-field px-2 py-2.5 transition-colors hover:bg-white/[0.025]">
+                        <span className="min-w-0 truncate text-base font-semibold text-ink">{db.assignments.find((a) => a.id === aid)?.title ?? "Homework"}</span>
                         <span className={countPill}>{n} to reply</span>
                       </Link>
                     </li>
@@ -312,16 +325,16 @@ export default function TodayPage() {
         </Card>
 
         {/* Closing soon */}
-        <Card id="closing" className="scroll-mt-24 p-5">
+        <Card id="closing" className="scroll-mt-24 p-5 sm:p-6">
           <h2 className={panelTitle}>Closing in the next 48 hours</h2>
           {data.closing.length === 0 ? (
-            <p className="mt-2 text-[15px] text-ink-2">No tests closing soon.</p>
+            <p className="mt-2 text-base text-ink-2">No tests closing soon.</p>
           ) : (
-            <ul className="mt-2 divide-y divide-border">
+            <ul className="mt-2 divide-y divide-hairline">
               {data.closing.map(({ test, eligible, missing }) => (
                 <li key={test.id} className="py-3 first:pt-1">
                   <div className="flex items-baseline justify-between gap-3">
-                    <Link href={`/admin/tests/${test.id}`} className="inline-flex min-h-11 items-center font-semibold text-ink underline-offset-4 hover:underline">{test.title}</Link>
+                    <Link href={`/admin/tests/${test.id}`} className="inline-flex min-h-11 items-center text-base font-semibold text-ink underline-offset-4 hover:underline">{test.title}</Link>
                     <span className="shrink-0 text-sm text-warning">Closes {formatRelative(test.closesAt, nowMs)}</span>
                   </div>
                   <p className="text-sm tabular-nums text-ink-2">
@@ -372,17 +385,17 @@ export default function TodayPage() {
         />
 
         {/* Weak topics → retest */}
-        <Card className="p-5 lg:col-span-2">
+        <Card className="p-5 sm:p-6 lg:col-span-2">
           <h2 className={panelTitle}>Weakest topics</h2>
           <p className="mt-1 max-w-[65ch] text-sm text-ink-3">From released results{cohortName ? ` in ${cohortName}` : ""}. A retest is drafted from your question bank and past tests, and stays hidden until you publish it.</p>
           {data.weak.length === 0 ? (
-            <p className="mt-3 text-[15px] text-ink-2">{data.hasResults ? "No topic is under 70%. Nice." : "No results released yet."}</p>
+            <p className="mt-3 text-base text-ink-2">{data.hasResults ? "No topic is under 70%. Nice." : "No results released yet."}</p>
           ) : (
-            <ul className="mt-4 grid divide-y divide-border border-t border-border md:grid-cols-3 md:divide-x md:divide-y-0">
+            <ul className="mt-4 grid divide-y divide-hairline border-t border-hairline md:grid-cols-3 md:divide-x md:divide-y-0">
               {data.weak.map((w) => (
                 <li key={`${w.subject}|${w.name}`} className="flex flex-col py-4 md:px-5 md:first:pl-0 md:last:pr-0">
-                  <p className="text-[13px] text-ink-3">{w.subject}</p>
-                  <p className="font-semibold text-ink">{w.name}</p>
+                  <p className="text-sm text-ink-3">{w.subject}</p>
+                  <p className="text-base font-semibold text-ink">{w.name}</p>
                   <div className="mt-3 h-1 overflow-hidden rounded-full bg-surface-2" aria-hidden>
                     <div className={cn("h-full rounded-full", w.percent < 50 ? "bg-error" : "bg-warning")} style={{ width: `${Math.max(4, Math.round(w.percent))}%` }} />
                   </div>

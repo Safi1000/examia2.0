@@ -1,4 +1,4 @@
-export { Button } from "@/components/ui/Button";
+export { Button, buttonClasses } from "@/components/ui/Button";
 export { Input, Textarea, Label, controlHeight, filterField } from "@/components/ui/Input";
 export { segmentGroup, segmentItem, chipClass } from "@/components/ui/Segmented";
 export { Select } from "@/components/ui/Select";

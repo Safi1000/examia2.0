@@ -19,7 +19,7 @@ export default function TermsPage() {
         <p>
           These terms cover the free trial lesson, the classes, the recordings and the student portal. They are
           written to be read. If anything is unclear, ask me on{" "}
-          <a href={waLink()} target="_blank" rel="noopener noreferrer" className="font-semibold text-gold hover:underline">
+          <a href={waLink()} target="_blank" rel="noopener noreferrer" className="font-semibold text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">
             WhatsApp
           </a>
           .
@@ -49,7 +49,7 @@ export default function TermsPage() {
           h: "Refunds",
           body: (
             <p>
-              Fees are not refundable once paid, including if a student stops attending part-way through. That is
+              Fees are not refundable once paid, including if a student stops attending partway through. That is
               why the first lesson is free: you can see how I teach before you pay anything.
             </p>
           ),
@@ -79,7 +79,7 @@ export default function TermsPage() {
             <p>
               I create portal accounts for enrolled students. Keep your login to yourself; tell me straight away if
               someone else may have it. I may pause an account that is misused. How portal information is handled is
-              explained in the <Link href="/privacy" className="font-semibold text-gold hover:underline">privacy policy</Link>.
+              explained in the <Link href="/privacy" className="font-semibold text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">privacy policy</Link>.
             </p>
           ),
         },

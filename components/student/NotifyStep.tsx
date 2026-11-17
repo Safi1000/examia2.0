@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { device, enablePush, pushStatus, type Device, type PushStatus } from "@/lib/push-client";
 import { cn } from "@/lib/cn";
+import { Icon } from "@/components/ui";
+import { Button } from "@/components/ui/Button";
 
 /**
  * Welcome-flow step: turn on notifications, with the right steps for the
@@ -52,22 +54,25 @@ export function NotifyStep() {
     }
   }
 
-  const box = "rounded-2xl border border-border bg-surface p-5";
+  // A tile: it also sits inside Home's reminders card, so it is never a second card with its own border.
+  const box = "rounded-tile bg-surface-2 p-5";
   if (status === "loading") return <div className={cn(box, "skeleton h-28")} />;
 
   if (status === "on")
     return (
       <div className={cn(box, "flex items-center gap-3")}>
-        <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success-soft text-lg text-success">✓</span>
-        <p className="font-semibold text-ink">Notifications are on for this phone.</p>
+        <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success-soft text-success">
+          <Icon.Check className="h-5 w-5" />
+        </span>
+        <p className="text-base font-semibold text-ink">Notifications are on for this phone.</p>
       </div>
     );
 
   if (status === "iphone")
     return (
       <div className={box}>
-        <p className="font-semibold text-ink">On iPhone, two quick steps first</p>
-        <ol className="mt-4 space-y-3.5 text-sm text-ink-2">
+        <p className="text-base font-semibold text-ink">On iPhone, two quick steps first</p>
+        <ol className="mt-4 space-y-3.5 text-base text-ink-2">
           {[
             <>
               Tap <ShareIcon /> <span className="font-semibold text-ink">Share</span> at the bottom of Safari.
@@ -80,20 +85,20 @@ export function NotifyStep() {
             </>,
           ].map((t, i) => (
             <li key={i} className="flex gap-3">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand text-xs font-bold text-on-brand">{i + 1}</span>
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border-strong text-xs font-bold text-ink tabular-nums">{i + 1}</span>
               <span className="pt-0.5">{t}</span>
             </li>
           ))}
         </ol>
-        <p className="mt-4 text-xs text-ink-3">Using Chrome on iPhone? Open this page in Safari for these steps.</p>
+        <p className="mt-4 text-sm text-ink-3">Using Chrome on iPhone? Open this page in Safari for these steps.</p>
       </div>
     );
 
   if (status === "blocked")
     return (
       <div className={box}>
-        <p className="font-semibold text-ink">Notifications are blocked</p>
-        <p className="mt-1.5 text-sm text-ink-2">
+        <p className="text-base font-semibold text-ink">Notifications are blocked</p>
+        <p className="mt-1.5 text-base text-ink-2">
           {dev === "android"
             ? "Tap the icon to the left of the address, then Permissions → Notifications → Allow. Then come back here."
             : "Allow notifications for this site in your browser settings, then come back here."}
@@ -104,7 +109,7 @@ export function NotifyStep() {
   if (status === "unsupported" || status === "notReady")
     return (
       <div className={box}>
-        <p className="text-sm text-ink-2">
+        <p className="text-base text-ink-2">
           {status === "notReady" ? "Notifications are coming soon." : "This browser can't show notifications. On Android, use Chrome. On iPhone, use Safari."}
         </p>
       </div>
@@ -112,21 +117,17 @@ export function NotifyStep() {
 
   return (
     <div className={box}>
-      <button
-        type="button"
-        onClick={() => void turnOn()}
-        disabled={busy}
-        className="h-12 w-full rounded-full bg-brand text-base font-semibold text-on-brand transition hover:brightness-110 disabled:opacity-60"
-      >
+      {/* Outlined: in the welcome the gold button is Next, below. */}
+      <Button variant="secondary" size="lg" fullWidth onClick={() => void turnOn()} disabled={busy}>
         {busy ? "One moment…" : "Turn on notifications"}
-      </button>
+      </Button>
       {failed ? (
         <p role="alert" className="mt-3 text-center text-sm font-medium text-error">Couldn&apos;t turn them on. Check your internet and try again.</p>
       ) : (
-        <p className="mt-3 text-center text-xs text-ink-3">Your phone will ask you to allow them. Tap Allow.</p>
+        <p className="mt-3 text-center text-sm text-ink-3">Your phone will ask you to allow them. Tap Allow.</p>
       )}
       {dev === "android" && (
-        <p className="mt-4 text-xs text-ink-3">
+        <p className="mt-4 text-sm text-ink-3">
           Tip: tap ⋮ in Chrome, then <span className="font-semibold text-ink-2">Add to Home screen</span>, so the portal opens like an app.
         </p>
       )}

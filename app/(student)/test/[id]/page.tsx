@@ -15,7 +15,7 @@ import { useToast } from "@/components/toast";
 import { CountdownTimer } from "@/components/student/CountdownTimer";
 import { QuestionView, type AnswerChange } from "@/components/student/QuestionView";
 import { useUploadsInProgress } from "@/lib/upload-tracker";
-import { Button, Modal, Pill, Icon } from "@/components/ui";
+import { Button, Modal, Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 import { formatWhen, formatCountdown, testWindow } from "@/lib/time";
 import { useTestSafety } from "@/hooks/useTestSafety";
@@ -26,7 +26,8 @@ import Link from "next/link";
 function isAnswered(a: Answer): boolean {
   if (a.type === "mcq") return typeof a.selectedIndex === "number";
   if (a.type === "text") return (a.text ?? "").trim().length > 0;
-  return !!a.photoDataUrl;
+  // A draft restored from the server carries photoUrls only (no photoDataUrl).
+  return !!(a.photoUrls?.length || a.photoDataUrl);
 }
 
 const blankAnswer = (q: Question): Answer => ({ questionId: q.id, type: q.type });
@@ -209,14 +210,17 @@ function ReadyScreen({ test, nowMs, busy, onBegin }: { test: Test; nowMs: number
   return (
     <div className="rise mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
       <p className="text-sm font-semibold text-ink-2">{test.subject}</p>
-      <h1 className="mt-2 text-[2rem] font-extrabold leading-[1.08] tracking-[-0.03em] text-ink">{test.title}</h1>
+      <h1 className="mt-2 text-balance text-title font-bold tracking-[-0.025em] text-ink sm:text-title-lg">{test.title}</h1>
 
       {/* One surface, three facts split by hairlines. */}
-      <dl className="surface mt-8 grid grid-cols-3 divide-x divide-hairline rounded-xl">
+      <dl className="surface mt-8 grid grid-cols-3 divide-x divide-hairline rounded-card">
         {facts.map((f) => (
           <div key={f.k} className="flex flex-col-reverse px-3 py-4 text-center">
             <dt className="label-quiet mt-1.5 text-ink-3">{f.k}</dt>
-            <dd className="text-2xl font-extrabold tracking-[-0.02em] tabular-nums text-ink">{f.v}</dd>
+            <dd className="whitespace-nowrap text-title font-bold tracking-[-0.02em] tabular-nums text-ink">
+              {/* The unit sits small beside the number, so "20 min" stays on one line like its neighbours. */}
+              {f.v.endsWith(" min") ? <>{f.v.slice(0, -4)}<span className="ml-1 text-base font-semibold text-ink-2">min</span></> : f.v}
+            </dd>
           </div>
         ))}
       </dl>
@@ -224,7 +228,9 @@ function ReadyScreen({ test, nowMs, busy, onBegin }: { test: Test; nowMs: number
       <ul className="mt-7 space-y-3 text-base text-ink-2">
         <li className="flex gap-3">
           <Icon.Clock className="mt-1 h-4 w-4 shrink-0 text-ink-3" />
-          {short ? (
+          {minutes <= 0 ? (
+            <span>This test closes in under a minute, so there isn&apos;t time to start it. If you missed it, message me.</span>
+          ) : short ? (
             <span>The test closes at {closes}, so you get <b className="text-ink">{minutes} minutes</b> instead of {test.durationMinutes}.</span>
           ) : (
             <span>The clock starts when you tap Begin, not before.</span>
@@ -480,7 +486,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   if (existing) {
     return submitting
       ? <RunnerNotice icon="warn" title="Handing in…" message="Keep this page open until you see Done." />
-      : <RunnerNotice title="Already submitted" message="You've already done this one." />;
+      : <RunnerNotice title="Already handed in" message="You've already handed this one in." />;
   }
   if (window === "future") return <RunnerNotice title="Not open yet" message={`It opens ${formatWhen(test.opensAt)}. Come back then.`} />;
   // Never while photos are still being handed in after time ran out.
@@ -538,17 +544,18 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
   return (
     <div className="flex min-h-dvh flex-col">
       {/* Focus-mode header with the live countdown */}
-      <header className="sticky top-0 z-30 border-b border-hairline bg-paper/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-hairline bg-paper pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-5 py-3">
           <div className="flex min-w-0 items-center gap-2">
             <div className="min-w-0">
               <p className="truncate text-sm font-bold text-ink">{test.title}</p>
-              <Pill>{test.testCode}</Pill>
+              {/* The test code is Hamza's own reference: students only need the subject. */}
+              <p className="truncate text-xs text-ink-3">{test.subject}</p>
             </div>
           </div>
           <CountdownTimer remaining={remaining} state={state} />
         </div>
-        {/* Question map: tap any number to jump. Gold = answered, ring = where you are. */}
+        {/* Question map: tap any number to jump. Filled = answered, ring = where you are. */}
         <nav aria-label="Questions" className={cn("mx-auto flex max-w-2xl items-center gap-3 px-5 pb-3", uploading && "hidden")}>
           <ol ref={mapRef} className="-m-1 flex flex-1 gap-1.5 overflow-x-auto p-1 [scrollbar-width:none]">
             {test.questions.map((qq, i) => {
@@ -561,9 +568,9 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
                     aria-label={`Question ${i + 1}${done ? ", answered" : ""}`}
                     aria-current={i === at ? "step" : undefined}
                     className={cn(
-                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold tabular-nums transition-all",
-                      done ? "bg-brand text-on-brand" : "border border-border-strong text-ink-3 hover:text-ink",
-                      i === at && "ring-2 ring-brand ring-offset-2 ring-offset-paper",
+                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-sm font-bold tabular-nums transition-[background-color,border-color,color] duration-150 ease-[var(--ease-out)]",
+                      done ? "border-white/[0.16] bg-white/[0.14] text-ink" : "border-border-strong text-ink-3 hover:text-ink",
+                      i === at && "ring-2 ring-ink ring-offset-2 ring-offset-paper",
                     )}
                   >
                     {i + 1}
@@ -572,29 +579,29 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
               );
             })}
           </ol>
-          <span className="shrink-0 text-xs font-semibold text-ink-2">
+          <span className="shrink-0 text-xs font-semibold tabular-nums text-ink-2">
             {answeredCount}/{test.questions.length} done
           </span>
         </nav>
         {!online && (
-          <p role="status" className="border-t border-warning/30 bg-warning-soft px-4 py-2 text-center text-xs font-semibold text-warning">
-            You&apos;re offline. Keep going: your answers are saved on this device.
+          <p role="status" className="border-t border-warning/30 bg-warning-soft px-5 py-2 text-center text-sm font-semibold text-warning">
+            You&apos;re offline. Keep going: your typed answers are saved on this phone. Photos need internet to upload.
           </p>
         )}
       </header>
 
       {finishingAt != null && photosBusy > 0 && (
-        <div role="status" className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-paper/95 px-6 text-center backdrop-blur">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand">Time&apos;s up</p>
-          <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-ink">Saving your last photos…</h2>
+        <div role="status" className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-paper px-6 text-center">
+          <p className="label-quiet text-ink-2">Time&apos;s up</p>
+          <h2 className="mt-3 text-balance text-title font-bold tracking-[-0.025em] text-ink">Saving your last photos…</h2>
           <p className="mt-3 max-w-xs text-base text-ink-2">Keep this screen open. Your paper is handed in as soon as they finish.</p>
         </div>
       )}
 
       {pensDown && (
-        <div role="alertdialog" aria-modal="true" aria-labelledby="pens-down" className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-paper/95 px-6 text-center backdrop-blur">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand">Time&apos;s up</p>
-          <h2 id="pens-down" className="mt-3 text-4xl font-extrabold tracking-tight text-ink">Pens down.</h2>
+        <div role="alertdialog" aria-modal="true" aria-labelledby="pens-down" className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-paper px-6 text-center">
+          <p className="label-quiet text-ink-2">Time&apos;s up</p>
+          <h2 id="pens-down" className="mt-3 text-title-lg font-bold tracking-[-0.025em] text-ink">Pens down.</h2>
           <p className="mt-3 max-w-xs text-base text-ink-2">
             You have {uploadMins} {uploadMins === 1 ? "minute" : "minutes"} to photograph and upload your pages.
           </p>
@@ -607,9 +614,9 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
       <div className="mx-auto w-full max-w-2xl flex-1 px-5 py-6">
         {uploading ? (
           <div className="animate-fade-up space-y-6">
-            <div className="rounded-xl border border-warning/35 bg-warning-soft px-5 py-4">
+            <div className="rounded-card border border-warning/35 bg-warning-soft p-5">
               <p className="font-bold text-ink">Writing time is over.</p>
-              <p className="mt-0.5 text-sm text-ink-2">
+              <p className="mt-1 text-sm leading-relaxed text-ink-2">
                 Photograph your pages now and upload them before this timer runs out. Whatever is
                 uploaded by then is what gets marked.
               </p>
@@ -635,7 +642,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
         )}
       </div>
 
-      <footer className="sticky bottom-0 border-t border-hairline bg-paper/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
+      <footer className="sticky bottom-0 z-30 border-t border-hairline bg-paper pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-5 py-3">
           {uploading ? (
             <Button className="w-full" disabled={photosBusy > 0} onClick={() => setConfirmOpen(true)}>
@@ -674,7 +681,7 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
             <Button variant="secondary" onClick={() => setConfirmOpen(false)}>Not yet</Button>
             {/* Never hand in while a photo is still on its way up. */}
             <Button onClick={() => doSubmit(false)} disabled={submitting || photosBusy > 0}>
-              {submitting ? "Submitting…" : photosBusy > 0 ? "Waiting for photos…" : "Yes, submit"}
+              {submitting ? "Handing in…" : photosBusy > 0 ? "Waiting for photos…" : "Yes, hand it in"}
             </Button>
           </>
         }
@@ -694,10 +701,10 @@ function TestRunner({ id, boot }: { id: string; boot: Boot }) {
           aria-modal="true"
           aria-labelledby="not-handed-in"
           aria-describedby="not-handed-in-why"
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-paper/95 px-6 text-center backdrop-blur"
+          className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-paper px-6 text-center"
         >
-          <Icon.Warn className="h-8 w-8 text-warning" />
-          <h2 id="not-handed-in" className="mt-3 text-3xl font-extrabold tracking-tight text-ink">Not handed in yet</h2>
+          <Icon.Warn className="h-6 w-6 text-warning" />
+          <h2 id="not-handed-in" className="mt-3 text-balance text-title font-bold tracking-[-0.025em] text-ink">Not handed in yet</h2>
           <p id="not-handed-in-why" className="mt-3 max-w-xs text-base text-ink-2">
             Your answers are still saved on this phone. Check your internet, then tap Try again. Keep this page open
             until you see Done.
@@ -736,9 +743,9 @@ function RunnerNotice({
   const Glyph = icon === "warn" ? Icon.Warn : Icon.Lock;
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center px-6 text-center">
-      <Glyph className={cn("h-8 w-8", icon === "warn" ? "text-warning" : "text-ink-3")} />
+      <Glyph className={cn("h-6 w-6", icon === "warn" ? "text-warning" : "text-ink-3")} />
       <h1 className="mt-3 text-xl font-bold text-ink">{title}</h1>
-      <p className="mt-1 text-sm text-ink-2">{message}</p>
+      <p className="mt-2 max-w-xs text-base leading-relaxed text-ink-2">{message}</p>
       {action}
       <Link href="/dashboard" className={buttonClasses({ variant: "secondary", className: "mt-5" })}>
         Back to Home

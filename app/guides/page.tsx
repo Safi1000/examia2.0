@@ -40,10 +40,10 @@ const FAQ = [
 ];
 
 const gold =
-  "inline-flex min-h-11 items-center justify-center rounded-full bg-gold px-5 text-[15px] font-semibold text-[#1b1e21] transition-colors hover:bg-gold-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
+  "inline-flex min-h-11 items-center justify-center rounded-full bg-gold px-5 text-base font-semibold text-band-b transition-colors duration-200 hover:bg-gold-hover active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
 const ghost =
-  "inline-flex min-h-11 items-center justify-center rounded-full border border-hairline-strong px-5 text-[15px] font-semibold text-body transition-colors hover:border-gold-border hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
-const tag = "rounded-full border border-gold-border bg-gold-tint px-2.5 py-0.5 text-xs font-semibold text-gold";
+  "inline-flex min-h-11 items-center justify-center rounded-full border border-hairline-strong px-5 text-base font-semibold text-body transition-colors duration-200 hover:border-white/[0.28] hover:text-foreground active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
+const tag = "rounded-full border border-hairline-strong px-2.5 py-0.5 text-xs font-semibold text-muted-foreground";
 
 function coverLabel(g: Guide) {
   return g.subjects.length > 1 ? "All three subjects" : g.level;
@@ -52,7 +52,7 @@ function coverLabel(g: Guide) {
 function GuideCard({ g }: { g: Guide }) {
   const onSale = Boolean(g.buyUrl);
   return (
-    <article className="grid gap-6 rounded-[24px] border border-hairline bg-card p-6 sm:grid-cols-[150px_minmax(0,1fr)]">
+    <article className="pc-surface grid gap-6 rounded-card p-6 sm:grid-cols-[150px_minmax(0,1fr)]">
       <GuideCover title={g.coverTitle} label={coverLabel(g)} style={g.cover} className="max-w-[180px] sm:max-w-none" />
       <div className="min-w-0">
         <div className="flex flex-wrap gap-2">
@@ -63,15 +63,15 @@ function GuideCard({ g }: { g: Guide }) {
           ))}
           <span className={tag}>{g.level}</span>
         </div>
-        <h3 className="mt-3 text-[22px] font-bold leading-tight text-foreground">{g.title}</h3>
-        <ul className="mt-3 list-disc space-y-1 pl-5 text-[15px] text-muted-foreground marker:text-gold">
+        <h3 className="mt-3 text-xl font-bold leading-tight text-foreground">{g.title}</h3>
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-base text-muted-foreground marker:text-faint">
           {g.points.map((p) => (
             <li key={p}>{p}</li>
           ))}
         </ul>
         <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3">
           {/* The price shows only once the guide can be bought. */}
-          {onSale && <span className="text-[26px] font-extrabold tabular-nums tracking-tight text-foreground">{g.price}</span>}
+          {onSale && <span className="text-title font-extrabold tabular-nums tracking-tight text-foreground">{g.price}</span>}
           {onSale ? (
             <TrackedLink href={g.buyUrl} event="guide_buy_click" props={{ guide: g.slug }} className={gold}>
               Buy now
@@ -116,14 +116,14 @@ export default function GuidesPage() {
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 md:grid-cols-[minmax(0,6fr)_minmax(0,5fr)] md:gap-16">
           <div>
             <nav aria-label="Breadcrumb" className="text-sm text-faint">
-              <Link href="/" className="hover:text-gold">Home</Link>
+              <Link href="/" className="transition-colors duration-200 hover:text-ink">Home</Link>
               <span aria-hidden className="mx-2">/</span>
               <span aria-current="page" className="text-muted-foreground">Guides</span>
             </nav>
             <p className="mt-10 font-hand text-[clamp(1.6rem,3vw,2.1rem)] font-bold leading-none text-gold">
               Written by me, for my students.
             </p>
-            <h1 className="mt-4 max-w-[14ch] text-4xl font-bold leading-[1.03] tracking-tight text-foreground md:text-6xl">
+            <h1 className="mt-4 max-w-[20ch] text-4xl font-bold leading-[1.03] tracking-tight text-foreground md:text-6xl">
               Exam guides that read like my lessons.
             </h1>
             <p className="mt-6 max-w-[44ch] text-lg leading-relaxed text-muted-foreground">
@@ -131,8 +131,7 @@ export default function GuidesPage() {
             </p>
             <ul className="mt-8 flex flex-wrap gap-2.5 text-sm text-body">
               {["Instant PDF download", "Cambridge & Edexcel", "Pay by card, from anywhere"].map((f) => (
-                <li key={f} className="flex items-center gap-2 rounded-full border border-hairline-strong px-3.5 py-2">
-                  <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-gold" />
+                <li key={f} className="flex items-center rounded-full border border-hairline-strong px-3.5 py-2">
                   {f}
                 </li>
               ))}
@@ -143,7 +142,7 @@ export default function GuidesPage() {
               <div
                 key={g.slug}
                 className={`absolute w-[46%] ${
-                  i === 0 ? "left-[2%] top-8 -rotate-[8deg]" : i === 1 ? "left-[27%] top-0 z-10" : "left-[52%] top-8 rotate-[7deg]"
+                  i === 0 ? "left-[2%] top-8" : i === 1 ? "left-[27%] top-0 z-10" : "left-[52%] top-8"
                 }`}
               >
                 <GuideCover title={g.coverTitle} label={coverLabel(g)} style={g.cover} />
@@ -165,10 +164,10 @@ export default function GuidesPage() {
             ))}
           </div>
           {BUNDLE.price && BUNDLE.buyUrl && (
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-5 rounded-[24px] border border-gold-border bg-gold-tint px-7 py-6">
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-5 rounded-card pc-surface px-7 py-6">
               <div>
-                <h3 className="text-[22px] font-bold text-foreground">All four guides</h3>
-                <p className="mt-1 text-[15px] text-muted-foreground">Everything above in one download.</p>
+                <h3 className="text-xl font-bold text-foreground">All four guides</h3>
+                <p className="mt-1 text-base text-muted-foreground">Everything above in one download.</p>
               </div>
               <TrackedLink href={BUNDLE.buyUrl} event="guide_buy_click" props={{ guide: "bundle" }} className={gold}>
                 Get the bundle · {BUNDLE.price}
@@ -182,15 +181,15 @@ export default function GuidesPage() {
       <section aria-labelledby="sample-title" className="py-20 md:py-28">
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] md:gap-16">
           <figure
-            className="rounded-lg bg-[#f4f1ea] p-6 text-[14px] leading-snug text-[#2a2a2a] shadow-[0_30px_60px_rgba(0,0,0,0.35)] md:rotate-1"
+            className="rounded-lg bg-[#f4f1ea] p-6 text-sm leading-snug text-[#2a2a2a] shadow-[0_30px_60px_rgba(0,0,0,0.35)]"
             aria-label="Sample page from the cheat sheet pack: the trial balance rule"
           >
             <div className="flex items-baseline justify-between border-b-2 border-[#1b1e21] pb-2">
               <b className="text-lg tracking-tight">The trial balance</b>
-              <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#8a5a0c]">Sample page</span>
+              <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#8a5a0c]">Sample page</span>
             </div>
             <div className="overflow-x-auto">
-              <table className="mt-3.5 w-full border-collapse text-[13px]">
+              <table className="mt-3.5 w-full border-collapse text-sm">
                 <thead>
                   <tr>
                     <th className="bg-[#1b1e21] px-2 py-1.5 text-left font-semibold text-[#f4f1ea]">Debit (DEAD)</th>
@@ -237,14 +236,14 @@ export default function GuidesPage() {
           </h2>
           <div className="mt-12 grid gap-5 md:grid-cols-3">
             {WHY.map((w) => (
-              <div key={w.t} className="rounded-[20px] bg-card p-6">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold-border bg-gold-tint text-gold" aria-hidden>
+              <div key={w.t} className="pc-surface rounded-card p-6">
+                <span className="flex h-10 w-10 items-center justify-center rounded-field border border-hairline-strong text-ink" aria-hidden>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M4 12.5l5 5L20 6.5" />
                   </svg>
                 </span>
                 <p className="mt-4 text-lg font-semibold text-foreground">{w.t}</p>
-                <p className="mt-1.5 text-[15px] leading-relaxed text-muted-foreground">{w.b}</p>
+                <p className="mt-1.5 text-base leading-relaxed text-muted-foreground">{w.b}</p>
               </div>
             ))}
           </div>
@@ -264,12 +263,12 @@ export default function GuidesPage() {
       {/* Upsell */}
       <section className="py-20 md:py-28">
         <div className="mx-auto max-w-6xl px-5">
-          <div className="flex flex-wrap items-center justify-between gap-6 rounded-[28px] border border-hairline bg-card-raised p-7 md:p-12">
+          <div className="flex flex-wrap items-center justify-between gap-6 pc-surface rounded-card p-7 md:p-12">
             <div className="flex min-w-0 items-center gap-5">
               <Image src="/hamza.jpg" alt="" width={72} height={72} className="h-[72px] w-[72px] shrink-0 rounded-full object-cover object-top" />
               <div>
                 <h2 className="text-2xl font-bold text-foreground md:text-3xl">Rather learn it live?</h2>
-                <p className="mt-1 text-[17px] text-muted-foreground">Take one free lesson with me first.</p>
+                <p className="mt-1 text-lg text-muted-foreground">Take one free lesson with me first.</p>
               </div>
             </div>
             <BookButton from="guides_upsell" className={`${gold} min-h-12 px-7 text-base`}>

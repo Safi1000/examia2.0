@@ -114,7 +114,7 @@ export function AdminLogin() {
             <button
               type="button"
               onClick={retryLoad}
-              className="mt-3 inline-flex min-h-11 items-center rounded-full border border-brand/40 px-5 text-sm font-semibold text-brand transition-colors hover:bg-brand/10 active:scale-[0.98]"
+              className="mt-3 inline-flex min-h-11 items-center rounded-full border border-border-strong px-5 text-sm font-semibold text-ink transition-colors duration-150 hover:border-ink-3 hover:bg-surface-2 active:scale-[0.98]"
             >
               Try again
             </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { color } from "@/lib/tokens";
 
 export interface LinePoint {
@@ -22,7 +22,21 @@ export function LineChart({
   height?: number;
 }) {
   const gradId = useId();
-  const W = 320;
+  // The drawing is exactly as wide as its box, so one unit is one pixel and
+  // the labels stay the same size on a phone and on a wide desktop card.
+  const box = useRef<HTMLDivElement>(null);
+  const empty = points.length === 0;
+  const [W, setW] = useState(320);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const fit = () => setW(Math.max(240, Math.round(el.clientWidth)));
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+    // Runs again once there is something to draw (an empty chart renders nothing).
+  }, [empty]);
   const H = height;
   const padX = 28;
   const padY = 22;
@@ -43,7 +57,7 @@ export function LineChart({
   // The chart scales with its box, so on a phone one unit is about a pixel:
   // labels at 11 stay readable, and only as many dates as fit side by side are
   // written (always the first and the last), so they never run into each other.
-  const fitLabels = Math.max(2, Math.floor(innerW / 44));
+  const fitLabels = Math.max(2, Math.floor(innerW / 56));
   const step = Math.max(1, Math.ceil((points.length - 1) / (fitLabels - 1)));
   const showLabel = (i: number) =>
     i === points.length - 1 || (i % step === 0 && points.length - 1 - i >= step);
@@ -55,7 +69,8 @@ export function LineChart({
       : `Score trend from ${Math.round(points[0].value)}${unit} (${points[0].label}) to ${Math.round(last.value)}${unit} (${last.label})`;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={summary}>
+    <div ref={box} className="w-full">
+    <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} className="block max-w-full" role="img" aria-label={summary}>
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color.brand} stopOpacity="0.22" />
@@ -66,7 +81,7 @@ export function LineChart({
       {gridVals.map((g) => (
         <g key={g}>
           <line x1={padX} x2={W - padX} y1={y(g)} y2={y(g)} stroke={color.border} strokeWidth="1" />
-          <text x={padX - 5} y={y(g) + 3.5} textAnchor="end" fontSize="10" fill={color.ink3} className="tabular">
+          <text x={padX - 5} y={y(g) + 3.5} textAnchor="end" fontSize="12" fill={color.ink3} className="tabular">
             {g}
           </text>
         </g>
@@ -94,7 +109,7 @@ export function LineChart({
               x={x(i)}
               y={H - 5}
               textAnchor={isSingle ? "middle" : i === 0 ? "start" : i === points.length - 1 ? "end" : "middle"}
-              fontSize="11"
+              fontSize="12"
               fill={color.ink3}
               className="tabular"
             >
@@ -104,5 +119,6 @@ export function LineChart({
         </g>
       ))}
     </svg>
+    </div>
   );
 }

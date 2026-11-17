@@ -54,16 +54,16 @@ export function AttendanceCard({ db, studentId, nowMs }: { db: Pick<Database, "a
   const tone = pct >= 90 ? "text-success" : pct >= 75 ? "text-ink" : "text-warning";
 
   return (
-    <section className="surface rounded-xl p-5 sm:p-6" aria-labelledby="att-h">
+    <section className="surface rounded-card p-5 sm:p-6" aria-labelledby="att-h">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 id="att-h" className="text-lg font-bold tracking-[-0.01em] text-ink">Attendance</h2>
           <p className="text-sm text-ink-3">{monthName(data.headMonth)}</p>
         </div>
         <div className="text-right">
-          <p className={cn("text-3xl font-extrabold leading-none tabular-nums", tone)}>{pct}%</p>
+          <p className={cn("text-title font-bold leading-none tabular-nums", tone)}>{pct}%</p>
           {diff != null && diff !== 0 && (
-            <p className={cn("mt-1.5 text-xs font-semibold", diff > 0 ? "text-success" : "text-warning")}>
+            <p className={cn("mt-1.5 text-sm font-semibold", diff > 0 ? "text-success" : "text-warning")}>
               {diff > 0 ? "Up" : "Down"} {Math.abs(diff)}% on last month
             </p>
           )}
@@ -86,11 +86,11 @@ export function AttendanceCard({ db, studentId, nowMs }: { db: Pick<Database, "a
                     aria-pressed={on}
                     aria-label={text}
                     title={text}
-                    className="flex h-11 w-full items-center justify-center rounded-md"
+                    className="flex h-11 w-full items-center justify-center rounded-field"
                   >
                     <span
                       className={cn(
-                        "h-7 w-full max-w-3 rounded-full transition",
+                        "h-7 w-full max-w-3 rounded-full transition-opacity duration-150",
                         STATUS[x.status].dot,
                         x.status === "present" && !on && "opacity-75",
                         on && "ring-2 ring-ink ring-offset-2 ring-offset-surface",
@@ -101,7 +101,7 @@ export function AttendanceCard({ db, studentId, nowMs }: { db: Pick<Database, "a
               );
             })}
           </ol>
-          <p className="mt-1 text-xs text-ink-3" aria-live="polite">
+          <p className="mt-1 text-sm text-ink-3" aria-live="polite">
             {(() => {
               const x = data.recent.find((r) => r.id === picked);
               return x ? <span className="font-semibold text-ink-2">{`${dayLabel(x.date)}: ${STATUS[x.status].label}`}</span> : `Your last ${data.recent.length} classes, oldest first. Tap one to see its day.`;

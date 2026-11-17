@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
-import { Modal, Button, Input, Select, Label, Icon } from "@/components/ui";
+import { Modal, Button, Input, Select, Label, Icon, segmentGroup, segmentItem } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { parseQuestions, type DraftQuestion } from "@/lib/question-parser";
 import { useDatabase } from "@/lib/data/store";
@@ -95,6 +95,16 @@ export function ImportDocModal({
       });
     }
     setDrafts(next);
+    // Letters only go on in order: one letter too few or too many shifts every answer after it.
+    const mcqCount = drafts.filter((d) => d.type === "mcq").length;
+    const letterCount = /\d/.test(key) ? null : key.replace(/[^A-Ha-h]/g, "").length;
+    if (applied && letterCount !== null && letterCount !== mcqCount) {
+      toast(
+        `The key has ${letterCount} letter${letterCount === 1 ? "" : "s"} but there ${mcqCount === 1 ? "is 1 multiple choice question" : `are ${mcqCount} multiple choice questions`}. Check each answer below before saving.`,
+        "error",
+      );
+      return;
+    }
     toast(
       applied ? `Answer key set on ${applied} question${applied === 1 ? "" : "s"}.` : "That key didn't match any multiple-choice questions.",
       applied ? "success" : "error",
@@ -234,7 +244,21 @@ export function ImportDocModal({
   const valid = drafts.length > 0 && !firstProblem;
 
   return (
-    <Modal open={open} onClose={requestClose} title="Import questions" size="lg">
+    <Modal
+      open={open}
+      onClose={requestClose}
+      title="Import questions"
+      size="lg"
+      footer={
+        <>
+          {drafts.length > 0 && firstProblem && <p role="status" className="mr-auto text-sm text-ink-2">{firstProblem}</p>}
+          <Button variant="secondary" onClick={requestClose}>Cancel</Button>
+          <Button onClick={save} disabled={!valid || busy}>
+            Add {drafts.length || ""} question{drafts.length === 1 ? "" : "s"}
+          </Button>
+        </>
+      }
+    >
       <div className="space-y-4">
         <input
           ref={inputRef}
@@ -246,7 +270,7 @@ export function ImportDocModal({
           aria-label="Choose documents"
         />
 
-        <div role="tablist" aria-label="How to add questions" className="inline-flex rounded-md border border-border bg-surface p-1">
+        <div role="tablist" aria-label="How to add questions" className={segmentGroup}>
           {(["files", "paste"] as const).map((m) => (
             <button
               key={m}
@@ -254,10 +278,7 @@ export function ImportDocModal({
               role="tab"
               aria-selected={mode === m}
               onClick={() => setMode(m)}
-              className={cn(
-                "h-9 rounded px-4 text-sm font-semibold",
-                mode === m ? "bg-brand-soft text-brand" : "text-ink-2 hover:text-ink",
-              )}
+              className={segmentItem(mode === m)}
             >
               {m === "files" ? "Upload files" : "Paste text"}
             </button>
@@ -271,11 +292,11 @@ export function ImportDocModal({
               onChange={(e) => setPasted(e.target.value)}
               placeholder={"1. Which account is debited when goods are bought on credit?\nA) Sales  B) Purchases  C) Cash  D) Capital\n\n2. Explain one benefit of a partnership. [4 marks]"}
               aria-label="Paste questions"
-              className="min-h-40 w-full rounded-md border border-border-strong bg-surface p-3 text-base text-ink placeholder:text-ink-3"
+              className="min-h-40 w-full rounded-field border border-field bg-surface px-3.5 py-3 text-base leading-relaxed text-ink placeholder:text-ink-3 transition-colors hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             />
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-ink-3">Copy from a past paper, Word or WhatsApp. Numbered questions and lettered options work best.</p>
-              <Button size="sm" onClick={readPasted} disabled={!pasted.trim()}>Read questions</Button>
+              <p className="text-sm text-ink-3">Copy from a past paper, Word or WhatsApp. Numbered questions and lettered options work best.</p>
+              <Button size="sm" variant={drafts.length ? "secondary" : "primary"} onClick={readPasted} disabled={!pasted.trim()}>Read questions</Button>
             </div>
           </div>
         )}
@@ -295,20 +316,20 @@ export function ImportDocModal({
             disabled={busy}
             onClick={() => inputRef.current?.click()}
             className={cn(
-              "flex min-h-28 w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed bg-surface px-4 py-5 text-ink-2 transition-colors disabled:opacity-60",
-              dragging ? "border-brand bg-brand-soft/40" : "border-border-strong hover:border-brand hover:bg-brand-soft/40",
+              "flex min-h-28 w-full flex-col items-center justify-center gap-1.5 rounded-tile border-2 border-dashed bg-surface px-4 py-5 text-ink-2 transition-colors duration-150 disabled:opacity-60",
+              dragging ? "border-ink-3 bg-surface-2 text-ink" : "border-border-strong hover:border-ink-3 hover:bg-surface-2 hover:text-ink",
             )}
           >
             <Icon.Doc className="h-6 w-6" />
             <span className="text-sm font-semibold">
               {busy ? "Reading documents…" : "Choose files or drag them here"}
             </span>
-            <span className="text-xs text-ink-3">PDF, DOC, DOCX, PNG, JPG, JPEG, WEBP, several at once</span>
+            <span className="text-sm text-ink-3">PDF, DOC, DOCX, PNG, JPG, JPEG, WEBP, several at once</span>
           </button>
         </div>
 
         {problems.length > 0 && (
-          <ul className="rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-xs text-warning">
+          <ul className="space-y-1 rounded-tile border border-warning/30 bg-warning-soft px-4 py-3 text-sm text-warning">
             {problems.map((p) => <li key={p}>{p}</li>)}
           </ul>
         )}
@@ -316,14 +337,14 @@ export function ImportDocModal({
         {drafts.length > 0 && (
           <>
             <div className="flex items-center justify-between">
-              <p className="text-sm font-bold text-ink">
+              <p className="text-base font-semibold text-ink">
                 {drafts.length} question{drafts.length === 1 ? "" : "s"} found
               </p>
-              <p className="text-xs text-ink-3">Check and edit before saving.</p>
+              <p className="text-sm text-ink-3">Check and edit before saving.</p>
             </div>
 
             {/* Set things once instead of on every row */}
-            <div className="grid gap-3 rounded-lg border border-border bg-surface p-3 sm:grid-cols-3">
+            <div className="grid gap-3 rounded-tile bg-surface-2 p-4 sm:grid-cols-3">
               <div>
                 <Label>Topic for all</Label>
                 <div className="flex gap-2">
@@ -352,9 +373,9 @@ export function ImportDocModal({
 
             <div className="max-h-[26rem] space-y-3 overflow-y-auto pr-1">
               {drafts.map((d, i) => (
-                <div key={i} className="rounded-lg border border-border bg-surface-2 p-3">
+                <div key={i} className="rounded-tile bg-surface-2 p-4">
                   <div className="flex items-start gap-2">
-                    <span className="mt-2 text-xs font-bold text-ink-3 tabular">{i + 1}</span>
+                    <span className="mt-3.5 w-5 shrink-0 text-sm font-semibold text-ink-3 tabular-nums">{i + 1}</span>
                     <div className="min-w-0 flex-1 space-y-2">
                       <Input
                         value={d.prompt}
@@ -448,7 +469,7 @@ export function ImportDocModal({
                         </div>
                       )}
 
-                      {d.source && <p className="text-[11px] text-ink-3">From {d.source}</p>}
+                      {d.source && <p className="text-xs text-ink-3">From {d.source}</p>}
                     </div>
 
                     <button
@@ -465,14 +486,6 @@ export function ImportDocModal({
             </div>
           </>
         )}
-
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
-          {drafts.length > 0 && firstProblem && <p role="status" className="mr-auto text-sm text-ink-2">{firstProblem}</p>}
-          <Button variant="secondary" onClick={requestClose}>Cancel</Button>
-          <Button onClick={save} disabled={!valid || busy}>
-            Add {drafts.length || ""} question{drafts.length === 1 ? "" : "s"}
-          </Button>
-        </div>
       </div>
     </Modal>
   );

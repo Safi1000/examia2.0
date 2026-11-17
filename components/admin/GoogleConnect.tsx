@@ -76,7 +76,7 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
   if (!status) {
     if (!failed) return null;
     return (
-      <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5 text-sm">
+      <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-5 text-sm">
         <p className="text-ink-3">Couldn&apos;t check the Google connection just now.</p>
         <Button size="sm" variant="secondary" onClick={check}>
           Try again
@@ -124,14 +124,14 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
     }
   }
 
-  const btn = "inline-flex h-9 items-center rounded-full px-3 text-xs font-semibold transition-colors disabled:opacity-50 pointer-coarse:h-11";
+  const btn = "inline-flex h-10 items-center rounded-full px-3.5 text-sm font-semibold transition-colors duration-150 disabled:opacity-50 pointer-coarse:h-11";
 
   return (
-    <div className="mt-10 border-t border-border pt-5 text-sm">
+    <div className="mt-10 border-t border-hairline pt-5 text-sm">
       {!status.ready ? (
         <p className="text-ink-3">Automatic Meet links switch on once the Google keys are added.</p>
       ) : status.broken ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/40 bg-warning-soft px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-tile border border-warning/40 bg-warning-soft px-4 py-3">
           <p className="text-ink">Google has disconnected (a password change or removed access). Reconnect it so classes keep getting Meet links.</p>
           <Button size="sm" loading={busy === "connect"} onClick={() => void act("connect")}>
             Reconnect Google
@@ -172,9 +172,9 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
             </div>
           </div>
           <details className="mt-3 text-ink-3">
-            <summary className="cursor-pointer select-none py-3 text-xs font-semibold hover:text-ink md:py-1">Test the setup</summary>
+            <summary className="cursor-pointer select-none py-3 text-sm font-semibold transition-colors hover:text-ink md:py-1">Test the setup</summary>
             <div className="mt-3 space-y-2">
-              <p className="text-xs">
+              <p className="max-w-[65ch] text-sm">
                 A 20-minute test class starting now (students never see it). Join it: recording should start by itself within a few
                 seconds (Meet shows a red dot). Talk for a minute, end the call, then check 30 to 40 minutes later. Recordings go to &quot;Hamza Teaches recordings&quot; in your Drive, sorted by level and subject. To give
                 a late joiner old classes, share that folder with their Gmail.
@@ -184,7 +184,7 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
                   {busy === "test" ? "Working…" : test ? "Make another test class" : "Make a test class"}
                 </button>
                 {test?.meetUrl && (
-                  <a href={test.meetUrl} target="_blank" rel="noreferrer" className={`${btn} text-brand hover:underline`}>
+                  <a href={test.meetUrl} target="_blank" rel="noreferrer" className={`${btn} text-ink hover:bg-surface-2`}>
                     Open test class
                   </a>
                 )}

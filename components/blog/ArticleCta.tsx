@@ -3,9 +3,9 @@ import { TrackedLink } from "@/components/landing/TrackedLink";
 import { waTextLink, type LevelName, type SubjectName } from "@/lib/landing";
 
 const gold =
-  "inline-flex min-h-12 w-full items-center justify-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] transition-colors hover:bg-gold-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:w-auto";
+  "inline-flex min-h-12 w-full items-center justify-center rounded-full bg-gold px-6 text-base font-semibold text-band-b transition-colors duration-200 hover:bg-gold-hover active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:w-auto";
 const ghost =
-  "inline-flex min-h-12 w-full items-center justify-center rounded-full border border-hairline-strong px-6 text-[15px] font-semibold text-body transition-colors hover:border-gold-border hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:w-auto";
+  "inline-flex min-h-12 w-full items-center justify-center rounded-full border border-hairline-strong px-6 text-base font-semibold text-body transition-colors duration-200 hover:border-white/[0.28] hover:text-ink active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:w-auto";
 
 /**
  * The two asks inside every article. "mid" is placed by the writer with
@@ -29,9 +29,9 @@ export function ArticleCta({
 
   if (variant === "mid") {
     return (
-      <aside className="my-12 rounded-[20px] border border-hairline bg-card p-6 md:p-7">
+      <aside className="pc-surface my-12 rounded-card p-6 md:p-7">
         <p className="text-lg font-semibold text-foreground">Stuck on this topic?</p>
-        <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+        <p className="mt-2 text-base leading-relaxed text-muted-foreground">
           Take one free trial lesson with me and we work through it together, live.
         </p>
         <div className="mt-5">
@@ -44,14 +44,14 @@ export function ArticleCta({
   }
 
   return (
-    <aside className="mt-16 rounded-[24px] border border-gold-border bg-card-raised p-7 md:p-10">
-      <p className="text-[14px] font-semibold text-gold">
+    <aside className="pc-surface mt-16 rounded-card p-6 md:p-10">
+      <p className="text-sm font-semibold text-faint">
         {subject} · {level}
       </p>
       <h2 className="mt-3 max-w-[22ch] text-2xl font-bold leading-tight text-foreground md:text-3xl">
         Want this to finally click?
       </h2>
-      <p className="mt-3 max-w-[52ch] text-[17px] leading-relaxed text-muted-foreground">
+      <p className="mt-3 max-w-[52ch] text-lg leading-relaxed text-muted-foreground">
         Small live classes online, every lesson recorded the same night, and weekly tests I mark
         myself. Start with one free lesson.
       </p>

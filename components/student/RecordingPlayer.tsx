@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Icon } from "@/components/ui";
+import { buttonClasses } from "@/components/ui/Button";
 
 /**
  * A class recording, played inside the portal: Google Drive's own player in a
@@ -65,17 +66,17 @@ export function RecordingPlayer({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-[90] flex flex-col bg-black" role="dialog" aria-modal="true" aria-label={`${title} recording`}>
+    <div className="fixed inset-0 z-[70] flex flex-col bg-black" role="dialog" aria-modal="true" aria-label={`${title} recording`}>
       <div className="flex items-center justify-between gap-3 bg-bg px-4 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] sm:px-6">
         <span className="min-w-0">
-          <span className="block truncate font-semibold text-ink">{title}</span>
-          <span className="block truncate text-xs text-ink-3">{sub}</span>
+          <span className="block truncate text-base font-semibold text-ink">{title}</span>
+          <span className="block truncate text-sm text-ink-3">{sub}</span>
         </span>
         <button
           type="button"
           autoFocus
           onClick={onClose}
-          className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-border-strong px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-2"
+          className={buttonClasses({ variant: "secondary", size: "sm", className: "shrink-0" })}
         >
           <Icon.Close className="h-4 w-4" /> Close
         </button>
@@ -91,7 +92,7 @@ export function RecordingPlayer({
         {/* Covers Drive's "open in a new window" corner, so the class stays in the portal. */}
         <div className="absolute right-0 top-0 h-14 w-14" aria-hidden />
       </div>
-      <p className="bg-bg px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] text-center text-xs text-ink-3 sm:px-6">
+      <p className="bg-bg px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] text-center text-sm text-ink-3 sm:px-6">
         Not playing?{" "}
         <a href={url} target="_blank" rel="noreferrer" className="font-semibold text-ink-2 underline">
           Open it in Google Drive

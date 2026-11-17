@@ -5,10 +5,11 @@ import Link from "next/link";
 import { useDatabase } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { attendancePercent, cohortById, eligibleStudents, testsForStudent } from "@/lib/data/selectors";
-import { isTestAccount } from "@/lib/display-name";
+import { displayName, isTestAccount } from "@/lib/display-name";
 import { useNow } from "@/hooks/useNow";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Badge, CohortDot, EmptyState, Icon, TableScroll, Table, Th, Td, filterField, segmentGroup, segmentItem } from "@/components/ui";
+import { statLabel, statNote, statTile, statValue } from "@/components/admin/surface";
 import { BarChart, type Bar } from "@/components/charts/BarChart";
 import { LineChart, type LinePoint } from "@/components/charts/LineChart";
 import { MasteryBar } from "@/components/charts/MasteryBar";
@@ -267,8 +268,7 @@ export default function AnalyticsPage() {
     const grade = avg != null ? capAs(gradeLetter(avg), isAsStudent(student.id)) : null;
 
     const trendPoints: LinePoint[] = allSubs
-      .slice()
-      .sort((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""))
+      .toSorted((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""))
       .flatMap((s) => {
         const t = testById.get(s.testId);
         if (!t) return [];
@@ -338,7 +338,7 @@ export default function AnalyticsPage() {
           >
             <option value="">Pick a student</option>
             {base.students.map((s) => (
-              <option key={s.id} value={s.id}>{s.username}</option>
+              <option key={s.id} value={s.id}>{displayName(s.username)}</option>
             ))}
           </select>
         )}
@@ -386,20 +386,20 @@ function ClassView({
       </div>
 
       {data.trendPoints.length >= 2 && (
-        <Card className="p-5">
-          <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em] text-ink">Class average trend</h2>
+        <Card className="p-5 sm:p-6">
+          <h2 className="mb-3 text-base font-semibold tracking-[-0.01em] text-ink">Class average trend</h2>
           <LineChart points={data.trendPoints} height={160} />
         </Card>
       )}
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <Card className="p-5">
-          <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em] text-ink">Grade distribution</h2>
+        <Card className="p-5 sm:p-6">
+          <h2 className="mb-3 text-base font-semibold tracking-[-0.01em] text-ink">Grade distribution</h2>
           <BarChart bars={data.bars} />
         </Card>
 
-        <Card className="p-5">
-          <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em] text-ink">Weak topics</h2>
+        <Card className="p-5 sm:p-6">
+          <h2 className="mb-3 text-base font-semibold tracking-[-0.01em] text-ink">Weak topics</h2>
           <div className="space-y-3.5">
             {(() => {
               // Below 70% only: 70% and up is Strong, so it does not belong here.
@@ -420,8 +420,8 @@ function ClassView({
         </Card>
 
         {prevMonth && (
-          <Card className="p-5">
-            <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em] text-ink">Most improved</h2>
+          <Card className="p-5 sm:p-6">
+            <h2 className="mb-3 text-base font-semibold tracking-[-0.01em] text-ink">Most improved</h2>
             {data.improved.length === 0 ? (
               <p className="text-sm text-ink-3">No comparable data yet.</p>
             ) : (
@@ -430,12 +430,12 @@ function ClassView({
                   const cohort = cohortById(db, student.cohortId);
                   return (
                     <li key={student.id}>
-                      <Link href={`/admin/roster/${student.id}`} className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-surface-2/60">
+                      <Link href={`/admin/roster/${student.id}`} className="-mx-2 flex min-h-12 items-center gap-3 rounded-field px-2 py-1.5 transition-colors hover:bg-white/[0.025]">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold capitalize text-ink">{student.username}</p>
+                          <p className="truncate text-base font-semibold capitalize text-ink">{displayName(student.username)}</p>
                           {cohort && <p className="flex items-center gap-1 text-xs text-ink-3"><CohortDot color={cohort.color} />{cohort.name}</p>}
                         </div>
-                        <span className="text-sm font-semibold tabular-nums text-ink">{curAvg}%</span>
+                        <span className="text-base font-semibold tabular-nums text-ink">{curAvg}%</span>
                         <Badge tone="success">+{delta}%</Badge>
                       </Link>
                     </li>
@@ -447,8 +447,8 @@ function ClassView({
         )}
 
         {prevMonth && (
-          <Card className="p-5">
-            <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em] text-ink">Needs attention</h2>
+          <Card className="p-5 sm:p-6">
+            <h2 className="mb-3 text-base font-semibold tracking-[-0.01em] text-ink">Needs attention</h2>
             {data.slipping.length === 0 ? (
               <p className="text-sm text-ink-3">No notable drops this month.</p>
             ) : (
@@ -457,12 +457,12 @@ function ClassView({
                   const cohort = cohortById(db, student.cohortId);
                   return (
                     <li key={student.id}>
-                      <Link href={`/admin/roster/${student.id}`} className="flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-surface-2/60">
+                      <Link href={`/admin/roster/${student.id}`} className="-mx-2 flex min-h-12 items-center gap-3 rounded-field px-2 py-1.5 transition-colors hover:bg-white/[0.025]">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold capitalize text-ink">{student.username}</p>
+                          <p className="truncate text-base font-semibold capitalize text-ink">{displayName(student.username)}</p>
                           {cohort && <p className="flex items-center gap-1 text-xs text-ink-3"><CohortDot color={cohort.color} />{cohort.name}</p>}
                         </div>
-                        <span className="text-sm font-semibold tabular-nums text-ink">{curAvg}%</span>
+                        <span className="text-base font-semibold tabular-nums text-ink">{curAvg}%</span>
                         <Badge tone="error">{delta}%</Badge>
                       </Link>
                     </li>
@@ -475,8 +475,8 @@ function ClassView({
       </div>
 
       <Card className="p-0">
-        <div className="border-b border-border px-5 py-3.5">
-          <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Per-test stats</h2>
+        <div className="border-b border-hairline px-5 py-4 sm:px-6">
+          <h2 className="text-base font-semibold tracking-[-0.01em] text-ink">Per-test stats</h2>
         </div>
         <TableScroll>
           <Table stickyFirst>
@@ -511,14 +511,14 @@ function ClassView({
 
       {data.cohortCompletion.length > 0 && (
         <Card className="p-0">
-          <div className="border-b border-border px-5 py-3.5">
-            <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Completion by cohort</h2>
+          <div className="border-b border-hairline px-5 py-4 sm:px-6">
+            <h2 className="text-base font-semibold tracking-[-0.01em] text-ink">Completion by cohort</h2>
           </div>
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-hairline">
             {data.cohortCompletion.map(({ cohort, pct, submitted, expected }) => (
-              <li key={cohort.id} className="flex items-center gap-3 px-5 py-3">
+              <li key={cohort.id} className="flex min-h-12 items-center gap-3 px-5 py-3 sm:px-6">
                 <CohortDot color={cohort.color} />
-                <span className="flex-1 text-sm font-semibold text-ink">{cohort.name}</span>
+                <span className="min-w-0 flex-1 truncate text-base font-semibold text-ink">{cohort.name}</span>
                 <span className="text-sm tabular-nums text-ink-2">{submitted}/{expected}</span>
                 <Badge tone={pct >= 75 ? "success" : pct >= 50 ? "warning" : "error"}>{pct}%</Badge>
               </li>
@@ -577,15 +577,15 @@ function MetricCard({
 }) {
   const toneClass = tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : tone === "error" ? "text-error" : "text-ink";
   return (
-    <Card className="px-4 py-3.5">
-      <p className="text-[13px] text-ink-3">{label}</p>
-      <p className={cn("mt-1 text-[1.75rem] font-semibold leading-tight tabular-nums tracking-[-0.02em]", toneClass)}>{value}</p>
+    <Card className={statTile}>
+      <p className={cn(statLabel, "min-h-10")}>{label}</p>
+      <p className={cn(statValue, toneClass)}>{value}</p>
       {delta != null && (
-        <p className={cn("mt-0.5 text-xs font-semibold tabular-nums", delta > 0 ? "text-success" : delta < 0 ? "text-error" : "text-ink-3")}>
+        <p className={cn(statNote, "font-semibold", delta > 0 ? "text-success" : delta < 0 ? "text-error" : "text-ink-3")}>
           {delta > 0 ? "+" : ""}{delta}% vs last month
         </p>
       )}
-      {note && <p className="mt-0.5 text-xs text-ink-3">{note}</p>}
+      {note && <p className={statNote}>{note}</p>}
     </Card>
   );
 }

@@ -21,6 +21,7 @@ import {
 } from "@/lib/activity";
 import { Card, Spinner } from "@/components/ui";
 import { cn } from "@/lib/cn";
+import { statLabel, statNote, statTile, statValue } from "@/components/admin/surface";
 
 const dayLabel = (d: string, withDay = true) =>
   new Date(`${d}T12:00:00+05:00`).toLocaleDateString("en-GB", {
@@ -136,7 +137,7 @@ export function NotesRead({ notes, limit = 50 }: { notes: Record<string, NoteAct
     .slice(0, limit);
   if (!rows.length) return <p className="text-sm text-ink-3">No notes read yet.</p>;
   return (
-    <ul className="divide-y divide-border">
+    <ul className="divide-y divide-hairline">
       {rows.map(([id, n]) => {
         // A note swapped for a shorter file can leave old page numbers behind.
         const seen = n.t ? n.p.filter((p) => p <= n.t).length : n.p.length;
@@ -144,14 +145,14 @@ export function NotesRead({ notes, limit = 50 }: { notes: Record<string, NoteAct
         return (
           <li key={id} className="py-3 first:pt-0 last:pb-0">
             <div className="flex items-baseline justify-between gap-3">
-              <p className="min-w-0 truncate text-sm font-semibold text-ink">{titles.get(id) ?? "A note you've since removed"}</p>
-              <span className="shrink-0 text-xs tabular-nums text-ink-3">{dayLabel(pkDate(n.at))}</span>
+              <p className="min-w-0 truncate text-base font-semibold text-ink">{titles.get(id) ?? "A note you've since removed"}</p>
+              <span className="shrink-0 text-sm tabular-nums text-ink-3">{dayLabel(pkDate(n.at))}</span>
             </div>
             <div className="mt-1.5 flex items-center gap-3">
               <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
                 <span className="block h-full rounded-full bg-ink-3" style={{ width: `${Math.max(2, pct)}%` }} />
               </span>
-              <span className="shrink-0 text-xs text-ink-2 tabular-nums">
+              <span className="shrink-0 text-sm text-ink-2 tabular-nums">
                 {n.t ? `${seen} of ${n.t} pages` : `${seen} ${seen === 1 ? "page" : "pages"}`} · {fmtTime(n.s)}
               </span>
             </div>
@@ -164,10 +165,10 @@ export function NotesRead({ notes, limit = 50 }: { notes: Record<string, NoteAct
 
 export function Tile({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
-    <Card className="px-4 py-3.5">
-      <p className="text-[13px] text-ink-3">{label}</p>
-      <p className="mt-1 text-2xl font-semibold leading-tight tabular-nums tracking-[-0.02em] text-ink">{value}</p>
-      {note && <p className="mt-0.5 text-xs text-ink-3">{note}</p>}
+    <Card className={statTile}>
+      <p className={statLabel}>{label}</p>
+      <p className={statValue}>{value}</p>
+      {note && <p className={statNote}>{note}</p>}
     </Card>
   );
 }
@@ -185,20 +186,20 @@ export function StudentActivitySection({ studentId }: { studentId: string }) {
   const span = Math.max(1, Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${start}T12:00:00Z`)) / 864e5) + 1);
 
   return (
-    <section id="activity" className="mt-8 scroll-mt-20">
-      <div className="mb-2.5 flex items-baseline justify-between gap-3">
-        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Activity</h2>
-        <span className="text-xs text-ink-3">Only you see this</span>
+    <section id="activity" className="mt-10 scroll-mt-20">
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <h2 className="text-xl font-semibold tracking-[-0.015em] text-ink">Activity</h2>
+        <span className="text-sm text-ink-3">Only you see this</span>
       </div>
       {error ? (
-        <Card className="p-5 text-sm text-ink-2">
+        <Card className="p-5 text-base text-ink-2 sm:p-6">
           Activity didn&apos;t load.{" "}
-          <button type="button" onClick={reload} className="inline-flex min-h-11 items-center font-semibold text-brand underline-offset-2 hover:underline">
+          <button type="button" onClick={reload} className="inline-flex min-h-11 items-center font-semibold text-ink underline underline-offset-4">
             Try again
           </button>
         </Card>
       ) : !data ? (
-        <Card className="flex items-center gap-3 p-5 text-sm text-ink-3">
+        <Card className="flex items-center gap-3 p-5 text-base text-ink-3 sm:p-6">
           <Spinner size={18} /> Loading activity…
         </Card>
       ) : (
@@ -210,21 +211,21 @@ export function StudentActivitySection({ studentId }: { studentId: string }) {
             <Tile label="Last seen" value={fmtAgo(lastSeen(a), nowMs)} />
           </div>
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
-            <Card className="p-5">
-              <h3 className="mb-1 text-sm font-semibold text-ink">Each day</h3>
+            <Card className="p-5 sm:p-6">
+              <h3 className="mb-1 text-base font-semibold text-ink">Each day</h3>
               <DailyBars days={a?.days ?? {}} from={from} to={today} />
             </Card>
-            <Card className="p-5">
-              <h3 className="mb-3 text-sm font-semibold text-ink">Where the time goes</h3>
+            <Card className="p-5 sm:p-6">
+              <h3 className="mb-3 text-base font-semibold text-ink">Where the time goes</h3>
               <AreaBars areas={a ? areasBetween(a.days, from, today) : {}} />
             </Card>
           </div>
-          <Card className="mt-3 p-5">
-            <h3 className="mb-3 text-sm font-semibold text-ink">Notes read</h3>
+          <Card className="mt-3 p-5 sm:p-6">
+            <h3 className="mb-3 text-base font-semibold text-ink">Notes read</h3>
             <NotesRead notes={a?.notes ?? {}} />
           </Card>
           {from < TRACKING_SINCE && (
-            <p className="mt-2 text-xs text-ink-3">Counted from {dayLabel(TRACKING_SINCE, false)} {TRACKING_SINCE.slice(0, 4)}, when tracking began. Only active time counts: an open but idle screen doesn&apos;t.</p>
+            <p className="mt-2 text-sm text-ink-3">Counted from {dayLabel(TRACKING_SINCE, false)} {TRACKING_SINCE.slice(0, 4)}, when tracking began. Only active time counts: an open but idle screen doesn&apos;t.</p>
           )}
         </>
       )}

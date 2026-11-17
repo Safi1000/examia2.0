@@ -61,7 +61,7 @@ export function NoteEditor({ studentId, onDone, autoFocus }: { studentId: string
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void save();
           if (e.key === "Escape" && onDone) onDone(false);
         }}
-        className="w-full resize-y rounded-md border border-border-strong bg-surface px-3.5 py-2.5 text-base leading-relaxed text-ink placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        className="w-full resize-y rounded-field border border-field bg-surface px-3.5 py-3 text-base leading-relaxed text-ink placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
       />
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Button size="sm" variant="secondary" loading={busy} disabled={!changed || busy} onClick={() => void save()}>
@@ -72,7 +72,7 @@ export function NoteEditor({ studentId, onDone, autoFocus }: { studentId: string
             Cancel
           </Button>
         )}
-        <span className={cn("text-xs tabular-nums", error ? "font-semibold text-error" : "text-ink-3")} role="status" aria-live="polite">
+        <span className={cn("text-sm tabular-nums", error ? "font-semibold text-error" : "text-ink-3")} role="status" aria-live="polite">
           {error ?? (justSaved && !changed ? "Saved" : `${draft.length}/${NOTE_MAX}`)}
         </span>
       </div>
@@ -86,10 +86,10 @@ export function StudentNoteCard({ studentId }: { studentId: string }) {
   const note = notes[studentId];
   const [editing, setEditing] = useState(false);
   return (
-    <Card className="mt-4 p-5">
+    <Card className="mt-4 p-5 sm:p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className={panelTitle}>{NOTE_LABEL}</h2>
-        {note && !editing && <span className="text-xs tabular-nums text-ink-3">Saved {savedAt(note.updatedAt)}</span>}
+        {note && !editing && <span className="text-sm tabular-nums text-ink-3">Saved {savedAt(note.updatedAt)}</span>}
       </div>
       {editing ? (
         <div className="mt-3">
@@ -101,9 +101,9 @@ export function StudentNoteCard({ studentId }: { studentId: string }) {
         <>
           {error && <p className="mt-2 text-sm text-error">Couldn&apos;t load your notes. Reload the page to try again.</p>}
           {note ? (
-            <p className="mt-2 whitespace-pre-wrap break-words text-[15px] leading-relaxed text-ink-2">{note.text}</p>
+            <p className="mt-2 whitespace-pre-wrap break-words text-base leading-relaxed text-ink-2">{note.text}</p>
           ) : (
-            !error && <p className="mt-2 text-sm text-ink-3">No note yet.</p>
+            !error && <p className="mt-2 text-base text-ink-3">No note yet.</p>
           )}
           {!error && (
             <Button size="sm" variant="ghost" className="-ml-3 mt-2" onClick={() => setEditing(true)}>

@@ -105,7 +105,7 @@ export function StaffCard() {
   return (
     <Card className="max-w-2xl">
       <CardHeader>
-        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Teaching assistant</h2>
+        <h2 className="text-base font-semibold tracking-[-0.01em] text-ink">Teaching assistant</h2>
       </CardHeader>
       <CardBody className="space-y-5">
         <div className="grid gap-4 text-sm sm:grid-cols-2">
@@ -130,9 +130,9 @@ export function StaffCard() {
         )}
 
         {staff?.map((a) => (
-          <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-4 py-3">
+          <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 rounded-tile bg-surface-2 px-4 py-3">
             <div className="min-w-0">
-              <p className="truncate font-semibold text-ink">{a.name || "Assistant"}</p>
+              <p className="truncate text-base font-semibold text-ink">{a.name || "Assistant"}</p>
               <p className="truncate text-sm text-ink-3">
                 {a.email} · {a.paused ? "Paused" : a.lastSeen ? `Last signed in ${formatTimestamp(a.lastSeen)}` : "Not signed in yet"}
               </p>
@@ -148,7 +148,7 @@ export function StaffCard() {
         ))}
 
         {shown && (
-          <div className="rounded-lg border border-border-strong bg-surface-2 px-4 py-3 text-sm">
+          <div className="rounded-tile bg-surface-2 px-4 py-3 text-sm">
             <p className="font-semibold text-ink">Her sign-in, shown once</p>
             <p className="mt-1.5 text-ink-2">She signs in at www.hamzateaches.com/admin</p>
             <p className="mt-1 break-all font-mono text-ink">{shown.email}</p>
@@ -187,14 +187,14 @@ export function StaffCard() {
 
         {log.length > 0 && (
           <div>
-            <p className="text-sm font-semibold text-ink">What she did, newest first</p>
-            <ul className="mt-2 max-h-64 divide-y divide-border overflow-y-auto rounded-lg border border-border text-sm">
+            <p className="label-quiet text-ink-3">What she did, newest first</p>
+            <ul className="mt-2 max-h-64 divide-y divide-hairline overflow-y-auto rounded-tile bg-surface-2 text-sm">
               {log.map((l, i) => (
-                <li key={`${l.at}-${i}`} className="flex items-baseline justify-between gap-3 px-3 py-2">
+                <li key={`${l.at}-${i}`} className="flex items-baseline justify-between gap-3 px-4 py-2.5">
                   <span className="min-w-0 text-ink-2">
                     <span className="font-semibold text-ink">{l.name}</span> {l.what}
                   </span>
-                  <span className="shrink-0 text-xs tabular-nums text-ink-3">{formatTimestamp(l.at)}</span>
+                  <span className="shrink-0 text-sm tabular-nums text-ink-3">{formatTimestamp(l.at)}</span>
                 </li>
               ))}
             </ul>

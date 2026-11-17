@@ -43,7 +43,7 @@ export const clock12 = (hhmm: string) => {
   return `${((h + 11) % 12) + 1}${m ? `:${String(m).padStart(2, "0")}` : ""} ${h < 12 ? "am" : "pm"}`;
 };
 export const slotLabel = (s: StudySlot) => `${DAY_SHORT[s.day]} ${clock12(s.time)}`;
-export const sortSlots = (slots: StudySlot[]) => [...slots].sort((a, b) => ((a.day + 6) % 7) - ((b.day + 6) % 7) || a.time.localeCompare(b.time));
+export const sortSlots = (slots: StudySlot[]) => slots.toSorted((a, b) => ((a.day + 6) % 7) - ((b.day + 6) % 7) || a.time.localeCompare(b.time));
 
 /** The next planned slot from now (Pakistan time), within a week. */
 export function nextSlot(slots: StudySlot[] | undefined, nowMs: number): { slot: StudySlot; atMs: number } | null {

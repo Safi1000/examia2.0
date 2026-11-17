@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, Card } from "@/components/ui";
+import { Button } from "@/components/ui";
+import { SectionTitle } from "@/components/student/PortalKit";
 import { useToast } from "@/components/toast";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
@@ -77,10 +78,10 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
   // The phone app has its own notification switches.
   if (app)
     return (
-      <Card className="p-5 sm:p-6">
-        <h2 className="text-lg font-bold tracking-[-0.01em] text-ink">Phone notifications</h2>
-        <p className="mt-1 text-sm text-ink-3">Notifications for the app are in the Me tab.</p>
-      </Card>
+      <section aria-labelledby="notify-title">
+        <SectionTitle id="notify-title">Phone notifications</SectionTitle>
+        <p className="surface rounded-card px-5 py-4 text-base text-ink-2 sm:px-6">Notifications for the app are in the Me tab.</p>
+      </section>
     );
 
   async function turnOn() {
@@ -136,47 +137,56 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
   }
 
   return (
-    <Card className="p-5 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-bold tracking-[-0.01em] text-ink">Phone notifications</h2>
-          <p className="mt-1 text-sm text-ink-3">Only what matters, never at night. At most 2 a day, plus class reminders.</p>
-        </div>
-        {status === "on" && (
-          <Button variant="secondary" size="sm" loading={busy} onClick={() => void turnOff()}>
-            Turn off
-          </Button>
-        )}
-        {status === "off" && (
-          <Button size="sm" loading={busy} onClick={() => void turnOn()}>
-            Turn on
-          </Button>
-        )}
-      </div>
-
+    // Grouped like iOS Settings: the title and its help line above, the button beside them, one card of rows below.
+    <section aria-labelledby="notify-title">
+      <SectionTitle
+        id="notify-title"
+        sub="Only what matters, never at night. At most 2 a day, plus class reminders."
+        action={
+          status === "on" ? (
+            <Button variant="secondary" size="sm" loading={busy} onClick={() => void turnOff()}>
+              Turn off
+            </Button>
+          ) : status === "off" ? (
+            // Outlined: on Settings the gold button is Change password, the form's action.
+            <Button variant="secondary" size="sm" loading={busy} onClick={() => void turnOn()}>
+              Turn on
+            </Button>
+          ) : undefined
+        }
+      >
+        Phone notifications
+      </SectionTitle>
+      {/* Off: the title, its line and Turn on say it all, so no empty card. */}
+      {status !== "off" && (
+      <div className="surface rounded-card">
       {/* Holds the card's shape while this phone is checked, so the card below doesn't jump. */}
-      {status === "loading" && <div className="skeleton mt-4 h-5 w-2/3 rounded-md" aria-hidden />}
+      {status === "loading" && (
+        <div className="px-5 py-4 sm:px-6" aria-hidden>
+          <div className="skeleton h-5 w-2/3 rounded-full" />
+        </div>
+      )}
       {status === "iphone" && (
-        <p className="mt-4 rounded-lg bg-surface-2 px-3 py-2.5 text-sm text-ink-2">
+        <p className="px-5 py-4 text-base text-ink-2 sm:px-6">
           On iPhone, first add this portal to your Home Screen: tap Share, then &quot;Add to Home Screen&quot;. Open it from
           there and come back here.
         </p>
       )}
       {status === "blocked" && (
-        <p className="mt-4 rounded-lg bg-surface-2 px-3 py-2.5 text-sm text-ink-2">
+        <p className="px-5 py-4 text-base text-ink-2 sm:px-6">
           Notifications are blocked for this site. Allow them in your browser&apos;s site settings, then reload.
         </p>
       )}
-      {status === "unsupported" && <p className="mt-4 text-sm text-ink-3">This browser can&apos;t show notifications.</p>}
-      {status === "notReady" && <p className="mt-4 text-sm text-ink-3">Notifications are coming soon.</p>}
+      {status === "unsupported" && <p className="px-5 py-4 text-base text-ink-2 sm:px-6">This browser can&apos;t show notifications.</p>}
+      {status === "notReady" && <p className="px-5 py-4 text-base text-ink-2 sm:px-6">Notifications are coming soon.</p>}
 
       {status === "on" && (
-        <ul className="mt-4 divide-y divide-hairline">
+        <ul className="divide-y divide-hairline">
           {/* The class reminder's switch is kept on the student's profile. */}
-          <li className="flex items-center justify-between gap-4 py-3">
+          <li className="flex min-h-16 items-center justify-between gap-4 px-5 py-3.5 sm:px-6">
             <span>
-              <span className="block text-sm font-semibold text-ink">Classes</span>
-              <span className="block text-xs text-ink-3">When a class starts</span>
+              <span className="block text-base font-semibold text-ink">Classes</span>
+              <span className="mt-0.5 block text-sm text-ink-3">When a class starts</span>
             </span>
             <button
               type="button"
@@ -184,9 +194,9 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
               aria-checked={profile.notifyClasses !== false}
               aria-label="Classes notifications"
               onClick={() => updateProfile({ notifyClasses: profile.notifyClasses === false })}
-              className={`relative h-7 w-12 shrink-0 rounded-full transition-colors before:absolute before:-inset-x-1 before:-inset-y-2.5 before:content-[""] ${profile.notifyClasses !== false ? "bg-brand" : "bg-surface-2 ring-1 ring-inset ring-border-strong"}`}
+              className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 before:absolute before:-inset-x-1 before:-inset-y-2.5 before:content-[""] ${profile.notifyClasses !== false ? "bg-brand" : "bg-surface-2 ring-1 ring-inset ring-border-strong"}`}
             >
-              <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${profile.notifyClasses !== false ? "left-6" : "left-1"}`} />
+              <span className={`absolute top-1 h-5 w-5 rounded-full bg-ink shadow transition-[left] duration-200 ease-[var(--ease-out)] ${profile.notifyClasses !== false ? "left-6" : "left-1"}`} />
             </button>
           </li>
           {/* Groundwork study times and class recordings: also on the profile. */}
@@ -196,10 +206,10 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
               ["notifyRecordings", "Class recordings", "A few hours before one closes"],
             ] as const
           ).map(([key, label, hint]) => (
-            <li key={key} className="flex items-center justify-between gap-4 py-3">
+            <li key={key} className="flex min-h-16 items-center justify-between gap-4 px-5 py-3.5 sm:px-6">
               <span>
-                <span className="block text-sm font-semibold text-ink">{label}</span>
-                <span className="block text-xs text-ink-3">{hint}</span>
+                <span className="block text-base font-semibold text-ink">{label}</span>
+                <span className="mt-0.5 block text-sm text-ink-3">{hint}</span>
               </span>
               <button
                 type="button"
@@ -207,17 +217,17 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
                 aria-checked={profile[key] !== false}
                 aria-label={`${label} notifications`}
                 onClick={() => updateProfile({ [key]: profile[key] === false })}
-                className={`relative h-7 w-12 shrink-0 rounded-full transition-colors before:absolute before:-inset-x-1 before:-inset-y-2.5 before:content-[""] ${profile[key] !== false ? "bg-brand" : "bg-surface-2 ring-1 ring-inset ring-border-strong"}`}
+                className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 before:absolute before:-inset-x-1 before:-inset-y-2.5 before:content-[""] ${profile[key] !== false ? "bg-brand" : "bg-surface-2 ring-1 ring-inset ring-border-strong"}`}
               >
-                <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${profile[key] !== false ? "left-6" : "left-1"}`} />
+                <span className={`absolute top-1 h-5 w-5 rounded-full bg-ink shadow transition-[left] duration-200 ease-[var(--ease-out)] ${profile[key] !== false ? "left-6" : "left-1"}`} />
               </button>
             </li>
           ))}
           {KINDS.map((k) => (
-            <li key={k.key} className="flex items-center justify-between gap-4 py-3">
+            <li key={k.key} className="flex min-h-16 items-center justify-between gap-4 px-5 py-3.5 sm:px-6">
               <span>
-                <span className="block text-sm font-semibold text-ink">{k.label}</span>
-                <span className="block text-xs text-ink-3">{k.hint}</span>
+                <span className="block text-base font-semibold text-ink">{k.label}</span>
+                <span className="mt-0.5 block text-sm text-ink-3">{k.hint}</span>
               </span>
               <button
                 type="button"
@@ -225,14 +235,16 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
                 aria-checked={prefs[k.key]}
                 aria-label={`${k.label} notifications`}
                 onClick={() => void setPref(k.key, !prefs[k.key])}
-                className={`relative h-7 w-12 shrink-0 rounded-full transition-colors before:absolute before:-inset-x-1 before:-inset-y-2.5 before:content-[""] ${prefs[k.key] ? "bg-brand" : "bg-surface-2 ring-1 ring-inset ring-border-strong"}`}
+                className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 before:absolute before:-inset-x-1 before:-inset-y-2.5 before:content-[""] ${prefs[k.key] ? "bg-brand" : "bg-surface-2 ring-1 ring-inset ring-border-strong"}`}
               >
-                <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${prefs[k.key] ? "left-6" : "left-1"}`} />
+                <span className={`absolute top-1 h-5 w-5 rounded-full bg-ink shadow transition-[left] duration-200 ease-[var(--ease-out)] ${prefs[k.key] ? "left-6" : "left-1"}`} />
               </button>
             </li>
           ))}
         </ul>
       )}
-    </Card>
+      </div>
+      )}
+    </section>
   );
 }

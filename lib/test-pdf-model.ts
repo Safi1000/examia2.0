@@ -116,7 +116,7 @@ const LEVEL_LABEL: Record<string, string> = { "IGCSE and O Level": "O Level / IG
 
 /** The test, ready to have its pictures loaded. */
 export function describeTest(test: Test, opts: { level?: string | null; grid?: boolean; logo: string }): PdfPaper<string> {
-  const questions = [...test.questions].sort((a, b) => a.order - b.order).map((q, i) => describeQuestion(q, i + 1));
+  const questions = test.questions.toSorted((a, b) => a.order - b.order).map((q, i) => describeQuestion(q, i + 1));
   // Two questions on one case study: its pages are printed once, with the first.
   const printed = new Map<string, number>();
   for (const q of questions) {

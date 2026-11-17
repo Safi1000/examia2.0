@@ -80,7 +80,7 @@ export default function OnlineClassesGulf() {
       <JsonLd data={faqLd(FAQ)} />
       <div className="public-calm mx-auto max-w-3xl px-5 pb-24 pt-12 md:pt-20">
         <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Online classes", href: "/online-classes" }, { name: "Gulf" }]} />
-        <h1 className="mt-8 text-[2.25rem] leading-[1.08] md:text-5xl">
+        <h1 className="mt-8 text-title leading-[1.1] sm:text-title-lg">
           O Level and A Level Accounting, Business and Economics classes for students in the Gulf
         </h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
@@ -91,9 +91,9 @@ export default function OnlineClassesGulf() {
         <Section title="The times, in your time zone" intro={<p>Monday to Friday. You join the block for your level.</p>}>
           <div className="space-y-4">
             {GULF_ZONES.map((z) => (
-              <div key={z.countries} className="pc-surface rounded-[16px] px-5 py-4">
+              <div key={z.countries} className="pc-surface rounded-tile px-5 py-4">
                 <p className="font-semibold text-foreground">{z.countries}</p>
-                <ul className="mt-3 space-y-1.5 text-[15px] text-body">
+                <ul className="mt-3 space-y-1.5 text-base text-body">
                   {blocks.map((b) => (
                     <li key={b.level} className="flex justify-between gap-4">
                       <span>{LEVEL_LABEL[b.level]}</span>
@@ -104,16 +104,16 @@ export default function OnlineClassesGulf() {
               </div>
             ))}
           </div>
-          <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
-            Each block is three 40-minute classes, one per subject, back to back. The city pages list every class on your clock.
+          <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+            Each block is three 40 minute classes, one per subject, back to back. The city pages list every class on your clock.
           </p>
         </Section>
 
         <Section title="How the classes meet your school week">
           <ul className="space-y-5">
             {WEEKS.map((w) => (
-              <li key={w.where} className="text-[17px] leading-relaxed text-body">
-                <Link href={w.href} className="font-semibold text-gold hover:underline">
+              <li key={w.where} className="text-lg leading-relaxed text-body">
+                <Link href={w.href} className="font-semibold text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">
                   {w.where}
                 </Link>
                 <span className="text-muted-foreground">: </span>
@@ -121,37 +121,37 @@ export default function OnlineClassesGulf() {
               </li>
             ))}
           </ul>
-          <p className="mt-6 text-[17px] leading-relaxed text-body">
+          <p className="mt-6 text-lg leading-relaxed text-body">
             In Oman, Kuwait or Bahrain, the times above are your times. Check them against your school&apos;s own week.
           </p>
         </Section>
 
         <Section title="Why the recordings matter more abroad">
-          <p className="text-[17px] leading-relaxed text-body">
+          <p className="text-lg leading-relaxed text-body">
             Gulf school days do not end at the same time as mine start, and in Saudi Arabia and Qatar the A2 block begins at 1:30 pm. Every
-            class is recorded and stays open for 24 hours, so a long school day or a family trip costs you a late evening, not a lesson.
+            class is recorded and stays open for 48 hours, so a long school day or a family trip costs you a late evening, not a lesson.
             Weekly tests are made and marked by me either way, with written feedback on the answers that lost marks.
           </p>
         </Section>
 
         <Section title="Exams from where you live">
-          <p className="text-[17px] leading-relaxed text-body">
+          <p className="text-lg leading-relaxed text-body">
             You sit your exams in the country you live in, not in Pakistan. If your school enters you, it handles everything. If you are
             entering on your own, you go through the British Council in your country, and the rules are not the same everywhere:
           </p>
-          <ul className="mt-5 list-disc space-y-3 pl-5 text-[17px] leading-relaxed text-body">
+          <ul className="mt-5 list-disc space-y-3 pl-5 text-lg leading-relaxed text-body">
             <li>
               <strong className="text-foreground">UAE:</strong> you need a No Objection Certificate, and the British Council says the
               certificates it issues are not endorsed by the Ministry of Education. Read the{" "}
-              <Link href="/private-candidates/uae" className="text-gold hover:underline">UAE guide</Link> before you register.
+              <Link href="/private-candidates/uae" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">UAE guide</Link> before you register.
             </li>
             <li>
               <strong className="text-foreground">Saudi Arabia:</strong> entries go through the British Council offices in Riyadh, Jeddah
-              and Al Khobar. See the <Link href="/private-candidates/saudi-arabia" className="text-gold hover:underline">Saudi Arabia guide</Link>.
+              and Al Khobar. See the <Link href="/private-candidates/saudi-arabia" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">Saudi Arabia guide</Link>.
             </li>
             <li>
               <strong className="text-foreground">Qatar:</strong> if you are under 18, you need a No Objection Letter from the Ministry of
-              Education and Higher Education first. The <Link href="/online-classes/doha" className="text-gold hover:underline">Doha page</Link>{" "}
+              Education and Higher Education first. The <Link href="/online-classes/doha" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">Doha page</Link>{" "}
               has the details.
             </li>
           </ul>
@@ -161,7 +161,7 @@ export default function OnlineClassesGulf() {
           <ul className="grid gap-3 sm:grid-cols-3">
             {GULF_CITY_PAGES.map((c) => (
               <li key={c.slug}>
-                <Link href={`/online-classes/${c.slug}`} className="pc-surface pc-surface-link flex min-h-14 items-center justify-between rounded-[16px] px-5 py-4 font-semibold text-[#f0ede8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+                <Link href={`/online-classes/${c.slug}`} className="pc-surface pc-surface-link flex min-h-14 items-center justify-between rounded-tile px-5 py-4 font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
                   {c.city}
                 </Link>
               </li>

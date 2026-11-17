@@ -23,7 +23,7 @@ export function AnnouncementsPanel({ student }: { student: Student }) {
   return (
     <section aria-labelledby="ann-title">
       <SectionTitle id="ann-title">From Hamza</SectionTitle>
-      <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
+      <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
         {shown.map((a) => {
           const isOpen = open === a.id;
           return (
@@ -32,7 +32,7 @@ export function AnnouncementsPanel({ student }: { student: Student }) {
               <button type="button" onClick={() => setOpen(isOpen ? null : a.id)} aria-expanded={isOpen} className="min-w-0 flex-1 text-left">
                 {/* Spans, not paragraphs (a button can't hold one). A long link wraps instead of running off the card. */}
                 <span className={`block whitespace-pre-line break-words text-base text-ink [overflow-wrap:anywhere] ${isOpen ? "" : "line-clamp-2"}`}>{a.body}</span>
-                <span className="mt-0.5 block text-xs text-ink-3">
+                <span className="mt-0.5 block text-sm text-ink-3">
                   {a.pinned ? "Pinned · " : ""}
                   {formatDate(a.createdAt)}
                 </span>
@@ -42,7 +42,7 @@ export function AnnouncementsPanel({ student }: { student: Student }) {
                   type="button"
                   onClick={() => dismiss(a.id)}
                   aria-label="Dismiss announcement"
-                  className="flex h-11 w-11 -mr-2 -mt-1 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-surface-2 hover:text-ink"
+                  className="flex h-11 w-11 -mr-2 -mt-1 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-surface-2 hover:text-ink"
                 >
                   <Icon.Close className="h-4 w-4" />
                 </button>

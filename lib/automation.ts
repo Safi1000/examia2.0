@@ -4,6 +4,7 @@ import { adminUser, loadSchedule, saveAdminMeta } from "@/lib/schedule-server";
 import { accessToken, googleReady } from "@/lib/google";
 import { allRows, levelSubjectsByStudent, type Rows } from "@/lib/push-server";
 import { isTestAccount } from "@/lib/display-name";
+import { pausedStudentIds } from "@/lib/paused-server";
 
 /**
  * Hands-off jobs run by the 15-minute timer (no AI, no paid services):
@@ -226,7 +227,16 @@ async function autoAbsentOn(sb: SupabaseClient, db: Awaited<ReturnType<typeof ca
     // Only students added before the level's first class that day started: anyone added
     // later (or on a later day) could not have joined, so they are never marked absent.
     const firstStart = Math.min(...block.map((s) => s.startMs));
-    const who = (await studentsIn(sb, classId, block.map((s) => s.subjectId), { skipInPerson: true, addedBy: firstStart })).filter((id) => !joined.has(id) && !hasMark.has(id));
+    // Paused students are never marked. A failed read of the paused list skips
+    // this level for this run (the next run tries again) rather than marking them.
+    let paused: Set<string>;
+    try {
+      paused = await pausedStudentIds(sb);
+    } catch (e) {
+      console.error("[automation] paused list", e);
+      continue;
+    }
+    const who = (await studentsIn(sb, classId, block.map((s) => s.subjectId), { skipInPerson: true, addedBy: firstStart })).filter((id) => !joined.has(id) && !hasMark.has(id) && !paused.has(id));
     if (!who.length) continue;
     const { error } = await sb
       .from("attendance_days")

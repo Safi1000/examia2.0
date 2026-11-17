@@ -7,7 +7,7 @@ import { useDatabase, useStore } from "@/lib/data/store";
 import { studentsInCohort } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Card, Button, Input, Select, CohortDot, Modal, Label, EmptyState, Icon, Badge } from "@/components/ui";
+import { Card, Button, Input, Select, CohortDot, Modal, Label, EmptyState, Icon, Badge, chipClass } from "@/components/ui";
 import { cohortVar } from "@/lib/tokens";
 import { cn } from "@/lib/cn";
 
@@ -32,12 +32,7 @@ function ChipToggle({
             key={item.id}
             type="button"
             onClick={() => onToggle(item.id)}
-            className={cn(
-              "rounded-md border px-3 py-1.5 text-sm font-semibold transition-colors",
-              on
-                ? "border-brand bg-brand-soft text-brand"
-                : "border-border text-ink-2 hover:border-border-strong hover:text-ink",
-            )}
+            className={chipClass(on)}
           >
             {item.name}
           </button>
@@ -112,33 +107,33 @@ export default function CohortsPage() {
             const classNames = c.classIds.map((cid) => db.classes.find((x) => x.id === cid)?.name).filter(Boolean);
             const subjectNames = c.subjectIds.map((sid) => db.subjects.find((x) => x.id === sid)?.name).filter(Boolean);
             return (
-              <Card key={c.id} className="flex flex-wrap items-start justify-between gap-3 p-4">
+              <Card key={c.id} className="flex flex-wrap items-start justify-between gap-3 p-5">
                 {/* When the card is narrow the buttons drop to their own line rather than squeezing the name off it. */}
                 <div className="flex min-w-40 flex-1 items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `color-mix(in srgb, ${cohortVar(c.color)} 18%, transparent)` }}>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-field" style={{ backgroundColor: `color-mix(in srgb, ${cohortVar(c.color)} 18%, transparent)` }}>
                     <CohortDot color={c.color} size={16} />
                   </span>
                   <div className="min-w-0">
-                    <p className="flex min-w-0 items-center gap-2 font-semibold tracking-[-0.01em] text-ink">
+                    <p className="flex min-w-0 items-center gap-2 text-base font-semibold tracking-[-0.01em] text-ink">
                       {/* The name itself truncates (a flex row can't), so the "Off" badge always shows. */}
                       <span className="min-w-0 truncate" title={c.name}>{c.name}</span>
                       {!c.active && <Badge tone="neutral" className="shrink-0">Off</Badge>}
                     </p>
                     <p className="text-sm tabular-nums text-ink-3">{studentCount} {studentCount === 1 ? "student" : "students"} · {testCount} {testCount === 1 ? "test" : "tests"}</p>
                     {!c.active && (
-                      <p className="mt-1.5 flex flex-wrap gap-x-3 text-xs font-semibold">
-                        <Link href="/admin/roster?archive=1" className="text-brand hover:underline">Students</Link>
-                        <Link href="/admin/tests?archive=1" className="text-brand hover:underline">Tests</Link>
-                        <Link href="/admin/submissions?archive=1" className="text-brand hover:underline">Marks</Link>
+                      <p className="mt-1.5 flex flex-wrap gap-x-4 text-sm font-semibold">
+                        <Link href="/admin/roster?archive=1" className="text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline">Students</Link>
+                        <Link href="/admin/tests?archive=1" className="text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline">Tests</Link>
+                        <Link href="/admin/submissions?archive=1" className="text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline">Marks</Link>
                       </p>
                     )}
                     {(classNames.length > 0 || subjectNames.length > 0) && (
                       <div className="mt-1.5 flex flex-wrap gap-1">
                         {classNames.map((n) => (
-                          <span key={n} className="rounded border border-border px-1.5 py-0.5 text-xs text-ink-2">{n}</span>
+                          <span key={n} className="rounded-full border border-hairline-strong px-2 py-0.5 text-xs text-ink-2">{n}</span>
                         ))}
                         {subjectNames.map((n) => (
-                          <span key={n} className="rounded-md bg-surface-2 px-1.5 py-0.5 text-xs text-ink-2">{n}</span>
+                          <span key={n} className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-ink-2">{n}</span>
                         ))}
                       </div>
                     )}
@@ -149,7 +144,7 @@ export default function CohortsPage() {
                     <button
                       type="button"
                       onClick={() => setClearing(c)}
-                      className="flex h-10 items-center rounded-full px-3 text-xs font-semibold text-ink-3 transition-colors hover:bg-error-soft hover:text-error focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-md:h-11"
+                      className="flex h-10 items-center rounded-full px-3.5 text-sm font-semibold text-ink-3 transition-colors hover:bg-error-soft hover:text-error focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-md:h-11"
                       title="Delete the notes that were only for this cohort"
                     >
                       Delete notes
@@ -161,17 +156,17 @@ export default function CohortsPage() {
                       store.setCohortActive(c.id, true);
                       toast(`${c.name} is back on. Its students, tests and work are out of the archive.`, "success");
                     }}
-                    className="flex h-10 items-center rounded-full px-3 text-xs font-semibold text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11"
+                    className="flex h-10 items-center rounded-full px-3.5 text-sm font-semibold text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11"
                     aria-label={c.active ? `Archive ${c.name}` : `Switch on ${c.name}`}
                     title={c.active ? "Archive: hide everything from this cohort and delete its notes" : "Switch back on"}
                   >
                     {c.active ? "Archive" : "Switch on"}
                   </button>
                   <button onClick={() => openEdit(c)} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors max-md:h-11 max-md:w-11 hover:bg-surface-2 hover:text-ink" aria-label={`Edit ${c.name}`}>
-                    <Icon.Edit className="h-4 w-4" />
+                    <Icon.Edit className="h-5 w-5" />
                   </button>
                   <button onClick={() => { setDeleting(c); setReassignTo(""); }} disabled={db.cohorts.length < 2} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors max-md:h-11 max-md:w-11 hover:bg-error-soft hover:text-error disabled:opacity-30" aria-label={`Delete ${c.name}`}>
-                    <Icon.Trash className="h-4 w-4" />
+                    <Icon.Trash className="h-5 w-5" />
                   </button>
                 </div>
               </Card>
@@ -197,10 +192,10 @@ export default function CohortsPage() {
       {db.cohorts.some((c) => !c.active) && (
         <details className="group mt-8">
           <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-semibold text-ink-3 hover:text-ink [&::-webkit-details-marker]:hidden">
-            <span aria-hidden className="transition-transform group-open:rotate-90">›</span>
+            <Icon.ChevronRight className="h-4 w-4 transition-transform duration-200 ease-[var(--ease-out)] group-open:rotate-90" />
             Archived cohorts ({db.cohorts.filter((c) => !c.active).length})
           </summary>
-          <p className="mb-3 mt-1 text-xs text-ink-3">Hidden from every other screen in the portal. Open a cohort&apos;s Students, Tests or Marks to look back.</p>
+          <p className="mb-3 mt-1 text-sm text-ink-3">Hidden from every other screen in the portal. Open a cohort&apos;s Students, Tests or Marks to look back.</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {db.cohorts.filter((c) => !c.active).map(card)}
           </div>
@@ -229,7 +224,7 @@ export default function CohortsPage() {
                 <button
                   key={cc}
                   onClick={() => setColor(cc)}
-                  className={cn("flex h-11 w-11 items-center justify-center rounded-lg border-2 transition-transform", color === cc ? "border-ink scale-105" : "border-transparent hover:scale-105")}
+                  className={cn("flex h-11 w-11 items-center justify-center rounded-field border-2 transition-colors duration-150", color === cc ? "border-ink" : "border-transparent hover:border-hairline-strong")}
                   style={{ backgroundColor: `color-mix(in srgb, ${cohortVar(cc)} 16%, transparent)` }}
                   aria-label={`Color ${cc}`}
                   aria-pressed={color === cc}
@@ -241,12 +236,12 @@ export default function CohortsPage() {
           </div>
           <div>
             <Label>Classes</Label>
-            <p className="mb-2 text-xs text-ink-3">Which classes are offered in this cohort?</p>
+            <p className="mb-2 text-sm text-ink-3">Which classes are offered in this cohort?</p>
             <ChipToggle items={db.classes} selected={selClassIds} onToggle={toggleClass} />
           </div>
           <div>
             <Label>Subjects</Label>
-            <p className="mb-2 text-xs text-ink-3">Which subjects are taught in this cohort?</p>
+            <p className="mb-2 text-sm text-ink-3">Which subjects are taught in this cohort?</p>
             <ChipToggle items={db.subjects} selected={selSubjectIds} onToggle={toggleSubject} />
           </div>
         </div>
@@ -262,6 +257,7 @@ export default function CohortsPage() {
           <>
             <Button variant="secondary" onClick={() => setSwitchingOff(null)}>Cancel</Button>
             <Button
+              variant="danger"
               onClick={() => {
                 if (!switchingOff) return;
                 store.setCohortActive(switchingOff.id, false);

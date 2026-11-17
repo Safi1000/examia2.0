@@ -7,18 +7,18 @@ import { useDatabase } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { useAuth } from "@/lib/auth-context";
 import { LogoTight } from "@/components/Brand";
-import { CohortDot, Icon } from "@/components/ui";
+import { CohortDot, Icon, chipClass } from "@/components/ui";
 import { NavIcon } from "@/components/nav/NavIcons";
 import { cn } from "@/lib/cn";
 import { TA_HOME, isTa, taMayOpen } from "@/lib/staff";
 
-/** Recordings: a stack of videos with a gold play mark, drawn like the other menu icons. */
+/** Recordings: a stack of videos with a play mark (gold when active), drawn like the other menu icons. */
 function RecordingsIcon({ active, className }: { active?: boolean; className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden className={cn("h-5 w-5 shrink-0", className)}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden className={cn("h-5 w-5 shrink-0", className)}>
       <rect x="3.5" y="7" width="17" height="12.5" rx="2.5" />
       <path d="M6.5 4.5h11" />
-      <g fill="var(--color-brand)" stroke="var(--color-brand)" className={cn("transition-opacity duration-300", active ? "opacity-100" : "opacity-40")}>
+      <g fill={active ? "var(--color-brand)" : "currentColor"} stroke={active ? "var(--color-brand)" : "currentColor"} className="transition-colors duration-200">
         <path d="M10.5 10.6v5.3l4.4-2.65z" strokeWidth="1" />
       </g>
     </svg>
@@ -87,15 +87,16 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const [moreOpen, setMoreOpen] = useState(false);
 
   return (
-    <div className="flex h-full flex-col bg-paper bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0)_30%)] pb-[env(safe-area-inset-bottom)]">
+    <div className="flex h-full flex-col bg-paper pb-[env(safe-area-inset-bottom)]">
       <div className="px-5 pb-5 pt-6">
         <Link href={ta ? TA_HOME : "/admin/today"} onClick={onNavigate} className="inline-flex">
           <LogoTight className="h-[22px]" />
         </Link>
-        <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-ink-3">Teacher console</p>
+        <p className="label-quiet mt-3 text-ink-3">Teacher console</p>
       </div>
 
-      <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4" aria-label="Admin">
+      {/* The list scrolls when the window is short; it fades out at the bottom so a half-hidden item reads as "more below", not as clipped. */}
+      <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-6 [mask-image:linear-gradient(to_bottom,#000_calc(100%-24px),transparent)]" aria-label="Admin">
         {groups.map((g: (typeof GROUPS)[number]) => {
           const open = !g.fold || moreOpen || g.items.some(isActive);
           return (
@@ -105,13 +106,13 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 type="button"
                 aria-expanded={open}
                 onClick={() => setMoreOpen(!open)}
-                className="flex min-h-10 w-full items-center justify-between rounded-[10px] px-3 text-xs font-semibold uppercase tracking-[0.16em] text-ink-3 transition-colors hover:text-ink-2 max-md:min-h-11"
+                className="label-quiet flex min-h-10 w-full items-center justify-between rounded-field px-3 text-ink-3 transition-colors hover:text-ink-2 max-md:min-h-11"
               >
                 {g.title}
-                <Icon.ChevronRight className={cn("h-4 w-4 transition-transform", open && "rotate-90")} />
+                <Icon.ChevronRight className={cn("h-4 w-4 transition-transform duration-200 ease-[var(--ease-out)]", open && "rotate-90")} />
               </button>
             ) : (
-              <p className="px-3 pb-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-3">{g.title}</p>
+              <p className="label-quiet px-3 pb-1.5 text-ink-3">{g.title}</p>
             )}
             <ul className={cn("space-y-0.5", !open && "hidden")}>
               {g.items.map((item) => {
@@ -123,13 +124,13 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                       onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "group relative flex min-h-10 items-center gap-3 rounded-[10px] px-3 text-[13.5px] font-semibold transition-colors duration-150 max-md:min-h-11 pointer-coarse:min-h-11",
+                        "group relative flex min-h-10 items-center gap-3 rounded-field px-3 text-sm font-semibold transition-colors duration-150 max-md:min-h-11 pointer-coarse:min-h-11",
                         active
-                          ? "bg-white/[0.06] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-white/[0.06]"
+                          ? "bg-white/[0.07] text-ink"
                           : "text-ink-3 hover:bg-white/[0.035] hover:text-ink",
                       )}
                     >
-                      <item.Icon active={active} className={cn("h-[18px] w-[18px]", active ? "text-brand" : "text-ink-3 group-hover:text-ink-2")} />
+                      <item.Icon active={active} className={cn("h-5 w-5", active ? "text-ink" : "text-ink-3 group-hover:text-ink-2")} />
                       {item.label}
                     </Link>
                   </li>
@@ -142,7 +143,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
         {/* One cohort switched on: there is nothing to choose between, so the filter is not shown. */}
         <div className={cohorts.length > 1 ? undefined : "hidden"}>
-          <p className="px-3 pb-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-ink-3">Viewing</p>
+          <p className="label-quiet px-3 pb-1.5 text-ink-3">Viewing</p>
           {/* Switched-off cohorts drop out of the filter, but stay on the
               Cohorts page where they can be switched back on. */}
           <div className="flex flex-wrap gap-1.5 px-2">
@@ -150,10 +151,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               type="button"
               onClick={() => setCohortId(null)}
               aria-pressed={cohortId === null}
-              className={cn(
-                "flex h-11 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold transition-colors",
-                cohortId === null ? "border-white/[0.14] bg-white/[0.07] text-ink" : "border-white/[0.08] text-ink-3 hover:text-ink",
-              )}
+              className={chipClass(cohortId === null)}
             >
               All
             </button>
@@ -163,10 +161,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 type="button"
                 onClick={() => setCohortId(cohortId === c.id ? null : c.id)}
                 aria-pressed={cohortId === c.id}
-                className={cn(
-                  "flex h-11 max-w-full items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold transition-colors",
-                  cohortId === c.id ? "border-white/[0.14] bg-white/[0.07] text-ink" : "border-white/[0.08] text-ink-3 hover:text-ink",
-                )}
+                className={cn(chipClass(cohortId === c.id), "max-w-full")}
               >
                 <CohortDot color={c.color} />
                 <span className="truncate">{c.name}</span>
@@ -177,12 +172,12 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       {/* Who's signed in, and the way out. */}
-      <div className="m-3 flex items-center gap-3 rounded-xl border border-border bg-surface p-2.5 md:max-xl:pl-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs font-bold text-ink ring-1 ring-inset ring-white/[0.08] md:max-xl:hidden">
+      <div className="surface m-3 flex items-center gap-3 rounded-tile p-2.5 md:max-xl:pl-3.5">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs font-bold text-ink ring-1 ring-inset ring-hairline md:max-xl:hidden">
           {ta ? (session?.staffName || "A").slice(0, 2).toUpperCase() : "HS"}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-semibold text-ink">{ta ? session?.staffName || "Assistant" : "Hamza Sadaqat"}</span>
+          <span className="block truncate text-sm font-semibold text-ink">{ta ? session?.staffName || "Assistant" : "Hamza Sadaqat"}</span>
           <span className="block text-xs text-ink-3">{ta ? "Teaching assistant" : "Teacher"}</span>
         </span>
         <button
@@ -195,9 +190,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           }}
           aria-label="Sign out"
           title="Sign out"
-          className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-3 transition-colors hover:bg-white/[0.05] hover:text-ink"
+          className="flex h-11 w-11 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-white/[0.05] hover:text-ink"
         >
-          <NavIcon.Logout className="h-[18px] w-[18px]" />
+          <NavIcon.Logout className="h-5 w-5" />
         </button>
       </div>
     </div>

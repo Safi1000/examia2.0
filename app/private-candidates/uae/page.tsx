@@ -70,7 +70,7 @@ export default function PrivateCandidatesUae() {
 
       <article className="public-calm mx-auto max-w-3xl px-5 pb-24 pt-12 md:pt-20">
         <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Private candidate guide, UAE" }]} />
-        <h1 className="mt-8 text-[2.25rem] leading-[1.08] md:text-5xl">
+        <h1 className="mt-8 text-title leading-[1.1] sm:text-title-lg">
           Sitting IGCSE or A Level as a private candidate in the UAE
         </h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
@@ -79,7 +79,7 @@ export default function PrivateCandidatesUae() {
         </p>
 
         <Section title="Read these two rules first">
-          <ul className="list-disc space-y-2 pl-5 text-[17px] leading-relaxed text-body">
+          <ul className="list-disc space-y-2 pl-5 text-lg leading-relaxed text-body">
             <li>
               <strong className="text-foreground">Certificates are not endorsed by the Ministry of Education.</strong> The British Council says
               this applies to certificates it issues. If you plan to continue studying in the UAE, ask the university or school what it accepts
@@ -93,7 +93,7 @@ export default function PrivateCandidatesUae() {
         </Section>
 
         <Section title="How registration works">
-          <ol className="list-decimal space-y-3 pl-5 text-[17px] leading-relaxed text-body">
+          <ol className="list-decimal space-y-3 pl-5 text-lg leading-relaxed text-body">
             <li>
               <strong className="text-foreground">Register online with the British Council.</strong> Choose the session, Cambridge as the board, and
               your subjects. Check every syllabus code, and Business in particular: from 2027, IGCSE Business is 0264 and O Level Business is
@@ -116,7 +116,7 @@ export default function PrivateCandidatesUae() {
         </Section>
 
         <Section title="Documents to keep ready">
-          <ul className="list-disc space-y-2 pl-5 text-[17px] leading-relaxed text-body">
+          <ul className="list-disc space-y-2 pl-5 text-lg leading-relaxed text-body">
             <li>Your passport or Emirates ID, valid, the original and a copy.</li>
             <li>Three passport-size photographs taken within the last six months.</li>
             <li>A copy of your online registration summary.</li>
@@ -146,18 +146,18 @@ export default function PrivateCandidatesUae() {
         </Section>
 
         <Section title="Fees">
-          <p className="text-[17px] leading-relaxed text-body">
+          <p className="text-lg leading-relaxed text-body">
             The British Council publishes a Cambridge price list for each session, per subject. Fees are non-refundable and non-transferable,
             and they are not carried forward to a later session, so check your subjects and paper options before you pay.
           </p>
         </Section>
 
         <Section title="Working back from the deadline">
-          <p className="text-[17px] leading-relaxed text-body">
+          <p className="text-lg leading-relaxed text-body">
             If the May / June 2027 window follows the 2026 pattern, registration opens in early December and the regular deadline falls in
             mid-February. Three things are worth doing before it opens:
           </p>
-          <ul className="mt-5 list-disc space-y-3 pl-5 text-[17px] leading-relaxed text-body">
+          <ul className="mt-5 list-disc space-y-3 pl-5 text-lg leading-relaxed text-body">
             <li>
               <strong className="text-foreground">Ask for the No Objection Certificate early.</strong> If it comes from your school, it is out of
               your hands until the school writes it.
@@ -171,10 +171,10 @@ export default function PrivateCandidatesUae() {
               decide on subjects and paper options first.
             </li>
           </ul>
-          <p className="mt-6 text-[17px] leading-relaxed text-body">
-            Then the work that actually decides your grade: <Link href="/past-papers" className="text-gold hover:underline">past papers</Link>, marked properly. Classes run from 2:30 pm to 8:30 pm UAE time,
-            Monday to Friday, and the <Link href="/online-classes/dubai" className="text-gold hover:underline">Dubai</Link> and{" "}
-            <Link href="/online-classes/abu-dhabi" className="text-gold hover:underline">Abu Dhabi</Link> pages show each class on your
+          <p className="mt-6 text-lg leading-relaxed text-body">
+            Then the work that actually decides your grade: <Link href="/past-papers" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">past papers</Link>, marked properly. Classes run from 2:30 pm to 8:30 pm UAE time,
+            Monday to Friday, and the <Link href="/online-classes/dubai" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">Dubai</Link> and{" "}
+            <Link href="/online-classes/abu-dhabi" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">Abu Dhabi</Link> pages show each class on your
             clock.
           </p>
         </Section>
@@ -200,15 +200,15 @@ export default function PrivateCandidatesUae() {
 
         <p className="mt-12 text-sm leading-relaxed text-faint">
           Sources:{" "}
-          <a href="https://www.britishcouncil.ae/sites/default/files/cambridge_candidate_information_flyer_june_2026.pdf" className="hover:text-gold" rel="noopener">
+          <a href="https://www.britishcouncil.ae/sites/default/files/cambridge_candidate_information_flyer_june_2026.pdf" className="underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:text-muted-foreground" rel="noopener">
             British Council UAE, Cambridge candidate information, May / June 2026
           </a>
           ,{" "}
-          <a href="https://www.britishcouncil.ae/sites/default/files/candidate_information_flyer_-_oct_nov_2026.pdf" className="hover:text-gold" rel="noopener">
+          <a href="https://www.britishcouncil.ae/sites/default/files/candidate_information_flyer_-_oct_nov_2026.pdf" className="underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:text-muted-foreground" rel="noopener">
             October / November 2026
           </a>
           ,{" "}
-          <a href="https://www.britishcouncil.ae/sites/default/files/declaration_by_candidate_0.pdf" className="hover:text-gold" rel="noopener">
+          <a href="https://www.britishcouncil.ae/sites/default/files/declaration_by_candidate_0.pdf" className="underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:text-muted-foreground" rel="noopener">
             declaration by candidate
           </a>
           . Fees and dates change each session: always confirm with the British Council before you pay.

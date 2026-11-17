@@ -72,13 +72,13 @@ export function NotificationBell() {
         aria-label={unreadCount ? `Notifications (${unreadCount} unread)` : "Notifications"}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="relative flex h-11 w-11 items-center justify-center rounded-md text-ink-2 hover:bg-surface-2 hover:text-ink"
+        className="relative flex h-11 w-11 items-center justify-center rounded-full text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink"
       >
-        <Icon.Bell className="h-[18px] w-[18px]" />
+        <Icon.Bell className="h-5 w-5" />
         {unreadCount > 0 && (
           <span
             aria-hidden
-            className="absolute right-1.5 top-1.5 flex min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold leading-4 text-on-brand"
+            className="absolute right-0.5 top-0.5 flex min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-xs font-bold leading-[18px] text-on-brand tabular-nums ring-2 ring-paper"
           >
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
@@ -92,23 +92,23 @@ export function NotificationBell() {
         <div
           role="dialog"
           aria-label="Notifications"
-          className="fixed inset-x-4 top-[76px] z-50 animate-scale-in overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-lg)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[22rem]"
+          className="fixed inset-x-4 top-[76px] z-50 animate-scale-in overflow-hidden rounded-tile border border-hairline-strong bg-surface shadow-[var(--shadow-lg)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[22rem]"
         >
-          <div className="flex items-center justify-between border-b border-border py-1 pl-4 pr-2">
-            <p className="text-sm font-bold text-ink">Notifications</p>
+          <div className="flex items-center justify-between border-b border-hairline py-1 pl-4 pr-2">
+            <p className="text-base font-semibold text-ink">Notifications</p>
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
-                className="flex min-h-11 items-center rounded-md px-2 text-xs font-semibold text-brand hover:underline"
+                className="flex min-h-11 items-center rounded-full px-2 text-sm font-semibold text-ink-2 hover:text-ink"
               >
-                Mark all read
+                Mark all as read
               </button>
             )}
           </div>
 
           <div className="max-h-[min(24rem,calc(100dvh-14rem))] overflow-y-auto overscroll-contain">
             {preview.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-ink-3">Nothing yet.</p>
+              <p className="px-4 py-8 text-center text-base text-ink-2">Nothing yet.</p>
             ) : (
               preview.map((a) => (
                 <NotificationItem
@@ -122,21 +122,21 @@ export function NotificationBell() {
             )}
           </div>
 
-          <div className="border-t border-border bg-surface-2/50">
+          <div className="border-t border-hairline">
             <button
               onClick={() => { setOpen(false); router.push(allHref); }}
-              className="flex min-h-11 w-full items-center justify-center gap-1.5 px-4 py-3 text-xs font-bold text-brand transition-colors hover:bg-surface-2"
+              className="flex min-h-11 w-full items-center justify-center gap-1.5 px-4 py-3 text-sm font-semibold text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink"
             >
               Show all notifications
-              <Icon.ChevronRight className="h-3.5 w-3.5" />
+              <Icon.ChevronRight className="h-4 w-4" />
             </button>
 
             {activities.length > 0 && (
               <button
                 onClick={() => setConfirmClear(true)}
-                className="flex min-h-11 w-full items-center justify-center gap-1.5 border-t border-border px-4 py-2.5 text-xs font-semibold text-ink-3 transition-colors hover:bg-error-soft hover:text-error"
+                className="flex min-h-11 w-full items-center justify-center gap-1.5 border-t border-hairline px-4 py-2.5 text-sm font-semibold text-ink-3 transition-colors duration-150 hover:bg-error-soft hover:text-error"
               >
-                <Icon.Trash className="h-3.5 w-3.5" />
+                <Icon.Trash className="h-4 w-4" />
                 Clear all notifications
               </button>
             )}
@@ -164,11 +164,11 @@ export function NotificationBell() {
           </>
         }
       >
-        <p className="text-sm text-ink-2">
+        <p className="text-base text-ink-2">
           Are you sure you want to clear all your notifications?
         </p>
-        <p className="mt-2 text-xs text-ink-3">
-          This only clears your own feed. Everyone else keeps theirs.
+        <p className="mt-2 text-sm text-ink-3">
+          This empties your list. You can&apos;t undo it.
         </p>
       </Modal>
     </div>

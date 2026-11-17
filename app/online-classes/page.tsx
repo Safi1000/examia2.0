@@ -55,7 +55,7 @@ export default function OnlineClassesPakistan() {
       <JsonLd data={faqLd(FAQ)} />
       <div className="public-calm mx-auto max-w-3xl px-5 pb-24 pt-12 md:pt-20">
         <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Online classes" }]} />
-        <h1 className="mt-8 text-[2.25rem] leading-[1.08] md:text-5xl">
+        <h1 className="mt-8 text-title leading-[1.1] sm:text-title-lg">
           Online O Level and A Level classes in Accounting, Business and Economics
         </h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
@@ -64,16 +64,16 @@ export default function OnlineClassesPakistan() {
         </p>
 
         <Section title="What you get">
-          <ul className="list-disc space-y-2 pl-5 text-[17px] leading-relaxed text-body">
+          <ul className="list-disc space-y-2 pl-5 text-lg leading-relaxed text-body">
             <li>Live classes five days a week, the full syllabus plus past papers.</li>
-            <li>A recording of every class, open for 24 hours.</li>
+            <li>A recording of every class, open for 48 hours.</li>
             <li>Weekly tests made and marked by me, with written feedback.</li>
             <li>A dedicated past paper window in March and April, before May / June exams.</li>
             <li>A direct line to me for questions between classes.</li>
           </ul>
         </Section>
 
-        <Section title="Class times" intro={<p>Monday to Friday, Pakistan time. Each subject is a 40-minute class.</p>}>
+        <Section title="Class times" intro={<p>Monday to Friday, Pakistan time. Each subject is a 40 minute class.</p>}>
           <Table
             caption="Weekly class times"
             head={["Level", "Time", "Subjects"]}
@@ -85,40 +85,40 @@ export default function OnlineClassesPakistan() {
           <ul className="grid gap-3 sm:grid-cols-3">
             {CITY_PAGES.map((c) => (
               <li key={c.slug}>
-                <Link href={`/online-classes/${c.slug}`} className="pc-surface pc-surface-link flex min-h-14 items-center justify-between rounded-[16px] px-5 py-4 font-semibold text-[#f0ede8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+                <Link href={`/online-classes/${c.slug}`} className="pc-surface pc-surface-link flex min-h-14 items-center justify-between rounded-tile px-5 py-4 font-semibold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
                   {c.city}
                 </Link>
               </li>
             ))}
           </ul>
-          <p className="mt-5 text-[17px] leading-relaxed text-body">
+          <p className="mt-5 text-lg leading-relaxed text-body">
             Studying in the UAE, Saudi Arabia, Qatar, Oman, Kuwait or Bahrain? See the{" "}
-            <Link href="/online-classes/gulf" className="text-gold hover:underline">class times for Gulf students</Link>.
+            <Link href="/online-classes/gulf" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">class times for Gulf students</Link>.
           </p>
         </Section>
 
         <Section title="Free study tools">
-          <ul className="space-y-2 text-[17px]">
+          <ul className="space-y-2 text-lg">
             <li>
-              <Link href="/grade-thresholds" className="text-gold hover:underline">Official grade thresholds</Link>{" "}
+              <Link href="/grade-thresholds" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">Official grade thresholds</Link>{" "}
               <span className="text-muted-foreground">for every syllabus and variant.</span>
             </li>
             <li>
-              <Link href="/tools/grade-predictor" className="text-gold hover:underline">Grade predictor</Link>{" "}
+              <Link href="/tools/grade-predictor" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">Grade predictor</Link>{" "}
               <span className="text-muted-foreground">for your mock marks.</span>
             </li>
             <li>
-              <Link href="/private-candidates/pakistan" className="text-gold hover:underline">Private candidate guide</Link>{" "}
+              <Link href="/private-candidates/pakistan" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">Private candidate guide</Link>{" "}
               <span className="text-muted-foreground">for entering without a school.</span>
             </li>
             <li>
-              <Link href="/past-papers" className="text-gold hover:underline">Past papers with mark schemes</Link>
+              <Link href="/past-papers" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">Past papers with mark schemes</Link>
             </li>
             <li>
-              <Link href="/syllabus" className="text-gold hover:underline">Cambridge syllabus checklists</Link>
+              <Link href="/syllabus" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">Cambridge syllabus checklists</Link>
             </li>
             <li>
-              <Link href="/blog" className="text-gold hover:underline">The Exam Room</Link>{" "}
+              <Link href="/blog" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">The Exam Room</Link>{" "}
               <span className="text-muted-foreground">for topic guides and exam technique.</span>
             </li>
           </ul>

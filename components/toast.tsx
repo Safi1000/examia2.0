@@ -119,7 +119,7 @@ function ToastViewport({
     // bar marked data-toast-avoid, so a message never covers a button someone
     // is about to tap.
     <div
-      className="pointer-events-none fixed inset-x-0 z-[60] flex flex-col items-center gap-2 px-4"
+      className="pointer-events-none fixed inset-x-0 z-[150] flex flex-col items-center gap-2 px-4"
       style={{ bottom: lift ? `max(${BASE_BOTTOM}, ${lift}px)` : BASE_BOTTOM }}
       role="region"
       aria-live="polite"

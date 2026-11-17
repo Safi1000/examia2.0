@@ -13,7 +13,8 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { AnnotatedImage, AnnotatorModal } from "@/components/Annotator";
 import { PageStack } from "@/components/PageStack";
 import { MarkSchemePanel } from "@/components/admin/MarkSchemePanel";
-import { idsInText } from "@/lib/paper-builder";
+import { idsInText, isPastPaper, sourceLabel, withoutSources } from "@/lib/paper-builder";
+import { PaperText } from "@/components/PaperText";
 import { Card, Button, Badge, Pill, Textarea, EmptyState, Icon } from "@/components/ui";
 import { awardedMarks, isFullyGraded, totalMarks } from "@/lib/scoring";
 import { gradeSubmission } from "@/lib/grading";
@@ -133,9 +134,9 @@ export default function GradingPage() {
                   Skip to next →
                 </Link>
               )}
-              <Button disabled={!fullyGraded} onClick={() => release(!!nextId)}>
+              <Button variant="secondary" disabled={!fullyGraded} onClick={() => release(!!nextId)}>
                 {nextId ? "Release & next" : "Release result"}
-                <kbd className="ml-1.5 hidden rounded border border-current/30 px-1 text-[10px] font-semibold opacity-70 lg:inline">Ctrl ↵</kbd>
+                <kbd className="ml-1.5 hidden rounded-[5px] border border-current/30 px-1 font-sans text-xs font-semibold opacity-70 lg:inline">Ctrl ↵</kbd>
               </Button>
             </>
           )
@@ -143,17 +144,17 @@ export default function GradingPage() {
       />
 
       {/* Running total */}
-      <Card ruled className="mb-5 flex flex-wrap items-center justify-between gap-3 p-4">
+      <Card ruled className="mb-5 flex flex-wrap items-center justify-between gap-3 p-5 sm:p-6">
         <div>
-          <p className="text-[13px] font-medium text-ink-3">Running total</p>
-          <p className="text-2xl font-semibold tabular-nums tracking-[-0.02em] text-ink">{awarded}<span className="text-base font-normal text-ink-3">/{total}</span></p>
+          <p className="label-quiet text-ink-3">Running total</p>
+          <p className="mt-1 text-title font-semibold tabular-nums tracking-[-0.02em] text-ink">{awarded}<span className="text-base font-normal text-ink-3">/{total}</span></p>
         </div>
         <div className="text-right">
           <p className="text-lg font-semibold tabular-nums text-ink">{grade.percent}%</p>
           <p className="text-sm text-ink-3">Grade {grade.letter}</p>
         </div>
         {!fullyGraded && !released && (
-          <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/25 bg-warning-soft px-3 py-2 text-sm text-warning">
+          <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-tile border border-warning/25 bg-warning-soft px-4 py-3 text-sm text-warning">
             <span>Score every written and photo answer before releasing.</span>
             {blanks.length > 0 && (
               <button
@@ -162,7 +163,7 @@ export default function GradingPage() {
                   for (const q of blanks) store.gradeAnswer(subId, q.id, 0);
                   toast(`Gave 0 to ${blanks.length === 1 ? "1 blank answer" : `${blanks.length} blank answers`}.`, "success");
                 }}
-                className="h-11 rounded-full border border-warning/40 px-3 text-xs font-semibold text-ink hover:bg-warning/10"
+                className="h-11 rounded-full border border-warning/40 px-4 text-sm font-semibold text-ink transition-colors duration-150 hover:bg-warning/10"
               >
                 0 for {blanks.length === 1 ? "the blank answer" : `the ${blanks.length} blank answers`}
               </button>
@@ -203,8 +204,8 @@ export default function GradingPage() {
       {/* Always in reach at the bottom (no scrolling back up on the iPad). It
           stays after release, so a quick second tap lands on it and not on a
           mark button that was underneath. */}
-      <div data-toast-avoid className="sticky bottom-3 z-20 mt-6 flex items-center justify-between gap-3 rounded-full border border-border-strong bg-surface/95 py-2 pl-5 pr-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),var(--shadow-lg)] backdrop-blur max-md:bottom-24">
-        <span className="text-sm font-semibold tabular-nums text-ink">
+      <div data-toast-avoid className="sticky bottom-3 z-30 mt-6 flex items-center justify-between gap-3 rounded-full border border-border-strong bg-surface py-2 pl-5 pr-2 shadow-[var(--shadow-lg)] max-md:bottom-24">
+        <span className="text-base font-semibold tabular-nums text-ink">
           {awarded}/{total} <span className="font-normal text-ink-3">· {grade.percent}%{released ? " · Released" : ""}</span>
         </span>
         {released ? (
@@ -296,17 +297,25 @@ function GradeCard({
   }
 
   return (
-    <Card className="p-4">
+    <Card className="p-5 sm:p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold tabular-nums text-ink-3">Q{index + 1}</span>
+          <span className="text-sm font-semibold tabular-nums text-ink-3">Q{index + 1}</span>
           <Badge tone="neutral">{question.type === "mcq" ? "Choice" : question.type === "photo" ? "Photo" : "Written"}</Badge>
           {question.topic.trim() && <Badge tone="neutral">{question.topic}</Badge>}
           <Pill>{question.marks}m</Pill>
           {locked && <span className="inline-flex items-center gap-1 text-xs text-ink-3"><Icon.Lock className="h-3 w-3" /> marked automatically</span>}
         </div>
       </div>
-      <p className="mt-2 text-pretty font-semibold leading-snug text-ink">{question.prompt}</p>
+      {isPastPaper(question) ? (
+        // Past paper: the wording as students saw it (bold kept), and its source in small text, as on the test page.
+        <>
+          {withoutSources(question.prompt) && <PaperText text={withoutSources(question.prompt)} className="mt-3 text-pretty text-base font-semibold leading-snug text-ink" />}
+          <p className="mt-1 text-sm text-ink-3">{idsInText(question.prompt).map(sourceLabel).join(", ")}</p>
+        </>
+      ) : (
+        <p className="mt-3 text-pretty text-base font-semibold leading-snug text-ink">{question.prompt}</p>
+      )}
       {question.attachments && question.attachments.length > 0 && (
         <div className="mt-3">
           <PageStack urls={question.attachments} label="Question paper" />
@@ -323,7 +332,7 @@ function GradeCard({
               const correct = question.correctIndex === oi;
               return (
                 <li key={oi} className={cn(
-                  "flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
+                  "flex min-h-11 items-center gap-2.5 rounded-field border px-3.5 py-2 text-base",
                   correct ? "border-success/40 bg-success-soft text-success" : chosen ? "border-error/40 bg-error-soft text-error" : "border-border bg-surface text-ink-2",
                 )}>
                   {correct ? <Icon.Check className="h-4 w-4 shrink-0" /> : chosen ? <Icon.Close className="h-4 w-4 shrink-0" /> : <span className="h-4 w-4 shrink-0" />}
@@ -335,21 +344,21 @@ function GradeCard({
           </ul>
         )}
         {question.type === "text" && (
-          <div className="whitespace-pre-wrap break-words rounded-lg bg-surface-2/60 p-3 text-sm leading-relaxed text-ink">
+          <div className="whitespace-pre-wrap break-words rounded-tile bg-surface-2 p-4 text-base leading-relaxed text-ink">
             {answer?.text || <span className="italic text-ink-3">No answer given</span>}
           </div>
         )}
         {question.type === "photo" && (() => {
           // photoUrls is the full set; fall back to the legacy single URL.
           const photos = answer?.photoUrls ?? (answer?.photoDataUrl ? [answer.photoDataUrl] : []);
-          if (!photos.length) return <p className="text-sm italic text-ink-3">No photo submitted</p>;
+          if (!photos.length) return <p className="text-base italic text-ink-3">No photo submitted</p>;
           // One page at a time in a fixed-height box: a 50-page PDF must not turn
           // the grading screen into a mile of scrolling to reach the marks.
           const shown = Math.min(page, photos.length - 1);
           const url = photos[shown];
           return (
             <div className="space-y-2">
-              <div className="max-h-[26rem] overflow-auto rounded-md border border-border bg-surface-2">
+              <div className="max-h-[26rem] overflow-auto rounded-tile border border-hairline bg-surface-2">
                 <AnnotatedImage
                   url={url}
                   shapes={answer?.annotations?.[url] ?? []}
@@ -358,23 +367,23 @@ function GradeCard({
                   className="block w-full"
                 />
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-ink-3">
+              <div className="flex flex-wrap items-center gap-2 text-sm text-ink-3">
                 <TakenNote url={url} writeEndMs={writeEndMs} />
                 {photos.length > 1 && (
                   <>
                     <button
                       onClick={() => setPage(Math.max(0, shown - 1))}
                       disabled={shown === 0}
-                      className="h-11 min-w-11 rounded-full border border-border-strong px-3 text-ink-2 transition-colors hover:bg-surface-2 disabled:opacity-40"
+                      className="h-11 min-w-11 rounded-full border border-border-strong px-3 text-base text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink disabled:opacity-40"
                       aria-label="Previous page"
                     >
                       ‹
                     </button>
-                    <span className="tabular">Page {shown + 1} of {photos.length}</span>
+                    <span className="tabular-nums">Page {shown + 1} of {photos.length}</span>
                     <button
                       onClick={() => setPage(Math.min(photos.length - 1, shown + 1))}
                       disabled={shown === photos.length - 1}
-                      className="h-11 min-w-11 rounded-full border border-border-strong px-3 text-ink-2 transition-colors hover:bg-surface-2 disabled:opacity-40"
+                      className="h-11 min-w-11 rounded-full border border-border-strong px-3 text-base text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink disabled:opacity-40"
                       aria-label="Next page"
                     >
                       ›
@@ -405,9 +414,9 @@ function GradeCard({
       </div>
 
       {/* Scoring */}
-      <div className="mt-4 border-t border-border pt-3">
+      <div className="mt-5 border-t border-hairline pt-4">
         {locked ? (
-          <p className="text-sm text-ink-2">Awarded <span className="font-semibold tabular-nums text-ink">{awarded ?? 0}/{question.marks}</span> automatically.</p>
+          <p className="text-base text-ink-2">Awarded <span className="font-semibold tabular-nums text-ink">{awarded ?? 0}/{question.marks}</span> automatically.</p>
         ) : (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-3">
@@ -415,7 +424,7 @@ function GradeCard({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setMarks((awarded ?? 0) - 1)}
-                  className="h-11 w-11 rounded-lg border border-border-strong bg-surface text-lg font-semibold text-ink-2 transition-colors hover:bg-surface-2"
+                  className="h-11 w-11 rounded-full border border-border-strong bg-transparent text-lg font-semibold text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:scale-[0.97]"
                   aria-label="One mark less"
                 >
                   −
@@ -430,11 +439,11 @@ function GradeCard({
                   onChange={(e) => setMarks(e.target.value === "" ? 0 : Number(e.target.value))}
                   placeholder="0"
                   aria-label={`Marks out of ${question.marks}`}
-                  className="h-11 w-20 rounded-lg border border-border-strong bg-surface px-3 text-center text-base font-semibold tabular-nums text-ink"
+                  className="h-11 w-20 rounded-field border border-field bg-surface px-3 text-center text-base font-semibold tabular-nums text-ink transition-colors hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 />
                 <button
                   onClick={() => setMarks((awarded ?? 0) + 1)}
-                  className="h-11 w-11 rounded-lg border border-border-strong bg-surface text-lg font-semibold text-ink-2 transition-colors hover:bg-surface-2"
+                  className="h-11 w-11 rounded-full border border-border-strong bg-transparent text-lg font-semibold text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:scale-[0.97]"
                   aria-label="One mark more"
                 >
                   +
@@ -450,10 +459,10 @@ function GradeCard({
                     onClick={() => setMarks(v)}
                     aria-pressed={awarded === v}
                     className={cn(
-                      "h-11 min-w-11 rounded-lg border px-3 text-sm font-semibold tabular-nums transition-colors duration-150",
+                      "h-11 min-w-11 rounded-full border px-3.5 text-sm font-semibold tabular-nums transition-colors duration-150 active:scale-[0.97]",
                       awarded === v
-                        ? "border-ink/40 bg-white/[0.09] text-ink"
-                        : "border-border-strong bg-surface text-ink-2 hover:bg-surface-2",
+                        ? "border-white/[0.16] bg-white/[0.09] text-ink"
+                        : "border-border bg-transparent text-ink-3 hover:border-border-strong hover:text-ink",
                     )}
                   >
                     {v === question.marks ? `Full (${v})` : v === 0 ? "0" : `Half (${v})`}
@@ -526,17 +535,17 @@ function PhotoTimeline({
 }) {
   const flagged = pages.filter((p) => p.taken && p.taken.getTime() > writeEndMs + GRACE_MS).length;
   return (
-    <Card className="mb-5 p-4">
+    <Card className="mb-5 p-5 sm:p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-[13px] font-medium text-ink-3">Photo timeline</p>
+        <p className="label-quiet text-ink-3">Photo timeline</p>
         {flagged > 0 ? (
-          <p className="text-xs font-semibold text-warning">
+          <p className="text-sm font-semibold text-warning">
             {flagged} page{flagged === 1 ? "" : "s"} photographed more than 2 min after time was up
           </p>
         ) : pages.some((p) => p.taken) ? (
-          <p className="text-xs text-ink-3">Photos taken on time</p>
+          <p className="text-sm text-ink-3">Photos taken on time</p>
         ) : (
-          <p className="text-xs text-ink-3">Photo times not available for these pages</p>
+          <p className="text-sm text-ink-3">Photo times not available for these pages</p>
         )}
       </div>
       <ol className="mt-3 flex flex-wrap items-center gap-1.5 text-xs">

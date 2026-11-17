@@ -23,10 +23,13 @@ export default function ProgressPage() {
   }));
   return (
     <MarketingShell>
-      <div className="mx-auto max-w-4xl px-5 pb-20 pt-10 md:pt-14">
-        <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Past papers", href: "/past-papers" }, { name: "My progress" }]} />
-        <PastPapersNav className="mt-6 w-fit max-w-full" />
-        <h1 className="mt-8 text-3xl font-bold leading-[1.1] tracking-tight text-foreground md:text-5xl">My progress</h1>
+      <div className="mx-auto max-w-4xl px-5 pb-20 pt-8 md:pt-12">
+        {/* Same order as the other past paper pages: the switch, the trail, then the title. */}
+        <PastPapersNav className="w-fit max-w-full" />
+        <div className="mt-8">
+          <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Past papers", href: "/past-papers" }, { name: "My progress" }]} />
+        </div>
+        <h1 className="mt-4 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">My progress</h1>
         <div className="mt-8">
           <ProgressView syllabi={syllabi} exam={{ name: EXAMS.name, start: EXAMS.start }} />
         </div>

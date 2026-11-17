@@ -6,7 +6,7 @@ import { Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
 const stateStyle: Record<TimerState, string> = {
-  normal: "border-border-strong bg-surface text-ink",
+  normal: "border-border bg-surface text-ink",
   warning: "border-warning/40 bg-warning-soft text-warning",
   critical: "border-error/50 bg-error-soft text-error",
 };
@@ -23,7 +23,7 @@ export function CountdownTimer({ remaining, state }: { remaining: number; state:
       aria-live="off"
       aria-label="Time remaining"
       className={cn(
-        "inline-flex items-center gap-2 rounded-md border px-3 py-1.5 font-mono text-lg font-semibold tabular-nums",
+        "inline-flex h-11 shrink-0 items-center gap-2 rounded-full border px-4 font-mono text-lg font-semibold tabular-nums transition-colors duration-200",
         stateStyle[state],
         state === "critical" && "animate-low-pulse",
       )}

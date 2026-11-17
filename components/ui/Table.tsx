@@ -27,7 +27,7 @@ export function Table({
         // Figures line up in columns everywhere (tabular digits change nothing for words).
         "w-full border-collapse text-left text-sm tabular-nums",
         stickyFirst &&
-          "[&_td:first-child]:sticky [&_td:first-child]:left-0 [&_td:first-child]:bg-surface [&_th:first-child]:sticky [&_th:first-child]:left-0 [&_th:first-child]:z-10 [&_th:first-child]:bg-paper",
+          "[&_td:first-child]:sticky [&_td:first-child]:left-0 [&_td:first-child]:bg-surface [&_th:first-child]:sticky [&_th:first-child]:left-0 [&_th:first-child]:z-10 [&_th:first-child]:bg-surface",
         className,
       )}
     >
@@ -40,7 +40,7 @@ export function Th({ children, className }: { children?: React.ReactNode; classN
   return (
     <th
       className={cn(
-        "whitespace-nowrap border-b border-border px-3 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-ink-3",
+        "whitespace-nowrap border-b border-border px-3 py-3 label-quiet text-ink-3",
         className,
       )}
       scope="col"

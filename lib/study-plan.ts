@@ -10,10 +10,13 @@ import type { Student } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { testsForStudent } from "@/lib/data/selectors";
 import { topicMastery } from "@/lib/scoring";
+import { daysUntil, examsForStudent, nextExam, type ExamPaper } from "@/lib/exam-dates";
 
 /**
- * First exam date and past-paper window for May/June 2027, confirmed by Hamza
- * (2026-10-16). Update when Cambridge publishes the final timetable.
+ * The series as a whole: its first day and the past-paper window, confirmed by
+ * Hamza (2026-10-16). Used by the public tools, and as the fallback for a
+ * student whose class is not one of the taught levels. Each student's own
+ * papers and dates come from lib/exam-dates.ts (Cambridge's final timetable).
  */
 export const EXAMS = {
   name: "May / June 2027",
@@ -41,7 +44,12 @@ export interface PlanWeek {
 }
 
 export interface StudyPlan {
+  /** Whole days to `examDate`. */
   daysLeft: number;
+  /** The day the plan counts to: this student's next paper, or the series' first day when their papers are not known. */
+  examDate: string;
+  /** This student's own papers, in date order (empty when not known). */
+  papers: ExamPaper[];
   weeksLeft: number;
   weeks: PlanWeek[];
   subjects: string[];
@@ -57,7 +65,10 @@ function mondayOf(ms: number): Date {
 
 export function buildStudyPlan(db: Database, student: Student, nowMs: number): StudyPlan {
   // Local midnight (no "Z"), so week boundaries line up with Pakistan time.
-  const examMs = +new Date(`${EXAMS.start}T00:00:00`);
+  // Count to this student's own next paper; the series' first day only when their papers are not known.
+  const papers = examsForStudent(db, student);
+  const examDate = nextExam(papers, nowMs)?.date ?? (papers.length ? papers[papers.length - 1].date : EXAMS.start);
+  const examMs = +new Date(`${examDate}T00:00:00`);
   const pastMs = +new Date(`${EXAMS.pastPapersFrom}T00:00:00`);
   const handedIn = new Set(
     db.submissions.filter((s) => s.studentId === student.id && s.status !== "in_progress").map((s) => s.testId),
@@ -123,6 +134,6 @@ export function buildStudyPlan(db: Database, student: Student, nowMs: number): S
     });
   }
 
-  const daysLeft = Math.max(0, Math.ceil((examMs - nowMs) / DAY));
-  return { daysLeft, weeksLeft: weeks.length, weeks, subjects };
+  const daysLeft = Math.max(0, daysUntil(examDate, nowMs));
+  return { daysLeft, examDate, papers, weeksLeft: weeks.length, weeks, subjects };
 }

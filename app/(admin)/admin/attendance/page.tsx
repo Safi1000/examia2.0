@@ -8,10 +8,12 @@ import { useAdminFilter, useStickyFilter } from "@/lib/admin-filter";
 import { attendancePercent, archivedCohortIds, canBeSwept, countsFor } from "@/lib/data/selectors";
 import { addDays, slotsForStudent } from "@/lib/timetable";
 import { isInPersonStudent } from "@/lib/in-person";
-import { isTestAccount } from "@/lib/display-name";
+import { displayName, isTestAccount } from "@/lib/display-name";
+import { usePausedIds } from "@/lib/paused";
 import { useToast } from "@/components/toast";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Button, Card, Select, EmptyState, Icon, Modal, filterField, segmentGroup, segmentItem } from "@/components/ui";
+import { buttonClasses } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { useClassLinks, useSchedule } from "@/lib/classes";
 
@@ -46,6 +48,7 @@ export default function AttendancePage() {
   const [sweepAsk, setSweepAsk] = useState<{ status: AttendanceStatus; ids: string[]; classId: string | null; date: string } | null>(null);
   const [lastSweep, setLastSweep] = useState<{ status: AttendanceStatus; count: number; classId: string | null; date: string; undo: () => void } | null>(null);
 
+  const pausedIds = usePausedIds();
   const students = useMemo(() => {
     const off = archivedCohortIds(db);
     return (
@@ -79,7 +82,7 @@ export default function AttendancePage() {
         title="Attendance"
         subtitle={
           mode === "daily"
-            ? "Filled in by itself from Join taps: late after 10 minutes, absent for no-shows after class. Tap to change any mark."
+            ? "Filled in by itself from Join taps: late after 10 minutes, absent after class if they never joined. Tap to change any mark."
             : "One percentage per student"
         }
       />
@@ -99,33 +102,36 @@ export default function AttendancePage() {
           ))}
         </div>
 
-        <Select value={classId} onChange={(e) => setClassId(e.target.value)} compact wrapperClassName="min-w-0 flex-1 basis-48 sm:max-w-64" aria-label="Class">
+        <Select value={classId} onChange={(e) => setClassId(e.target.value)} compact wrapperClassName="min-w-0 flex-1 basis-48 max-sm:basis-full sm:max-w-64" aria-label="Class">
           <option value="">All classes</option>
           {db.classes.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </Select>
 
-        {mode === "daily" && (
-          <button type="button" onClick={() => setDate(addDays(date, -1))} aria-label="Previous day" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border-strong text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11">
-            <Icon.ChevronLeft className="h-4 w-4" />
-          </button>
-        )}
-        <input
-          type={mode === "daily" ? "date" : "month"}
-          value={mode === "daily" ? date : date.slice(0, 7)}
-          // The picker's Clear button sends an empty value: keep the last real date, or marks would be saved with no day.
-          // A typed future date is ignored too: `max` only limits the picker, not the keyboard.
-          onChange={(e) => e.target.value && e.target.value <= e.target.max && setDate(mode === "daily" ? e.target.value : `${e.target.value}-01`)}
-          max={mode === "daily" ? todayISO() : todayISO().slice(0, 7)}
-          className={filterField}
-          aria-label={mode === "daily" ? "Date" : "Month"}
-        />
-        {mode === "daily" && (
-          <button type="button" disabled={date >= todayISO()} onClick={() => setDate(addDays(date, 1))} aria-label="Next day" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border-strong text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-40 max-md:h-11 max-md:w-11">
-            <Icon.ChevronRight className="h-4 w-4" />
-          </button>
-        )}
+        {/* The date and its two arrows stay together as one control, whatever the screen width. */}
+        <div className="flex shrink-0 items-center gap-2">
+          {mode === "daily" && (
+            <button type="button" onClick={() => setDate(addDays(date, -1))} aria-label="Previous day" className="flex h-10 w-10 shrink-0 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-field text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11">
+              <Icon.ChevronLeft className="h-4 w-4" />
+            </button>
+          )}
+          <input
+            type={mode === "daily" ? "date" : "month"}
+            value={mode === "daily" ? date : date.slice(0, 7)}
+            // The picker's Clear button sends an empty value: keep the last real date, or marks would be saved with no day.
+            // A typed future date is ignored too: `max` only limits the picker, not the keyboard.
+            onChange={(e) => e.target.value && e.target.value <= e.target.max && setDate(mode === "daily" ? e.target.value : `${e.target.value}-01`)}
+            max={mode === "daily" ? todayISO() : todayISO().slice(0, 7)}
+            className={filterField}
+            aria-label={mode === "daily" ? "Date" : "Month"}
+          />
+          {mode === "daily" && (
+            <button type="button" disabled={date >= todayISO()} onClick={() => setDate(addDays(date, 1))} aria-label="Next day" className="flex h-10 w-10 shrink-0 max-md:h-11 max-md:w-11 items-center justify-center rounded-full border border-field text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-40 max-md:h-11 max-md:w-11">
+              <Icon.ChevronRight className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {students.length === 0 ? (
@@ -157,7 +163,7 @@ export default function AttendancePage() {
           </>
         }
       >
-        <p className="text-sm text-ink-2">You can undo this straight after.</p>
+        <p className="text-base text-ink-2">You can undo this straight after.</p>
       </Modal>
     </div>
   );
@@ -209,10 +215,12 @@ export default function AttendancePage() {
       const mark = markOf(s.id);
       return { s, mark, join: firstJoin(s.id), before: !sweepable(s), counted: !!mark && countsFor(s, date, mark.status) };
     });
-    const count = (st: AttendanceStatus) => rows.filter((r) => r.counted && r.mark?.status === st).length;
+    // The test account's own marks stay out of the day's counts too.
+    const count = (st: AttendanceStatus) => rows.filter((r) => r.counted && r.mark?.status === st && !isTestAccount(r.s)).length;
     // Hamza's own test account keeps its row (tap to mark it) but is never
     // counted as "not marked" or swept up by "Mark the rest".
-    const unmarked = rows.filter((r) => !r.mark && !r.before && !isTestAccount(r.s));
+    // Paused students keep their row too, but are never swept up either.
+    const unmarked = rows.filter((r) => !r.mark && !r.before && !isTestAccount(r.s) && !pausedIds.has(r.s.id));
     const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit", hour12: true });
     // Present goes straight in (Undo is right there); absent is asked first.
     const markRest = (status: AttendanceStatus) => {
@@ -231,11 +239,11 @@ export default function AttendancePage() {
           <span className="font-semibold tabular-nums text-error">{count("absent")} absent</span>
           <span className="tabular-nums text-ink-3">{unmarked.length} not marked</span>
           {unmarked.length > 0 && (
-            <span className="ml-auto flex gap-1.5">
-              <button type="button" onClick={() => markRest("present")} className="h-10 rounded-full border border-border-strong px-3.5 text-xs font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11">
+            <span className="flex gap-2 max-sm:w-full max-sm:flex-col max-sm:[&>button]:w-full sm:ml-auto sm:flex-wrap">
+              <button type="button" onClick={() => markRest("present")} className={buttonClasses({ variant: "secondary", size: "sm" })}>
                 Mark the rest present
               </button>
-              <button type="button" onClick={() => markRest("absent")} className="h-10 rounded-full border border-border-strong px-3.5 text-xs font-semibold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11">
+              <button type="button" onClick={() => markRest("absent")} className={buttonClasses({ variant: "secondary", size: "sm" })}>
                 Mark the rest absent
               </button>
             </span>
@@ -246,17 +254,17 @@ export default function AttendancePage() {
             <span>
               {undoable.count} {undoable.count === 1 ? "student" : "students"} marked {undoable.status} for this day.
             </span>
-            <button type="button" onClick={undoable.undo} className="min-h-10 font-semibold text-brand underline-offset-2 hover:underline">
+            <button type="button" onClick={undoable.undo} className="min-h-10 font-semibold text-ink underline underline-offset-4">
               Undo
             </button>
           </p>
         )}
-        <Card className="divide-y divide-border overflow-hidden p-0">
+        <Card className="divide-y divide-hairline overflow-hidden p-0">
           {rows.map(({ s, mark, join, before, counted }) => (
-            <div key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 transition-colors hover:bg-white/[0.018]">
+            <div key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3 transition-colors hover:bg-white/[0.02]">
               <span className="min-w-36 flex-1">
-                <span className="block truncate font-semibold capitalize text-ink">{s.username}</span>
-                <span className="block text-xs tabular-nums text-ink-3">
+                <span className="block truncate text-base font-semibold text-ink">{displayName(s.username)}</span>
+                <span className="block text-sm tabular-nums text-ink-3">
                   {join ? `Joined ${clock(join.joinedAt)}` : "Didn't tap Join"}
                   {mark && !counted ? " · added to the portal after this class, so this mark is not counted" : before ? " · added to the portal after this class" : !mark && " · not marked yet"}
                 </span>
@@ -269,9 +277,9 @@ export default function AttendancePage() {
                     type="button"
                     onClick={() => store.setAttendance(s.id, mark ? mark.classId : classId, date, opt.value)}
                     aria-pressed={mark?.status === opt.value}
-                    aria-label={`${opt.label}: ${s.username}`}
+                    aria-label={`${opt.label}: ${displayName(s.username)}`}
                     className={cn(
-                      "h-11 min-w-[4.5rem] rounded-lg border px-3 text-sm font-semibold transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-sm:flex-1",
+                      "h-11 min-w-[4.5rem] rounded-full border px-3.5 text-sm font-semibold transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-sm:flex-1",
                       mark?.status === opt.value ? opt.tone : "border-border-strong bg-surface text-ink-2 hover:bg-surface-2",
                     )}
                   >
@@ -282,7 +290,7 @@ export default function AttendancePage() {
             </div>
           ))}
         </Card>
-        <p className="mt-3 text-xs text-ink-3">Days with no mark are left out of the monthly percentage (late counts as half).</p>
+        <p className="mt-3 text-sm text-ink-3">Days with no mark are left out of the monthly percentage (late counts as half).</p>
       </>
     );
   }
@@ -297,16 +305,16 @@ export default function AttendancePage() {
     onSaved: () => void;
   }) {
     return (
-      <Card className="divide-y divide-border p-0">
+      <Card className="divide-y divide-hairline p-0">
         {students.map((s) => {
           // Pre-filled from the daily register when it was kept, still editable.
           const value = attendancePercent(db, s.id, month);
           const fromRegister = !db.attendanceMonths.some((a) => a.studentId === s.id && a.month === month);
           return (
-            <div key={s.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-              <span className="min-w-0 flex-1 truncate font-semibold capitalize text-ink">{s.username}</span>
+            <div key={s.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+              <span className="min-w-0 flex-1 truncate text-base font-semibold text-ink">{displayName(s.username)}</span>
               {fromRegister && value != null && (
-                <span className="text-xs text-ink-3">from the register</span>
+                <span className="text-sm text-ink-3">from the register</span>
               )}
               <input
                 key={`${s.id}-${month}`}
@@ -322,8 +330,8 @@ export default function AttendancePage() {
                   onSaved();
                 }}
                 placeholder="%"
-                aria-label={`${s.username} attendance percent`}
-                className="h-11 w-24 rounded-lg border border-border-strong bg-surface px-3 text-center text-base font-semibold tabular-nums text-ink sm:text-sm"
+                aria-label={`${displayName(s.username)} attendance percent`}
+                className="h-11 w-24 rounded-field border border-field bg-surface px-3 text-center text-base font-semibold tabular-nums text-ink transition-colors hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
               />
               <span className="text-sm text-ink-3">%</span>
             </div>

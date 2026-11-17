@@ -18,8 +18,9 @@ import { studentById } from "@/lib/data/selectors";
 import { dueFor } from "@/lib/due";
 import { LogoTight } from "@/components/Brand";
 import { Splash } from "@/components/Splash";
+import { useAccessPaused } from "@/lib/access-paused";
 import { NotificationBell } from "@/components/NotificationBell";
-import { CohortTag } from "@/components/ui";
+import { Button, CohortTag } from "@/components/ui";
 import { NavIcon } from "@/components/nav/NavIcons";
 import type { Cohort } from "@/types";
 import { cohortById } from "@/lib/data/selectors";
@@ -56,7 +57,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const ready = useDataReady();
   const nowMs = useNow();
   // The header is see-through until the page scrolls (on Groundwork, until
-  // past its photo), then turns to frosted glass.
+  // past its photo), then turns to the plain page colour with a hairline (no glass).
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > (pathname === "/groundwork" ? window.innerHeight - 160 : 12));
@@ -82,31 +83,38 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     return startActivity(async () => (await supabase().auth.getSession()).data.session?.access_token ?? null);
   }, [tracking]);
   useEffect(() => setActivityPath(pathname), [pathname]);
+  // Hamza can pause a student's access from Students: they sign in as usual
+  // and see only a blank screen until it is resumed.
+  const accessPaused = useAccessPaused(tracking);
 
   if (loadFailed) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
         <EmptyArt name="empty-offline" className="mb-2" />
-        <p className="font-semibold text-ink">Couldn&apos;t load your portal.</p>
+        <p className="text-base font-semibold text-ink">Couldn&apos;t load your portal.</p>
         <p className="text-sm text-ink-2">Check your internet.</p>
-        <button
-          onClick={retryLoad}
-          className="mt-2 inline-flex h-11 items-center rounded-full bg-brand px-6 text-sm font-semibold text-on-brand active:scale-[0.98]"
-        >
+        <Button size="lg" onClick={retryLoad} className="mt-2">
           Try again
-        </button>
+        </Button>
       </div>
     );
   }
   if (initializing || !session || session.role !== "student") {
     return <Splash tips />;
   }
+  if (accessPaused) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center" aria-label="Hamza Teaches">
+        <LogoTight className="h-6 opacity-25" />
+      </div>
+    );
+  }
   // Signed in, but no student record behind the account yet: waiting would
   // never end, so say so.
   if (!session.studentId) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
-        <p className="font-semibold text-ink">Your account isn&apos;t set up yet.</p>
+        <p className="text-base font-semibold text-ink">Your account isn&apos;t set up yet.</p>
         <p className="text-sm text-ink-2">
           <a
             href={waTextLink("Hi Hamza, I signed in to the portal but my account isn't set up yet.")}
@@ -114,16 +122,13 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             rel="noopener noreferrer"
             className="font-semibold text-brand hover:underline"
           >
-            Message Hamza
+            Message me
           </a>{" "}
           and I&apos;ll sort it out.
         </p>
-        <button
-          onClick={() => { logout(); router.replace("/login"); }}
-          className="mt-2 inline-flex h-11 items-center rounded-full border border-border-strong px-6 text-sm font-semibold text-ink active:scale-[0.98]"
-        >
+        <Button variant="secondary" onClick={() => { logout(); router.replace("/login"); }} className="mt-2">
           Sign out
-        </button>
+        </Button>
       </div>
     );
   }
@@ -136,20 +141,14 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
         <EmptyArt name="empty-offline" className="mb-2" />
-        <p className="font-semibold text-ink">Your portal didn&apos;t load.</p>
+        <p className="text-base font-semibold text-ink">Your portal didn&apos;t load.</p>
         <p className="max-w-xs text-sm text-ink-2">Usually a weak signal. Check your internet and try again.</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="inline-flex h-11 items-center rounded-full bg-brand px-6 text-sm font-semibold text-on-brand active:scale-[0.98]"
-        >
+        <Button size="lg" onClick={() => window.location.reload()} className="mt-2">
           Try again
-        </button>
-        <button
-          onClick={() => { logout(); router.replace("/login"); }}
-          className="inline-flex h-11 items-center px-4 text-sm font-medium text-ink-3 hover:text-ink"
-        >
+        </Button>
+        <Button variant="ghost" onClick={() => { logout(); router.replace("/login"); }}>
           Sign out
-        </button>
+        </Button>
       </div>
     );
   }
@@ -161,16 +160,13 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   if (cohort && !cohort.active) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
-        <p className="font-display text-xl font-bold text-ink">This class has finished</p>
-        <p className="max-w-sm text-sm text-ink-2">
+        <p className="text-xl font-bold text-ink">This class has finished</p>
+        <p className="max-w-sm text-base text-ink-2">
           Your class has finished for now. If you think this is a mistake, message Hamza.
         </p>
-        <button
-          onClick={() => { logout(); router.replace("/login"); }}
-          className="inline-flex h-11 items-center px-4 text-sm font-semibold text-brand hover:underline"
-        >
+        <Button variant="secondary" onClick={() => { logout(); router.replace("/login"); }} className="mt-2">
           Sign out
-        </button>
+        </Button>
       </div>
     );
   }
@@ -221,8 +217,8 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         // In the phone app, its own header and tab bar replace this bar and the dock below (web-only).
         <header
           className={cn(
-            "web-only sticky top-0 z-30 border-b transition-[background-color,border-color,backdrop-filter] duration-300",
-            scrolled ? "border-white/[0.06] bg-paper/90 backdrop-blur-md" : "border-transparent bg-transparent",
+            "web-only sticky top-0 z-30 border-b transition-[background-color,border-color] duration-200 ease-[var(--ease-out)]",
+            scrolled ? "border-hairline bg-paper" : "border-transparent bg-transparent",
           )}
         >
           <div className="mx-auto flex h-[68px] max-w-6xl items-center justify-between gap-4 px-5 sm:px-6">
@@ -232,7 +228,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
             {/* Desktop: a floating dock in the middle. */}
             <nav aria-label="Primary" className="hidden md:block">
-              <ul className="flex items-center gap-0.5 rounded-full border border-white/[0.07] bg-surface/50 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_8px_24px_-12px_rgba(0,0,0,0.6)]">
+              <ul className="flex items-center gap-0.5 rounded-full border border-hairline bg-surface/50 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                 {links.map((l) => {
                   const active = isActive(l.href);
                   return (
@@ -243,14 +239,16 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                         aria-label={l.label}
                         title={l.label}
                         className={cn(
-                          "relative flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-semibold transition-all duration-300 before:absolute before:inset-x-0 before:-inset-y-1 before:content-['']",
+                          // Tablets (768 to 1023px): the label sits under the icon, like the phone tabs, so every tab is named.
+                          // Laptops: icon and label side by side.
+                          "relative flex h-12 flex-col items-center justify-center gap-0.5 rounded-full px-2 text-xs font-semibold transition-colors duration-150 ease-[var(--ease-out)] lg:h-9 lg:flex-row lg:gap-2 lg:px-3.5 lg:text-sm lg:before:absolute lg:before:inset-x-0 lg:before:-inset-y-1 lg:before:content-['']",
                           active
-                            ? "bg-[linear-gradient(180deg,rgba(251,193,89,0.18),rgba(251,193,89,0.08))] text-brand shadow-[inset_0_0_0_1px_rgba(251,193,89,0.25)]"
+                            ? "bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
                             : "text-ink-3 hover:bg-white/[0.04] hover:text-ink",
                         )}
                       >
                         <l.Icon active={active} className="h-[18px] w-[18px]" />
-                        <span className={cn(!active && "hidden lg:inline")}>{l.label}</span>
+                        <span className="leading-none lg:leading-normal">{l.label}</span>
                       </Link>
                     </li>
                   );
@@ -276,10 +274,10 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         <nav
           aria-label="Primary"
           data-tabbar
-          className="web-only fixed inset-x-5 bottom-3 z-30 md:hidden"
+          className="web-only fixed inset-x-3 bottom-3 z-40 md:hidden"
           style={{ marginBottom: "env(safe-area-inset-bottom)" }}
         >
-          <ul className="grid grid-cols-5 rounded-[22px] border border-white/[0.08] bg-[#1d2023]/[0.97] p-1.5 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.05)]">
+          <ul className="surface grid grid-cols-5 rounded-card p-1.5">
             {phoneLinks.map((l) => {
               const active = isActive(l.href) || (l.href === "/dashboard" && fromHome.includes(pathname));
               return (
@@ -288,19 +286,20 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                     href={l.href}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex h-[52px] flex-col items-center justify-center gap-1 rounded-2xl text-[11px] font-semibold transition-colors duration-300 active:scale-95",
-                      active ? "bg-brand/[0.12] text-brand" : "text-ink-3",
+                      "flex h-[52px] flex-col items-center justify-center gap-1 rounded-2xl text-xs font-semibold transition-[background-color,color,transform] duration-150 active:scale-95",
+                      active ? "bg-white/[0.07] text-ink" : "text-ink-3",
                     )}
                   >
                     <span className="relative">
                       <l.Icon active={active} className="h-[20px] w-[20px]" />
                       {"badge" in l && !!l.badge && (
-                        <span aria-label={`${l.badge} to do`} className="absolute -right-2.5 -top-1.5 min-w-[18px] rounded-full bg-brand px-1 text-center text-xs font-bold leading-[18px] text-on-brand tabular-nums ring-2 ring-[#1d2023]">
+                        <span aria-hidden className="absolute -right-2.5 -top-1.5 min-w-[18px] rounded-full bg-brand px-1 text-center text-xs font-bold leading-[18px] text-on-brand tabular-nums ring-2 ring-surface">
                           {l.badge}
                         </span>
                       )}
                     </span>
                     {l.short}
+                    {"badge" in l && !!l.badge && <span className="sr-only">, {l.badge} to do</span>}
                   </Link>
                 </li>
               );
@@ -366,43 +365,43 @@ function AccountMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account"
-        className="flex h-11 w-11 items-center justify-center rounded-full text-[13px] tracking-wide transition-transform hover:scale-105"
+        className="flex h-11 w-11 items-center justify-center rounded-full transition-transform duration-150 ease-[var(--ease-out)] active:scale-[0.98]"
       >
         <Avatar id={avatar} initials={initials} level={level} still className="h-10 w-10" />
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 top-[52px] w-60 animate-fade-up rounded-2xl border border-white/[0.08] bg-[#1d2023]/95 p-2 shadow-[0_24px_48px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl">
+        <div role="menu" className="absolute right-0 top-[52px] w-64 animate-fade-up rounded-tile border border-hairline-strong bg-surface p-2 shadow-[0_24px_48px_-16px_rgba(0,0,0,0.8)]">
           <div className="px-3 pb-3 pt-2">
-            <p className="text-base font-bold text-ink">{name}</p>
+            <p className="truncate text-base font-semibold text-ink">{name}</p>
             {cohort && <CohortTag color={cohort.color} name={cohort.name} className="mt-1 text-xs" />}
           </div>
-          <div className="h-px bg-white/[0.06]" />
+          <div className="mb-1 h-px bg-hairline" />
           {/* Phones: the two pages with no tab of their own. */}
           <Link
             role="menuitem"
             href="/progress"
             onClick={() => setOpen(false)}
-            className="mt-1 flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink active:bg-white/[0.08] md:hidden"
+            className="flex h-11 w-full items-center gap-3 rounded-field px-3 text-base font-medium text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:bg-surface-2 md:hidden"
           >
-            <NavIcon.Progress className="h-[18px] w-[18px]" />
+            <NavIcon.Progress className="h-5 w-5" />
             Progress
           </Link>
           <Link
             role="menuitem"
             href="/groundwork"
             onClick={() => setOpen(false)}
-            className="mt-1 flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink active:bg-white/[0.08] md:hidden"
+            className="flex h-11 w-full items-center gap-3 rounded-field px-3 text-base font-medium text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:bg-surface-2 md:hidden"
           >
-            <NavIcon.Groundwork className="h-[18px] w-[18px]" />
+            <NavIcon.Groundwork className="h-5 w-5" />
             Groundwork
           </Link>
           <Link
             role="menuitem"
             href="/settings"
             onClick={() => setOpen(false)}
-            className="mt-1 flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink active:bg-white/[0.08]"
+            className="flex h-11 w-full items-center gap-3 rounded-field px-3 text-base font-medium text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:bg-surface-2"
           >
-            <NavIcon.Settings className="h-[18px] w-[18px]" />
+            <NavIcon.Settings className="h-5 w-5" />
             Settings
           </Link>
           <a
@@ -411,34 +410,23 @@ function AccountMenu({
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => setOpen(false)}
-            className="flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink active:bg-white/[0.08]"
+            className="flex h-11 w-full items-center gap-3 rounded-field px-3 text-base font-medium text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:bg-surface-2"
           >
-            <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z" />
             </svg>
             Message Hamza
           </a>
           {confirming ? (
-            <div className="mt-1 rounded-xl bg-white/[0.04] px-3 pb-3 pt-2.5" role="group" aria-label="Sign out of the portal?">
-              <p className="text-sm font-semibold text-ink">Sign out of the portal?</p>
+            <div className="rounded-field bg-surface-2 px-3 pb-3 pt-2.5" role="group" aria-label="Sign out of the portal?">
+              <p className="text-base font-semibold text-ink">Sign out of the portal?</p>
               <div className="mt-2.5 flex gap-2">
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={onSignOut}
-                  className="h-11 flex-1 rounded-xl bg-white/[0.08] text-sm font-semibold text-ink transition-colors hover:bg-white/[0.12] active:bg-white/[0.14]"
-                >
+                <Button variant="secondary" size="sm" role="menuitem" onClick={onSignOut} className="flex-1">
                   Sign out
-                </button>
-                <button
-                  ref={keep}
-                  type="button"
-                  role="menuitem"
-                  onClick={() => setConfirming(false)}
-                  className="h-11 flex-1 rounded-xl text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink active:bg-white/[0.08]"
-                >
+                </Button>
+                <Button ref={keep} variant="ghost" size="sm" role="menuitem" onClick={() => setConfirming(false)} className="flex-1">
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
@@ -446,9 +434,9 @@ function AccountMenu({
               type="button"
               role="menuitem"
               onClick={() => setConfirming(true)}
-              className="mt-1 flex h-11 w-full items-center gap-2.5 rounded-xl px-3 text-sm font-semibold text-ink-2 transition-colors hover:bg-white/[0.05] hover:text-ink active:bg-white/[0.08]"
+              className="flex h-11 w-full items-center gap-3 rounded-field px-3 text-base font-medium text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:bg-surface-2"
             >
-              <NavIcon.Logout className="h-[18px] w-[18px]" />
+              <NavIcon.Logout className="h-5 w-5" />
               Sign out
             </button>
           )}

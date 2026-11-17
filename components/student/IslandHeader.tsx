@@ -179,7 +179,7 @@ export function IslandHeader({
   return (
     <header
       className={cn(
-        "surface relative isolate overflow-hidden rounded-xl",
+        "surface relative isolate overflow-hidden rounded-card",
         className,
       )}
     >

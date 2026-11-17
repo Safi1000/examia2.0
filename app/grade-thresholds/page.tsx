@@ -7,6 +7,7 @@ import { RelatedLinks } from "@/components/study/RelatedLinks";
 import { SESSIONS } from "@/lib/grade-thresholds";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 import { THRESHOLD_PAGES, gradeShown, gradesOf, pct, sessionsOf, spread } from "@/lib/threshold-pages";
+import "@/components/landing/public-calm.css";
 
 const title = "Cambridge Grade Thresholds: O Level, IGCSE, A Level";
 const description =
@@ -57,7 +58,7 @@ export default function GradeThresholdsHub() {
 
         {groups.map((gr) => (
           <Section key={gr.level} title={gr.level}>
-            <ul className="surface grid divide-y divide-hairline overflow-hidden rounded-[20px] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            <ul className="pc-surface grid divide-y divide-hairline overflow-hidden rounded-card sm:grid-cols-3 sm:divide-x sm:divide-y-0">
               {gr.pages.map((p) => {
                 const s = p.syllabuses[p.syllabuses.length - 1];
                 const latest = sessionsOf(s)[0];
@@ -70,18 +71,18 @@ export default function GradeThresholdsHub() {
                       className="row-link group flex h-full min-h-16 items-center gap-4 px-5 py-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-gold sm:items-start sm:py-5"
                     >
                       <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="text-[17px] font-semibold text-foreground transition-colors group-hover:text-gold">
+                      <span className="text-base font-semibold text-foreground">
                         {p.subject} <span className="tabular-nums">{p.code}</span>
                         {p.code === "0450" ? " (now 0264)" : p.code === "7115" ? " (now 7081)" : ""}
                       </span>
                       {sp && (
-                        <span className="mt-1 text-[14px] tabular-nums text-muted-foreground">
+                        <span className="mt-1 text-sm tabular-nums text-muted-foreground">
                           {gradeShown(s.qualification, top)} in {latest}: {pct(sp.low.min, sp.low.max)}%
                           {sp.low.min !== sp.high.min ? ` to ${pct(sp.high.min, sp.high.max)}%` : ""}
                         </span>
                       )}
                       </span>
-                      <svg aria-hidden viewBox="0 0 20 20" className="h-5 w-5 shrink-0 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-gold sm:hidden" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg aria-hidden viewBox="0 0 20 20" className="h-5 w-5 shrink-0 text-faint transition-[color,transform] duration-150 group-hover:translate-x-0.5 group-hover:text-foreground sm:hidden" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="m8 5 5 5-5 5" />
                       </svg>
                     </Link>
@@ -93,7 +94,7 @@ export default function GradeThresholdsHub() {
         ))}
 
         <Section title="Have your marks already?">
-          <Link href="/tools/grade-predictor" className="inline-flex min-h-11 items-center text-lg font-semibold text-gold underline-offset-4 hover:underline">
+          <Link href="/tools/grade-predictor" className="inline-flex min-h-12 items-center rounded-full bg-gold px-6 text-base font-semibold text-band-b transition-[background-color,transform] duration-150 hover:bg-gold-hover active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
             Try the free grade predictor
           </Link>
         </Section>

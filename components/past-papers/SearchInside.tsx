@@ -9,8 +9,8 @@ type Hit = { u: string; c: string; l: string; p: number; s: string; n: number };
 
 const chip = (on: boolean) =>
   cn(
-    "inline-flex min-h-10 shrink-0 items-center rounded-full border px-4 text-[14px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
-    on ? "border-gold bg-gold text-[#1b1e21]" : "border-hairline-strong text-muted-foreground hover:border-gold-border hover:text-foreground",
+    "inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-sm font-semibold transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
+    on ? "border-white/[0.16] bg-white/[0.09] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "border-hairline-strong text-muted-foreground hover:border-white/25 hover:text-foreground",
   );
 
 /** "⟦word⟧" in a snippet marks the match. */
@@ -20,7 +20,7 @@ function Snip({ s }: { s: string }) {
     <>
       {parts.map((t, i) =>
         i % 2 ? (
-          <mark key={i} className="rounded bg-gold-tint px-0.5 text-gold">
+          <mark key={i} className="rounded bg-white/[0.1] px-0.5 font-semibold text-foreground">
             {t}
           </mark>
         ) : (
@@ -120,9 +120,9 @@ export function SearchInside({ syllabi, suggestions }: { syllabi: Array<{ code: 
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="e.g. price elasticity, depreciation, exchange rate"
-          className="h-14 min-w-0 flex-1 rounded-full border border-hairline-strong bg-card px-6 text-[16px] text-foreground placeholder:text-faint focus:border-gold-border focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gold"
+          className="h-14 min-w-0 flex-1 rounded-full border border-hairline-strong bg-card px-6 text-base text-foreground transition-colors duration-150 placeholder:text-faint hover:border-white/25 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gold"
         />
-        <button type="submit" className="h-14 shrink-0 rounded-full bg-gold px-6 text-[16px] font-semibold text-[#1b1e21] hover:bg-gold-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+        <button type="submit" className="h-14 shrink-0 rounded-full bg-gold px-6 text-base font-semibold text-band-b transition-[background-color,transform] duration-150 hover:bg-gold-hover active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
           Search
         </button>
       </form>
@@ -156,19 +156,19 @@ export function SearchInside({ syllabi, suggestions }: { syllabi: Array<{ code: 
       </div>
 
       <div aria-live="polite" className="mt-8">
-        {busy && <p className="text-[15px] text-muted-foreground">Searching every paper…</p>}
+        {busy && <p className="text-base text-muted-foreground">Searching every paper…</p>}
         {!busy && failed && (
-          <div className="rounded-[16px] border border-hairline bg-card px-5 py-4 text-[15px] text-muted-foreground">
+          <div className="pc-surface rounded-tile px-5 py-4 text-base text-muted-foreground">
             <p>The search didn&apos;t go through. Check your connection and try again.</p>
-            <button type="button" onClick={() => void run(q, code)} className="mt-2 inline-flex min-h-11 items-center font-semibold text-gold hover:underline">
+            <button type="button" onClick={() => void run(q, code)} className="mt-2 inline-flex min-h-11 items-center font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 hover:decoration-foreground">
               Try again
             </button>
           </div>
         )}
-        {!busy && tooShort && <p className="mb-4 text-[15px] text-muted-foreground">Type at least three letters.</p>}
+        {!busy && tooShort && <p className="mb-4 text-base text-muted-foreground">Type at least three letters.</p>}
         {!busy && !res && !failed && (
           <div>
-            <p className="text-[15px] text-muted-foreground">Try one of these:</p>
+            <p className="text-base text-muted-foreground">Try one of these:</p>
             <ul className="mt-3 flex flex-wrap gap-2">
               {suggestions.map((s) => (
                 <li key={s}>
@@ -178,7 +178,7 @@ export function SearchInside({ syllabi, suggestions }: { syllabi: Array<{ code: 
                       setQ(s);
                       void run(s, code);
                     }}
-                    className="inline-flex min-h-10 items-center rounded-full border border-hairline px-4 text-[14px] font-semibold text-foreground hover:border-gold-border"
+                    className={chip(false)}
                   >
                     {s}
                   </button>
@@ -189,7 +189,7 @@ export function SearchInside({ syllabi, suggestions }: { syllabi: Array<{ code: 
         )}
         {!busy && res && (
           <>
-            <p className="text-[15px] text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               {res.total ? (
                 <>
                   Found on {res.total} {res.total === 1 ? "page" : "pages"} in {res.papers} {res.papers === 1 ? "paper" : "papers"}
@@ -202,17 +202,17 @@ export function SearchInside({ syllabi, suggestions }: { syllabi: Array<{ code: 
             <ul className="mt-4 divide-y divide-hairline border-y border-hairline">
               {res.hits.map((h) => (
                 <li key={`${h.c}-${h.p}`}>
-                  <Link href={h.u} className="group block py-4">
+                  <Link href={h.u} className="group block py-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
                     <span className="flex flex-wrap items-baseline justify-between gap-x-4">
-                      <span className="font-semibold tabular-nums text-foreground group-hover:text-gold">{h.c}</span>
-                      <span className="text-[14px] tabular-nums text-faint">
+                      <span className="text-base font-semibold tabular-nums text-foreground underline-offset-4 group-hover:underline">{h.c}</span>
+                      <span className="text-sm tabular-nums text-faint">
                         Page {h.p}
                         {h.n > 1 ? ` · ${h.n} mentions` : ""}
                       </span>
                     </span>
-                    <span className="block text-[14px] text-muted-foreground">{h.l}</span>
+                    <span className="block text-sm text-muted-foreground">{h.l}</span>
                     {h.s && (
-                      <span className="mt-1.5 block text-[15px] leading-relaxed text-body">
+                      <span className="mt-1.5 block text-sm leading-relaxed text-body">
                         <Snip s={h.s} />
                       </span>
                     )}

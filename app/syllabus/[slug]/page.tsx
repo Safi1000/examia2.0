@@ -58,10 +58,10 @@ export default async function SyllabusPage({ params }: Props) {
             points, word for word. Tap a subtopic to see exactly what you need to know, then mark it Not sure or Confident.
           </p>
           {(s.replaces || s.changes) && (
-            <p className="mt-4 text-[15px] text-muted-foreground">
+            <p className="mt-4 text-base text-muted-foreground">
               {s.replaces ? `This replaces ${s.replaces} from 2027 exams. ` : ""}
               {s.changes && (
-                <Link href={s.changes} className="text-gold hover:underline">
+                <Link href={s.changes} className="font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:decoration-foreground">
                   What changed, explained
                 </Link>
               )}
@@ -77,7 +77,7 @@ export default async function SyllabusPage({ params }: Props) {
               <h2 className="text-2xl font-bold leading-tight text-foreground md:text-3xl">
                 {t.num}. {t.name}
               </h2>
-              <ul className="surface mt-5 divide-y divide-hairline overflow-hidden rounded-[20px]">
+              <ul className="pc-surface mt-5 divide-y divide-hairline overflow-hidden rounded-card">
                 {t.subs.map((u) => {
                   const topical = topicalHrefFor(s.code, u.num);
                   const links = [...(topical ? [{ href: topical, label: "Past paper questions on this" }] : []), ...resourcesFor(`${t.name} ${u.name} ${u.parts.map((p) => p.name).join(" ")}`)];
@@ -85,12 +85,12 @@ export default async function SyllabusPage({ params }: Props) {
                     <li key={u.num} id={`s-${u.num}`} className="scroll-mt-28">
                       <details className="group">
                         <summary className="row-link flex min-h-14 cursor-pointer list-none items-start gap-4 px-5 pb-2 pt-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-gold [&::-webkit-details-marker]:hidden">
-                          <span className="w-9 shrink-0 pt-px text-[15px] tabular-nums text-muted-foreground">{u.num}</span>
+                          <span className="w-9 shrink-0 pt-px text-sm tabular-nums leading-6 text-faint">{u.num}</span>
                           <span className="min-w-0 flex-1">
-                            <span className="block text-[17px] font-semibold leading-snug text-foreground">{u.name}</span>
-                            <span className="mt-1 block text-[13px] text-muted-foreground group-open:hidden">Tap to see what you need to know</span>
+                            <span className="block text-base font-semibold leading-6 text-foreground">{u.name}</span>
+                            <span className="mt-0.5 block text-sm text-muted-foreground group-open:hidden">Tap to see what you need to know</span>
                           </span>
-                          <svg aria-hidden viewBox="0 0 20 20" className="mt-1 h-4 w-4 shrink-0 text-faint transition-transform duration-300 group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg aria-hidden viewBox="0 0 20 20" className="mt-1 h-4 w-4 shrink-0 text-faint transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="m5 8 5 5 5-5" />
                           </svg>
                         </summary>
@@ -98,13 +98,13 @@ export default async function SyllabusPage({ params }: Props) {
                           {u.parts.map((p) => (
                             <div key={p.num + p.name}>
                               {p.name !== u.name && (
-                                <p className="text-[15px] font-semibold text-foreground">
+                                <p className="text-base font-semibold text-foreground">
                                   <span className="mr-1.5 tabular-nums text-faint">{p.num}</span>
                                   {p.name}
                                 </p>
                               )}
                               {p.points.length > 0 && (
-                                <ul className="mt-1.5 list-disc space-y-1 pl-5 text-[15px] leading-relaxed text-body">
+                                <ul className="mt-1.5 list-disc space-y-1 pl-5 text-base leading-relaxed text-body">
                                   {p.points.map((pt, i) => {
                                     const { lead, items } = splitPoint(pt);
                                     return (
@@ -130,7 +130,7 @@ export default async function SyllabusPage({ params }: Props) {
                               {links.map((l, i) => (
                                 <span key={l.href}>
                                   {i > 0 && " · "}
-                                  <Link href={l.href} className="text-gold hover:underline">
+                                  <Link href={l.href} className="text-foreground underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:decoration-foreground">
                                     {l.label}
                                   </Link>
                                 </span>
@@ -149,18 +149,18 @@ export default async function SyllabusPage({ params }: Props) {
             </section>
           ))}
 
-          <div className="mt-14 space-y-2 text-[15px] text-muted-foreground">
+          <div className="mt-14 space-y-2 text-sm text-muted-foreground">
             {thresholds && (
               <p>
                 Marks needed for each grade:{" "}
-                <Link href={`/grade-thresholds/${thresholds.slug}`} className="text-gold hover:underline">
+                <Link href={`/grade-thresholds/${thresholds.slug}`} className="text-foreground underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:decoration-foreground">
                   {thresholds.name} grade thresholds
                 </Link>
               </p>
             )}
             <p>
               Source: Cambridge International,{" "}
-              <a href={s.source} className="text-gold hover:underline" rel="noopener">
+              <a href={s.source} className="text-foreground underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:decoration-foreground" rel="noopener">
                 {s.name} syllabus for {s.exams}
               </a>
               . © Cambridge University Press &amp; Assessment.

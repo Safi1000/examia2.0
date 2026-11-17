@@ -41,10 +41,7 @@ export async function loadServerDraft(testId: string): Promise<Draft | null> {
     const { data } = await supabase().auth.getSession();
     const t = data.session?.access_token;
     if (!t) return null;
-    const ctl = new AbortController();
-    const slow = setTimeout(() => ctl.abort(), 6_000);
-    const res = await fetch(`/api/test-draft?test=${encodeURIComponent(testId)}`, { headers: { Authorization: `Bearer ${t}` }, cache: "no-store", signal: ctl.signal });
-    clearTimeout(slow);
+    const res = await fetch(`/api/test-draft?test=${encodeURIComponent(testId)}`, { headers: { Authorization: `Bearer ${t}` }, cache: "no-store", signal: AbortSignal.timeout(6_000) });
     if (!res.ok) return null;
     const j = (await res.json()) as { draft: Draft | null };
     return j.draft && Array.isArray(j.draft.answers) ? j.draft : null;

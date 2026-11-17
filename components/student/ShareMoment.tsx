@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import logo from "@/logo/logo-web.png";
 import { Icon } from "@/components/ui";
+import { buttonClasses } from "@/components/ui/Button";
 import { SCENES, photoSrc, type Scene } from "@/lib/groundwork";
 
 /**
@@ -200,28 +201,28 @@ export function ShareMoment({ moment, label = "Share", className }: { moment: Mo
         type="button"
         onClick={() => void share()}
         aria-busy={busy}
-        className={className ?? "inline-flex h-9 items-center gap-1.5 rounded-full border border-brand/40 px-4 text-sm font-semibold text-ink transition hover:bg-brand hover:text-on-brand"}
+        className={className ?? buttonClasses({ variant: "secondary", size: "sm" })}
       >
         <Icon.Share className="h-4 w-4" />
         {busy ? "Making your card…" : failed ? "Try again" : label}
       </button>
       {fallback &&
         createPortal(
-          <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-label="Share your card" onClick={() => setFallback(null)}>
-            <div className="w-full max-w-sm rounded-2xl bg-surface p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-label="Share your card" onClick={() => setFallback(null)}>
+            <div className="surface w-full max-w-sm rounded-card p-5" onClick={(e) => e.stopPropagation()}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={fallback} alt="Your share card" className="mx-auto max-h-[55dvh] rounded-xl" />
+              <img src={fallback} alt="Your share card" className="mx-auto max-h-[55dvh] rounded-tile" />
               <div className="mt-4 grid gap-2">
-                <a ref={save} href={fallback} download="hamza-teaches.png" className="inline-flex h-11 items-center justify-center rounded-full bg-brand text-sm font-semibold text-on-brand">
+                <a ref={save} href={fallback} download="hamza-teaches.png" className={buttonClasses({ fullWidth: true })}>
                   Download for Instagram
                 </a>
-                <a href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center justify-center rounded-full border border-border-strong text-sm font-semibold text-ink">
+                <a href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer" className={buttonClasses({ variant: "secondary", fullWidth: true })}>
                   Share on WhatsApp
                 </a>
-                <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`https://www.${SITE}`)}`} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center justify-center rounded-full border border-border-strong text-sm font-semibold text-ink">
+                <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`https://www.${SITE}`)}`} target="_blank" rel="noreferrer" className={buttonClasses({ variant: "secondary", fullWidth: true })}>
                   Share on Facebook
                 </a>
-                <button type="button" onClick={() => setFallback(null)} className="h-10 text-sm text-ink-3">
+                <button type="button" onClick={() => setFallback(null)} className={buttonClasses({ variant: "ghost", fullWidth: true })}>
                   Close
                 </button>
               </div>

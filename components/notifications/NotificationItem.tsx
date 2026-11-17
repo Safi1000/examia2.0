@@ -16,6 +16,7 @@ import {
   type TestNotificationStatus,
 } from "@/lib/notifications";
 import type { Activity, ActivityType } from "@/types";
+import { formatWhen } from "@/lib/time";
 
 /** One icon per activity family, reusing the existing Icon set. */
 export function ActivityIcon({ type, className }: { type: ActivityType; className?: string }) {
@@ -63,29 +64,22 @@ const STATUS_TONE: Record<TestNotificationStatus, "info" | "success" | "warning"
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <dt className="text-xs font-bold uppercase tracking-wider text-ink-3">{label}</dt>
+      <dt className="label-quiet text-ink-3">{label}</dt>
       <dd className="mt-1 truncate text-sm font-semibold text-ink">{value}</dd>
     </div>
   );
 }
 
 /**
- * Date on one line, time under it — the schedule is the thing being scanned.
- * In Pakistan time, like every other test time in the portal: on a phone in
- * the Gulf this card used to show an hour earlier than the Tests page did.
+ * Date and time through the shared formatWhen, like the Tests page: Pakistan
+ * time in Pakistan, and "your time (Pakistan time)" for a phone in the Gulf.
  */
 function WhenField({ label, iso }: { label: string; iso: string }) {
-  const d = new Date(iso);
   return (
     <div className="min-w-0">
-      <dt className="text-xs font-bold uppercase tracking-wider text-ink-3">{label}</dt>
+      <dt className="label-quiet text-ink-3">{label}</dt>
       <dd className="mt-1">
-        <span className="block truncate text-sm font-semibold text-ink">
-          {d.toLocaleDateString("en-GB", { timeZone: "Asia/Karachi", day: "numeric", month: "long", year: "numeric" })}
-        </span>
-        <span className="block text-xs font-semibold text-ink-2 tabular">
-          {d.toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit", hour12: true }).toUpperCase()}
-        </span>
+        <span className="block text-sm font-semibold text-ink">{formatWhen(iso)}</span>
       </dd>
     </div>
   );
@@ -114,10 +108,10 @@ function TestDetails({ testId, updatedAt }: { testId: string; updatedAt?: string
   const cohort = cohortById(db, test.cohortId);
 
   return (
-    <div className="mt-2.5 overflow-hidden rounded-lg border border-border bg-surface-2/40">
+    <div className="mt-2.5 overflow-hidden rounded-tile bg-surface-2">
       {/* Header: the test name always shows, whatever the notification is titled. */}
-      <div className="flex items-center justify-between gap-3 border-b border-border bg-surface/60 px-3.5 py-2.5">
-        <p className="flex min-w-0 items-center gap-1.5 text-sm font-bold text-ink">
+      <div className="flex items-center justify-between gap-3 border-b border-hairline px-3.5 py-2.5">
+        <p className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-ink">
           {updatedAt ? <Icon.Edit className="h-4 w-4 shrink-0 text-ink-3" /> : <Icon.Doc className="h-4 w-4 shrink-0 text-ink-3" />}
           <span className="truncate">{test.title}</span>
         </p>
@@ -134,13 +128,13 @@ function TestDetails({ testId, updatedAt }: { testId: string; updatedAt?: string
         <Field label="Duration" value={formatTestDuration(test.durationMinutes)} />
         {countdown ? (
           <div className="min-w-0">
-            <dt className="text-xs font-bold uppercase tracking-wider text-ink-3">
+            <dt className="label-quiet text-ink-3">
               {countdown.label}
             </dt>
             <dd
               className={cn(
-                "mt-1 truncate text-sm font-bold tabular",
-                status === "closing_soon" ? "text-warning" : "text-brand",
+                "mt-1 truncate text-sm font-semibold tabular",
+                status === "closing_soon" ? "text-warning" : "text-ink",
               )}
             >
               {countdown.value}
@@ -154,17 +148,17 @@ function TestDetails({ testId, updatedAt }: { testId: string; updatedAt?: string
       </dl>
 
       {updatedAt && (
-        <p className="border-t border-border px-3.5 py-2 text-xs text-ink-2">
-          Changes have been made to this test. Please review the updated details.
+        <p className="border-t border-hairline px-3.5 py-2 text-sm text-ink-2">
+          I changed something in this test. The details below are up to date.
         </p>
       )}
 
-      <div className="flex items-center justify-end border-t border-border px-3.5 py-2.5">
-        <span className="flex items-center gap-1 text-xs font-bold text-brand">
+      <div className="flex items-center justify-end border-t border-hairline px-3.5 py-2.5">
+        <span className="flex items-center gap-1 text-sm font-semibold text-ink-2">
           {/* The row itself is the click target, so this is a cue, not a button
               nested inside another button. */}
           {status === "closed" ? "View details" : "Open test"}
-          <Icon.ChevronRight className="h-3.5 w-3.5" />
+          <Icon.ChevronRight className="h-4 w-4" />
         </span>
       </div>
     </div>
@@ -201,9 +195,9 @@ function SubmissionDetails({ submissionId }: { submissionId: string }) {
   const at = submission.submittedAt;
 
   return (
-    <div className="mt-2.5 overflow-hidden rounded-lg border border-border bg-surface-2/40">
-      <div className="flex items-center justify-between gap-3 border-b border-border bg-surface/60 px-3.5 py-2.5">
-        <p className="flex min-w-0 items-center gap-1.5 text-sm font-bold text-ink">
+    <div className="mt-2.5 overflow-hidden rounded-tile bg-surface-2">
+      <div className="flex items-center justify-between gap-3 border-b border-hairline px-3.5 py-2.5">
+        <p className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-ink">
           <Icon.Doc className="h-4 w-4 shrink-0 text-ink-3" />
           <span className="truncate">{test?.title ?? "Test submitted"}</span>
         </p>
@@ -219,10 +213,10 @@ function SubmissionDetails({ submissionId }: { submissionId: string }) {
         {at ? <WhenField label="Submitted" iso={at} /> : <Field label="Submitted" value="In progress" />}
       </dl>
 
-      <div className="flex items-center justify-end border-t border-border px-3.5 py-2.5">
-        <span className="flex items-center gap-1 text-xs font-bold text-brand">
+      <div className="flex items-center justify-end border-t border-hairline px-3.5 py-2.5">
+        <span className="flex items-center gap-1 text-sm font-semibold text-ink-2">
           View Submission
-          <Icon.ChevronRight className="h-3.5 w-3.5" />
+          <Icon.ChevronRight className="h-4 w-4" />
         </span>
       </div>
     </div>
@@ -268,21 +262,21 @@ export function NotificationItem({
     <>
       <span
         className={cn(
-          "mt-0.5 flex shrink-0 items-center justify-center rounded-md",
+          "mt-0.5 flex shrink-0 items-center justify-center rounded-full bg-surface-2",
           full ? "h-9 w-9" : "h-7 w-7",
-          unread ? "bg-brand-soft text-brand" : "bg-surface-2 text-ink-3",
+          unread ? "text-ink" : "text-ink-3",
         )}
         aria-hidden
       >
-        <ActivityIcon type={activity.type} className={full ? "h-[18px] w-[18px]" : "h-4 w-4"} />
+        <ActivityIcon type={activity.type} className={full ? "h-5 w-5" : "h-4 w-4"} />
       </span>
 
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
           <span
             className={cn(
-              "truncate text-sm",
-              unread ? "font-bold text-ink" : "font-semibold text-ink-2",
+              "truncate text-base",
+              unread ? "font-semibold text-ink" : "font-medium text-ink-2",
             )}
           >
             {activity.title}
@@ -298,7 +292,7 @@ export function NotificationItem({
         {activity.description && (
           <span
             className={cn(
-              "mt-0.5 block text-xs text-ink-3",
+              "mt-0.5 block text-sm text-ink-3",
               full ? "whitespace-pre-wrap break-words" : "truncate",
             )}
           >
@@ -316,7 +310,7 @@ export function NotificationItem({
 
         {/* Relative stamp, with the exact time on hover as the brief asks. */}
         <span
-          className="mt-1 block text-xs text-ink-3 tabular"
+          className="mt-1 block text-sm text-ink-3 tabular"
           title={formatDateTime(activity.createdAt)}
         >
           {relativeTime(activity.createdAt, now)}
@@ -332,8 +326,8 @@ export function NotificationItem({
   return (
     <div
       className={cn(
-        "group relative flex items-start border-b border-border transition-colors last:border-b-0",
-        unread && "bg-brand-soft/30",
+        "group relative flex items-start border-b border-hairline transition-colors duration-150 last:border-b-0",
+        unread && "bg-white/[0.025]",
         !inert && "hover:bg-surface-2",
       )}
     >
@@ -357,7 +351,7 @@ export function NotificationItem({
           aria-label={`Delete notification: ${activity.title}`}
           title="Delete notification"
           className={cn(
-            "mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-ink-3",
+            "mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-3",
             "hover:bg-error-soft hover:text-error focus-visible:outline-2 focus-visible:outline-offset-2",
             full ? "mt-2" : "mt-1",
             // Always visible on touch, where there is no hover to reveal it: a

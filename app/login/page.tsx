@@ -87,7 +87,7 @@ export default function StudentLoginPage() {
             href={forgotLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex min-h-11 items-center text-ink-2 underline decoration-white/20 underline-offset-4 transition-colors hover:text-brand hover:decoration-brand"
+            className="inline-flex min-h-11 items-center text-ink-2 underline decoration-white/20 underline-offset-4 transition-colors duration-200 hover:text-ink hover:decoration-current"
           >
             Message Hamza
           </a>
@@ -140,7 +140,7 @@ export default function StudentLoginPage() {
             <button
               type="button"
               onClick={retryLoad}
-              className="mt-3 inline-flex min-h-11 items-center rounded-full border border-brand/40 px-5 text-sm font-semibold text-brand transition-colors hover:bg-brand/10 active:scale-[0.98]"
+              className="mt-3 inline-flex min-h-11 items-center rounded-full border border-white/[0.16] px-5 text-sm font-semibold text-ink transition-colors duration-200 hover:bg-white/[0.05] active:scale-[0.98]"
             >
               Try again
             </button>

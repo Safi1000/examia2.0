@@ -13,7 +13,7 @@ export function TopicProgress({ ids }: { ids: string[] }) {
   return (
     <svg viewBox="0 0 18 18" className="h-[18px] w-[18px] shrink-0 -rotate-90" aria-label={`${Math.round(pct * 100)}% done`} role="img">
       <circle cx="9" cy="9" r={r} fill="none" stroke="currentColor" strokeWidth="2" className="text-hairline-strong" />
-      <circle cx="9" cy="9" r={r} fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray={c} strokeDashoffset={c * (1 - pct)} strokeLinecap="round" className={pct >= 1 ? "text-success" : "text-gold"} />
+      <circle cx="9" cy="9" r={r} fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray={c} strokeDashoffset={c * (1 - pct)} strokeLinecap="round" className={pct >= 1 ? "text-success" : "text-foreground"} />
     </svg>
   );
 }

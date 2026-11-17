@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useProgress, useNight } from "./progress";
 import { cn } from "@/lib/cn";
+import "@/components/landing/public-calm.css";
 
 const SITE = "https://www.hamzateaches.com";
 
@@ -25,13 +26,13 @@ export function PastPapersNav({ className }: { className?: string }) {
           href={i.href}
           aria-current={i.on ? "page" : undefined}
           className={cn(
-            "inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[14px] font-semibold sm:gap-2 sm:px-4 sm:text-[15px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold",
-            i.on ? "bg-gold text-[#1b1e21]" : "text-muted-foreground hover:text-foreground",
+            "inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-sm font-semibold transition-colors duration-150 sm:gap-2 sm:px-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold",
+            i.on ? "bg-white/[0.09] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "text-muted-foreground hover:text-foreground",
           )}
         >
           {i.label}
           {i.badge && (
-            <span className={cn("rounded-full px-2 py-0.5 text-[12px] tabular-nums", i.on ? "bg-[#1b1e21]/15" : "bg-gold-tint text-gold")}>{i.badge}</span>
+            <span className="rounded-full bg-white/[0.08] px-2 py-0.5 text-xs tabular-nums text-muted-foreground">{i.badge}</span>
           )}
         </Link>
       ))}
@@ -51,7 +52,7 @@ export function NightToggle({ className }: { className?: string }) {
       title={on ? "Normal colours" : "Night colours"}
       className={cn(
         "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
-        on ? "border-gold bg-gold-tint text-gold" : "border-hairline-strong text-muted-foreground hover:text-foreground",
+        on ? "border-white/[0.16] bg-white/[0.09] text-foreground" : "border-hairline-strong text-muted-foreground hover:text-foreground",
         className,
       )}
     >
@@ -71,7 +72,7 @@ export function ShareScore({ text, path, className }: { text: string; path: stri
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[rgba(37,211,102,0.4)] px-5 text-[15px] font-semibold text-[#5fe08e] transition-colors hover:bg-[rgba(37,211,102,0.08)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
+        "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[rgba(37,211,102,0.4)] px-5 text-sm font-semibold text-[#5fe08e] transition-colors hover:bg-[rgba(37,211,102,0.08)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
         className,
       )}
     >

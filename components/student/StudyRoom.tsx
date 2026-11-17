@@ -127,18 +127,18 @@ export function StudyRoomStrip({ meId, onJoin, tone = "light", className }: { me
         </span>
       ) : (
         <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full", light ? "bg-white/15" : "bg-surface-2")} aria-hidden>
-          <span className="h-2 w-2 rounded-full bg-[#7FD1A6]" />
+          <span className="h-2 w-2 rounded-full bg-success" />
         </span>
       )}
       <p className={cn("min-w-0 flex-1 text-sm leading-snug", light ? "text-white/90" : "text-ink-2")}>
-        {others.length > 0 && <span className="mr-1.5 inline-block h-2 w-2 animate-[low-pulse_2s_ease-in-out_infinite] rounded-full bg-[#7FD1A6] align-middle" aria-hidden />}
+        {others.length > 0 && <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-success align-middle" aria-hidden />}
         {line}
       </p>
       {onJoin && others.length > 0 && (
         <button
           type="button"
           onClick={onJoin}
-          className={cn("h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition active:scale-[0.98]", light ? "bg-white/15 text-white backdrop-blur-md hover:bg-white/25" : "border border-border-strong text-ink")}
+          className={cn("h-11 shrink-0 rounded-full px-4 text-sm font-semibold transition-colors duration-150 ease-[var(--ease-out)] active:scale-[0.98]", light ? "bg-white/15 text-white hover:bg-white/25" : "border border-border-strong text-ink hover:border-ink-3 hover:bg-surface-2")}
         >
           Join them
         </button>

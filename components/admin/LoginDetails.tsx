@@ -82,7 +82,7 @@ export function LoginDetails({
         </>
       }
     >
-      <p className="mb-3 break-all rounded-lg border border-border bg-surface-2 px-4 py-2.5 text-center font-mono text-lg font-bold tracking-wide text-ink">
+      <p className="mb-3 break-all rounded-tile bg-surface-2 px-4 py-3 text-center font-mono text-lg font-bold tracking-wide text-ink">
         {kind === "username" ? username : `${username} · ${password}`}
       </p>
       <textarea
@@ -90,9 +90,9 @@ export function LoginDetails({
         onChange={(e) => setText(e.target.value)}
         rows={12}
         aria-label="Message"
-        className="w-full rounded-lg border border-border-strong bg-surface p-3 text-base leading-relaxed text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:text-sm"
+        className="w-full rounded-field border border-field bg-surface px-3.5 py-3 text-base leading-relaxed text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
       />
-      {!phone && !parent && <p className="mt-2 text-xs text-ink-3">No WhatsApp numbers saved for this student. Copy the message instead.</p>}
+      {!phone && !parent && <p className="mt-2 text-sm text-ink-3">No WhatsApp numbers saved for this student. Copy the message instead.</p>}
     </Modal>
   );
 }

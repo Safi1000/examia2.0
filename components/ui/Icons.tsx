@@ -9,7 +9,7 @@ function Base({ children, ...p }: P & { children: React.ReactNode }) {
       height="20"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden

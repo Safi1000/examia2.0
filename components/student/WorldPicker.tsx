@@ -86,11 +86,11 @@ export function WorldPicker({
       ref={ref}
       role="dialog"
       aria-label="Choose your world"
-      className={`absolute z-20 w-[min(22.5rem,calc(100vw-2rem))] rounded-[26px] border border-white/[0.12] bg-[rgba(22,23,26,0.62)] p-3.5 text-left text-white shadow-[0_30px_80px_-24px_rgba(0,0,0,.85),inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur-2xl backdrop-saturate-150 motion-safe:transition-[opacity,transform] motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.16,1,0.3,1)] ${
+      className={`absolute z-20 w-[min(22.5rem,calc(100vw-2rem))] rounded-card border border-hairline-strong bg-surface p-4 text-left text-ink shadow-[0_24px_60px_-24px_rgba(0,0,0,.8)] motion-safe:transition-[opacity,transform] motion-safe:duration-200 motion-safe:ease-[var(--ease-out)] ${
         above ? "bottom-full left-0 mb-2.5 origin-bottom-left" : "right-0 top-full mt-2.5 origin-top-right"
       } ${open ? "scale-100 opacity-100" : "scale-[0.96] opacity-0"}`}
     >
-      <p className="px-1 pb-3 text-[13px] font-semibold tracking-[-0.01em] text-white/90">World</p>
+      <p className="label-quiet px-1 pb-3 text-ink-2">World</p>
       <div role="radiogroup" aria-label="World" onKeyDown={onKey} className="grid grid-cols-4 gap-2.5">
         {WORLDS.map((w) => {
           const on = w.id === current;
@@ -106,11 +106,11 @@ export function WorldPicker({
               title={w.blurb}
               tabIndex={on ? 0 : -1}
               onClick={() => pick(w.id)}
-              className="group flex min-w-0 flex-col items-center gap-2 rounded-2xl outline-none"
+              className="group flex min-w-0 flex-col items-center gap-2 rounded-tile outline-none"
             >
               <span
-                className={`relative block aspect-[9/14] w-full overflow-hidden rounded-[14px] ring-offset-[3px] ring-offset-[rgb(22,23,26)] motion-safe:transition motion-safe:duration-200 group-active:scale-[0.96] group-focus-visible:ring-2 group-focus-visible:ring-white/70 ${
-                  on ? "ring-2 ring-white" : "ring-1 ring-white/10 group-hover:ring-white/30"
+                className={`relative block aspect-[9/14] w-full overflow-hidden rounded-field ring-offset-[3px] ring-offset-surface motion-safe:transition motion-safe:duration-150 group-active:scale-[0.98] group-focus-visible:ring-2 group-focus-visible:ring-brand ${
+                  on ? "ring-2 ring-ink" : "ring-1 ring-hairline group-hover:ring-hairline-strong"
                 }`}
                 style={{ background: w.sky }}
               >
@@ -125,7 +125,7 @@ export function WorldPicker({
                   className="absolute inset-0 h-full w-full object-cover"
                 />
               </span>
-              <span className={`max-w-full truncate text-[12px] leading-none ${on ? "font-semibold text-white" : "font-medium text-white/60"}`}>
+              <span className={`max-w-full truncate text-xs leading-none ${on ? "font-semibold text-ink" : "font-medium text-ink-3"}`}>
                 {short}
               </span>
               <span id={`world-${w.id}-line`} className="sr-only">
@@ -142,7 +142,7 @@ export function WorldPicker({
 /** A small mountain in a frame: the world picker's button. */
 export function WorldGlyph({ size = 16 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <rect x="3" y="4" width="18" height="16" rx="3" />
       <path d="m3 17 6-7 4 4 3-2.5 5 5.5" />
       <path d="M16 7.5v3" />

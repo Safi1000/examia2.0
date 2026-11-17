@@ -67,15 +67,15 @@ export function ToolShell({
         <WaitlistBox source={path} />
         {related && related.length > 0 && (
           <Section title="Read next">
-            <ul className="divide-y divide-hairline border-y border-hairline text-[17px]">
+            <ul className="divide-y divide-hairline border-y border-hairline text-lg">
               {related.map((r) => (
                 <li key={r.href}>
                   <Link
                     href={r.href}
-                    className="group flex min-h-14 items-center justify-between gap-4 py-3 font-semibold text-foreground transition-colors hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+                    className="group flex min-h-14 items-center justify-between gap-4 py-3 font-semibold text-foreground transition-colors duration-150 hover:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
                   >
                     {r.label}
-                    <span aria-hidden className="text-faint transition-colors group-hover:text-gold">→</span>
+                    <span aria-hidden className="text-faint transition-colors duration-150 group-hover:text-foreground">→</span>
                   </Link>
                 </li>
               ))}

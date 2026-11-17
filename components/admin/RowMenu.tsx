@@ -101,12 +101,12 @@ export function RowMenu({ items, label = "More", className }: { items: RowMenuIt
         aria-expanded={open}
         aria-controls={open ? id : undefined}
         className={cn(
-          "flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink",
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11 pointer-coarse:h-11 pointer-coarse:w-11",
           open && "bg-surface-2 text-ink",
           className,
         )}
       >
-        <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="currentColor" aria-hidden>
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
           <circle cx="5" cy="12" r="1.75" />
           <circle cx="12" cy="12" r="1.75" />
           <circle cx="19" cy="12" r="1.75" />
@@ -119,7 +119,7 @@ export function RowMenu({ items, label = "More", className }: { items: RowMenuIt
           role="menu"
           onKeyDown={onMenuKey}
           style={{ top: pos.top, left: pos.left, width: MENU_W }}
-          className="fixed z-50 overflow-hidden rounded-xl border border-border-strong bg-surface-2 py-1 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.8)]"
+          className="fixed z-50 overflow-hidden rounded-tile border border-hairline-strong bg-surface-2 py-1 shadow-[var(--shadow-lg)]"
         >
           {items.map((it, i) => (
             <button

@@ -89,7 +89,10 @@ export function StudentReport({
             <div className="sr-stat-value">{averagePct != null ? `${averagePct}%` : "None yet"}</div>
             <div className="sr-stat-sub">
               {deltaPct != null
-                ? `${deltaPct > 0 ? "+" : ""}${deltaPct}% vs last month`
+                ? // Points, not percent; and no minus sign (owner's rule: no dashes in visible text).
+                  deltaPct === 0
+                  ? "Same as last month"
+                  : `${deltaPct > 0 ? "Up" : "Down"} ${Math.abs(deltaPct)} ${Math.abs(deltaPct) === 1 ? "point" : "points"} on last month`
                 : "Across all tests"}
             </div>
           </div>

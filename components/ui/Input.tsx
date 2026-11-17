@@ -29,8 +29,8 @@ export const controlHeight = "h-10 pointer-coarse:h-11 max-md:h-11";
  * the same hover and the same gold focus ring as every other field.
  */
 export const filterField =
-  `${controlHeight} rounded-full border border-border-strong bg-surface px-4 text-sm text-ink placeholder:text-ink-3 ` +
-  "transition-colors hover:border-ink-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand " +
+  `${controlHeight} rounded-full border border-field bg-surface px-4 text-sm text-ink placeholder:text-ink-3 ` +
+  "transition-colors hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand " +
   "disabled:cursor-not-allowed disabled:opacity-60";
 
 const fieldShell =
@@ -56,8 +56,8 @@ export const Input = forwardRef<
         aria-describedby={error ? `${fieldId}-err` : hint ? `${fieldId}-hint` : undefined}
         className={cn(
           fieldShell,
-          compact ? cn(controlHeight, "rounded-full px-4 text-base sm:text-sm") : "h-12 rounded-md px-3.5",
-          error ? "border-error" : "border-border-strong hover:border-ink-3",
+          compact ? cn(controlHeight, "rounded-full px-4 text-base sm:text-sm") : "h-12 rounded-field px-3.5",
+          error ? "border-error" : "border-field hover:border-ink-2",
           className,
         )}
         {...rest}
@@ -89,8 +89,8 @@ export const Textarea = forwardRef<
         aria-describedby={error ? `${fieldId}-err` : hint ? `${fieldId}-hint` : undefined}
         className={cn(
           fieldShell,
-          "min-h-28 resize-y rounded-md px-3.5 py-3 leading-relaxed",
-          error ? "border-error" : "border-border-strong hover:border-ink-3",
+          "min-h-28 resize-y rounded-field px-3.5 py-3 leading-relaxed",
+          error ? "border-error" : "border-field hover:border-ink-2",
           className,
         )}
         {...rest}

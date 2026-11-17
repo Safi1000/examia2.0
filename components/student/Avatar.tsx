@@ -16,7 +16,7 @@ export function Avatar({ id, initials, className, level, still }: { id?: string;
     );
   if (!a)
     return (
-      <span className={cn("flex items-center justify-center rounded-full bg-[linear-gradient(145deg,#2c3034,#1c1f22)] font-bold text-brand", className)}>
+      <span className={cn("flex items-center justify-center rounded-full bg-surface-2 font-bold text-ink", className)}>
         {initials}
       </span>
     );

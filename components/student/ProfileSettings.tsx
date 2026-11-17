@@ -6,7 +6,8 @@ import { useAuth } from "@/lib/auth-context";
 import { AVATARS, TARGETS, WEEKLY_GOALS, type Target } from "@/lib/profile";
 import { Avatar } from "@/components/student/Avatar";
 import { studentSubjects } from "@/components/student/Welcome";
-import { Card } from "@/components/ui";
+import { chipClass } from "@/components/ui/Segmented";
+import { SectionTitle } from "@/components/student/PortalKit";
 import { isAsStudent } from "@/lib/grading";
 import { cn } from "@/lib/cn";
 
@@ -14,19 +15,17 @@ import { cn } from "@/lib/cn";
 export function ProfileSettings({ db, student }: { db: Database; student: Student }) {
   const { profile, updateProfile } = useAuth();
   const subjects = studentSubjects(db, student);
-  const chip = (on: boolean) =>
-    cn("h-11 rounded-full border px-3 text-sm font-semibold transition-colors", on ? "border-brand bg-brand text-on-brand" : "border-border-strong text-ink-2 hover:text-ink");
+  // The chosen one is the neutral off-white step, like every other choice in the portal: gold stays for actions.
+  const chip = (on: boolean) => cn(chipClass(on), "justify-center");
 
+  // Grouped like iOS Settings: a title above, then one card with a row per setting, split by hairlines.
   return (
-    <Card className="space-y-6 p-5 sm:p-6">
-      <div>
-        <h2 className="text-lg font-bold tracking-[-0.01em] text-ink">Your portal</h2>
-        <p className="mt-1 text-sm text-ink-3">Saved as soon as you tap.</p>
-      </div>
-
-      <div>
-        <p className="mb-2 text-sm font-semibold text-ink">Avatar</p>
-        <div className="flex flex-wrap gap-2">
+    <section aria-labelledby="portal-title">
+      <SectionTitle id="portal-title" sub="Saved as soon as you tap.">Your portal</SectionTitle>
+      <div className="surface divide-y divide-hairline rounded-card">
+      <div className="px-5 py-4 sm:px-6">
+        <p className="text-base font-semibold text-ink">Avatar</p>
+        <div className="mt-3 flex flex-wrap gap-2">
           {AVATARS.map((a) => (
             <button
               key={a.id}
@@ -34,7 +33,7 @@ export function ProfileSettings({ db, student }: { db: Database; student: Studen
               aria-pressed={profile.avatar === a.id}
               aria-label={`Avatar: ${a.label}`}
               onClick={() => updateProfile({ avatar: a.id })}
-              className={cn("rounded-full p-0.5", profile.avatar === a.id ? "ring-2 ring-brand" : "opacity-70 hover:opacity-100")}
+              className={cn("rounded-full p-0.5 transition-opacity duration-150", profile.avatar === a.id ? "ring-2 ring-ink/80" : "opacity-70 hover:opacity-100")}
             >
               <Avatar id={a.id} className="h-11 w-11" />
             </button>
@@ -42,8 +41,8 @@ export function ProfileSettings({ db, student }: { db: Database; student: Studen
         </div>
       </div>
 
-      <div className="space-y-3">
-        <p className="text-sm font-semibold text-ink">Target grades</p>
+      <div className="space-y-3 px-5 py-4 sm:px-6">
+        <p className="text-base font-semibold text-ink">Target grades</p>
         {subjects.map((sub) => (
           // Name above its grades on a phone, beside them on a wider screen: every row lines up the same.
           <div key={sub} className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
@@ -55,7 +54,7 @@ export function ProfileSettings({ db, student }: { db: Database; student: Studen
                   type="button"
                   aria-pressed={profile.targets?.[sub] === t}
                   onClick={() => updateProfile({ targets: { ...profile.targets, [sub]: t as Target } })}
-                  className={cn(chip(profile.targets?.[sub] === t), "w-12 px-0")}
+                  className={cn(chip(profile.targets?.[sub] === t), "w-14")}
                 >
                   {t}
                 </button>
@@ -65,9 +64,9 @@ export function ProfileSettings({ db, student }: { db: Database; student: Studen
         ))}
       </div>
 
-      <div>
-        <p className="mb-2 text-sm font-semibold text-ink">Weekly study goal (outside class)</p>
-        <div className="flex flex-wrap gap-1.5">
+      <div className="px-5 py-4 sm:px-6">
+        <p className="text-base font-semibold text-ink">Weekly study goal (outside class)</p>
+        <div className="mt-3 flex flex-wrap gap-1.5">
           {WEEKLY_GOALS.map((h) => (
             <button key={h} type="button" aria-pressed={profile.weeklyGoal === h} onClick={() => updateProfile({ weeklyGoal: h })} className={chip(profile.weeklyGoal === h)}>
               {h} hours
@@ -75,6 +74,7 @@ export function ProfileSettings({ db, student }: { db: Database; student: Studen
           ))}
         </div>
       </div>
-    </Card>
+      </div>
+    </section>
   );
 }

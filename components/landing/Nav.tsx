@@ -47,7 +47,7 @@ export function Nav({ heroCta: startQuiet = false }: { heroCta?: boolean } = {})
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-4">
+    <header className="sticky top-0 z-30 px-3 pt-3 sm:px-5 sm:pt-4">
       <div
         className={`glass-bar mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 rounded-full pl-5 pr-2 sm:h-[72px] sm:pl-7 sm:pr-3 ${
           scrolled ? "glass-bar--scrolled" : ""
@@ -65,7 +65,7 @@ export function Nav({ heroCta: startQuiet = false }: { heroCta?: boolean } = {})
           {/* The one free resource most visitors from Google come for. Hidden on phones to keep the bar clean. */}
           <Link
             href="/past-papers"
-            className={`hidden min-h-11 items-center rounded-full px-3 text-[15px] font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex sm:px-4 ${focusRing}`}
+            className={`hidden min-h-11 items-center rounded-full px-3 text-base font-medium text-muted-foreground transition-colors hover:text-ink sm:inline-flex sm:px-4 ${focusRing}`}
           >
             Past papers
           </Link>
@@ -78,16 +78,16 @@ export function Nav({ heroCta: startQuiet = false }: { heroCta?: boolean } = {})
             onPointerEnter={preloadPortal}
             onFocus={preloadPortal}
             onTouchStart={preloadPortal}
-            className={`inline-flex min-h-11 items-center rounded-full px-3 text-[15px] font-medium text-muted-foreground transition-colors hover:text-foreground sm:px-4 ${focusRing}`}
+            className={`inline-flex min-h-11 items-center rounded-full px-3 text-base font-medium text-muted-foreground transition-colors hover:text-ink sm:px-4 ${focusRing}`}
           >
             {isStudent ? "Dashboard" : "Login"}
           </Link>
           <BookButton
             from="nav"
-            className={`inline-flex min-h-11 items-center whitespace-nowrap rounded-full border px-4 text-sm font-semibold transition-[background-color,border-color,color,transform] duration-300 active:scale-[0.97] sm:min-h-12 sm:px-6 sm:text-[15px] ${
+            className={`inline-flex min-h-11 items-center whitespace-nowrap rounded-full border px-4 text-sm font-semibold transition-[background-color,border-color,color,transform] duration-200 ease-[var(--ease-out)] active:scale-[0.98] sm:min-h-12 sm:px-6 sm:text-base ${
               heroCta
-                ? "border-white/20 bg-transparent text-foreground hover:border-white/40"
-                : "border-gold bg-gold text-[#1b1e21] hover:bg-gold-hover"
+                ? "border-white/20 bg-transparent text-ink hover:border-white/40"
+                : "border-gold bg-gold text-band-b hover:bg-gold-hover"
             } ${focusRing}`}
           >
             Book free trial

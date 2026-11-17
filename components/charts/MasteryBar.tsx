@@ -36,7 +36,7 @@ export function MasteryBar({
     <div>
       <div className="mb-1 flex items-baseline justify-between gap-2">
         <span className="truncate text-sm font-medium text-ink">{topic}</span>
-        <span className={cn("shrink-0 font-mono text-xs font-semibold", bandText[band])}>
+        <span className={cn("shrink-0 text-xs font-semibold tabular-nums", bandText[band])}>
           {Math.round(percent)}% · {bandLabel[band]}
         </span>
       </div>

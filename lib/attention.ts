@@ -81,7 +81,7 @@ export function recordingReport(
     for (const st of students)
       for (const sl of slotsForStudent(db, st, d)) if (sl.startMs >= joinedMs(st)) enrolledBy.set(slotKey(sl), [...(enrolledBy.get(slotKey(sl)) ?? []), st]);
     // Latest class of the day first.
-    for (const slot of [...slots].reverse()) {
+    for (const slot of slots.toReversed()) {
       const key = slotKey(slot);
       const enrolled = enrolledBy.get(key) ?? [];
       // A class nobody counted belongs to (no students at that level yet) has nothing to show.

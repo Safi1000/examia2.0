@@ -3,13 +3,11 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { track } from "@/lib/landing";
 import { LETTERS, mark, questionLink, type McqPaper } from "@/lib/mcq-papers";
+import { goldAction as gold, inlineLink, quietAction as ghost } from "@/components/tools/ToolBits";
 
-const gold =
-  "inline-flex min-h-12 items-center justify-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] transition-colors hover:bg-gold-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold disabled:opacity-50";
-const ghost =
-  "inline-flex min-h-12 items-center justify-center rounded-full border border-hairline-strong px-6 text-[15px] font-semibold text-foreground transition-colors hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
+// A shaded answer reads like pencil on the answer sheet: off-white, not gold.
 const bubble =
-  "flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-hairline-strong text-[15px] font-semibold text-muted-foreground transition-colors hover:text-foreground has-[:checked]:border-gold has-[:checked]:bg-gold has-[:checked]:text-[#1b1e21] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-gold";
+  "flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-hairline-strong text-base font-semibold text-muted-foreground transition-colors duration-150 hover:border-white/25 hover:text-foreground has-[:checked]:border-body has-[:checked]:bg-body has-[:checked]:text-band-b has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-gold";
 
 /** Saved answers survive a closed tab mid-paper. Browser storage can fail (private mode), so every call is guarded. */
 const read = (key: string): string | null => {
@@ -85,10 +83,10 @@ export function McqChecker({ paper, name, id }: { paper: McqPaper; name: string;
 
   return (
     <div className="space-y-8">
-      <ol className="space-y-5 text-[17px] leading-relaxed text-body">
+      <ol className="space-y-5 text-lg leading-relaxed text-body">
         <li>
           <strong className="text-foreground">1. Open the paper.</strong>{" "}
-          <a href={paper.questionPaper} target="_blank" rel="noopener" className="text-gold hover:underline">
+          <a href={paper.questionPaper} target="_blank" rel="noopener" className={inlineLink}>
             {name} question paper
           </a>{" "}
           <span className="text-muted-foreground">(PDF on the Cambridge website). Print it or keep it open in another tab.</span>
@@ -102,7 +100,7 @@ export function McqChecker({ paper, name, id }: { paper: McqPaper; name: string;
                 Start {paper.minutes}-minute timer
               </button>
             ) : (
-              <p role="timer" aria-live="off" className={`text-3xl font-bold tabular-nums ${left <= 0 ? "text-error-x" : "text-foreground"}`}>
+              <p role="timer" aria-live="off" className={`text-title font-bold tabular-nums ${left <= 0 ? "text-error-x" : "text-foreground"}`}>
                 {left <= 0 ? "Time is up. Finish the question you are on, then mark it." : clock(left)}
               </p>
             )}
@@ -114,10 +112,10 @@ export function McqChecker({ paper, name, id }: { paper: McqPaper; name: string;
         </li>
       </ol>
 
-      <fieldset disabled={marked} className="min-w-0 rounded-[20px] border border-hairline bg-card p-5 md:p-7">
+      <fieldset disabled={marked} className="pc-surface min-w-0 rounded-card p-5 sm:p-6">
         <legend className="sr-only">Answer sheet</legend>
         <div className="flex items-center justify-between gap-4">
-          <p className="font-semibold text-foreground">Answer sheet</p>
+          <p className="text-base font-semibold text-foreground">Answer sheet</p>
           <p className="text-sm tabular-nums text-muted-foreground">
             {answered} of {n} answered
           </p>
@@ -137,7 +135,7 @@ export function McqChecker({ paper, name, id }: { paper: McqPaper; name: string;
                   ))}
                 </div>
                 {result && (
-                  <span className={`text-sm font-semibold ${row ? "text-error-x" : "text-gold"}`}>{row ? row.correct : "✓"}</span>
+                  <span className={`text-sm font-semibold ${row ? "text-error-x" : "text-muted-foreground"}`}>{row ? row.correct : "✓"}</span>
                 )}
               </li>
             );
@@ -158,22 +156,22 @@ export function McqChecker({ paper, name, id }: { paper: McqPaper; name: string;
         </div>
       ) : (
         result && (
-          <section id="mcq-result" aria-live="polite" className="scroll-mt-28 rounded-[20px] border border-gold-border/60 bg-card-raised p-6 md:p-8">
-            <p className="text-sm text-muted-foreground">Your score</p>
+          <section id="mcq-result" aria-live="polite" className="pc-surface scroll-mt-28 rounded-card p-5 sm:p-6">
+            <p className="text-sm font-semibold text-muted-foreground">Your score</p>
             <p className="mt-2 text-6xl font-extrabold tabular-nums leading-none text-gold">
               {result.score}
               <span className="text-2xl font-semibold text-muted-foreground"> / {result.total}</span>
             </p>
-            <p className="mt-3 text-[17px] text-body">
+            <p className="mt-3 text-base text-body">
               {Math.round((result.score / result.total) * 100)}%{result.blanks > 0 && `, with ${result.blanks} left blank`}.
             </p>
 
             {result.byTopic.length > 0 && (
               <div className="mt-8">
-                <p className="font-semibold text-foreground">By topic, weakest first</p>
-                <ul className="mt-3 space-y-2 text-[15px] text-body">
+                <p className="text-base font-semibold text-foreground">By topic, weakest first</p>
+                <ul className="mt-2 divide-y divide-hairline text-base text-body">
                   {result.byTopic.map(([t, s]) => (
-                    <li key={t} className="flex justify-between gap-4">
+                    <li key={t} className="flex justify-between gap-4 py-2.5">
                       <span>{t}</span>
                       <span className="tabular-nums text-muted-foreground">
                         {s.right} / {s.total}
@@ -186,23 +184,23 @@ export function McqChecker({ paper, name, id }: { paper: McqPaper; name: string;
 
             {review.length > 0 && (
               <div className="mt-8">
-                <p className="font-semibold text-foreground">Questions to look at again</p>
-                <ul className="mt-3 space-y-4 text-[15px] leading-relaxed text-body">
+                <p className="text-base font-semibold text-foreground">Questions to look at again</p>
+                <ul className="mt-2 divide-y divide-hairline text-base leading-relaxed text-body">
                   {review.map((w) => (
-                    <li key={w.n}>
-                      <a href={questionLink(paper, w.n)} target="_blank" rel="noopener" className="font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 hover:text-gold">
+                    <li key={w.n} className="py-3">
+                      <a href={questionLink(paper, w.n)} target="_blank" rel="noopener" className={inlineLink}>
                         Question {w.n}
                       </a>
                       :{" "}
                       {w.given ? `you chose ${w.given}, the answer is ${w.correct}.` : `left blank, the answer is ${w.correct}.`}
-                      {paper.notes?.[w.n] && <span className="mt-1 block text-muted-foreground">{paper.notes[w.n]}</span>}
+                      {paper.notes?.[w.n] && <span className="mt-1 block text-sm text-muted-foreground">{paper.notes[w.n]}</span>}
                     </li>
                   ))}
                 </ul>
               </div>
             )}
             {quietBlanks.length > 0 && (
-              <p className="mt-6 text-[15px] leading-relaxed text-muted-foreground">
+              <p className="mt-6 text-sm leading-relaxed text-muted-foreground">
                 Left blank: {quietBlanks.map((w) => w.n).join(", ")}. The correct letters are next to each one on the answer sheet.
               </p>
             )}

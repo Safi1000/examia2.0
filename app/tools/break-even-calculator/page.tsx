@@ -41,7 +41,7 @@ export default function Page() {
       faq={FAQ}
       related={[{ href: "/blog/igcse-business-0450-justify-evaluate-questions", label: "How to answer IGCSE Business 'justify' questions" }, { href: "/grade-thresholds/igcse-business-0450", label: "Grade thresholds for IGCSE Business Studies 0450" }, topicLink("0450", "4.4"), topicLink("7115", "4.4")].filter((l) => l !== null)}
       how={
-        <div className="space-y-3 text-[17px] leading-relaxed text-body">
+        <div className="space-y-3 text-lg leading-relaxed text-body">
           <p>Contribution per unit = selling price − variable cost per unit. Break-even output = total fixed costs ÷ contribution per unit, rounded up to a whole unit. Break-even revenue = break-even output × selling price. Margin of safety = actual or planned output − break-even output.</p>
           <p>In the exam, always show the formula and the figures, then give the unit. If you draw a break-even chart, label fixed costs, total costs, revenue, the break-even point and the margin of safety.</p>
         </div>

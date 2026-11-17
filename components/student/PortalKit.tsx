@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/cn";
-import { ArtImage, PortalArt, type ArtEntry } from "@/components/student/PortalArt";
+import { PortalArt } from "@/components/student/PortalArt";
 
 /**
  * The small set of shapes every student page shares, so headers, section
@@ -25,9 +25,10 @@ export function PageHeader({
   return (
     <header className={cn("flex flex-wrap items-end justify-between gap-x-6 gap-y-4 pt-2", className)}>
       <div className="min-w-0">
-        {eyebrow && <p className="label-quiet mb-3 text-ink-3">{eyebrow}</p>}
-        <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.03em] text-ink sm:text-[2.5rem]">{title}</h1>
-        {children && <div className="mt-3 max-w-[60ch] text-base leading-relaxed text-pretty text-ink-2">{children}</div>}
+        {/* One title block for every screen, student and teacher: the title, then one grey line.
+            A page's old line above the title (eyebrow) now reads as that line when it has no other. */}
+        <h1 className="text-balance text-title font-bold tracking-[-0.025em] text-ink sm:text-title-lg">{title}</h1>
+        {(children || eyebrow) && <div className="mt-2 max-w-[60ch] text-base leading-relaxed text-pretty text-ink-2">{children || eyebrow}</div>}
       </div>
       {aside && <div className="shrink-0">{aside}</div>}
     </header>
@@ -41,7 +42,6 @@ export function SectionTitle({
   action,
   sub,
   id,
-  live,
 }: {
   children: React.ReactNode;
   count?: number;
@@ -59,7 +59,6 @@ export function SectionTitle({
           {children}
           {typeof count === "number" && count > 0 && <span className="text-sm font-semibold text-ink-3 tabular-nums">{count}</span>}
           {/* After the words, so every section title starts on the same line. */}
-          {live && <span aria-hidden className="h-1.5 w-1.5 animate-low-pulse rounded-full bg-brand" />}
         </h2>
         {sub && <p className="mt-0.5 text-sm text-ink-3">{sub}</p>}
       </div>
@@ -69,38 +68,13 @@ export function SectionTitle({
 }
 
 /*
- * Portal art v2 (public/portal-art/v2.json), used with restraint: only where it
- * means something (a result's grade, the personal best, milestones). Subjects are
- * shown by name only. Matte stone objects from 96px up, quiet line glyphs in a
- * frosted tile below that, and grades as plain type in a fine ring. Gold only
- * for A* and the personal best.
+ * Grades and milestones are drawn, never 3D: quiet line glyphs in a tile, and
+ * grades as plain type in a fine ring, at every size. Gold only for A* and the
+ * personal best. (The matte stone renders once used from 96px up were dropped:
+ * Hamza, 17 Nov 2026.)
  */
+/** From this size up the ring's line is a touch heavier. */
 const STONE_MIN = 96;
-type StoneSet = "subjects" | "grades" | "badges";
-const stoneEntry = (set: StoneSet, key: string): ArtEntry => ({
-  key,
-  src: `/portal-art/stone/${set}/${key}.webp`,
-  src2x: `/portal-art/stone/${set}/${key}@2x.webp`,
-  width: 160,
-  height: 160,
-});
-
-/** A stone object at its showcase size, or the fallback if the file is missing. */
-function Stone({ set, name, size, alt = "", fallback, className }: { set: StoneSet; name: string; size: number; alt?: string; fallback: React.ReactNode; className?: string }) {
-  return (
-    <ArtImage
-      key={`${set}/${name}`}
-      entry={stoneEntry(set, name)}
-      fallback={fallback}
-      alt={alt}
-      width={size}
-      height={size}
-      sized
-      className={cn("shrink-0", className)}
-      imgClassName="object-contain"
-    />
-  );
-}
 
 /**
  * A line glyph (public/portal-art/glyphs, drawn in currentColor) in a soft
@@ -134,8 +108,9 @@ export function GlyphTile({ name, size = 40, gold, className }: { name: string; 
 export function MilestoneBadge({ name, size = 40, alt = "", className }: { name: string; size?: number; alt?: string; className?: string }) {
   const gold = name === "personal-best";
   const tile = <GlyphTile name={name} size={size} gold={gold} className={className} />;
-  if (size < STONE_MIN) return tile;
-  return <Stone set={gold ? "grades" : "badges"} name={name} size={size} alt={alt} fallback={tile} className={className} />;
+  // Always the drawn tile. The 3D stone version was dropped (Hamza, 17 Nov 2026: not the look he wants).
+  void alt;
+  return tile;
 }
 
 /**
@@ -152,7 +127,7 @@ export function GradeMedallion({ grade, size = 64, className }: { grade: string;
       aria-label={`Grade ${grade}`}
       style={{ width: size, height: size, fontSize: Math.round(size * 0.41) }}
       className={cn(
-        "relative inline-grid shrink-0 place-items-center rounded-full font-semibold leading-none tracking-[-0.02em] tabular-nums",
+        "relative inline-grid shrink-0 place-items-center rounded-full bg-white/[0.035] font-semibold leading-none tracking-[-0.02em] tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]",
         star
           ? "text-brand"
           : low
@@ -187,17 +162,8 @@ export function GradeMedallion({ grade, size = 64, className }: { grade: string;
       </span>
     </span>
   );
-  if (size < STONE_MIN) return ring;
-  return (
-    <Stone
-      set="grades"
-      name={star ? "a-star" : grade.toLowerCase()}
-      size={size}
-      alt={`Grade ${grade}`}
-      fallback={ring}
-      className={cn("drop-shadow-[0_10px_18px_rgba(0,0,0,0.4)]", className)}
-    />
-  );
+  // Always the drawn ring, at every size. The 3D stone tablet was dropped (Hamza, 17 Nov 2026).
+  return ring;
 }
 
 /**

@@ -62,7 +62,7 @@ export default async function RevisionPlannerPage({ searchParams }: Props) {
         { href: "/past-papers/topics", label: "Past paper questions by topic" },
       ]}
       how={
-        <div className="space-y-3 text-[17px] leading-relaxed text-body">
+        <div className="space-y-3 text-lg leading-relaxed text-body">
           <p>The weeks up to your first exam are split in three. First, every subtopic of your syllabuses, weak ones first and your subjects mixed so none is left to the end. Then about a third of the time, up to eight weeks, for full past papers. Then a final week on the latest papers and your weakest topics.</p>
           <p>Topics you marked Not sure get the most time, ones you have not rated get normal time, and Confident ones get a quick check.</p>
         </div>

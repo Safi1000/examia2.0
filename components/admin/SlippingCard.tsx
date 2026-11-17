@@ -3,8 +3,9 @@
 import Link from "next/link";
 import type { Database } from "@/lib/data/seed";
 import type { Profile } from "@/lib/profile";
-import { archivedCohortIds } from "@/lib/data/selectors";
+import { archivedCohortIds, joinedMs } from "@/lib/data/selectors";
 import { displayName, isTestAccount } from "@/lib/display-name";
+import { usePausedIds } from "@/lib/paused";
 import { addDays, getSchedule, pkDate } from "@/lib/timetable";
 import { Card } from "@/components/ui";
 
@@ -13,6 +14,8 @@ import { Card } from "@/components/ui";
  * quick nudge can come before the habit is gone. Students never see this.
  */
 export function SlippingCard({ db, profiles, nowMs, cohortId }: { db: Database; profiles: Record<string, Profile>; nowMs: number; cohortId: string | null }) {
+  // Paused students are left out until resumed.
+  const pausedIds = usePausedIds();
   const today = pkDate(nowMs);
   // Until the study stats have loaded there is nothing to judge: without this,
   // everyone briefly shows as "never" on every visit.
@@ -25,29 +28,31 @@ export function SlippingCard({ db, profiles, nowMs, cohortId }: { db: Database; 
   const lastStudy = (p?: Profile) => Object.entries(p?.focus?.days ?? {}).filter(([, m]) => m > 0).map(([d]) => d).sort().pop() ?? null;
   const cutoff = addDays(today, -5);
   const list = db.students
-    .filter((s) => !off.has(s.cohortId) && !isTestAccount(s) && (cohortId === null || s.cohortId === cohortId))
+    .filter((s) => !off.has(s.cohortId) && !isTestAccount(s) && !pausedIds.has(s.id) && (cohortId === null || s.cohortId === cohortId))
+    // A student in their first week has not had time to slip (the same rule as "Students who need you").
+    .filter((s) => nowMs - joinedMs(s) >= 7 * 864e5)
     .map((s) => ({ s, last: lastStudy(profiles[s.id]) }))
     .filter((x) => (x.last ? x.last < cutoff : neverCounts))
     .sort((a, b) => (a.last ?? "").localeCompare(b.last ?? ""));
   if (!list.length) return null;
   const ago = (d: string) => Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${d}T12:00:00Z`)) / 864e5);
   return (
-    <Card className="mt-4 p-5 lg:mt-5">
+    <Card className="mt-4 p-5 sm:p-6 lg:mt-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Slipping in Groundwork</h2>
-        <span className="text-xs text-ink-3">No study in 5 days or more · only you see this</span>
+        <h2 className="text-base font-semibold tracking-[-0.01em] text-ink">Slipping in Groundwork</h2>
+        <span className="text-sm text-ink-3">No study in 5 days or more · only you see this</span>
       </div>
       <ul className="mt-3 flex flex-wrap gap-2">
         {list.slice(0, 24).map(({ s, last }) => (
           <li key={s.id}>
-            <Link href={`/admin/roster/${s.id}`} className="inline-flex min-h-9 items-center gap-2 rounded-full border border-border px-3 text-sm text-ink transition-colors hover:border-border-strong hover:bg-surface-2 max-md:min-h-11">
+            <Link href={`/admin/roster/${s.id}`} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-border px-3.5 text-sm text-ink transition-colors hover:border-border-strong hover:bg-surface-2 max-md:min-h-11">
               {displayName(s.username)}
-              <span className="text-xs tabular-nums text-ink-3">{last ? `${ago(last)} days` : "never"}</span>
+              <span className="text-sm tabular-nums text-ink-3">{last ? `${ago(last)} days` : "never"}</span>
             </Link>
           </li>
         ))}
       </ul>
-      {list.length > 24 && <p className="mt-2 text-xs text-ink-3">And {list.length - 24} more.</p>}
+      {list.length > 24 && <p className="mt-2 text-sm text-ink-3">And {list.length - 24} more.</p>}
     </Card>
   );
 }

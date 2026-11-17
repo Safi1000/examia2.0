@@ -66,13 +66,13 @@ export function Tabs({
               <span
                 className={cn(
                   "ml-1.5 rounded-full px-1.5 py-0.5 text-xs font-bold",
-                  selected ? "bg-brand-soft text-brand" : "bg-surface-2 text-ink-3",
+                  selected ? "bg-white/[0.09] text-ink" : "bg-surface-2 text-ink-3",
                 )}
               >
                 {t.count}
               </span>
             )}
-            {selected && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-brand" />}
+            {selected && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-ink" />}
           </button>
         );
       })}

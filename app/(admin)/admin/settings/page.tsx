@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Button, Card, CardHeader, CardBody, Icon } from "@/components/ui";
+import { Badge, Button, Card, CardHeader, CardBody, Icon } from "@/components/ui";
+import { buttonClasses } from "@/components/ui/Button";
 import { AutomationSettings } from "@/components/admin/Automations";
 import { StaffCard } from "@/components/admin/StaffCard";
 import { NotesKeyCard } from "@/components/admin/NotesKeyCard";
@@ -20,10 +21,10 @@ export default function AdminSettingsPage() {
       <NotesKeyCard />
       <LevelsAndSubjects />
       <Card className="max-w-2xl">
-        <CardHeader><h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Waitlist</h2></CardHeader>
+        <CardHeader><h2 className="text-base font-semibold text-ink">Waitlist</h2></CardHeader>
         <CardBody>
-          <p className="mb-4 text-sm text-ink-3">People who joined the waitlist from the website. Kept here, out of the menu, until it&apos;s busy.</p>
-          <Link href="/admin/leads" className="inline-flex h-10 items-center rounded-lg border border-border-strong px-4 text-sm font-semibold text-ink hover:bg-surface-2">
+          <p className="mb-4 text-base text-ink-2">People who joined the waitlist from the website. Kept here, out of the menu, until it&apos;s busy.</p>
+          <Link href="/admin/leads" className={buttonClasses({ variant: "secondary" })}>
             Open the waitlist
           </Link>
         </CardBody>
@@ -47,9 +48,9 @@ function LevelsAndSubjects() {
   ];
   return (
     <Card className="max-w-2xl">
-      <CardHeader><h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Levels and subjects</h2></CardHeader>
+      <CardHeader><h2 className="text-base font-semibold text-ink">Levels and subjects</h2></CardHeader>
       <CardBody className="space-y-6">
-        <p className="text-sm text-ink-3">
+        <p className="text-base text-ink-2">
           Used for students, tests, notes and the class timetable. The timetable recognises levels by A2, AS or IGCSE / O Level in the name, and
           subjects starting Econ, Bus or Acc.
         </p>
@@ -84,11 +85,11 @@ function NameList({
 }) {
   const [draft, setDraft] = useState("");
   // 16px on phones so iOS doesn't zoom in; 44px tall on touch.
-  const field = "h-10 min-w-0 flex-1 rounded-md border border-border-strong bg-surface px-3 text-sm text-ink max-md:text-base pointer-coarse:h-11";
+  const field = "h-10 min-w-0 flex-1 rounded-field border border-field bg-surface px-3.5 text-sm text-ink placeholder:text-ink-3 transition-colors hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand max-md:text-base pointer-coarse:h-11";
   const taken = (v: string, except?: string) => items.some((i) => i.id !== except && i.name.toLowerCase() === v.toLowerCase());
   return (
     <div>
-      <p className="mb-2 text-sm font-semibold text-ink">{title}</p>
+      <p className="mb-2 text-sm font-semibold text-ink-2">{title}</p>
       <ul className="space-y-2">
         {items.map((it) => (
           <li key={it.id} className="flex items-center gap-2">
@@ -109,14 +110,14 @@ function NameList({
                 onSaved(`Renamed to ${v}.`);
               }}
             />
-            {!match(it.name) && <span className="shrink-0 text-xs text-warning">Not on the timetable</span>}
+            {!match(it.name) && <Badge tone="warning" className="shrink-0">Not on the timetable</Badge>}
             <button
               type="button"
               aria-label={`Remove ${it.name}`}
               onClick={() => {
                 if (window.confirm(`Remove "${it.name}"? Students, tests and notes using it lose that tag.`)) remove(it.id);
               }}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-surface-2 hover:text-error pointer-coarse:h-11 pointer-coarse:w-11"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-error-soft hover:text-error pointer-coarse:h-11 pointer-coarse:w-11"
             >
               <Icon.Trash className="h-4 w-4" />
             </button>

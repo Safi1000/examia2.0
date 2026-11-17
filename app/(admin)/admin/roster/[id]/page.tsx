@@ -1,5 +1,6 @@
 "use client";
 
+import { watchLabel } from "@/lib/watch";
 import { openLater } from "@/lib/open-later";
 
 import { useStudentProfiles } from "@/lib/student-profiles";
@@ -29,6 +30,7 @@ import { LineChart, type LinePoint } from "@/components/charts/LineChart";
 import { MasteryBar } from "@/components/charts/MasteryBar";
 import { LoginDetails } from "@/components/admin/LoginDetails";
 import { StudentNoteCard } from "@/components/admin/StudentNote";
+import { statLabel, statTile, statValue } from "@/components/admin/surface";
 import { StudentActivitySection } from "@/components/admin/ActivityParts";
 import { gradeSubmission } from "@/lib/grading";
 import { topicMastery } from "@/lib/scoring";
@@ -342,12 +344,12 @@ function StudentDetail() {
 
       {data.released.length > 0 ? (
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
-          <Card className="p-5">
-            <h2 className="mb-2 text-[15px] font-semibold tracking-[-0.01em] text-ink">Score trend</h2>
+          <Card className="p-5 sm:p-6">
+            <h2 className="mb-2 text-base font-semibold tracking-[-0.01em] text-ink">Score trend</h2>
             <LineChart points={data.points} />
           </Card>
-          <Card className="p-5">
-            <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em] text-ink">Topic mastery</h2>
+          <Card className="p-5 sm:p-6">
+            <h2 className="mb-3 text-base font-semibold tracking-[-0.01em] text-ink">Topic mastery</h2>
             <div className="space-y-3.5">
               {data.mastery.map((m) => <MasteryBar key={m.topic} topic={m.topic} percent={m.percent} band={m.band} />)}
             </div>
@@ -359,15 +361,15 @@ function StudentDetail() {
 
       <StudentActivitySection studentId={student.id} />
 
-      <h2 className="mb-2.5 mt-8 text-[15px] font-semibold tracking-[-0.01em] text-ink">Homework</h2>
+      <h2 className="mb-3 mt-10 text-xl font-semibold tracking-[-0.015em] text-ink">Homework</h2>
       {data.homework.length === 0 ? (
-        <p className="text-[15px] text-ink-2">No homework set for {displayName(student.username)} yet.</p>
+        <p className="text-base text-ink-2">No homework set for {displayName(student.username)} yet.</p>
       ) : (
-        <Card className="divide-y divide-border overflow-hidden p-0">
+        <Card className="divide-y divide-hairline overflow-hidden p-0">
           {data.homework.slice(0, 8).map(({ a, state }) => (
-            <div key={a.id} className="flex items-center justify-between gap-3 px-4 py-3">
+            <div key={a.id} className="flex items-center justify-between gap-3 px-5 py-3">
               <div className="min-w-0">
-                <Link href={`/admin/assignments?open=${a.id}`} className="block truncate font-semibold text-ink underline-offset-4 hover:underline">{a.title}</Link>
+                <Link href={`/admin/assignments?open=${a.id}`} className="block truncate text-base font-semibold text-ink underline-offset-4 hover:underline">{a.title}</Link>
                 <p className="text-sm tabular-nums text-ink-3">Due {formatTimestamp(a.dueAt)}</p>
               </div>
               {state === "in" ? (
@@ -385,18 +387,18 @@ function StudentDetail() {
       )}
       {data.homework.length > 8 && <p className="mt-2 text-sm text-ink-3">Showing the latest 8 of {data.homework.length}.</p>}
 
-      <h2 className="mb-2.5 mt-8 text-[15px] font-semibold tracking-[-0.01em] text-ink">Submissions</h2>
+      <h2 className="mb-3 mt-10 text-xl font-semibold tracking-[-0.015em] text-ink">Submissions</h2>
       {data.subs.length === 0 ? (
         <EmptyState icon={<Icon.Inbox />} title="No submissions" />
       ) : (
-        <Card className="divide-y divide-border overflow-hidden p-0">
+        <Card className="divide-y divide-hairline overflow-hidden p-0">
           {data.subs.map((s) => {
             const test = testById(db, s.testId);
             const grade = test ? gradeSubmission(test, s) : null;
             return (
-              <div key={s.id} className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-white/[0.018]">
+              <div key={s.id} className="flex items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-white/[0.02]">
                 <div className="min-w-0">
-                  <p className="truncate font-semibold text-ink">{test?.title ?? "Deleted test"}</p>
+                  <p className="truncate text-base font-semibold text-ink">{test?.title ?? "Deleted test"}</p>
                   <p className="text-sm tabular-nums text-ink-3">{s.submittedAt ? formatTimestamp(s.submittedAt) : "Not submitted"}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
@@ -450,7 +452,7 @@ function StudentDetail() {
                 id="report-month"
                 value={reportMonth || data.months[data.months.length - 1]}
                 onChange={(e) => setReportMonth(e.target.value)}
-                className="h-11 w-full rounded-lg border border-border-strong bg-surface px-3 text-base text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand sm:text-sm"
+                className="h-12 w-full rounded-field border border-field bg-surface px-3.5 text-base text-ink transition-colors hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
               >
                 {data.months.map((m) => (
                   <option key={m} value={m}>{formatMonthLabel(m)}</option>
@@ -469,24 +471,24 @@ function StudentDetail() {
               placeholder="Add a personal note for the parent..."
               rows={4}
               maxLength={260}
-              className="w-full resize-none rounded-lg border border-border-strong bg-surface px-3 py-2.5 text-base text-ink placeholder:text-ink-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand sm:text-sm"
+              className="w-full resize-none rounded-field border border-field bg-surface px-3.5 py-3 text-base leading-relaxed text-ink placeholder:text-ink-3 transition-colors hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             />
-            <p className="mt-1 text-right text-xs tabular-nums text-ink-3">{teacherNote.length}/260 · keeps the report to one page</p>
+            <p className="mt-1.5 text-right text-sm tabular-nums text-ink-3">{teacherNote.length}/260 · keeps the report to one page</p>
           </div>
           <p className="text-sm text-ink-2">
             Link works for {REPORT_LINK_DAYS} days, until {reportLinkDay(reportLinkExpiry(reportNow), "short")}.
           </p>
           {sentReports.length > 0 && (
             <div>
-              <h3 className="mb-1.5 text-sm font-semibold text-ink-2">Sent reports</h3>
-              <ul className="divide-y divide-border rounded-lg border border-border">
+              <h3 className="label-quiet mb-2 text-ink-3">Sent reports</h3>
+              <ul className="divide-y divide-hairline rounded-tile bg-surface-2">
                 {sentReports.map((r) => {
                   const live = isReportLinkLive(r.expiresAt, reportNow);
                   return (
-                    <li key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
-                      <span className="min-w-0 flex-1 text-sm text-ink">
+                    <li key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+                      <span className="min-w-0 flex-1 text-base font-semibold text-ink">
                         {formatMonthLabel(r.month.slice(0, 7))}
-                        <span className="block text-xs text-ink-3">
+                        <span className="block text-sm font-normal text-ink-3">
                           {live ? `Link live until ${reportLinkDay(r.expiresAt, "short")}` : `Link finished ${reportLinkDay(r.expiresAt, "short")}`}
                         </span>
                       </span>
@@ -515,9 +517,9 @@ function StudentDetail() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <Card className="px-4 py-3.5">
-      <p className="text-[13px] text-ink-3">{label}</p>
-      <p className="mt-1 text-2xl font-semibold leading-tight tabular-nums tracking-[-0.02em] text-ink">{value}</p>
+    <Card className={statTile}>
+      <p className={statLabel}>{label}</p>
+      <p className={statValue}>{value}</p>
     </Card>
   );
 }
@@ -532,8 +534,11 @@ function TheirPortal({ profile, initial }: { profile: Profile; initial: string }
   const streak = Math.max(0, Number(focus.streak) || 0);
   // Only real grades (the student's own data could hold anything).
   const targets = Object.entries(profile.targets ?? {}).filter(([, t]) => typeof t === "string" && ["A*", "A", "B", "C"].includes(t));
+  // The newest 60 recordings they opened, and the believable seconds on each (4 hours at most apiece).
+  const recordings = Array.isArray(profile.watched) ? profile.watched.length : 0;
+  const watchedSec = Object.values(profile.watchSec ?? {}).reduce((n, v) => n + Math.min(4 * 3600, Math.max(0, Number(v) || 0)), 0);
   return (
-    <Card className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3 p-4">
+    <Card className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3 p-5 sm:p-6">
       {/* Their chosen picture, else their initial (it used to show a bare "?"). */}
       <Avatar id={profile.avatar} initials={initial} className="h-10 w-10" />
       {targets.length > 0 && (
@@ -552,6 +557,20 @@ function TheirPortal({ profile, initial }: { profile: Profile; initial: string }
         {goal ? ` of ${goal} h` : ""}
         {streak > 1 ? ` · ${streak} day streak` : ""}
       </p>
+      {/* Recordings they opened, and how long those were on their screen in the portal. */}
+      {recordings > 0 && (
+        <p className="text-sm text-ink-2">
+          Recordings: <span className="font-semibold text-ink">{recordings}</span> opened
+          {watchedSec > 0 ? (
+            <>
+              {" "}
+              · <span className="font-semibold text-ink">{watchLabel(watchedSec)}</span> watched
+            </>
+          ) : (
+            ""
+          )}
+        </p>
+      )}
     </Card>
   );
 }

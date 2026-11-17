@@ -6,6 +6,7 @@ import { Crumbs, Section } from "@/components/study/StudyBits";
 import { RelatedLinks } from "@/components/study/RelatedLinks";
 import { breadcrumbLd, fitTitle } from "@/lib/seo";
 import { SYLLABI, pointCount, subtopicCount } from "@/lib/syllabus";
+import "@/components/landing/public-calm.css";
 
 const title = "Cambridge Syllabus Checklists: Accounting, Business, Economics";
 const description =
@@ -34,14 +35,14 @@ export default function SyllabusHub() {
             <ul className="grid gap-3 sm:grid-cols-3">
               {SYLLABI.filter((s) => s.level === level).map((s) => (
                 <li key={s.code}>
-                  <Link href={`/syllabus/${s.slug}`} className="block h-full rounded-[16px] border border-hairline bg-card px-5 py-4 hover:border-gold-border">
-                    <span className="block font-semibold text-foreground">
+                  <Link href={`/syllabus/${s.slug}`} className="pc-surface pc-surface-link flex h-full flex-col rounded-tile px-5 py-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+                    <span className="block text-base font-semibold tabular-nums text-foreground">
                       {s.subject} {s.code}
                     </span>
-                    <span className="mt-1 block text-sm text-muted-foreground">
+                    <span className="mt-1 block text-sm tabular-nums text-muted-foreground">
                       {subtopicCount(s)} subtopics · {pointCount(s)} points
                     </span>
-                    {s.replaces && <span className="mt-1 block text-xs text-gold">Replaces {s.replaces}</span>}
+                    {s.replaces && <span className="mt-1 block text-xs text-faint">Replaces {s.replaces}</span>}
                   </Link>
                 </li>
               ))}

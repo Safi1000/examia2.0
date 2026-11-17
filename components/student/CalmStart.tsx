@@ -6,6 +6,7 @@ import { greeting, quoteFor } from "@/lib/groundwork";
 import { worldFor } from "@/lib/groundwork-worlds";
 import { GroundworkWorld } from "@/components/student/GroundworkWorld";
 import { WorldGlyph, WorldPicker } from "@/components/student/WorldPicker";
+import { buttonClasses } from "@/components/ui/Button";
 
 /**
  * Groundwork's first screen, like a calm new-tab page: the student's 3D world
@@ -29,13 +30,13 @@ export function CalmStart({ name, nowMs, onStart, away = false }: { name: string
       <section className="calm relative flex min-h-[calc(100svh-68px)] flex-col text-white" aria-label="Groundwork">
         <div className="flex flex-1 flex-col items-center justify-center px-6 pb-8 text-center">
           <p className="calm-time font-semibold leading-none tabular-nums tracking-[-0.045em] [text-shadow:0_2px_30px_rgba(0,0,0,.25)]">{time}</p>
-          <h1 className="mt-3 text-[1.6rem] font-medium tracking-[-0.02em] text-white/95 [text-shadow:0_1px_16px_rgba(0,0,0,.35)] sm:text-[2.4rem]">
+          <h1 className="mt-3 text-title font-medium tracking-[-0.02em] text-white/95 [text-shadow:0_1px_16px_rgba(0,0,0,.35)] sm:text-title-lg">
             {greeting(nowMs)}, {name}.
           </h1>
           <button
             type="button"
             onClick={onStart}
-            className="mt-9 h-12 rounded-full border border-white/30 bg-white/15 px-8 text-[15px] font-semibold text-white shadow-[0_8px_30px_-10px_rgba(0,0,0,.5)] backdrop-blur-md transition hover:bg-white/25 active:scale-[0.98]"
+            className={buttonClasses({ size: "lg", className: "mt-9 px-8" })}
           >
             Start focus
           </button>
@@ -48,18 +49,18 @@ export function CalmStart({ name, nowMs, onStart, away = false }: { name: string
               onClick={() => setTray((v) => !v)}
               aria-expanded={tray}
               aria-label={`World: ${world.title}. Change world`}
-              className="group flex min-h-11 items-center gap-2 text-left text-[12px] text-white/70 transition hover:text-white"
+              className="group flex min-h-11 items-center gap-2 text-left text-xs text-white/70 transition-colors duration-150 hover:text-white"
             >
               <WorldGlyph />
               <span className="max-w-[9rem] truncate [text-shadow:0_1px_8px_rgba(0,0,0,.5)] sm:max-w-none">{world.title}</span>
             </button>
             {tray && <WorldPicker current={world.id} onPick={(id) => updateProfile({ world: id })} onClose={() => setTray(false)} />}
           </div>
-          <p className="col-span-2 row-start-1 mx-auto max-w-xl text-center text-[13px] leading-relaxed text-white/80 [text-shadow:0_1px_10px_rgba(0,0,0,.5)] [text-wrap:balance] sm:col-span-1 sm:col-start-2 sm:row-start-auto sm:text-[14px]">
+          <p className="col-span-2 row-start-1 mx-auto max-w-xl text-center text-sm leading-relaxed text-white/80 [text-shadow:0_1px_10px_rgba(0,0,0,.5)] [text-wrap:balance] sm:col-span-1 sm:col-start-2 sm:row-start-auto">
             “{quote.q}” <span className="text-white/55">{quote.by}</span>
           </p>
-          <a href="#groundwork-more" className="hidden min-h-11 items-center justify-self-end text-[12px] text-white/60 transition hover:text-white sm:flex" aria-label="Your week and today">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="calm-bob" aria-hidden>
+          <a href="#groundwork-more" className="hidden min-h-11 items-center justify-self-end text-xs text-white/60 transition-colors duration-150 hover:text-white sm:flex" aria-label="Your week and today">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
               <path d="m6 9 6 6 6-6" />
             </svg>
           </a>

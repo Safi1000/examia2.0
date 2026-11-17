@@ -142,7 +142,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <PortalAmbient />
         <PortalManifest on />
         {/* Persistent sidebar — tablet narrower, desktop full */}
-        <aside className="hidden w-56 shrink-0 border-r border-white/[0.06] md:block xl:w-64">
+        <aside className="hidden w-56 shrink-0 border-r border-hairline md:block xl:w-64">
           <div className="sticky top-0 h-dvh">
             <Sidebar />
           </div>
@@ -162,7 +162,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 type="button"
                 onClick={() => setMobileOpen(false)}
                 aria-label="Close menu"
-                className="absolute right-2 top-3.5 flex h-11 w-11 items-center justify-center rounded-md text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink"
+                className="absolute right-2 top-3.5 flex h-11 w-11 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink"
               >
                 <Icon.Close />
               </button>
@@ -172,12 +172,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Top bar */}
-          <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-white/[0.06] bg-paper/95 px-4 lg:bg-paper/70 lg:backdrop-blur-xl">
+          <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-hairline bg-paper/95 px-4">
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setMobileOpen(true)}
-                className="flex h-11 w-11 items-center justify-center rounded-md text-ink-2 hover:bg-surface-2 md:hidden"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-surface-2 md:hidden"
                 aria-label="Open navigation"
                 aria-haspopup="dialog"
                 aria-expanded={drawerOpen}
@@ -198,7 +198,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Phones: the four everyday jobs at the thumb; everything else under More. */}
         {!/^\/admin\/whiteboard/.test(pathname) && (
           <nav aria-label="Quick" className="fixed inset-x-3 bottom-3 z-40 md:hidden" style={{ marginBottom: "env(safe-area-inset-bottom)" }}>
-            <ul className="grid grid-cols-5 rounded-[22px] border border-white/[0.08] bg-surface/[0.97] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_18px_40px_-12px_rgba(0,0,0,0.75)]">
+            <ul className="surface grid grid-cols-5 rounded-card p-1.5">
               {[
                 { href: "/admin/today", label: "Today", I: NavIcon.Today },
                 { href: "/admin/classes", label: "Classes", I: NavIcon.Classes },
@@ -212,7 +212,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <Link
                       href={href}
                       aria-current={on ? "page" : undefined}
-                      className={cn("flex h-[52px] flex-col items-center justify-center gap-1 rounded-2xl text-xs font-semibold transition-[background-color,color,transform] duration-150 active:scale-95", on ? "bg-white/[0.07] text-ink [&_svg]:text-brand" : "text-ink-3")}
+                      className={cn("flex h-[52px] flex-col items-center justify-center gap-1 rounded-tile text-xs font-semibold transition-[background-color,color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98]", on ? "bg-white/[0.07] text-ink" : "text-ink-3")}
                     >
                       <I active={on} className="h-5 w-5" />
                       {label}
@@ -226,9 +226,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   onClick={() => setMobileOpen(true)}
                   aria-haspopup="dialog"
                   aria-expanded={drawerOpen}
-                  className="flex h-[52px] w-full flex-col items-center justify-center gap-1 rounded-2xl text-xs font-semibold text-ink-3 active:scale-95"
+                  className="flex h-[52px] w-full flex-col items-center justify-center gap-1 rounded-tile text-xs font-semibold text-ink-3 transition-transform duration-150 ease-[var(--ease-out)] active:scale-[0.98]"
                 >
-                  <Icon.Menu className="h-5 w-5" />
+                  {/* Drawn on the menu icons' own grid and stroke, so it sits as light as its neighbours. */}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" aria-hidden className="h-5 w-5 shrink-0">
+                    <path d="M5.5 7h13M5.5 12h13M5.5 17h13" />
+                  </svg>
                   More
                 </button>
               </li>

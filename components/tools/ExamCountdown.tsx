@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { calendarDaysUntil } from "@/components/tools/calc";
-import { AskHamza } from "@/components/tools/ToolBits";
+import { AskHamza, fieldBox, fieldLabel, fieldNote, goldAction, quietAction } from "@/components/tools/ToolBits";
 
 export interface CountdownSyllabus {
   code: string;
@@ -98,11 +98,11 @@ export function ExamCountdown({
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block">
-          <span className="mb-1.5 block text-sm font-semibold text-foreground">Your syllabus</span>
+          <span className={fieldLabel}>Your syllabus</span>
           <select
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            className="h-12 w-full rounded-[12px] border border-hairline-strong bg-card px-4 text-[16px] text-foreground outline-none focus:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+            className={fieldBox}
           >
             {syllabi.map((x) => (
               <option key={x.code} value={x.code}>
@@ -112,24 +112,24 @@ export function ExamCountdown({
           </select>
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-sm font-semibold text-foreground">Date of your paper</span>
+          <span className={fieldLabel}>Date of your paper</span>
           <input
             type="date"
             value={date}
             onChange={(e) => e.target.value && setDate(e.target.value)}
-            className="h-12 w-full rounded-[12px] border border-hairline-strong bg-card px-4 text-[16px] text-foreground outline-none focus:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold [color-scheme:dark]"
+            className={fieldBox}
           />
-          <span className="mt-1 block text-sm text-muted-foreground">
+          <span className={fieldNote}>
             {date === seriesStart ? `${seriesName} starts ${fmtDate(seriesStart)}. Change it to your paper's date from your statement of entry.` : fmtDate(date)}
           </span>
         </label>
       </div>
 
-      <div className="rounded-[24px] border border-gold-border bg-card-raised p-7 text-center md:p-10">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-gold">{s.name}</p>
+      <div className="pc-surface rounded-card p-6 text-center sm:p-10">
+        <p className="text-sm font-semibold text-muted-foreground">{s.name}</p>
         <div aria-live="polite">
-          <p className="mt-3 text-[5.5rem] font-extralight leading-none tabular-nums tracking-[-0.04em] text-foreground md:text-[7rem]">{m ? m.days : "…"}</p>
-          <p className="mt-2 text-lg text-muted-foreground">
+          <p className="mt-3 text-7xl font-bold leading-none tabular-nums tracking-[-0.04em] text-foreground md:text-8xl">{m ? m.days : "…"}</p>
+          <p className="mt-3 text-lg text-muted-foreground">
             {!m
               ? "days to go"
               : m.past
@@ -141,15 +141,15 @@ export function ExamCountdown({
         </div>
         {upcoming && m && (
           <div className="mx-auto mt-7 grid max-w-md gap-3 text-left sm:grid-cols-2">
-            <div className="rounded-[16px] border border-hairline bg-card px-4 py-3">
-              <p className="text-sm text-muted-foreground">To finish the syllabus</p>
-              <p className="mt-0.5 text-xl font-bold tabular-nums text-foreground">{m.perWeek ? `${m.perWeek} subtopics a week` : "Revise, don't start new"}</p>
-              <p className="mt-0.5 text-sm text-faint">{s.subs} subtopics in total</p>
+            <div className="flex flex-col rounded-tile bg-card-raised p-4">
+              <p className="text-sm font-semibold text-muted-foreground">To finish the syllabus</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-foreground">{m.perWeek ? `${m.perWeek} subtopics a week` : "Revise, don't start new"}</p>
+              <p className="mt-1 text-sm text-faint">{s.subs} subtopics in total</p>
             </div>
-            <div className="rounded-[16px] border border-hairline bg-card px-4 py-3">
-              <p className="text-sm text-muted-foreground">Past paper weeks</p>
-              <p className="mt-0.5 text-xl font-bold tabular-nums text-foreground">{(() => { const w = Math.round(m.papersDays / 7); return w === 1 ? "1 week" : `${w} weeks`; })()}</p>
-              <p className="mt-0.5 text-sm text-faint">Full timed papers, marked strictly</p>
+            <div className="flex flex-col rounded-tile bg-card-raised p-4">
+              <p className="text-sm font-semibold text-muted-foreground">Past paper weeks</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-foreground">{(() => { const w = Math.round(m.papersDays / 7); return w === 1 ? "1 week" : `${w} weeks`; })()}</p>
+              <p className="mt-1 text-sm text-faint">Full timed papers, marked strictly</p>
             </div>
           </div>
         )}
@@ -159,14 +159,14 @@ export function ExamCountdown({
               href={`https://wa.me/?text=${encodeURIComponent(shareText)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex min-h-12 items-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] hover:bg-gold-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+              className={goldAction}
             >
               Share on WhatsApp
             </a>
             <button
               type="button"
               onClick={copyLink}
-              className="inline-flex min-h-12 items-center rounded-full border border-hairline-strong px-6 text-[15px] font-semibold text-foreground hover:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+              className={quietAction}
             >
               <span aria-live="polite">{copied ? "Link copied" : "Copy link"}</span>
             </button>

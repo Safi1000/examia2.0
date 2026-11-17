@@ -17,6 +17,8 @@ import { driveFileId, watchPatch } from "@/lib/watch";
 import { cn } from "@/lib/cn";
 import { subjectsAtLevel } from "@/lib/levels";
 import { PageHeader, SectionTitle } from "@/components/student/PortalKit";
+import { chipClass } from "@/components/ui/Segmented";
+import { buttonClasses } from "@/components/ui/Button";
 
 /**
  * The student's classes that were called off on a date. `slotsForStudent`
@@ -170,12 +172,12 @@ export default function ClassesPage() {
       <section>
         <SectionTitle action={<span className="font-semibold text-ink-2">{day === today ? "Today" : dayName(day)}</span>}>Your timetable</SectionTitle>
         {slots.length ? (
-          <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
+          <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
             {slots.map((s) => (
               <li key={slotKey(s)} className="flex items-center justify-between gap-4 px-5 py-4 sm:px-6">
                 <span className="min-w-0">
                   <span className="flex flex-wrap items-center gap-2">
-                    <span className={cn("font-semibold", s.cancelled ? "text-ink-3 line-through" : "text-ink")}>{s.subject}</span>
+                    <span className={cn("text-base font-semibold", s.cancelled ? "text-ink-3 line-through" : "text-ink")}>{s.subject}</span>
                     {s.cancelled ? (
                       <Badge className="px-2 text-xs">Cancelled</Badge>
                     ) : s.extra ? (
@@ -184,39 +186,39 @@ export default function ClassesPage() {
                       <Badge tone="warning" className="px-2 text-xs">Moved</Badge>
                     ) : null}
                   </span>
-                  <span className="mt-0.5 block text-xs text-ink-3">{LEVEL_LABEL[s.level]}</span>
+                  <span className="mt-0.5 block text-sm text-ink-3">{LEVEL_LABEL[s.level]}</span>
                 </span>
                 <span className="shrink-0 text-right">
                   <span className={cn("block text-sm tabular-nums", s.cancelled ? "text-ink-3 line-through" : "text-ink-2")}>{span(s.start, s.end)}</span>
                   {/* The page is in Pakistan time; a phone set to another zone gets its own start time too. */}
-                  {!s.cancelled && away(s.startMs) && <span className="mt-0.5 block text-xs text-ink-3 tabular-nums">{ownClock(s.startMs)} your time</span>}
+                  {!s.cancelled && away(s.startMs) && <span className="mt-0.5 block text-sm text-ink-3 tabular-nums">{ownClock(s.startMs)} your time</span>}
                 </span>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="surface-quiet rounded-xl px-5 py-4 text-base text-ink-2">Your timetable shows here once I add your level and subjects.</p>
+          <p className="surface-quiet rounded-card p-5 text-base text-ink-2 sm:p-6">Your timetable shows here once I add your level and subjects.</p>
         )}
       </section>
 
       <section>
         <SectionTitle sub="Each recording stays open for 2 days after class, then it closes.">Recordings</SectionTitle>
-        <div className="space-y-2.5">
+        <div className="space-y-3">
         {pending.length > 0 && (
-          <ul className="space-y-2.5">
+          <ul className="space-y-3">
             {pending.map((p) => (
-              <li key={slotKey(p)} className="surface-quiet flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl px-5 py-4 sm:px-6">
+              <li key={slotKey(p)} className="surface-quiet flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-card px-5 py-4 sm:px-6">
                 <span className="min-w-0">
-                  <span className="block font-semibold text-ink">{p.subject}</span>
-                  <span className="mt-0.5 block text-xs text-ink-3 tabular-nums">Today, {span(p.start, p.end)}</span>
+                  <span className="block text-base font-semibold text-ink">{p.subject}</span>
+                  <span className="mt-0.5 block text-sm text-ink-3 tabular-nums">Today, {span(p.start, p.end)}</span>
                 </span>
-                <span className="text-xs font-medium text-ink-3">Recording on its way, usually within an hour</span>
+                <span className="text-sm text-ink-3">Recording on its way, usually within an hour</span>
               </li>
             ))}
           </ul>
         )}
         {recordings.length ? (
-          <ul className="space-y-2.5">
+          <ul className="space-y-3">
             {recordings.map((r) => (
               <li key={slotKey(r)}>
                 <a
@@ -225,13 +227,13 @@ export default function ClassesPage() {
                   rel="noreferrer"
                   onClick={(e) => watch(e, slotKey(r), r.recordingUrl!, r.subject, dayName(r.date))}
                   className={cn(
-                    "surface surface-link flex items-center justify-between gap-4 rounded-xl px-5 py-4 sm:px-6",
+                    "surface surface-link flex items-center justify-between gap-4 rounded-card px-5 py-4 sm:px-6",
                     !watched.has(slotKey(r)) && r.closesAt - nowMs < 6 * 3_600_000 && "border-warning/50!",
                   )}
                 >
                   <span className="min-w-0">
-                    <span className="block font-semibold text-ink">{r.subject}</span>
-                    <span className="block text-xs text-ink-3 tabular-nums">
+                    <span className="block text-base font-semibold text-ink">{r.subject}</span>
+                    <span className="mt-0.5 block text-sm text-ink-3 tabular-nums">
                       {dayName(r.date)} · open until {closesLabel(r.closesAt)}
                     </span>
                   </span>
@@ -245,7 +247,7 @@ export default function ClassesPage() {
                         Watch <Icon.ChevronRight className="h-4 w-4" />
                       </span>
                       {r.closesAt - nowMs < 6 * 3_600_000 && (
-                        <span className="text-xs font-semibold text-warning">Closes in {Math.max(1, Math.round((r.closesAt - nowMs) / 3_600_000))} h</span>
+                        <span className="text-sm font-semibold text-warning">Closes in {Math.max(1, Math.round((r.closesAt - nowMs) / 3_600_000))} h</span>
                       )}
                     </span>
                   )}
@@ -255,9 +257,9 @@ export default function ClassesPage() {
           </ul>
         ) : pending.length ? null : ready === null ? (
           // Still fetching: a placeholder, not "No recordings" for a moment and then a list.
-          <Skeleton className="h-[72px] w-full rounded-xl" />
+          <Skeleton className="h-[76px] w-full rounded-card" />
         ) : ready === false ? (
-          <p className="surface-quiet rounded-xl px-5 py-4 text-base text-ink-2">Couldn&apos;t load your recordings. Check your internet, then open this page again.</p>
+          <p className="surface-quiet rounded-card p-5 text-base text-ink-2 sm:p-6">Couldn&apos;t load your recordings. Check your internet, then open this page again.</p>
         ) : (
           <EmptyState
             icon={<Icon.Doc />}
@@ -305,18 +307,14 @@ function PastRecordings({ items, twoLevels, watched, onWatch }: { items: PastIte
     if (months[months.length - 1]?.name !== name) months.push({ name, rows: [] });
     months[months.length - 1].rows.push(r);
   }
-  const chip = (on: boolean) =>
-    cn(
-      "inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-semibold transition-colors",
-      on ? "border-border-strong bg-surface-2 text-ink" : "border-hairline text-ink-3 hover:text-ink",
-    );
+  const chip = chipClass;
   return (
     <section>
       <SectionTitle count={items.length} sub={`Past classes are open for you to catch up until ${closesLabel(latest)}.`}>
         Catch up on past classes
       </SectionTitle>
       {subjects.length > 1 && (
-        <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Subject">
+        <div className="mb-3 flex gap-2 max-sm:-mx-5 max-sm:overflow-x-auto max-sm:px-5 max-sm:[scrollbar-width:none] sm:flex-wrap" role="group" aria-label="Subject">
           <button type="button" className={chip(!subject)} aria-pressed={!subject} onClick={() => { setSubject(null); setAll(false); }}>
             All
           </button>
@@ -330,8 +328,8 @@ function PastRecordings({ items, twoLevels, watched, onWatch }: { items: PastIte
       <div className="space-y-5">
         {months.map((m) => (
           <div key={m.name}>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-ink-3">{m.name}</p>
-            <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
+            <p className="label-quiet mb-2 text-ink-3">{m.name}</p>
+            <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
               {m.rows.map((r) => (
                 <li key={r.key}>
                   <a
@@ -339,11 +337,11 @@ function PastRecordings({ items, twoLevels, watched, onWatch }: { items: PastIte
                     target="_blank"
                     rel="noreferrer"
                     onClick={(e) => onWatch(e, r.key, r.url, r.subject, dayName(r.date))}
-                    className="flex min-h-14 items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-white/[0.02] sm:px-6"
+                    className="row-link flex min-h-14 items-center justify-between gap-4 px-5 py-3.5 sm:px-6"
                   >
                     <span className="min-w-0">
-                      <span className="block font-semibold text-ink">{r.subject}</span>
-                      <span className="block text-xs text-ink-3 tabular-nums">
+                      <span className="block text-base font-semibold text-ink">{r.subject}</span>
+                      <span className="mt-0.5 block text-sm text-ink-3 tabular-nums">
                         {dayName(r.date)}
                         {twoLevels && r.level ? ` · ${r.level}` : ""}
                         {r.closesAt < latest ? ` · open until ${closesLabel(r.closesAt)}` : ""}
@@ -369,7 +367,7 @@ function PastRecordings({ items, twoLevels, watched, onWatch }: { items: PastIte
         <button
           type="button"
           onClick={() => setAll(true)}
-          className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-full border border-hairline text-sm font-semibold text-ink-2 hover:text-ink"
+          className={buttonClasses({ variant: "secondary", fullWidth: true, className: "mt-3" })}
         >
           Show all {list.length}
         </button>
@@ -381,7 +379,7 @@ function PastRecordings({ items, twoLevels, watched, onWatch }: { items: PastIte
 /** [1,2,3,4,5] → "Monday to Friday"; other sets are listed. */
 function dayRange(days: number[]) {
   const names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const d = [...days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
+  const d = days.toSorted((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
   const consecutive = d.every((x, i) => i === 0 || (d[i - 1] + 1) % 7 === x);
   if (d.length > 2 && consecutive) return `${names[d[0]]} to ${names[d[d.length - 1]]}`;
   return d.map((x) => names[x].slice(0, 3)).join(", ");

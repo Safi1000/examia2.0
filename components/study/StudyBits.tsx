@@ -11,7 +11,7 @@ export function Crumbs({ trail }: { trail: Array<{ name: string; href?: string }
         <span key={t.name}>
           {i > 0 && <span aria-hidden className="mx-2">/</span>}
           {t.href ? (
-            <Link href={t.href} className="hover:text-gold">
+            <Link href={t.href} className="transition-colors duration-150 hover:text-foreground">
               {t.name}
             </Link>
           ) : (
@@ -29,7 +29,7 @@ export function Section({ title, id, children, intro }: { title: string; id?: st
   return (
     <section id={id} className="mt-16 scroll-mt-24">
       <h2 className="text-2xl font-bold leading-tight text-foreground md:text-3xl">{title}</h2>
-      {intro && <div className="mt-3 max-w-[68ch] text-[17px] leading-relaxed text-muted-foreground">{intro}</div>}
+      {intro && <div className="mt-3 max-w-[68ch] text-lg leading-relaxed text-muted-foreground">{intro}</div>}
       <div className="mt-6">{children}</div>
     </section>
   );
@@ -38,13 +38,13 @@ export function Section({ title, id, children, intro }: { title: string; id?: st
 /** A table that scrolls sideways on its own on a phone, never the page. */
 export function Table({ head, rows, caption }: { head: ReactNode[]; rows: ReactNode[][]; caption?: string }) {
   return (
-    <div className="overflow-x-auto rounded-[16px] border border-hairline">
-      <table className="w-full min-w-[480px] border-collapse text-left text-[15px]">
+    <div className="overflow-x-auto rounded-tile border border-hairline">
+      <table className="w-full min-w-[480px] border-collapse text-left text-base">
         {caption && <caption className="sr-only">{caption}</caption>}
         <thead className="bg-card-raised">
           <tr>
             {head.map((h, i) => (
-              <th key={i} scope="col" className="whitespace-nowrap px-4 py-3 text-[13px] font-semibold text-muted-foreground">
+              <th key={i} scope="col" className="whitespace-nowrap px-4 py-3 text-sm font-semibold text-muted-foreground">
                 {h}
               </th>
             ))}
@@ -73,14 +73,14 @@ export function Table({ head, rows, caption }: { head: ReactNode[]; rows: ReactN
 }
 
 const gold =
-  "inline-flex min-h-12 w-full items-center justify-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] transition-colors hover:bg-gold-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:w-auto";
+  "inline-flex min-h-12 w-full items-center justify-center rounded-full bg-gold px-7 text-base font-semibold text-on-brand transition-[background-color,transform] duration-150 ease-[var(--ease-out)] hover:bg-gold-hover active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:w-auto";
 
 /** The one ask on a study page: a free trial lesson. */
 export function TrialBox({ from, subject, level, title, body }: { from: string; subject?: SubjectName; level?: LevelName; title: string; body: string }) {
   return (
-    <aside className="mt-16 rounded-[24px] border border-gold-border bg-card-raised p-7 md:p-10">
+    <aside className="mt-16 rounded-card border border-hairline bg-card-raised p-6 md:p-10">
       <h2 className="max-w-[24ch] text-2xl font-bold leading-tight text-foreground md:text-3xl">{title}</h2>
-      <p className="mt-3 max-w-[56ch] text-[17px] leading-relaxed text-muted-foreground">{body}</p>
+      <p className="mt-3 max-w-[56ch] text-lg leading-relaxed text-muted-foreground">{body}</p>
       <div className="mt-7">
         <BookButton from={from} subject={subject} level={level} className={gold}>
           Book your free trial lesson

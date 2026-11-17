@@ -55,12 +55,12 @@ export function FocusOnThis({
         aria-label={label}
         title={label}
         className={cn(
-          "relative z-10 inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full border border-border-strong text-sm font-semibold text-ink-2 transition-colors hover:border-ink-3 hover:bg-surface-2 hover:text-ink active:scale-[0.98]",
+          "relative z-10 inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-full border border-border-strong text-sm font-semibold text-ink-2 transition-[background-color,border-color,color,transform] duration-150 ease-[var(--ease-out)] hover:border-ink-3 hover:bg-surface-2 hover:text-ink active:scale-[0.98]",
           variant === "icon" ? "w-11" : "px-4",
           className,
         )}
       >
-        <NavIcon.Groundwork className="h-[18px] w-[18px]" />
+        <NavIcon.Groundwork className="h-5 w-5" />
         {variant === "pill" && <span aria-hidden>Focus</span>}
       </button>
       {open &&

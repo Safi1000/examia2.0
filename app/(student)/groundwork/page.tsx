@@ -89,7 +89,7 @@ export default function GroundworkPage() {
       <CalmStart name={name} nowMs={nowMs} onStart={() => startItem(null)} away={!!open} />
 
       {/* The rest slides up over the world as a frosted sheet. */}
-      <div id="groundwork-more" className="scroll-mt-[68px] rounded-t-[32px] border-t border-white/[0.08] bg-paper shadow-[0_-30px_60px_-30px_rgba(0,0,0,.6)]">
+      <div id="groundwork-more" className="scroll-mt-[68px] rounded-t-[32px] border-t border-hairline bg-paper shadow-[0_-30px_60px_-30px_rgba(0,0,0,.6)]">
       <div className="mx-auto max-w-5xl space-y-10 px-5 pb-32 pt-8 sm:px-6 sm:pb-16 sm:pt-10">
         {sundayWeek && <SundayReview week={sundayWeek} nowMs={nowMs} name={name} />}
 
@@ -100,18 +100,18 @@ export default function GroundworkPage() {
 
           {(later.length > 0 || oneThing || practice.length > 0) && (
             <Group title="Today">
-              <ul className="surface divide-y divide-hairline overflow-hidden rounded-xl">
+              <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
                 {oneThing && (
                   <li className="flex items-center gap-4 px-5 py-4">
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[12px] text-ink-3">My one thing</span>
-                      <span className={`block truncate text-[16px] font-semibold text-ink ${oneThing.done ? "line-through opacity-60" : ""}`}>{oneThing.text}</span>
+                      <span className="block text-xs text-ink-3">My one thing</span>
+                      <span className={`block truncate text-base font-semibold text-ink ${oneThing.done ? "line-through opacity-60" : ""}`}>{oneThing.text}</span>
                     </span>
                     <button
                       type="button"
                       onClick={() => updateProfile({ today: { ...oneThing, done: !oneThing.done } })}
                       aria-pressed={!!oneThing.done}
-                      className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm after:absolute after:-inset-1 after:content-[''] ${oneThing.done ? "border-brand bg-brand text-on-brand" : "border-border-strong text-transparent hover:text-ink-3"}`}
+                      className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm transition-colors duration-150 after:absolute after:-inset-1 after:content-[''] ${oneThing.done ? "border-brand bg-brand text-on-brand" : "border-border-strong text-transparent hover:text-ink-3"}`}
                       aria-label={oneThing.done ? "Mark not done" : "Mark done"}
                     >
                       ✓
@@ -131,7 +131,7 @@ export default function GroundworkPage() {
                           {it.tag} · {it.subject}
                           {it.kind === "homework" ? ` · ${it.why}` : ""}
                         </span>
-                        <span className="line-clamp-2 block text-[16px] font-semibold text-ink">{it.title}</span>
+                        <span className="line-clamp-2 block text-base font-semibold text-ink">{it.title}</span>
                       </span>
                       <span className="shrink-0 text-sm font-medium tabular-nums text-ink-2">{it.minutes} min</span>
                       {!it.item?.href && (
@@ -166,9 +166,9 @@ export default function GroundworkPage() {
                         <span className="line-clamp-2 block text-xs text-ink-3">
                           {p.fresh ? "Past papers · new this week" : "Past papers · keep it fresh"} · {p.subject}
                         </span>
-                        <span className="line-clamp-2 block text-[16px] font-semibold text-ink">{p.chapter.name}</span>
+                        <span className="line-clamp-2 block text-base font-semibold text-ink">{p.chapter.name}</span>
                       </span>
-                      <span className="shrink-0 text-sm font-medium text-ink-2">{p.count} questions</span>
+                      <span className="shrink-0 text-sm font-medium tabular-nums text-ink-2">{p.count} questions</span>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-ink-3" aria-hidden>
                         <path d="m9 6 6 6-6 6" />
                       </svg>
@@ -188,9 +188,9 @@ export default function GroundworkPage() {
         )}
 
         <details className="group">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between surface surface-link rounded-xl px-5 py-4 text-base font-semibold text-ink [&::-webkit-details-marker]:hidden">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between surface surface-link rounded-card px-5 py-4 text-base font-semibold text-ink [&::-webkit-details-marker]:hidden">
             More: study times, your class, history
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-ink-3 transition-transform group-open:rotate-90" aria-hidden>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-ink-3 transition-transform duration-200 ease-[var(--ease-out)] group-open:rotate-90" aria-hidden>
               <path d="m9 6 6 6-6 6" />
             </svg>
           </summary>
@@ -210,20 +210,20 @@ export default function GroundworkPage() {
               ) : null
             }
           >
-            <div className="surface rounded-xl p-2">
+            <div className="surface rounded-card p-2">
               {top && top.top.length > 0 ? (
                 <ol>
                   {top.top.map((t, i) => (
-                    <li key={i} className="flex items-center gap-3 rounded-2xl px-3 py-2.5">
+                    <li key={i} className="flex items-center gap-3 px-3 py-2.5">
                       <span className="w-5 text-center text-sm font-semibold tabular-nums text-ink-3">{i + 1}</span>
                       <Avatar id={t.avatar} initials={t.name[0]} level={t.level} className="h-9 w-9 text-sm" />
-                      <span className="min-w-0 flex-1 truncate font-medium text-ink">{t.name}</span>
+                      <span className="min-w-0 flex-1 truncate text-base font-medium text-ink">{t.name}</span>
                       <span className="tabular-nums text-sm text-ink-2">{fmt(t.minutes)}</span>
                     </li>
                   ))}
                 </ol>
               ) : (
-                <p className="px-3 py-3 text-sm text-ink-2">{top ? "Nobody yet this week. One session puts you at the top." : "Your class's top three shows here."}</p>
+                <p className="px-3 py-3 text-base text-ink-2">{top ? "Nobody yet this week. One session puts you at the top." : "Your class's top three shows here."}</p>
               )}
               {top?.me && top.me.rank > 3 && (
                 <p className="border-t border-hairline px-3 pb-2 pt-3 text-sm text-ink-2">

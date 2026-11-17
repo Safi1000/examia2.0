@@ -168,7 +168,7 @@ export function reportData(db: Database, studentId: string, month: string, teach
   const late = days.filter((d) => d.status === "late").length;
   const absent = days.filter((d) => d.status === "absent").length;
   // A figure Hamza typed wins (as on the Attendance page); the day counts still show.
-  const register = [...days].sort((a, b) => a.date.localeCompare(b.date)).map((d) => ({ date: d.date, status: d.status }));
+  const register = days.toSorted((a, b) => a.date.localeCompare(b.date)).map((d) => ({ date: d.date, status: d.status }));
   const [ly, lm] = month.split("-").map(Number);
   const lastMonth = new Date(Date.UTC(ly, lm - 2, 1)).toISOString().slice(0, 7);
   const last = attendancePercent(db, student.id, `${lastMonth}-01`);
@@ -293,8 +293,7 @@ export function reportData(db: Database, studentId: string, month: string, teach
     upcoming,
     missed,
     dots: setTests
-      .slice()
-      .sort((a, b) => a.closesAt.localeCompare(b.closesAt))
+      .toSorted((a, b) => a.closesAt.localeCompare(b.closesAt))
       .map((t) => (handed.has(t.id) ? "done" : new Date(t.closesAt).getTime() < Date.now() ? "missed" : "open")),
     headline:
       average == null

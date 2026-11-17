@@ -36,15 +36,15 @@ export default function TopicsHub() {
             if (!here.length) return null;
             return (
               <section key={lvl} aria-labelledby={`tl-${lvl}`}>
-                <h2 id={`tl-${lvl}`} className="text-[13px] font-semibold uppercase tracking-[0.2em] text-faint">
+                <h2 id={`tl-${lvl}`} className="text-sm font-semibold text-faint">
                   {lvl}
                 </h2>
                 <ul className="mt-3 divide-y divide-hairline border-y border-hairline">
                   {here.map((s) => (
                     <li key={s.code}>
                       <Link href={`/past-papers/${s.slug}/topics`} className="group flex min-h-14 items-center justify-between gap-4 py-3">
-                        <span className="font-semibold text-foreground group-hover:text-gold">{s.subject === "Business" && s.level !== "AS and A Level" ? "Business Studies" : s.subject}</span>
-                        <span className="text-[14px] tabular-nums text-faint">{codesLabel(s)}</span>
+                        <span className="text-base font-semibold text-foreground underline-offset-4 group-hover:underline">{s.subject === "Business" && s.level !== "AS and A Level" ? "Business Studies" : s.subject}</span>
+                        <span className="shrink-0 text-sm tabular-nums text-faint">{codesLabel(s)}</span>
                       </Link>
                     </li>
                   ))}

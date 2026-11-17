@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { useDataReady } from "@/lib/data/store";
 import { useNotifications } from "@/hooks/useNotifications";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
-import { Button, EmptyState, Icon, Input, Modal, Skeleton, Tabs, type TabItem } from "@/components/ui";
+import { Button, EmptyState, Icon, Modal, Skeleton, Tabs, type TabItem } from "@/components/ui";
 import { categoryOf, matchesQuery, type NotificationCategory } from "@/lib/notifications";
 import type { Activity } from "@/types";
-import { EmptyArt } from "@/components/student/PortalKit";
+import { EmptyArt, PageHeader } from "@/components/student/PortalKit";
 
 /** Rows added each time the sentinel scrolls into view. */
 const PAGE_SIZE = 20;
@@ -105,15 +105,11 @@ export function NotificationsView() {
 
   return (
     <div className="rise mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
-      <div className="mb-10 flex flex-wrap items-end justify-between gap-x-6 gap-y-4 pt-2">
-        <div>
-          <h1 className="text-[2rem] font-extrabold leading-[1.05] tracking-[-0.03em] text-ink sm:text-[2.5rem]">Notifications</h1>
-          <p className="mt-3 text-base text-ink-2 tabular-nums">
-            {unreadCount > 0
-              ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}`
-              : "You're all caught up."}
-          </p>
-        </div>
+      {/* The same title block as every other screen (student and teacher). */}
+      <PageHeader
+        title="Notifications"
+        className="mb-10"
+        aside={
         <div className="flex flex-wrap items-center gap-2">
           {unreadCount > 0 && (
             <Button variant="secondary" size="sm" onClick={markAllRead}>
@@ -128,19 +124,27 @@ export function NotificationsView() {
             </Button>
           )}
         </div>
-      </div>
+        }
+      >
+        <span className="tabular-nums">
+          {unreadCount > 0
+            ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}`
+            : "You're all caught up."}
+        </span>
+      </PageHeader>
 
       {/* Search and filters only once there is enough to search through. */}
       {(activities.length > 5 || query) && (
       <div className="relative mb-4">
-        <Icon.Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" />
-        <Input
+        <Icon.Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-3" />
+        {/* The same search field as Notes: a pill, 16px type so phones don't zoom. */}
+        <input
           type="search"
           value={query}
           onChange={(e) => changeQuery(e.target.value)}
           placeholder="Search notifications and activity…"
           aria-label="Search notifications"
-          className="h-11 pl-9"
+          className="h-12 w-full rounded-full border border-field bg-surface pl-12 pr-4 text-base text-ink placeholder:text-ink-3 transition-colors duration-150 hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         />
       </div>
 
@@ -149,9 +153,16 @@ export function NotificationsView() {
       {tabs.length > 1 && <Tabs tabs={tabs} active={filter} onChange={changeFilter} className="mb-5" />}
 
       {!ready ? (
-        <div className="space-y-3" aria-busy>
+        // Shaped like the list it becomes: one card, a row each.
+        <div className="surface divide-y divide-hairline overflow-hidden rounded-card" aria-busy>
           {Array.from({ length: 5 }, (_, i) => (
-            <Skeleton key={i} className="h-20 w-full rounded-xl" />
+            <div key={i} className="flex items-start gap-3 px-5 py-4">
+              <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-2 pt-0.5">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3.5 w-1/3" />
+              </div>
+            </div>
           ))}
         </div>
       ) : shown.length === 0 ? (
@@ -177,7 +188,7 @@ export function NotificationsView() {
           }
         />
       ) : (
-        <div className="surface overflow-hidden rounded-xl">
+        <div className="surface overflow-hidden rounded-card">
           {shown.map((a) => (
             <NotificationItem
               key={a.id}
@@ -190,7 +201,7 @@ export function NotificationsView() {
           ))}
 
           {hasMore && (
-            <div ref={sentinel} className="p-4 text-center text-xs text-ink-3" aria-hidden>
+            <div ref={sentinel} className="p-4 text-center text-sm text-ink-3" aria-hidden>
               Loading more…
             </div>
           )}
@@ -216,11 +227,11 @@ export function NotificationsView() {
           </>
         }
       >
-        <p className="text-sm text-ink-2">
+        <p className="text-base text-ink-2">
           Are you sure you want to clear all your notifications?
         </p>
-        <p className="mt-2 text-xs text-ink-3">
-          This only clears your own feed. Everyone else keeps theirs.
+        <p className="mt-2 text-sm text-ink-3">
+          This empties your list. You can&apos;t undo it.
         </p>
       </Modal>
     </div>

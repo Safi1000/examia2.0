@@ -200,8 +200,8 @@ export function QuestionModal({
                 onClick={() => setType(t)}
                 aria-pressed={type === t}
                 className={
-                  "min-h-11 rounded-md border px-2 py-2.5 text-xs font-semibold transition-colors " +
-                  (type === t ? "border-brand bg-brand-soft text-brand" : "border-border-strong bg-surface text-ink-2 hover:bg-surface-2")
+                  "min-h-11 rounded-field border px-2 py-2.5 text-sm font-semibold transition-colors duration-150 ease-[var(--ease-out)] " +
+                  (type === t ? "border-white/[0.16] bg-white/[0.09] text-ink" : "border-border bg-surface text-ink-3 hover:border-border-strong hover:text-ink")
                 }
               >
                 {TYPE_LABEL[t]}
@@ -246,12 +246,12 @@ export function QuestionModal({
               {attachments.map((url, i) => (
                 <li key={url} className="relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={cld(url, 400)} loading="lazy" decoding="async" alt={`Attached page ${i + 1}`} className="h-24 w-full rounded border border-border bg-surface-2 object-cover" />
+                  <img src={cld(url, 400)} loading="lazy" decoding="async" alt={`Attached page ${i + 1}`} className="h-24 w-full rounded-field border border-hairline bg-surface-2 object-cover" />
                   <button
                     type="button"
                     onClick={() => setAttachments(attachments.filter((_, idx) => idx !== i))}
                     aria-label={`Remove page ${i + 1}`}
-                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded bg-paper/85 text-ink-2 before:absolute before:-inset-2.5 before:content-[''] hover:bg-error hover:text-paper"
+                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-paper/85 text-ink-2 before:absolute before:-inset-2.5 before:content-[''] hover:bg-error hover:text-paper"
                   >
                     ×
                   </button>
@@ -284,8 +284,8 @@ export function QuestionModal({
                 <div
                   key={i}
                   className={cn(
-                    "flex min-h-[52px] items-center gap-3 rounded-md border px-4 py-2 transition-colors",
-                    correctIndex === i ? "border-brand bg-brand-soft" : "border-border-strong bg-surface",
+                    "flex min-h-[52px] items-center gap-3 rounded-field border px-4 py-2 transition-colors duration-150",
+                    correctIndex === i ? "border-white/[0.16] bg-white/[0.09]" : "border-field bg-surface",
                   )}
                 >
                   <button
@@ -307,7 +307,7 @@ export function QuestionModal({
                     onChange={(e) => setOptions((prev) => prev.map((o, j) => (j === i ? e.target.value : o)))}
                     onKeyDown={(e) => {
                       // Enter goes to the next option.
-                      if (e.key === "Enter" && !e.ctrlKey && !e.metaKey) {
+                      if (e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.nativeEvent.isComposing) {
                         e.preventDefault();
                         (e.currentTarget.closest(".space-y-2")?.querySelectorAll("input")[i + 1] as HTMLInputElement | undefined)?.focus();
                       }
@@ -319,7 +319,7 @@ export function QuestionModal({
                 </div>
               ))}
             </div>
-            <p className="mt-1.5 text-xs text-ink-3">Tap the circle to mark the correct answer.</p>
+            <p className="mt-1.5 text-sm text-ink-3">Tap the circle to mark the correct answer.</p>
             {errors.options && <p className="mt-1.5 text-sm font-medium text-error">{errors.options}</p>}
           </div>
         )}
@@ -334,7 +334,7 @@ export function QuestionModal({
         )}
 
         {type === "photo" && (
-          <p className="rounded-md border border-border bg-surface-2/60 px-3 py-2.5 text-sm text-ink-2">
+          <p className="rounded-tile bg-surface-2 px-4 py-3 text-sm text-ink-2">
             Students will upload or photograph their handwritten working. Marked manually during grading.
           </p>
         )}

@@ -32,7 +32,7 @@ export default async function BlogPage() {
       />
       <section className="pb-20 pt-12 md:pb-28 md:pt-16">
         <div className="mx-auto max-w-6xl px-5">
-          <h1 className="text-center text-4xl font-bold leading-[1.05] tracking-tight text-foreground md:text-6xl">
+          <h1 className="text-center text-4xl font-bold leading-[1.05] tracking-tight text-ink md:text-6xl">
             The Exam Room
           </h1>
           <div className="mt-10 md:mt-14">

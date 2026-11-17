@@ -339,7 +339,7 @@ export default function AdminAssignmentsPage() {
     setEditing(null);
     setForm(null);
     setPpQs(null);
-    toast("Assignment saved.", "success");
+    toast("Homework saved.", "success");
   }
 
   const ppUrls = new Set(ppQs ? urlsOf(ppQs) : []);
@@ -370,7 +370,7 @@ export default function AdminAssignmentsPage() {
       ) : (
         <div role="group" aria-label="Homework" onKeyDown={sel.listKeyDown}>
         <span data-owner className="contents"><SelectAll sel={sel} noun="homework" /></span>
-        <Card className="divide-y divide-border overflow-hidden p-0">
+        <Card className="divide-y divide-hairline overflow-hidden p-0">
           {assignments.map((a) => {
             const handIns = db.assignmentSubmissions.filter((s) => s.assignmentId === a.id);
             // "3 of 5": the same people as the hand-ins window (who handed in, plus who it was set for and hasn't), without the test account.
@@ -381,7 +381,7 @@ export default function AdminAssignmentsPage() {
             const cls = db.classes.find((c) => c.id === a.classId);
             const subj = db.subjects.find((x) => x.id === a.subjectId);
             return (
-              <div key={a.id} className="flex items-start gap-3 px-4 py-4 transition-colors hover:bg-white/[0.018]">
+              <div key={a.id} className="flex items-start gap-3 px-4 py-4 transition-colors duration-150 hover:bg-white/[0.018] sm:px-5">
                 <span data-owner className="pt-1">
                   <RowCheck id={a.id} checked={sel.isSelected(a.id)} onToggle={sel.toggle} label={`Select ${a.title}`} />
                 </span>
@@ -396,7 +396,7 @@ export default function AdminAssignmentsPage() {
                       {[cohort?.name, cls?.name, subj?.name].filter(Boolean).join(" › ") || "All students"}
                       {" · "}
                       {handedReal.length} of {setForCount} handed in
-                      {handIns.some((h) => !h.feedback) && <span className="font-semibold text-brand"> · {handIns.filter((h) => !h.feedback).length} to reply</span>}
+                      {handIns.some((h) => !h.feedback) && <span className="font-semibold text-ink"> · {handIns.filter((h) => !h.feedback).length} to reply</span>}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -444,7 +444,7 @@ export default function AdminAssignmentsPage() {
           type="datetime-local"
           value={bulkDue}
           onChange={(e) => setBulkDue(e.target.value)}
-          className="h-12 w-full rounded-md border border-border-strong bg-surface px-3 text-base tabular-nums text-ink"
+          className="h-12 w-full rounded-field border border-field bg-surface px-3.5 text-base tabular-nums text-ink transition-colors hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           aria-label="New deadline (Pakistan time)"
           aria-invalid={!!bulkDueProblem}
         />
@@ -495,7 +495,7 @@ export default function AdminAssignmentsPage() {
                   setDueTyped(true);
                   setForm({ ...form, dueAt: e.target.value });
                 }}
-                className="h-12 w-full rounded-md border border-border-strong bg-surface px-3 text-base tabular-nums text-ink"
+                className="h-12 w-full rounded-field border border-field bg-surface px-3.5 text-base tabular-nums text-ink transition-colors hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
               />
             </div>
 
@@ -523,17 +523,17 @@ export default function AdminAssignmentsPage() {
                 {ppQs.length === 0 ? (
                   <p className="text-sm text-ink-3">All removed. Attach a worksheet below, or close and build again.</p>
                 ) : (
-                  <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+                  <ul className="divide-y divide-hairline overflow-hidden rounded-tile border border-hairline">
                     {ppQs.map((q) => (
-                      <li key={q.id} className="flex items-center gap-3 py-2 pl-2 pr-1">
-                        <div className="w-16 shrink-0 overflow-hidden rounded border border-border bg-white sm:w-20">
+                      <li key={q.id} className="flex items-center gap-3 py-2 pl-3 pr-1">
+                        <div className="w-16 shrink-0 overflow-hidden rounded-field border border-hairline bg-white sm:w-20">
                           <div className="max-h-14 overflow-hidden">
                             <PaperImage url={q.attachments[0]} width={300} alt={`${q.label}, first page`} />
                           </div>
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-ink">{q.label}</p>
-                          <p className="truncate text-xs text-ink-3">{q.kind === "mcq" ? "Multiple choice" : "Written"} · {q.topic}</p>
+                          <p className="truncate text-base font-semibold text-ink">{q.label}</p>
+                          <p className="truncate text-sm text-ink-3">{q.kind === "mcq" ? "Multiple choice" : "Written"} · {q.topic}</p>
                         </div>
                         <button
                           type="button"
@@ -575,14 +575,14 @@ export default function AdminAssignmentsPage() {
                 <ul className="mb-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
                   {form.attachments.map((url, i) => ppUrls.has(url) ? null : (
                     <li key={url} className="relative">
-                      <div className="h-24 w-full overflow-hidden rounded border border-border bg-surface-2">
+                      <div className="h-24 w-full overflow-hidden rounded-field border border-hairline bg-surface-2">
                         <PaperImage url={url} width={400} alt={`Page ${i + 1}`} className="h-24 w-full object-cover" />
                       </div>
                       <button
                         type="button"
                         onClick={() => setForm({ ...form, attachments: form.attachments.filter((_, idx) => idx !== i) })}
                         aria-label={`Remove page ${i + 1}`}
-                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded bg-paper/85 text-ink-2 before:absolute before:-inset-2.5 before:content-[''] hover:bg-error hover:text-paper"
+                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-paper/85 text-ink-2 before:absolute before:-inset-2.5 before:content-[''] hover:bg-error hover:text-paper"
                       >
                         ×
                       </button>
@@ -617,11 +617,18 @@ export default function AdminAssignmentsPage() {
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
         title="Delete this homework?"
-        description={target ? `"${target.title}" and every hand-in will be removed.` : ""}
+        description={
+          target
+            ? (() => {
+                const n = db.assignmentSubmissions.filter((s) => s.assignmentId === target.id).length;
+                return n ? `"${target.title}" goes, with ${plural(n, "hand-in")} and your feedback on them.` : `"${target.title}" will be removed.`;
+              })()
+            : ""
+        }
         footer={
           <>
             <Button variant="secondary" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button variant="danger" onClick={() => { if (deleteId) store.deleteAssignment(deleteId); setDeleteId(null); toast("Assignment deleted.", "success"); }}>Delete</Button>
+            <Button variant="danger" onClick={() => { if (deleteId) store.deleteAssignment(deleteId); setDeleteId(null); toast("Homework deleted.", "success"); }}>Delete</Button>
           </>
         }
       >
@@ -656,7 +663,7 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
   const focusSecs = (studentId: string) => activity?.[studentId]?.focusHomework?.[assignmentId] ?? 0;
   const focusNote = (studentId: string) => {
     const secs = focusSecs(studentId);
-    return secs >= 60 ? <span className="text-xs tabular-nums text-ink-3">{fmtTime(secs)} in Groundwork</span> : null;
+    return secs >= 60 ? <span className="text-sm tabular-nums text-ink-3">{fmtTime(secs)} in Groundwork</span> : null;
   };
   // Everyone it was set for (handed in or not), without Hamza's test account.
   const setFor = [...new Set([...rows.map((r) => r.studentId), ...owed.map((s) => s.id)])].filter((id) => !isTestAccount(studentById(db, id)));
@@ -672,11 +679,11 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
   );
 
   const missing = owed.length > 0 && (
-    <details className="rounded-md border border-border bg-surface-2/40 px-4 py-3">
-      <summary className="cursor-pointer select-none text-sm font-semibold text-ink">Not handed in yet ({owed.length})</summary>
-      <ul className="mt-2 divide-y divide-border">
+    <details className="rounded-tile bg-surface-2 px-4 py-3">
+      <summary className="flex min-h-11 cursor-pointer select-none items-center text-base font-semibold text-ink">Not handed in yet ({owed.length})</summary>
+      <ul className="mt-1 divide-y divide-hairline">
         {owed.map((s) => (
-          <li key={s.id} className="flex min-h-11 items-center justify-between gap-3 py-2 text-sm">
+          <li key={s.id} className="flex min-h-11 items-center justify-between gap-3 py-2 text-base">
             <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
               <span className="text-ink-2">{nameOf(s.username)}</span>
               {focusNote(s.id)}
@@ -688,7 +695,7 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
                 href={`https://wa.me/${s.phone.replace(/\D/g, "")}?text=${encodeURIComponent(studentHomeworkDue({ id: s.id, username: s.username, title: a!.title, due }))}`}
                 target="_blank"
                 rel="noreferrer"
-                className="text-xs font-semibold text-brand hover:underline"
+                className="inline-flex min-h-11 shrink-0 items-center text-sm font-semibold text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline"
               >
                 Remind on WhatsApp
               </a>
@@ -715,10 +722,10 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
       {rows.map((s) => {
         const student = studentById(db, s.studentId);
         return (
-          <div key={s.id} className="border-b border-border pb-5 last:border-0 last:pb-0">
+          <div key={s.id} className="border-b border-hairline pb-5 last:border-0 last:pb-0">
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="font-semibold capitalize text-ink">{student?.username ?? "Unknown"}</span>
-              <span className="text-xs text-ink-3">handed in {formatTimestamp(s.submittedAt)}</span>
+              <span className="text-base font-semibold capitalize text-ink">{student?.username ?? "Unknown"}</span>
+              <span className="text-sm text-ink-3">handed in {formatTimestamp(s.submittedAt)}</span>
               {focusNote(s.studentId)}
             </div>
             <PageStack urls={s.fileUrls} label={`${student?.username ?? "Student"}'s work`} />
@@ -748,7 +755,7 @@ function FeedbackBox({ initial, onSave, onDirty }: { initial: string; onSave: (t
         placeholder="What they did well, what to fix…"
         className="min-h-20"
       />
-      <Button size="sm" className="mt-2" disabled={text.trim() === initial.trim()} onClick={() => onSave(text.trim())}>
+      <Button size="sm" className="mt-2" variant={text.trim() === initial.trim() ? "secondary" : "primary"} disabled={text.trim() === initial.trim()} onClick={() => onSave(text.trim())}>
         Send feedback
       </Button>
     </div>

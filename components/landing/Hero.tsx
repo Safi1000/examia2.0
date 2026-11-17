@@ -6,7 +6,7 @@ import { LANDING, posterFor, track } from "@/lib/landing";
 import { COMPANY_NAME } from "@/lib/config";
 
 /**
- * Above the fold: the trial pill, the headline, the tagline and one button.
+ * Above the fold: the trial status line, the headline, the tagline and one button.
  * Who and what (subjects, boards, online) is in the trust cards just below.
  */
 export function Hero() {
@@ -15,18 +15,15 @@ export function Hero() {
   return (
     <section id="top">
       <div className="intro-rise mx-auto flex max-w-4xl flex-col items-center px-5 pb-14 pt-10 text-center md:pb-20 md:pt-16">
-        <button
-          type="button"
-          onClick={() => open({ from: "hero_pill" })}
-          className="group inline-flex min-h-11 items-center gap-2 rounded-full border border-hairline-strong bg-[rgba(33,36,39,0.5)] px-4 text-sm text-muted-foreground transition-colors duration-200 hover:border-[rgba(255,255,255,0.28)] hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
-        >
-          <span className="hidden sm:inline">Live online · </span>Free trials open for May / June 2027
-          <span aria-hidden className="text-faint transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transform-none">→</span>
-        </button>
+        {/* A status line, not a button: the gold button below is the one thing to tap. */}
+        <p className="inline-flex min-h-9 items-center gap-2 rounded-full border border-hairline bg-band-a/50 px-4 text-sm text-muted-foreground">
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-gold" />
+          <span><span className="hidden sm:inline">Live online · </span>Free trials open for May / June 2027</span>
+        </p>
 
         <h1 className="mt-7 text-[2.5rem] leading-[1.06] sm:text-6xl md:text-[4.25rem]">
           <span className="block">You know the syllabus.</span>
-          <span className="block text-[#b9bec3]">You still lose the marks.</span>
+          <span className="block text-muted-foreground">You still lose the marks.</span>
         </h1>
 
         <p className="mt-6 whitespace-nowrap max-[359px]:whitespace-normal font-hand text-[clamp(1.5rem,4.6vw,2.4rem)] font-bold text-gold">
@@ -46,7 +43,7 @@ export function Hero() {
           </span>
         </p>
 
-        <p className="mt-7 flex items-center justify-center gap-3 text-[13px] font-semibold uppercase tracking-[0.16em] text-muted-foreground sm:gap-4 sm:text-sm">
+        <p className="mt-7 flex items-center justify-center gap-3 text-sm font-semibold text-muted-foreground sm:gap-4 sm:text-base">
           <span>Accounting</span>
           <span aria-hidden className="h-3.5 w-px bg-hairline-strong" />
           <span>Business</span>
@@ -58,17 +55,18 @@ export function Hero() {
           type="button"
           data-hero-cta
           onClick={() => open({ from: "hero" })}
-          className="group mt-9 inline-flex min-h-14 items-center gap-2 rounded-full bg-gold px-8 text-base font-semibold text-[#1b1e21] transition-[background-color,transform] duration-200 ease-out hover:bg-gold-hover active:scale-[0.98] active:bg-[#f0b444] motion-reduce:active:scale-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+          className="group mt-9 inline-flex min-h-14 items-center gap-2 rounded-full bg-gold px-8 text-base font-semibold text-band-b transition-[background-color,transform] duration-200 ease-out hover:bg-gold-hover active:scale-[0.98] active:bg-[#f0b444] motion-reduce:active:scale-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
         >
           Book your free trial lesson
           <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transform-none">→</span>
         </button>
+        <p className="mt-4 text-balance text-sm text-faint">Free. You sit in on a real class first.</p>
       </div>
 
       <div className="mx-auto max-w-5xl px-5 pb-9 md:pb-20">
         <div
           onClick={() => track("vsl_play")}
-          className="pc-frame relative aspect-video w-full overflow-hidden rounded-[20px] bg-band-c md:rounded-[24px]"
+          className="pc-frame relative aspect-video w-full overflow-hidden rounded-card bg-band-c"
         >
           <VideoPlayer
             big

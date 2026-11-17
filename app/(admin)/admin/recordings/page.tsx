@@ -88,7 +88,7 @@ export default function RecordingsPage() {
   const shown = rows.filter((r) => (level === "all" || r.levelName === level) && (subject === "all" || r.subject === subject) && (month === "all" || r.date.startsWith(month)));
   const groups = useMemo(() => {
     const out: Array<{ title: string; rows: Row[] }> = [];
-    for (const r of [...shown].sort((a, b) => order(rows, a.levelName) - order(rows, b.levelName) || a.subject.localeCompare(b.subject) || (a.date < b.date ? 1 : -1))) {
+    for (const r of shown.toSorted((a, b) => order(rows, a.levelName) - order(rows, b.levelName) || a.subject.localeCompare(b.subject) || (a.date < b.date ? 1 : -1))) {
       const title = `${r.levelName} · ${r.subject}`;
       if (out[out.length - 1]?.title !== title) out.push({ title, rows: [] });
       out[out.length - 1].rows.push(r);
@@ -327,7 +327,7 @@ export default function RecordingsPage() {
       </Modal>
 
       {error && !state && (
-        <Card className="mb-4 p-4 text-sm text-ink-2">
+        <Card className="mb-4 p-5 text-base text-ink-2 sm:p-6">
           Couldn&apos;t load who can open recordings right now. <button type="button" className="font-semibold text-ink underline" onClick={() => void reloadAccess()}>Try again</button>
         </Card>
       )}
@@ -337,7 +337,7 @@ export default function RecordingsPage() {
         {catchUp ? (
           <div className="space-y-3">
             <h2 className={panelTitle}>Catch-up is on until {pkWhen(catchUp.endsAt)}</h2>
-            <p className="max-w-[65ch] text-sm text-ink-2">
+            <p className="max-w-[65ch] text-base text-ink-2">
               Current students can open every past recording for their own level and subjects. It closes by itself on {pkWhenLong(catchUp.endsAt)}.
             </p>
             {catchUp.total > 0 && <p className="text-sm tabular-nums text-ink-3">
@@ -346,7 +346,7 @@ export default function RecordingsPage() {
               {catchUp.waiting ? `, ${catchUp.waiting} still to open` : ""}.
             </p>}
             {catchUp.failed.length > 0 && (
-              <details className="text-[13px] text-ink-3">
+              <details className="text-sm text-ink-3">
                 <summary className="min-h-11 cursor-pointer content-center font-semibold text-ink-2">Which ones failed</summary>
                 <ul className="mt-1 space-y-1">
                   {catchUp.failed.slice(0, 50).map((f) => {
@@ -380,11 +380,11 @@ export default function RecordingsPage() {
         ) : (
           <div className="space-y-3">
             <h2 className={panelTitle}>Let students catch up</h2>
-            <p className="max-w-[65ch] text-sm text-ink-2">
+            <p className="max-w-[65ch] text-base text-ink-2">
               Opens every past recording to current students for {CATCH_UP_HOURS} hours, each student only their own level and subjects. It closes by itself.
             </p>
             {state?.lastCatchUp && (
-              <p className="text-[13px] text-ink-3">
+              <p className="text-sm text-ink-3">
                 Last catch-up: {dayLabel(pkDate(state.lastCatchUp.startedAt))} to {pkWhen(state.lastCatchUp.endsAt)}{state.lastCatchUp.opened ? `, ${plural(state.lastCatchUp.opened, "recording")} opened` : ""}.
               </p>
             )}
@@ -452,11 +452,11 @@ export default function RecordingsPage() {
         <div className="space-y-4">
           {groups.map((g) => (
             <Card key={g.title} className="overflow-hidden p-0">
-              <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-4 sm:px-5">
+              <div className="flex items-center justify-between gap-3 px-5 pb-2 pt-5 sm:px-6">
                 <h2 className={panelTitle}>{g.title}</h2>
-                <span className="text-xs tabular-nums text-ink-3">{plural(g.rows.length, "recording")}</span>
+                <span className="text-sm tabular-nums text-ink-3">{plural(g.rows.length, "recording")}</span>
               </div>
-              <ul className="divide-y divide-border border-t border-border">
+              <ul className="divide-y divide-hairline border-t border-hairline">
                 {g.rows.map((r) => (
                   <RecordingItem key={r.key} r={r} nowMs={nowMs} busy={busy} opened={openedBy.get(r.key) ?? []} onOne={one} onDelete={setDelAsk} picked={sel.isSelected(r.key)} onPick={sel.toggle} />
                 ))}
@@ -514,7 +514,7 @@ export default function RecordingsPage() {
       {rows.length > 0 && (
         <Card className="mt-8 p-5 sm:p-6">
           <h2 className={panelTitle}>New links for older recordings</h2>
-          <p className="mt-1 max-w-[65ch] text-sm text-ink-2">
+          <p className="mt-1 max-w-[65ch] text-base text-ink-2">
             A closed recording can&apos;t be opened by anyone, so a past student&apos;s saved link only matters while recordings are open. New links make every old saved link stop working for good, even during a later catch-up.
           </p>
           <p className="mt-2 text-sm font-semibold text-ink">
@@ -550,7 +550,7 @@ export default function RecordingsPage() {
               </Button>
             )}
           </div>
-          <p className="mt-3 max-w-[65ch] text-[13px] text-ink-3">
+          <p className="mt-3 max-w-[65ch] text-sm text-ink-3">
             Recordings open to students right now are left as they are. Nothing is deleted: Google Drive keeps each old file in &quot;Hamza Teaches recordings / Replaced links&quot;. Each new link is a full copy of the video, so delete that folder&apos;s files in Drive when you want the space back.
           </p>
         </Card>
@@ -642,26 +642,39 @@ function RecordingItem({
   const { toast } = useToast();
   const [who, setWho] = useState(false);
   const open = r.until > nowMs;
-  const small = "inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors pointer-coarse:h-11 pointer-coarse:px-4 disabled:opacity-50";
+  const small = "inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-colors duration-150 pointer-coarse:h-11 pointer-coarse:px-4 disabled:opacity-50";
   return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:px-5">
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3 sm:px-6">
       <RowCheck id={r.key} checked={picked} onToggle={onPick} label={`Select the ${r.subject} recording from ${dayLabel(r.date)}`} />
       <span className="min-w-0 flex-1 basis-48">
-        <span className="block font-semibold tabular-nums text-ink">{dayLabel(r.date)}</span>
-        <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[13px] text-ink-3">
+        <span className="block text-base font-semibold tabular-nums text-ink">{dayLabel(r.date)}</span>
+        <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-ink-3">
           <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold", open ? "bg-white/[0.07] text-ink" : "bg-surface-2 text-ink-3")}>
             {open ? `Open to students until ${pkWhen(r.until)}` : "Closed"}
           </span>
-          {opened.length > 0 && (
-            <button type="button" className="rounded underline decoration-border-strong underline-offset-4 hover:text-ink pointer-coarse:min-h-11" aria-expanded={who} onClick={() => setWho((w) => !w)}>
-              Opened by {opened.length === 1 ? "1 student" : `${opened.length} students`}
-            </button>
-          )}
+          {opened.length > 0 &&
+            (() => {
+              // How long it was watched, said on the row itself (it used to sit behind a small "Opened by" link).
+              const timed = opened.filter((o) => o.sec > 0);
+              const average = timed.length ? timed.reduce((n, o) => n + o.sec, 0) / timed.length : 0;
+              return (
+                <button
+                  type="button"
+                  className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-border-strong px-2.5 text-xs font-semibold text-ink transition-colors duration-150 hover:bg-surface-2 pointer-coarse:min-h-11 pointer-coarse:px-3.5"
+                  aria-expanded={who}
+                  onClick={() => setWho((w) => !w)}
+                >
+                  {opened.length === 1 ? "1 student watched" : `${opened.length} students watched`}
+                  {average > 0 && <span className="font-normal text-ink-2">· {timed.length === 1 ? watchLabel(average) : `${watchLabel(average)} on average`}</span>}
+                  <Icon.ChevronRight className={cn("h-3.5 w-3.5 text-ink-3 transition-transform duration-150", who && "rotate-90")} />
+                </button>
+              );
+            })()}
         </span>
       </span>
       <span className="flex flex-wrap items-center gap-1">
         <a href={r.url} target="_blank" rel="noreferrer" className={cn(small, "text-ink-2 hover:bg-surface-2 hover:text-ink")} aria-label={`Open the ${r.subject} recording from ${dayLabel(r.date)}`}>
-          <Icon.NewTab className="h-3.5 w-3.5" /> Open
+          <Icon.NewTab className="h-4 w-4" /> Open
         </a>
         <button
           type="button"
@@ -683,17 +696,17 @@ function RecordingItem({
             className={cn(small, "text-ink-2 hover:bg-surface-2 hover:text-ink")}
             aria-label={`Download the ${r.subject} recording from ${dayLabel(r.date)}`}
           >
-            <Icon.Download className="h-3.5 w-3.5" /> Download
+            <Icon.Download className="h-4 w-4" /> Download
           </a>
         )}
         <button
           type="button"
           disabled={!!busy}
-          className={cn(small, "text-ink-3 hover:bg-[#E5685A]/[0.12] hover:text-[#F4A397]")}
+          className={cn(small, "text-ink-3 hover:bg-error-soft hover:text-error")}
           onClick={() => onDelete(r)}
           aria-label={`Delete the ${r.subject} recording from ${dayLabel(r.date)}`}
         >
-          <Icon.Trash className="h-3.5 w-3.5" /> Delete
+          <Icon.Trash className="h-4 w-4" /> Delete
         </button>
         {open ? (
           <button type="button" disabled={!!busy} aria-busy={busy === r.key} className={cn(small, "border border-border-strong text-ink hover:bg-surface-2")} onClick={() => onOne(r.key, "close")}>
@@ -706,14 +719,16 @@ function RecordingItem({
         )}
       </span>
       {who && opened.length > 0 && (
-        <ul className="basis-full space-y-1 rounded-lg bg-surface-2/50 px-3 py-2.5 text-[13px] sm:ml-9">
+        <ul className="basis-full space-y-1 rounded-tile bg-surface-2 px-4 py-3 text-sm sm:ml-9">
           {opened.map(({ st, sec }) => (
             <li key={st.id} className="flex items-baseline justify-between gap-3">
               <Link href={`/admin/roster/${st.id}`} className="min-w-0 truncate font-semibold text-ink-2 hover:text-ink">{displayName(st.username)}</Link>
-              <span className="shrink-0 tabular-nums text-ink-3">{sec ? watchLabel(sec) : "opened"}</span>
+              <span className={cn("shrink-0 tabular-nums", sec ? "font-semibold text-ink" : "text-ink-3")}>{sec ? watchLabel(sec) : "opened, no time counted"}</span>
             </li>
           ))}
-          <li className="pt-1 text-xs text-ink-3">Minutes are how long the recording was open on their screen in the portal.</li>
+          <li className="pt-1 text-sm text-ink-3">
+            Minutes are how long the recording was open on their screen in the portal, counted since 17 Nov 2026. &quot;No time counted&quot; means it was opened before then, or in Google Drive.
+          </li>
         </ul>
       )}
     </li>

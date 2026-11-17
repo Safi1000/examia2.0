@@ -51,7 +51,7 @@ export default function PrivateCandidatesSaudiArabia() {
 
       <article className="public-calm mx-auto max-w-3xl px-5 pb-24 pt-12 md:pt-20">
         <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Private candidate guide, Saudi Arabia" }]} />
-        <h1 className="mt-8 text-[2.25rem] leading-[1.08] md:text-5xl">
+        <h1 className="mt-8 text-title leading-[1.1] sm:text-title-lg">
           Sitting IGCSE or A Level as a private candidate in Saudi Arabia
         </h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
@@ -60,7 +60,7 @@ export default function PrivateCandidatesSaudiArabia() {
         </p>
 
         <Section title="Who handles your entry">
-          <p className="text-[17px] leading-relaxed text-body">
+          <p className="text-lg leading-relaxed text-body">
             Without a school, you enter Cambridge exams through the British Council, which has a separate registration route for private
             candidates. It has offices in Riyadh, in the Diplomatic Quarter, and in Jeddah and Al Khobar. Contact the one nearest you: it is
             also where special arrangement requests and corrections go.
@@ -68,14 +68,14 @@ export default function PrivateCandidatesSaudiArabia() {
         </Section>
 
         <Section title="The two sessions">
-          <p className="text-[17px] leading-relaxed text-body">
+          <p className="text-lg leading-relaxed text-body">
             Cambridge exams run in May / June and in October / November. Each exam board has its own
             registration dates, so the dates for Cambridge are not the same as the dates for Pearson Edexcel.
           </p>
         </Section>
 
         <Section title="Three rules the British Council states">
-          <ul className="list-disc space-y-3 pl-5 text-[17px] leading-relaxed text-body">
+          <ul className="list-disc space-y-3 pl-5 text-lg leading-relaxed text-body">
             <li>
               <strong className="text-foreground">Late entry costs more.</strong> You may be able to register after the deadline, but late
               registration carries extra fees.
@@ -92,23 +92,23 @@ export default function PrivateCandidatesSaudiArabia() {
         </Section>
 
         <Section title="What to ask the office before you pay">
-          <ol className="list-decimal space-y-3 pl-5 text-[17px] leading-relaxed text-body">
+          <ol className="list-decimal space-y-3 pl-5 text-lg leading-relaxed text-body">
             <li>When do regular and late registration open and close for May / June 2027?</li>
             <li>What is the fee for each of my subjects, and can it be refunded if I withdraw?</li>
             <li>Which documents do you need from me, and how do I send them?</li>
             <li>Where will I sit the exams?</li>
             <li>If I am still enrolled at a school, do I need anything from it?</li>
           </ol>
-          <p className="mt-5 text-[17px] leading-relaxed text-body">
+          <p className="mt-5 text-lg leading-relaxed text-body">
             Write the answers down with the date and the name of the person you spoke to. If anything changes later, you have a record.
           </p>
         </Section>
 
         <Section title="Fitting study around a Saudi week">
-          <p className="text-[17px] leading-relaxed text-body">
+          <p className="text-lg leading-relaxed text-body">
             The school week here runs Sunday to Thursday, and my classes run Monday to Friday, from 1:30 pm Saudi time. The{" "}
-            <Link href="/online-classes/riyadh" className="text-gold hover:underline">Riyadh</Link> and{" "}
-            <Link href="/online-classes/jeddah" className="text-gold hover:underline">Jeddah</Link> pages show every class on your clock and how
+            <Link href="/online-classes/riyadh" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">Riyadh</Link> and{" "}
+            <Link href="/online-classes/jeddah" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">Jeddah</Link> pages show every class on your clock and how
             the two weeks fit together.
           </p>
         </Section>
@@ -130,15 +130,15 @@ export default function PrivateCandidatesSaudiArabia() {
 
         <p className="mt-12 text-sm leading-relaxed text-faint">
           Sources:{" "}
-          <a href="https://www.britishcouncil.sa/en/exam/igcse-school/register" className="hover:text-gold" rel="noopener">
+          <a href="https://www.britishcouncil.sa/en/exam/igcse-school/register" className="underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:text-muted-foreground" rel="noopener">
             British Council Saudi Arabia, how to register
           </a>
           ,{" "}
-          <a href="https://www.britishcouncil.sa/en/exam/igcse-school/register/dates-deadlines" className="hover:text-gold" rel="noopener">
+          <a href="https://www.britishcouncil.sa/en/exam/igcse-school/register/dates-deadlines" className="underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:text-muted-foreground" rel="noopener">
             registration dates and deadlines
           </a>
           ,{" "}
-          <a href="https://www.britishcouncil.sa/english/schools/riyadh/mens" className="hover:text-gold" rel="noopener">
+          <a href="https://www.britishcouncil.sa/english/schools/riyadh/mens" className="underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:text-muted-foreground" rel="noopener">
             Riyadh office
           </a>
           . Fees and dates change each session: always confirm with the British Council before you pay.

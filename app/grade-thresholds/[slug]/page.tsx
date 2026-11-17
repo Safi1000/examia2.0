@@ -6,6 +6,7 @@ import { GradePredictor } from "@/components/landing/GradePredictor";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
 import { ScrollTable as Table } from "./ScrollTable";
+import "@/components/landing/public-calm.css";
 import { RelatedLinks, syllabusLinks } from "@/components/study/RelatedLinks";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 import {
@@ -139,7 +140,7 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
           variant. Below them: the totals that would have been enough on every one of those papers, so you know what to aim for
           in 2027.
         </p>
-        <a href="#calculator" className="mt-6 inline-flex min-h-11 items-center rounded-full border border-hairline-strong px-5 text-[15px] font-semibold text-body hover:border-gold-border hover:text-foreground">
+        <a href="#calculator" className="mt-6 inline-flex min-h-11 items-center rounded-full border border-hairline-strong px-5 text-sm font-semibold text-foreground transition-[background-color,border-color,transform] duration-150 hover:border-white/25 hover:bg-white/[0.04] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
           Check your own marks
         </a>
 
@@ -157,8 +158,8 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
               )}
 
               {a && (
-                <div className="mt-8 rounded-[20px] border border-gold-border bg-card p-6 md:p-7">
-                  <p className="text-sm font-semibold text-gold">{latest}, quick answer</p>
+                <div className="pc-surface mt-8 rounded-card p-5 sm:p-6">
+                  <p className="text-sm font-semibold text-muted-foreground">{latest}, quick answer</p>
                   <p className="mt-2 text-xl font-semibold leading-snug text-foreground">
                     {g(top) === "A*" ? "An A*" : `Grade ${g(top)}`} needed{" "}
                     {a.low.min === a.high.min
@@ -179,9 +180,9 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
                 }
               >
                 {CHANGES_2027[s.code] && (
-                  <p className="mb-4 rounded-[14px] border border-hairline bg-card px-4 py-3 text-[15px] leading-relaxed text-muted-foreground">
+                  <p className="pc-surface mb-4 rounded-tile px-4 py-3 text-base leading-relaxed text-muted-foreground">
                     {CHANGES_2027[s.code].note}{" "}
-                    <Link href={CHANGES_2027[s.code].href} className="text-gold hover:underline">
+                    <Link href={CHANGES_2027[s.code].href} className="font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:decoration-foreground">
                       What changes in 2027
                     </Link>
                     .
@@ -213,7 +214,7 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
                       <div key={sess}>
                         <h3 className="mb-2 flex flex-wrap items-center gap-x-3 text-lg font-semibold text-foreground">
                           {sess}{" "}
-                          <a href={s.sessions[sess]!.source} className="inline-flex min-h-11 items-center text-sm font-normal text-gold underline-offset-4 hover:underline" rel="noopener">
+                          <a href={s.sessions[sess]!.source} className="inline-flex min-h-11 items-center text-sm font-normal text-muted-foreground underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:text-foreground" rel="noopener">
                             Official table (PDF)
                           </a>
                         </h3>
@@ -265,18 +266,18 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
         <RelatedLinks links={syllabusLinks(p.code, ["thresholds"])} />
 
         <Section title="Other syllabuses">
-          <ul className="grid gap-3 sm:grid-cols-2">
+          <ul className="pc-surface divide-y divide-hairline overflow-hidden rounded-card">
             {others.map((o) => (
               <li key={o.slug}>
-                <Link href={`/grade-thresholds/${o.slug}`} className="block rounded-[16px] border border-hairline bg-card px-5 py-4 text-foreground hover:border-gold-border">
+                <Link href={`/grade-thresholds/${o.slug}`} className="row-link flex min-h-14 items-center px-5 py-3 text-base font-semibold text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-gold">
                   {o.name} grade thresholds
                 </Link>
               </li>
             ))}
           </ul>
-          <p className="mt-6 text-[15px] text-muted-foreground">
+          <p className="mt-6 text-base text-muted-foreground">
             Why there is no fixed percentage for an A:{" "}
-            <Link href="/blog/cambridge-grade-thresholds-explained" className="text-gold hover:underline">
+            <Link href="/blog/cambridge-grade-thresholds-explained" className="font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:decoration-foreground">
               grade thresholds explained
             </Link>
             .

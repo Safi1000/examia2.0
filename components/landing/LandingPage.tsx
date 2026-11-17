@@ -10,6 +10,7 @@ import { MobileCta } from "./MobileCta";
 import { CookieBanner } from "./CookieBanner";
 import { BookingProvider } from "./BookingModal";
 import { Backdrop } from "./Backdrop";
+import { Reveal } from "./Reveal";
 import { IntroLogo } from "./IntroLogo";
 import "./public-calm.css";
 
@@ -23,9 +24,10 @@ export function LandingPage() {
       <div className="landing relative isolate">
         <Backdrop />
         <IntroLogo />
+        <Reveal />
         <a
           href="#main"
-          className="sr-only focus:not-sr-only fixed left-4 top-4 z-[110] rounded-full bg-gold px-4 py-2 text-sm font-semibold text-[#1b1e21]"
+          className="sr-only focus:not-sr-only fixed left-4 top-4 z-[110] rounded-full bg-gold px-4 py-2 text-sm font-semibold text-band-b"
         >
           Skip to content
         </a>

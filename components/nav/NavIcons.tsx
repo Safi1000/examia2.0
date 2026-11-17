@@ -14,7 +14,7 @@ function Svg({ active, className, children }: P & { children: React.ReactNode })
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -26,13 +26,13 @@ function Svg({ active, className, children }: P & { children: React.ReactNode })
   );
 }
 
-/** The gold detail. Dim when idle, full when active. */
+/** The icon's small detail: the icon's own grey when idle, gold only when active. */
 function Gold({ active, children }: { active?: boolean; children: React.ReactNode }) {
   return (
     <g
-      fill="var(--color-brand)"
-      stroke="var(--color-brand)"
-      className={cn("transition-opacity duration-300", active ? "opacity-100" : "opacity-40")}
+      fill={active ? "var(--color-brand)" : "currentColor"}
+      stroke={active ? "var(--color-brand)" : "currentColor"}
+      className="transition-colors duration-200"
     >
       {children}
     </g>

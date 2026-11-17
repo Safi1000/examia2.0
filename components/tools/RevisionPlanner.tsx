@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { readRatings, type Rating } from "@/components/syllabus/Checklist";
 import { spread, splitWeeks } from "@/components/tools/calc";
-import { NumberField } from "@/components/tools/ToolBits";
+import { NumberField, chip, fieldBox, fieldLabel, fieldNote, goldAction, quietAction } from "@/components/tools/ToolBits";
 import { TrackedLink } from "@/components/landing/TrackedLink";
 import { cn } from "@/lib/cn";
 import { waTextLink } from "@/lib/landing";
@@ -110,13 +110,11 @@ export function RevisionPlanner({ initial, syllabi: SYLLABI }: { initial?: strin
   const rated = codes.reduce((n, c) => n + Object.values(ratings[c] ?? {}).filter((r) => r !== "new").length, 0);
   const h = Number(hours) || 0;
   const fmtDate = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-  const chip = (on: boolean) =>
-    cn("min-h-11 rounded-full border px-4 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold", on ? "border-gold bg-gold text-[#1b1e21]" : "border-hairline-strong text-body hover:border-gold-border");
 
   return (
     <div className="space-y-8">
       <fieldset>
-        <legend className="mb-2 text-sm font-semibold text-foreground">Your subjects</legend>
+        <legend className={fieldLabel}>Your subjects</legend>
         <div className="space-y-3">
           {(["O Level", "IGCSE", "AS and A Level"] as const).map((lvl) => (
             <div key={lvl} className="flex flex-wrap gap-2">
@@ -138,7 +136,7 @@ export function RevisionPlanner({ initial, syllabi: SYLLABI }: { initial?: strin
       </fieldset>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block">
-          <span className="mb-1.5 block text-sm font-semibold text-foreground">Date of your first exam</span>
+          <span className={fieldLabel}>Date of your first exam</span>
           <input
             type="date"
             value={exam}
@@ -146,9 +144,9 @@ export function RevisionPlanner({ initial, syllabi: SYLLABI }: { initial?: strin
               setExam(e.target.value);
               save({ exam: e.target.value });
             }}
-            className="h-12 w-full rounded-[12px] border border-hairline-strong bg-card px-4 text-[16px] text-foreground outline-none focus:border-gold-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold [color-scheme:dark]"
+            className={fieldBox}
           />
-          <span className="mt-1 block text-[13px] text-muted-foreground">It is on your statement of entry, or Cambridge&apos;s exam timetable.</span>
+          <span className={fieldNote}>It is on your statement of entry, or Cambridge&apos;s exam timetable.</span>
         </label>
         <NumberField
           label="Hours a week you can study"
@@ -161,7 +159,7 @@ export function RevisionPlanner({ initial, syllabi: SYLLABI }: { initial?: strin
         />
       </div>
       {codes.length > 0 && (
-        <p className="text-[15px] text-muted-foreground">
+        <p className="text-base leading-relaxed text-muted-foreground">
           {rated > 0
             ? `Using your syllabus checklist ratings (${rated} subtopics rated): weak topics come first.`
             : "Tip: rate your topics in the syllabus checklist first, and your weak topics come first in the plan. "}
@@ -169,7 +167,7 @@ export function RevisionPlanner({ initial, syllabi: SYLLABI }: { initial?: strin
             codes.map((c) => {
               const s = SYLLABI.find((x) => x.code === c)!;
               return (
-                <Link key={c} href={`/syllabus/${s.slug}`} className="mr-3 inline-flex min-h-11 items-center text-gold hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+                <Link key={c} href={`/syllabus/${s.slug}`} className="mr-4 inline-flex min-h-11 items-center font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 transition-colors hover:decoration-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
                   {s.code} checklist
                 </Link>
               );
@@ -177,26 +175,26 @@ export function RevisionPlanner({ initial, syllabi: SYLLABI }: { initial?: strin
         </p>
       )}
 
-      {plan === null && codes.length > 0 && exam && <p className="text-[15px] text-muted-foreground">Pick an exam date at least two weeks away.</p>}
+      {plan === null && codes.length > 0 && exam && <p className="text-base text-muted-foreground">Pick an exam date at least two weeks away.</p>}
 
       {plan && (
         <div className="space-y-3">
-          <p className="text-[15px] text-body">
+          <p className="text-base leading-relaxed text-body">
             {plan.length} weeks to your first exam.{" "}
             {h > 0 && plan[0].items.length > 0 && `At ${h} hours a week, that is about ${Math.round((h * 60) / plan[0].items.length)} minutes per subtopic in week 1.`}
           </p>
           {plan.map((w, i) => (
-            <div key={i} className={cn("rounded-[16px] border p-5", w.phase === "learn" ? "border-hairline bg-card" : "border-gold-border bg-card-raised")}>
-              <p className="text-sm font-semibold text-gold">
+            <div key={i} className="pc-surface rounded-tile p-5">
+              <p className="text-sm font-semibold tabular-nums text-muted-foreground">
                 Week {i + 1} · from {fmtDate(w.start)}
               </p>
               {w.phase === "learn" && (
-                <ul className="mt-2 space-y-1 text-[15px] text-body">
+                <ul className="mt-2 space-y-1.5 text-base text-body">
                   {w.items.length === 0 && <li>Catch up week: go back over the topics so far.</li>}
                   {w.items.map((it) => (
                     <li key={it.code + it.num}>
-                      <span className="text-faint">{it.code}</span> {it.num} {it.name}
-                      {it.rating === "unsure" && <span className="ml-2 text-xs font-semibold text-gold">weak</span>}
+                      <span className="tabular-nums text-faint">{it.code}</span> <span className="tabular-nums">{it.num}</span> {it.name}
+                      {it.rating === "unsure" && <span className="ml-2 text-xs font-semibold text-warning">weak</span>}
                       {it.rating === "confident" && <span className="ml-2 text-xs text-muted-foreground">quick check</span>}
                     </li>
                   ))}
@@ -204,14 +202,14 @@ export function RevisionPlanner({ initial, syllabi: SYLLABI }: { initial?: strin
                 </ul>
               )}
               {w.phase === "papers" && (
-                <p className="mt-2 text-[15px] text-body">
+                <p className="mt-2 text-base leading-relaxed text-body">
                   Full past papers under timed conditions, one per subject. Mark them strictly, then spend the next session on every topic you lost marks on.
                 </p>
               )}
               {w.phase === "final" && (
-                <div className="mt-2 text-[15px] text-body">
+                <div className="mt-2 text-base leading-relaxed text-body">
                   <p>Last week: the most recent papers again, and only your weakest topics.</p>
-                  {w.items.length > 0 && <p className="mt-1 text-muted-foreground">{w.items.map((x) => `${x.code} ${x.num}`).join(", ")}</p>}
+                  {w.items.length > 0 && <p className="mt-1 text-sm tabular-nums text-muted-foreground">{w.items.map((x) => `${x.code} ${x.num}`).join(", ")}</p>}
                 </div>
               )}
             </div>
@@ -222,11 +220,11 @@ export function RevisionPlanner({ initial, syllabi: SYLLABI }: { initial?: strin
                 `Hi, I made a revision plan on your site: ${codes.join(", ")}, first exam ${exam}, ${hours} hours a week, ${plan.length} weeks. Can you help me stick to it?`,
               )}
               props={{ from: "tool:revision-planner" }}
-              className="inline-flex min-h-12 items-center rounded-full bg-gold px-6 text-[15px] font-semibold text-[#1b1e21] hover:bg-gold-hover"
+              className={goldAction}
             >
               Get help sticking to it
             </TrackedLink>
-            <button type="button" onClick={() => window.print()} className="web-only inline-flex min-h-12 items-center rounded-full border border-hairline-strong px-6 text-[15px] font-semibold text-body hover:border-gold-border">
+            <button type="button" onClick={() => window.print()} className={cn("web-only", quietAction)}>
               Print or save as PDF
             </button>
           </div>

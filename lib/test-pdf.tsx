@@ -106,7 +106,7 @@ export async function buildTestPdf(
 ): Promise<{ blob: Blob; fileName: string }> {
   const logoSrc = new URL(logo.src, window.location.origin).href;
   const plan = describeTest(test, { level: levelOfName(opts.className), grid: opts.grid, logo: logoSrc });
-  const sorted = [...test.questions].sort((a, b) => a.order - b.order);
+  const sorted = test.questions.toSorted((a, b) => a.order - b.order);
 
   // Older picture links brought up to date first (the same as the screen does).
   const all = plan.questions.flatMap((q) => [...q.images, ...q.inserts]);

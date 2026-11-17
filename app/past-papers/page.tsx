@@ -9,6 +9,7 @@ import { PaperSearch } from "@/components/past-papers/PaperSearch";
 import { ContinueStrip } from "@/components/past-papers/ContinueStrip";
 import { YEAR_RANGE, PAPER_LEVELS, PAST_PAPER_SYLLABI, changeNote } from "@/lib/past-papers";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
+import "@/components/landing/public-calm.css";
 
 const title = `Past Papers ${YEAR_RANGE}: O Level, IGCSE and A Level`;
 const description =
@@ -63,18 +64,18 @@ export default function PastPapersHub() {
           <h2 id="pick-h" className="sr-only">
             Syllabuses
           </h2>
-          <div className="mt-5 overflow-hidden rounded-[24px] border border-hairline bg-card">
+          <div className="pc-surface mt-5 overflow-hidden rounded-card">
             <div className="hidden grid-cols-[180px_repeat(3,minmax(0,1fr))] border-b border-hairline md:grid">
               <span />
               {SUBJECTS.map((sub) => (
-                <span key={sub} className="px-6 py-4 text-[15px] font-semibold text-muted-foreground">
+                <span key={sub} className="px-6 py-4 text-sm font-semibold text-muted-foreground">
                   {sub}
                 </span>
               ))}
             </div>
             {PAPER_LEVELS.map((lvl, i) => (
               <div key={lvl} className={`grid md:grid-cols-[180px_repeat(3,minmax(0,1fr))] ${i ? "border-t border-hairline" : ""}`}>
-                <p className="px-5 pb-1 pt-5 text-[17px] font-bold text-foreground md:flex md:items-center md:px-6 md:py-6">{lvl === "AS and A Level" ? "AS and A Level" : lvl}</p>
+                <p className="px-5 pb-1 pt-5 text-base font-bold text-foreground md:flex md:items-center md:px-6 md:py-6">{lvl === "AS and A Level" ? "AS and A Level" : lvl}</p>
                 <ul className="grid grid-cols-3 gap-2 px-5 pb-5 pt-2 md:contents">
                   {SUBJECTS.map((sub) => {
                     const s = PAST_PAPER_SYLLABI.find((x) => x.level === lvl && x.subject === sub);
@@ -83,11 +84,12 @@ export default function PastPapersHub() {
                       <li key={sub} className="md:border-l md:border-hairline">
                         <Link
                           href={`/past-papers/${s.slug}`}
-                          className="group flex h-full flex-col justify-center rounded-[14px] border border-hairline px-3 py-3 transition-colors hover:border-gold-border hover:bg-gold-tint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-gold md:rounded-none md:border-0 md:px-6 md:py-6"
+                          className="flex h-full flex-col justify-start rounded-tile border border-hairline px-3 py-3 transition-colors duration-150 hover:border-white/25 hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-gold md:rounded-none md:border-0 md:px-6 md:py-6"
                         >
-                          <span className="text-[13px] text-muted-foreground md:hidden">{sub}</span>
-                          <span className="text-xl font-bold tabular-nums text-foreground group-hover:text-gold md:text-2xl">{s.code}</span>
-                          {changeNote(s) && <span className="mt-0.5 text-[13px] text-faint md:text-[14px]">{changeNote(s)}</span>}
+                          {/* Label, code and note sit on the same lines in every tile; the note line is kept even when empty. */}
+                          <span className="text-xs leading-4 text-muted-foreground md:hidden">{sub}</span>
+                          <span className="mt-1 text-xl font-bold leading-7 tabular-nums text-foreground md:mt-0 md:text-2xl">{s.code}</span>
+                          <span className="mt-0.5 min-h-8 text-xs leading-4 text-faint md:min-h-0 md:text-sm">{changeNote(s)}</span>
                         </Link>
                       </li>
                     );

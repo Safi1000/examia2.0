@@ -7,7 +7,7 @@ import { waDigits } from "@/lib/phone";
 import { welcomeMessage } from "@/lib/welcome-message";
 import { parseDelimited, readSheetFile, type Rows } from "@/lib/sheet";
 import { detectColumns, planRows, usernameFrom, type Columns, type Field } from "@/lib/import-students";
-import { Button, Modal, Select, Label } from "@/components/ui";
+import { Button, Modal, Select, Label, chipClass } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { newPassword } from "@/lib/password";
@@ -175,8 +175,7 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
 
   const wa = (to: string, m: Made) => `https://wa.me/${waDigits(to)}?text=${encodeURIComponent(welcomeMessage({ username: m.username, password: m.password }))}`;
   const markSent = (u: string) => setMade((list) => list.map((m) => (m.username === u ? { ...m, sent: true } : m)));
-  const chip = (on: boolean) =>
-    cn("min-h-10 rounded-md border px-3 py-1.5 text-sm font-semibold transition-colors max-md:min-h-11", on ? "border-brand bg-brand-soft text-brand" : "border-border text-ink-2 hover:border-border-strong hover:text-ink");
+  const chip = (on: boolean) => chipClass(on);
   const headings = rows ? (header >= 0 ? rows[header] : rows[0].map((_, i) => `Column ${i + 1}`)) : [];
   const todo = fresh.length + realUpdates.length;
 
@@ -216,9 +215,9 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
       }
     >
       {failedRows.length > 0 && (
-        <div className="mb-4 rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+        <div className="mb-4 rounded-tile border border-error/30 bg-error-soft px-4 py-3 text-sm text-error">
           <p className="font-semibold">{failedRows.length} couldn&apos;t be saved. Try them again in a minute:</p>
-          <ul className="mt-1 space-y-0.5 text-xs">
+          <ul className="mt-1 space-y-0.5 text-sm">
             {failedRows.map((f) => (
               <li key={f.line}>
                 Row {f.line}, <span className="font-mono">{f.username}</span>: {f.why}
@@ -228,12 +227,12 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
         </div>
       )}
       {made.length ? (
-        <ul className="divide-y divide-border">
+        <ul className="divide-y divide-hairline">
           {made.map((m) => (
             <li key={m.username} className="flex flex-wrap items-center justify-between gap-2 py-3">
               <span className="min-w-0">
                 <span className="block font-mono text-sm font-semibold text-ink">{m.username} · {m.password}</span>
-                {m.sent && <span className="text-xs text-success">Sent</span>}
+                {m.sent && <span className="text-sm text-success">Sent</span>}
               </span>
               <span className="flex flex-wrap gap-1.5">
                 {m.parent && (
@@ -292,7 +291,7 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
               e.preventDefault();
               void pickFile(e.dataTransfer.files[0]);
             }}
-            className="flex w-full flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border-strong px-4 py-8 text-center transition-colors hover:border-brand hover:bg-brand-soft"
+            className="flex w-full flex-col items-center justify-center gap-1 rounded-tile border-2 border-dashed border-border-strong px-4 py-8 text-center transition-colors duration-150 hover:border-ink-3 hover:bg-surface-2"
           >
             <span className="text-base font-semibold text-ink">Choose a spreadsheet</span>
             <span className="text-sm text-ink-3">Excel (.xlsx) or CSV. From Google Sheets: File, Download, .xlsx</span>
@@ -306,9 +305,9 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
               onChange={(e) => setPaste(e.target.value)}
               rows={5}
               placeholder={"Name\tWhatsApp\tParent\tLevel\tSubjects\nAli Khan\t03001234567\t03331234567\tAS\tAccounting, Economics"}
-              className="w-full rounded-lg border border-border-strong bg-surface p-3 font-mono text-base leading-relaxed text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:text-sm"
+              className="w-full rounded-field border border-field bg-surface px-3.5 py-3 font-mono text-base leading-relaxed text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:text-sm"
             />
-            <p className="mt-1 text-xs text-ink-3">
+            <p className="mt-1.5 text-sm text-ink-3">
               Columns I look for: name (or username), student WhatsApp, parent WhatsApp, level (O Level, AS, A2) and subjects. Subjects can be one column (&quot;Accounting, Business&quot;) or a column per subject with a tick.
             </p>
           </div>
@@ -316,8 +315,8 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
       ) : (
         <div className="space-y-5">
           {/* What each column was read as; change any that's wrong. */}
-          <details className="rounded-lg border border-border px-3 py-2" open={!cols || cols.name + cols.username === -2 || (plan.length > 0 && problems.length / plan.length > 0.2)}>
-            <summary className="cursor-pointer text-sm font-semibold text-ink">Columns</summary>
+          <details className="rounded-tile bg-surface-2 px-4 py-3" open={!cols || cols.name + cols.username === -2 || (plan.length > 0 && problems.length / plan.length > 0.2)}>
+            <summary className="cursor-pointer text-base font-semibold text-ink">Columns</summary>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               {FIELDS.map(([f, label]) => (
                 <div key={f}>
@@ -331,7 +330,7 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
                 </div>
               ))}
             </div>
-            {!!cols?.subjectCols.length && <p className="mt-2 text-xs text-ink-3">Ticked subject columns: {cols.subjectCols.map((s) => `${headings[s.col]} (${name([s.subjectId], db.subjects)})`).join(", ")}</p>}
+            {!!cols?.subjectCols.length && <p className="mt-2 text-sm text-ink-3">Ticked subject columns: {cols.subjectCols.map((s) => `${headings[s.col]} (${name([s.subjectId], db.subjects)})`).join(", ")}</p>}
             <label className="mt-3 flex min-h-11 items-center gap-2 text-sm text-ink-2">
               <input type="checkbox" className="h-4 w-4" checked={header >= 0} onChange={(e) => setHeader(e.target.checked ? foundHeader : -1)} />
               First row is headings
@@ -339,7 +338,7 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
           </details>
 
           {(needLevel || needSubjects) && (
-            <div className="space-y-3 rounded-lg border border-border px-3 py-3">
+            <div className="space-y-3 rounded-tile bg-surface-2 px-4 py-3">
               <p className="text-sm text-ink-2">The sheet has no {needLevel && needSubjects ? "level or subjects" : needLevel ? "level" : "subjects"} column. Pick what applies to everyone here:</p>
               {needLevel && (
                 <div className="flex flex-wrap gap-2">
@@ -382,9 +381,9 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
             </label>
           )}
 
-          <div className="max-h-[46dvh] overflow-auto rounded-lg border border-border">
+          <div className="max-h-[46dvh] overflow-auto rounded-tile border border-hairline">
             <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-surface-2 text-xs uppercase tracking-wide text-ink-3">
+              <thead className="label-quiet sticky top-0 bg-surface-2 text-ink-3">
                 <tr>
                   <th className="px-3 py-2">Row</th>
                   <th className="px-3 py-2">Login (tap to change)</th>
@@ -393,12 +392,12 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
                   <th className="px-3 py-2">Numbers</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-hairline">
                 {plan.map((p) => (
                   <tr
                     key={p.line}
                     onClick={() => !p.problem && !p.existing && setPeek(p.line)}
-                    className={cn(p.problem && "bg-warning-soft/50", !p.problem && !p.existing && "cursor-pointer hover:bg-surface-2", shown?.line === p.line && "bg-brand-soft")}
+                    className={cn(p.problem && "bg-warning-soft/50", !p.problem && !p.existing && "cursor-pointer hover:bg-surface-2", shown?.line === p.line && "bg-white/[0.06]")}
                   >
                     <td className="px-3 py-2 text-ink-3">{p.line}</td>
                     <td className="px-3 py-2">
@@ -415,7 +414,7 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
                           maxLength={30}
                           spellCheck={false}
                           autoCapitalize="none"
-                          className="w-full min-w-36 rounded-md border border-border bg-surface-2/50 px-1.5 py-0.5 -mx-1.5 font-mono font-semibold text-ink hover:border-border-strong focus:border-brand focus:outline-none"
+                          className="w-full min-w-36 rounded-xs border border-border bg-surface-2/50 px-1.5 py-0.5 -mx-1.5 font-mono font-semibold text-ink hover:border-border-strong focus:border-brand focus:outline-none"
                         />
                       )}
                       {!p.problem && !p.existing && <span className="block font-mono text-xs text-ink-2">Password: {passwords[p.line - 1]}</span>}
@@ -435,12 +434,12 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
             </table>
           </div>
           {shown && (
-            <div className="rounded-lg border border-border p-3">
+            <div className="rounded-tile bg-surface-2 p-4">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="text-sm font-semibold text-ink">What {shown.username} gets on WhatsApp</p>
-                <p className="text-xs text-ink-3">Tap another row to see theirs</p>
+                <p className="text-sm text-ink-3">Tap another row to see theirs</p>
               </div>
-              <p className="mt-1 text-xs text-ink-3">
+              <p className="mt-1.5 text-sm text-ink-3">
                 {shown.phone || shown.parent
                   ? `Goes to ${[shown.phone && `the student (${shown.phone})`, shown.parent && `the parent (${shown.parent})`].filter(Boolean).join(" and ")}. `
                   : "No number in the sheet, so you copy it and send it yourself. "}
@@ -456,7 +455,7 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
               </div>
             </div>
           )}
-          {!!problems.length && <p className="text-xs text-ink-3">Fix those rows in your sheet and import it again: students already added are recognised, not added twice.</p>}
+          {!!problems.length && <p className="text-sm text-ink-3">Fix those rows in your sheet and import it again: students already added are recognised, not added twice.</p>}
         </div>
       )}
     </Modal>
