@@ -12,6 +12,8 @@ import { parentMissedClass, studentMissedClass } from "@/lib/portal-messages";
 import { Card, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { panelTitle } from "@/components/admin/surface";
+import { watchLabel } from "@/lib/watch";
+import type { Profile } from "@/lib/profile";
 
 const waTo = (e164: string | undefined, text: string) =>
   e164 ? `https://wa.me/${e164.replace(/\D/g, "")}?text=${encodeURIComponent(text)}` : null;
@@ -25,7 +27,7 @@ const closeLabel = (ms: number) =>
  * For Hamza only, on Classes: each recorded class of the last 7 days, with
  * who joined live, who opened the recording instead, and who did neither
  * (with a one tap WhatsApp reminder while the recording is still open).
- * "Opened" is a tap on Watch, not how much they watched.
+ * "Opened" is a tap on Watch; the minutes are the time it stayed open on screen.
  */
 export function RecordingOpens({ db, students, nowMs }: { db: Database; students: Student[]; nowMs: number }) {
   const today = pkDate(nowMs);
@@ -57,7 +59,7 @@ export function RecordingOpens({ db, students, nowMs }: { db: Database; students
           </Link>
         </div>
         <p className="mt-1 max-w-[65ch] text-[13px] text-ink-3">
-          This shows who opened the recording, not how much they watched. An open only counts while the recording is open to students. Only you see this.
+          The minutes beside a name are how long the recording was open on their screen in the portal. An open only counts while the recording is open to students. Only you see this.
         </p>
       </div>
       {ready === null ? (
@@ -88,7 +90,7 @@ export function RecordingOpens({ db, students, nowMs }: { db: Database; students
                   </span>
                   <Icon.ChevronRight className={cn("h-4 w-4 shrink-0 text-ink-3 transition-transform", isOpen && "rotate-90")} aria-hidden />
                 </button>
-                {isOpen && <Groups r={r} profilesReady={profilesReady} />}
+                {isOpen && <Groups r={r} profilesReady={profilesReady} profiles={profiles} />}
               </li>
             );
           })}
@@ -98,7 +100,7 @@ export function RecordingOpens({ db, students, nowMs }: { db: Database; students
   );
 }
 
-function Groups({ r, profilesReady }: { r: SlotRecording; profilesReady: boolean }) {
+function Groups({ r, profilesReady, profiles }: { r: SlotRecording; profilesReady: boolean; profiles: Record<string, Profile> }) {
   const names = (list: Student[]) => list.map((s) => displayName(s.username)).join(", ");
   return (
     <div className="space-y-3 border-t border-border bg-surface-2/40 px-4 py-4 text-sm sm:px-5">
@@ -106,7 +108,16 @@ function Groups({ r, profilesReady }: { r: SlotRecording; profilesReady: boolean
       <Group title={`Joined live (${r.joined.length})`}>{r.joined.length ? names(r.joined) : "Nobody"}</Group>
       {profilesReady ? (
         <>
-          <Group title={`Opened the recording (${r.opened.length})`}>{r.opened.length ? names(r.opened) : "Nobody"}</Group>
+          <Group title={`Opened the recording (${r.opened.length})`}>
+            {r.opened.length
+              ? r.opened
+                  .map((s) => {
+                    const t = watchLabel(profiles[s.id]?.watchSec?.[r.key]);
+                    return t ? `${displayName(s.username)} (${t})` : displayName(s.username);
+                  })
+                  .join(", ")
+              : "Nobody"}
+          </Group>
           <Group title={`Did neither (${r.neither.length})`}>
             {!r.neither.length ? (
               "Nobody. Everyone caught this class."

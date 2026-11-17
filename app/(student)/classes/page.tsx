@@ -11,7 +11,9 @@ import type { Database } from "@/lib/data/seed";
 import { useSchedule, LEVEL_LABEL, RECORDING_HOURS, getSchedule, addDays, isClassDay, levelOf, pkDate, slotKey, slotsForStudent, slotsOn, span, useClassLinks } from "@/lib/classes";
 import { anythingOpen, useRecordingRows, useStudentAccess, type RecordingRow } from "@/lib/recordings";
 import { openUntil } from "@/lib/recording-access";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { RecordingPlayer } from "@/components/student/RecordingPlayer";
+import { driveFileId, watchPatch } from "@/lib/watch";
 import { cn } from "@/lib/cn";
 import { subjectsAtLevel } from "@/lib/levels";
 import { PageHeader, SectionTitle } from "@/components/student/PortalKit";
@@ -45,6 +47,18 @@ const closesLabel = (ms: number) =>
 export default function ClassesPage() {
   const { session, profile, updateProfile } = useAuth();
   const watched = new Set(profile.watched ?? []);
+  // A Drive recording plays here, inside the portal; any other link opens in a new tab as before.
+  const [playing, setPlaying] = useState<{ key: string; fileId: string; url: string; title: string; sub: string } | null>(null);
+  const playingKey = playing?.key;
+  const addTime = useCallback((sec: number) => { if (playingKey) updateProfile(watchPatch(playingKey, sec)); }, [playingKey, updateProfile]);
+  const closePlayer = useCallback(() => setPlaying(null), []);
+  const watch = (e: React.MouseEvent, key: string, url: string, title: string, sub: string) => {
+    updateProfile(watchPatch(key, 0));
+    const fileId = driveFileId(url);
+    if (!fileId || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    e.preventDefault();
+    setPlaying({ key, fileId, url, title, sub });
+  };
   const db = useDatabase();
   const nowMs = useNow();
   const student = session?.studentId ? studentById(db, session.studentId) : null;
@@ -209,7 +223,7 @@ export default function ClassesPage() {
                   href={r.recordingUrl!}
                   target="_blank"
                   rel="noreferrer"
-                  onClick={() => updateProfile((p) => ({ watched: [...(p.watched ?? []).filter((k) => k !== slotKey(r)), slotKey(r)].slice(-60) }))}
+                  onClick={(e) => watch(e, slotKey(r), r.recordingUrl!, r.subject, dayName(r.date))}
                   className={cn(
                     "surface surface-link flex items-center justify-between gap-4 rounded-xl px-5 py-4 sm:px-6",
                     !watched.has(slotKey(r)) && r.closesAt - nowMs < 6 * 3_600_000 && "border-warning/50!",
@@ -259,9 +273,10 @@ export default function ClassesPage() {
           items={older}
           twoLevels={twoLevels}
           watched={watched}
-          onWatch={(key) => updateProfile((p) => ({ watched: [...(p.watched ?? []).filter((k) => k !== key), key].slice(-60) }))}
+          onWatch={watch}
         />
       )}
+      {playing && <RecordingPlayer fileId={playing.fileId} url={playing.url} title={playing.title} sub={playing.sub} onTime={addTime} onClose={closePlayer} />}
       </div>
     </div>
   );
@@ -277,7 +292,7 @@ const monthName = (ymd: string) => new Date(`${ymd}T12:00:00+05:00`).toLocaleDat
  * headings, newest first. Only the latest few show until the student asks for
  * the rest, so a catch-up window of 90 classes doesn't bury the page.
  */
-function PastRecordings({ items, twoLevels, watched, onWatch }: { items: PastItem[]; twoLevels: boolean; watched: Set<string>; onWatch: (key: string) => void }) {
+function PastRecordings({ items, twoLevels, watched, onWatch }: { items: PastItem[]; twoLevels: boolean; watched: Set<string>; onWatch: (e: React.MouseEvent, key: string, url: string, title: string, sub: string) => void }) {
   const [subject, setSubject] = useState<string | null>(null);
   const [all, setAll] = useState(false);
   const subjects = [...new Set(items.map((i) => i.subject))].sort();
@@ -323,7 +338,7 @@ function PastRecordings({ items, twoLevels, watched, onWatch }: { items: PastIte
                     href={r.url}
                     target="_blank"
                     rel="noreferrer"
-                    onClick={() => onWatch(r.key)}
+                    onClick={(e) => onWatch(e, r.key, r.url, r.subject, dayName(r.date))}
                     className="flex min-h-14 items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-white/[0.02] sm:px-6"
                   >
                     <span className="min-w-0">

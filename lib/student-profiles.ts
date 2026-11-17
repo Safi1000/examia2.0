@@ -75,6 +75,8 @@ function demoProfiles(db: Database): Record<string, Profile> {
         days,
       },
       watched,
+      // Sample minutes for the preview: most have some, a few only opened it.
+      watchSec: Object.fromEntries(watched.flatMap((k, n) => ((i + n) % 4 === 0 ? [] : [[k, 240 + ((i * 7 + n * 13) % 36) * 60]]))),
     };
   });
   return out;

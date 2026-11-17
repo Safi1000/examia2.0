@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import type { Student } from "@/types";
 import { useDatabase } from "@/lib/data/store";
 import { useNow } from "@/hooks/useNow";
@@ -12,6 +13,7 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { Button, Card, Icon, Modal, chipClass, filterField } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { panelTitle } from "@/components/admin/surface";
+import { driveFileId, watchLabel } from "@/lib/watch";
 import { LEVEL_LABEL, RECORDING_HOURS, addDays, levelOf, pkDate, slotsOn, useSchedule, type LevelKey } from "@/lib/classes";
 import { useRecordingRows, useTeacherAccess, type RecordingRow, type TeacherResult } from "@/lib/recordings";
 import { CATCH_UP_HOURS, REFRESH_EVERY_DAYS, noAccess, openUntil, pkWhen, pkWhenLong } from "@/lib/recording-access";
@@ -49,8 +51,10 @@ export default function RecordingsPage() {
     return db.students.filter((s) => !off.has(s.cohortId) && !isTestAccount(s));
   }, [db]);
   const openedBy = useMemo(() => {
-    const m = new Map<string, Student[]>();
-    for (const st of counted) for (const k of profiles[st.id]?.watched ?? []) m.set(k, [...(m.get(k) ?? []), st]);
+    const m = new Map<string, Opened[]>();
+    for (const st of counted) for (const k of profiles[st.id]?.watched ?? []) m.set(k, [...(m.get(k) ?? []), { st, sec: profiles[st.id]?.watchSec?.[k] ?? 0 }]);
+    // Longest watch first.
+    for (const list of m.values()) list.sort((x, y) => y.sec - x.sec);
     return m;
   }, [counted, profiles]);
 
@@ -612,8 +616,9 @@ function Chips({ label, value, onChange, options }: { label: string; value: stri
   );
 }
 
-/** The Drive file id in a recording's link, if it is a Drive link. */
-const driveFileId = (url: string) => url.match(/\/d\/([\w-]+)/)?.[1] ?? url.match(/[?&]id=([\w-]+)/)?.[1] ?? null;
+
+/** A student who opened a recording, and the seconds it was open on their screen (0 = opened before this was counted, or in Drive). */
+type Opened = { st: Student; sec: number };
 
 function RecordingItem({
   r,
@@ -628,13 +633,14 @@ function RecordingItem({
   r: Row;
   nowMs: number;
   busy: string | null;
-  opened: Student[];
+  opened: Opened[];
   onOne: (key: string, a: "open" | "close") => void;
   onDelete: (r: Row) => void;
   picked: boolean;
   onPick: (key: string, range: boolean) => void;
 }) {
   const { toast } = useToast();
+  const [who, setWho] = useState(false);
   const open = r.until > nowMs;
   const small = "inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors pointer-coarse:h-11 pointer-coarse:px-4 disabled:opacity-50";
   return (
@@ -647,9 +653,9 @@ function RecordingItem({
             {open ? `Open to students until ${pkWhen(r.until)}` : "Closed"}
           </span>
           {opened.length > 0 && (
-            <span title={opened.map((s) => displayName(s.username)).join(", ")}>
-              Opened by {opened.length <= 3 ? opened.map((s) => displayName(s.username)).join(", ") : `${opened.length} students`}
-            </span>
+            <button type="button" className="rounded underline decoration-border-strong underline-offset-4 hover:text-ink pointer-coarse:min-h-11" aria-expanded={who} onClick={() => setWho((w) => !w)}>
+              Opened by {opened.length === 1 ? "1 student" : `${opened.length} students`}
+            </button>
           )}
         </span>
       </span>
@@ -699,6 +705,17 @@ function RecordingItem({
           </button>
         )}
       </span>
+      {who && opened.length > 0 && (
+        <ul className="basis-full space-y-1 rounded-lg bg-surface-2/50 px-3 py-2.5 text-[13px] sm:ml-9">
+          {opened.map(({ st, sec }) => (
+            <li key={st.id} className="flex items-baseline justify-between gap-3">
+              <Link href={`/admin/roster/${st.id}`} className="min-w-0 truncate font-semibold text-ink-2 hover:text-ink">{displayName(st.username)}</Link>
+              <span className="shrink-0 tabular-nums text-ink-3">{sec ? watchLabel(sec) : "opened"}</span>
+            </li>
+          ))}
+          <li className="pt-1 text-xs text-ink-3">Minutes are how long the recording was open on their screen in the portal.</li>
+        </ul>
+      )}
     </li>
   );
 }

@@ -59,6 +59,8 @@ export interface Profile {
   notifyRecordings?: boolean;
   /** Class recordings opened, by slot key (date|class|subject), newest last. */
   watched?: string[];
+  /** Seconds each recording was open on screen inside the portal, by slot key. */
+  watchSec?: Record<string, number>;
 }
 
 /** Portal avatars (public/avatars/*.webp), cut from Hamza's illustrated set. */
