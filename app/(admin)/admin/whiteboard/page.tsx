@@ -54,7 +54,7 @@ export default function WhiteboardPage() {
         <li>Both devices pair on their own because they&apos;re both signed in as you. Nothing to copy.</li>
         <li>Open the board on the tablet from this page (or bookmark it to the home screen for one tap).</li>
         <li>If the laptop was opened late, it catches up with everything already drawn within a second or two.</li>
-        <li>Typing: on the laptop, point where the words go and press T. On the tablet, pick the T tool and tap an empty spot. Enter finishes, Shift+Enter starts a new line.</li>
+        <li>Typing: on the laptop, point where the words go and press T. On the tablet, pick the T tool and tap an empty spot. On the laptop you can also double click the board. Enter starts a new line, Esc or a tap away finishes. Start a line with - for a list.</li>
         <li>Typed words: tap or click them once to select them. A gold frame appears with a small bar, and the keyboard stays closed. Drag the words to move them, with a finger, the S Pen or the mouse. Tap them a second time (or press Enter) to edit. Tap an empty spot to let them go.</li>
         <li>Which tool for that: on the tablet a finger tap selects typed words with any tool, and the S Pen selects them with the Type or Move tool. With the Pen tool the S Pen always writes, even over typed words. On the laptop a click selects typed words with the Pen tool too.</li>
         <li>With typed words selected: the bar has Move, bold, italic, highlight, the four colours, Edit and a bin. Delete or Backspace removes them, the arrow keys nudge them (Shift moves 10 at a time), and Undo puts back a move or a delete in one step.</li>

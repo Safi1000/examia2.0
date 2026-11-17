@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/Spinner";
 import {
   COLORS,
-  SIZES,
   type BoardImage,
   type Camera,
   type Pt,
@@ -93,6 +92,10 @@ const MIN_HOLD_PATH_PX = 28;
 const PALM_LOCK_MS = 900;
 const PALM_SIZE_PX = 56;
 const ERASER_PX = 14;
+/** Pen thickness: the ends of the slider, and where it starts. */
+const PEN_MIN = 2;
+const PEN_MAX = 16;
+const PEN_DEFAULT = 8;
 /** The board from before pages existed (and the page used outside class time). */
 const MAIN_PAGE: BoardPage = { id: "main", title: "Board", at: 0 };
 /** A class's page opens this long before it starts. */
@@ -536,8 +539,40 @@ const palmBlocked = () => Date.now() < palmUntil;
 // stays the brightest thing on screen. Gold marks only the tool in hand and the one main action.
 
 /** Every floating bar: charcoal glass, a 1px hairline, a faint top highlight, a soft shadow. */
+// The bars take the board's tone: white with a hairline on the light board, charcoal glass on the
+// dark one (see CHROME). Inside a bar "white" means the bar's own ink colour, so every
+// white/NN shade below reads right on both. Radius: 14 outside = 10 inside + 4 padding.
 const PANEL =
-  "rounded-[18px] border border-white/[0.08] bg-[#1B1E21]/[0.88] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_1px_2px_rgba(20,22,24,0.16),0_14px_34px_-14px_rgba(20,22,24,0.5)] backdrop-blur-xl";
+  "rounded-[14px] border border-[color:var(--bd-line)] bg-[var(--bd-panel)] text-white [--color-white:var(--bd-fg,#fff)] [box-shadow:var(--bd-shadow)] backdrop-blur-xl";
+/** The bars' colours for each board tone, set once on the board's root. */
+const CHROME: Record<"light" | "dark", React.CSSProperties> = {
+  light: {
+    "--bd-fg": "#1B1E21",
+    "--bd-panel": "rgba(255,255,255,0.94)",
+    "--bd-line": "rgba(27,30,33,0.09)",
+    "--bd-shadow": "0 1px 2px rgba(27,30,33,0.05), 0 10px 28px -12px rgba(27,30,33,0.2)",
+    "--bd-on-bg": "#1B1E21",
+    "--bd-on-fg": "#FBC159",
+    "--bd-solid": "#1B1E21",
+    "--bd-solid-fg": "#FFFFFF",
+    "--bd-danger": "#B3261E",
+    "--bd-gap": "#FFFFFF",
+    "--bd-accent": "#C98500",
+  } as React.CSSProperties,
+  dark: {
+    "--bd-fg": "#FFFFFF",
+    "--bd-panel": "rgba(27,30,33,0.88)",
+    "--bd-line": "rgba(255,255,255,0.08)",
+    "--bd-shadow": "inset 0 1px 0 rgba(255,255,255,0.07), 0 1px 2px rgba(20,22,24,0.16), 0 14px 34px -14px rgba(20,22,24,0.5)",
+    "--bd-on-bg": "rgba(251,193,89,0.16)",
+    "--bd-on-fg": "#FBC159",
+    "--bd-solid": "#FFFFFF",
+    "--bd-solid-fg": "#1B1E21",
+    "--bd-danger": "#F4A397",
+    "--bd-gap": "#1B1E21",
+    "--bd-accent": "#FBC159",
+  } as React.CSSProperties,
+};
 /** Press, hover and focus for every control on a bar (movement drops out with reduced motion). */
 const PRESS =
   "relative transition-[background-color,color,transform,box-shadow,opacity] duration-150 ease-out active:scale-[0.94] motion-reduce:transition-none motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:pointer-events-none disabled:opacity-30";
@@ -546,10 +581,10 @@ const QUIET = "text-white/[0.68] hover:bg-white/[0.07] hover:text-white active:b
 /** A neutral "on" state (a toggle that is on, the size in use, the open page). */
 const ON = "bg-white/[0.12] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]";
 /** The tool in hand: the brand gold, as a tint, not a fill. */
-const GOLD_ON = "bg-[#FBC159]/[0.16] text-[#FBC159] shadow-[inset_0_0_0_1px_rgba(251,193,89,0.32)]";
+const GOLD_ON = "bg-[var(--bd-on-bg)] text-[color:var(--bd-on-fg)]";
 /** What is selected (a picture, typed text): one calm gold frame, and one kind of handle dot. */
-const SEL_FRAME = "rounded-[3px] shadow-[0_0_0_2px_#FBC159,0_0_0_6px_rgba(251,193,89,0.16)]";
-const HANDLE_DOT = "block h-4 w-4 rounded-full border-2 border-[#FBC159] bg-white shadow-[0_1px_3px_rgba(20,22,24,0.35)]";
+const SEL_FRAME = "rounded-[2px] [box-shadow:0_0_0_1.5px_var(--bd-accent)]";
+const HANDLE_DOT = "block h-3 w-3 rounded-full border-[1.5px] border-[color:var(--bd-accent)] bg-[#fff] shadow-[0_1px_2px_rgba(20,22,24,0.25)]";
 /** Makes a 36px control a 44px touch target without making it look bigger. */
 const HIT = "before:absolute before:-inset-y-1 before:inset-x-0 before:content-['']";
 
@@ -644,7 +679,7 @@ function ToolButton({
       onPointerDown={palmDown}
       onClick={() => !palmBlocked() && onClick()}
       disabled={disabled}
-      className={`${PRESS} flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] [&_svg]:h-[22px] [&_svg]:w-[22px] ${active ? GOLD_ON : QUIET}`}
+      className={`${PRESS} flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] [&_svg]:h-[22px] [&_svg]:w-[22px] ${active ? GOLD_ON : QUIET}`}
     >
       {children}
     </button>
@@ -667,8 +702,8 @@ function Swatch({ ink, on, size = 18 }: { ink: string; on: boolean; size?: numbe
         background: ink,
         transform: on ? "scale(1.12)" : undefined,
         boxShadow: on
-          ? "inset 0 0 0 1px rgba(255,255,255,0.28), 0 0 0 2px #1B1E21, 0 0 0 3.5px rgba(255,255,255,0.92)"
-          : "inset 0 0 0 1px rgba(255,255,255,0.3)",
+          ? "0 0 0 2px var(--bd-gap), 0 0 0 3.5px var(--bd-fg)"
+          : "inset 0 0 0 1px rgba(128,128,128,0.25)",
       }}
     />
   );
@@ -794,7 +829,43 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const recentLines = useRef<Array<{ id: string; ends: [Pt, Pt]; dir: "h" | "v"; at: number }>>([]);
   // The pen's real last position: smoothing trails it, so a stroke ends here.
   const lastRaw = useRef<Pt | null>(null);
-  const [size, setSize] = useState(SIZES[0].value);
+  // Pen thickness, thin to large on one slider (remembered on this device). A little on the large
+  // side to start with: it reads better from the back of the class.
+  const [size, setSizeState] = useState(PEN_DEFAULT);
+  const setSize = (v: number) => {
+    setSizeState(v);
+    try {
+      localStorage.setItem("ht-board-pen-size", String(v));
+    } catch {}
+  };
+  useEffect(() => {
+    try {
+      const v = Number(localStorage.getItem("ht-board-pen-size"));
+      if (v >= PEN_MIN && v <= PEN_MAX) setSizeState(v);
+    } catch {}
+  }, []);
+  // The slider, opened from the size button: where it sits (beside or above that button).
+  const [sizeAt, setSizeAt] = useState<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    if (!sizeAt) return;
+    const down = (e: PointerEvent) => {
+      if (!(e.target as Element | null)?.closest?.("[data-size-menu]")) setSizeAt(null);
+    };
+    window.addEventListener("pointerdown", down, true);
+    return () => window.removeEventListener("pointerdown", down, true);
+  }, [sizeAt]);
+  const onSizeDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.type === "pointerdown") {
+      palmDown(e);
+      if (palmBlocked()) return;
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } else if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const t = Math.max(0, Math.min(1, (e.clientX - r.left - 14) / (r.width - 28)));
+    setSize(Math.round((PEN_MIN + t * (PEN_MAX - PEN_MIN)) * 2) / 2);
+  };
+  // Typed words: the size used last (not tied to the pen any more).
+  const lastTextPx = useRef(TEXT_PX[0] + 4);
   const [fingerDraws, setFingerDraws] = useState(false);
   // The other device (laptop or tablet) on the private room.
   const [partner, setPartner] = useState(false);
@@ -1850,7 +1921,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   });
 
   // ---- typing
-  const textSize = () => (TEXT_PX[SIZES.findIndex((x) => x.value === size)] ?? TEXT_PX[1]) / cam.current.z;
+  const textSize = () => lastTextPx.current / cam.current.z;
   const typedStroke = (t: NonNullable<typeof typingRef.current>): Stroke => {
     const text = wrapText(t.text.replace(/\s+$/, ""), t.size, t.maxW, t);
     const m = measureText(text, t.size, t);
@@ -1959,6 +2030,22 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     resizing.current = null;
     textRef.current?.focus({ preventScroll: true });
   };
+  /** Smaller or bigger words, one step at a time: the box being typed in, or the selected words. */
+  const stepTextSize = (dir: 1 | -1) => {
+    const z = cam.current.z;
+    const next = (v: number) => Math.max(12 / z, Math.min(240 / z, dir > 0 ? v * 1.2 : v / 1.2));
+    const t = typingRef.current;
+    if (t) {
+      t.size = next(t.size);
+      lastTextPx.current = t.size * z;
+      placeTyping();
+      send({ t: "live", s: typedStroke(t) });
+      textRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    const s = selStroke();
+    if (s) restyleSel({ size: next(s.size) });
+  };
   const setTextColor = (c: string) => {
     const t = typingRef.current;
     if (!t) return;
@@ -2022,7 +2109,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     commitTyping(true);
     selectText(null);
     const [wx, wy] = toWorld(cam.current, sx, sy);
-    const under = target ?? [...strokes.current].reverse().find((x) => x.kind === "text" && hitStroke(x, wx, wy, 6 / cam.current.z));
+    const under = target ?? strokes.current.findLast((x) => x.kind === "text" && hitStroke(x, wx, wy, 6 / cam.current.z));
     const caret = target && atTap ? caretAt(target, wx, wy) : -1;
     // Lines run to the right edge of the screen (less a margin), then carry on below.
     const lineFrom = (x: number) => Math.max(160, screen.current.w - 24 - (x - cam.current.x) * cam.current.z) / cam.current.z;
@@ -2366,6 +2453,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   };
   // Where the mouse last was over the board (laptop), for the T key.
   const hoverAt = useRef<{ x: number; y: number } | null>(null);
+  // What last pressed the board (mouse, pen or touch), and the dots a mouse click left a moment ago.
+  const lastPointer = useRef("");
+  const clickDots = useRef<{ id: string; at: number }[]>([]);
 
   const logPen = (e: React.PointerEvent, what: string) => {
     if (!showDebug.current) return;
@@ -3084,7 +3174,17 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     stopGlide();
     lastMoved.current = null;
 
+    lastPointer.current = e.pointerType;
     if (isPen) {
+      air.current.contactAt = performance.now();
+      // This browser does pass on a stroke that starts with the button held: holding erases, as
+      // before, and the tool that was in hand comes straight back.
+      if (isPenEraser(e)) {
+        const a = air.current;
+        a.holdWorks = true;
+        if (a.before && tool === "eraser" && performance.now() - a.at < 4000) setTool(a.before);
+        a.before = null;
+      }
       pens.current.seen = true;
       pens.current.active = true;
       // A hand already resting on the screen must not pan the board under the pen.
@@ -3272,6 +3372,33 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     requestDraw();
   };
 
+  // The S Pen's side button, pressed while the pen is just above the screen: the eraser comes on,
+  // and the next press gives the tool back. (Chrome on Android keeps every stroke that STARTS with
+  // the button held for itself, as a text selection, so the board never hears "hold and rub".
+  // A press in the air does arrive.) Where a browser does pass held strokes on, holding still
+  // erases as before and this stands aside.
+  const air = useRef<{ held: boolean; at: number; contactAt: number; before: Tool | null; holdWorks: boolean }>({ held: false, at: 0, contactAt: 0, before: null, holdWorks: false });
+  const airButton = (held: boolean, sx: number, sy: number) => {
+    const a = air.current;
+    const now = performance.now();
+    if (held && !a.held && !a.holdWorks && now - a.contactAt > 150 && now - a.at > 250) {
+      a.at = now;
+      if (tool === "eraser") {
+        pickTool(a.before ?? "pen");
+        a.before = null;
+      } else {
+        a.before = tool;
+        pickTool("eraser");
+        moveEraser(sx, sy);
+        flash("Eraser on. Press the pen button again to write.");
+      }
+      a.held = held;
+      return true;
+    }
+    a.held = held;
+    return false;
+  };
+
   // Set once endGesture exists (below), for a pen whose lift came late.
   const endLate = useRef<(e: React.PointerEvent<HTMLCanvasElement>) => void>(() => {});
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -3288,7 +3415,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           send({ t: "pt", x: Math.round(px * 10) / 10, y: Math.round(py * 10) / 10 });
         }
       }
-      if (e.buttons === 0 && isPenEraser(e)) moveEraser(sx, sy);
+      // The side button pressed in the air (see airButton).
+      if (!pens.current.active && !gesture.current.mode && airButton(e.pressure === 0 && (e.buttons !== 0 || isPenEraser(e)), sx, sy)) return;
     }
 
     // Touch pan / pinch.
@@ -3609,6 +3737,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const endGesture = (e: React.PointerEvent<HTMLCanvasElement>, cancelled = false) => {
     logPen(e, cancelled ? "cancel" : "up");
     if (e.pointerType === "pen") {
+      air.current.contactAt = performance.now();
       pens.current.active = false;
       pens.current.lastAt = Date.now();
       notePen();
@@ -3718,6 +3847,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       if (!cancelled && !tooShort && !clicked) {
         strokes.current = [...strokes.current, s];
         commit({ type: "add", s });
+        if (e.pointerType === "mouse" && s.kind === "ink" && hold.current.path < 4) clickDots.current = [...clickDots.current.slice(-1), { id: s.id, at: performance.now() }];
         // A stroke that gets tidied (a ruled line, a T account) is sent once, as the tidy version.
         if (!recognise(s)) send({ t: "add", s: packStroke(s) });
         watchBottom(s);
@@ -3811,7 +3941,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const classOrder = useRef<string[]>([]);
   const ordered = (list: BoardPage[]) => {
     const rank = (x: BoardPage) => (x.id === MAIN_PAGE.id ? -1 : classOrder.current.includes(x.id) ? classOrder.current.indexOf(x.id) : 1e6);
-    return [...list].sort((a, b) => rank(a) - rank(b) || a.at - b.at);
+    return list.toSorted((a, b) => rank(a) - rank(b) || a.at - b.at);
   };
   /**
    * Remember a page in the list, and where Hamza is. Pages are never let go on their own,
@@ -4202,7 +4332,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     <div
       data-board
       className="fixed inset-0 select-none overflow-hidden text-[#1A1D20] [-webkit-touch-callout:none]"
-      style={{ fontFamily: "var(--font-sans)", background: THEMES[look].bg }}
+      style={{ fontFamily: "var(--font-sans)", background: THEMES[look].bg, ...CHROME[dark ? "dark" : "light"] }}
       // Files dragged in from the laptop's desktop or a folder land on the board, like Insert.
       onDragOver={(e) => e.dataTransfer.types.includes("Files") && e.preventDefault()}
       onDrop={(e) => {
@@ -4239,6 +4369,26 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         // Eraser tool on, also on the shared laptop screen); the next move over the board shows it again.
         onPointerLeave={() => gesture.current.mode !== "erase" && moveEraser()}
         onContextMenu={(e) => e.preventDefault()}
+        // Laptop: a double click on empty board starts typing there, with any tool (the tool in
+        // hand comes back when the words are done). The two dots the clicks left are taken away.
+        onDoubleClick={(e) => {
+          if (lastPointer.current !== "mouse" || tool === "text" || tool === "eraser" || typingRef.current || selTextRef.current || selLineRef.current || selectedRef.current) return;
+          const [x, y] = local(e);
+          const [wx, wy] = toWorld(cam.current, x, y);
+          if (strokeUnder(x, y, false) || imageAt(images.current, wx, wy)) return;
+          const now = performance.now();
+          for (const d of [...clickDots.current].reverse()) {
+            if (now - d.at < 900 && strokes.current[strokes.current.length - 1]?.id === d.id) {
+              undo();
+              redoStack.current.pop(); // not something to redo
+            }
+          }
+          clickDots.current = [];
+          const before = tool;
+          pickTool("text");
+          toolBeforeT.current = before;
+          startTyping(x, y);
+        }}
       />
       <input
         ref={fileRef}
@@ -4260,16 +4410,40 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         rows={1}
         // Out of the Tab order while hidden (focus landing in it silenced every shortcut).
         tabIndex={typing ? 0 : -1}
-        onChange={(e) => onTypingInput(e.target.value)}
+        onChange={(e) => {
+          // "- " at the start of a line becomes a bullet.
+          const el = e.target;
+          const pos = el.selectionStart;
+          const from = el.value.lastIndexOf("\n", pos - 1) + 1;
+          if (pos - from === 2 && el.value.slice(from, pos) === "- ") el.setRangeText("• ", from, pos, "end");
+          onTypingInput(el.value);
+        }}
         onBlur={(e) => {
           // Tapping the style bar: keep typing (and the keyboard) open.
           if (e.relatedTarget && (e.relatedTarget as HTMLElement).closest?.("[data-typing-ui]")) return;
           commitTyping();
         }}
         onKeyDown={(e) => {
-          if ((e.key === "Enter" && !e.shiftKey) || e.key === "Escape") {
+          if (e.nativeEvent.isComposing) return;
+          // Enter starts a new line, as in any notes app. Esc, Ctrl+Enter or a tap away finishes.
+          if (e.key === "Escape" || (e.key === "Enter" && (e.ctrlKey || e.metaKey))) {
             e.preventDefault();
             commitTyping();
+            return;
+          }
+          // A list carries on: Enter after "• point" or "1. point" starts the next one, and Enter
+          // on an empty one ends the list.
+          if (e.key === "Enter" && !e.shiftKey) {
+            const el = e.currentTarget;
+            const pos = el.selectionStart;
+            const from = el.value.lastIndexOf("\n", pos - 1) + 1;
+            const m = /^(\s*)(•|\d+[.)])\s+(.*)$/.exec(el.value.slice(from, pos));
+            if (m) {
+              e.preventDefault();
+              if (!m[3]) el.setRangeText("", from, pos, "end");
+              else el.setRangeText(`\n${m[1]}${/^\d/.test(m[2]) ? `${parseInt(m[2], 10) + 1}${m[2].slice(-1)}` : m[2]} `, pos, el.selectionEnd, "end");
+              onTypingInput(el.value);
+            }
           }
           // Ctrl+B bold, Ctrl+I italic, Ctrl+H highlight (Cmd on a Mac).
           if (e.ctrlKey || e.metaKey) {
@@ -4281,14 +4455,17 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             }
           }
         }}
-        className={`absolute resize-none overflow-hidden whitespace-pre-wrap break-words border-0 bg-transparent p-0 leading-[1.25] outline-none [field-sizing:content] ${
-          typing ? "rounded-sm ring-2 ring-[#FBC159] ring-offset-4 ring-offset-transparent" : "pointer-events-none opacity-0"
+        className={`absolute resize-none overflow-hidden whitespace-pre-wrap break-words border-0 bg-transparent p-0 leading-[1.25] [field-sizing:content] ${
+          typing ? "rounded-[2px]" : "pointer-events-none opacity-0 outline-none"
         }`}
         style={
           typing
             ? {
                 left: typing.x,
                 top: typing.y,
+                // One thin line around the words, the same as when they are selected.
+                outline: "1.5px solid var(--bd-accent)",
+                outlineOffset: 7,
                 fontSize: typing.px,
                 fontWeight: typing.bold ? 700 : 500,
                 fontStyle: typing.italic ? "italic" : "normal",
@@ -4310,12 +4487,19 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           className={`${PANEL} absolute z-20 flex animate-[scale-in_140ms_ease-out] items-center gap-0.5 p-1 motion-reduce:animate-none`}
           // Above the words, or below them when there's no room above (near the top of the screen).
           style={{
-            left: Math.min(Math.max(8, typing.x - 6), Math.max(8, screen.current.w - (lead ? 372 : 304))),
+            left: Math.min(Math.max(8, typing.x - 6), Math.max(8, screen.current.w - (lead ? 492 : 428))),
             top: typing.y - 60 > 64 ? typing.y - 60 : typing.y + typing.hPx + 14,
           }}
           onPointerDown={(e) => e.preventDefault()}
           onMouseDown={(e) => e.preventDefault()}
         >
+          <button type="button" aria-label="Smaller text" {...tipOn("Smaller")} onPointerDown={palmDown} onClick={() => !palmBlocked() && stepTextSize(-1)} className={`${PRESS} ${QUIET} flex items-center justify-center rounded-[10px] text-[11px] font-semibold ${lead ? "h-11 w-10" : `h-9 w-8 ${HIT}`}`}>
+            A
+          </button>
+          <button type="button" aria-label="Bigger text" {...tipOn("Bigger")} onPointerDown={palmDown} onClick={() => !palmBlocked() && stepTextSize(1)} className={`${PRESS} ${QUIET} flex items-center justify-center rounded-[10px] text-[17px] font-semibold ${lead ? "h-11 w-10" : `h-9 w-8 ${HIT}`}`}>
+            A
+          </button>
+          <Divider />
           {(
             [
               ["bold", "B", "Bold (Ctrl+B)", "font-bold"],
@@ -4366,7 +4550,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             className={`absolute z-20 flex cursor-move touch-none items-center justify-center rounded-full ${lead ? "h-11 w-11" : "h-9 w-9"}`}
             style={{ left: Math.max(4, typing.x - (lead ? 52 : 42)), top: typing.y + Math.min(typing.hPx, typing.px * 1.25) / 2 - (lead ? 22 : 18) }}
           >
-            <span className={`flex items-center justify-center rounded-full border border-[#FBC159] bg-white text-[#1A1D20]/75 shadow-[0_1px_3px_rgba(20,22,24,0.35)] ${lead ? "h-8 w-8 [&>svg]:h-[18px] [&>svg]:w-[18px]" : "h-7 w-7 [&>svg]:h-4 [&>svg]:w-4"}`}>{I.move}</span>
+            <span className={`flex items-center justify-center rounded-full border border-[color:var(--bd-accent)] bg-[#fff] text-[#1A1D20]/75 shadow-[0_1px_3px_rgba(20,22,24,0.35)] ${lead ? "h-8 w-8 [&>svg]:h-[18px] [&>svg]:w-[18px]" : "h-7 w-7 [&>svg]:h-4 [&>svg]:w-4"}`}>{I.move}</span>
           </button>
           <button
             type="button"
@@ -4380,9 +4564,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             onPointerCancel={() => onHandleUp()}
             // The tablet: a finger-sized target that grows outwards (right, up and down); the pill itself stays where it was.
             className={`absolute z-20 flex cursor-ew-resize touch-none items-center ${lead ? "h-11 w-9 justify-start pl-[5px]" : "h-7 w-4 justify-center"}`}
-            style={{ left: typing.x + typing.wPx + 6, top: typing.y + typing.hPx / 2 - (lead ? 22 : 14) }}
+            style={{ left: typing.x + typing.wPx, top: typing.y + typing.hPx / 2 - (lead ? 22 : 14) }}
           >
-            <span className="block h-6 w-1.5 rounded-full border border-[#FBC159] bg-white shadow-[0_1px_3px_rgba(20,22,24,0.35)]" />
+            <span className="block h-6 w-1.5 rounded-full border border-[color:var(--bd-accent)] bg-[#fff] shadow-[0_1px_3px_rgba(20,22,24,0.35)]" />
           </button>
           <button
             type="button"
@@ -4396,7 +4580,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             onPointerCancel={() => onHandleUp()}
             // The tablet: a bigger target growing right and down; the dot stays where it was.
             className={`absolute z-20 flex cursor-nwse-resize touch-none ${lead ? "h-10 w-10 items-start justify-start p-[6px]" : "h-6 w-6 items-center justify-center"}`}
-            style={{ left: typing.x + typing.wPx + 1, top: typing.y + typing.hPx + 1 }}
+            style={{ left: typing.x + typing.wPx - 4, top: typing.y + typing.hPx - 4 }}
           >
             <span className={HANDLE_DOT} />
           </button>
@@ -4459,7 +4643,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                 </span>
               ))}
             </div>
-            <div ref={selBarRef} className={`${PANEL} absolute flex animate-[scale-in_140ms_ease-out] items-center gap-0.5 p-[3px] motion-reduce:animate-none`} style={{ left: -9999, top: -9999 }}>
+            <div ref={selBarRef} className={`${PANEL} absolute flex animate-[scale-in_140ms_ease-out] items-center gap-0.5 p-1 motion-reduce:animate-none`} style={{ left: -9999, top: -9999 }}>
               <button
                 type="button"
                 aria-label="Move the picture: drag this"
@@ -4481,7 +4665,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               <button type="button" {...tipOn("Bring to front")} onPointerDown={palmDown} onClick={() => !palmBlocked() && frontSelected()} className={`${PRESS} ${QUIET} rounded-[10px] px-3 text-xs font-semibold ${lead ? "h-11" : `h-9 ${HIT}`}`}>
                 Front
               </button>
-              <button type="button" {...tipOn("Remove the picture", "Delete")} onPointerDown={palmDown} onClick={() => !palmBlocked() && deleteSelected()} className={`${PRESS} flex items-center gap-1.5 rounded-[10px] bg-[#E5685A]/[0.14] px-3 text-xs font-semibold text-[#F4A397] hover:bg-[#E5685A]/[0.22] [&_svg]:h-4 [&_svg]:w-4 ${lead ? "h-11" : `h-9 ${HIT}`}`}>
+              <button type="button" {...tipOn("Remove the picture", "Delete")} onPointerDown={palmDown} onClick={() => !palmBlocked() && deleteSelected()} className={`${PRESS} flex items-center gap-1.5 rounded-[10px] bg-[#E5685A]/[0.14] px-3 text-xs font-semibold text-[color:var(--bd-danger)] hover:bg-[#E5685A]/[0.22] [&_svg]:h-4 [&_svg]:w-4 ${lead ? "h-11" : `h-9 ${HIT}`}`}>
                 {I.trash}
                 Remove
               </button>
@@ -4508,7 +4692,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         {selLine && (
           <>
             <div ref={selLineFrameRef} aria-hidden className={`pointer-events-none absolute ${SEL_FRAME}`} style={{ left: -9999, top: -9999 }} />
-            <div ref={selLineBarRef} data-selline-bar className={`${PANEL} absolute z-20 flex animate-[scale-in_140ms_ease-out] items-center gap-0.5 p-[3px] motion-reduce:animate-none`} style={{ left: -9999, top: -9999 }}>
+            <div ref={selLineBarRef} data-selline-bar className={`${PANEL} absolute z-20 flex animate-[scale-in_140ms_ease-out] items-center gap-0.5 p-1 motion-reduce:animate-none`} style={{ left: -9999, top: -9999 }}>
               <button
                 type="button"
                 aria-label={selLine.line ? "Move the line: drag this" : "Move the shape: drag this"}
@@ -4542,7 +4726,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               >
                 Duplicate
               </button>
-              <button type="button" aria-label={selLine.line ? "Remove the line" : "Remove the shape"} {...tipOn(selLine.line ? "Remove the line" : "Remove the shape", "Delete")} onPointerDown={palmDown} onClick={() => !palmBlocked() && deleteSelLine()} className={`${PRESS} flex items-center gap-1.5 rounded-[10px] bg-[#E5685A]/[0.14] px-3 text-xs font-semibold text-[#F4A397] hover:bg-[#E5685A]/[0.22] [&_svg]:h-4 [&_svg]:w-4 ${lead ? "h-11" : `h-9 ${HIT}`}`}>
+              <button type="button" aria-label={selLine.line ? "Remove the line" : "Remove the shape"} {...tipOn(selLine.line ? "Remove the line" : "Remove the shape", "Delete")} onPointerDown={palmDown} onClick={() => !palmBlocked() && deleteSelLine()} className={`${PRESS} flex items-center gap-1.5 rounded-[10px] bg-[#E5685A]/[0.14] px-3 text-xs font-semibold text-[color:var(--bd-danger)] hover:bg-[#E5685A]/[0.22] [&_svg]:h-4 [&_svg]:w-4 ${lead ? "h-11" : `h-9 ${HIT}`}`}>
                 {I.trash}
               </button>
               <Divider />
@@ -4569,8 +4753,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             data-line-style
             role="group"
             aria-label="Line style"
-            className={`${PANEL} absolute flex animate-[scale-in_140ms_ease-out] items-center gap-0.5 p-[3px] motion-reduce:animate-none ${
-              lead ? "left-[72px] top-[calc(max(64px,50dvh_-_370.5px)_+_49px)]" : "bottom-[76px] left-1/2 -translate-x-1/2"
+            className={`${PANEL} absolute flex animate-[scale-in_140ms_ease-out] items-center gap-0.5 p-1 motion-reduce:animate-none ${
+              lead ? "left-[74px] top-[calc(max(64px,50dvh_-_319.5px)_+_50px)]" : "bottom-[76px] left-1/2 -translate-x-1/2"
             }`}
           >
             {([false, true] as const).map((d) => (
@@ -4605,7 +4789,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                 onLostPointerCapture={onTextGripUp}
                 className="pointer-events-auto absolute right-[-30px] top-1/2 flex h-11 w-9 -translate-y-1/2 cursor-ew-resize touch-none items-center pl-[3px]"
               >
-                <span className="block h-6 w-1.5 rounded-full border border-[#FBC159] bg-white shadow-[0_1px_3px_rgba(20,22,24,0.35)]" />
+                <span className="block h-6 w-1.5 rounded-full border border-[color:var(--bd-accent)] bg-[#fff] shadow-[0_1px_3px_rgba(20,22,24,0.35)]" />
               </span>
               <span
                 data-k="s"
@@ -4614,12 +4798,12 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                 onPointerUp={onTextGripUp}
                 onPointerCancel={onTextGripUp}
                 onLostPointerCapture={onTextGripUp}
-                className="pointer-events-auto absolute bottom-[-34px] right-[-34px] flex h-11 w-11 cursor-nwse-resize touch-none items-start justify-start p-[2px]"
+                className="pointer-events-auto absolute bottom-[-34px] right-[-34px] flex h-11 w-11 cursor-nwse-resize touch-none items-start justify-start p-[4px]"
               >
                 <span className={HANDLE_DOT} />
               </span>
             </div>
-            <div ref={selTextBarRef} data-seltext-bar className={`${PANEL} absolute z-20 flex animate-[scale-in_140ms_ease-out] items-center gap-0.5 p-[3px] motion-reduce:animate-none`} style={{ left: -9999, top: -9999 }}>
+            <div ref={selTextBarRef} data-seltext-bar className={`${PANEL} absolute z-20 flex animate-[scale-in_140ms_ease-out] items-center gap-0.5 p-1 motion-reduce:animate-none`} style={{ left: -9999, top: -9999 }}>
               <button
                 type="button"
                 data-k="move"
@@ -4635,6 +4819,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                 {I.move}
                 Move
               </button>
+              <button type="button" aria-label="Smaller text" {...tipOn("Smaller")} onPointerDown={palmDown} onClick={() => !palmBlocked() && stepTextSize(-1)} className={`${PRESS} ${QUIET} flex items-center justify-center rounded-[10px] text-[11px] font-semibold ${lead ? "h-11 w-10" : `h-9 w-8 ${HIT}`}`}>
+                A
+              </button>
+              <button type="button" aria-label="Bigger text" {...tipOn("Bigger")} onPointerDown={palmDown} onClick={() => !palmBlocked() && stepTextSize(1)} className={`${PRESS} ${QUIET} flex items-center justify-center rounded-[10px] text-[17px] font-semibold ${lead ? "h-11 w-10" : `h-9 w-8 ${HIT}`}`}>
+                A
+              </button>
+              <Divider />
               <button type="button" data-k="bold" aria-label="Bold" aria-pressed={selText.bold} {...tipOn("Bold")} onPointerDown={palmDown} onClick={onSelStyle} className={`${PRESS} flex items-center justify-center rounded-[10px] text-[15px] font-bold ${lead ? "h-11 w-11" : `h-9 w-9 ${HIT}`} ${selText.bold ? ON : QUIET}`}>
                 B
               </button>
@@ -4651,7 +4842,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               <button type="button" {...tipOn("Edit the words", "Enter", "Or tap the words again.")} onPointerDown={palmDown} onClick={() => !palmBlocked() && editSel()} className={`${PRESS} ${QUIET} rounded-[10px] px-3 text-xs font-semibold ${lead ? "h-11" : `h-9 ${HIT}`}`}>
                 Edit
               </button>
-              <button type="button" aria-label="Remove the text" {...tipOn("Remove the text", "Delete")} onPointerDown={palmDown} onClick={() => !palmBlocked() && deleteSelText()} className={`${PRESS} flex items-center justify-center rounded-[10px] bg-[#E5685A]/[0.14] text-[#F4A397] hover:bg-[#E5685A]/[0.22] [&_svg]:h-4 [&_svg]:w-4 ${lead ? "h-11 w-11" : `h-9 w-9 ${HIT}`}`}>
+              <button type="button" aria-label="Remove the text" {...tipOn("Remove the text", "Delete")} onPointerDown={palmDown} onClick={() => !palmBlocked() && deleteSelText()} className={`${PRESS} flex items-center justify-center rounded-[10px] bg-[#E5685A]/[0.14] text-[color:var(--bd-danger)] hover:bg-[#E5685A]/[0.22] [&_svg]:h-4 [&_svg]:w-4 ${lead ? "h-11 w-11" : `h-9 w-9 ${HIT}`}`}>
                 {I.trash}
               </button>
             </div>
@@ -4662,7 +4853,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         <div ref={topBarRef} className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
           {/* The page: each class has its own, always there. Tap the name for the list of pages;
               the arrows step through them, + starts a blank one. */}
-          <div className={`${PANEL} pointer-events-auto relative z-30 flex h-11 shrink-0 items-center gap-0.5 px-[3px]`}>
+          <div className={`${PANEL} pointer-events-auto relative z-30 flex h-11 shrink-0 items-center gap-0.5 px-1`}>
             <SmallButton label="Previous page" keys="[" onClick={() => stepPage(-1)} disabled={pageIndex <= 0}>{I.prev}</SmallButton>
             <button
               type="button"
@@ -4700,7 +4891,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                           setPagesOpen(false);
                           openPage(x, true);
                         }}
-                        className={`${PRESS} flex h-11 w-full items-center gap-2.5 rounded-[12px] px-3 text-left text-sm font-semibold active:scale-[0.98] ${x.id === page.id ? ON : QUIET}`}
+                        className={`${PRESS} flex h-11 w-full items-center gap-2.5 rounded-[8px] px-3 text-left text-sm font-semibold active:scale-[0.98] ${x.id === page.id ? ON : QUIET}`}
                       >
                         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${x.id === page.id ? "bg-[#FBC159]" : "bg-white/20"}`} aria-hidden />
                         <span className="truncate">{x.title}</span>
@@ -4713,35 +4904,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             <SmallButton label="Next page" keys="]" onClick={() => stepPage(1)} disabled={pageIndex >= pageList.length - 1}>{I.next}</SmallButton>
             <SmallButton label="New blank page" keys="N" onClick={newPage}>{I.plus}</SmallButton>
             {page.id !== MAIN_PAGE.id && <SmallButton label="Delete this page" onClick={() => setConfirmDelete(true)}>{I.trash}</SmallButton>}
-            <Divider />
-            <span
-              className="flex shrink-0 items-center gap-1.5 pl-0.5 pr-2.5 text-[11px] font-semibold text-white/60"
-              {...tipOn(
-                partner ? (lead ? "Laptop linked" : "Tablet linked") : lead ? "No laptop yet" : "No tablet yet",
-                undefined,
-                lead ? "Open /teach/present on your laptop: it draws too, and follows this tablet." : "Open the board on your tablet: when it pans or zooms, this screen follows.",
-              )}
-            >
-              <span className={`h-2 w-2 shrink-0 rounded-full ${partner ? "bg-[#6FBBA8] shadow-[0_0_0_3px_rgba(111,187,168,0.18)]" : "bg-white/25"}`} />
-              <span className="sr-only sm:not-sr-only">
-                {partner ? (lead ? "Laptop" : "Tablet") : lead ? "No laptop" : "No tablet"}
-              </span>
-            </span>
           </div>
           <div ref={sidePanelRef} className={`${PANEL} pointer-events-auto flex h-11 min-w-0 items-center overflow-hidden`}>
             {/* On a narrow phone the view controls slide sideways instead of crowding the page bar. */}
-            <div className="flex h-full min-w-0 items-center gap-0.5 overflow-x-auto whitespace-nowrap px-[3px] [scrollbar-width:none] [&>*]:shrink-0">
-            {lead && (
-              <button
-                type="button"
-                onClick={() => setFingerDraws((v) => !v)}
-                aria-pressed={fingerDraws}
-                {...tipOn(fingerDraws ? "Finger draws" : "Pen only", undefined, "For phones without a pen. On your tablet, leave this off: only the S Pen draws.")}
-                className={`${PRESS} ${HIT} h-9 rounded-[10px] px-3 text-xs font-semibold ${fingerDraws ? ON : QUIET}`}
-              >
-                {fingerDraws ? "Finger draws" : "Pen only"}
-              </button>
-            )}
+            <div className="flex h-full min-w-0 items-center gap-0.5 overflow-x-auto whitespace-nowrap px-1 [scrollbar-width:none] [&>*]:shrink-0">
             <button type="button" onClick={fit} aria-label={`Zoom ${zoom}%. Fit the whole board`} {...tipOn("Fit the whole board", undefined, "Shows everything on this page")} className={`${PRESS} ${QUIET} ${HIT} flex h-9 w-[60px] items-center justify-center gap-1 rounded-[10px] text-xs font-semibold tabular-nums`}>
               {zoom}%
             </button>
@@ -4768,16 +4934,6 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               {BACKDROP_NAME[paper]}
             </button>
             <SmallButton label="Hide the tools for a clean shared screen" keys="H" onClick={() => setToolsHidden(true)}>{I.hide}</SmallButton>
-            {lead && (
-              <button
-                type="button"
-                onClick={() => void copyLink()}
-                {...tipOn("Copy the laptop link", undefined, "Open it on your laptop and share that screen in Meet.")}
-                className={`${PRESS} ${HIT} ml-0.5 h-9 rounded-[10px] bg-[#FBC159] px-3.5 text-xs font-bold text-[#1B1E21] hover:bg-[#FFD07A] active:bg-[#E5A832]`}
-              >
-                {copiedPresent ? "Copied" : "Laptop link"}
-              </button>
-            )}
             </div>
           </div>
           {/* The papers: four prints, on the light board or the dark one. One tap each. */}
@@ -4792,22 +4948,22 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                     aria-checked={paper === b}
                     data-v={b}
                     onClick={onPickPaper}
-                    className={`${PRESS} flex flex-col items-center gap-1.5 rounded-[12px] px-1 pb-1.5 pt-2 text-[11px] font-semibold ${paper === b ? ON : QUIET}`}
+                    className={`${PRESS} flex flex-col items-center gap-1.5 rounded-[6px] px-1 pb-1.5 pt-2 text-[11px] font-semibold ${paper === b ? ON : QUIET}`}
                   >
                     <span
                       aria-hidden
-                      className={`block h-8 w-11 rounded-[6px] ${paper === b ? "shadow-[0_0_0_1.5px_#FBC159]" : "shadow-[0_0_0_1px_rgba(255,255,255,0.14)]"}`}
+                      className={`block h-8 w-11 rounded-[4px] ${paper === b ? "[box-shadow:0_0_0_1.5px_var(--bd-accent)]" : "ring-1 ring-white/15"}`}
                       style={{ backgroundColor: THEMES[look].bg, ...PAPER_SWATCH[b](dark ? "rgba(240,237,232,0.4)" : "rgba(26,29,32,0.34)") }}
                     />
                     {BACKDROP_NAME[b]}
                   </button>
                 ))}
               </div>
-              <div className="mt-2 grid grid-cols-2 gap-1 rounded-[12px] bg-white/[0.05] p-1" role="group" aria-label="Board">
-                <button type="button" role="menuitemradio" aria-checked={!dark} data-v="light" onClick={onPickTone} className={`${PRESS} h-11 rounded-[9px] text-xs font-semibold ${!dark ? ON : QUIET}`}>
+              <div className="mt-2 grid grid-cols-2 gap-1 rounded-[8px] bg-white/[0.05] p-1" role="group" aria-label="Board">
+                <button type="button" role="menuitemradio" aria-checked={!dark} data-v="light" onClick={onPickTone} className={`${PRESS} h-11 rounded-[4px] text-xs font-semibold ${!dark ? ON : QUIET}`}>
                   Light board
                 </button>
-                <button type="button" role="menuitemradio" aria-checked={dark} data-v="dark" onClick={onPickTone} className={`${PRESS} h-11 rounded-[9px] text-xs font-semibold ${dark ? ON : QUIET}`}>
+                <button type="button" role="menuitemradio" aria-checked={dark} data-v="dark" onClick={onPickTone} className={`${PRESS} h-11 rounded-[4px] text-xs font-semibold ${dark ? ON : QUIET}`}>
                   Dark board
                 </button>
               </div>
@@ -4821,20 +4977,19 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             along the bottom. */}
         <div
           ref={toolbarRef}
-          className={`${PANEL} absolute flex items-center gap-0.5 p-[3px] [scrollbar-width:none] ${
+          className={`${PANEL} absolute flex items-center gap-0.5 p-1 [scrollbar-width:none] ${
             lead
               ? // In the middle of the screen's height when there is room (as before). In a short browser
                 // window (the tablet's address bar and tab strip showing) it starts just under the page bar
                 // and its buttons are a little shorter (and the dividers closer), so "Clear the board" is
                 // never cut off at the bottom, with the fourth ink colour in the column too.
-                "left-3 top-[max(64px,calc(50dvh_-_370.5px))] max-h-[calc(100dvh-76px)] flex-col overflow-y-auto [@media(max-height:800px)]:[&>button]:h-10 [@media(max-height:800px)]:[&>span]:my-1"
+                "left-3 top-[max(64px,calc(50dvh_-_319.5px))] max-h-[calc(100dvh-76px)] flex-col overflow-y-auto [@media(max-height:800px)]:[&>button]:h-10 [@media(max-height:800px)]:[&>span]:my-1"
               : "bottom-4 left-1/2 max-w-[calc(100vw-16px)] -translate-x-1/2 overflow-x-auto"
           }`}
         >
           <ToolButton label="Pen (P). Draw a T for a T account; hold still at the end to snap a line, box or circle" tip="Pen" keys="P" hint="Draw a T for a T account. Hold still at the end to snap a line, box or circle." active={tool === "pen"} onClick={() => pickTool("pen")}>{I.pen}</ToolButton>
-          <ToolButton label="Straight line (L), at any angle. Solid or Dotted appears beside the tools" tip="Straight line" keys="L" hint={lead ? "Goes at any angle. Pick Solid or Dotted beside the tools." : "Goes at any angle. D switches Solid and Dotted. Hold Shift for steps of 15 degrees."} active={tool === "line"} onClick={() => pickTool("line")}>{I.line}</ToolButton>
-          <ToolButton label="Eraser (E), or hold the pen's side button" tip="Eraser" keys="E" hint="Or hold the pen's side button." active={tool === "eraser"} onClick={() => pickTool("eraser")}>{I.eraser}</ToolButton>
-          <ToolButton label="Type (T starts typing where the mouse is). Enter finishes, Shift+Enter for a new line. Tap typed words to select them, drag to move them, tap again to edit" tip="Type" keys="T" hint="Starts where the mouse is. Enter finishes, Shift+Enter for a new line. Tap typed words to select them, drag to move, tap again to edit." active={tool === "text"} onClick={() => pickTool("text")}>{I.text}</ToolButton>
+          <ToolButton label="Eraser (E), or press the pen's side button" tip="Eraser" keys="E" hint="Or press the pen's side button once, just above the screen. Press again to write." active={tool === "eraser"} onClick={() => pickTool("eraser")}>{I.eraser}</ToolButton>
+          <ToolButton label="Type (T, or double click the board). Enter for a new line, Esc or a tap away to finish. Tap typed words to select them, drag to move them, tap again to edit" tip="Type" keys="T" hint="Or double click the board. Enter for a new line, Esc or a click away to finish. Start a line with - for a list." active={tool === "text"} onClick={() => pickTool("text")}>{I.text}</ToolButton>
           <ToolButton label="Move (V): drag pictures, typed text or writing" tip="Move" keys="V" hint="Drag pictures, typed text or writing. With any tool, tap typed words with a finger to select them, then drag." active={tool === "move"} onClick={() => pickTool("move")}>{I.move}</ToolButton>
           <ToolButton label="Insert a picture or PDF" tip="Picture or PDF" hint={lead ? undefined : "Or paste one (Ctrl+V), or drop a file on the board."} disabled={!!busy} onClick={() => fileRef.current?.click()}>
             {busy ? <Spinner size={20} className="text-white/80" /> : I.insert}
@@ -4853,34 +5008,59 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                 setColor(c.value);
                 if (tool === "eraser" || tool === "move") pickTool("pen");
               }}
-              className={`${PRESS} flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] hover:bg-white/[0.06]`}
+              className={`${PRESS} flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] hover:bg-white/[0.06]`}
             >
               <Swatch ink={inkOf(c.value)} on={color === c.value} size={20} />
             </button>
           ))}
           <Divider across={lead} />
-          {SIZES.map((s) => (
-            <button
-              key={s.value}
-              type="button"
-              aria-label={`${s.name} pen`}
-              aria-pressed={size === s.value}
-              {...tipOn(`${s.name} pen`)}
-              onPointerDown={palmDown}
-              onClick={() => !palmBlocked() && setSize(s.value)}
-              className={`${PRESS} flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] ${size === s.value ? ON : "hover:bg-white/[0.06]"}`}
-            >
-              <span
-                className="block rounded-full transition-colors duration-150 motion-reduce:transition-none"
-                style={{ width: s.value * 2.2, height: s.value * 2.2, background: size === s.value ? "#FFFFFF" : "rgba(255,255,255,0.42)" }}
-              />
-            </button>
-          ))}
+          <button
+            type="button"
+            data-size-menu
+            aria-label="Pen thickness"
+            aria-expanded={!!sizeAt}
+            {...tipOn("Thickness")}
+            onPointerDown={palmDown}
+            onClick={(e) => {
+              if (palmBlocked()) return;
+              const r = e.currentTarget.getBoundingClientRect();
+              setSizeAt(sizeAt ? null : lead ? { x: r.right + 10, y: r.top + r.height / 2 - 27 } : { x: Math.max(8, r.left + r.width / 2 - 126), y: r.top - 62 });
+            }}
+            className={`${PRESS} flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] ${sizeAt ? ON : "hover:bg-white/[0.06]"}`}
+          >
+            <span className="block rounded-full" style={{ width: size * 1.5 + 4, height: size * 1.5 + 4, background: "var(--bd-fg)" }} />
+          </button>
           <Divider across={lead} />
           <ToolButton label="Undo (Ctrl+Z)" tip="Undo" keys="Ctrl+Z" disabled={!meta.undo} onClick={undo}>{I.undo}</ToolButton>
           <ToolButton label="Redo (Ctrl+Shift+Z)" tip="Redo" keys="Ctrl+Shift+Z" disabled={!meta.redo} onClick={redo}>{I.redo}</ToolButton>
           <ToolButton label="Clear the board" disabled={!hasContent} onClick={() => setConfirmClear(true)}>{I.trash}</ToolButton>
         </div>
+
+        {/* Pen thickness: one slider, thin to large. The track is the line itself, growing; the
+            knob is the nib at its real size. */}
+        {sizeAt && (
+          <div data-size-menu className={`${PANEL} fixed z-40 animate-[scale-in_140ms_ease-out] p-1 motion-reduce:animate-none`} style={{ left: sizeAt.x, top: sizeAt.y }}>
+            <div
+              role="slider"
+              aria-label="Pen thickness, thin to large"
+              aria-valuemin={PEN_MIN}
+              aria-valuemax={PEN_MAX}
+              aria-valuenow={size}
+              onPointerDown={onSizeDrag}
+              onPointerMove={onSizeDrag}
+              className="relative h-11 w-[244px] cursor-pointer touch-none rounded-[10px]"
+            >
+              <svg aria-hidden viewBox="0 0 244 44" className="absolute inset-0 h-full w-full text-white/20">
+                <path d={`M14 21 L230 ${22 - PEN_MAX / 2} A${PEN_MAX / 2} ${PEN_MAX / 2} 0 0 1 230 ${22 + PEN_MAX / 2} L14 23 A1 1 0 0 1 14 21Z`} fill="currentColor" />
+              </svg>
+              <span
+                aria-hidden
+                className="absolute top-1/2 block -translate-x-1/2 -translate-y-1/2 rounded-full"
+                style={{ left: 14 + ((size - PEN_MIN) / (PEN_MAX - PEN_MIN)) * 216, width: size + 8, height: size + 8, background: "var(--bd-fg)", boxShadow: "0 0 0 3px var(--bd-gap)" }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* A blank page on the tablet: one quiet line in the middle, gone with the first stroke.
@@ -4924,7 +5104,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               <button type="button" autoFocus onClick={() => setConfirmDelete(false)} className={`${PRESS} h-11 flex-1 rounded-[12px] bg-white/[0.07] text-sm font-semibold text-white hover:bg-white/[0.11]`}>
                 Cancel
               </button>
-              <button type="button" onClick={deletePage} className={`${PRESS} h-11 flex-1 rounded-[12px] bg-[#C2382C] text-sm font-bold text-white hover:bg-[#D0453A]`}>
+              <button type="button" onClick={deletePage} className={`${PRESS} h-11 flex-1 rounded-[12px] bg-[#C2382C] text-sm font-bold text-[#fff] hover:bg-[#D0453A]`}>
                 Delete
               </button>
             </div>
@@ -4948,7 +5128,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                   clearAll();
                   setConfirmClear(false);
                 }}
-                className={`${PRESS} h-11 flex-1 rounded-[12px] bg-white text-sm font-bold text-[#1B1E21] hover:bg-white/90`}
+                className={`${PRESS} h-11 flex-1 rounded-[12px] bg-[var(--bd-solid)] text-sm font-bold text-[color:var(--bd-solid-fg)] hover:opacity-90`}
               >
                 Clear
               </button>
@@ -5114,7 +5294,7 @@ export function ViewerBoard({ room, present = false }: { room: string; present?:
   };
 
   return (
-    <div className="fixed inset-0 select-none overflow-hidden text-[#f0ede8]" style={{ background: THEMES[look].bg }}>
+    <div className="fixed inset-0 select-none overflow-hidden text-[#f0ede8]" style={{ background: THEMES[look].bg, ...CHROME.dark }}>
       <canvas
         ref={canvasRef}
         className="absolute inset-0 h-full w-full touch-none"

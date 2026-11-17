@@ -108,7 +108,8 @@ export const THEMES: Record<ThemeId, Theme> = {
     // The dark board: the brand charcoal. Every ink is drawn in its own saved (light) shade, all
     // at least 5.7 to 1 against it.
     bg: "#212427",
-    print: { rgb: "240,237,232", dots: 0.17, lines: 0.07, grid: 0.055, major: 0.105 },
+    // (Twice as strong as it was: on the tablet the print could not be seen at all.)
+    print: { rgb: "240,237,232", dots: 0.38, lines: 0.15, grid: 0.11, major: 0.21 },
     ink: {},
     accent: "#FBC159",
     ring: { border: "rgba(255,255,255,0.7)", fill: "rgba(255,255,255,0.05)" },
@@ -235,7 +236,7 @@ export const steadyFor = (stepPx: number) => (stepPx < 1.5 ? 0.66 : stepPx < 4 ?
 /**
  * When the pen lifts, the stroke settles into its final, smoother line: points
  * crowded closer than a fraction of the nib are dropped, then the path is
- * eased twice. Ends stay exactly where they were, so letters still join up.
+ * eased three times. Ends stay exactly where they were, so letters still join up.
  */
 export function settleStroke(pts: Pt[], size: number): Pt[] {
   if (pts.length < 5) return pts;
@@ -247,7 +248,8 @@ export function settleStroke(pts: Pt[], size: number): Pt[] {
   }
   kept.push(pts[pts.length - 1]);
   let out = kept;
-  for (let pass = 0; pass < 2; pass++) {
+  // (Three passes, one more than before: the small shakes of the hand go, the letter keeps its shape.)
+  for (let pass = 0; pass < 3; pass++) {
     out = out.map((p, i) => {
       if (i === 0 || i === out.length - 1) return p;
       const a = out[i - 1];
@@ -418,8 +420,12 @@ export function axesOf(pts: Pt[], hug = 0.08): { a: Pt; b: Pt } | null {
   return { a: [x0, y0, 0.5], b: [x1, y1, 0.5] };
 }
 
-/** Pen pressure to width factor: light touch stays readable, pressing thickens. */
-const widthAt = (size: number, p: number) => size * (0.3 + 1.05 * Math.pow(Math.min(1, Math.max(0, p)), 0.8));
+/**
+ * Pen pressure to width factor. A calm range, like a good marker: a light touch is never thin and
+ * scratchy, a heavy one never blobs, so writing keeps one even weight and reads neater. (About the
+ * same weight as before at a normal press; it was 0.3 to 1.35, now 0.62 to 1.12.)
+ */
+const widthAt = (size: number, p: number) => size * (0.62 + 0.5 * Math.pow(Math.min(1, Math.max(0, p)), 0.9));
 
 /**
  * How heavy a hand-drawn stroke looks, as a share of its pen size (from its pen pressure), so the
@@ -623,7 +629,7 @@ export function inkPath(pts: Pt[], size: number): string {
   };
   const rEnd = Math.max(0.01, widths[n - 1]);
   const rStart = Math.max(0.01, widths[0]);
-  const back = [...right].reverse();
+  const back = right.toReversed();
   return (
     `M${f(left[0][0])} ${f(left[0][1])}` +
     edge(left) +
@@ -747,7 +753,7 @@ function drawShape(ctx: CanvasRenderingContext2D, s: Stroke) {
 /** The middle value of a list (0 when it is empty). */
 function median(v: number[]): number {
   if (!v.length) return 0;
-  const s = [...v].sort((a, b) => a - b);
+  const s = v.toSorted((a, b) => a - b);
   return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
 }
 
