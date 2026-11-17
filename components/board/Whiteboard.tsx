@@ -33,6 +33,7 @@ import {
   imageAt,
   imageSize,
   isPenEraser,
+  arrowHeadOn,
   lineAngle,
   measureText,
   runWidth,
@@ -91,7 +92,7 @@ const MIN_HOLD_PATH_PX = 28;
 // After the pen lifts, touches are taken as the resting hand for this long (not a pan).
 const PALM_LOCK_MS = 900;
 const PALM_SIZE_PX = 56;
-const ERASER_PX = 14;
+const ERASER_PX = 22;
 /** Pen thickness: the ends of the slider, and where it starts. */
 const PEN_MIN = 2;
 const PEN_MAX = 16;
@@ -826,6 +827,8 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const [tool, setTool] = useState<Tool>("pen");
   const [color, setColor] = useState(COLORS[0].value);
   // Recent straight lines, so a bar then an upright (or the other way) becomes a T account.
+  // When the last stroke landed (for an arrowhead added to the line just drawn).
+  const lastDrawnAt = useRef(0);
   const recentLines = useRef<Array<{ id: string; ends: [Pt, Pt]; dir: "h" | "v"; at: number }>>([]);
   // The pen's real last position: smoothing trails it, so a stroke ends here.
   const lastRaw = useRef<Pt | null>(null);
@@ -845,6 +848,9 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     } catch {}
   }, []);
   // The slider, opened from the size button: where it sits (beside or above that button).
+  // The highlighter in hand (the yellow swatch): the pen lays a broad see-through band, for headings
+  // and key words. Picking an ink colour puts it down.
+  const [marker, setMarker] = useState(false);
   const [sizeAt, setSizeAt] = useState<{ x: number; y: number } | null>(null);
   useEffect(() => {
     if (!sizeAt) return;
@@ -950,7 +956,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   const selTextRef = useRef<string | null>(null);
   // The selected straight line (the Move tool, a tap or a drag on it): a gold frame and a small bar
   // with Dotted or Solid, Duplicate and a bin. Only this device knows what is selected.
-  const [selLine, setSelLineState] = useState<{ id: string; dotted: boolean; line: boolean } | null>(null);
+  const [selLine, setSelLineState] = useState<{ id: string; dotted: boolean; line: boolean; arrow: boolean } | null>(null);
   const selLineRef = useRef<string | null>(null);
   /** The selected line as it is now (also while it is being dragged, when it is drawn on top). */
   const selLineStroke = (): Stroke | undefined => {
@@ -968,7 +974,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     selLineRef.current = id;
     const s = selLineStroke();
     if (!s) selLineRef.current = null;
-    setSelLineState((p) => (!s ? null : p && p.id === s.id && p.dotted === !!s.dotted ? p : { id: s.id, dotted: !!s.dotted, line: s.kind === "line" }));
+    setSelLineState((p) => (!s ? null : p && p.id === s.id && p.dotted === !!s.dotted && p.arrow === !!s.arrow ? p : { id: s.id, dotted: !!s.dotted, line: s.kind === "line", arrow: !!s.arrow }));
   };
   // The Line tool's style, Solid or Dotted: remembered for the next line, and on this device.
   const [lineDotted, setLineDottedState] = useState(false);
@@ -1028,7 +1034,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     if (selLineRef.current) {
       const l = selLineStroke();
       if (!l) selLineRef.current = null;
-      setSelLineState((p) => (!l ? null : p && p.id === l.id && p.dotted === !!l.dotted ? p : { id: l.id, dotted: !!l.dotted, line: l.kind === "line" }));
+      setSelLineState((p) => (!l ? null : p && p.id === l.id && p.dotted === !!l.dotted && p.arrow === !!l.arrow ? p : { id: l.id, dotted: !!l.dotted, line: l.kind === "line", arrow: !!l.arrow }));
     }
     if (!selTextRef.current) return;
     const s = selStroke();
@@ -2190,7 +2196,20 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     strokes.current = strokes.current.map((x) => (x.id === s.id ? after : x));
     commit({ type: "replace", before: [s], after: [after] });
     send({ t: "add", s: packStroke(after) });
-    setSelLineState({ id: after.id, dotted: !!after.dotted, line: true });
+    setSelLineState({ id: after.id, dotted: !!after.dotted, line: true, arrow: !!after.arrow });
+    requestDraw();
+  };
+  /** Arrow or plain: the selected line gains or loses its arrowhead (one undo step). */
+  const toggleSelArrow = () => {
+    const s = selLineStroke();
+    if (!s || s.kind !== "line" || s.hl || moving.current) return;
+    const after: Stroke = { ...s };
+    if (s.arrow) delete after.arrow;
+    else after.arrow = true;
+    strokes.current = strokes.current.map((x) => (x.id === s.id ? after : x));
+    commit({ type: "replace", before: [s], after: [after] });
+    send({ t: "add", s: packStroke(after) });
+    setSelLineState({ id: after.id, dotted: !!after.dotted, line: true, arrow: !!after.arrow });
     requestDraw();
   };
   /** A copy a little down and to the right, selected and ready to drag (one undo step). */
@@ -3362,7 +3381,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       setInking(true);
       gesture.current = { mode: "line", id: e.pointerId, erased: [], straightened: true, click };
     } else {
-      current.current = { id: newId(), kind: "ink", color: ink, size: w, pts: [p] };
+      current.current = marker ? { id: newId(), kind: "ink", color: ink, size: (size * 2 + 16) / cam.current.z, hl: true, pts: [p] } : { id: newId(), kind: "ink", color: ink, size: w, pts: [p] };
       lastRaw.current = p;
       setInking(true);
       gesture.current = { mode: "draw", id: e.pointerId, erased: [], straightened: false, click };
@@ -3378,10 +3397,11 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   // A press in the air does arrive.) Where a browser does pass held strokes on, holding still
   // erases as before and this stands aside.
   const air = useRef<{ held: boolean; at: number; contactAt: number; before: Tool | null; holdWorks: boolean }>({ held: false, at: 0, contactAt: 0, before: null, holdWorks: false });
+  const airTold = useRef(false);
   const airButton = (held: boolean, sx: number, sy: number) => {
     const a = air.current;
     const now = performance.now();
-    if (held && !a.held && !a.holdWorks && now - a.contactAt > 150 && now - a.at > 250) {
+    if (held && !a.held && !a.holdWorks && now - a.contactAt > 60 && now - a.at > 90) {
       a.at = now;
       if (tool === "eraser") {
         pickTool(a.before ?? "pen");
@@ -3390,7 +3410,11 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
         a.before = tool;
         pickTool("eraser");
         moveEraser(sx, sy);
-        flash("Eraser on. Press the pen button again to write.");
+        // Said once: after that the ring under the pen says it, and nothing redraws for a message.
+        if (!airTold.current) {
+          airTold.current = true;
+          flash("Eraser on. Press the pen button again to write.");
+        }
       }
       a.held = held;
       return true;
@@ -3606,6 +3630,30 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       } catch {}
       if (note) flash(note);
     };
+
+    // Highlighter: a band drawn nearly straight is made straight (and level, if nearly so). Nothing else.
+    if (s.hl) {
+      const t = s.kind === "ink" ? tidyStroke(s.pts, z) : null;
+      if (t && t.kind !== "rect" && t.kind !== "ellipse" && t.kind !== "axes") {
+        swap([s], { id: s.id + "l", kind: "line", color: s.color, size: s.size, hl: true, pts: [t.a, t.b] });
+        return true;
+      }
+      return false;
+    }
+    // An arrow, drawn the usual way: a line, then a small "V" on its end within a few seconds.
+    // The two become one clean arrow (undo gives the hand-drawn pair back).
+    const sincePrev = now - lastDrawnAt.current;
+    lastDrawnAt.current = now;
+    if (s.kind === "ink" && prev && !prev.hl && sincePrev < 4000 && (prev.kind === "line" || prev.kind === "ink")) {
+      const shaft: [Pt, Pt] | null = prev.kind === "line" ? [prev.pts[0], prev.pts[1]] : straightOf(prev.pts, 0.12, 1.3);
+      const end = shaft ? arrowHeadOn(s.pts, shaft[0], shaft[1], z) : null;
+      if (shaft && end) {
+        const [tail, tip] = end === "b" ? shaft : [shaft[1], shaft[0]];
+        const size = prev.kind === "line" ? prev.size : prev.size * Math.min(1.25, Math.max(0.6, penWeight(prev.pts) / 0.95));
+        swap([prev, s], { id: newId(), kind: "line", color: prev.color, size, pts: [[tail[0], tail[1], 0.5], [tip[0], tip[1], 0.5]], arrow: true, ...(prev.dotted ? { dotted: true } : {}) });
+        return true;
+      }
+    }
 
     if (ends && dir) {
       for (let i = recentLines.current.length - 1; i >= 0; i--) {
@@ -4717,6 +4765,16 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                 {selLine.dotted ? LINE_SOLID : LINE_DOTTED}
                 {selLine.dotted ? "Solid" : "Dotted"}
               </button>}
+              {selLine.line && <button
+                type="button"
+                aria-pressed={selLine.arrow}
+                {...tipOn(selLine.arrow ? "Remove the arrowhead" : "Make it an arrow")}
+                onPointerDown={palmDown}
+                onClick={() => !palmBlocked() && toggleSelArrow()}
+                className={`${PRESS} rounded-[10px] px-3 text-xs font-semibold ${lead ? "h-11" : `h-9 ${HIT}`} ${selLine.arrow ? ON : QUIET}`}
+              >
+                Arrow
+              </button>}
               <button
                 type="button"
                 {...tipOn("Duplicate", undefined, "Makes a copy just beside it, ready to drag.")}
@@ -5006,13 +5064,32 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               onClick={() => {
                 if (palmBlocked()) return;
                 setColor(c.value);
+                setMarker(false);
                 if (tool === "eraser" || tool === "move") pickTool("pen");
               }}
               className={`${PRESS} flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] hover:bg-white/[0.06]`}
             >
-              <Swatch ink={inkOf(c.value)} on={color === c.value} size={20} />
+              <Swatch ink={inkOf(c.value)} on={color === c.value && !marker} size={20} />
             </button>
           ))}
+          <button
+            type="button"
+            aria-label="Highlighter"
+            aria-pressed={marker}
+            {...tipOn("Highlighter", undefined, "A see-through band for headings and key words. Drawn nearly straight, it straightens.")}
+            onPointerDown={palmDown}
+            onClick={() => {
+              if (palmBlocked()) return;
+              setMarker(true);
+              if (tool !== "pen") pickTool("pen");
+            }}
+            className={`${PRESS} flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] hover:bg-white/[0.06]`}
+          >
+            <span
+              className="block h-[14px] w-[22px] rounded-[4px] transition-[transform,box-shadow] duration-150 ease-out motion-reduce:transition-none"
+              style={{ background: "rgb(255, 213, 0)", transform: marker ? "scale(1.12)" : undefined, boxShadow: marker ? "0 0 0 2px var(--bd-gap), 0 0 0 3.5px var(--bd-fg)" : "inset 0 0 0 1px rgba(128,128,128,0.25)" }}
+            />
+          </button>
           <Divider across={lead} />
           <button
             type="button"

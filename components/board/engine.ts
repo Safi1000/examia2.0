@@ -27,13 +27,16 @@ export interface Stroke {
    * so opening them again never re-breaks the lines. */
   raw?: string;
   wrapW?: number;
-  /** For kind "text": bold, italic, and a highlighter behind it. */
+  /** For kind "text": bold, italic, and a highlighter behind it. For "ink" and "line", `hl` means
+   * the stroke itself is highlighter: a broad see-through band (size is its full width). */
   bold?: boolean;
   italic?: boolean;
   hl?: boolean;
   /** For kind "line": drawn as evenly spaced dashes. Left out for a solid line, so old boards and
    * an older tab (which does not know it) simply show a solid line. */
   dotted?: boolean;
+  /** For kind "line": an arrowhead at its second end. (An older tab shows a plain line.) */
+  arrow?: boolean;
 }
 
 /** Typed text's style. */
@@ -494,6 +497,20 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   const pts = s.pts;
+  // Highlighter: one flat, see-through band, the same width all the way (no pressure, no taper).
+  if (s.hl && s.kind === "ink" && pts.length < 2) return; // a bare tap leaves nothing
+  if (s.hl && (s.kind === "ink" || s.kind === "line") && pts.length >= 2) {
+    ctx.strokeStyle = HIGHLIGHT;
+    ctx.lineWidth = s.size;
+    ctx.lineCap = "butt";
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length - 1; i++) ctx.quadraticCurveTo(pts[i][0], pts[i][1], (pts[i][0] + pts[i + 1][0]) / 2, (pts[i][1] + pts[i + 1][1]) / 2);
+    ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+    ctx.stroke();
+    ctx.lineCap = "round";
+    return;
+  }
   if (s.kind === "line" && pts.length >= 2) {
     const lw = s.size * 0.95;
     ctx.lineWidth = lw;
@@ -505,6 +522,20 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
     ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
     ctx.stroke();
     if (s.dotted) ctx.setLineDash([]);
+    // An arrow: two clean barbs at the second end, in the line's own weight.
+    if (s.arrow) {
+      const [a, b] = [pts[0], pts[pts.length - 1]];
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (len > 0) {
+        const h = Math.min(lw * 4.2, len * 0.5);
+        const at = Math.atan2(a[1] - b[1], a[0] - b[0]);
+        ctx.beginPath();
+        ctx.moveTo(b[0] + Math.cos(at + 0.5) * h, b[1] + Math.sin(at + 0.5) * h);
+        ctx.lineTo(b[0], b[1]);
+        ctx.lineTo(b[0] + Math.cos(at - 0.5) * h, b[1] + Math.sin(at - 0.5) * h);
+        ctx.stroke();
+      }
+    }
     return;
   }
   if (s.kind === "rect" || s.kind === "ellipse" || s.kind === "form") {
@@ -550,6 +581,52 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
   ctx.fill(inkShape(s));
 }
 
+/**
+ * Is this small stroke an arrowhead (a "V" or ">" drawn in one go) sitting on the end of the line
+ * from `a` to `b`? Returns which end it points from ("a" or "b"), else null. `z`: the zoom, so the
+ * sizes are judged as seen on screen.
+ */
+export function arrowHeadOn(head: Pt[], a: Pt, b: Pt, z: number): "a" | "b" | null {
+  if (head.length < 3) return null;
+  const first = head[0];
+  const last = head[head.length - 1];
+  // The tip: the point furthest from the straight line between the stroke's two ends.
+  let tip = head[0];
+  let far = -1;
+  for (const p of head) {
+    const d = distToSeg(p[0], p[1], first, last);
+    if (d > far) {
+      far = d;
+      tip = p;
+    }
+  }
+  const arm1 = Math.hypot(first[0] - tip[0], first[1] - tip[1]);
+  const arm2 = Math.hypot(last[0] - tip[0], last[1] - tip[1]);
+  const shaft = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  if (Math.min(arm1, arm2) * z < 7 || Math.max(arm1, arm2) * z > 90 || shaft * z < 40 || Math.max(arm1, arm2) > shaft * 0.7) return null;
+  // Two fairly straight arms, not a scribble.
+  let path = 0;
+  for (let i = 1; i < head.length; i++) path += Math.hypot(head[i][0] - head[i - 1][0], head[i][1] - head[i - 1][1]);
+  if (path > (arm1 + arm2) * 1.4) return null;
+  // Open between 25 and 130 degrees.
+  const u1 = [(first[0] - tip[0]) / arm1, (first[1] - tip[1]) / arm1];
+  const u2 = [(last[0] - tip[0]) / arm2, (last[1] - tip[1]) / arm2];
+  const cos = u1[0] * u2[0] + u1[1] * u2[1];
+  if (cos > Math.cos((25 * Math.PI) / 180) || cos < Math.cos((130 * Math.PI) / 180)) return null;
+  // On one end of the line, opening back along it.
+  const near = Math.max(24 / z, shaft * 0.2);
+  const da = Math.hypot(tip[0] - a[0], tip[1] - a[1]);
+  const db = Math.hypot(tip[0] - b[0], tip[1] - b[1]);
+  const end = da < db ? "a" : "b";
+  if (Math.min(da, db) > near) return null;
+  const [from, to] = end === "a" ? [a, b] : [b, a];
+  const bx = u1[0] + u2[0];
+  const by = u1[1] + u2[1];
+  const bl = Math.hypot(bx, by) || 1;
+  const along = ((bx / bl) * (to[0] - from[0]) + (by / bl) * (to[1] - from[1])) / shaft;
+  return along > 0.6 ? end : null;
+}
+
 /** A stroke's world box (kept per stroke), to skip what is off screen. */
 const boxes = new WeakMap<Stroke, { pts: Pt[]; n: number; b: View }>();
 export function strokeBox(s: Stroke): View {
@@ -562,7 +639,7 @@ export function strokeBox(s: Stroke): View {
     x1 = Math.max(x1, p[0]);
     y1 = Math.max(y1, p[1]);
   }
-  const pad = s.kind === "text" ? 4 : s.size * 2 + (s.kind === "form" ? 40 : 0); // room for the nib and a form's labels
+  const pad = s.kind === "text" ? 4 : s.size * (s.arrow ? 4.5 : 2) + (s.kind === "form" ? 40 : 0); // room for the nib and a form's labels
   const b = { x: x0 - pad, y: y0 - pad, w: x1 - x0 + pad * 2, h: y1 - y0 + pad * 2 };
   boxes.set(s, { pts: s.pts, n: s.pts.length, b });
   return b;
