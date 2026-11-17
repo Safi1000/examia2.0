@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { Button, Card, CardHeader, CardBody, Icon } from "@/components/ui";
 import { AutomationSettings } from "@/components/admin/Automations";
 import { StaffCard } from "@/components/admin/StaffCard";
+import { NotesKeyCard } from "@/components/admin/NotesKeyCard";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useToast } from "@/components/toast";
 import { levelOf, subjectOf } from "@/lib/timetable";
@@ -16,6 +17,7 @@ export default function AdminSettingsPage() {
       <PageHeader title="Settings" subtitle="Automations, your assistant, levels and waitlist" />
       <AutomationSettings />
       <StaffCard />
+      <NotesKeyCard />
       <LevelsAndSubjects />
       <Card className="max-w-2xl">
         <CardHeader><h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Waitlist</h2></CardHeader>

@@ -206,7 +206,19 @@ export default function NotesPage() {
     if (DEMO || checked.current || !pdfIds.length) return;
     checked.current = true;
     searchableNotes(pdfIds)
-      .then(setSearchable)
+      .then(async (have) => {
+        setSearchable(have);
+        // A few new notes with no words yet (the ones Claude filed): read them now, quietly.
+        // A big backlog is left to the "Make them searchable" button.
+        const todo = pdfIds.filter((id) => !have.has(id));
+        if (!todo.length || todo.length > 8) return;
+        for (const id of todo) {
+          try {
+            await indexExistingNote(id);
+            setSearchable((s) => new Set([...(s ?? []), id]));
+          } catch {}
+        }
+      })
       .catch(() => setSearchable(null));
   }, [pdfIds]);
   const unsearchable = searchable ? pdfIds.filter((id) => !searchable.has(id)) : [];
