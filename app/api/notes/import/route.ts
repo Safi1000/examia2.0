@@ -79,9 +79,16 @@ async function planOne(sb: SupabaseClient, level: NoteLevel, subject: NoteSubjec
   const where = await place(sb, level, subject);
   const slot = ch ? slotOf(ch) : null;
   // What students see on that chapter today.
-  const there = book && slot
-    ? (await existing(sb, where.classIds, where.subjectIds)).filter((n) => !isHidden(n.fileType) && (() => { const m = matchChapter(book, n.title, n.fileName); return !!m && slotOf(m) === slot; })())
-    : [];
+  // With no chapter to go by (a handout under "More notes"), the same name counts as the same note.
+  const plain = (t: string) => t.toLowerCase().replace(/\.pdf$/, "").replace(/[^a-z0-9]+/g, " ").trim();
+  const there = (await existing(sb, where.classIds, where.subjectIds)).filter((n) => {
+    if (isHidden(n.fileType)) return false;
+    if (book && slot) {
+      const m = matchChapter(book, n.title, n.fileName);
+      return !!m && slotOf(m) === slot;
+    }
+    return plain(n.title) === plain(rawTitle) || plain(n.fileName) === plain(fileName || rawTitle);
+  });
   return {
     title: ch ? (ch.unit ? ch.name : chapterTitle(ch.num, ch.name)) : rawTitle,
     chapter: ch ? { num: ch.num, name: ch.name, unit: !!ch.unit } : null,
