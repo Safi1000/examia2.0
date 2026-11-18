@@ -43,6 +43,8 @@ export interface Exception {
   start?: string;
   end?: string;
   extra?: boolean;
+  /** Taught together with this other class on this date, in its room (same times, its link and recording). */
+  joint?: { level: LevelKey; subject: SubjectKey };
 }
 
 export interface Schedule {
@@ -91,7 +93,11 @@ export function cleanSchedule(v: unknown): Schedule | null {
     .filter((e) => /^\d{4}-\d{2}-\d{2}$/.test(e?.date ?? "") && LEVELS.includes(e.level) && SUBJECTS.includes(e.subject))
     .filter((e) => e.cancelled || !e.start || (HHMM.test(e.start) && HHMM.test(e.end ?? "") && e.start < e.end!))
     .slice(-200)
-    .map((e) => ({ date: e.date, level: e.level, subject: e.subject, ...(e.cancelled ? { cancelled: true } : {}), ...(e.start ? { start: e.start, end: e.end } : {}), ...(e.extra ? { extra: true } : {}) }));
+    .map((e) => ({ date: e.date, level: e.level, subject: e.subject, ...(e.cancelled ? { cancelled: true } : {}), ...(e.start ? { start: e.start, end: e.end } : {}), ...(e.extra ? { extra: true } : {}),
+      ...(!e.cancelled && e.start && e.joint && LEVELS.includes(e.joint.level) && SUBJECTS.includes(e.joint.subject) && !(e.joint.level === e.level && e.joint.subject === e.subject)
+        ? { joint: { level: e.joint.level, subject: e.joint.subject } }
+        : {}),
+    }));
   return { termStarts: x.termStarts, days, slots: slots as WeekSlot[], exceptions: withMakeUps(slots as WeekSlot[], exceptions as Exception[]) };
 }
 
@@ -219,6 +225,11 @@ export interface DaySlot extends Slot {
   changed?: boolean;
   /** Not on the weekly timetable: added for this date only. */
   extra?: boolean;
+  /**
+   * Taught together with another class on this date. `follows`: this class
+   * sits in the other one's room (its link, its recording); the other leads.
+   */
+  joint?: { level: LevelKey; subject: SubjectKey; follows: boolean };
   classId: string;
   subjectId: string;
   startMs: number;
@@ -232,7 +243,7 @@ export interface DaySlot extends Slot {
  */
 export function slotsOn(db: Pick<Database, "classes" | "subjects">, date: string): DaySlot[] {
   const wd = weekday(date);
-  const weekly: Array<Slot & { cancelled?: boolean; changed?: boolean; extra?: boolean }> =
+  const weekly: Array<Slot & { cancelled?: boolean; changed?: boolean; extra?: boolean; joint?: DaySlot["joint"] }> =
     date >= active.termStarts ? active.slots.filter((s) => (s.days ?? active.days).includes(wd)).map((s) => ({ ...s })) : [];
   for (const e of active.exceptions.filter((x) => x.date === date)) {
     const i = weekly.findIndex((s) => s.level === e.level && s.subject === e.subject);
@@ -244,6 +255,15 @@ export function slotsOn(db: Pick<Database, "classes" | "subjects">, date: string
     if (i < 0) continue;
     if (e.cancelled) weekly[i].cancelled = true;
     else if (e.start && e.end) weekly[i] = { ...weekly[i], start: e.start, end: e.end, changed: true };
+  }
+  // Taught together: only while both are on, at the very same time (moving or
+  // cancelling either one afterwards quietly ends it).
+  for (const e of active.exceptions.filter((x) => x.date === date && x.joint && !x.cancelled)) {
+    const me = weekly.find((s) => s.level === e.level && s.subject === e.subject);
+    const lead = weekly.find((s) => s.level === e.joint!.level && s.subject === e.joint!.subject);
+    if (!me || !lead || me.cancelled || lead.cancelled || lead.joint || me.start !== lead.start || me.end !== lead.end) continue;
+    me.joint = { level: lead.level, subject: lead.subject, follows: true };
+    lead.joint = { level: me.level, subject: me.subject, follows: false };
   }
   if (!weekly.length) return [];
   const classId = new Map<LevelKey, string>();

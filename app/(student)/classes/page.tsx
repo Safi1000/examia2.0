@@ -186,7 +186,10 @@ export default function ClassesPage() {
                       <Badge tone="warning" className="px-2 text-xs">Moved</Badge>
                     ) : null}
                   </span>
-                  <span className="mt-0.5 block text-sm text-ink-3">{LEVEL_LABEL[s.level]}</span>
+                  <span className="mt-0.5 block text-sm text-ink-3">
+                    {LEVEL_LABEL[s.level]}
+                    {s.joint && !s.cancelled ? ` · joint class with ${LEVEL_LABEL[s.joint.level]}` : ""}
+                  </span>
                 </span>
                 <span className="shrink-0 text-right">
                   <span className={cn("block text-sm tabular-nums", s.cancelled ? "text-ink-3 line-through" : "text-ink-2")}>{span(s.start, s.end)}</span>

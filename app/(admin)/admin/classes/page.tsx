@@ -77,7 +77,9 @@ export default function ClassesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [db, students, date, schedule]);
 
-  const linkFor = (s: DaySlot) => links.find((l) => slotKey(l) === slotKey(s));
+  // A class taught in another class's room shows that room's link and recording.
+  const leadOf = (s: DaySlot) => (s.joint?.follows ? (slots.find((x) => x.level === s.joint!.level && x.subject === s.joint!.subject) ?? s) : s);
+  const linkFor = (s: DaySlot) => links.find((l) => slotKey(l) === slotKey(leadOf(s))) ?? links.find((l) => slotKey(l) === slotKey(s));
   const live = slots.filter((s) => !s.cancelled);
   // The class to start: live now, or the next one today (from 3 hours before).
   const hero = date === today ? live.find((s) => nowMs < s.endMs && s.startMs - nowMs < 3 * 3_600_000) : undefined;
@@ -180,6 +182,76 @@ export default function ClassesPage() {
     } catch (e) {
       toast(e instanceof Error ? e.message : "Couldn't save. Try again.", "error");
       return false;
+    } finally {
+      workingRef.current = false;
+      setWorking(false);
+    }
+  }
+
+  /**
+   * Two classes in one room for this date: both move to the same time, the
+   * later one sits in the earlier one's room, and the classes after them can
+   * slide to close (or make) the gap. One save after another.
+   */
+  async function teachTogether(a: DaySlot, b: DaySlot, start: string, end: string, slide: Array<{ slot: DaySlot; start: string; end: string }>) {
+    if (workingRef.current) return false;
+    const [lead, other] = a.start <= b.start ? [a, b] : [b, a];
+    const notify = tell && date >= today;
+    workingRef.current = true;
+    setWorking(true);
+    let done = 0;
+    const total = 2 + slide.length;
+    try {
+      const x = (sl: DaySlot) => (sl.extra ? { extra: true } : {});
+      await saveDayChange({ date, level: lead.level, subject: lead.subject, change: { start, end, ...x(lead) }, notify: notify && (lead.start !== start || lead.end !== end) });
+      done++;
+      await saveDayChange({ date, level: other.level, subject: other.subject, change: { start, end, ...x(other), joint: { level: lead.level, subject: lead.subject } }, notify });
+      done++;
+      for (const m of slide) {
+        await saveDayChange({ date, level: m.slot.level, subject: m.slot.subject, change: { start: m.start, end: m.end, ...x(m.slot) }, notify });
+        done++;
+      }
+      setOpenRow(null);
+      void reload();
+      toast(
+        `${LEVEL_LABEL[lead.level]} and ${LEVEL_LABEL[other.level]} are together at ${clock(start)}, on one link.${slide.length ? ` ${slide.length === 1 ? "1 later class" : `${slide.length} later classes`} moved.` : ""}${notify ? " Students have been told." : ""}`,
+        "success",
+      );
+      return true;
+    } catch (e) {
+      toast(`${done} of ${total} changes saved, then it stopped. ${e instanceof Error ? e.message : "Try again."}`, "error");
+      return false;
+    } finally {
+      workingRef.current = false;
+      setWorking(false);
+    }
+  }
+
+  /** Undo "Teach together": both classes go back to their usual times and their own rooms. */
+  async function teachApart(s: DaySlot) {
+    if (workingRef.current) return;
+    const mate = slots.find((x) => x.level === s.joint?.level && x.subject === s.joint?.subject);
+    const pair = mate ? [s, mate] : [s];
+    const notify = tell && date >= today;
+    // Classes moved for this day that come after the pair: most likely slid when they were joined.
+    const moved = live.filter((x) => !pair.includes(x) && x.changed && !x.extra && !x.joint && x.start >= s.end);
+    const back =
+      moved.length > 0 &&
+      window.confirm(`Also put ${moved.map((x) => `${x.subject} · ${LEVEL_LABEL[x.level]}`).join(" and ")} back to ${moved.length === 1 ? "its" : "their"} usual time? Press Cancel to leave ${moved.length === 1 ? "it" : "them"} where ${moved.length === 1 ? "it is" : "they are"}.`)
+        ? moved
+        : [];
+    workingRef.current = true;
+    setWorking(true);
+    try {
+      // The one that leads goes last, so the room is never left without its owner mid-way.
+      for (const p of pair.toSorted((m, n) => Number(n.joint?.follows ?? false) - Number(m.joint?.follows ?? false)))
+        await saveDayChange({ date, level: p.level, subject: p.subject, change: p.extra ? { extra: true, start: p.start, end: p.end } : null, notify });
+      for (const p of back) await saveDayChange({ date, level: p.level, subject: p.subject, change: null, notify });
+      setOpenRow(null);
+      void reload();
+      toast(`Back to separate classes at their usual times.${notify ? " Students have been told." : ""}`, "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Couldn't save. Try again.", "error");
     } finally {
       workingRef.current = false;
       setWorking(false);
@@ -322,7 +394,7 @@ export default function ClassesPage() {
                                 ? `Live now · ${joined} of ${who.length} joined`
                                 : phase === "done" || date < today
                                   ? `${who.length ? `${joined} of ${who.length} joined` : "No students in this level"}${link?.recordingUrl ? " · recording ready" : ""}`
-                                  : `${span(s.start, s.end)}${s.extra ? " · extra class" : s.changed ? " · changed for this day" : ""}${link?.meetUrl ? " · link ready" : ""}`}
+                                  : `${span(s.start, s.end)}${s.joint ? ` · together with ${LEVEL_LABEL[s.joint.level]}` : s.extra ? " · extra class" : s.changed ? " · changed for this day" : ""}${link?.meetUrl ? " · link ready" : ""}`}
                           </span>
                         </span>
                         {phase === "live" && date === today && !s.cancelled && link?.meetUrl && (
@@ -360,9 +432,24 @@ export default function ClassesPage() {
                             </Button>
                           ) : (
                             <>
+                              {s.joint && (
+                                <p className="text-sm text-ink-2">
+                                  Taught together with {LEVEL_LABEL[s.joint.level]} {s.joint.subject} for this day: one link, one recording, a register for each level.
+                                  {phase === "later" && (
+                                    <>
+                                      {" "}
+                                      <button type="button" disabled={working} className="font-semibold text-ink underline underline-offset-4 disabled:opacity-50" onClick={() => void teachApart(s)}>
+                                        Teach them separately
+                                      </button>
+                                    </>
+                                  )}
+                                </p>
+                              )}
                               {phase === "later" && (
                                 <DayActions
                                   slot={s}
+                                  day={live}
+                                  onJoin={(mate, start, end, slide) => teachTogether(s, mate, start, end, slide)}
                                   tell={tell}
                                   busy={working}
                                   onCancel={() =>
@@ -406,11 +493,11 @@ export default function ClassesPage() {
                               </div>
                               <LinkField
                                 key={`m-${key}-${link?.meetUrl ?? ""}`}
-                                label="Meet link"
+                                label={s.joint ? "Meet link (shared by both classes)" : "Meet link"}
                                 placeholder="Paste the Meet link (made for you if Google is connected)"
                                 initial={link?.meetUrl ?? ""}
                                 disabled={ready === false}
-                                onSave={(v) => store([s], "meetUrl", v)}
+                                onSave={(v) => store(s.joint ? [leadOf(s), ...slots.filter((x) => x.joint?.follows && leadOf(x) === leadOf(s))] : [s], "meetUrl", v)}
                               />
                               {(phase === "done" || date < today) && (
                                 <LinkField
@@ -712,14 +799,20 @@ function DayActions({
   busy,
   onCancel,
   onMove,
+  day,
+  onJoin,
 }: {
   slot: DaySlot;
   tell: boolean;
   busy: boolean;
   onCancel: () => Promise<boolean>;
   onMove: (start: string, end: string) => Promise<boolean>;
+  /** Every class that is on this day (for "Teach together"). */
+  day: DaySlot[];
+  onJoin: (mate: DaySlot, start: string, end: string, slide: Array<{ slot: DaySlot; start: string; end: string }>) => Promise<boolean>;
 }) {
   const [moving, setMoving] = useState(false);
+  const [joining, setJoining] = useState(false);
   const [start, setStart] = useState(slot.start);
   const [end, setEnd] = useState(slot.end);
   const small = "h-10 rounded-full px-3.5 text-sm font-semibold transition-colors pointer-coarse:h-11 pointer-coarse:px-4 disabled:opacity-50";
@@ -745,11 +838,18 @@ function DayActions({
         </button>
       </span>
     );
+  if (joining) return <TeachTogether slot={slot} day={day} busy={busy} onJoin={onJoin} onClose={() => setJoining(false)} />;
+  const mates = !slot.joint && day.some((x) => x.level !== slot.level && !x.joint);
   return (
-    <span className="flex items-center">
+    <span className="flex flex-wrap items-center">
       <button type="button" disabled={busy} className={`${small} text-ink-3 hover:bg-surface-2 hover:text-ink`} onClick={() => setMoving(true)}>
         Change time
       </button>
+      {mates && (
+        <button type="button" disabled={busy} className={`${small} text-ink-3 hover:bg-surface-2 hover:text-ink`} onClick={() => setJoining(true)}>
+          Teach together
+        </button>
+      )}
       <button
         type="button"
         disabled={busy}
@@ -765,9 +865,106 @@ function DayActions({
   );
 }
 
-/** One-off class on this date (a make-up or revision class). */
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 const toTime = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+/**
+ * "Teach together": this class and one from another level in one room for this
+ * date. Pick the other class and the time; the classes after them can slide so
+ * the evening stays back to back. Nothing is saved until "Teach together" is pressed.
+ */
+function TeachTogether({
+  slot,
+  day,
+  busy,
+  onJoin,
+  onClose,
+}: {
+  slot: DaySlot;
+  day: DaySlot[];
+  busy: boolean;
+  onJoin: (mate: DaySlot, start: string, end: string, slide: Array<{ slot: DaySlot; start: string; end: string }>) => Promise<boolean>;
+  onClose: () => void;
+}) {
+  const options = day.filter((x) => x.level !== slot.level && !x.joint);
+  // The same subject at another level first, the one nearest in time: that is the usual pair.
+  const [mateKey, setMateKey] = useState(() => {
+    const near = (list: DaySlot[]) => list.toSorted((m, n) => Math.abs(m.startMs - slot.startMs) - Math.abs(n.startMs - slot.startMs))[0];
+    return slotKey(near(options.filter((x) => x.subject === slot.subject)) ?? near(options));
+  });
+  const mate = options.find((x) => slotKey(x) === mateKey) ?? options[0];
+  const first = slot.start <= mate.start ? slot.start : mate.start;
+  const [start, setStart] = useState(first);
+  const [end, setEnd] = useState(toTime(Math.min(toMin(first) + 60, 23 * 60 + 59)));
+  const [slideOn, setSlideOn] = useState(true);
+  const pick = (k: string) => {
+    const m = options.find((x) => slotKey(x) === k) ?? options[0];
+    const f = slot.start <= m.start ? slot.start : m.start;
+    setMateKey(k);
+    setStart(f);
+    setEnd(toTime(Math.min(toMin(f) + 60, 23 * 60 + 59)));
+  };
+  const valid = isTime(start) && isTime(end) && start < end;
+  // The classes after the pair, and how far they would slide to stay back to back.
+  // Measured from the first class after them, so joining twice never slides anything twice.
+  const after = valid ? day.filter((x) => x !== slot && x !== mate && x.start > start).toSorted((m, n) => m.start.localeCompare(n.start)) : [];
+  const shift = after.length ? toMin(end) - toMin(after[0].start) : 0;
+  const canSlide = shift !== 0 && after.length > 0 && after.every((x) => toMin(x.start) + shift >= 0 && toMin(x.end) + shift < 24 * 60);
+  const slide = canSlide && slideOn ? after.map((x) => ({ slot: x, start: toTime(toMin(x.start) + shift), end: toTime(toMin(x.end) + shift) })) : [];
+  // Anything else still sitting on top of the joint class once that is done.
+  const clash = valid
+    ? day.filter((x) => {
+        if (x === slot || x === mate) return false;
+        const m = slide.find((y) => y.slot === x);
+        return (m?.start ?? x.start) < end && (m?.end ?? x.end) > start;
+      })
+    : [];
+  const field = cn("h-10 rounded-field border border-field bg-surface px-2.5 text-sm text-ink", touchField);
+  const small = "h-10 rounded-full px-3.5 text-sm font-semibold transition-colors pointer-coarse:h-11 pointer-coarse:px-4 disabled:opacity-50";
+  return (
+    <div className="space-y-3">
+      <p className="text-sm font-semibold text-ink">
+        Teach {slot.subject} · {LEVEL_LABEL[slot.level]} together with
+      </p>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <select value={mateKey} onChange={(e) => pick(e.target.value)} className={field} aria-label="The other class">
+          {options.map((x) => (
+            <option key={slotKey(x)} value={slotKey(x)}>
+              {x.subject} · {LEVEL_LABEL[x.level]} ({timeLabel(x.start)})
+            </option>
+          ))}
+        </select>
+        <input type="time" value={start} onChange={(e) => setStart(e.target.value)} className={cn(field, "tabular-nums")} aria-label="Start" aria-invalid={!isTime(start)} />
+        <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} className={cn(field, "tabular-nums")} aria-label="End" aria-invalid={!isTime(end) || !(start < end)} />
+      </div>
+      <p className="text-sm text-ink-3">Both classes share one Meet link and one recording for this day. Each level keeps its own register, tests and homework.</p>
+      {canSlide && (
+        <label className="flex min-h-11 items-start gap-2 text-sm text-ink-2 md:min-h-0">
+          <input type="checkbox" checked={slideOn} onChange={(e) => setSlideOn(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[var(--color-brand)]" />
+          <span>
+            Move the {after.length === 1 ? "class" : `${after.length} classes`} after this {Math.abs(shift)} minutes {shift < 0 ? "earlier" : "later"}:{" "}
+            {after.map((x) => `${x.subject} · ${LEVEL_LABEL[x.level]} at ${clock(toTime(toMin(x.start) + shift))}`).join(", ")}
+          </span>
+        </label>
+      )}
+      {clash.length > 0 && (
+        <p className="text-sm text-warning">
+          {clash.map((x) => `${x.subject} · ${LEVEL_LABEL[x.level]}`).join(", ")} would be at the same time as this. Change {clash.length === 1 ? "its" : "their"} time too, or pick another time.
+        </p>
+      )}
+      <span className="flex flex-wrap items-center gap-1.5">
+        <button type="button" disabled={!valid || busy} aria-busy={busy} className={buttonClasses({ size: "sm" })} onClick={() => void onJoin(mate, start, end, slide).then((ok) => ok && onClose())}>
+          {busy ? "Saving" : "Teach together"}
+        </button>
+        <button type="button" disabled={busy} className={`${small} text-ink-3 hover:text-ink`} onClick={onClose}>
+          Cancel
+        </button>
+      </span>
+    </div>
+  );
+}
+
+/** One-off class on this date (a make-up or revision class). */
 
 /**
  * Extra classes on any date (a Saturday make-up, a swapped day): the usual

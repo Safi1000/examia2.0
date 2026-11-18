@@ -89,6 +89,8 @@ export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), f
   if (force || hour >= LINKS_AT_HOUR || now >= firstStart - 2 * 3_600_000) {
     for (const s of todays) {
       if (s.endMs <= now) continue;
+      // Taught together in another class's room: that class's link is copied below.
+      if (s.joint?.follows) continue;
       const row = byKey.get(key(s.date, s.classId, s.subjectId));
       if (row?.meet_url) continue;
       try {
@@ -109,6 +111,8 @@ export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), f
       }
     }
   }
+
+  await shareJointRooms(sb, db, [today]).catch((e) => console.error("[classes] joint", e));
 
   // 4. Today's rooms record by themselves. Checked every run until the class ends
   // (a link pasted by hand later gets it too); a room already set costs one quick look.
@@ -181,6 +185,9 @@ export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), f
     }
   }
 
+  // A class taught together gets the recording of the room it sat in.
+  await shareJointRooms(sb, db, [0, 1, 2, 3].map((n) => addDays(today, -n))).catch((e) => console.error("[classes] joint", e));
+
   // 5. Recordings opened from the Recordings page close again when their window ends.
   const access2 = access ? await sweepAccess(sb, token, now).catch((e) => ({ error: String(e).slice(0, 200) })) : null;
   const sweep = access2 && "closed" in access2 ? { closed: access2.closed, stuck: access2.stuck } : access2;
@@ -189,12 +196,53 @@ export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), f
 }
 
 /**
+ * Classes taught together on these dates: the class that follows gets the
+ * leading class's Meet link and recording, so its students join the same room
+ * (and are marked present for their own level) and find the same recording.
+ * A copied link left on a class that is no longer taught together is cleared,
+ * so that class gets its own room again. The schedule must already be set.
+ */
+export async function shareJointRooms(sb: SupabaseClient, db: Awaited<ReturnType<typeof catalogue>>, dates: string[]) {
+  if (!dates.length) return 0;
+  const { data } = await sb.from("class_links").select("on_date,class_id,subject_id,meet_url,recording_url,event_id,auto").in("on_date", dates);
+  const rows = (data ?? []) as Array<LinkRow & { auto: boolean | null }>;
+  const rowOf = (d: string, c: string, s: string) => rows.find((r) => r.on_date === d && r.class_id === c && r.subject_id === s);
+  let changed = 0;
+  for (const date of dates) {
+    const slots = allSlotsOn(db, date);
+    for (const s of slots) {
+      const mine = rowOf(date, s.classId, s.subjectId);
+      if (!s.joint?.follows || s.cancelled) {
+        // No longer in another class's room: forget the copied link (never one Hamza pasted or Google made for it).
+        if (mine?.auto && !mine.event_id && mine.meet_url && !mine.recording_url) {
+          await sb.from("class_links").update({ meet_url: null, auto: false, updated_at: new Date().toISOString() }).eq("on_date", date).eq("class_id", s.classId).eq("subject_id", s.subjectId);
+          changed++;
+        }
+        continue;
+      }
+      const lead = slots.find((x) => x.level === s.joint!.level && x.subject === s.joint!.subject);
+      const theirs = lead && rowOf(date, lead.classId, lead.subjectId);
+      if (!theirs) continue;
+      const patch: Record<string, unknown> = {};
+      if (theirs.meet_url && mine?.meet_url !== theirs.meet_url) Object.assign(patch, { meet_url: theirs.meet_url, event_id: null, auto: true });
+      if (theirs.recording_url && mine?.recording_url !== theirs.recording_url) patch.recording_url = theirs.recording_url;
+      if (!Object.keys(patch).length) continue;
+      await sb.from("class_links").upsert(
+        { on_date: date, class_id: s.classId, subject_id: s.subjectId, ...patch, updated_at: new Date().toISOString() },
+        { onConflict: "on_date,class_id,subject_id" },
+      );
+      changed++;
+    }
+  }
+  return changed;
+}
+
+/**
  * Hamza changed one class for one date: keep his Calendar in step, so the
  * 10-minute alert never fires for a cancelled class or at the old time.
  */
 export async function syncCalendar(sb: SupabaseClient, schedule: Schedule, c: DayChange) {
   const token = await accessToken(sb);
-  if (!token) return;
   setSchedule(schedule);
   const db = await catalogue(sb);
   const classId = db.classes.find((x) => levelOf(x) === c.level)?.id;
@@ -207,15 +255,24 @@ export async function syncCalendar(sb: SupabaseClient, schedule: Schedule, c: Da
     .eq("class_id", classId)
     .eq("subject_id", subjectId)
     .maybeSingle();
-  if (!row?.event_id) return;
   const slot = allSlotsOn(db, c.date).find((s) => s.classId === classId && s.subjectId === subjectId);
-  if (!slot || slot.cancelled) {
+  // Links pasted by hand (no Google) are still shared between classes taught together.
+  if (!row?.event_id || !token) {
+    await shareJointRooms(sb, db, [c.date]);
+    return;
+  }
+  if (slot?.joint?.follows && !slot.cancelled) {
+    // Now taught in another class's room: its own Calendar event (and alert) goes.
+    await deleteEvent(token, row.event_id).catch((e) => console.error("[classes] joint event", e));
+    await sb.from("class_links").update({ event_id: null, ...(row.auto ? { meet_url: null } : {}) }).eq("on_date", c.date).eq("class_id", classId).eq("subject_id", subjectId);
+  } else if (!slot || slot.cancelled) {
     await deleteEvent(token, row.event_id);
     // Forget the automatic link, so a fresh one is made if the class comes back.
     if (row.auto) await sb.from("class_links").update({ meet_url: null, event_id: null }).eq("on_date", c.date).eq("class_id", classId).eq("subject_id", subjectId);
   } else {
     await moveEvent(token, row.event_id, new Date(slot.startMs).toISOString(), new Date(slot.endMs).toISOString());
   }
+  await shareJointRooms(sb, db, [c.date]);
 }
 
 /**
