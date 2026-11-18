@@ -367,7 +367,8 @@ export default function TestEditorPage() {
               const cohort = db.cohorts.find((c) => c.id === form.cohortId);
               // A cohort that names no classes or subjects offers all of them (as the
               // past paper builder reads it). The test's own picks always stay listed.
-              const classes = cohort ? db.classes.filter((cl) => !cohort.classIds.length || cohort.classIds.includes(cl.id) || cl.id === form.classId) : [];
+              // With no cohort picked (one batch, picker hidden) every class is offered, so a test can still go to one level.
+              const classes = cohort ? db.classes.filter((cl) => !cohort.classIds.length || cohort.classIds.includes(cl.id) || cl.id === form.classId) : db.classes;
               const subjects = cohort?.subjectIds.length ? db.subjects.filter((s) => cohort.subjectIds.includes(s.id) || s.id === form.subjectId) : db.subjects;
               return (
                 <>
@@ -377,7 +378,7 @@ export default function TestEditorPage() {
                       value={form.classId}
                       onChange={(e) => set("classId", e.target.value)}
                     >
-                      <option value="">All classes in cohort</option>
+                      <option value="">All classes</option>
                       {classes.map((cl) => <option key={cl.id} value={cl.id}>{cl.name}</option>)}
                     </Select>
                   )}
