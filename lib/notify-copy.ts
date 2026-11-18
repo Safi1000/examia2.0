@@ -111,12 +111,13 @@ export function resultCopy(seed: string, count: number, test?: string): Copy {
 }
 
 /** Hamza changed a class on the timetable. Clear first. */
-export function classChangeCopy(kind: "back" | "cancelled" | "extra" | "moved", name: string, day: string, time = ""): Copy {
+export function classChangeCopy(kind: "back" | "cancelled" | "extra" | "moved" | "joint", name: string, day: string, time = "", until = ""): Copy {
   const Day = String(day ?? "").charAt(0).toUpperCase() + String(day ?? "").slice(1);
   // A change with a detail missing still tells them to look, without guessing the detail.
   const plain = { title: "A class time has changed", body: "Your timetable is on your Classes page." };
   if (kind === "cancelled") return sure([name, day], { title: `${name} cancelled ${day}`, body: "No class this time. I’ll see you in the next one." }, plain);
   if (kind === "extra") return sure([name, day, time], { title: `Extra ${name} class`, body: `${Day} at ${time}. Join from Home as usual.` }, plain);
+  if (kind === "joint") return sure([name, day, time, until], { title: `${name} joint class`, body: `${Day}, ${time} to ${until}. One class together, join from Home as usual.` }, plain);
   if (kind === "moved") return sure([name, day, time], { title: `${name} moved`, body: `${Day}, now at ${time}.` }, plain);
   return sure([name, day], { title: `${name} is back on`, body: `${Day}, usual time.` }, plain);
 }

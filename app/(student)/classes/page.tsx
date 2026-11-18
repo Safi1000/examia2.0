@@ -8,7 +8,7 @@ import { ClassNow } from "@/components/student/ClassNow";
 import { Badge, EmptyState, Icon, Skeleton } from "@/components/ui";
 import type { Student } from "@/types";
 import type { Database } from "@/lib/data/seed";
-import { useSchedule, LEVEL_LABEL, RECORDING_HOURS, getSchedule, addDays, isClassDay, levelOf, pkDate, slotKey, slotsForStudent, slotsOn, span, useClassLinks } from "@/lib/classes";
+import { useSchedule, LEVEL_LABEL, levelName, RECORDING_HOURS, getSchedule, addDays, isClassDay, levelOf, pkDate, slotKey, slotsForStudent, slotsOn, span, useClassLinks } from "@/lib/classes";
 import { anythingOpen, useRecordingRows, useStudentAccess, type RecordingRow } from "@/lib/recordings";
 import { openUntil } from "@/lib/recording-access";
 import { useCallback, useState } from "react";
@@ -187,8 +187,8 @@ export default function ClassesPage() {
                     ) : null}
                   </span>
                   <span className="mt-0.5 block text-sm text-ink-3">
-                    {LEVEL_LABEL[s.level]}
-                    {s.joint && !s.cancelled ? ` · joint class with ${LEVEL_LABEL[s.joint.level]}` : ""}
+                    {levelName(s)}
+                    {s.joint && !s.cancelled ? " · joint class" : ""}
                   </span>
                 </span>
                 <span className="shrink-0 text-right">

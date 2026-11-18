@@ -21,6 +21,8 @@ import { cn } from "@/lib/cn";
 import { panel } from "@/components/admin/surface";
 import {
   LEVEL_LABEL,
+  jointLabel,
+  levelName,
   getSchedule,
   addDays,
   isClassDay,
@@ -203,7 +205,7 @@ export default function ClassesPage() {
     const total = 2 + slide.length;
     try {
       const x = (sl: DaySlot) => (sl.extra ? { extra: true } : {});
-      await saveDayChange({ date, level: lead.level, subject: lead.subject, change: { start, end, ...x(lead) }, notify: notify && (lead.start !== start || lead.end !== end) });
+      await saveDayChange({ date, level: lead.level, subject: lead.subject, change: { start, end, ...x(lead), joint: { level: other.level, subject: other.subject, lead: true } }, notify });
       done++;
       await saveDayChange({ date, level: other.level, subject: other.subject, change: { start, end, ...x(other), joint: { level: lead.level, subject: lead.subject } }, notify });
       done++;
@@ -214,7 +216,7 @@ export default function ClassesPage() {
       setOpenRow(null);
       void reload();
       toast(
-        `${LEVEL_LABEL[lead.level]} and ${LEVEL_LABEL[other.level]} are together at ${clock(start)}, on one link.${slide.length ? ` ${slide.length === 1 ? "1 later class" : `${slide.length} later classes`} moved.` : ""}${notify ? " Students have been told." : ""}`,
+        `${jointLabel(lead.level, other.level)} ${lead.subject} is one class at ${clock(start)}, on one link.${slide.length ? ` ${slide.length === 1 ? "1 later class" : `${slide.length} later classes`} moved.` : ""}${notify ? " Students have been told." : ""}`,
         "success",
       );
       return true;
@@ -385,7 +387,7 @@ export default function ClassesPage() {
                         <span className="w-14 shrink-0 text-sm font-semibold tabular-nums text-ink">{timeLabel(s.start)}</span>
                         <span className="min-w-0 flex-1">
                           <span className={cn("block truncate text-base font-semibold text-ink", s.cancelled && "line-through")}>
-                            {s.subject} <span className="font-normal text-ink-3">· {LEVEL_LABEL[s.level]}</span>
+                            {s.subject} <span className="font-normal text-ink-3">· {levelName(s)}</span>
                           </span>
                           <span className="block text-sm text-ink-3">
                             {s.cancelled
@@ -394,7 +396,7 @@ export default function ClassesPage() {
                                 ? `Live now · ${joined} of ${who.length} joined`
                                 : phase === "done" || date < today
                                   ? `${who.length ? `${joined} of ${who.length} joined` : "No students in this level"}${link?.recordingUrl ? " · recording ready" : ""}`
-                                  : `${span(s.start, s.end)}${s.joint ? ` · together with ${LEVEL_LABEL[s.joint.level]}` : s.extra ? " · extra class" : s.changed ? " · changed for this day" : ""}${link?.meetUrl ? " · link ready" : ""}`}
+                                  : `${span(s.start, s.end)}${s.joint ? ` · ${LEVEL_LABEL[s.level]} students` : s.extra ? " · extra class" : s.changed ? " · changed for this day" : ""}${link?.meetUrl ? " · link ready" : ""}`}
                           </span>
                         </span>
                         {phase === "live" && date === today && !s.cancelled && link?.meetUrl && (

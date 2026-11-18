@@ -9,6 +9,7 @@ import {
   cleanSchedule,
   clock,
   DEFAULT_SCHEDULE,
+  jointLabel,
   levelOf,
   pkDate,
   subjectOf,
@@ -90,12 +91,14 @@ async function tellStudents(sb: ReturnType<typeof serviceClient>, c: DayChange) 
     c.date === pkDate(Date.now())
       ? "today"
       : new Date(`${c.date}T12:00:00+05:00`).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi", weekday: "long", day: "numeric", month: "short" });
-  const name = `${LEVEL_LABEL[c.level]} ${c.subject}`;
+  const joint = c.change && !c.change.cancelled ? c.change.joint : undefined;
+  const name = `${joint ? jointLabel(c.level, joint.level) : LEVEL_LABEL[c.level]} ${c.subject}`;
   const { title, body } = classChangeCopy(
-    !c.change ? "back" : c.change.cancelled ? "cancelled" : c.change.extra ? "extra" : "moved",
+    !c.change ? "back" : c.change.cancelled ? "cancelled" : joint ? "joint" : c.change.extra ? "extra" : "moved",
     name,
     day,
     clock(c.change?.start ?? ""),
+    clock(c.change?.end ?? ""),
   );
   // A double tap (or a retry) sends the same change twice: if the newest class
   // note one of these students got in the last two minutes is this very note,

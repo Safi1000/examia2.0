@@ -27,6 +27,13 @@ export interface Slot {
 }
 
 export const LEVEL_LABEL: Record<LevelKey, string> = { A2: "A2", AS: "AS", O: "IGCSE / O Level" };
+/** Two levels taught together for a day: "IG + AS". */
+const LEVEL_SHORT: Record<LevelKey, string> = { O: "IG", AS: "AS", A2: "A2" };
+export const jointLabel = (a: LevelKey, b: LevelKey) =>
+  (["O", "AS", "A2"] as LevelKey[]).filter((l) => l === a || l === b).map((l) => LEVEL_SHORT[l]).join(" + ");
+/** The level name to show for a class: its own, or "IG + AS" while it is taught together with another. */
+export const levelName = (s: { level: LevelKey; cancelled?: boolean; joint?: { level: LevelKey } }) =>
+  s.joint && !s.cancelled ? jointLabel(s.level, s.joint.level) : LEVEL_LABEL[s.level];
 
 /** A weekly class. `days` (0 = Sunday … 6) overrides the schedule's class days. */
 export interface WeekSlot extends Slot {
@@ -44,7 +51,7 @@ export interface Exception {
   end?: string;
   extra?: boolean;
   /** Taught together with this other class on this date, in its room (same times, its link and recording). */
-  joint?: { level: LevelKey; subject: SubjectKey };
+  joint?: { level: LevelKey; subject: SubjectKey; lead?: boolean };
 }
 
 export interface Schedule {
@@ -95,7 +102,7 @@ export function cleanSchedule(v: unknown): Schedule | null {
     .slice(-200)
     .map((e) => ({ date: e.date, level: e.level, subject: e.subject, ...(e.cancelled ? { cancelled: true } : {}), ...(e.start ? { start: e.start, end: e.end } : {}), ...(e.extra ? { extra: true } : {}),
       ...(!e.cancelled && e.start && e.joint && LEVELS.includes(e.joint.level) && SUBJECTS.includes(e.joint.subject) && !(e.joint.level === e.level && e.joint.subject === e.subject)
-        ? { joint: { level: e.joint.level, subject: e.joint.subject } }
+        ? { joint: { level: e.joint.level, subject: e.joint.subject, ...(e.joint.lead ? { lead: true } : {}) } }
         : {}),
     }));
   return { termStarts: x.termStarts, days, slots: slots as WeekSlot[], exceptions: withMakeUps(slots as WeekSlot[], exceptions as Exception[]) };
@@ -258,7 +265,7 @@ export function slotsOn(db: Pick<Database, "classes" | "subjects">, date: string
   }
   // Taught together: only while both are on, at the very same time (moving or
   // cancelling either one afterwards quietly ends it).
-  for (const e of active.exceptions.filter((x) => x.date === date && x.joint && !x.cancelled)) {
+  for (const e of active.exceptions.filter((x) => x.date === date && x.joint && !x.joint.lead && !x.cancelled)) {
     const me = weekly.find((s) => s.level === e.level && s.subject === e.subject);
     const lead = weekly.find((s) => s.level === e.joint!.level && s.subject === e.joint!.subject);
     if (!me || !lead || me.cancelled || lead.cancelled || lead.joint || me.start !== lead.start || me.end !== lead.end) continue;

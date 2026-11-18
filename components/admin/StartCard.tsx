@@ -2,7 +2,7 @@
 
 import { Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
-import { LEVEL_LABEL, clock, span, type DaySlot } from "@/lib/timetable";
+import { levelName, clock, span, type DaySlot } from "@/lib/timetable";
 
 /** "Start class": the one thing Hamza needs as a class comes up. */
 export function StartCard({ slot, url, nowMs }: { slot: DaySlot; url: string | null; nowMs: number }) {
@@ -17,7 +17,7 @@ export function StartCard({ slot, url, nowMs }: { slot: DaySlot; url: string | n
           {live ? "Live now" : mins < 60 ? `Starts in ${mins} min` : `Next at ${clock(slot.start)}`}
         </p>
         <h2 className="mt-1.5 text-xl font-bold tracking-[-0.02em] text-ink">
-          {slot.subject} <span className="text-base font-semibold text-ink-2">· {LEVEL_LABEL[slot.level]}</span>
+          {slot.subject} <span className="text-base font-semibold text-ink-2">· {levelName(slot)}</span>
         </h2>
         <p className="mt-0.5 text-sm tabular-nums text-ink-2">
           {span(slot.start, slot.end)}

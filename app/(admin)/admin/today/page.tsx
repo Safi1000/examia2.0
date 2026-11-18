@@ -24,7 +24,7 @@ import { WellBuiltCard } from "@/components/admin/WellBuiltCard";
 import { HealthLine } from "@/components/admin/Automations";
 import { NotifyCoverage } from "@/components/admin/NotifyCoverage";
 import { RemindersPanel } from "@/components/admin/RemindersPanel";
-import { addDays, clock, LEVEL_LABEL, liveSlotsOn, pkDate, slotKey, useClassLinks, useSchedule } from "@/lib/classes";
+import { addDays, clock, levelName, liveSlotsOn, pkDate, slotKey, useClassLinks, useSchedule } from "@/lib/classes";
 import { formatRelative } from "@/lib/time";
 import { createRetest, reachOf, retestQuestions, retestTarget, weakTopics } from "@/lib/retest";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -75,7 +75,7 @@ export default function TodayPage() {
     : Array.from({ length: 8 }, (_, i) => liveSlotsOn(db, addDays(todayPk, i)))
         .flat()
         .find((s) => s.startMs > nowMs);
-  const nextName = nextClass ? `${LEVEL_LABEL[nextClass.level]} ${nextClass.subject}` : "";
+  const nextName = nextClass ? `${levelName(nextClass)} ${nextClass.subject}` : "";
   const nextLabel = nextClass
     ? `${
         nextClass.date === todayPk
