@@ -40,6 +40,8 @@ type Props = {
   url: string;
   /** The reader's sign-in, sent with the file request (a student's note link only opens with it). */
   authToken?: string;
+  /** The file itself, when the caller already has it (fetched ahead): nothing is downloaded again. */
+  data?: ArrayBuffer;
   onFail: () => void;
   /** Open at this page (from a search result, or where they left off). */
   startPage?: number;
@@ -56,7 +58,7 @@ export function PdfView(props: Props) {
   return <PdfReader key={props.url} {...props} />;
 }
 
-function PdfReader({ url, authToken, onFail, startPage, highlight, onPage, autoFocus }: Props) {
+function PdfReader({ url, authToken, data, onFail, startPage, highlight, onPage, autoFocus }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const [doc, setDoc] = useState<PdfDoc | null>(null);
   // Page sizes at scale 1. Until a page is fetched it borrows page 1's size.
@@ -111,7 +113,8 @@ function PdfReader({ url, authToken, onFail, startPage, highlight, onPage, autoF
         // PDF.js sends the header with every request for the file. Built apart
         // from the call because the shared PdfLib type only lists url and data.
         const source: { url: string; httpHeaders?: Record<string, string> } = authToken ? { url, httpHeaders: { Authorization: `Bearer ${authToken}` } } : { url };
-        const task = lib.getDocument(source);
+        // A copy: PDF.js takes the bytes it is given, and the caller keeps its own for next time.
+        const task = lib.getDocument(data ? { data: data.slice(0) } : source);
         loading = task;
         const d = (await task.promise) as unknown as PdfDoc;
         loaded = d;
@@ -135,7 +138,7 @@ function PdfReader({ url, authToken, onFail, startPage, highlight, onPage, autoF
       // Closed while still downloading: stop the download too, not only a finished file.
       void (loaded?.destroy?.() ?? loading?.destroy?.())?.catch(() => {});
     };
-  }, [url, authToken]);
+  }, [url, authToken, data]);
 
   // Closing the reader: give every page's drawing memory back straight away,
   // and remember the page even when it closes right after a scroll.

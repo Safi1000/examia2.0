@@ -21,6 +21,8 @@ const OFFICE = /\.(pptx?|docx?|xlsx?)$|officedocument|msword|ms-powerpoint|ms-ex
 type Ticket = { url: string; fileType: string; fileName?: string; token?: string };
 /** Ask the server for this note's short-lived link. Throws with a sentence the student can act on. */
 async function askFor(noteId: string): Promise<Ticket> {
+  // Preview: every sample note opens the one sample PDF (if it's there).
+  if (DEMO) return { url: "/demo/note.pdf", fileType: "application/pdf", fileName: "note.pdf" };
   let { data } = await supabase().auth.getSession();
   // A phone left asleep can wake with an old sign-in: refresh it once before giving up.
   if (!data.session) ({ data } = await supabase().auth.refreshSession());
@@ -42,7 +44,7 @@ const warm = new Map<string, { at: number; ticket: Promise<Ticket> }>();
  * its way when the reader slides in. Safe to call again and again.
  */
 export function warmNote(noteId: string): Promise<Ticket> | null {
-  if (DEMO || typeof window === "undefined") return null;
+  if (typeof window === "undefined") return null;
   const hit = warm.get(noteId);
   if (hit && Date.now() - hit.at < 45_000) return hit.ticket;
   const ticket = askFor(noteId);
@@ -51,6 +53,36 @@ export function warmNote(noteId: string): Promise<Ticket> | null {
   warm.set(noteId, { at: Date.now(), ticket });
   if (warm.size > 12) warm.delete(warm.keys().next().value as string);
   return ticket;
+}
+
+const isPdfTicket = (t: Ticket, title = "") => /pdf/i.test(t.fileType ?? "") || /\.pdf($|\?)/i.test(title) || /\.pdf$/i.test(t.fileName ?? "");
+// The last few PDFs read or fetched ahead, kept in memory only (gone on reload),
+// so a note opened again, or one fetched while it was being reached for, shows at once.
+const files = new Map<string, { at: number; bytes: Promise<ArrayBuffer> }>();
+function noteFile(noteId: string, ticket: Ticket | Promise<Ticket>): Promise<ArrayBuffer> {
+  const hit = files.get(noteId);
+  if (hit && Date.now() - hit.at < 30 * 60_000) return hit.bytes;
+  const bytes = (async () => {
+    const t = await ticket;
+    const res = await fetch(t.url, t.token ? { headers: { Authorization: `Bearer ${t.token}` } } : undefined);
+    if (!res.ok) throw new Error("file");
+    return res.arrayBuffer();
+  })();
+  bytes.catch(() => files.get(noteId)?.bytes === bytes && files.delete(noteId));
+  files.set(noteId, { at: Date.now(), bytes });
+  while (files.size > 3) files.delete(files.keys().next().value as string);
+  return bytes;
+}
+/**
+ * Fetch a note ahead of the tap: its link, and for a PDF the file too. Called
+ * when a note is touched, and once for the note most likely to be read next.
+ * Opening it still checks with the server first, so nothing is shown that the
+ * reader may not see.
+ */
+export function preloadNote(noteId: string, fileType: string) {
+  const ticket = warmNote(noteId);
+  if (!ticket || !/pdf/i.test(fileType)) return;
+  void noteFile(noteId, ticket).catch(() => {});
 }
 
 /**
@@ -77,7 +109,7 @@ export function NoteViewer({
   highlight?: string[];
 }) {
   // `token` is the sign-in the reader sends with the file request: a student's PDF link only opens with it.
-  const [state, setState] = useState<{ url: string; fileType: string; fileName?: string; token?: string } | null>(null);
+  const [state, setState] = useState<(Ticket & { data?: ArrayBuffer }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   // "Try again" asks for a fresh link.
   const [attempt, setAttempt] = useState(0);
@@ -202,15 +234,13 @@ export function NoteViewer({
     let cancelled = false;
     void (async () => {
       try {
-        // Preview: every sample note opens the one sample PDF (if it's there).
-        if (DEMO) {
-          if (!cancelled) setState({ url: "/demo/note.pdf", fileType: "application/pdf", fileName: "note.pdf" });
-          return;
-        }
         // The link asked for when the note was touched, or a fresh one ("Try again" always asks afresh).
         const ticket = await ((attempt === 0 && warmNote(noteId)) || askFor(noteId));
         warm.delete(noteId);
-        if (!cancelled) setState(ticket);
+        // A PDF comes down here (or is already here, fetched ahead or read a moment ago).
+        // If that fails, the reader fetches it itself and says so if it can't.
+        const data = isPdfTicket(ticket, title) ? await noteFile(noteId, ticket).catch(() => undefined) : undefined;
+        if (!cancelled) setState({ ...ticket, data });
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "This note didn't open. Check your internet and try again.");
       }
@@ -218,7 +248,7 @@ export function NoteViewer({
     return () => {
       cancelled = true;
     };
-  }, [noteId, attempt]);
+  }, [noteId, attempt, title]);
 
   if (typeof document === "undefined") return null;
 
@@ -321,7 +351,7 @@ export function NoteViewer({
         ) : isOffice ? (
           <iframe src={officeSrc} title={title} className="h-full w-full rounded-field border border-hairline bg-white" />
         ) : isPdf && !pdfFailed ? (
-          <PdfView url={state.url} authToken={state.token} onFail={onPdfFail} startPage={page} highlight={highlight} onPage={onPage} autoFocus />
+          <PdfView url={state.url} authToken={state.token} data={state.data} onFail={onPdfFail} startPage={page} highlight={highlight} onPage={onPage} autoFocus />
         ) : isPdf ? (
           // Never fall back to the browser's own PDF viewer: it has Print and Download buttons.
           <div className="max-w-xs text-center">

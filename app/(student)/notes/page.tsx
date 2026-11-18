@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { studentById } from "@/lib/data/selectors";
 import { EmptyState, Icon, Spinner } from "@/components/ui";
 import { useNow } from "@/hooks/useNow";
-import { NoteViewer, warmNote } from "@/components/NoteViewer";
+import { NoteViewer, preloadNote } from "@/components/NoteViewer";
 import { cn } from "@/lib/cn";
 import { EmptyArt, PageHeader } from "@/components/student/PortalKit";
 import { chipClass, segmentGroup, segmentItem } from "@/components/ui/Segmented";
@@ -50,6 +50,25 @@ function StudentNotes() {
     const id = window.setTimeout(() => void loadPdfJs().catch(() => {}), 1200);
     return () => window.clearTimeout(id);
   }, []);
+
+  // The note they are most likely to open next, the one they were part-way
+  // through, is fetched while they look around. Not on a data-saving or slow
+  // connection, and only that one note.
+  const ahead = useRef(false);
+  useEffect(() => {
+    if (ahead.current || !db.notes.length) return;
+    ahead.current = true;
+    const net = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    if (net?.saveData || /2g|3g/.test(net?.effectiveType ?? "")) return;
+    const id = window.setTimeout(() => {
+      const pos = readPositions();
+      const next = db.notes
+        .filter((n) => /pdf/i.test(n.fileType) && pos[n.id] && pos[n.id].page > 1 && pos[n.id].page < pos[n.id].pages)
+        .toSorted((a, b) => pos[b.id].at - pos[a.id].at)[0];
+      if (next) preloadNote(next.id, next.fileType);
+    }, 1800);
+    return () => window.clearTimeout(id);
+  }, [db.notes]);
 
   const visitLogged = useRef(false);
   const [viewing, setViewing] = useState<Opened | null>(null);
@@ -501,11 +520,11 @@ function NoteRow({
     <button
       type="button"
       onClick={onOpen}
-      onPointerEnter={(e) => e.pointerType === "mouse" && void warmNote(note.id)}
+      onPointerEnter={(e) => e.pointerType === "mouse" && preloadNote(note.id, note.fileType)}
       onPointerDown={(e) => {
         if (e.pointerType === "mouse") return;
         drop();
-        press.current = setTimeout(() => void warmNote(note.id), 60);
+        press.current = setTimeout(() => preloadNote(note.id, note.fileType), 60);
       }}
       onPointerMove={(e) => e.pointerType !== "mouse" && drop()}
       onPointerCancel={drop}
