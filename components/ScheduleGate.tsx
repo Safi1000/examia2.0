@@ -134,6 +134,17 @@ async function send(op: Op): Promise<Schedule> {
     setSchedule(next);
     return next;
   }
+  // A one-day change shows on the page at once; the server's answer replaces
+  // it a moment later, and a save that fails puts the page back as it was.
+  const before = getSchedule();
+  const mine = op.op === "day" && scheduleLoaded() ? cleanSchedule(applyDayChange(before, op, pkDate(Date.now()))) : null;
+  if (mine) setSchedule(mine);
+  const shown = getSchedule();
+  const undo = (why: string): never => {
+    // Only if nothing newer has arrived since (a refresh, another save).
+    if (mine && getSchedule() === shown) setSchedule(before);
+    throw new Error(why);
+  };
   const { supabase } = await import("@/lib/supabase");
   const { data } = await supabase().auth.getSession();
   const res = await fetch("/api/schedule", {
@@ -141,13 +152,13 @@ async function send(op: Op): Promise<Schedule> {
     headers: { Authorization: `Bearer ${data.session?.access_token ?? ""}`, "Content-Type": "application/json" },
     body: JSON.stringify(op),
   }).catch(() => null);
-  if (!res) throw new Error("Can't reach the server. Check your internet and try again.");
+  if (!res) return undo("Can't reach the server. Check your internet and try again.");
   const body = await res.json().catch(() => ({}));
   // The server answers with a sentence for mistakes Hamza can fix, and a bare code otherwise.
-  if (res.status === 403) throw new Error("Your session has expired. Sign in again, then save.");
-  if (!res.ok) throw new Error(typeof body.error === "string" && /^[A-Z]/.test(body.error) ? body.error : "Couldn't save. Try again.");
+  if (res.status === 403) return undo("Your session has expired. Sign in again, then save.");
+  if (!res.ok) return undo(typeof body.error === "string" && /^[A-Z]/.test(body.error) ? body.error : "Couldn't save. Try again.");
   const saved = cleanSchedule(body);
-  if (!saved) throw new Error("Couldn't save. Try again.");
+  if (!saved) return undo("Couldn't save. Try again.");
   savedAt = Date.now();
   setSchedule(saved);
   return saved;

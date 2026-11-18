@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
-import { Icon, Spinner } from "@/components/ui";
+import { Icon } from "@/components/ui";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { buttonClasses } from "@/components/ui/Button";
 import { PdfView } from "@/components/PdfView";
 import { useBackToClose } from "@/components/student/useBackToClose";
@@ -16,6 +17,41 @@ import { setActivityNote, setActivityNotePage } from "@/lib/activity-tracker";
 const isPdfFile = (f: { fileType: string }, title: string) => f.fileType?.includes("pdf") || /\.pdf($|\?)/i.test(title);
 
 const OFFICE = /\.(pptx?|docx?|xlsx?)$|officedocument|msword|ms-powerpoint|ms-excel/i;
+
+type Ticket = { url: string; fileType: string; fileName?: string; token?: string };
+/** Ask the server for this note's short-lived link. Throws with a sentence the student can act on. */
+async function askFor(noteId: string): Promise<Ticket> {
+  let { data } = await supabase().auth.getSession();
+  // A phone left asleep can wake with an old sign-in: refresh it once before giving up.
+  if (!data.session) ({ data } = await supabase().auth.refreshSession());
+  const token = data.session?.access_token;
+  if (!token) throw new Error("You've been signed out. Sign in again, then open this note.");
+  const res = await fetch("/api/notes/view-url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ noteId }),
+  });
+  if (res.status === 404) throw new Error("This note isn't available any more. Ask Hamza if you need it.");
+  if (!res.ok) throw new Error("This note didn't open. Check your internet and try again.");
+  return { ...((await res.json()) as { url: string; fileType: string; fileName?: string }), token };
+}
+// Links asked for in the last few seconds (they expire in minutes, so only briefly kept).
+const warm = new Map<string, { at: number; ticket: Promise<Ticket> }>();
+/**
+ * Start fetching a note's link the moment it is touched, so it is already on
+ * its way when the reader slides in. Safe to call again and again.
+ */
+export function warmNote(noteId: string): Promise<Ticket> | null {
+  if (DEMO || typeof window === "undefined") return null;
+  const hit = warm.get(noteId);
+  if (hit && Date.now() - hit.at < 45_000) return hit.ticket;
+  const ticket = askFor(noteId);
+  // A failed try is forgotten (and never an unhandled error): opening asks again.
+  ticket.catch(() => warm.get(noteId)?.ticket === ticket && warm.delete(noteId));
+  warm.set(noteId, { at: Date.now(), ticket });
+  if (warm.size > 12) warm.delete(warm.keys().next().value as string);
+  return ticket;
+}
 
 /**
  * Reads a note inside the portal.
@@ -171,20 +207,10 @@ export function NoteViewer({
           if (!cancelled) setState({ url: "/demo/note.pdf", fileType: "application/pdf", fileName: "note.pdf" });
           return;
         }
-        let { data } = await supabase().auth.getSession();
-        // A phone left asleep can wake with an old sign-in: refresh it once before giving up.
-        if (!data.session) ({ data } = await supabase().auth.refreshSession());
-        const token = data.session?.access_token;
-        if (!token) throw new Error("You've been signed out. Sign in again, then open this note.");
-        const res = await fetch("/api/notes/view-url", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ noteId }),
-        });
-        if (res.status === 404) throw new Error("This note isn't available any more. Ask Hamza if you need it.");
-        if (!res.ok) throw new Error("This note didn't open. Check your internet and try again.");
-        const body = (await res.json()) as { url: string; fileType: string; fileName?: string };
-        if (!cancelled) setState({ ...body, token });
+        // The link asked for when the note was touched, or a fresh one ("Try again" always asks afresh).
+        const ticket = await ((attempt === 0 && warmNote(noteId)) || askFor(noteId));
+        warm.delete(noteId);
+        if (!cancelled) setState(ticket);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "This note didn't open. Check your internet and try again.");
       }
@@ -288,9 +314,9 @@ export function NoteViewer({
             )}
           </div>
         ) : !state ? (
-          <div className="flex flex-col items-center gap-3 text-ink-3">
-            <Spinner size={28} />
-            <span className="text-base text-ink-2">Opening…</span>
+          <div className="flex h-full w-full flex-col items-center px-3 py-3" role="status">
+            <PageSkeleton />
+            <span className="sr-only">Opening</span>
           </div>
         ) : isOffice ? (
           <iframe src={officeSrc} title={title} className="h-full w-full rounded-field border border-hairline bg-white" />

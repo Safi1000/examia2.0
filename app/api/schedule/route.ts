@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse, after } from "next/server";
 import { classChangeCopy } from "@/lib/notify-copy";
 import { adminIdFromRequest } from "@/lib/admin-auth";
 import { notifyClassChange, pushReady, serviceClient } from "@/lib/push-server";
@@ -26,6 +26,8 @@ import { studentsIn } from "@/lib/automation";
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Calendar and student messages finish after the answer has gone back (see POST).
+export const maxDuration = 60;
 
 export async function GET() {
   const schedule = pushReady() ? await loadSchedule(serviceClient()) : DEFAULT_SCHEDULE;
@@ -66,13 +68,19 @@ export async function POST(req: NextRequest) {
     console.error("[schedule] save", e);
     return NextResponse.json({ error: "Couldn't save the timetable. Try again." }, { status: 502 });
   }
-  if (body.op === "day") {
-    await syncCalendar(sb, next, body).catch((e) => console.error("[schedule] calendar", e));
-    if (body.notify && body.date >= today) await tellStudents(sb, body).catch((e) => console.error("[schedule] notify", e));
-  } else {
-    // Today's links may already exist: keep their Calendar times in step.
-    await syncCalendarDay(sb, next, today).catch((e) => console.error("[schedule] calendar", e));
-  }
+  // The timetable is saved: answer now. Hamza's Calendar and the students'
+  // messages follow in the background, so the page never sits on "Saving".
+  // Calendar reads the latest timetable again, since several changes made one
+  // after another (a joint class) finish in any order.
+  after(async () => {
+    if (body.op === "day") {
+      if (body.notify && body.date >= today) await tellStudents(sb, body).catch((e) => console.error("[schedule] notify", e));
+      await syncCalendar(sb, await loadSchedule(sb, true).catch(() => next), body).catch((e) => console.error("[schedule] calendar", e));
+    } else {
+      // Today's links may already exist: keep their Calendar times in step.
+      await syncCalendarDay(sb, next, today).catch((e) => console.error("[schedule] calendar", e));
+    }
+  });
   return NextResponse.json(next, { headers: { "Cache-Control": "no-store" } });
 }
 

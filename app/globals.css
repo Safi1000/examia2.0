@@ -296,7 +296,9 @@ html:has(.portal-backdrop) .skeleton::after {
   50% { stroke-dasharray: 34 60; stroke-dashoffset: -12; }
   100% { stroke-dasharray: 1 60; stroke-dashoffset: -56; }
 }
-.arc-spinner { animation: arc-turn 1.4s linear infinite; }
+/* A wait too short to notice shows nothing: the spinner only appears after 300 ms. */
+@keyframes arc-appear { from { opacity: 0; } to { opacity: 1; } }
+.arc-spinner { opacity: 0; animation: arc-turn 1.4s linear infinite, arc-appear 0.15s ease-out 0.3s forwards; }
 .arc-spinner__arc { animation: arc-breathe 1.4s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
 
 /* The splash: light passes across the wordmark, the line fills and slows. */
@@ -352,7 +354,8 @@ html:has(.portal-backdrop) .route-line { box-shadow: none; }
 
 /* Reduced motion: still loading, just without movement. */
 @media (prefers-reduced-motion: reduce) {
-  .arc-spinner, .arc-spinner__arc, .logo-sheen, .skeleton::after, .splash-fill::after { animation: none !important; }
+  .arc-spinner__arc, .logo-sheen, .skeleton::after, .splash-fill::after { animation: none !important; }
+  .arc-spinner { animation: arc-appear 0.01s linear 0.3s forwards !important; }
   .arc-spinner__arc { stroke-dasharray: 18 60; }
   .splash-fill { animation: none !important; transform: scaleX(0.6); }
 }

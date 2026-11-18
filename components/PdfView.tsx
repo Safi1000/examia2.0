@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Spinner } from "@/components/ui";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { loadPdfJs } from "@/lib/notes-client";
 
 /**
@@ -509,8 +509,8 @@ function PdfReader({ url, authToken, onFail, startPage, highlight, onPage, autoF
         style={{ touchAction: "pan-x pan-y" }}
       >
         {!doc ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center" role="status">
-            <Spinner size={28} className="text-ink-3" />
+          <div className="flex h-full flex-col items-center gap-3 px-3 py-3 text-center" role="status">
+            <PageSkeleton />
             <span className="sr-only">Loading</span>
             {slow && <span className="max-w-xs text-sm text-ink-3">Still loading. A long file can take a little while on a slow connection.</span>}
           </div>

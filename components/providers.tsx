@@ -5,6 +5,7 @@ import { useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { isPublicPath } from "@/lib/public-paths";
 import { Splash as PortalSplash } from "@/components/Splash";
+import { PortalSkeleton } from "@/components/PortalSkeleton";
 
 /**
  * Client root. Public pages render straight into the server HTML with nothing
@@ -29,8 +30,23 @@ function Splash() {
   );
 }
 
+/**
+ * What shows while the portal itself is still arriving: the outline of the
+ * page being opened, so nothing jumps when it fills in. Signing in and a test
+ * opening keep the splash (there is no page behind them yet).
+ */
+function PortalWait() {
+  const pathname = usePathname() ?? "";
+  if (pathname.startsWith("/login") || pathname.startsWith("/test/")) return <Splash />;
+  return (
+    <div className="bg-paper">
+      <PortalSkeleton side={pathname.startsWith("/admin") ? "admin" : "student"} />
+    </div>
+  );
+}
+
 const loadPortal = () => import("@/components/PortalProviders");
-const PortalProviders = dynamic(loadPortal, { ssr: false, loading: Splash });
+const PortalProviders = dynamic(loadPortal, { ssr: false, loading: PortalWait });
 
 /** Starts downloading the portal early (e.g. when a visitor reaches for Login). */
 export function preloadPortal() {
@@ -49,7 +65,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!mounted) return <Splash />;
+  if (!mounted) return <PortalWait />;
 
   return <PortalProviders>{children}</PortalProviders>;
 }

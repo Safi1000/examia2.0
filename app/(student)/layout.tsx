@@ -18,6 +18,7 @@ import { studentById } from "@/lib/data/selectors";
 import { dueFor } from "@/lib/due";
 import { LogoTight } from "@/components/Brand";
 import { Splash } from "@/components/Splash";
+import { PortalSkeleton } from "@/components/PortalSkeleton";
 import { useAccessPaused } from "@/lib/access-paused";
 import { NotificationBell } from "@/components/NotificationBell";
 import { Button, CohortTag } from "@/components/ui";
@@ -99,7 +100,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       </div>
     );
   }
-  if (initializing || !session || session.role !== "student") {
+  // Checking the sign-in: the page's outline already, so it never jumps from a splash to a page.
+  if (initializing) return <PortalSkeleton />;
+  if (!session || session.role !== "student") {
     return <Splash tips />;
   }
   if (accessPaused) {
@@ -133,7 +136,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     );
   }
   if (!ready) {
-    return <Splash tips />;
+    return <PortalSkeleton />;
   }
 
   const student = studentById(db, session.studentId);

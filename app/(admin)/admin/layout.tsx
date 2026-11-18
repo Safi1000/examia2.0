@@ -13,6 +13,7 @@ import { Sidebar } from "@/components/admin/Sidebar";
 import { Icon } from "@/components/ui";
 import { LogoTight } from "@/components/Brand";
 import { Splash } from "@/components/Splash";
+import { PortalSkeleton } from "@/components/PortalSkeleton";
 import Link from "next/link";
 import { NavIcon } from "@/components/nav/NavIcons";
 import { cn } from "@/lib/cn";
@@ -120,13 +121,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [drawerOpen]);
 
   if (initializing) {
-    return <Splash />;
+    return <PortalSkeleton side="admin" />;
   }
   if (!isAdmin) return <AdminLogin />;
   // The assistant only ever lands on her own pages; anything else sends her to her marking list.
   if (ta && !taMayOpen(pathname)) return <Splash />;
   if (!ready) {
-    return <Splash />;
+    return <PortalSkeleton side="admin" />;
   }
 
   return (

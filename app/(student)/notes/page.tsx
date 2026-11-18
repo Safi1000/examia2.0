@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { studentById } from "@/lib/data/selectors";
 import { EmptyState, Icon, Spinner } from "@/components/ui";
 import { useNow } from "@/hooks/useNow";
-import { NoteViewer } from "@/components/NoteViewer";
+import { NoteViewer, warmNote } from "@/components/NoteViewer";
 import { cn } from "@/lib/cn";
 import { EmptyArt, PageHeader } from "@/components/student/PortalKit";
 import { chipClass, segmentGroup, segmentItem } from "@/components/ui/Segmented";
@@ -493,10 +493,22 @@ function NoteRow({
 }) {
   const k = kind(note.fileType);
   const done = pos && pos.page >= pos.pages;
+  // Start fetching as the note is touched: a mouse resting on it, or a finger
+  // that stays put for a moment (a scroll moves on and asks for nothing).
+  const press = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const drop = () => clearTimeout(press.current);
   return (
     <button
       type="button"
       onClick={onOpen}
+      onPointerEnter={(e) => e.pointerType === "mouse" && void warmNote(note.id)}
+      onPointerDown={(e) => {
+        if (e.pointerType === "mouse") return;
+        drop();
+        press.current = setTimeout(() => void warmNote(note.id), 60);
+      }}
+      onPointerMove={(e) => e.pointerType !== "mouse" && drop()}
+      onPointerCancel={drop}
       aria-label={`Read ${title}`}
       className={cn(
         "row-link flex min-h-14 w-full items-center gap-3 py-3 pr-5 text-left focus-visible:bg-surface-2 focus-visible:outline-none",
