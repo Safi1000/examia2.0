@@ -31,16 +31,16 @@ export async function POST(req: NextRequest) {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data: user } = await sb.auth.getUser();
-  if (!user.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-
   // Row-level security decides whether they may see the note; the raw file
   // link lives in an admin-only table and comes back only through
-  // note_file_url(), which repeats that check.
-  const [{ data: note, error }, link] = await Promise.all([
+  // note_file_url(), which repeats that check. The sign-in check and the two
+  // lookups go out together: one wait instead of two.
+  const [{ data: user }, { data: note, error }, link] = await Promise.all([
+    sb.auth.getUser(),
     sb.from("notes").select("*").eq("id", noteId).single(),
     sb.rpc("note_file_url", { p_note_id: noteId }),
   ]);
+  if (!user.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   // Until migration 20261020010000 is applied the link is still on the notes row.
   const fileUrl = link.error?.code === "PGRST202" ? (note?.file_url as string | null) : link.data;
   if (error || !note || !fileUrl) return NextResponse.json({ error: "not found" }, { status: 404 });
