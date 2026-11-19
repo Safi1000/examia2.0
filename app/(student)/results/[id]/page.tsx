@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import type { Answer, Question } from "@/types";
 import { useAuth } from "@/lib/auth-context";
-import { useDatabase } from "@/lib/data/store";
+import { useDatabase, useStore } from "@/lib/data/store";
 import { studentById, testById, submissionFor, submissionsForStudent } from "@/lib/data/selectors";
 import { Card, Badge, Icon, EmptyState } from "@/components/ui";
 import { AnnotatedImage } from "@/components/Annotator";
@@ -34,6 +34,12 @@ export default function ResultsPage() {
   const student = session?.studentId ? studentById(db, session.studentId) : null;
   const test = testById(db, id);
   const submission = student && test ? submissionFor(db, student.id, test.id) : null;
+  // My markings on photo answers come separately (they are heavy).
+  const store = useStore();
+  const subId = submission?.status === "released" ? submission.id : null;
+  useEffect(() => {
+    if (subId) void store.loadAnnotations(subId);
+  }, [store, subId]);
 
   if (!student || !test) {
     return <PendingShell title="Result unavailable" message="I can't find this test on your account." />;

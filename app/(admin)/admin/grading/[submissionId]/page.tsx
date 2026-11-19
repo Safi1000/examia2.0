@@ -35,6 +35,10 @@ export default function GradingPage() {
   const [showAuto, setShowAuto] = useState(false);
   // Set by the first Release tap: a fast second tap (or Ctrl+Enter) must not release twice.
   const releasing = useRef<string | null>(null);
+  // The pen strokes on photo answers are left out of the full load (they are heavy): fetched here.
+  useEffect(() => {
+    void store.loadAnnotations(subId);
+  }, [store, subId]);
 
   const submission = submissionById(db, subId);
   const test = submission ? testById(db, submission.testId) : null;
@@ -235,6 +239,8 @@ function GradeCard({
   writeEndMs: number | null;
 }) {
   const store = useStore();
+  // Saved markings must be here before any can be drawn: a save writes the whole set.
+  const strokesReady = store.strokesReady(submissionId);
   const awarded = answer?.marksAwarded;
   const locked = question.type === "mcq";
   const [annotating, setAnnotating] = useState<number | null>(null);
@@ -363,7 +369,7 @@ function GradeCard({
                   url={url}
                   shapes={answer?.annotations?.[url] ?? []}
                   alt={`Answer to question ${index + 1}, page ${shown + 1}`}
-                  onClick={() => setAnnotating(shown)}
+                  onClick={() => strokesReady && setAnnotating(shown)}
                   className="block w-full"
                 />
               </div>
@@ -390,11 +396,15 @@ function GradeCard({
                     </button>
                   </>
                 )}
-                <button onClick={() => setAnnotating(shown)} className="inline-flex min-h-11 items-center font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline">
-                  Open to annotate
+                <button
+                  onClick={() => setAnnotating(shown)}
+                  disabled={!strokesReady}
+                  className="inline-flex min-h-11 items-center font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline disabled:text-ink-3 disabled:no-underline"
+                >
+                  {strokesReady ? "Open to annotate" : "Getting your markings…"}
                 </button>
               </div>
-              {annotating !== null && (
+              {annotating !== null && strokesReady && (
                 <AnnotatorModal
                   urls={photos}
                   startAt={annotating}

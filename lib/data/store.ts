@@ -222,6 +222,14 @@ function mapQuestion(r: Row, correctIndex: number | undefined): Question {
   return { ...base, type: "photo" };
 }
 
+/**
+ * Every answer column except the marker's pen strokes. The strokes are by far
+ * the heaviest part of a paper (6 MB of the console's 7 MB in Nov 2026), so
+ * the full load leaves them out and a paper's strokes are fetched when it is
+ * opened (loadAnnotations). Keep in step with the answers table.
+ */
+const ANSWERS_LIGHT = "answers(id,submission_id,question_id,type,selected_index,text,photo_url,marks_awarded,is_correct,correct_index,feedback,created_at,photo_urls)";
+
 const mapAnswer = (r: Row): Answer => {
   // photo_urls is the full set; photo_url stays the first image so any code
   // still reading the single URL (grading, results, evaluation) is unaffected.
@@ -650,7 +658,7 @@ class Store {
       sb.from("cohorts").select("*").order("created_at"),
       allRows((a, b) => sb.from("students").select("*").order("created_at").order("id").range(a, b)),
       sb.from("tests").select("*, questions(*)").order("created_at"),
-      allRows((a, b) => sb.from("submissions").select("*, answers(*)").order("id").range(a, b)),
+      allRows((a, b) => sb.from("submissions").select(`*, ${ANSWERS_LIGHT}`).order("id").range(a, b)),
       sb.from("announcements").select("*").order("created_at", { ascending: false }),
       staffOnly(() => sb.from("question_bank").select("*").order("created_at")),
       staffOnly(() => sb.from("question_keys").select("*")), // admin-only: empty for students
@@ -787,7 +795,7 @@ class Store {
         return st;
       }), prev.students),
       tests: keep(tst, () => tests, prev.tests),
-      submissions: keep(sub, () => ((sub.data as Row[]) ?? []).map(mapSubmission), prev.submissions),
+      submissions: keep(sub, () => this.keepStrokes(((sub.data as Row[]) ?? []).map(mapSubmission), prev.submissions), prev.submissions),
       announcements: keep(ann, () => ((ann.data as Row[]) ?? []).map(mapAnnouncement), prev.announcements),
       bank: keep(bnk, () => ((bnk.data as Row[]) ?? []).map(mapBank), prev.bank),
       classes: keep(cls, () => ((cls.data as Row[]) ?? []).map(mapClass), prev.classes),
@@ -813,6 +821,7 @@ class Store {
     this.restored = false;
     this.owner = null;
     this.epoch++;
+    this.strokesLoaded.clear();
     if (this.saveTimer) clearTimeout(this.saveTimer);
     this.saveTimer = null;
     // Nothing queued for the person who left may run for the next one.
@@ -1763,17 +1772,61 @@ class Store {
     const epoch = this.epoch;
     const writesBefore = this.writeCount;
     const res = await allRows((a, b) =>
-      supabase().from("submissions").select("*, answers(*)").eq("test_id", testId).order("id").range(a, b),
+      supabase().from("submissions").select(`*, ${ANSWERS_LIGHT}`).eq("test_id", testId).order("id").range(a, b),
     );
     if (epoch !== this.epoch) return; // signed out meanwhile
     if (res.error) return this.softRefresh();
     // A mark was saved meanwhile: these rows may be older than it. The full
     // re-read has its own guard for that.
     if (this.writeCount !== writesBefore || this.pendingWrites > 0) return this.softRefresh(8000);
-    const fresh = ((res.data as Row[]) ?? []).map(mapSubmission);
     this.commit((d) => {
+      const fresh = this.keepStrokes(((res.data as Row[]) ?? []).map(mapSubmission), d.submissions);
       d.submissions = [...d.submissions.filter((s) => s.testId !== testId), ...fresh];
     });
+  }
+
+  // ---- Pen strokes, fetched per paper ------------------------------------
+  /** Papers whose strokes are in the cache (the full load leaves them out). */
+  private strokesLoaded = new Set<string>();
+  private strokesLoading = new Map<string, Promise<boolean>>();
+  /** A re-read without strokes keeps the strokes already fetched for a paper. */
+  private keepStrokes(fresh: Submission[], prev: Submission[]): Submission[] {
+    if (!this.strokesLoaded.size) return fresh;
+    const before = new Map(prev.filter((s) => this.strokesLoaded.has(s.id)).map((s) => [s.id, s]));
+    return fresh.map((s) => {
+      const old = before.get(s.id);
+      if (!old) return s;
+      const by = new Map(old.answers.map((a) => [a.questionId, a.annotations]));
+      return { ...s, answers: s.answers.map((a) => (by.get(a.questionId) ? { ...a, annotations: by.get(a.questionId) } : a)) };
+    });
+  }
+  /** True once this paper's strokes are here (always in the preview). */
+  strokesReady(submissionId: string): boolean {
+    return DEMO || this.strokesLoaded.has(submissionId);
+  }
+  /**
+   * Fetch one paper's pen strokes (opening it to mark, or a student opening
+   * their result). Resolves true when they are in the cache. Until then
+   * nothing may save strokes for it: a save writes the answer's whole set.
+   */
+  loadAnnotations(submissionId: string): Promise<boolean> {
+    if (this.strokesReady(submissionId)) return Promise.resolve(true);
+    const going = this.strokesLoading.get(submissionId);
+    if (going) return going;
+    const epoch = this.epoch;
+    const job = (async () => {
+      const { data, error } = await supabase().from("answers").select("question_id,annotations").eq("submission_id", submissionId);
+      if (error || epoch !== this.epoch) return false;
+      const by = new Map(((data as Row[]) ?? []).map((r) => [r.question_id as string, (r.annotations as Annotations) ?? undefined]));
+      this.strokesLoaded.add(submissionId);
+      this.commit((d) => {
+        const sub = d.submissions.find((x) => x.id === submissionId);
+        if (sub) for (const a of sub.answers) a.annotations = by.get(a.questionId) ?? a.annotations;
+      });
+      return true;
+    })().finally(() => this.strokesLoading.delete(submissionId));
+    this.strokesLoading.set(submissionId, job);
+    return job;
   }
   deleteQuestion(testId: string, questionId: string) {
     this.commit((d) => {
@@ -2000,6 +2053,11 @@ class Store {
   }
   /** Grader markup for one image of a photo answer. Saved as you draw. */
   saveAnnotations(submissionId: string, questionId: string, imageUrl: string, shapes: Annotation[]) {
+    // The save writes the answer's whole set of strokes: never before the saved ones are here.
+    if (!this.strokesReady(submissionId)) {
+      this.report("saveAnnotations: strokes not loaded yet");
+      return;
+    }
     let next: Annotations = {};
     this.commit((d) => {
       const ans = d.submissions.find((s) => s.id === submissionId)?.answers.find((a) => a.questionId === questionId);
@@ -3023,6 +3081,7 @@ class Store {
     const { data, error } = await supabase().from("submissions").select("*, answers(*)").eq("id", id).maybeSingle();
     if (error || !data || epoch !== this.epoch) return;
     const fresh = mapSubmission(data as Row);
+    this.strokesLoaded.add(id);
     // A student learns the right MCQ options only from their released answers.
     const correct = new Map<string, number>();
     if ((data as Row).status === "released") {
