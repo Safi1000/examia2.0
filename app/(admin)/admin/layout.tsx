@@ -19,7 +19,7 @@ import { NavIcon } from "@/components/nav/NavIcons";
 import { cn } from "@/lib/cn";
 import { NotificationBell } from "@/components/NotificationBell";
 import { CommandPalette } from "@/components/admin/CommandPalette";
-import { TA_HOME, isTa, taMayOpen } from "@/lib/staff";
+import { isTa, taHome, taMayOpen } from "@/lib/staff";
 import { PortalAmbient } from "@/components/PortalAmbient";
 import { PortalManifest } from "@/components/PortalManifest";
 import { pageTitle, useDocumentTitle } from "@/hooks/usePageTitle";
@@ -61,8 +61,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const ta = isTa(session);
   useEffect(() => {
-    if (ta && !taMayOpen(pathname)) router.replace(TA_HOME);
-  }, [ta, pathname, router]);
+    if (ta && !taMayOpen(pathname, session)) router.replace(taHome(session));
+  }, [ta, pathname, router, session]);
   useDocumentTitle(isAdmin ? pageTitle(pathname, TITLES, "Teacher console") : "Teacher sign in · Hamza Teaches");
 
   useSessionTimeout(
@@ -125,7 +125,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
   if (!isAdmin) return <AdminLogin />;
   // The assistant only ever lands on her own pages; anything else sends her to her marking list.
-  if (ta && !taMayOpen(pathname)) return <Splash />;
+  if (ta && !taMayOpen(pathname, session)) return <Splash />;
   if (!ready) {
     return <PortalSkeleton side="admin" />;
   }
@@ -205,7 +205,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 { href: "/admin/classes", label: "Classes", I: NavIcon.Classes },
                 { href: "/admin/whiteboard", label: "Board", I: NavIcon.Board },
                 { href: "/admin/submissions", label: "Marking", I: NavIcon.Inbox },
-              ].map(({ href, label, I }) => {
+              ]
+                // Staff only see the tabs switched on for them (the menu button still opens the rest).
+                .filter(({ href }) => !ta || taMayOpen(href, session))
+                .map(({ href, label, I }) => {
                 // Marking a paper is still the Marking tab.
                 const on = pathname.startsWith(href) || (href === "/admin/submissions" && pathname.startsWith("/admin/grading"));
                 return (

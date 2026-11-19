@@ -114,18 +114,22 @@ export default function TodayPage() {
     const inScope = (s: Student) => !off.has(s.cohortId) && !isTestAccount(s) && !pausedIds.has(s.id) && (cohortId === null || s.cohortId === cohortId);
     const testInScope = (t: Test) =>
       !isArchivedTest(db, t, off) && (cohortId === null || t.cohortId === null || t.cohortId === cohortId);
-    const students = db.students.filter(inScope);
+    const everyone = db.students.filter(inScope);
+    // Marking and replies cover every student; the lists that chase people (who
+    // needs me, who hasn't handed in, averages) leave in-person students out.
+    const allIds = new Set(everyone.map((s) => s.id));
+    const students = everyone.filter((s) => !isInPersonStudent(db, s));
     const studentIds = new Set(students.map((s) => s.id));
     const live = db.tests.filter((t) => t.status !== "draft" && testInScope(t));
 
     // The same rule as the Submissions page, so the two counts agree.
     const toMark = db.submissions
-      .filter((s) => studentIds.has(s.studentId) && isAwaitingMarking(db, s, off))
+      .filter((s) => allIds.has(s.studentId) && isAwaitingMarking(db, s, off))
       .sort((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""));
 
     // Homework hand-ins still waiting for a reply, oldest first.
     const toReply = db.assignmentSubmissions
-      .filter((x) => !x.feedback && studentIds.has(x.studentId))
+      .filter((x) => !x.feedback && allIds.has(x.studentId))
       .sort((a, b) => a.submittedAt.localeCompare(b.submittedAt));
 
     const handedIn = (t: Test) =>
@@ -136,7 +140,7 @@ export default function TodayPage() {
       .sort((a, b) => +new Date(a.closesAt) - +new Date(b.closesAt))
       .map((t) => {
         const done = handedIn(t);
-        const eligible = eligibleStudents(db, t).filter(inScope);
+        const eligible = eligibleStudents(db, t).filter((s) => studentIds.has(s.id));
         return { test: t, eligible, missing: eligible.filter((s) => !done.has(s.id)) };
       });
 
@@ -146,8 +150,7 @@ export default function TodayPage() {
       links: weekLinks,
       joins: weekJoins,
       profiles,
-      // In-person students have no online register, so recordings don't judge them.
-      students: students.filter((s) => !isInPersonStudent(db, s)),
+      students,
       from: weekAgo,
       to: todayPk,
       nowMs: tick,

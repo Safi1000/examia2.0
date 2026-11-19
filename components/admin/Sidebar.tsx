@@ -10,7 +10,7 @@ import { LogoTight } from "@/components/Brand";
 import { CohortDot, Icon, chipClass } from "@/components/ui";
 import { NavIcon } from "@/components/nav/NavIcons";
 import { cn } from "@/lib/cn";
-import { TA_HOME, isTa, taMayOpen } from "@/lib/staff";
+import { isTa, taHome, taMayOpen } from "@/lib/staff";
 
 /** Recordings: a stack of videos with a play mark (gold when active), drawn like the other menu icons. */
 function RecordingsIcon({ active, className }: { active?: boolean; className?: string }) {
@@ -76,9 +76,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const db = useDatabase();
   const { logout, session } = useAuth();
   const ta = isTa(session);
-  // The assistant's menu: only the pages she may open, in one short list.
+  // A staff member's menu: only the pages switched on for them, in one short list.
   const groups = ta
-    ? [{ title: "Your work", items: GROUPS.flatMap((g) => g.items).filter((i) => taMayOpen(i.href)) }]
+    ? [{ title: "Your work", items: GROUPS.flatMap((g) => g.items).filter((i) => taMayOpen(i.href, session)) }]
     : GROUPS;
   const { cohortId, setCohortId } = useAdminFilter();
   const cohorts = db.cohorts.filter((c) => c.active);
@@ -89,7 +89,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col bg-paper pb-[env(safe-area-inset-bottom)]">
       <div className="px-5 pb-5 pt-6">
-        <Link href={ta ? TA_HOME : "/admin/today"} onClick={onNavigate} className="inline-flex">
+        <Link href={ta ? taHome(session) : "/admin/today"} onClick={onNavigate} className="inline-flex">
           <LogoTight className="h-[22px]" />
         </Link>
         <p className="label-quiet mt-3 text-ink-3">Teacher console</p>
@@ -178,7 +178,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-ink">{ta ? session?.staffName || "Assistant" : "Hamza Sadaqat"}</span>
-          <span className="block text-xs text-ink-3">{ta ? "Teaching assistant" : "Teacher"}</span>
+          <span className="block text-xs text-ink-3">{ta ? "Staff" : "Teacher"}</span>
         </span>
         <button
           type="button"

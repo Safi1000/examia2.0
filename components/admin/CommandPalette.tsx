@@ -83,19 +83,19 @@ export function CommandPalette() {
 
   const all = useMemo<Row[]>(() => {
     const off = new Set(db.cohorts.filter((c) => !c.active).map((c) => c.id));
-    // The assistant only finds what she may open: her pages, students, and marking.
-    const mine = (href: string) => !ta || taMayOpen(href.split("?")[0]);
+    // Staff only find what they may open.
+    const mine = (href: string) => !ta || taMayOpen(href.split("?")[0], session);
     return [
       ...ACTIONS.filter((a) => mine(a.href) && !(ta && a.href.includes("set=papers")) && !(ta && a.href === "/admin/roster")).map((a) => ({ ...a, key: `do:${a.href}`, group: "Do" as const, words: a.label.toLowerCase() })),
       ...PAGES.filter(([, href]) => mine(href)).map(([label, href]) => ({ key: `go:${href}`, group: "Go to" as const, label, href, words: label.toLowerCase() })),
       ...db.students
-        .filter((s) => !off.has(s.cohortId) && !isTestAccount(s))
+        .filter((s) => (!ta || mine("/admin/roster")) && !off.has(s.cohortId) && !isTestAccount(s))
         .map((s) => ({ key: `s:${s.id}`, group: "Students" as const, label: displayName(s.username), hint: s.username, href: `/admin/roster/${s.id}`, words: `${displayName(s.username)} ${s.username}`.toLowerCase() })),
       ...db.tests
-        .filter((t) => !ta && (!t.cohortId || !off.has(t.cohortId)))
+        .filter((t) => (!ta || mine("/admin/tests")) && (!t.cohortId || !off.has(t.cohortId)))
         .map((t) => ({ key: `t:${t.id}`, group: "Tests" as const, label: t.title, hint: t.subject, href: `/admin/tests/${t.id}`, words: `${t.title} ${t.subject}`.toLowerCase() })),
     ];
-  }, [db.students, db.tests, db.cohorts, ta]);
+  }, [db.students, db.tests, db.cohorts, ta, session]);
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();

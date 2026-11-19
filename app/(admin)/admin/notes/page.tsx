@@ -1,5 +1,7 @@
 "use client";
 
+import { useAuth } from "@/lib/auth-context";
+import { isTa } from "@/lib/staff";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useToast } from "@/components/toast";
@@ -189,7 +191,12 @@ export default function NotesPage() {
   const [view, setView] = useState<"chapters" | "all">("chapters");
   const [bookKey, setBookKey] = useState<string>("");
   const [query, setQuery] = useState("");
-  const [upload, setUpload] = useState<{ book?: string; slot?: string } | null>(null);
+  const [upload, setUploadRaw] = useState<{ book?: string; slot?: string } | null>(null);
+  // Staff read notes only: nothing opens the upload window for them.
+  const staff = isTa(useAuth().session);
+  const setUpload = (v: { book?: string; slot?: string } | null) => {
+    if (!staff || v === null) setUploadRaw(v);
+  };
   // The dialogs keep only the note's id and read the note fresh, so a rename (here or in
   // another tab) shows straight away, and a note deleted meanwhile closes its dialog.
   const [assigningId, setAssigningId] = useState<string | null>(null);
@@ -273,9 +280,11 @@ export default function NotesPage() {
         title="Notes"
         subtitle={`${showingCount} showing to students${unsharedCount ? ` · ${unsharedCount} not given to a batch yet` : ""}${hiddenCount ? ` · ${hiddenCount} hidden` : ""}`}
         actions={
-          <Button onClick={() => setUpload({})}>
-            <Icon.Plus className="h-4 w-4" /> Upload notes
-          </Button>
+          <span data-owner className="contents">
+            <Button onClick={() => setUpload({})}>
+              <Icon.Plus className="h-4 w-4" /> Upload notes
+            </Button>
+          </span>
         }
       />
 
@@ -325,7 +334,7 @@ export default function NotesPage() {
           icon={<Icon.Doc />}
           title="No notes yet"
           message="Upload PDFs, Word files, slides or images, and choose which classes get them."
-          action={<Button onClick={() => setUpload({})}>Upload notes</Button>}
+          action={staff ? undefined : <Button onClick={() => setUpload({})}>Upload notes</Button>}
         />
       ) : view === "chapters" && !q && activeBook?.book ? (
         <>
@@ -436,13 +445,13 @@ function NoteActions({
       >
         <Icon.NewTab className="h-4 w-4" />
       </a>
-      <button type="button" className={btn} onClick={onAssign}>
+      <button type="button" data-owner className={btn} onClick={onAssign}>
         Who gets it
       </button>
-      <button type="button" className={btn} onClick={() => onHide(!hidden)}>
+      <button type="button" data-owner className={btn} onClick={() => onHide(!hidden)}>
         {hidden ? "Show" : "Hide"}
       </button>
-      <button type="button" onClick={onDelete} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors max-md:h-11 max-md:w-11 hover:bg-error-soft hover:text-error" aria-label={`Delete ${note.title}`}>
+      <button type="button" data-owner onClick={onDelete} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors max-md:h-11 max-md:w-11 hover:bg-error-soft hover:text-error" aria-label={`Delete ${note.title}`}>
         <Icon.Trash className="h-4 w-4" />
       </button>
     </div>

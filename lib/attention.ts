@@ -139,19 +139,24 @@ export const fmtMinutes = (min: number) => (min < 60 ? `${min} min` : `${Math.fl
 export type ReasonKind = "missed_test" | "absent_streak" | "low_score" | "homework_missing" | "homework_late" | "recording" | "signin" | "groundwork";
 
 /**
- * How serious each reason is. A row's score is the sum of its reasons, so
- * more reasons and heavier reasons come first.
+ * How likely each reason means a student is drifting away (Hamza, 20 Nov 2026:
+ * the list is for cutting churn). Stopping showing up weighs most; a low mark
+ * from a student who still turns up weighs less. A row's score is the sum.
  */
 export const REASON_WEIGHT: Record<ReasonKind, number> = {
+  absent_streak: 5,
+  signin: 4,
+  recording: 3,
   missed_test: 3,
-  absent_streak: 3,
-  low_score: 2,
   homework_missing: 2,
-  recording: 2,
-  signin: 2,
-  homework_late: 1,
+  low_score: 2,
   groundwork: 1,
+  homework_late: 1,
 };
+/** Signs of someone fading out (not just struggling). Two or more together is the strongest sign of all. */
+const FADING: ReasonKind[] = ["absent_streak", "signin", "recording", "missed_test", "homework_missing"];
+/** A score at or above this is shown as "At risk of leaving". */
+export const AT_RISK = 8;
 
 export interface Reason {
   kind: ReasonKind;
@@ -190,7 +195,7 @@ export const ATTENTION = {
   homeworkDays: 14,
   recordingDays: 7,
   groundworkDays: 6,
-  signinDays: 7,
+  signinDays: 5,
   rotationDays: 14,
   hideDays: 7,
 } as const;
@@ -339,7 +344,9 @@ export function buildAttention(
     if (hwMin > 0) goodBits.push(`${fmtMinutes(hwMin)} focused on recent homework`);
     if (lastPct !== null && lastPct >= 80) goodBits.push(`last test ${lastPct}%`);
     const good = goodBits.length ? goodBits.join(", ").replace(/^./, (c) => c.toUpperCase()) : null;
-    const score = reasons.reduce((n, r) => n + REASON_WEIGHT[r.kind], 0);
+    // Several fading signs at once is worth more than their sum: that is how a student quietly leaves.
+    const fading = new Set(reasons.filter((r) => FADING.includes(r.kind)).map((r) => r.kind)).size;
+    const score = reasons.reduce((n, r) => n + REASON_WEIGHT[r.kind], 0) + (fading >= 2 ? 3 * (fading - 1) : 0);
     return {
       student: s,
       reasons,

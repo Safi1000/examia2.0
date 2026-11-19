@@ -24,6 +24,18 @@ function sure(parts: unknown[], copy: Copy, plain: Copy): Copy {
   return missing || BROKEN.test(`${copy.title} ${copy.body}`) ? plain : copy;
 }
 
+/**
+ * Not seen for two school days. An invitation back, never a telling-off, and
+ * never a word about what the portal notices.
+ */
+export function awayCopy(seed: string): Copy {
+  return pick(seed, [
+    { title: "Your work is waiting", body: "Ten minutes today keeps you on track. Open your portal and pick up where you left off." },
+    { title: "Quick one from me", body: "A short session today makes the rest of the week easier. Your notes and work are ready for you." },
+    { title: "Let's keep going", body: "Small steps every day add up by exam time. Open your portal and do one thing today." },
+  ]);
+}
+
 /** A class started a minute or two ago and they haven't joined. */
 export function classCopy(seed: string, subject: string, minutesIn: number): Copy {
   const m = minutesIn <= 1 ? "a minute" : `${minutesIn} minutes`;

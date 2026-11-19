@@ -3,27 +3,40 @@
 import { supabase } from "@/lib/supabase";
 import { DEMO } from "@/lib/demo";
 import type { Session } from "@/types";
+import { STAFF_AREAS, staffAllowed } from "@/lib/staff-areas";
+
+export { STAFF_AREAS, DEFAULT_ACCESS, cleanAccess, type StaffArea } from "@/lib/staff-areas";
 
 /**
- * What the teaching assistant sees in the console. Hamza chose (Nov 2026):
- * she marks every test and releases results, replies to homework, looks up
- * students (no phone numbers, no changes to accounts) and sees activity.
- * Everything else is his alone.
+ * Staff (a teaching assistant, or anyone Hamza gives a sign-in): role "admin"
+ * plus staff "ta", and the parts of the console Hamza switched on for them in
+ * Settings (lib/staff-areas.ts). Student activity, phone numbers, account
+ * changes, settings, cohorts and export are never theirs.
  *
  * A guard rail, not a lock: the screens and the site's own server routes hold
- * her to this, but the database still sees her as staff. DEVELOPER-LIST.md,
+ * them to this, but the database still sees them as staff. DEVELOPER-LIST.md,
  * item 4, is the real role.
  */
 export const isTa = (session: Session | null | undefined) => session?.role === "admin" && session.staff === "ta";
 
-/** Console pages she may open (and anything under them). */
-const TA_PAGES = ["/admin/submissions", "/admin/grading", "/admin/assignments", "/admin/roster", "/admin/activity", "/admin/notifications"];
-export const TA_HOME = "/admin/submissions";
-export const taMayOpen = (pathname: string) => TA_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+/** Pages every staff member may open, whatever is switched on. */
+const ALWAYS = ["/admin/notifications"];
+
+/** May this staff member open this console page (or anything under it)? */
+export function taMayOpen(pathname: string, session?: Session | null) {
+  const pages = [...ALWAYS, ...staffAllowed(session?.staffAccess).flatMap((k) => STAFF_AREAS.find((a) => a.key === k)?.pages ?? [])];
+  return pages.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
+/** Where a staff member lands: the first part switched on for them. */
+export function taHome(session?: Session | null) {
+  const first = staffAllowed(session?.staffAccess)[0];
+  return STAFF_AREAS.find((a) => a.key === first)?.pages[0] ?? ALWAYS[0];
+}
 
 /**
- * A line in the staff log ("released Amelia's Forces test"). Sent only for the
- * assistant, never awaited, never shown to students. Failing quietly is fine:
+ * A line in the staff log ("released Amelia's Forces test"). Sent only for
+ * staff, never awaited, never shown to students. Failing quietly is fine:
  * the log is a help for Hamza, not part of the action.
  */
 export function staffLog(session: Session | null | undefined, what: string) {

@@ -6,6 +6,7 @@ import { useDatabase } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { attendancePercent, cohortById, eligibleStudents, testsForStudent } from "@/lib/data/selectors";
 import { displayName, isTestAccount } from "@/lib/display-name";
+import { inPersonIds } from "@/lib/in-person";
 import { useNow } from "@/hooks/useNow";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Badge, CohortDot, EmptyState, Icon, TableScroll, Table, Th, Td, filterField, segmentGroup, segmentItem } from "@/components/ui";
@@ -118,11 +119,14 @@ export default function AnalyticsPage() {
   const testById = useMemo(() => new Map(db.tests.map((t) => [t.id, t])), [db.tests]);
 
   const base = useMemo(() => {
+    const inPerson = inPersonIds(db);
     const activeCohorts = new Set(db.cohorts.filter((c) => c.active).map((c) => c.id));
     const students = db.students
       .filter((s) => activeCohorts.has(s.cohortId))
       // Hamza's own test account stays out of every average and completion figure.
       .filter((s) => !isTestAccount(s))
+      // In-person students are managed in class: never in these figures (their own page still shows them).
+      .filter((s) => !inPerson.has(s.id))
       .filter((s) => (cohortId ? s.cohortId === cohortId : true));
     const studentIds = new Set(students.map((s) => s.id));
     // Tests for switched-off (archived) cohorts are left out.

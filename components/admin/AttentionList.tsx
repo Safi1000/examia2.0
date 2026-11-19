@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import type { AttentionRow } from "@/lib/attention";
+import { AT_RISK, type AttentionRow } from "@/lib/attention";
 import { LOW_SCORE } from "@/lib/reminders";
 import { displayName } from "@/lib/display-name";
 import {
@@ -126,6 +126,7 @@ export function AttentionList({
                       {displayName(s.username)}
                     </Link>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {r.score >= AT_RISK && <Badge tone="error">At risk of leaving</Badge>}
                       {r.reasons.map((x) => (
                         <Badge key={x.label}>{x.label}</Badge>
                       ))}

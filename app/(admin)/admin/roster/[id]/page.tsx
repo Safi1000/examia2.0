@@ -340,7 +340,7 @@ function StudentDetail() {
         />
       </div>
 
-      {profiles[student.id] && <TheirPortal profile={profiles[student.id]} initial={displayName(student.username).charAt(0).toUpperCase()} />}
+      {!ta && profiles[student.id] && <TheirPortal profile={profiles[student.id]} initial={displayName(student.username).charAt(0).toUpperCase()} />}
 
       {data.released.length > 0 ? (
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
@@ -359,7 +359,7 @@ function StudentDetail() {
         <EmptyState className="mt-5" icon={<Icon.Chart />} title="No released results yet" message="Release a result to build this student's analytics." />
       )}
 
-      <StudentActivitySection studentId={student.id} />
+      {!ta && <StudentActivitySection studentId={student.id} />}
 
       <h2 className="mb-3 mt-10 text-xl font-semibold tracking-[-0.015em] text-ink">Homework</h2>
       {data.homework.length === 0 ? (

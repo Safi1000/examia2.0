@@ -2,8 +2,9 @@ import webpush from "web-push";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { RECORDING_HOURS, liveSlotsOn, pkDate, setSchedule } from "@/lib/timetable";
 import { loadSchedule } from "@/lib/schedule-server";
-import { assignmentCopy, classCopy, newHomeworkCopy, recordingCopy, resultCopy, studyCopy, testOpensCopy } from "@/lib/notify-copy";
+import { assignmentCopy, awayCopy, classCopy, newHomeworkCopy, recordingCopy, resultCopy, studyCopy, testOpensCopy } from "@/lib/notify-copy";
 import { cleanLevels, type LevelSubjects } from "@/lib/levels";
+import { isTestAccount } from "@/lib/display-name";
 
 /**
  * Phone notifications, server side. The rules that keep them quiet:
@@ -53,7 +54,7 @@ const pkDayStart = (d = new Date()) => {
   return new Date(`${ymd}T00:00:00+05:00`).toISOString();
 };
 
-type Kind = "results" | "tests" | "assignments" | "classes" | "study" | "recordings" | "news";
+type Kind = "results" | "tests" | "assignments" | "classes" | "study" | "recordings" | "news" | "nudge";
 /** Sent on purpose (a class change, a notice Hamza chose to send): never held back by the daily cap. */
 const UNCAPPED: Kind[] = ["classes", "news"];
 interface Item {
@@ -335,13 +336,16 @@ export async function levelSubjectsByStudent(sb: SupabaseClient): Promise<Map<st
 async function reachableStudents(sb: SupabaseClient) {
   // Paged: a plain read stops at 1,000 rows, and past a few hundred students
   // the ones beyond it would silently get nothing.
-  const [{ data: subs }, { data: students }, { data: cohorts }, { data: sc }, { data: ss }] = await Promise.all([
+  const [{ data: subs }, { data: students }, { data: cohorts }, { data: sc }, { data: ss }, { data: tags }] = await Promise.all([
     allRows((a, b) => sb.from("push_subscriptions").select("id,student_id").order("id").range(a, b)),
-    allRows((a, b) => sb.from("students").select("id,cohort_id").order("id").range(a, b)),
+    allRows((a, b) => sb.from("students").select("id,cohort_id,username,created_at,user_id").order("id").range(a, b)),
     sb.from("cohorts").select("id,active"),
     allRows((a, b) => sb.from("student_classes").select("student_id,class_id").order("student_id").order("class_id").range(a, b)),
     allRows((a, b) => sb.from("student_subjects").select("student_id,subject_id").order("student_id").order("subject_id").range(a, b)),
+    // In-person students (lib/in-person.ts): no recording or come-back nudges.
+    allRows((a, b) => sb.from("activities").select("id,student_id").eq("type", "student_in_person").order("id").range(a, b)),
   ]);
+  const inPerson = new Set((tags ?? []).map((t) => t.student_id as string).filter(Boolean));
   const levels = await levelSubjectsByStudent(sb);
   const withDevice = new Set((subs ?? []).map((s) => s.student_id as string));
   const off = new Set((cohorts ?? []).filter((c) => c.active === false).map((c) => c.id as string));
@@ -354,6 +358,10 @@ async function reachableStudents(sb: SupabaseClient) {
     .map((s) => ({
       id: s.id as string,
       cohortId: (s.cohort_id as string) ?? null,
+      inPerson: inPerson.has(s.id as string),
+      test: isTestAccount({ username: (s.username as string) ?? "" }),
+      createdAt: (s.created_at as string) ?? null,
+      userId: (s.user_id as string) ?? null,
       classes: classes.get(s.id) ?? new Set<string>(),
       subjects: subjects.get(s.id) ?? new Set<string>(),
       levels: levels.get(s.id) ?? ({} as LevelSubjects),
@@ -435,7 +443,12 @@ export async function runReminders(): Promise<{ sent: number; quiet?: boolean }>
     // Runs every 15 minutes, so look 20 minutes back: every class start is caught once (the log stops repeats).
     ...(await classItems(sb, students, now, 20)),
     ...studyItems(students, profiles, now),
-    ...(await recordingItems(sb, students, profiles, now)),
+    // Nudges that chase a student are for online students only.
+    ...(await recordingItems(sb, students.filter((s) => !s.inPerson), profiles, now)),
+    ...(await awayItems(sb, students.filter((s) => !s.inPerson && !s.test), now).catch((e) => {
+      console.error("[push] away", e);
+      return [] as Item[];
+    })),
   ];
   for (const s of students) {
     for (const t of opening ?? []) {
@@ -690,6 +703,101 @@ async function recordingItems(sb: SupabaseClient, students: Reach[], profiles: M
         priority: 1,
       });
     }
+  }
+  return items;
+}
+
+/**
+ * Away for two school days: one warm nudge back. Checked once a day, between
+ * 2:30 and 3 pm Pakistan time on Monday to Friday (before the first class), so
+ * it lands when they can act on it. Saturday and Sunday never count as days
+ * away. "Here" means any sign of them: the portal open, a sign-in, a class
+ * joined, a test or homework handed in (the phone app's own screens don't
+ * record visits, so the last three keep app users from looking away).
+ * One nudge per spell away: the next comes only after they are back and away again.
+ * Their first three days on the portal are left alone.
+ */
+export const AWAY_SCHOOL_DAYS = 2;
+async function awayItems(sb: SupabaseClient, students: Reach[], now: number): Promise<Item[]> {
+  const today = pkDate(now);
+  const weekday = new Date(`${today}T12:00:00+05:00`).getUTCDay();
+  const minutes = Number(new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "numeric", minute: "numeric", hour12: false }).format(now).replace(":", ""));
+  if (weekday === 0 || weekday === 6 || minutes < 1430 || minutes >= 1500 || !students.length) return [];
+  const settled = students.filter((s) => !s.createdAt || now - Date.parse(s.createdAt) >= 3 * 864e5);
+  if (!settled.length) return [];
+
+  // Look back three weeks: anyone quiet for longer than that has one "away" spell anyway.
+  const since = new Date(now - 21 * 864e5);
+  const sinceDay = pkDate(+since);
+  const last = new Map<string, string>();
+  const seen = (id: string, day: string | null | undefined) => {
+    if (!day || day > today) return;
+    if (!last.has(id) || day > last.get(id)!) last.set(id, day);
+  };
+  const ids = settled.map((s) => s.id);
+  const dayOf = (iso: string | null | undefined) => (iso ? pkDate(Date.parse(iso)) : null);
+
+  const [{ data: joins }, { data: subs }, { data: hand }] = await Promise.all([
+    byIds(ids, (part) => allRows((a, b) => sb.from("class_joins").select("student_id,on_date").in("student_id", part).gte("on_date", sinceDay).order("student_id").order("on_date").range(a, b))),
+    byIds(ids, (part) => allRows((a, b) => sb.from("submissions").select("id,student_id,submitted_at").in("student_id", part).gte("submitted_at", since.toISOString()).order("id").range(a, b))),
+    byIds(ids, (part) => allRows((a, b) => sb.from("assignment_submissions").select("id,student_id,submitted_at").in("student_id", part).gte("submitted_at", since.toISOString()).order("id").range(a, b))),
+  ]);
+  for (const j of joins ?? []) seen(j.student_id, j.on_date);
+  for (const x of subs ?? []) seen(x.student_id, dayOf(x.submitted_at));
+  for (const x of hand ?? []) seen(x.student_id, dayOf(x.submitted_at));
+
+  // Sign-ins.
+  const byUser = new Map(settled.filter((s) => s.userId).map((s) => [s.userId as string, s.id]));
+  for (let page = 1; page <= 10 && byUser.size; page++) {
+    const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) break;
+    for (const u of data.users) {
+      const id = byUser.get(u.id);
+      if (id) seen(id, dayOf(u.last_sign_in_at));
+    }
+    if (data.users.length < 1000) break;
+  }
+
+  // Portal visits: this month's activity file, and last month's early in a month.
+  const months = [...new Set([today.slice(0, 7), sinceDay.slice(0, 7)])];
+  const jobs = settled.flatMap((s) => months.map((m) => ({ id: s.id, path: `${s.id}/${m}.json` })));
+  for (let i = 0; i < jobs.length; i += 24) {
+    const batch = jobs.slice(i, i + 24);
+    const files = await Promise.all(
+      batch.map(async (j) => {
+        const { data } = await sb.storage.from("activity").download(j.path);
+        if (!data) return null;
+        try {
+          return JSON.parse(await data.text()) as { days?: Record<string, { s?: Record<string, number> }> };
+        } catch {
+          return null;
+        }
+      }),
+    );
+    batch.forEach((j, k) => {
+      for (const [d, v] of Object.entries(files[k]?.days ?? {})) {
+        const secs = Object.values(v?.s ?? {}).reduce((n, x) => n + (Number(x) || 0), 0);
+        if (secs > 0) seen(j.id, d);
+      }
+    });
+  }
+
+  // School days (Monday to Friday) strictly between their last day here and today.
+  const schoolDaysSince = (day: string) => {
+    let n = 0;
+    for (let d = new Date(`${day}T12:00:00+05:00`).getTime() + 864e5; pkDate(d) < today; d += 864e5) {
+      const w = new Date(d).getUTCDay();
+      if (w !== 0 && w !== 6) n++;
+      if (n > 30) break;
+    }
+    return n;
+  };
+  const items: Item[] = [];
+  for (const s of settled) {
+    const lastDay = last.get(s.id) ?? null;
+    if (lastDay && schoolDaysSince(lastDay) < AWAY_SCHOOL_DAYS) continue;
+    const ref = `away:${lastDay ?? `before-${sinceDay}`}`;
+    items.push({ studentId: s.id, kind: "nudge", refs: [ref], ...awayCopy(`${s.id}${ref}`), url: "/dashboard", tag: "away", priority: 5 });
   }
   return items;
 }

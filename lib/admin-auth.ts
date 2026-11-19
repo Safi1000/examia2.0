@@ -23,7 +23,7 @@ export async function adminIdFromRequest(req: Request): Promise<string | null> {
   return s && !s.ta ? s.id : null;
 }
 
-/** True for Hamza or the assistant: the few things she may read. */
+/** True for Hamza or any staff member: the few things staff may read. */
 export async function isStaffRequest(req: Request): Promise<boolean> {
   return !!(await staffFromRequest(req));
 }

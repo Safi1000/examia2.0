@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { isStaffRequest } from "@/lib/admin-auth";
+import { adminIdFromRequest } from "@/lib/admin-auth";
 import { allRows, pushReady, serviceClient } from "@/lib/push-server";
 
 /**
@@ -11,7 +11,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  if (!(await isStaffRequest(req))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  // Student activity is Hamza's alone: staff never see it.
+  if (!(await adminIdFromRequest(req))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   if (!pushReady()) return NextResponse.json({});
   const sb = serviceClient();
   const { data: rows } = await allRows((a, b) => sb.from("students").select("id,user_id").order("id").range(a, b));

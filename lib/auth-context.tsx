@@ -1,5 +1,6 @@
 "use client";
 
+import { DEFAULT_ACCESS, cleanAccess } from "@/lib/staff-areas";
 import type { Profile } from "@/lib/profile";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
@@ -25,8 +26,8 @@ const DEMO_PROFILE_KEY = "ht_demo_profile";
 async function resolveSession(user: User): Promise<Session> {
   const isAdmin = (user.app_metadata as Record<string, unknown>)?.role === "admin";
   if (isAdmin) {
-    const meta = user.app_metadata as { staff?: string; name?: string };
-    return meta.staff === "ta" ? { role: "admin", staff: "ta", staffName: typeof meta.name === "string" ? meta.name : "" } : { role: "admin" };
+    const meta = user.app_metadata as { staff?: string; name?: string; access?: unknown };
+    return meta.staff === "ta" ? { role: "admin", staff: "ta", staffName: typeof meta.name === "string" ? meta.name : "", staffAccess: cleanAccess(meta.access) } : { role: "admin" };
   }
   // A weak signal at sign-in shouldn't look like "no account": try a few times.
   for (let attempt = 0; ; attempt++) {
@@ -116,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (q === "1" || q === "0") localStorage.setItem("ht_demo_ta", q);
       ta = localStorage.getItem("ht_demo_ta") === "1";
     } catch {}
-    setSession(role === "admin" ? (ta ? { role: "admin", staff: "ta", staffName: "Assistant" } : { role: "admin" }) : { role: "student", studentId: DEMO_STUDENT_ID });
+    setSession(role === "admin" ? (ta ? { role: "admin", staff: "ta", staffName: "Assistant", staffAccess: [...DEFAULT_ACCESS] } : { role: "admin" }) : { role: "student", studentId: DEMO_STUDENT_ID });
     try {
       setProfile(JSON.parse(localStorage.getItem(DEMO_PROFILE_KEY) ?? "{}") as Profile);
     } catch {}

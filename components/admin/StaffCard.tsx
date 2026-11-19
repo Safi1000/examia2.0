@@ -7,13 +7,15 @@ import { newPassword } from "@/lib/password";
 import { useToast } from "@/components/toast";
 import { Button, Card, CardBody, CardHeader, Input, Modal } from "@/components/ui";
 import { formatTimestamp } from "@/lib/time";
+import { DEFAULT_ACCESS, STAFF_AREAS, type StaffArea } from "@/lib/staff-areas";
 
 /**
- * Settings, "Teaching assistant": Hamza makes her sign-in, pauses or removes
- * it, gives her a new password, and reads the log of what she did. Her
- * password is shown once, here, and never stored anywhere readable.
+ * Settings, "Staff": Hamza gives anyone a console sign-in (a teaching
+ * assistant, a marker), chooses which parts of the console each person can
+ * open, pauses or removes them, gives a new password, and reads the log of
+ * what they did. A password is shown once, here, and never stored anywhere readable.
  */
-type Assistant = { id: string; name: string; email: string; paused: boolean; lastSeen: string | null };
+type Assistant = { id: string; name: string; email: string; paused: boolean; lastSeen: string | null; access: string[] };
 type Line = { at: string; name: string; what: string };
 
 async function call(method: string, body?: unknown): Promise<{ ok: boolean; data: Record<string, unknown> }> {
@@ -27,8 +29,9 @@ async function call(method: string, body?: unknown): Promise<{ ok: boolean; data
   return { ok: res.ok, data: (await res.json().catch(() => ({}))) as Record<string, unknown> };
 }
 
-const CAN = ["Mark every test and release results", "Reply to homework hand-ins", "Look up students: names, marks, attendance", "See activity"];
-const CANNOT = ["Add, change or remove students, or reset passwords", "See phone numbers or message parents", "Set tests, homework, notes or announcements", "Timetable, recordings, cohorts, export or these settings"];
+const NEVER = "Never for staff: student activity and Groundwork, Today, phone numbers and parent messages, adding or changing students, cohorts, export and these settings.";
+// Preview only: one sample person, so the switches can be tried.
+const SAMPLE: Assistant = { id: "demo-staff", name: "Sample assistant", email: "assistant@example.com", paused: false, lastSeen: null, access: [...DEFAULT_ACCESS] };
 
 export function StaffCard() {
   const { toast } = useToast();
@@ -45,7 +48,7 @@ export function StaffCard() {
 
   const load = useCallback(async () => {
     if (DEMO) {
-      setStaff([]);
+      setStaff((cur) => cur ?? [SAMPLE]);
       return;
     }
     try {
@@ -90,13 +93,27 @@ export function StaffCard() {
   async function create() {
     const password = newPassword() + newPassword();
     const mail = email.trim().toLowerCase();
-    if (await run("POST", { name: name.trim(), email: mail, password }, "Her sign-in is ready.")) {
+    if (await run("POST", { name: name.trim(), email: mail, password }, "Their sign-in is ready.")) {
       setShown({ email: mail, password });
       setAdding(false);
       setName("");
       setEmail("");
     }
   }
+  /** Switch one part of the console on or off for one person. Shown at once, put back if the save fails. */
+  async function toggle(a: Assistant, key: StaffArea, on: boolean) {
+    const next = STAFF_AREAS.map((x) => x.key).filter((k) => (k === key ? on : a.access.includes(k)));
+    setStaff((list) => list?.map((x) => (x.id === a.id ? { ...x, access: next } : x)) ?? list);
+    if (DEMO) return;
+    try {
+      const r = await call("PATCH", { id: a.id, action: "access", access: next });
+      if (!r.ok) throw new Error();
+    } catch {
+      setStaff((list) => list?.map((x) => (x.id === a.id ? { ...x, access: a.access } : x)) ?? list);
+      toast("Couldn't save that. Try again.", "error");
+    }
+  }
+
   async function reset(a: Assistant) {
     const password = newPassword() + newPassword();
     if (await run("PATCH", { id: a.id, action: "password", password }, "New password set.")) setShown({ email: a.email, password });
@@ -105,21 +122,15 @@ export function StaffCard() {
   return (
     <Card className="max-w-2xl">
       <CardHeader>
-        <h2 className="text-base font-semibold tracking-[-0.01em] text-ink">Teaching assistant</h2>
+        <h2 className="text-base font-semibold tracking-[-0.01em] text-ink">Staff</h2>
       </CardHeader>
       <CardBody className="space-y-5">
-        <div className="grid gap-4 text-sm sm:grid-cols-2">
-          <div>
-            <p className="font-semibold text-ink">She can</p>
-            <ul className="mt-1.5 space-y-1 text-ink-2">{CAN.map((x) => <li key={x}>{x}</li>)}</ul>
-          </div>
-          <div>
-            <p className="font-semibold text-ink">She can&apos;t</p>
-            <ul className="mt-1.5 space-y-1 text-ink-2">{CANNOT.map((x) => <li key={x}>{x}</li>)}</ul>
-          </div>
-        </div>
+        <p className="text-sm text-ink-2">
+          Give a teaching assistant, or anyone you choose, their own sign-in, then switch on only the parts of the console they need.
+        </p>
+        <p className="text-sm text-ink-3">{NEVER}</p>
         <p className="text-sm text-ink-3">
-          The console holds her to this. It is a guard rail, not a lock: give a sign-in only to someone you trust, until a developer adds the stricter role.
+          The console holds them to this. It is a guard rail, not a lock: give a sign-in only to someone you trust, until a developer adds the stricter role. A change shows the next time they open the console.
         </p>
 
         {failed && (
@@ -130,27 +141,55 @@ export function StaffCard() {
         )}
 
         {staff?.map((a) => (
-          <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 rounded-tile bg-surface-2 px-4 py-3">
+          <div key={a.id} className="rounded-tile bg-surface-2 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="truncate text-base font-semibold text-ink">{a.name || "Assistant"}</p>
+              <p className="truncate text-base font-semibold text-ink">{a.name || "Staff"}</p>
               <p className="truncate text-sm text-ink-3">
                 {a.email} · {a.paused ? "Paused" : a.lastSeen ? `Last signed in ${formatTimestamp(a.lastSeen)}` : "Not signed in yet"}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void run("PATCH", { id: a.id, action: a.paused ? "resume" : "pause" }, a.paused ? "She can sign in again." : "Paused. She can't sign in.")}>
-                {a.paused ? "Let her back in" : "Pause"}
+              <Button size="sm" variant="secondary" disabled={busy} onClick={() => void run("PATCH", { id: a.id, action: a.paused ? "resume" : "pause" }, a.paused ? "They can sign in again." : "Paused. They can't sign in.")}>
+                {a.paused ? "Let them back in" : "Pause"}
               </Button>
               <Button size="sm" variant="ghost" disabled={busy} onClick={() => void reset(a)}>New password</Button>
               <Button size="sm" variant="ghost" disabled={busy} onClick={() => setRemoveAsk(a)}>Remove</Button>
             </div>
           </div>
+            <fieldset className="mt-3 border-t border-hairline pt-3">
+              <legend className="text-sm font-semibold text-ink">Can open</legend>
+              <ul className="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2">
+                {STAFF_AREAS.map((area) => {
+                  const on = a.access.includes(area.key);
+                  return (
+                    <li key={area.key}>
+                      <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1.5 md:min-h-0">
+                        <input
+                          type="checkbox"
+                          role="switch"
+                          checked={on}
+                          aria-checked={on}
+                          onChange={(e) => void toggle(a, area.key, e.target.checked)}
+                          className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-brand)]"
+                        />
+                        <span className="min-w-0">
+                          <span className="block text-sm text-ink">{area.label}</span>
+                          {"hint" in area && area.hint && <span className="block text-xs text-ink-3">{area.hint}</span>}
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            </fieldset>
+          </div>
         ))}
 
         {shown && (
           <div className="rounded-tile bg-surface-2 px-4 py-3 text-sm">
-            <p className="font-semibold text-ink">Her sign-in, shown once</p>
-            <p className="mt-1.5 text-ink-2">She signs in at www.hamzateaches.com/admin</p>
+            <p className="font-semibold text-ink">Their sign-in, shown once</p>
+            <p className="mt-1.5 text-ink-2">They sign in at www.hamzateaches.com/admin</p>
             <p className="mt-1 break-all font-mono text-ink">{shown.email}</p>
             <p className="break-all font-mono text-ink">{shown.password}</p>
             <div className="mt-3 flex gap-2">
@@ -173,21 +212,21 @@ export function StaffCard() {
 
         {adding ? (
           <div className="space-y-3">
-            <Input label="Her name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ayesha" />
-            <Input label="Her email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" />
-            <p className="text-sm text-ink-3">A password is made for you and shown once after you save.</p>
+            <Input label="Their name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Ayesha" />
+            <Input label="Their email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" />
+            <p className="text-sm text-ink-3">A password is made for you and shown once after you save. They start with marking, homework replies, looking up students and reading notes; change that once they are added.</p>
             <div className="flex gap-2">
-              <Button loading={busy} disabled={!name.trim() || !email.trim()} onClick={() => void create()}>Make her sign-in</Button>
+              <Button loading={busy} disabled={!name.trim() || !email.trim()} onClick={() => void create()}>Make their sign-in</Button>
               <Button variant="ghost" disabled={busy} onClick={() => setAdding(false)}>Cancel</Button>
             </div>
           </div>
         ) : (
-          staff && <Button variant="secondary" onClick={() => setAdding(true)}>Add a teaching assistant</Button>
+          staff && <Button variant="secondary" onClick={() => setAdding(true)}>Add a staff member</Button>
         )}
 
         {log.length > 0 && (
           <div>
-            <p className="label-quiet text-ink-3">What she did, newest first</p>
+            <p className="label-quiet text-ink-3">What staff did, newest first</p>
             <ul className="mt-2 max-h-64 divide-y divide-hairline overflow-y-auto rounded-tile bg-surface-2 text-sm">
               {log.map((l, i) => (
                 <li key={`${l.at}-${i}`} className="flex items-baseline justify-between gap-3 px-4 py-2.5">
@@ -205,8 +244,8 @@ export function StaffCard() {
       <Modal
         open={!!removeAsk}
         onClose={() => setRemoveAsk(null)}
-        title={`Remove ${removeAsk?.name || "her"}'s sign-in?`}
-        description="She can no longer sign in. Marks and replies she already gave stay as they are."
+        title={`Remove ${removeAsk?.name ? `${removeAsk.name}'s` : "this"} sign-in?`}
+        description="They can no longer sign in. Marks and replies they already gave stay as they are."
         size="sm"
         footer={
           <>
@@ -217,7 +256,7 @@ export function StaffCard() {
               onClick={() => {
                 const a = removeAsk;
                 setRemoveAsk(null);
-                if (a) void run("DELETE", { id: a.id }, "Her sign-in is removed.");
+                if (a) void run("DELETE", { id: a.id }, "Their sign-in is removed.");
               }}
             >
               Remove
@@ -225,7 +264,7 @@ export function StaffCard() {
           </>
         }
       >
-        <p className="text-sm text-ink-2">To stop her for a while instead, use Pause.</p>
+        <p className="text-sm text-ink-2">To stop them for a while instead, use Pause.</p>
       </Modal>
     </Card>
   );

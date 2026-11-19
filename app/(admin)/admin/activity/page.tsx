@@ -6,6 +6,7 @@ import { useDatabase } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { archivedCohortIds, cohortById, joinedMs } from "@/lib/data/selectors";
 import { displayName, isTestAccount } from "@/lib/display-name";
+import { inPersonIds } from "@/lib/in-person";
 import { useNow } from "@/hooks/useNow";
 import { addDays, pkDate } from "@/lib/timetable";
 import { useActivity } from "@/lib/activity-admin";
@@ -47,7 +48,9 @@ export default function ActivityPage() {
   const students = useMemo(() => {
     const off = archivedCohortIds(db);
     // Hamza's own test account would skew the totals and the "gone quiet" list.
-    return db.students.filter((s) => !off.has(s.cohortId) && !isTestAccount(s) && (cohortId === null || s.cohortId === cohortId));
+    // In-person students stay out of the totals; their own page still shows their activity.
+    const inPerson = inPersonIds(db);
+    return db.students.filter((s) => !off.has(s.cohortId) && !isTestAccount(s) && !inPerson.has(s.id) && (cohortId === null || s.cohortId === cohortId));
   }, [db, cohortId]);
 
   const rows = useMemo(() => {
