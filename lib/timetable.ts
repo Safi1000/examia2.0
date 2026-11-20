@@ -191,7 +191,9 @@ export function subjectOf(s: Pick<SubjectItem, "name">): SubjectKey | null {
 }
 
 /** Today's date in Pakistan as YYYY-MM-DD. */
-export const pkDate = (ms: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(ms);
+// One formatter, made once: building a new one per call was about 60 times slower, and the register calls this per row.
+const PK_YMD = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" });
+export const pkDate = (ms: number) => PK_YMD.format(ms);
 export const addDays = (ymd: string, n: number) => {
   const d = new Date(`${ymd}T12:00:00+05:00`);
   d.setUTCDate(d.getUTCDate() + n);

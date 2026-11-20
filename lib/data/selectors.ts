@@ -280,7 +280,9 @@ export function testStats(db: Database, test: Test): TestStats {
 // have been over before they were added.
 
 /** Pakistan calendar date (YYYY-MM-DD) of a moment. Classes run on Pakistan dates. */
-export const pkDay = (ms: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date(ms));
+// One formatter, made once (see pkDate in lib/timetable.ts): this runs for every register row.
+const PK_YMD = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" });
+export const pkDay = (ms: number) => PK_YMD.format(new Date(ms));
 
 /** The Pakistan date a student joined, or "" when unknown (then everything counts). */
 export const joinedDate = (s: Pick<Student, "createdAt">) => {

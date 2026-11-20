@@ -32,6 +32,12 @@ export function GoogleAnalytics() {
   const pathname = usePathname();
   const on = !!GA_ID && isPublicPath(pathname);
 
+  // The script stays in the page when a visitor taps Login (no full page load),
+  // so Google's own switch turns it off inside the portal and back on outside.
+  useEffect(() => {
+    if (GA_ID) (window as unknown as Record<string, boolean>)[`ga-disable-${GA_ID}`] = !isPublicPath(pathname);
+  }, [pathname]);
+
   useEffect(() => {
     if (!on) return;
     const onClick = (e: MouseEvent) => {

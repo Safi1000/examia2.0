@@ -16,7 +16,8 @@ import { isPublicPath } from "@/lib/public-paths";
  *
  * App Router navigations do not reload the document, so the snippet's own
  * PageView fires once per full load; the effect below covers every route change
- * after that.
+ * after that. The pixel's own counting of route changes is switched off
+ * (disablePushState), so a page is counted once and only when it is public.
  *
  * Public pages only. The portal, admin and parent report pages never load it:
  * their URLs carry private ids and report tokens that must not reach Meta.
@@ -39,11 +40,18 @@ export function MetaPixel() {
   const first = useRef(true);
 
   useEffect(() => {
+    const pub = isPublicPath(pathname);
+    // A visitor who taps Login moves into the portal without a full page load,
+    // so the pixel script is still in the page. It is told to stop there (and
+    // to carry on if they come back out), and a pixel that has not loaded yet
+    // does not load inside the portal.
+    window.__htPortal = !pub;
+    window.fbq?.("consent", pub ? "grant" : "revoke");
     if (first.current) {
       first.current = false; // The inline snippet already counted this one.
       return;
     }
-    if (isPublicPath(pathname)) window.fbq?.("track", "PageView");
+    if (pub) window.fbq?.("track", "PageView");
   }, [pathname]);
 
   if (!META_PIXEL_ID || !isPublicPath(pathname)) return null;
@@ -57,6 +65,7 @@ var tz='';try{tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';}catch(e){
 var choice=null;try{choice=localStorage.getItem('ht-cookies');}catch(e){}
 window.__htNeedsConsent=tz.indexOf('Europe')===0||/^Atlantic.(Reykjavik|Canary|Madeira|Azores|Faroe)/.test(tz);
 window.__htLoadPixel=function(){
+if(window.__htPortal)return;
 !function(f,b,e,v,n,t,s)
 {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
 n.callMethod.apply(n,arguments):n.queue.push(arguments)};
@@ -65,6 +74,7 @@ n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window,document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
+fbq.disablePushState=true;
 fbq('init', '${META_PIXEL_ID}');
 fbq('track', 'PageView');
 };
