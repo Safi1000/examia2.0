@@ -96,11 +96,9 @@ function build(t) {
   if (sectionAMarks + writtenMarks !== header) throw new Error(`${t.folder}: header ${header} but A ${sectionAMarks} + written ${writtenMarks}`);
   const nums = written.flatMap((x) => [...x.body.matchAll(/^\*\*(\d+)\./gm)].map((m) => Number(m[1])));
   const range = nums.length ? (nums.length === 1 ? `Question ${nums[0]}` : nums.length === 2 ? `Questions ${nums[0]} and ${nums[1]}` : `Questions ${Math.min(...nums)} to ${Math.max(...nums)}`) : "the written questions";
-  const writtenPrompt = mcqs.length
-    ? `Written section (Section B). Answer ${range} from the paper below on paper. When the time is up, photograph your pages in order and upload them. The multiple choice questions (Section A) are answered above, in the portal.`
-    : `Answer all the questions from the paper below on paper. When the time is up, photograph your pages in order and upload them.`;
+  const writtenPrompt = nums.length ? `Upload photos of your written answers (${range}).` : "Upload photos of your written answers.";
   const topic = (qp.match(/^# [^:]+:\s*(.+)$/m) || [])[1]?.trim() || "General";
-  return { header, mcqs, writtenMarks, writtenPrompt, topic, pdf: join(TESTS, t.folder, "Question paper.pdf") };
+  return { header, mcqs, writtenMarks, writtenPrompt, topic, pdf: join(SRC, "_upload", `${t.folder}.pdf`) };
 }
 
 async function toStorage(path, cloud, preset) {
@@ -154,7 +152,7 @@ if (flag("--plan")) {
 }
 
 for (const { t, b } of built) {
-  if (!existsSync(b.pdf)) { console.log(`SKIP ${t.title}: no PDF`); continue; }
+  if (!existsSync(b.pdf)) { console.log(`SKIP ${t.title}: no written-section PDF (run render.mjs)`); continue; }
   try {
     const pages = await toStorage(b.pdf, plan.data.cloud, plan.data.preset);
     const questions = [
@@ -167,7 +165,7 @@ for (const { t, b } of built) {
       questions, replace: flag("--replace"),
     });
     if (!res.ok) console.log(`FAILED ${t.title} (${res.status}): ${JSON.stringify(res.data)}`);
-    else console.log(`DRAFT ${t.title}: ${res.data.class} / ${res.data.subject}, ${res.data.questions} questions, ${res.data.total} marks, ${pages.length} pages, code ${res.data.testCode}`);
+    else console.log(`${res.data.updated ? "UPDATED (" + res.data.status + ")" : "DRAFT"} ${t.title}: ${res.data.class} / ${res.data.subject}, ${res.data.questions} questions, ${res.data.total} marks, ${pages.length} pages, code ${res.data.testCode}`);
   } catch (e) {
     console.log(`FAILED ${t.title}: ${e.message}`);
   }

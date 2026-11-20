@@ -120,12 +120,41 @@ export async function POST(req: NextRequest) {
       const where = await place(sb, level, subject);
       if (where.classes.length !== 1 || where.subjects.length !== 1) return NextResponse.json({ error: `Couldn't find exactly one class for ${level} and one subject for ${subject}.`, where }, { status: 409, headers: noStore });
 
-      // The same test sent twice (a retry) is not added twice. A draft of that name can be replaced; a published one never.
-      const same = await sb.from("tests").select("id,status").eq("title", title);
+      // The same test sent twice (a retry) is not added twice.
+      const same = await sb.from("tests").select("id,status,test_code").eq("title", title);
       if (same.error) throw new Error(same.error.message);
       const sameRows = (same.data ?? []) as Row[];
-      if (sameRows.some((r) => r.status !== "draft")) return NextResponse.json({ error: "A published test already has that name." }, { status: 409, headers: noStore });
-      if (sameRows.length && body.replace !== true) return NextResponse.json({ error: "A draft with that name already exists.", there: sameRows.map((r) => r.id) }, { status: 409, headers: noStore });
+      if (sameRows.length && body.replace !== true) return NextResponse.json({ error: "A test with that name already exists.", there: sameRows.map((r) => r.id) }, { status: 409, headers: noStore });
+
+      // A published test is corrected in place (same code, still published, no second announcement),
+      // but only while no student has started it: their answers must never be lost.
+      const live = sameRows.filter((r) => r.status !== "draft");
+      if (live.length > 1) return NextResponse.json({ error: "More than one published test has that name." }, { status: 409, headers: noStore });
+      if (live.length === 1) {
+        const liveId = live[0].id as string;
+        const subs = await sb.from("submissions").select("id", { count: "exact", head: true }).eq("test_id", liveId);
+        if (subs.error) throw new Error(subs.error.message);
+        if ((subs.count ?? 0) > 0) return NextResponse.json({ error: "Students have already started this test, so it can't be changed here." }, { status: 409, headers: noStore });
+        const upd = await sb.from("tests").update({ duration_minutes: duration, upload_minutes: upload, class_id: where.classes[0].id, subject_id: where.subjects[0].id, subject: where.subjects[0].name, opens_at: opensAt, closes_at: closesAt }).eq("id", liveId);
+        if (upd.error) throw new Error(upd.error.message);
+        const old = await sb.from("questions").delete().eq("test_id", liveId);
+        if (old.error) throw new Error(old.error.message);
+        const qIds = questions.map(() => randomUUID());
+        const qi = await sb.from("questions").insert(questions.map((q, i) => ({
+          id: qIds[i], test_id: liveId, type: q.type, prompt: q.prompt, marks: q.marks, topic: q.topic,
+          options: q.type === "mcq" ? q.options : null, max_length: null, show_counter: null,
+          attachment_urls: q.type === "photo" ? q.attachments : [], sort_order: i,
+        })));
+        if (qi.error) throw new Error(qi.error.message);
+        const keys = questions.flatMap((q, i) => (q.type === "mcq" ? [{ question_id: qIds[i], correct_index: q.correctIndex }] : []));
+        if (keys.length) {
+          const ki = await sb.from("question_keys").insert(keys);
+          if (ki.error) throw new Error(ki.error.message);
+        }
+        await touchKey(sb, `test updated: ${title}`).catch(() => {});
+        const total = questions.reduce((s, q) => s + q.marks, 0);
+        return NextResponse.json({ id: liveId, testCode: live[0].test_code, status: live[0].status, updated: true, total, questions: questions.length, class: where.classes[0].name, subject: where.subjects[0].name }, { headers: noStore });
+      }
       for (const r of sameRows) {
         const del = await sb.from("tests").delete().eq("id", r.id as string).eq("status", "draft");
         if (del.error) throw new Error(del.error.message);
