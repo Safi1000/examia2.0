@@ -24,6 +24,8 @@ export function QuestionModal({
   initial,
   withSubject,
   onAddNext,
+  position,
+  onGo,
 }: {
   open: boolean;
   onClose: () => void;
@@ -32,6 +34,10 @@ export function QuestionModal({
   withSubject?: boolean;
   /** Adding: save this one and stay open for the next (type, topic and marks kept). */
   onAddNext?: (draft: QuestionDraft) => void;
+  /** Editing: where this question sits in the test (1-based), for Previous / Next. */
+  position?: { index: number; total: number };
+  /** Editing: go to the previous (-1) or next (1) question. `draft` is set when this one changed and must be saved first. */
+  onGo?: (dir: -1 | 1, draft: QuestionDraft | null) => void;
 }) {
   // State is seeded from `initial` at mount rather than synced in an effect.
   // Callers pass a `key` that changes per open/target, so opening the modal (or
@@ -132,6 +138,22 @@ export function QuestionModal({
   }
   const adding = !initial && !!onAddNext;
 
+  // Editing: Previous / Next without closing. A changed question is saved first; an unchanged one is left alone.
+  const snap = (d: Partial<QuestionDraft> | null | undefined) => {
+    const v = (d ?? {}) as Record<string, unknown>;
+    return JSON.stringify([v.type, String(v.prompt ?? "").trim(), String(v.topic ?? "").trim() || "General", v.marks, v.options ?? null, v.correctIndex ?? null, v.maxLength ?? null, v.showCounter ?? null, v.attachments ?? [], withSubject ? String(v.subject ?? "").trim() : null]);
+  };
+  const canGo = !!initial && !!onGo && !!position;
+  function go(dir: -1 | 1) {
+    if (!canGo || !position) return;
+    const target = position.index + dir;
+    if (target < 1 || target > position.total) return;
+    const draft = build();
+    if (snap(draft) === snap(initial)) return onGo!(dir, null);
+    if (!validate()) return;
+    onGo!(dir, draft);
+  }
+
   // Closing by a stray tap outside the box (or Esc) must not throw away a typed question.
   const dirty =
     prompt.trim() !== (initial?.prompt ?? "").trim() ||
@@ -164,11 +186,21 @@ export function QuestionModal({
     <Modal
       open={open}
       onClose={requestClose}
-      title={initial ? "Edit question" : "Add question"}
+      title={initial ? (position ? `Edit question ${position.index} of ${position.total}` : "Edit question") : "Add question"}
       size="lg"
       footer={
         <>
           <Button variant="secondary" onClick={requestClose}>Cancel</Button>
+          {canGo && position && (
+            <>
+              <Button variant="secondary" onClick={() => go(-1)} disabled={uploading || position.index <= 1} title="Alt+Left" aria-label="Previous question">
+                &larr; Previous
+              </Button>
+              <Button variant="secondary" onClick={() => go(1)} disabled={uploading || position.index >= position.total} title="Alt+Right" aria-label="Next question">
+                Next &rarr;
+              </Button>
+            </>
+          )}
           {adding && (
             <Button variant="secondary" onClick={handleNext} disabled={uploading} title="Ctrl+Enter">
               Add &amp; next
@@ -183,6 +215,12 @@ export function QuestionModal({
         className="space-y-4"
         onKeyDown={(e) => {
           // Ctrl+Enter (Cmd+Enter on a Mac): add and go to the next question (or save, when editing).
+          // Alt+Left / Alt+Right (Option on a Mac): previous / next question while editing.
+          if (canGo && e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+            e.preventDefault();
+            go(e.key === "ArrowLeft" ? -1 : 1);
+            return;
+          }
           if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
             if (adding) handleNext();

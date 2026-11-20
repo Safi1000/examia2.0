@@ -581,6 +581,18 @@ export default function TestEditorPage() {
           store.addQuestion(id, stripDraft(draft));
           toast("Added. Next question.", "success");
         }}
+        position={editingQ ? { index: questions.findIndex((q) => q.id === editingQ.id) + 1, total: questions.length } : undefined}
+        onGo={(dir, draft) => {
+          if (!editingQ) return;
+          const at = questions.findIndex((q) => q.id === editingQ.id);
+          const next = questions[at + dir];
+          if (!next) return;
+          if (draft) {
+            store.updateQuestion(id, editingQ.id, stripDraft(draft));
+            toast("Saved.", "success");
+          }
+          setEditingQ(next);
+        }}
       />
 
       <AnswerKeyModal
