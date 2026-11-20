@@ -37,14 +37,17 @@ export interface Stroke {
   dotted?: boolean;
   /** For kind "line": an arrowhead at its second end. (An older tab shows a plain line.) */
   arrow?: boolean;
+  /** When it was finished (ms since 1970), so handwriting written together can be picked up
+   * together. Older strokes and older tabs leave it out. */
+  at?: number;
 }
 
 /** Typed text's style. */
 export type TextStyle = { bold?: boolean; italic?: boolean };
 /** The font for typed text, in its style. */
 export const textFont = (size: number, st: TextStyle = {}) => `${st.italic ? "italic " : ""}${st.bold ? 700 : 500} ${size}px ${boardFont()}`;
-/** The highlighter: a soft marker yellow that ink reads clearly through, on a TV too. */
-export const HIGHLIGHT = "rgba(255, 213, 0, 0.42)";
+/** The highlighter: brand gold (see THEMES[..].highlight for each board; this is the paper's). */
+export const HIGHLIGHT = "rgba(251, 193, 89, 0.50)";
 
 export interface Camera {
   x: number;
@@ -91,6 +94,10 @@ interface Theme {
   ink: Record<string, string>;
   /** Selection outline and handle. */
   accent: string;
+  /** The highlighter's band (pen highlighter and typed-text highlight), and how it is laid on:
+   * "multiply" on the paper, so writing under it stays crisp, like a real highlighter. */
+  highlight: string;
+  highlightBlend: GlobalCompositeOperation;
   /** Eraser ring (CSS colours). */
   ring: { border: string; fill: string };
 }
@@ -103,18 +110,24 @@ export const THEMES: Record<ThemeId, Theme> = {
     // Deep, even inks that read from the back of a room and on a TV: the brand charcoal, a royal
     // blue, a clear red, a clear green (5 to 1 against the paper, and plainly green beside the
     // charcoal on a TV) and a deep brand gold (plain gold is too light on white).
-    ink: { "#F3F1EC": "#14171A", "#FBC159": "#C98500", "#8FD0F5": "#1D47C9", "#F07A6A": "#CC1F1A", "#7FD1A6": "#15803D" },
-    accent: "#0F63A8",
+    // (v2, 20 Nov: brighter, every one at least 4.5 to 1 on the paper: charcoal, royal blue, a warm
+    // clear red, emerald green; gold only on old boards.)
+    ink: { "#F3F1EC": "#14171A", "#8FD0F5": "#1B55F0", "#F07A6A": "#DE2B20", "#7FD1A6": "#00843D", "#FBC159": "#A36600" },
+    accent: "#B07A12",
+    highlight: "rgba(251, 193, 89, 0.50)",
+    highlightBlend: "multiply",
     ring: { border: "rgba(20,22,24,0.55)", fill: "rgba(20,22,24,0.05)" },
   },
   night: {
-    // The dark board: the brand charcoal. Every ink is drawn in its own saved (light) shade, all
-    // at least 5.7 to 1 against it.
+    // The dark board: the brand charcoal. Vivid inks (v2), all at least 5.6 to 1 against it.
     bg: "#212427",
     // (Twice as strong as it was: on the tablet the print could not be seen at all.)
     print: { rgb: "240,237,232", dots: 0.38, lines: 0.15, grid: 0.11, major: 0.21 },
-    ink: {},
+    ink: { "#F3F1EC": "#F3F1EC", "#8FD0F5": "#4FA3FF", "#F07A6A": "#FF6E55", "#7FD1A6": "#38D985", "#FBC159": "#FBC159" },
     accent: "#FBC159",
+    // (Plain drawing: multiplying on charcoal would hide it.)
+    highlight: "rgba(251, 193, 89, 0.26)",
+    highlightBlend: "source-over",
     ring: { border: "rgba(255,255,255,0.7)", fill: "rgba(255,255,255,0.05)" },
   },
 };
@@ -190,7 +203,11 @@ export function clearInset(h: number, top: (Element | null)[], bottom: (Element 
 
 /** Zoom by `factor` keeping the screen point (sx, sy) still. */
 export function zoomAt(cam: Camera, factor: number, sx: number, sy: number): Camera {
-  const z = Math.min(MAX_Z, Math.max(MIN_Z, cam.z * factor));
+  // (Never pulled further outside the limits than it already is: a screen that followed the other
+  // device out past them zooms on smoothly from there instead of jumping to the limit.)
+  const lo = Math.min(MIN_Z, cam.z);
+  const hi = Math.max(MAX_Z, cam.z);
+  const z = Math.min(hi, Math.max(lo, cam.z * factor));
   const [wx, wy] = toWorld(cam, sx, sy);
   return { x: wx - sx / z, y: wy - sy / z, z };
 }
@@ -500,14 +517,18 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
   // Highlighter: one flat, see-through band, the same width all the way (no pressure, no taper).
   if (s.hl && s.kind === "ink" && pts.length < 2) return; // a bare tap leaves nothing
   if (s.hl && (s.kind === "ink" || s.kind === "line") && pts.length >= 2) {
-    ctx.strokeStyle = HIGHLIGHT;
+    const th = THEMES[themeId];
+    ctx.strokeStyle = th.highlight;
     ctx.lineWidth = s.size;
     ctx.lineCap = "butt";
+    // Laid on like a real highlighter (multiplied on the paper), only for this band.
+    ctx.globalCompositeOperation = th.highlightBlend;
     ctx.beginPath();
     ctx.moveTo(pts[0][0], pts[0][1]);
     for (let i = 1; i < pts.length - 1; i++) ctx.quadraticCurveTo(pts[i][0], pts[i][1], (pts[i][0] + pts[i + 1][0]) / 2, (pts[i][1] + pts[i + 1][1]) / 2);
     ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
     ctx.stroke();
+    ctx.globalCompositeOperation = "source-over";
     ctx.lineCap = "round";
     return;
   }
@@ -549,7 +570,8 @@ export function drawStroke(ctx: CanvasRenderingContext2D, s: Stroke) {
     if (s.hl) {
       // Marker behind each line, a little wider than the words, softly rounded.
       ctx.save();
-      ctx.fillStyle = HIGHLIGHT;
+      ctx.fillStyle = THEMES[themeId].highlight;
+      ctx.globalCompositeOperation = THEMES[themeId].highlightBlend;
       lines.forEach((line, i) => {
         if (!line.trim()) return;
         const w = ctx.measureText(line).width;
@@ -643,6 +665,386 @@ export function strokeBox(s: Stroke): View {
   const b = { x: x0 - pad, y: y0 - pad, w: x1 - x0 + pad * 2, h: y1 - y0 + pad * 2 };
   boxes.set(s, { pts: s.pts, n: s.pts.length, b });
   return b;
+}
+
+/** A stroke's box with no room added for the nib: just where its points are. */
+export function rawBox(s: Stroke): View {
+  const b = strokeBox(s);
+  const pad = s.kind === "text" ? 4 : s.size * (s.arrow ? 4.5 : 2) + (s.kind === "form" ? 40 : 0);
+  return { x: b.x + pad, y: b.y + pad, w: Math.max(0, b.w - pad * 2), h: Math.max(0, b.h - pad * 2) };
+}
+
+// ---------------------------------------------------------------- moving and scaling a group
+
+/** Scale by `k` about (ax, ay), then move by (dx, dy). Everything selected moves with one of these. */
+export type Xf = { dx: number; dy: number; k: number; ax: number; ay: number };
+export const XF0: Xf = { dx: 0, dy: 0, k: 1, ax: 0, ay: 0 };
+export const xfPt = (t: Xf, x: number, y: number): [number, number] => [t.ax + (x - t.ax) * t.k + t.dx, t.ay + (y - t.ay) * t.k + t.dy];
+export const isIdentity = (t: Xf) => t.dx === 0 && t.dy === 0 && t.k === 1;
+/** A stroke moved (and scaled): its points, and when scaled its width (and typed text's size and
+ * line width) too. A handwritten outline grows in proportion with its width, so it looks the same,
+ * just bigger. Typed text keeps its own line breaks. */
+export function xformStroke(s: Stroke, t: Xf): Stroke {
+  const out: Stroke = { ...s, pts: s.pts.map((p) => [...xfPt(t, p[0], p[1]), p[2]] as Pt) };
+  if (t.k !== 1) {
+    out.size = s.size * t.k;
+    if (typeof s.boxW === "number") out.boxW = s.boxW * t.k;
+    if (typeof s.wrapW === "number" && Number.isFinite(s.wrapW)) out.wrapW = s.wrapW * t.k;
+  }
+  // The outline already worked out for the stroke moves with it (one cheap step), instead of being
+  // traced again point by point: a big group lands on the board without a pause.
+  const shape = shapes.get(s);
+  if (s.kind === "ink" && shape && shape.pts === s.pts && shape.n === s.pts.length && shape.size === s.size && typeof DOMMatrix !== "undefined") {
+    const p = new Path2D();
+    p.addPath(shape.p, new DOMMatrix([t.k, 0, 0, t.k, t.ax * (1 - t.k) + t.dx, t.ay * (1 - t.k) + t.dy]));
+    shapes.set(out, { pts: out.pts, n: out.pts.length, size: out.size, p });
+  }
+  // Its box too, when it only moved.
+  const bx = boxes.get(s);
+  if (t.k === 1 && bx && bx.pts === s.pts && bx.n === s.pts.length) boxes.set(out, { pts: out.pts, n: out.pts.length, b: { ...bx.b, x: bx.b.x + t.dx, y: bx.b.y + t.dy } });
+  return out;
+}
+export function xformImage(m: BoardImage, t: Xf): BoardImage {
+  const [x, y] = xfPt(t, m.x, m.y);
+  return { ...m, x, y, w: m.w * t.k, h: m.h * t.k };
+}
+
+// ---------------------------------------------------------------- lasso
+
+let lassoCtx: CanvasRenderingContext2D | null = null;
+/**
+ * What a lasso (a closed loop drawn round things, in world units) picks up. A thing counts when
+ * most of it is inside: so lassoing figures written inside a T account or on a PDF page does not
+ * take the T account or the page, and a stroke that only pokes into the loop stays behind.
+ */
+export function lassoPick(strokes: Stroke[], images: BoardImage[], poly: Array<[number, number]>): { ids: string[]; imgs: string[] } {
+  const none = { ids: [], imgs: [] };
+  if (poly.length < 3) return none;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [x, y] of poly) {
+    x0 = Math.min(x0, x);
+    y0 = Math.min(y0, y);
+    x1 = Math.max(x1, x);
+    y1 = Math.max(y1, y);
+  }
+  const bw = x1 - x0;
+  const bh = y1 - y0;
+  if (!(bw > 0) || !(bh > 0)) return none;
+  // The loop is drawn once, filled, into a small picture of its own (never the board): "inside" is
+  // then one look-up per point instead of a sum over the whole loop.
+  const sc = 384 / Math.max(bw, bh);
+  const cw = Math.ceil(bw * sc) + 2;
+  const ch = Math.ceil(bh * sc) + 2;
+  lassoCtx ??= document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+  const g = lassoCtx;
+  if (!g) return none;
+  if (g.canvas.width < cw || g.canvas.height < ch) {
+    g.canvas.width = Math.max(g.canvas.width, cw);
+    g.canvas.height = Math.max(g.canvas.height, ch);
+  }
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, cw, ch);
+  g.beginPath();
+  poly.forEach(([x, y], i) => (i ? g.lineTo((x - x0) * sc + 1, (y - y0) * sc + 1) : g.moveTo((x - x0) * sc + 1, (y - y0) * sc + 1)));
+  g.closePath();
+  g.fillStyle = "#000";
+  g.fill("nonzero");
+  const a = g.getImageData(0, 0, cw, ch).data;
+  const inside = (x: number, y: number) => {
+    const cx = Math.floor((x - x0) * sc) + 1;
+    const cy = Math.floor((y - y0) * sc) + 1;
+    if (cx < 0 || cy < 0 || cx >= cw || cy >= ch) return false;
+    return a[(cy * cw + cx) * 4 + 3] > 127;
+  };
+  /** Share of a grid of points over a box that is inside. */
+  const gridShare = (bx: number, by: number, w: number, h: number, nx: number, ny: number) => {
+    let n = 0;
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) if (inside(bx + (w * (i + 0.5)) / nx, by + (h * (j + 0.5)) / ny)) n++;
+    return n / (nx * ny);
+  };
+  const ids: string[] = [];
+  for (const s of strokes) {
+    const b = strokeBox(s);
+    if (b.x > x1 || b.y > y1 || b.x + b.w < x0 || b.y + b.h < y0) continue;
+    let ok = false;
+    if (s.kind === "ink") {
+      // Up to 24 of its points, evenly by order.
+      const n = Math.min(24, s.pts.length);
+      let k = 0;
+      for (let i = 0; i < n; i++) {
+        const p = s.pts[n === 1 ? 0 : Math.round((i * (s.pts.length - 1)) / (n - 1))];
+        if (inside(p[0], p[1])) k++;
+      }
+      ok = k / n >= 0.6;
+    } else if (s.kind === "line") {
+      const [p, q] = [s.pts[0], s.pts[s.pts.length - 1]];
+      let k = 0;
+      for (let i = 0; i < 9; i++) if (inside(p[0] + ((q[0] - p[0]) * i) / 8, p[1] + ((q[1] - p[1]) * i) / 8)) k++;
+      ok = k / 9 >= 0.6;
+    } else {
+      const bx = box(s);
+      if (s.kind === "text") ok = inside(bx.x + bx.w / 2, bx.y + bx.h / 2) || gridShare(bx.x, bx.y, bx.w, bx.h, 4, 3) >= 0.5;
+      else ok = gridShare(bx.x, bx.y, bx.w, bx.h, 5, 5) >= 0.6;
+    }
+    if (ok) ids.push(s.id);
+  }
+  const imgs = images.filter((m) => !(m.x > x1 || m.y > y1 || m.x + m.w < x0 || m.y + m.h < y0) && gridShare(m.x, m.y, m.w, m.h, 5, 5) >= 0.6).map((m) => m.id);
+  return { ids, imgs };
+}
+
+// ---------------------------------------------------------------- handwriting into words, lines, blocks
+
+/** How much of the handwriting a tap picks up: the stroke, its word, its line, or its block. */
+export type Grow = 0 | 1 | 2 | 3;
+export const GROW_NAME = ["Stroke", "Word", "Line", "Block"] as const;
+/** The numbers the grouping uses, all as shares of the letter height H (see inkCluster). Tuned on
+ * Hamza's own saved boards. */
+export const CLUSTER = {
+  /** Word: the horizontal gap between letters of one word (wider is the next word). */
+  wordGap: 0.5,
+  /** Word: a joining stroke's middle stays within this of the word's row (no running diagonally). */
+  wordRow: 0.5,
+  /** Word: a dot, accent or cross-bar this close to the word joins it. */
+  markX: 0.25,
+  markY: 1.0,
+  /** Word: written within this many ms of the letter beside it (or this many strokes apart in order). */
+  wordMs: 3000,
+  wordOrder: 4,
+  /** Line: a word joins the line when its middle is this close to the line's, this near sideways,
+   * and written within this many ms (or strokes apart in order). */
+  lineBand: 0.35,
+  lineGap: 1.8,
+  lineMs: 60_000,
+  lineOrder: 80,
+  /** Block: the next line joins when it is this close above or below. */
+  blockGap: 1.0,
+  blockSide: 1.5,
+};
+const ID_TIME_SPAN = 36 ** 4;
+/** When a stroke was written: its own time, else the time its id carries (the last 4 characters of
+ * every id are the time in ms, base 36, so it repeats every ~28 minutes), else nothing. */
+function idTime(s: Stroke): number | null {
+  const t = s.id.slice(-4);
+  if (s.kind !== "ink" || s.id.length < 12 || !/^[0-9a-z]{4}$/.test(t)) return null;
+  return parseInt(t, 36);
+}
+
+/**
+ * The handwriting that belongs with one stroke: its word (level 1), its line of writing (2) or the
+ * block of lines around it (3). Worked out from where the strokes are, measured in the letter
+ * height H of the writing around it (so it works at any zoom), and from when they were written
+ * (letters of one word are written within seconds of each other). Highlighter never groups.
+ */
+export function inkCluster(all: Stroke[], seedId: string, level: Grow): string[] {
+  const seedAt = all.findIndex((s) => s.id === seedId);
+  if (seedAt < 0) return [];
+  const seed = all[seedAt];
+  if (level === 0 || seed.kind !== "ink" || seed.hl) return [seedId];
+  const C = CLUSTER;
+  const u = Math.max(0.01, seed.size);
+  const sb = rawBox(seed);
+  // The letter height: the middle height of the writing near the seed (dots left out).
+  const reach = Math.max(sb.h, 6 * u) * 3;
+  const hs: number[] = [];
+  for (const s of all) {
+    if (s.kind !== "ink" || s.hl) continue;
+    const b = rawBox(s);
+    if (b.x > sb.x + sb.w + reach || b.x + b.w < sb.x - reach || b.y > sb.y + sb.h + reach || b.y + b.h < sb.y - reach) continue;
+    if (b.h >= 1.5 * u) hs.push(b.h);
+  }
+  hs.sort((a, b) => a - b);
+  const H = Math.min(25 * u, Math.max(3 * u, hs.length ? hs[Math.floor(hs.length / 2)] : sb.h));
+
+  // Everything that could join (handwriting, and ruled lines for underlines and blocks), on a grid.
+  type It = { s: Stroke; i: number; b: View; cy: number; t: number | null };
+  const items: It[] = [];
+  const cell = 4 * H;
+  const grid = new Map<string, It[]>();
+  const bigs: It[] = [];
+  all.forEach((s, i) => {
+    if (s.hl || (s.kind !== "ink" && s.kind !== "line")) return;
+    const b = rawBox(s);
+    const it: It = { s, i, b, cy: b.y + b.h / 2, t: s.at ?? null };
+    items.push(it);
+    // A stroke far bigger than the writing here (written zoomed far out) would fill thousands of
+    // cells: it is kept aside and looked at every time instead.
+    if ((Math.floor((b.x + b.w) / cell) - Math.floor(b.x / cell) + 1) * (Math.floor((b.y + b.h) / cell) - Math.floor(b.y / cell) + 1) > 64) {
+      bigs.push(it);
+      return;
+    }
+    for (let gx = Math.floor(b.x / cell); gx <= Math.floor((b.x + b.w) / cell); gx++)
+      for (let gy = Math.floor(b.y / cell); gy <= Math.floor((b.y + b.h) / cell); gy++) {
+        const k = `${gx},${gy}`;
+        const l = grid.get(k);
+        if (l) l.push(it);
+        else grid.set(k, [it]);
+      }
+  });
+  const near = (b: View, r: number): It[] => {
+    const out = new Set<It>(bigs);
+    for (let gx = Math.floor((b.x - r) / cell); gx <= Math.floor((b.x + b.w + r) / cell); gx++)
+      for (let gy = Math.floor((b.y - r) / cell); gy <= Math.floor((b.y + b.h + r) / cell); gy++) for (const it of grid.get(`${gx},${gy}`) ?? []) out.add(it);
+    return [...out];
+  };
+  /** Time between two strokes in ms, or null when it can't be known (then their order is used). */
+  const gapMs = (a: It, b: It): number | null => {
+    if (a.s.at !== undefined && b.s.at !== undefined) return Math.abs(a.s.at - b.s.at);
+    const ta = idTime(a.s);
+    const tb = idTime(b.s);
+    if (ta === null || tb === null) return null;
+    const d = (((ta - tb) % ID_TIME_SPAN) + ID_TIME_SPAN) % ID_TIME_SPAN;
+    return Math.min(d, ID_TIME_SPAN - d);
+  };
+  const soon = (a: It, b: It, ms: number, order: number) => {
+    const g = gapMs(a, b);
+    return g !== null ? g <= ms : Math.abs(a.i - b.i) <= order;
+  };
+  const hGap = (a: View, b: View) => Math.max(0, Math.max(a.x, b.x) - Math.min(a.x + a.w, b.x + b.w));
+  const vGap = (a: View, b: View) => Math.max(0, Math.max(a.y, b.y) - Math.min(a.y + a.h, b.y + b.h));
+  const vOverlap = (a: View, b: View) => Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+  const hOverlap = (a: View, b: View) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+
+  const byId = new Map(items.map((it) => [it.s.id, it]));
+  const boxOf = (set: Iterable<It>): View => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const m of set) {
+      x0 = Math.min(x0, m.b.x);
+      y0 = Math.min(y0, m.b.y);
+      x1 = Math.max(x1, m.b.x + m.b.w);
+      y1 = Math.max(y1, m.b.y + m.b.h);
+    }
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  };
+  /** Grow a group: each new member looks around itself for strokes that `joins` accepts. */
+  const grow = (members: Set<It>, r: number, joins: (c: It, m: It) => boolean, after?: (c: It) => void) => {
+    const queue = [...members];
+    while (queue.length && members.size < 3000) {
+      const m = queue.shift()!;
+      for (const c of near(m.b, r)) {
+        if (members.has(c) || !joins(c, m)) continue;
+        members.add(c);
+        after?.(c);
+        queue.push(c);
+      }
+    }
+  };
+  /** The word (lvl 1) or the line of writing (lvl 2) that a stroke belongs to. */
+  const wordOrLine = (start: It, lvl: 1 | 2): Set<It> => {
+    const members = new Set<It>([start]);
+    let rowLo = start.cy;
+    let rowHi = start.cy;
+    // Level 1, the word: letters side by side on the same line, written one after another.
+    grow(members, C.wordGap * H + H, (c, m) => {
+      if (c.s.kind !== "ink") return false;
+      // (A letter with a tail below the line, like q or p, sits lower: it still counts when it
+      // overlaps its neighbour by half its height.)
+      const inRow = c.cy >= rowLo - C.wordRow * H && c.cy <= rowHi + C.wordRow * H;
+      if (!inRow && vOverlap(c.b, m.b) < 0.5 * Math.min(c.b.h, m.b.h)) return false;
+      const sameLine = vOverlap(c.b, m.b) >= 0.3 * Math.min(c.b.h, m.b.h) || vGap(c.b, m.b) <= 0.2 * H;
+      const small = c.b.h <= 0.4 * H && c.b.w <= 0.6 * H;
+      const close = (sameLine && hGap(c.b, m.b) <= C.wordGap * H) || (small && hGap(c.b, m.b) <= C.markX * H && vGap(c.b, m.b) <= C.markY * H);
+      return close && soon(c, m, C.wordMs, C.wordOrder);
+    }, (c) => {
+      rowLo = Math.min(rowLo, c.cy);
+      rowHi = Math.max(rowHi, c.cy);
+    });
+    if (lvl === 1) return members;
+    // Level 2, the line: words along the same row, plus an underline or total just below it.
+    const rowMid = (rowLo + rowHi) / 2;
+    grow(members, C.lineGap * H + H, (c, m) => {
+      if (c.s.kind !== "ink") return false;
+      if (Math.abs(c.cy - rowMid) > C.lineBand * H + (rowHi - rowLo) / 2) return false;
+      if (Math.max(rowHi, c.cy) - Math.min(rowLo, c.cy) > 1.5 * H) return false;
+      return hGap(c.b, m.b) <= C.lineGap * H && soon(c, m, C.lineMs, C.lineOrder);
+    });
+    const row = boxOf(members);
+    for (const it of near(row, H)) {
+      if (members.has(it)) continue;
+      const flat = it.s.kind === "line" ? Math.abs(it.b.h) <= 0.25 * Math.max(1, it.b.w) : it.b.h <= 0.4 * H && it.b.w >= 2 * H;
+      const below = it.b.y >= row.y + row.h - 0.3 * H && it.b.y <= row.y + row.h + 0.5 * H;
+      if (flat && below && hOverlap(it.b, row) >= 0.5 * Math.min(it.b.w, row.w)) members.add(it);
+    }
+    return members;
+  };
+  /** The group's ids, in board order. */
+  const ordered = (members: Set<It>) => {
+    const keep = new Set([...members].map((m) => m.s));
+    return all.filter((s) => keep.has(s)).map((s) => s.id);
+  };
+  const start = byId.get(seedId)!;
+  if (level === 1 || level === 2) return ordered(wordOrLine(start, level));
+
+  // Level 3, the block: whole lines just above or below, overlapping sideways (no time limit). A
+  // line that starts with a bullet (a small mark on its own at the left) begins a new block, and a
+  // ruled line (a heading's underline, a total) is a border: so a block is one bullet point or one
+  // paragraph, not the whole column of notes.
+  const lines: Array<{ set: Set<It>; b: View; bullet: boolean }> = [];
+  const taken = new Set<It>();
+  const addLine = (set: Set<It>) => {
+    for (const m of set) taken.add(m);
+    const inkOnly = [...set].filter((m) => m.s.kind === "ink");
+    const b = boxOf(inkOnly.length ? inkOnly : set);
+    const left = inkOnly.toSorted((p, q) => p.b.x - q.b.x);
+    const first = left[0];
+    const next = left.find((m) => m !== first && m.b.x > first.b.x + first.b.w * 0.5);
+    const bullet = !!first && !!next && first.b.h <= 0.5 * H && first.b.w <= 0.6 * H && hGap(first.b, next.b) >= 0.3 * H;
+    const line = { set, b, bullet };
+    lines.push(line);
+    return line;
+  };
+  const seedLine = addLine(wordOrLine(start, 2));
+  let top = seedLine;
+  let bottom = seedLine;
+  let block = seedLine.b;
+  const rule = (a: View, b: View) =>
+    items.some((it) => it.s.kind === "line" && !taken.has(it) && it.b.h <= 0.25 * Math.max(1, it.b.w) && it.b.y > Math.min(a.y + a.h, b.y + b.h) - 0.2 * H && it.b.y < Math.max(a.y, b.y) + 0.2 * H && hOverlap(it.b, block) > 0);
+  let downDone = false;
+  let upDone = seedLine.bullet;
+  for (let guard = 0; guard < 40 && !(downDone && upDone); guard++) {
+    // The nearest writing just below the block, then just above it.
+    const pick = (below: boolean) => {
+      const edge = below ? bottom.b : top.b;
+      const gapOf = (c: It) => (below ? c.b.y - (edge.y + edge.h) : edge.y - (c.b.y + c.b.h));
+      let best: It | null = null;
+      for (const c of near(edge, C.blockGap * H + C.blockSide * H)) {
+        if (taken.has(c) || c.s.kind !== "ink") continue;
+        if (gapOf(c) > C.blockGap * H || (below ? c.cy < edge.y + edge.h : c.cy > edge.y)) continue;
+        if (hOverlap(c.b, block) < 0.3 * Math.min(c.b.w, block.w) && hGap(c.b, block) > C.blockSide * H) continue;
+        if (!best || gapOf(c) < gapOf(best)) best = c;
+      }
+      return best;
+    };
+    if (!downDone) {
+      const c = pick(true);
+      if (!c) downDone = true;
+      else {
+        const l = wordOrLine(c, 2);
+        const line = addLine(l);
+        // A bullet starts the next point, and a ruled line between is a border: stop going down.
+        if (line.bullet || rule(bottom.b, line.b)) {
+          lines.pop();
+          downDone = true;
+        } else bottom = line;
+      }
+    }
+    if (!upDone) {
+      const c = pick(false);
+      if (!c) upDone = true;
+      else {
+        const line = addLine(wordOrLine(c, 2));
+        if (rule(line.b, top.b)) {
+          lines.pop();
+          upDone = true;
+        } else {
+          top = line;
+          // This line starts with a bullet: it is the top of the point.
+          if (line.bullet) upDone = true;
+        }
+      }
+    }
+    block = boxOf(lines.flatMap((x) => [...x.set]));
+  }
+  return ordered(new Set(lines.flatMap((x) => [...x.set])));
 }
 
 /** Finished ink never changes, so its outline is worked out once and kept. */
@@ -1060,6 +1462,10 @@ export const TEXT_LINE = 1.25;
 export const TEXT_PX = [32, 44];
 
 let font = "";
+/** Forget the font read before (once the board's own font, Inter Tight, has loaded). */
+export function resetBoardFont() {
+  font = "";
+}
 /** The site's own sans font, so typed text matches the portal. */
 export function boardFont(): string {
   // Read from the board itself, the same font its text box uses, so words don't shift when finished.

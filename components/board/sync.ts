@@ -33,13 +33,26 @@ export type BoardMsg = (
   | { t: "pt"; x: number; y: number } // where the tablet's pen hovers: shown as a pointer on the laptop
   | { t: "page"; p: BoardPage; q?: number } // switched to another page: the other device follows
   | { t: "pagedel"; id: string } // a page deleted: the other device lets it go too
-  | { t: "view"; v: View } // what the tablet shows, for "follow"
+  // What the device being moved by hand shows, for the other one to follow (two-way: whoever is
+  // moving leads). `at`: the sender's clock (ms) so the follower can play the path back smoothly; `g`
+  // and `by` (1 tablet, 0 laptop): which gesture this is, so the last one to start moving leads and
+  // the tablet wins a tie; `end`: the last one of that gesture (at rest). Older tabs read only `v`.
+  | { t: "view"; v: View; at?: number; g?: number; by?: 0 | 1; end?: 1 }
+  // A group being dragged on the tablet, so the laptop sees it glide (no change to the board: the
+  // move itself lands as a batch of "add"s, then a last "xf" with `done`). `d`: dx, dy, k, ax, ay;
+  // `ids`/`imgs`: what is moving (in the first message, then once a second). An older tab ignores it.
+  | { t: "xf"; id: string; ids?: string[]; imgs?: string[]; d?: [number, number, number, number, number]; done?: boolean }
   | { t: "hello" } // asking for the full board
-  | { t: "rev"; n: number; last: string; d?: string; p?: BoardPage; v?: View } // heartbeat: item count, newest stroke, a fingerprint, the page and the view, so the other side can self-check
+  | { t: "rev"; n: number; last: string; d?: string; d2?: string; p?: BoardPage; v?: View; vg?: number; vb?: 0 | 1 } // heartbeat: item count, newest stroke, a fingerprint (`d2`: one that also knows where each thing is; older tabs ignore it), the page and the view (`vg`/`vb`: the view's gesture key), so the other side can self-check
 ) & { pg?: string };
 
-/** A short fingerprint of a board (which strokes and pictures, in their current form). */
-export function boardDigest(strokes: Stroke[], images: BoardImage[]): string {
+/**
+ * A short fingerprint of a board (which strokes and pictures, in their current form). `withPlace`:
+ * also roughly where each stroke is (its first point, from the packed copy both sides hold), so a
+ * move whose message went missing is noticed and put right. Sent as a second fingerprint beside the
+ * first, which older tabs keep comparing as before.
+ */
+export function boardDigest(strokes: Stroke[], images: BoardImage[], withPlace = false): string {
   let h = 0;
   const mix = (str: string) => {
     let x = 2166136261;
@@ -47,7 +60,7 @@ export function boardDigest(strokes: Stroke[], images: BoardImage[]): string {
     h = (h + (x >>> 0)) >>> 0; // order does not matter
   };
   // No coordinates: they are rounded when sent, so the two sides could never agree exactly.
-  for (const s of strokes) mix(`${s.id}|${s.kind}|${s.pts.length}|${s.text ?? ""}|${s.color}`);
+  for (const s of strokes) mix(`${s.id}|${s.kind}|${s.pts.length}|${s.text ?? ""}|${s.color}${withPlace && s.pts.length ? `|${Math.round(s.pts[0][0])}|${Math.round(s.pts[0][1])}` : ""}`);
   for (const m of images) mix(`${m.id}|${Math.round(m.x)}|${Math.round(m.y)}|${Math.round(m.w)}`);
   return `${strokes.length + images.length}.${h.toString(36)}`;
 }
