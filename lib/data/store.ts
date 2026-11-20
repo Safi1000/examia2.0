@@ -427,6 +427,29 @@ function forStaff(db: Database): Database {
   };
 }
 
+/** Feed rows hydrate reads in full: the live feed's 100 row trim never drops them. */
+const ALWAYS_KEPT = new Set<string>(["test_reopened", "student_in_person", "student_subject_joined", "student_joined_class", "well_built"]);
+
+/** What run() reads from a finished write. */
+type WriteResult = { error: { message: string } | null };
+
+/** Marking saves on this device: all in, some on their way, or one that keeps failing. */
+export type SaveState = "saved" | "saving" | "failed";
+/** What one answer's marking save carries: only the newest value of each part. */
+type MarkingPart = { marks?: number | null; feedback?: string; strokes?: Record<string, Annotation[]> };
+/** One answer's marking not yet in the database (see Store.queue). */
+type Outgoing = MarkingPart & {
+  sub: string;
+  q: string;
+  /** The answer row doesn't exist yet (a question added after hand in): the first save creates it. */
+  create?: Answer["type"];
+  /** The values on their way right now. */
+  flight?: MarkingPart;
+  sending: boolean;
+  tries: number;
+  timer: ReturnType<typeof setTimeout> | null;
+};
+
 // ---------------------------------------------------------------------------
 class Store {
   private state: Database = EMPTY;
@@ -520,6 +543,289 @@ class Store {
   private failed(msg: string) {
     this.report(msg);
     if (this.audience === "admin" && this.ready) this.softRefresh(3000);
+  }
+  /** A calm note rather than an error (shown in the info style). */
+  private calm(msg: string) {
+    this.report(`info: ${msg}`);
+  }
+
+  // ---- Marking saves (marks, comments, pen strokes) -------------------------
+  /**
+   * Each answer's unsent marking, newest value only. One save per answer is on
+   * its way at a time, so "1" then "15" can never land the wrong way round. A
+   * save that fails stays here and tries again quietly, and a re-read puts it
+   * back on screen (withUnsent), so it never looks lost or looks saved when it
+   * isn't. Only while the tab is open: an old mark is never replayed later.
+   */
+  private outbox = new Map<string, Outgoing>();
+  private saveListeners = new Set<() => void>();
+  private saveState: SaveState = "saved";
+  private saveWaiters: Array<{ sub: string; done: (ok: boolean) => void }> = [];
+  /** Strokes rubbed out on this device, per answer: a merge never brings them back. */
+  private strokesGone = new Map<string, Set<string>>();
+  /** When each answer's saved strokes were last read or written here. */
+  private strokesSeenAt = new Map<string, number>();
+  /** Tests already told about a late sitter this session (said once, not per paper). */
+  private lateSaid = new Set<string>();
+  /** When each answer's marking last reached the database from here: an older read must not undo it. */
+  private savedAt = new Map<string, number>();
+  /**
+   * Papers whose release is waiting for their saves, each with its own ticket.
+   * "Mark again" (or a hold) takes a paper out, and that waiting release then
+   * never goes out; releasing again gives a new ticket, so only the newest goes.
+   */
+  private pendingRelease = new Map<string, number>();
+  private releaseTicket = 0;
+  /** A ticket for this release; `still(ticket)` is true while it may go out. */
+  private holdForSaves(id: string) {
+    const ticket = ++this.releaseTicket;
+    this.pendingRelease.set(id, ticket);
+    return {
+      still: () => this.pendingRelease.get(id) === ticket,
+      done: () => {
+        if (this.pendingRelease.get(id) === ticket) this.pendingRelease.delete(id);
+      },
+    };
+  }
+
+  /** This answer was saved from here since `since`, or is still being saved: a read from then is older. */
+  private fresherHere(key: string, since: number): boolean {
+    return (this.savedAt.get(key) ?? 0) >= since || this.outbox.has(key);
+  }
+
+  /** True while any mark, comment or stroke is still on its way (sign out asks first). */
+  pendingSaves(): boolean {
+    return this.outbox.size > 0;
+  }
+
+  subscribeSaves = (fn: () => void) => {
+    this.saveListeners.add(fn);
+    return () => {
+      this.saveListeners.delete(fn);
+    };
+  };
+  getSaveState = () => this.saveState;
+
+  private savesChanged() {
+    const list = [...this.outbox.values()];
+    // A paper waiting to be released goes once its saves are in, and is held if one keeps failing.
+    this.saveWaiters = this.saveWaiters.filter((w) => {
+      const mine = list.filter((o) => o.sub === w.sub);
+      if (!mine.length) w.done(true);
+      else if (mine.some((o) => o.tries >= 3 && !o.sending)) w.done(false);
+      else return true;
+      return false;
+    });
+    const next: SaveState = list.some((o) => o.tries >= 3) ? "failed" : list.length ? "saving" : "saved";
+    if (next === this.saveState) return;
+    this.saveState = next;
+    this.saveListeners.forEach((l) => l());
+  }
+
+  /** Send everything still waiting now, instead of after its pause ("Try again"). */
+  retrySaves(sub?: string) {
+    for (const o of this.outbox.values()) {
+      if (sub && o.sub !== sub) continue;
+      // One more failure still counts as failed; a success clears it.
+      o.tries = Math.min(o.tries, 2);
+      if (o.sending) continue;
+      if (o.timer) clearTimeout(o.timer);
+      o.timer = null;
+      void this.send(o);
+    }
+    this.savesChanged();
+  }
+
+  /** True once every marking save for this paper is in; false if one keeps failing. */
+  private afterSaves(sub: string): Promise<boolean> {
+    if (![...this.outbox.values()].some((o) => o.sub === sub)) return Promise.resolve(true);
+    const wait = new Promise<boolean>((done) => this.saveWaiters.push({ sub, done }));
+    this.retrySaves(sub);
+    return wait;
+  }
+
+  private queue(sub: string, q: string, part: MarkingPart & { create?: Answer["type"] }, stroke?: { url: string; shapes: Annotation[] }) {
+    const key = `${sub}|${q}`;
+    let o = this.outbox.get(key);
+    if (!o) {
+      o = { sub, q, sending: false, tries: 0, timer: null };
+      this.outbox.set(key, o);
+    }
+    if (part.create) o.create = part.create;
+    if (part.marks !== undefined) o.marks = part.marks;
+    if (part.feedback !== undefined) o.feedback = part.feedback;
+    if (stroke) o.strokes = { ...o.strokes, [stroke.url]: stroke.shapes };
+    // A fresh change goes now (or straight after the one already on its way).
+    if (o.timer) clearTimeout(o.timer);
+    o.timer = null;
+    if (!o.sending) void this.send(o);
+    this.savesChanged();
+  }
+
+  private async send(o: Outgoing) {
+    const key = `${o.sub}|${o.q}`;
+    const part: MarkingPart = { marks: o.marks, feedback: o.feedback, strokes: o.strokes };
+    o.marks = undefined;
+    o.feedback = undefined;
+    o.strokes = undefined;
+    if (part.marks === undefined && part.feedback === undefined && !part.strokes) {
+      if (this.outbox.get(key) === o) this.outbox.delete(key);
+      this.savesChanged();
+      return;
+    }
+    const epoch = this.epoch;
+    o.sending = true;
+    o.flight = part;
+    this.pendingWrites++;
+    this.writeCount++;
+    let ok = false;
+    try {
+      ok = await this.write(o, part);
+    } catch (e) {
+      console.error("[store] marking save:", String(e));
+    }
+    this.pendingWrites--;
+    o.sending = false;
+    o.flight = undefined;
+    if (epoch !== this.epoch) return; // signed out meanwhile: nothing goes to the next person
+    // Newer values may have been queued while this one was on its way.
+    const now: Outgoing = o;
+    if (ok) {
+      now.tries = 0;
+      now.create = undefined;
+      this.savedAt.set(key, Date.now());
+    } else {
+      // Back under anything newer, and again after a pause.
+      if (now.marks === undefined) now.marks = part.marks;
+      if (now.feedback === undefined) now.feedback = part.feedback;
+      if (part.strokes) now.strokes = { ...part.strokes, ...now.strokes };
+      now.tries++;
+      if (now.tries === 3) this.calm("A mark hasn't saved yet. It stays on screen and the portal keeps trying.");
+    }
+    const more = now.marks !== undefined || now.feedback !== undefined || !!now.strokes;
+    if (!more) {
+      if (this.outbox.get(key) === o) this.outbox.delete(key);
+    } else if (ok) {
+      void this.send(o);
+    } else {
+      o.timer = setTimeout(() => {
+        o.timer = null;
+        void this.send(o);
+      }, [1500, 4000, 9000][o.tries - 1] ?? 20_000);
+    }
+    this.savesChanged();
+  }
+
+  /** One round of one answer's marking. True when the database took it. */
+  private async write(o: Outgoing, part: MarkingPart): Promise<boolean> {
+    const key = `${o.sub}|${o.q}`;
+    const patch: Row = {};
+    if (part.marks !== undefined) patch.marks_awarded = part.marks;
+    if (part.feedback !== undefined) patch.feedback = part.feedback;
+    let merged: Annotations | null = null;
+    if (part.strokes) {
+      merged = await this.mergeStrokes(o.sub, o.q, part.strokes);
+      if (!merged) return false;
+      patch.annotations = merged;
+    }
+    const sb = supabase();
+    const { data, error } = o.create
+      ? await sb.from("answers").upsert({ submission_id: o.sub, question_id: o.q, type: o.create, ...patch }, { onConflict: "submission_id,question_id" }).select("id")
+      : await sb.from("answers").update(patch).eq("submission_id", o.sub).eq("question_id", o.q).select("id");
+    if (error) {
+      console.error("[store] marking save:", error.message);
+      return false;
+    }
+    // No row changed (a sign-in that ran out, or a row the database won't let
+    // this account touch): not saved, so it stays queued and is tried again.
+    // The preview's stand-in database returns no rows for anything.
+    if (!DEMO && !((data as Row[] | null) ?? []).length) {
+      console.error("[store] marking save: no row was changed");
+      return false;
+    }
+    if (merged) {
+      this.strokesSeenAt.set(key, Date.now());
+      // Strokes another device added now show here too (unless something newer is waiting).
+      const was = this.state.submissions.find((s) => s.id === o.sub)?.answers.find((a) => a.questionId === o.q)?.annotations ?? {};
+      const show: Annotations = { ...merged, ...o.strokes };
+      for (const url of Object.keys(show)) if (!show[url].length) delete show[url];
+      if (JSON.stringify(show) !== JSON.stringify(was)) {
+        this.commit((d) => {
+          const ans = d.submissions.find((s) => s.id === o.sub)?.answers.find((a) => a.questionId === o.q);
+          if (ans) ans.annotations = show;
+        });
+      }
+    }
+    return true;
+  }
+
+  /**
+   * This device's strokes for some pages, put together with what is saved.
+   * Another device (or tab) may have marked the same answer since this one last
+   * looked, so unless it read or wrote it moments ago it reads first, keeps
+   * every stroke saved there, and only drops what was rubbed out here.
+   */
+  private async mergeStrokes(sub: string, q: string, mine: Record<string, Annotation[]>): Promise<Annotations | null> {
+    const key = `${sub}|${q}`;
+    let saved: Annotations = this.state.submissions.find((s) => s.id === sub)?.answers.find((a) => a.questionId === q)?.annotations ?? {};
+    if (!DEMO && Date.now() - (this.strokesSeenAt.get(key) ?? 0) > 20_000) {
+      const { data, error } = await supabase().from("answers").select("annotations").eq("submission_id", sub).eq("question_id", q).maybeSingle();
+      if (error) {
+        console.error("[store] reading strokes:", error.message);
+        return null;
+      }
+      saved = ((data as Row | null)?.annotations as Annotations) ?? {};
+    }
+    const gone = this.strokesGone.get(key);
+    const out: Annotations = { ...saved };
+    for (const [url, list] of Object.entries(mine)) {
+      const here = new Set(list.map((s) => s.id));
+      const theirs = (saved[url] ?? []).filter((s) => !here.has(s.id) && !gone?.has(s.id));
+      const all = [...list, ...theirs];
+      if (all.length) out[url] = all;
+      else delete out[url];
+    }
+    return out;
+  }
+
+  /** Marking not saved yet (or on its way) stays on screen over a re-read. */
+  private withUnsent(subId: string, answers: Answer[]): Answer[] {
+    let out = answers;
+    for (const o of this.outbox.values()) {
+      if (o.sub !== subId) continue;
+      const p: MarkingPart = { ...o.flight };
+      if (o.marks !== undefined) p.marks = o.marks;
+      if (o.feedback !== undefined) p.feedback = o.feedback;
+      if (o.strokes) p.strokes = { ...p.strokes, ...o.strokes };
+      if (p.marks === undefined && p.feedback === undefined && !p.strokes) continue;
+      const i = out.findIndex((a) => a.questionId === o.q);
+      if (i < 0 && !o.create) continue;
+      const base: Answer = i >= 0 ? out[i] : { questionId: o.q, type: o.create! };
+      const next: Answer = { ...base };
+      if (p.marks !== undefined) next.marksAwarded = p.marks ?? undefined;
+      if (p.feedback !== undefined) next.feedback = p.feedback;
+      if (p.strokes) {
+        const ann: Annotations = { ...base.annotations, ...p.strokes };
+        for (const url of Object.keys(ann)) if (!ann[url].length) delete ann[url];
+        next.annotations = ann;
+      }
+      out = i >= 0 ? out.map((a, j) => (j === i ? next : a)) : [...out, next];
+    }
+    return out;
+  }
+
+  /** Signing out: nothing waiting is sent for the next person. */
+  private clearSaves() {
+    this.outbox.forEach((o) => o.timer && clearTimeout(o.timer));
+    this.outbox.clear();
+    this.saveWaiters.forEach((w) => w.done(false));
+    this.saveWaiters = [];
+    this.strokesGone.clear();
+    this.strokesSeenAt.clear();
+    this.lateSaid.clear();
+    this.savedAt.clear();
+    this.pendingRelease.clear();
+    this.savesChanged();
   }
 
   // ---- Lifecycle -------------------------------------------------------
@@ -679,8 +985,9 @@ class Store {
     // The admin's level list is its own request: start it now, alongside the rest.
     const levelsReady = this.readLevels([]);
     // Late windows (one student sits a missed test) live in the feed as
-    // "test_reopened" rows. The feed below is capped at 100, so the recent
-    // ones are read on their own too: none lasts longer than a day.
+    // "test_reopened" rows. The feed below is capped at 100, so they are read
+    // on their own too, all of them: a paper sat in a window must still show
+    // "late window" (and its own time limit) weeks later, not a red "late".
     // The in-person tags (students taught physically) are read in full, as
     // Hamza-only rows; students can't read them, so theirs comes back empty.
     const quiet = (q: PromiseLike<{ data: unknown; error: unknown }>) =>
@@ -689,7 +996,7 @@ class Store {
         () => [] as Activity[],
       );
     const lateReady = Promise.all([
-      quiet(sb.from("activities").select("*").eq("type", "test_reopened").gte("created_at", new Date(Date.now() - 2 * 86_400_000).toISOString())),
+      quiet(sb.from("activities").select("*").eq("type", "test_reopened")),
       this.audience === "student" ? Promise.resolve([] as Activity[]) : quiet(sb.from("activities").select("*").eq("type", "student_in_person")),
       // When each student started a subject or level they were added to later (see startedMs), read in full.
       this.audience === "student"
@@ -879,6 +1186,7 @@ class Store {
     this.noted.clear();
     this.epoch++;
     this.strokesLoaded.clear();
+    this.clearSaves();
     if (this.saveTimer) clearTimeout(this.saveTimer);
     this.saveTimer = null;
     // Nothing queued for the person who left may run for the next one.
@@ -1870,15 +2178,35 @@ class Store {
   /** Papers whose strokes are in the cache (the full load leaves them out). */
   private strokesLoaded = new Set<string>();
   private strokesLoading = new Map<string, Promise<boolean>>();
-  /** A re-read without strokes keeps the strokes already fetched for a paper. */
+  /**
+   * A re-read without strokes keeps the strokes already fetched for a paper,
+   * and marking still being saved stays on top of what the re-read found.
+   */
   private keepStrokes(fresh: Submission[], prev: Submission[]): Submission[] {
-    if (!this.strokesLoaded.size) return fresh;
-    const before = new Map(prev.filter((s) => this.strokesLoaded.has(s.id)).map((s) => [s.id, s]));
+    // Answers saved from here in the last 30 s keep what is on screen: a full
+    // re-read that started before such a save landed can be older than it.
+    const since = Date.now() - 30_000;
+    const recent = new Set([...this.savedAt].filter(([, at]) => at >= since).map(([k]) => k));
+    if (!this.strokesLoaded.size && !this.outbox.size && !recent.size) return fresh;
+    const recentSubs = new Set([...recent].map((k) => k.split("|")[0]));
+    const before = new Map(prev.filter((s) => this.strokesLoaded.has(s.id) || recentSubs.has(s.id)).map((s) => [s.id, s]));
+    const unsent = new Set([...this.outbox.values()].map((o) => o.sub));
     return fresh.map((s) => {
       const old = before.get(s.id);
-      if (!old) return s;
-      const by = new Map(old.answers.map((a) => [a.questionId, a.annotations]));
-      return { ...s, answers: s.answers.map((a) => (by.get(a.questionId) ? { ...a, annotations: by.get(a.questionId) } : a)) };
+      if (!old && !unsent.has(s.id)) return s;
+      let answers = s.answers;
+      if (old) {
+        const was = new Map(old.answers.map((a) => [a.questionId, a]));
+        const strokes = this.strokesLoaded.has(s.id);
+        answers = answers.map((a) => {
+          const o = was.get(a.questionId);
+          if (!o) return a;
+          if (recent.has(`${s.id}|${a.questionId}`)) return { ...a, marksAwarded: o.marksAwarded, feedback: o.feedback, annotations: o.annotations };
+          return strokes && o.annotations ? { ...a, annotations: o.annotations } : a;
+        });
+      }
+      if (unsent.has(s.id)) answers = this.withUnsent(s.id, answers);
+      return { ...s, answers };
     });
   }
   /** True once this paper's strokes are here (always in the preview). */
@@ -1889,20 +2217,35 @@ class Store {
    * Fetch one paper's pen strokes (opening it to mark, or a student opening
    * their result). Resolves true when they are in the cache. Until then
    * nothing may save strokes for it: a save writes the answer's whole set.
+   * `fresh` reads them again even if this tab has them (opening a paper to
+   * mark): another device may have marked it since. The old copy stays on
+   * screen meanwhile, so nothing waits.
    */
-  loadAnnotations(submissionId: string): Promise<boolean> {
-    if (this.strokesReady(submissionId)) return Promise.resolve(true);
+  loadAnnotations(submissionId: string, fresh = false): Promise<boolean> {
+    if (DEMO || (!fresh && this.strokesReady(submissionId))) return Promise.resolve(true);
     const going = this.strokesLoading.get(submissionId);
     if (going) return going;
     const epoch = this.epoch;
     const job = (async () => {
+      const started = Date.now();
       const { data, error } = await supabase().from("answers").select("question_id,annotations").eq("submission_id", submissionId);
       if (error || epoch !== this.epoch) return false;
+      // Only counts once the paper itself is here (opened from a link before
+      // the full load): strokes with nowhere to go would be dropped, and the
+      // next stroke would then save over them. The page asks again when it lands.
+      if (!this.state.submissions.some((x) => x.id === submissionId)) return false;
       const by = new Map(((data as Row[]) ?? []).map((r) => [r.question_id as string, (r.annotations as Annotations) ?? undefined]));
+      // An answer saved from here while this read was on its way (or still
+      // being saved) keeps what is on screen: this read may be older than it.
+      for (const q of [...by.keys()]) if (this.fresherHere(`${submissionId}|${q}`, started)) by.delete(q);
+      const now = Date.now();
+      for (const q of by.keys()) this.strokesSeenAt.set(`${submissionId}|${q}`, now);
       this.strokesLoaded.add(submissionId);
       this.commit((d) => {
         const sub = d.submissions.find((x) => x.id === submissionId);
-        if (sub) for (const a of sub.answers) a.annotations = by.get(a.questionId) ?? a.annotations;
+        if (!sub) return;
+        for (const a of sub.answers) if (by.has(a.questionId)) a.annotations = by.get(a.questionId);
+        sub.answers = this.withUnsent(submissionId, sub.answers);
       });
       return true;
     })().finally(() => this.strokesLoading.delete(submissionId));
@@ -2010,6 +2353,8 @@ class Store {
     startedAt: string;
     autoSubmitted: boolean;
     durationSeconds: number;
+    /** The same id on every retry, so a reply lost on a weak signal never looks like another device's paper. */
+    id?: string;
   }): Promise<string> {
     // Saved on the server first, in one call (submission + every answer, or
     // nothing), then shown. On failure this throws: the runner keeps the draft
@@ -2028,7 +2373,7 @@ class Store {
       };
     });
     const sb = supabase();
-    const newId = genId();
+    const newId = input.id ?? genId();
     let { data, error } = await sb.rpc("submit_test", {
       p_id: newId,
       p_test_id: input.testId,
@@ -2094,8 +2439,12 @@ class Store {
     });
     return id;
   }
-  /** `marksAwarded: undefined` edits feedback only — it does NOT score a zero. */
-  gradeAnswer(submissionId: string, questionId: string, marksAwarded: number | undefined, feedback?: string) {
+  /**
+   * `marksAwarded: undefined` edits feedback only (it does NOT score a zero);
+   * `null` takes the mark away, back to "not marked yet". Saved through the
+   * marking queue: in order, retried quietly, kept on screen until it lands.
+   */
+  gradeAnswer(submissionId: string, questionId: string, marksAwarded: number | null | undefined, feedback?: string) {
     {
       const paper = this.state.submissions.find((x) => x.id === submissionId);
       this.note(`mark:${submissionId}`, `marked ${this.nameOf(paper?.studentId)}'s paper for "${this.titleOf(paper?.testId)}"`);
@@ -2108,56 +2457,52 @@ class Store {
       : undefined;
     if (question) {
       this.commit((d) => {
-        d.submissions.find((s) => s.id === submissionId)?.answers.push({ questionId, type: question.type, marksAwarded, feedback });
+        d.submissions.find((s) => s.id === submissionId)?.answers.push({ questionId, type: question.type, marksAwarded: marksAwarded ?? undefined, feedback });
       });
-      this.run(
-        supabase()
-          .from("answers")
-          .upsert(
-            { submission_id: submissionId, question_id: questionId, type: question.type, marks_awarded: marksAwarded ?? null, feedback: feedback ?? null },
-            { onConflict: "submission_id,question_id" },
-          ),
-        "gradeAnswer",
-      );
+      this.queue(submissionId, questionId, { create: question.type, marks: marksAwarded, feedback });
       return;
     }
     this.commit((d) => {
       const ans = d.submissions.find((s) => s.id === submissionId)?.answers.find((a) => a.questionId === questionId);
       if (ans) {
-        if (marksAwarded !== undefined) ans.marksAwarded = marksAwarded;
+        if (marksAwarded !== undefined) ans.marksAwarded = marksAwarded ?? undefined;
         if (feedback !== undefined) ans.feedback = feedback;
       }
     });
-    const patch: Row = {};
-    if (marksAwarded !== undefined) patch.marks_awarded = marksAwarded;
-    if (feedback !== undefined) patch.feedback = feedback;
-    this.run(
-      supabase().from("answers").update(patch).eq("submission_id", submissionId).eq("question_id", questionId),
-      "gradeAnswer",
-    );
+    this.queue(submissionId, questionId, { marks: marksAwarded, feedback });
     // Results never go out from here: a half-typed mark ("1" on the way to
     // "15") must not reach the student. Release is always a deliberate click
     // (Release & next, or Ctrl/Cmd + Enter) on the marking page.
   }
-  /** Grader markup for one image of a photo answer. Saved as you draw. */
-  saveAnnotations(submissionId: string, questionId: string, imageUrl: string, shapes: Annotation[]) {
+  /**
+   * Grader markup for one image of a photo answer. Saved as you draw, through
+   * the marking queue. `erased`: strokes rubbed out here since the last call,
+   * so merging with another device's strokes never brings them back.
+   */
+  saveAnnotations(submissionId: string, questionId: string, imageUrl: string, shapes: Annotation[], erased: string[] = []) {
     // The save writes the answer's whole set of strokes: never before the saved ones are here.
     if (!this.strokesReady(submissionId)) {
       this.report("saveAnnotations: strokes not loaded yet");
       return;
     }
-    let next: Annotations = {};
+    const sub = this.state.submissions.find((s) => s.id === submissionId);
+    if (!sub?.answers.some((a) => a.questionId === questionId)) return;
+    const key = `${submissionId}|${questionId}`;
+    if (erased.length || this.strokesGone.has(key)) {
+      const gone = this.strokesGone.get(key) ?? new Set<string>();
+      erased.forEach((id) => gone.add(id));
+      // Undo brought one back: it is wanted again.
+      shapes.forEach((s) => gone.delete(s.id));
+      this.strokesGone.set(key, gone);
+    }
     this.commit((d) => {
       const ans = d.submissions.find((s) => s.id === submissionId)?.answers.find((a) => a.questionId === questionId);
       if (!ans) return;
-      next = { ...ans.annotations, [imageUrl]: shapes };
+      const next: Annotations = { ...ans.annotations, [imageUrl]: shapes };
       if (!shapes.length) delete next[imageUrl];
       ans.annotations = next;
     });
-    this.run(
-      supabase().from("answers").update({ annotations: next }).eq("submission_id", submissionId).eq("question_id", questionId),
-      "saveAnnotations",
-    );
+    this.queue(submissionId, questionId, {}, { url: imageUrl, shapes });
   }
   /**
    * Results show the right answers, so none goes out while the test is still
@@ -2173,14 +2518,17 @@ class Store {
       this.report(`"${t.title}" is still open until ${at(t.closesAt)}. Release results after it closes, so nobody still sitting it sees the answers.`);
       return true;
     }
-    // Reopened for one student: hold results until their window ends too.
+    // Reopened for one student: everyone else's results may go out (one late
+    // sitter used to hold back the whole class). Said once per test, calmly,
+    // because a result shows the right answers.
     const late = lateWindows(this.state)
       .filter((e) => e.testId === t.id && +new Date(e.until) > now && !this.state.submissions.some((s) => s.testId === t.id && s.studentId === e.studentId))
       .sort((a, b) => +new Date(b.until) - +new Date(a.until))[0];
-    if (!late) return false;
+    if (!late || this.lateSaid.has(t.id)) return false;
+    this.lateSaid.add(t.id);
     const st = this.state.students.find((x) => x.id === late.studentId);
-    this.report(`"${t.title}" is open for ${st ? st.username.charAt(0).toUpperCase() + st.username.slice(1) : "a student"} until ${at(late.until)}. Release results after that, or close their window first.`);
-    return true;
+    this.calm(`${st ? st.username.charAt(0).toUpperCase() + st.username.slice(1) : "A student"} is still sitting "${t.title}" until ${at(late.until)}. Results you release now can reach them before they finish.`);
+    return false;
   }
 
   // ---- "Well built" (Hamza praises a strong Groundwork week) --------------
@@ -2334,9 +2682,18 @@ class Store {
       }
       this.queueResultPush(submissionId);
     };
+    // The release itself waits for this paper's marks, comments and strokes to
+    // be saved: a result must never go out with a mark that didn't arrive.
+    // "Mark again" while it waits takes it out of pendingRelease, and then it
+    // never goes out.
+    const ticket = this.holdForSaves(submissionId);
     if (DEMO) {
       this.run(
-        supabase().from("submissions").update({ status: "released", released_at: releasedAt }).eq("id", submissionId),
+        this.afterSaves(submissionId).then((ok): PromiseLike<WriteResult> | WriteResult => {
+          if (!ticket.still()) return { error: null };
+          ticket.done();
+          return ok ? supabase().from("submissions").update({ status: "released", released_at: releasedAt }).eq("id", submissionId) : this.holdRelease([submissionId]);
+        }),
         "releaseSubmission",
       );
       tell();
@@ -2345,20 +2702,58 @@ class Store {
     // Only a paper this call actually released tells the student: another tab
     // (or the auto-release timer) may have released it a moment ago.
     this.run(
-      Promise.resolve(
-        supabase()
-          .from("submissions")
-          .update({ status: "released", released_at: releasedAt })
-          .eq("id", submissionId)
-          .neq("status", "released")
-          .select("id"),
-      ).then((r) => {
-        if (!r.error && ((r.data as Row[] | null) ?? []).length) tell();
-        return r;
+      this.afterSaves(submissionId).then((ok): PromiseLike<WriteResult> | WriteResult => {
+        if (!ticket.still()) return { error: null };
+        if (!ok) return this.holdRelease([submissionId]);
+        ticket.done();
+        return Promise.resolve(
+          supabase()
+            .from("submissions")
+            .update({ status: "released", released_at: releasedAt })
+            .eq("id", submissionId)
+            .neq("status", "released")
+            .select("id"),
+        ).then(async (r): Promise<WriteResult> => {
+          if (r.error) return r;
+          if (((r.data as Row[] | null) ?? []).length) {
+            tell();
+            return r;
+          }
+          // Nothing changed: fine if another tab already released it, but if
+          // the database refused (a sign-in that ran out) it is not out.
+          const now = await supabase().from("submissions").select("status").eq("id", submissionId).maybeSingle();
+          if (!now.error && (now.data as Row | null)?.status === "released") return r;
+          return this.holdRelease([submissionId], "refused");
+        });
       }),
       "releaseSubmission",
     );
     return true;
+  }
+  /**
+   * A mark on these papers never saved, so they were not released: back to
+   * "to mark" on screen, with one plain line. Returns a no-error result for run().
+   */
+  private holdRelease(ids: string[], why: "unsaved" | "refused" = "unsaved"): WriteResult {
+    ids.forEach((id) => this.pendingRelease.delete(id));
+    // Signed out meanwhile: nothing of theirs is on screen to put back.
+    if (!this.state.submissions.some((s) => ids.includes(s.id))) return { error: null };
+    this.commit((d) => {
+      for (const s of d.submissions) {
+        if (ids.includes(s.id) && s.status === "released") {
+          s.status = "submitted";
+          s.releasedAt = undefined;
+        }
+      }
+    });
+    const first = this.state.submissions.find((s) => s.id === ids[0]);
+    const who = ids.length === 1 ? `${this.nameOf(first?.studentId).replace(/^./, (c) => c.toUpperCase())}'s result was` : `${ids.length} results were`;
+    this.report(
+      why === "unsaved"
+        ? `${who} not released because a mark has not saved yet. Release again once the page says Saved.`
+        : `${who} not released: the portal could not save the release. Reload the page and release again.`,
+    );
+    return { error: null };
   }
   // Phone notification for released results. Batched for a moment so
   // "Release all" sends one notification per student, not one per paper.
@@ -2397,19 +2792,39 @@ class Store {
         .filter((s) => s.testId === testId && s.status === "submitted")
         .forEach((s) => { s.status = "released"; s.releasedAt = releasedAt; });
     });
+    // Waits for those papers' marking saves, like a single release, and then
+    // releases exactly those papers (by id): one handed in meanwhile, still
+    // unmarked, is not swept up with them. "Mark again" on one leaves it out.
+    const tickets = released.map((s) => ({ s, ticket: this.holdForSaves(s.id) }));
     this.run(
-      supabase()
-        .from("submissions")
-        .update({ status: "released", released_at: releasedAt })
-        .eq("test_id", testId)
-        .eq("status", "submitted"),
+      Promise.all(released.map((s) => this.afterSaves(s.id))).then((oks): PromiseLike<WriteResult> | WriteResult => {
+        const still = tickets.filter((t) => t.ticket.still());
+        if (!still.length) return { error: null };
+        if (!oks.every(Boolean)) return this.holdRelease(still.map((t) => t.s.id));
+        still.forEach((t) => t.ticket.done());
+        return Promise.resolve(
+          supabase()
+            .from("submissions")
+            .update({ status: "released", released_at: releasedAt })
+            .in("id", still.map((t) => t.s.id))
+            .eq("status", "submitted")
+            .select("id"),
+        ).then((r): WriteResult => {
+          if (r.error) return r;
+          const out = new Set(((r.data as Row[] | null) ?? []).map((x) => x.id as string));
+          for (const { s } of still) {
+            if (!out.has(s.id)) continue;
+            // A result is personal, so this is addressed per student rather than
+            // broadcast to the cohort: students who did not sit the test get nothing.
+            this.announceResult(s.studentId, testId, s.id);
+            // Phone notification too (batched into one per student, quiet rules apply).
+            this.queueResultPush(s.id);
+          }
+          return r;
+        });
+      }),
       "bulkReleaseForTest",
     );
-    // A result is personal, so this is addressed per student rather than
-    // broadcast to the cohort — students who did not sit the test get nothing.
-    released.forEach((s) => this.announceResult(s.studentId, testId, s.id));
-    // Phone notification too (batched into one per student, quiet rules apply).
-    released.forEach((s) => this.queueResultPush(s.id));
     return true;
   }
   /** Tell one student their result for a test is now available. */
@@ -2431,6 +2846,8 @@ class Store {
       const paper = this.state.submissions.find((x) => x.id === submissionId);
       this.note(`unrelease:${submissionId}`, `took back ${this.nameOf(paper?.studentId)}'s result for "${this.titleOf(paper?.testId)}" to mark again`);
     }
+    // A release still waiting for this paper's saves must not go out after this.
+    this.pendingRelease.delete(submissionId);
     this.commit((d) => {
       const sub = d.submissions.find((s) => s.id === submissionId);
       if (sub) { sub.status = "submitted"; sub.releasedAt = undefined; }
@@ -2442,8 +2859,11 @@ class Store {
   }
   deleteSubmission(submissionId: string) {
     if (!this.ownerOnly()) return;
+    const gone = this.state.submissions.find((s) => s.id === submissionId);
     this.commit((d) => { d.submissions = d.submissions.filter((s) => s.id !== submissionId); });
     this.run(supabase().from("submissions").delete().eq("id", submissionId), "deleteSubmission");
+    // If they sit it again, their old start time and saved copy no longer count (a fresh clock, see lib/sitting.ts).
+    if (gone && !DEMO) void import("@/lib/sitting").then((m) => m.resetSitting(gone.testId, gone.studentId));
   }
 
   // ---- Announcements ---------------------------------------------------
@@ -2866,7 +3286,8 @@ class Store {
         title: `Hamza replied on "${assignment?.title ?? "your assignment"}"`,
         description: this.state.subjects.find((x) => x.id === assignment?.subjectId)?.name,
         studentId: before.studentId,
-        link: "/assignments",
+        // Straight to that homework (its card opens even inside Done).
+        link: `/assignments#a-${before.assignmentId}`,
         audience: "student",
       });
     }
@@ -3151,7 +3572,13 @@ class Store {
           this.commit((d) => {
             if (d.activities.some((a) => a.id === row.id)) return; // idempotent
             d.activities.unshift(mapActivity(row));
-            if (d.activities.length > 100) d.activities.length = 100;
+            // The feed stays at 100, but never at the cost of the rows read in
+            // full at load: a running late window (Release would stop holding
+            // for it) or the in person and joining tags.
+            if (d.activities.length > 100) {
+              let n = 0;
+              d.activities = d.activities.filter((a) => ALWAYS_KEPT.has(a.type) || ++n <= 100);
+            }
             added = true;
           });
           // The notification arrives before the thing it is ABOUT. A hand-in
@@ -3199,9 +3626,19 @@ class Store {
   async refreshSubmission(id: string): Promise<void> {
     if (DEMO) return;
     const epoch = this.epoch;
+    const writesBefore = this.writeCount;
+    const started = Date.now();
     const { data, error } = await supabase().from("submissions").select("*, answers(*)").eq("id", id).maybeSingle();
     if (error || !data || epoch !== this.epoch) return;
-    const fresh = mapSubmission(data as Row);
+    // A mark on this paper was saved from here while this read was on its way:
+    // the read may be older than it, so it is not swapped in (as hydrate does).
+    if (this.writeCount !== writesBefore || [...this.savedAt.keys()].some((k) => k.startsWith(`${id}|`) && this.fresherHere(k, started))) {
+      this.softRefresh(8000);
+      return;
+    }
+    const read = mapSubmission(data as Row);
+    // Marking still being saved here stays on top of what was read.
+    const fresh = this.outbox.size ? { ...read, answers: this.withUnsent(id, read.answers) } : read;
     this.strokesLoaded.add(id);
     // A student learns the right MCQ options only from their released answers.
     const correct = new Map<string, number>();

@@ -32,9 +32,19 @@ export function totalMarks(test: Test): number {
   return test.questions.reduce((sum, q) => sum + q.marks, 0);
 }
 
-/** Sum of marks awarded across answers (treats ungraded as 0). */
-export function awardedMarks(submission: Submission): number {
-  return submission.answers.reduce((sum, a) => sum + (a.marksAwarded ?? 0), 0);
+/**
+ * Sum of marks awarded across answers (treats ungraded as 0). Given the test,
+ * a mark above its question's current maximum (the question was lowered
+ * after marking) counts as that maximum, so 8 out of 5 can't push a total
+ * past 100%; an answer whose question is gone counts for nothing.
+ */
+export function awardedMarks(submission: Submission, test?: Test): number {
+  if (!test) return submission.answers.reduce((sum, a) => sum + (a.marksAwarded ?? 0), 0);
+  const max = new Map(test.questions.map((q) => [q.id, q.marks]));
+  return submission.answers.reduce((sum, a) => {
+    const top = max.get(a.questionId);
+    return top === undefined ? sum : sum + Math.min(top, Math.max(0, a.marksAwarded ?? 0));
+  }, 0);
 }
 
 /** True once every answer on the test has a numeric marksAwarded. */

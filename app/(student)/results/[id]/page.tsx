@@ -9,7 +9,7 @@ import { useDatabase, useStore } from "@/lib/data/store";
 import { studentById, testById, submissionFor, submissionsForStudent } from "@/lib/data/selectors";
 import { Card, Badge, Icon, EmptyState } from "@/components/ui";
 import { AnnotatedImage } from "@/components/Annotator";
-import { PageStack } from "@/components/PageStack";
+import { PageStack, PageViewerModal } from "@/components/PageStack";
 import { PaperText } from "@/components/PaperText";
 import { isPastPaper, withoutSources } from "@/lib/paper-builder";
 import { buttonClasses } from "@/components/ui/Button";
@@ -206,7 +206,8 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
   const pending = awaitingMarks(answer);
   const full = awarded >= question.marks;
   const zero = awarded === 0;
-  const [big, setBig] = useState<string | null>(null);
+  // The page opened full screen, if any.
+  const [viewing, setViewing] = useState<number | null>(null);
   const pastPaper = isPastPaper(question);
   const prompt = pastPaper ? withoutSources(question.prompt) : question.prompt;
   // Typed past paper options carry their letter, as the student saw them.
@@ -310,20 +311,43 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
         {question.type === "photo" && (() => {
           const photos = answer?.photoUrls ?? (answer?.photoDataUrl ? [answer.photoDataUrl] : []);
           if (!photos.length) return <p className="text-sm italic text-ink-3">(no photo)</p>;
+          const shapesOf = (url: string) => answer?.annotations?.[url] ?? [];
           return (
             <div className="space-y-2">
-              {photos.map((url, i) => (
-                // Tap a marked page to see it full width (Hamza's marks are readable on a phone).
-                <button key={url} type="button" onClick={() => setBig(big === url ? null : url)} className="block w-full" aria-label={big === url ? "Make smaller" : "Make bigger"}>
-                  <AnnotatedImage
-                    url={url}
-                    shapes={answer?.annotations?.[url] ?? []}
-                    alt={`Your answer to question ${index + 1}, image ${i + 1}`}
-                    className={cn("mx-auto block rounded-tile border border-hairline bg-surface-2", big === url ? "w-full" : "max-h-64 w-auto max-w-full")}
-                  />
-                </button>
-              ))}
-              <p className="text-center text-sm text-ink-3">Tap a page to make it bigger.</p>
+              {photos.map((url, i) => {
+                // A page with my marks keeps its own shape at the card's
+                // width (capping its height squashed it and moved the marks
+                // off the lines they belong to). An unmarked one stays small.
+                const marked = shapesOf(url).length > 0;
+                return (
+                  <button key={url} type="button" onClick={() => setViewing(i)} className="block w-full" aria-label={`Open page ${i + 1} full screen`}>
+                    <AnnotatedImage
+                      url={url}
+                      shapes={shapesOf(url)}
+                      alt={`Your answer to question ${index + 1}, image ${i + 1}`}
+                      className={cn("block rounded-tile border border-hairline bg-surface-2", marked ? "h-auto" : "mx-auto max-h-64 w-auto max-w-full")}
+                    />
+                  </button>
+                );
+              })}
+              <p className="text-center text-sm text-ink-3">Tap a page to open it full screen.</p>
+              {viewing != null && (
+                <PageViewerModal
+                  urls={photos}
+                  startAt={Math.min(viewing, photos.length - 1)}
+                  label={`Your answer to question ${index + 1}`}
+                  onClose={() => setViewing(null)}
+                  wide
+                  renderPage={(url, i) => (
+                    <AnnotatedImage
+                      url={url}
+                      shapes={shapesOf(url)}
+                      alt={`Your answer to question ${index + 1}, page ${i + 1}`}
+                      className="block h-auto w-full"
+                    />
+                  )}
+                />
+              )}
             </div>
           );
         })()}

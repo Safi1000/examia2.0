@@ -1,7 +1,7 @@
 import webpush from "web-push";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { RECORDING_HOURS, liveSlotsOn, pkDate, setSchedule } from "@/lib/timetable";
-import { loadSchedule } from "@/lib/schedule-server";
+import { loadSchedule, loadScheduleForSave } from "@/lib/schedule-server";
 import { assignmentCopy, awayCopy, classCopy, newHomeworkCopy, recordingCopy, resultCopy, studyCopy, testOpensCopy } from "@/lib/notify-copy";
 import { cleanLevels, type LevelSubjects } from "@/lib/levels";
 import { isTestAccount } from "@/lib/display-name";
@@ -111,7 +111,8 @@ export async function byIds(ids: string[], read: (part: string[]) => Promise<Row
 async function deliver(sb: SupabaseClient, all: Item[]): Promise<number> {
   if (!all.length) return 0;
   // Paused students get nothing on their phones. If the accounts can't be
-  // read this once, the notices still go out rather than everyone missing them.
+  // read this once, the notices still go out rather than everyone missing them,
+  // except the come-back nudges: those fail closed (a paused student must never get one).
   let items = all;
   try {
     const { pausedStudentIds } = await import("@/lib/paused-server");
@@ -119,6 +120,7 @@ async function deliver(sb: SupabaseClient, all: Item[]): Promise<number> {
     if (paused.size) items = all.filter((i) => !paused.has(i.studentId));
   } catch (e) {
     console.error("[push] paused list", e);
+    items = all.filter((i) => i.kind !== "nudge");
   }
   if (!items.length) return 0;
   webpush.setVapidDetails(
@@ -530,7 +532,8 @@ async function classItems(sb: SupabaseClient, students: Reach[], now: number, wi
 
   const items: Item[] = [];
   for (const s of students) {
-    if (off.has(s.id)) continue;
+    // In-person students sit in the room and never tap Join: no "class has started" for them.
+    if (off.has(s.id) || s.inPerson) continue;
     // Their own level and subjects, else their cohort's (same rule as the portal).
     const lv = s.classes.size ? s.classes : (cohortClasses.get(s.cohortId ?? "") ?? new Set<string>());
     const sb2 = s.subjects.size ? s.subjects : (cohortSubjects.get(s.cohortId ?? "") ?? new Set<string>());
@@ -708,14 +711,20 @@ async function recordingItems(sb: SupabaseClient, students: Reach[], profiles: M
 }
 
 /**
- * Away for two school days: one warm nudge back. Checked once a day, between
+ * Away for two class days: one warm nudge back. Checked once a day, between
  * 2:30 and 3 pm Pakistan time on Monday to Friday (before the first class), so
- * it lands when they can act on it. Saturday and Sunday never count as days
- * away. "Here" means any sign of them: the portal open, a sign-in, a class
- * joined, a test or homework handed in (the phone app's own screens don't
- * record visits, so the last three keep app users from looking away).
- * One nudge per spell away: the next comes only after they are back and away again.
- * Their first three days on the portal are left alone.
+ * it lands when they can act on it. Only days with a class of theirs on the
+ * timetable count, and nothing goes on a day they have no class (a holiday or
+ * a break Hamza called is not "away"). "Here" means any sign of them: the
+ * portal open, a sign-in, a class joined, a test or homework handed in (the
+ * phone app's own screens don't record visits, so the last three keep app
+ * users from looking away).
+ * One nudge per spell away, remembered by their last day here: the next comes
+ * only after they are back and away again. Nobody seen in the last three weeks
+ * gets one (they had theirs when the spell began). "Away until" from Today
+ * keeps them out until that day has passed. Their first three days are left alone.
+ * Fails closed: if any read fails, nobody is nudged (a missing sign would make
+ * a student who is here look away).
  */
 export const AWAY_SCHOOL_DAYS = 2;
 async function awayItems(sb: SupabaseClient, students: Reach[], now: number): Promise<Item[]> {
@@ -730,27 +739,58 @@ async function awayItems(sb: SupabaseClient, students: Reach[], now: number): Pr
   const since = new Date(now - 21 * 864e5);
   const sinceDay = pkDate(+since);
   const last = new Map<string, string>();
+  // Only days inside the three weeks count, whatever the source (a sign-in or a
+  // month's activity file can be older). Otherwise, once the newest sign left the
+  // window, an older one would become "last day here" and its new ref would nudge again.
   const seen = (id: string, day: string | null | undefined) => {
-    if (!day || day > today) return;
+    if (!day || day > today || day < sinceDay) return;
     if (!last.has(id) || day > last.get(id)!) last.set(id, day);
   };
   const ids = settled.map((s) => s.id);
   const dayOf = (iso: string | null | undefined) => (iso ? pkDate(Date.parse(iso)) : null);
 
-  const [{ data: joins }, { data: subs }, { data: hand }] = await Promise.all([
+  const reads = await Promise.all([
     byIds(ids, (part) => allRows((a, b) => sb.from("class_joins").select("student_id,on_date").in("student_id", part).gte("on_date", sinceDay).order("student_id").order("on_date").range(a, b))),
     byIds(ids, (part) => allRows((a, b) => sb.from("submissions").select("id,student_id,submitted_at").in("student_id", part).gte("submitted_at", since.toISOString()).order("id").range(a, b))),
     byIds(ids, (part) => allRows((a, b) => sb.from("assignment_submissions").select("id,student_id,submitted_at").in("student_id", part).gte("submitted_at", since.toISOString()).order("id").range(a, b))),
+    // "Away until" days Hamza set on Today (lib/reminders.ts AWAY_UNTIL).
+    allRows((a, b) => sb.from("reminders_sent").select("id,student_id,ref,sent_at").eq("kind", "away_until").order("id").range(a, b)),
+    allRows((a, b) => sb.from("cohort_classes").select("cohort_id,class_id").order("cohort_id").order("class_id").range(a, b)),
+    allRows((a, b) => sb.from("cohort_subjects").select("cohort_id,subject_id").order("cohort_id").order("subject_id").range(a, b)),
+    allRows((a, b) => sb.from("classes").select("id,name").order("id").range(a, b)),
+    allRows((a, b) => sb.from("subjects").select("id,name").order("id").range(a, b)),
   ]);
+  if (reads.some((r) => r.error)) {
+    console.error("[push] away: a read failed, nothing sent", reads.find((r) => r.error)?.error?.message);
+    return [];
+  }
+  const [{ data: joins }, { data: subs }, { data: hand }, { data: awayRows }, { data: cc }, { data: cs }, { data: classes }, { data: subjects }] = reads;
   for (const j of joins ?? []) seen(j.student_id, j.on_date);
   for (const x of subs ?? []) seen(x.student_id, dayOf(x.submitted_at));
   for (const x of hand ?? []) seen(x.student_id, dayOf(x.submitted_at));
 
-  // Sign-ins.
+  // Away with a reason: the latest "away until" per student. Still away: skip. Back: that day counts as their last day here.
+  const awayBest = new Map<string, { at: number; until: string }>();
+  for (const r of awayRows ?? []) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(r.ref))) continue;
+    const at = Date.parse(r.sent_at as string) || 0;
+    const had = awayBest.get(r.student_id as string);
+    if (!had || at > had.at) awayBest.set(r.student_id as string, { at, until: r.ref as string });
+  }
+  const stillAway = new Set<string>();
+  for (const [id, v] of awayBest) {
+    if (v.until >= today) stillAway.add(id);
+    else seen(id, v.until);
+  }
+
+  // Sign-ins. A failed page means sign-ins are unknown: send nothing.
   const byUser = new Map(settled.filter((s) => s.userId).map((s) => [s.userId as string, s.id]));
   for (let page = 1; page <= 10 && byUser.size; page++) {
     const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 1000 });
-    if (error) break;
+    if (error) {
+      console.error("[push] away: sign-ins unreadable, nothing sent", error.message);
+      return [];
+    }
     for (const u of data.users) {
       const id = byUser.get(u.id);
       if (id) seen(id, dayOf(u.last_sign_in_at));
@@ -761,11 +801,19 @@ async function awayItems(sb: SupabaseClient, students: Reach[], now: number): Pr
   // Portal visits: this month's activity file, and last month's early in a month.
   const months = [...new Set([today.slice(0, 7), sinceDay.slice(0, 7)])];
   const jobs = settled.flatMap((s) => months.map((m) => ({ id: s.id, path: `${s.id}/${m}.json` })));
-  for (let i = 0; i < jobs.length; i += 24) {
+  // A file that isn't there is normal (no visits that month). Any other failure means visits are unknown: send nothing.
+  let unreadable = false;
+  for (let i = 0; i < jobs.length && !unreadable; i += 24) {
     const batch = jobs.slice(i, i + 24);
     const files = await Promise.all(
       batch.map(async (j) => {
-        const { data } = await sb.storage.from("activity").download(j.path);
+        const { data, error } = await sb.storage.from("activity").download(j.path);
+        if (error) {
+          const e = error as { status?: number; statusCode?: string; message?: string };
+          const missing = e.status === 400 || e.status === 404 || e.statusCode === "404" || /not.?found/i.test(e.message ?? "");
+          if (!missing) unreadable = true;
+          return null;
+        }
         if (!data) return null;
         try {
           return JSON.parse(await data.text()) as { days?: Record<string, { s?: Record<string, number> }> };
@@ -782,21 +830,56 @@ async function awayItems(sb: SupabaseClient, students: Reach[], now: number): Pr
     });
   }
 
-  // School days (Monday to Friday) strictly between their last day here and today.
-  const schoolDaysSince = (day: string) => {
+  if (unreadable) {
+    console.error("[push] away: activity files unreadable, nothing sent");
+    return [];
+  }
+
+  // The timetable (with Hamza's cancellations and breaks). Read fresh: if it can't be read, this throws and nothing is sent.
+  setSchedule(await loadScheduleForSave(sb));
+  const tdb = {
+    classes: (classes ?? []).map((c) => ({ id: c.id as string, name: c.name as string, createdAt: "" })),
+    subjects: (subjects ?? []).map((x) => ({ id: x.id as string, name: x.name as string, createdAt: "" })),
+  };
+  const cohortClasses = new Map<string, Set<string>>();
+  for (const r of cc ?? []) cohortClasses.set(r.cohort_id, (cohortClasses.get(r.cohort_id) ?? new Set()).add(r.class_id));
+  const cohortSubjects = new Map<string, Set<string>>();
+  for (const r of cs ?? []) cohortSubjects.set(r.cohort_id, (cohortSubjects.get(r.cohort_id) ?? new Set()).add(r.subject_id));
+  const slotsByDay = new Map<string, ReturnType<typeof liveSlotsOn>>();
+  const slotsOnDay = (d: string) => {
+    if (!slotsByDay.has(d)) slotsByDay.set(d, liveSlotsOn(tdb, d));
+    return slotsByDay.get(d)!;
+  };
+  // Does this student have a class on this day? Their own level and subjects, else their cohort's (the portal's rule).
+  const hasClass = (s: Reach, d: string) => {
+    const lv = s.classes.size ? s.classes : (cohortClasses.get(s.cohortId ?? "") ?? new Set<string>());
+    const sbj = s.subjects.size ? s.subjects : (cohortSubjects.get(s.cohortId ?? "") ?? new Set<string>());
+    return slotsOnDay(d).some((sl) => {
+      if (!lv.has(sl.classId)) return false;
+      const atLevel = s.levels[sl.classId]?.length ? new Set(s.levels[sl.classId]) : sbj;
+      return !atLevel.size || atLevel.has(sl.subjectId);
+    });
+  };
+  // Their class days strictly between their last day here and today.
+  const classDaysSince = (s: Reach, day: string) => {
     let n = 0;
     for (let d = new Date(`${day}T12:00:00+05:00`).getTime() + 864e5; pkDate(d) < today; d += 864e5) {
-      const w = new Date(d).getUTCDay();
-      if (w !== 0 && w !== 6) n++;
-      if (n > 30) break;
+      if (hasClass(s, pkDate(d))) n++;
+      if (n >= AWAY_SCHOOL_DAYS) break;
     }
     return n;
   };
   const items: Item[] = [];
   for (const s of settled) {
+    if (stillAway.has(s.id)) continue;
     const lastDay = last.get(s.id) ?? null;
-    if (lastDay && schoolDaysSince(lastDay) < AWAY_SCHOOL_DAYS) continue;
-    const ref = `away:${lastDay ?? `before-${sinceDay}`}`;
+    // No sign in three weeks: their nudge went when the spell began. Never again until they come back.
+    if (!lastDay) continue;
+    // A day with no class of theirs (a holiday, a break): no nudge today.
+    if (!hasClass(s, today)) continue;
+    if (classDaysSince(s, lastDay) < AWAY_SCHOOL_DAYS) continue;
+    // The same ref for the whole spell, so the log lets it through once.
+    const ref = `away:${lastDay}`;
     items.push({ studentId: s.id, kind: "nudge", refs: [ref], ...awayCopy(`${s.id}${ref}`), url: "/dashboard", tag: "away", priority: 5 });
   }
   return items;

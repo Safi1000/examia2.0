@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useDatabase } from "@/lib/data/store";
+import { getStore, useDatabase } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { useAuth } from "@/lib/auth-context";
 import { LogoTight } from "@/components/Brand";
@@ -183,6 +183,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <button
           type="button"
           onClick={() => {
+            // Signing out drops marking still on its way: ask first.
+            if (getStore().pendingSaves() && !window.confirm("A mark hasn't saved yet. Sign out anyway?")) return;
             // Close the phone menu first, so it isn't still open (and holding the page) after signing back in.
             onNavigate?.();
             logout();

@@ -62,6 +62,31 @@ export const SERIOUS_SCORE = 50;
 export const COOL_OFF_DAYS = 7;
 
 const DAY = 24 * 60 * 60 * 1000;
+
+/*
+ * Today's own marks, kept in the same reminder log (kind is free text, so no
+ * database change). "checked" (Done) was already there; these say which way
+ * Hamza got in touch, and when a student is away with a reason.
+ */
+/** Hamza messaged the student from Today (or picked "Spoke to them"). ref: the day. */
+export const CONTACT_STUDENT = "contact_student";
+/** Hamza messaged the parent from Today (or picked "Parent knows"). ref: the day. */
+export const CONTACT_PARENT = "contact_parent";
+/** Away with a reason (exams, travel, illness) until this day. ref: YYYY-MM-DD. The latest one set wins. */
+export const AWAY_UNTIL = "away_until";
+
+/** Each student's "away until" day, the latest one Hamza set. Past days are kept: callers compare with today. */
+export function awayUntilMap(db: Pick<Database, "remindersSent">): Map<string, string> {
+  const best = new Map<string, { at: number; until: string }>();
+  for (const r of db.remindersSent) {
+    if (r.kind !== AWAY_UNTIL || !/^\d{4}-\d{2}-\d{2}$/.test(r.ref)) continue;
+    const at = +new Date(r.sentAt);
+    const had = best.get(r.studentId);
+    if (!had || at > had.at) best.set(r.studentId, { at, until: r.ref });
+  }
+  return new Map([...best].map(([id, v]) => [id, v.until]));
+}
+
 /** Most important first: only one of these is shown for a student at a time. */
 const PRIORITY: ReminderKind[] = ["absent_streak", "missed_test", "low_score"];
 
@@ -72,14 +97,19 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
   // In-person students are managed in class: no parent messages or monthly reports from here.
   // Hamza's own test account is never chased either.
   const inPerson = inPersonIds(db);
-  const students = db.students.filter((s) => !off.has(s.cohortId) && !inPerson.has(s.id) && !isTestAccount(s) && !isPausedId(s.id) && (cohortId ? s.cohortId === cohortId : true));
+  // Away with a reason Hamza set on Today (exams, travel): the parent already knows, so nothing until the day after.
+  const today = pkDate(nowMs);
+  const away = awayUntilMap(db);
+  const students = db.students.filter(
+    (s) => !off.has(s.cohortId) && !inPerson.has(s.id) && !isTestAccount(s) && !isPausedId(s.id) && (away.get(s.id) ?? "") < today && (cohortId ? s.cohortId === cohortId : true),
+  );
   const fresh = (r: Reminder) => !sent.has(`${r.student.id}|${r.kind}|${r.ref}`);
   const OPEN = CLOSES_AFTER_DAYS * DAY;
 
-  // A parent who heard from Hamza in the last week is left alone: one message, then quiet.
+  // A parent who heard from Hamza in the last week (from here, or Today's Parent button) is left alone: one message, then quiet.
   const told = new Set(
     db.remindersSent
-      .filter((r) => PRIORITY.includes(r.kind as ReminderKind) && nowMs - new Date(r.sentAt).getTime() <= COOL_OFF_DAYS * DAY)
+      .filter((r) => (PRIORITY.includes(r.kind as ReminderKind) || r.kind === CONTACT_PARENT) && nowMs - new Date(r.sentAt).getTime() <= COOL_OFF_DAYS * DAY)
       .map((r) => r.studentId),
   );
   // At most one reminder per student from the three below, the most important one.

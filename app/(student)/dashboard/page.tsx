@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useNow } from "@/hooks/useNow";
 import { useDatabase } from "@/lib/data/store";
-import { attendancePercent, studentById } from "@/lib/data/selectors";
+import { attendancePercent, joinedMs, studentById } from "@/lib/data/selectors";
 import { dueFor } from "@/lib/due";
 import { gradeSubmission } from "@/lib/grading";
 import { AnnouncementsPanel } from "@/components/student/AnnouncementsPanel";
@@ -28,7 +28,7 @@ import { FocusOnThis } from "@/components/student/FocusOnThis";
 import { IslandHeader } from "@/components/student/IslandHeader";
 import { overallTarget } from "@/components/student/targets";
 import { SectionTitle } from "@/components/student/PortalKit";
-import { JOIN_EARLY_MIN, pkDate, slotsForStudent, useSchedule } from "@/lib/classes";
+import { JOIN_EARLY_MIN, RECORDING_HOURS, addDays, pkDate, slotKey, slotsForStudent, useClassLinks, useSchedule } from "@/lib/classes";
 
 function greeting(d = new Date()) {
   const h = d.getHours();
@@ -54,6 +54,10 @@ export default function DashboardPage() {
   const nowMs = useNow();
   useSchedule(); // re-render when the timetable loads, so the class check below is current
   const student = session?.studentId ? studentById(db, session.studentId) : null;
+  // The last few days' class links and this student's own joins (they can only read their own),
+  // for a class recording still open from a class they weren't in. Read once, not polled.
+  const todayPk = pkDate(nowMs);
+  const { links: recLinks, joins: myJoins } = useClassLinks(addDays(todayPk, -3), todayPk, true, false);
 
   const due = useMemo(() => (student ? dueFor(db, student, nowMs) : null), [db, student, nowMs]);
   const tests = { open: due?.openTests ?? [], next: due?.nextTest ?? null };
@@ -105,6 +109,40 @@ export default function DashboardPage() {
       return t ? [{ key: `r-${x.id}`, href: `/results/${t.id}`, title: t.title, meta: `Result out · ${shownPercent(gradeSubmission(t, x).percent)}%`, cta: "See result", quiet: true }] : [];
     });
 
+  // Class recordings still open (2 days after class) from a class they didn't join and haven't
+  // opened: one row each, with Watch opening the player on Classes straight away.
+  const watched = new Set(profile.watched ?? []);
+  const joinedKeys = new Set(myJoins.filter((j) => j.studentId === student.id).map((j) => slotKey(j)));
+  const presentDays = new Set(db.attendanceDays.filter((a) => a.studentId === student.id && a.status !== "absent").map((a) => `${a.classId ?? ""}|${a.date}`));
+  const recLink = new Map(recLinks.filter((l) => l.recordingUrl).map((l) => [slotKey(l), l]));
+  const recordingTodo = Array.from({ length: 4 }, (_, i) => addDays(todayPk, -i))
+    .flatMap((d) => slotsForStudent(db, student, d))
+    .filter((sl) => {
+      const key = slotKey(sl);
+      const closes = sl.endMs + RECORDING_HOURS * 3_600_000;
+      return (
+        sl.endMs <= nowMs &&
+        closes > nowMs &&
+        sl.startMs >= joinedMs(student) &&
+        recLink.has(key) &&
+        !watched.has(key) &&
+        !joinedKeys.has(key) &&
+        !presentDays.has(`${sl.classId}|${sl.date}`) &&
+        !presentDays.has(`|${sl.date}`)
+      );
+    })
+    .sort((a, b) => a.endMs - b.endMs)
+    .map((sl) => {
+      const closes = sl.endMs + RECORDING_HOURS * 3_600_000;
+      return {
+        key: `rec-${slotKey(sl)}`,
+        href: `/classes?watch=${encodeURIComponent(slotKey(sl))}`,
+        title: `${sl.subject} class recording`,
+        meta: `Class on ${new Date(sl.startMs).toLocaleDateString("en-GB", { weekday: "short", timeZone: "Asia/Karachi" })} · open until ${new Date(closes).toLocaleString("en-GB", { weekday: "short", hour: "numeric", minute: "2-digit", hour12: true })}`,
+        cta: "Watch",
+      };
+    });
+
   const subjectOf = (id?: string | null) => (id ? db.subjects.find((x) => x.id === id)?.name : undefined);
   type Todo = { key: string; href: string; title: string; meta: string; cta: string; /** A shorter word for phones, where the row is tight. */ ctaShort?: string; quiet?: boolean; focus?: { kind: "test" | "homework"; subject?: string; id: string } };
   const todo: Todo[] = [
@@ -112,6 +150,7 @@ export default function DashboardPage() {
     // Straight to that homework on the Homework page, not the top of the list.
     ...overdue.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · overdue since ${formatWhen(a.dueAt)}`, cta: "Hand in work", ctaShort: "Hand in", focus: { kind: "homework" as const, subject: subjectOf(a.subjectId), id: a.id } })),
     ...dueSoon.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · due ${formatWhen(a.dueAt)}`, cta: "Hand in work", ctaShort: "Hand in", focus: { kind: "homework" as const, subject: subjectOf(a.subjectId), id: a.id } })),
+    ...recordingTodo,
     ...newResults,
   ];
   const toDoCount = todo.filter((x) => !x.quiet).length;

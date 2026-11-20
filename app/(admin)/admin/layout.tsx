@@ -19,6 +19,7 @@ import { NavIcon } from "@/components/nav/NavIcons";
 import { cn } from "@/lib/cn";
 import { NotificationBell } from "@/components/NotificationBell";
 import { CommandPalette } from "@/components/admin/CommandPalette";
+import { SaveStatus } from "@/components/admin/SaveStatus";
 import { isTa, taHome, taMayOpen } from "@/lib/staff";
 import { PortalAmbient } from "@/components/PortalAmbient";
 import { PortalManifest } from "@/components/PortalManifest";
@@ -195,6 +196,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <div className="md:hidden"><LogoTight className="h-5" /></div>
             </div>
             <div className="flex items-center gap-2">
+              <SaveStatus />
               <CommandPalette />
               <NotificationBell />
             </div>

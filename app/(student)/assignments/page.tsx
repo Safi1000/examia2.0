@@ -17,6 +17,28 @@ import { useNow } from "@/hooks/useNow";
 import { FocusOnThis } from "@/components/student/FocusOnThis";
 import { EmptyArt, PageHeader } from "@/components/student/PortalKit";
 
+// Replies the student has seen, kept on this phone: assignment id -> the reply's time.
+const seenKey = (studentId: string) => `examia.replySeen.${studentId}`;
+function readSeen(studentId: string | null): Record<string, string> {
+  if (!studentId || typeof window === "undefined") return {};
+  try {
+    return (JSON.parse(window.localStorage.getItem(seenKey(studentId)) ?? "{}") as Record<string, string>) ?? {};
+  } catch {
+    return {};
+  }
+}
+function markSeen(studentId: string, assignmentId: string, at: string) {
+  try {
+    const all = readSeen(studentId);
+    all[assignmentId] = at;
+    window.localStorage.setItem(seenKey(studentId), JSON.stringify(all));
+  } catch {
+    /* private mode: the marker just shows again next time */
+  }
+}
+/** Replies older than this aren't called new (so the first visit after this change isn't full of them). */
+const NEW_REPLY_MS = 14 * 86_400_000;
+
 /**
  * Weekly assignments. Work is handed in as photos or a PDF and answered with
  * written feedback — assignments are never marked.
@@ -39,9 +61,22 @@ export default function StudentAssignmentsPage() {
     ...mine.filter((a) => due(a) >= nowMs).sort((a, b) => due(a) - due(b)),
     ...past.filter((a) => !handedIn(a)),
   ];
+  // A reply from me the student hasn't seen yet (read on this phone).
+  const seen = readSeen(studentId);
+  const unread = (a: Assignment) => {
+    const sub = db.assignmentSubmissions.find((s) => s.assignmentId === a.id && s.studentId === studentId);
+    if (!sub?.feedback?.trim() || !sub.feedbackAt || nowMs - +new Date(sub.feedbackAt) > NEW_REPLY_MS) return false;
+    return !seen[a.id] || +new Date(seen[a.id]) < +new Date(sub.feedbackAt);
+  };
+  // Homework with a new reply stays in the main list for this visit, even
+  // once it is read, so it doesn't jump into Done while they read it.
+  const [pinned, setPinned] = useState<Set<string>>(() => new Set());
+  const newlyUnread = past.filter((a) => handedIn(a) && !pinned.has(a.id) && unread(a));
+  if (newlyUnread.length) setPinned(new Set([...pinned, ...newlyUnread.map((a) => a.id)]));
+  const assignmentsShown = [...assignments, ...past.filter((a) => handedIn(a) && pinned.has(a.id))];
   // Handed in and past the deadline: folded away, so the list stays short
   // as the weeks go by (and their worksheets don't load until opened).
-  const done = past.filter(handedIn);
+  const done = past.filter((a) => handedIn(a) && !pinned.has(a.id));
   const [doneOpen, setDoneOpen] = useState(() => {
     try {
       return done.some((a) => window.location.hash === `#a-${a.id}`);
@@ -50,11 +85,23 @@ export default function StudentAssignmentsPage() {
     }
   });
 
-  // Home's "Hand in" lands on that assignment (/assignments#a-<id>).
+  // Home's "Hand in" and my reply's notification land on that assignment
+  // (/assignments#a-<id>), opening Done first if it is in there.
+  const landed = useRef(false);
+  const doneIds = done.map((a) => a.id).join(",");
   useEffect(() => {
-    const el = window.location.hash.startsWith("#a-") ? document.getElementById(window.location.hash.slice(1)) : null;
-    if (el) requestAnimationFrame(() => el.scrollIntoView({ block: "start" }));
-  }, []);
+    if (landed.current || !window.location.hash.startsWith("#a-")) return;
+    const id = window.location.hash.slice(3);
+    if (!doneOpen && doneIds.split(",").includes(id)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDoneOpen(true);
+      return;
+    }
+    const el = document.getElementById(`a-${id}`);
+    if (!el) return;
+    landed.current = true;
+    requestAnimationFrame(() => el.scrollIntoView({ block: "start" }));
+  }, [doneOpen, doneIds]);
 
   if (!studentId) return null;
 
@@ -63,21 +110,21 @@ export default function StudentAssignmentsPage() {
       <div className="rise space-y-10">
       <PageHeader title="Homework">Hand in your work as photos or a PDF.</PageHeader>
 
-      {assignments.length === 0 && done.length === 0 ? (
+      {assignmentsShown.length === 0 && done.length === 0 ? (
         <EmptyState
           icon={<Icon.Doc />}
           art={<EmptyArt name="empty-all-caught-up" />}
           title="No homework right now"
           message="When I set homework, it appears here with its due date."
         />
-      ) : assignments.length === 0 ? (
+      ) : assignmentsShown.length === 0 ? (
         <div className="surface flex items-center gap-4 rounded-card p-5 sm:p-6">
           <p className="text-base font-semibold text-ink">All handed in. Nothing to do right now.</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {assignments.map((a) => (
-            <AssignmentCard key={a.id} assignment={a} studentId={studentId} lead={a.id === assignments.find((x) => !handedIn(x))?.id} />
+          {assignmentsShown.map((a) => (
+            <AssignmentCard key={a.id} assignment={a} studentId={studentId} lead={a.id === assignments.find((x) => !handedIn(x))?.id} newReply={unread(a)} />
           ))}
         </div>
       )}
@@ -104,7 +151,7 @@ export default function StudentAssignmentsPage() {
   );
 }
 
-function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignment; studentId: string; lead?: boolean }) {
+function AssignmentCard({ assignment, studentId, lead, newReply }: { assignment: Assignment; studentId: string; lead?: boolean; newReply?: boolean }) {
   const db = useDatabase();
   const store = useStore();
   const { toast } = useToast();
@@ -146,6 +193,24 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
       setRemoving(false);
     }
   }
+
+  // A new reply counts as read once most of it has been on screen.
+  const replyRef = useRef<HTMLDivElement>(null);
+  const feedbackAt = mine?.feedbackAt;
+  useEffect(() => {
+    const el = replyRef.current;
+    if (!newReply || !el || !feedbackAt || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        markSeen(studentId, assignment.id, feedbackAt);
+        io.disconnect();
+      },
+      { threshold: 0.6 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [newReply, feedbackAt, studentId, assignment.id]);
 
   // Pages that uploaded but didn't save (the hand-in itself failed).
   const [unsaved, setUnsaved] = useState<string[] | null>(null);
@@ -213,7 +278,9 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
     <Card id={`a-${assignment.id}`} className="scroll-mt-24 p-5 sm:p-6">
       <div className="flex items-center justify-between gap-2">
         <p className="min-w-0 truncate text-xs font-medium text-ink-3">{subjectName ?? "Homework"}</p>
-        {mine ? (
+        {newReply ? (
+          <Badge tone="success">New reply</Badge>
+        ) : mine ? (
           <Badge tone={+new Date(mine.submittedAt) > +new Date(assignment.dueAt) ? "neutral" : "success"}>{+new Date(mine.submittedAt) > +new Date(assignment.dueAt) ? "Handed in late" : "Handed in"}</Badge>
         ) : (
           overdue && <Badge tone="warning">Overdue</Badge>
@@ -271,7 +338,7 @@ function AssignmentCard({ assignment, studentId, lead }: { assignment: Assignmen
       )}
 
       {mine?.feedback && (
-        <div className="mt-4 rounded-tile bg-surface-2 p-4">
+        <div ref={replyRef} className="mt-4 rounded-tile bg-surface-2 p-4">
           <p className="label-quiet text-ink-3">From Hamza</p>
           <p className="mt-1.5 whitespace-pre-wrap text-base leading-relaxed text-ink">{mine.feedback}</p>
         </div>

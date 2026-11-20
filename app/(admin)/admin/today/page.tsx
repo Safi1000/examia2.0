@@ -17,7 +17,9 @@ import { useStudentProfiles } from "@/lib/student-profiles";
 import { useActivity } from "@/lib/activity-admin";
 import { isInPersonStudent } from "@/lib/in-person";
 import { buildAttention, recordingReport } from "@/lib/attention";
-import { AttentionList } from "@/components/admin/AttentionList";
+import { AttentionList, type AttentionAct } from "@/components/admin/AttentionList";
+import { usePushDevices } from "@/lib/push-devices";
+import { AWAY_UNTIL, CONTACT_PARENT, CONTACT_STUDENT, awayUntilMap } from "@/lib/reminders";
 import { StartCard } from "@/components/admin/StartCard";
 import { SlippingCard } from "@/components/admin/SlippingCard";
 import { WellBuiltCard } from "@/components/admin/WellBuiltCard";
@@ -101,7 +103,19 @@ export default function TodayPage() {
   }, [db.remindersSent, localChecked]);
   // Tests whose full "not handed in" list has been opened (a big class would bury the page otherwise).
   const [allMissing, setAllMissing] = useState<string[]>([]);
-  const markChecked = (id: string) => store.markReminderSent(id, "checked", todayPk);
+  // Every button on the list hides the student for a week ("checked"); Message and Parent also
+  // say which way Hamza got in touch (for the next step), and Away keeps them off until a day.
+  const onAct = (id: string, a: AttentionAct) => {
+    store.markReminderSent(id, "checked", todayPk);
+    if (a.kind === "student" || a.kind === "spoke") store.markReminderSent(id, CONTACT_STUDENT, todayPk);
+    if (a.kind === "parent" || a.kind === "parent_knows") store.markReminderSent(id, CONTACT_PARENT, todayPk);
+    if (a.kind === "away") {
+      store.markReminderSent(id, AWAY_UNTIL, a.until);
+      toast(`Away until ${new Date(`${a.until}T12:00:00+05:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}. They're off this list, parent reminders and nudges until then.`, "success");
+    }
+  };
+  // Who has phone reminders on: the rest get a "No phone reminders" chip.
+  const pushOn = usePushDevices(db.students.map((s) => s.id));
 
   // The heavy sums below follow the clock in 5-minute steps, not every 30 s tick.
   const tick = Math.floor(nowMs / 300_000) * 300_000;
@@ -155,7 +169,7 @@ export default function TodayPage() {
       to: todayPk,
       nowMs: tick,
     });
-    const { problems, rotation } = buildAttention(db, {
+    const attention = buildAttention(db, {
       students,
       tests: live,
       nowMs: tick,
@@ -164,6 +178,8 @@ export default function TodayPage() {
       profilesReady,
       activity: activity.data,
       recordings: weekReady ? recordings : [],
+      joins: weekJoins,
+      awayUntil: awayUntilMap(db),
     });
     const hasResults = db.submissions.some((x) => x.status === "released" && studentIds.has(x.studentId));
 
@@ -178,7 +194,7 @@ export default function TodayPage() {
 
     const weak = weakTopics(db, cohortId).map((w) => ({ ...w, available: retestQuestions(db, w.subject, w.name).length }));
 
-    return { toMark, toReply, closing, problems, rotation, avg30, weak, studentCount: students.length, hasResults };
+    return { toMark, toReply, closing, attention, avg30, weak, studentCount: students.length, hasResults };
   }, [db, cohortId, tick, checked, profiles, profilesReady, weekLinks, weekJoins, weekReady, weekAgo, todayPk, activity.data, pausedIds]);
 
   const cohortName = cohortId ? cohortById(db, cohortId)?.name : null;
@@ -205,9 +221,9 @@ export default function TodayPage() {
     { label: "Closing in 48 hours", value: data.closing.length, href: "#closing", note: null },
     {
       label: "Students to check on",
-      value: data.problems.length + data.rotation.length,
+      value: data.attention.problems.length,
       href: "#attention",
-      note: data.rotation.length ? `${data.problems.length} with a problem` : null,
+      note: data.attention.newcomers.length ? `${data.attention.newcomers.length} new this week` : null,
     },
     { label: "Average, last 30 days", value: data.avg30 === null ? "None yet" : `${data.avg30}%`, href: "/admin/analytics", note: null },
   ];
@@ -379,12 +395,12 @@ export default function TodayPage() {
 
         {/* Students who need you today: problems first, then the check-in rotation. */}
         <AttentionList
-          problems={data.problems}
-          rotation={data.rotation}
+          data={data.attention}
           studentCount={data.studentCount}
           nowMs={nowMs}
           loadingMore={!profilesReady || weekReady === null || (activity.data === null && !activity.error)}
-          onCheck={markChecked}
+          pushOn={pushOn}
+          onAct={onAct}
         />
 
         {/* Weak topics → retest */}

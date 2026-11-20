@@ -24,6 +24,8 @@ import { useNow } from "@/hooks/useNow";
 import { buttonClasses } from "@/components/ui/Button";
 import { PastPaperSheet, type PastPaperBuild } from "@/components/admin/PastPaperSheet";
 import { questionFromBuilt, testMinutes } from "@/lib/paper-builder";
+import { useSittingNow } from "@/lib/sitting-now";
+import { goesWide, wideLine } from "@/lib/test-audience";
 
 const STATUS_TONE: Record<TestStatus, "neutral" | "success" | "warning"> = {
   draft: "neutral",
@@ -45,7 +47,13 @@ export default function AdminTestsPage() {
 
   const [subjectFilter, setSubjects] = useStickyFilter("tests.subject");
   const [statuses, setStatuses] = useStickyFilter("tests.status");
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteId, setDeleteIdRaw] = useState<string | null>(null);
+  // The single Delete's "they will lose their work" tick, fresh for each test.
+  const [deleteSittingOk, setDeleteSittingOk] = useState(false);
+  const setDeleteId = (id: string | null) => {
+    setDeleteIdRaw(id);
+    setDeleteSittingOk(false);
+  };
   // Bulk work: tick rows, then act on them all in one go.
   const [bulkClose, setBulkClose] = useState("");
   const [ask, setAsk] = useState<null | "publish" | "draft" | "extend" | "close-at" | "close" | "release" | "cohort" | "duplicate" | "delete">(null);
@@ -110,6 +118,24 @@ export default function AdminTestsPage() {
   const unmarkedCount = pending.reduce((n, t) => n + waiting(t).length - markedOf(t).length, 0);
   const resultsLost = chosen.reduce((n, t) => n + handedIn(t.id), 0);
   const names = chosen.map((t) => t.title);
+  const target = deleteId ? db.tests.find((t) => t.id === deleteId) : null;
+
+  // Students writing it right now: Back to draft would pull the paper off
+  // their screens, and Delete would wipe their work. Read when asked.
+  const sittingFor = ask === "draft" ? live : ask === "delete" ? chosen : target ? [target] : [];
+  const sitting = useSittingNow(db, sittingFor, sittingFor.length > 0, now);
+  const sittingIds = (id: string) => sitting.byTest.get(id) ?? [];
+  const sittingAll = [...new Set(sittingFor.flatMap((t) => sittingIds(t.id)))];
+  const sittingLine = (ids: string[], these: string) => {
+    if (!ids.length) return null;
+    const first = db.students.find((x) => x.id === ids[0]);
+    const name = first ? displayName(first.username) : "A student";
+    return ids.length === 1
+      ? `${name} is sitting ${these} right now.`
+      : `${name} and ${ids.length - 1} ${ids.length === 2 ? "other" : "others"} are sitting ${these} right now.`;
+  };
+  // Published to every class or every subject: worth one more look before it goes.
+  const wideDrafts = drafts.filter((t) => !publishProblem(t) && goesWide(t));
 
   /** Why a draft can't go live yet (the same checks as Publish on its edit page). */
   function publishProblem(t: (typeof chosen)[number]) {
@@ -146,8 +172,10 @@ export default function AdminTestsPage() {
   }
 
   function runDraft() {
-    const ok = live.filter((t) => handedIn(t.id) === 0);
-    const problems = live.filter((t) => handedIn(t.id) > 0).map((t) => ({ name: t.title, why: "students have handed it in" }));
+    const ok = live.filter((t) => handedIn(t.id) === 0 && sittingIds(t.id).length === 0);
+    const problems = live
+      .filter((t) => handedIn(t.id) > 0 || sittingIds(t.id).length > 0)
+      .map((t) => ({ name: t.title, why: handedIn(t.id) > 0 ? "students have handed it in" : "students are sitting it now" }));
     const before = snapshot(ok);
     ok.forEach((t) => store.setTestStatus(t.id, "draft"));
     setAsk(null);
@@ -370,7 +398,6 @@ export default function AdminTestsPage() {
     router.push(`/admin/tests/${id}`);
   }
 
-  const target = deleteId ? db.tests.find((t) => t.id === deleteId) : null;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
@@ -502,9 +529,15 @@ export default function AdminTestsPage() {
         title={`Publish ${plural(drafts.length, "draft")}?`}
         description="Students in each test's cohort, level and subject see it at its opening time and get a notice."
         confirmLabel="Publish"
+        ack={wideDrafts.length ? `I've checked who ${wideDrafts.length === 1 ? "it goes" : "they go"} to.` : undefined}
         onConfirm={runPublish}
       >
         <NameList names={drafts.map((t) => t.title)} />
+        {wideDrafts.map((t) => (
+          <p key={t.id} className="rounded-field border border-warning/30 bg-warning-soft px-3 py-2 text-warning">
+            {wideLine(db, t, `"${t.title}"`)} Is that right? If not, open it and pick the class and subject first.
+          </p>
+        ))}
         {drafts.some((t) => publishProblem(t)) && (
           <p>{plural(drafts.filter((t) => publishProblem(t)).length, "draft")} can&apos;t go live yet and will be left as drafts: {drafts.filter((t) => publishProblem(t)).map((t) => `${t.title} (${publishProblem(t)})`).join(", ")}.</p>
         )}
@@ -517,10 +550,17 @@ export default function AdminTestsPage() {
         title={`Move ${plural(live.length, "test")} back to draft?`}
         description="Students stop seeing them until you publish again."
         confirmLabel="Back to draft"
+        disabled={sitting.loading}
         onConfirm={runDraft}
       >
         <NameList names={live.map((t) => t.title)} />
         {live.some((t) => handedIn(t.id) > 0) && <p>Tests students have already handed in stay published, so their results are safe.</p>}
+        {sitting.loading && <p>Checking who is sitting {live.length === 1 ? "it" : "them"} right now…</p>}
+        {sittingAll.length > 0 && (
+          <p className="font-semibold text-warning">
+            {sittingLine(sittingAll, live.length === 1 ? "it" : "one of these")} {live.length === 1 ? "It stays" : "Those stay"} published, so nobody loses their paper halfway through.
+          </p>
+        )}
       </ConfirmBulk>
 
       <ConfirmBulk
@@ -617,10 +657,20 @@ export default function AdminTestsPage() {
         description={resultsLost ? `Their ${plural(resultsLost, "handed in paper")} and results go too. This cannot be undone.` : "This cannot be undone."}
         confirmLabel={`Delete ${plural(chosen.length, "test")}`}
         danger
-        ack={resultsLost ? `I understand ${plural(resultsLost, "student result")} will be deleted for good.` : undefined}
+        disabled={sitting.loading}
+        ack={
+          resultsLost || sittingAll.length
+            ? [
+                resultsLost ? `I understand ${plural(resultsLost, "student result")} will be deleted for good.` : "",
+                sittingAll.length ? `I understand the ${sittingAll.length === 1 ? "student" : `${sittingAll.length} students`} sitting it now will lose their work.` : "",
+              ].filter(Boolean).join(" ")
+            : undefined
+        }
         onConfirm={runDelete}
       >
         <NameList names={names} />
+        {sitting.loading && <p>Checking who is sitting {chosen.length === 1 ? "it" : "them"} right now…</p>}
+        {sittingAll.length > 0 && <p className="font-semibold text-error">{sittingLine(sittingAll, chosen.length === 1 ? "this" : "one of these")}</p>}
         {live.length > 0 && <p>Students who could see {live.length === 1 ? "it" : "them"} are told the test was cancelled.</p>}
       </ConfirmBulk>
 
@@ -642,6 +692,7 @@ export default function AdminTestsPage() {
             <Button variant="secondary" onClick={() => setDeleteId(null)}>Cancel</Button>
             <Button
               variant="danger"
+              disabled={sitting.loading || (!!target && sittingIds(target.id).length > 0 && !deleteSittingOk)}
               onClick={() => {
                 if (deleteId) store.deleteTest(deleteId);
                 setDeleteId(null);
@@ -654,6 +705,16 @@ export default function AdminTestsPage() {
         }
       >
         <p className="text-sm text-ink-2">This action cannot be undone.</p>
+        {sitting.loading && <p className="mt-2 text-sm text-ink-3">Checking who is sitting it right now…</p>}
+        {target && sittingIds(target.id).length > 0 && (
+          <>
+            <p className="mt-3 text-sm font-semibold text-error">{sittingLine(sittingIds(target.id), "this")}</p>
+            <label className="mt-3 flex min-h-11 cursor-pointer items-start gap-3 rounded-field border border-error/30 bg-error-soft px-3 py-2.5 text-sm text-ink">
+              <input type="checkbox" checked={deleteSittingOk} onChange={(e) => setDeleteSittingOk(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-error)]" />
+              <span>I understand they will lose their work.</span>
+            </label>
+          </>
+        )}
       </Modal>
     </div>
   );

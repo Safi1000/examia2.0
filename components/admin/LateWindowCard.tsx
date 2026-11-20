@@ -24,8 +24,12 @@ const left = (ms: number) => {
 
 /**
  * A student missed the test and asks to sit it later: open it for just them,
- * for a few hours. Everyone else still sees it closed, and results for the
- * test are held until their window ends.
+ * for a few hours. Everyone else still sees it closed. Other results can
+ * still be released meanwhile (see the note on the card).
+ *
+ * A student who had started and never handed in gets a fresh clock from
+ * Begin: their old start and saved answers belong to the earlier sitting
+ * (see lib/sitting.ts).
  */
 export function LateWindowCard({ test }: { test: Test }) {
   const db = useDatabase();
@@ -159,7 +163,7 @@ export function LateWindowCard({ test }: { test: Test }) {
             <Button fullWidth disabled={!picked || endsBeforeClose} onClick={open}>
               {picked ? `Open for ${nameOf(picked)} for ${hours} hours` : "Open for this student"}
             </Button>
-            <p className="text-sm text-ink-3">They get a notification, and their timer is the normal {test.durationMinutes} minutes. Results for this test wait until their window ends, and you release theirs yourself after marking.</p>
+            <p className="text-sm text-ink-3">They get a notification, and their timer is the normal {test.durationMinutes} minutes. Other results can still go out while they sit it, so classmates could pass on the answers. You release theirs yourself after marking.</p>
           </>
         )}
       </CardBody>

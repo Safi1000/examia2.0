@@ -11,7 +11,7 @@ import { useToast } from "@/components/toast";
 import { stickyHead, tableBox } from "@/components/admin/surface";
 import { RowMenu } from "@/components/admin/RowMenu";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Card, Button, Badge, CohortDot, EmptyState, Icon, TableScroll, Table, Th, Td, Modal } from "@/components/ui";
+import { Card, Button, Badge, CohortDot, EmptyState, Icon, TableScroll, Table, Th, Td, Modal, filterField } from "@/components/ui";
 import { FilterChips } from "@/components/admin/FilterChips";
 import { BulkBar, ConfirmBulk, OneByOne, RowCheck, SelectAll, chaseSteps, downloadCsv, plural, type BulkAction, type Step } from "@/components/admin/BulkBar";
 import { useSelection } from "@/lib/use-selection";
@@ -21,6 +21,21 @@ import { buttonClasses } from "@/components/ui/Button";
 import { gradeSubmission, isAllMcq } from "@/lib/grading";
 import { isFullyGraded } from "@/lib/scoring";
 import { formatTimestamp } from "@/lib/time";
+import type { Submission, Test } from "@/types";
+
+/**
+ * Where a paper stands, beyond released or not: a fully marked paper waiting
+ * to be released (or part marked) no longer looks untouched, and a released
+ * paper with a question still unmarked is flagged so it can never hide.
+ */
+function markState(test: Test, sub: Submission) {
+  const full = isFullyGraded(test, sub);
+  if (sub.status === "released") return { kind: "released" as const, missing: !full };
+  if (full) return { kind: "marked" as const, missing: false };
+  const byHand = test.questions.filter((q) => q.type !== "mcq");
+  const done = byHand.filter((q) => typeof sub.answers.find((a) => a.questionId === q.id)?.marksAwarded === "number").length;
+  return done > 0 ? { kind: "part" as const, missing: false, done, of: byHand.length } : { kind: "waiting" as const, missing: false };
+}
 
 export default function SubmissionsPage() {
   const db = useDatabase();
@@ -35,6 +50,8 @@ export default function SubmissionsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [ask, setAsk] = useState<null | "release" | "delete">(null);
   const [steps, setSteps] = useState<{ title: string; label: string; noun: string; list: Step[] } | null>(null);
+  // One student or one test, typed: finding a paper without scrolling the list.
+  const [search, setSearch] = useState("");
   const nowMs = useNow();
 
   // Subjects that actually have submissions — filtering by an empty one is a
@@ -81,8 +98,14 @@ export default function SubmissionsPage() {
       .filter((r) => (subjectFilter.length === 0 ? true : subjectFilter.includes(r.test.subject)))
       .filter((r) => (classFilter.length === 0 ? true : r.student?.classIds.some((c) => classFilter.includes(c)) ?? false))
       .filter((r) => (statuses.length === 0 ? true : statuses.includes(r.sub.status)))
+      .filter((r) => {
+        const needle = search.trim().toLowerCase();
+        if (!needle) return true;
+        const who = r.student ? `${r.student.username} ${displayName(r.student.username)}`.toLowerCase() : "";
+        return who.includes(needle) || r.test.title.toLowerCase().includes(needle);
+      })
       // Worked out once per row here, not several times per row on every render.
-      .map((r) => ({ ...r, grade: gradeSubmission(r.test, r.sub), lateWindow: inLateWindow(db, r.sub) }))
+      .map((r) => ({ ...r, grade: gradeSubmission(r.test, r.sub), lateWindow: inLateWindow(db, r.sub), state: markState(r.test, r.sub) }))
       // Anything still needing a grade floats to the top; released work sinks.
       .sort(
         (a, b) =>
@@ -90,7 +113,7 @@ export default function SubmissionsPage() {
           // Waiting papers oldest first (the order "Next" follows inside marking); marked ones newest first.
           (a.sub.status === "released" ? -1 : 1) * (+new Date(a.sub.submittedAt ?? 0) - +new Date(b.sub.submittedAt ?? 0)),
       );
-  }, [db, cohortId, subjectFilter, classFilter, statuses, view, archived]);
+  }, [db, cohortId, subjectFilter, classFilter, statuses, view, archived, search]);
 
   // Bulk release covers exactly what the filters are showing: every awaiting
   // submission on an all-MCQ test, which needs no human marking.
@@ -222,6 +245,14 @@ export default function SubmissionsPage() {
       />
 
       <div className="mb-4 space-y-2">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search student or test"
+          aria-label="Search student or test"
+          className={cn(filterField, "w-full sm:w-72")}
+        />
         <FilterChips
           label="Subject"
           options={subjects.map((sub) => ({ value: sub, label: sub }))}
@@ -267,7 +298,7 @@ export default function SubmissionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.slice(0, limit).map(({ sub, test, student, grade, lateWindow }) => {
+                {rows.slice(0, limit).map(({ sub, test, student, grade, lateWindow, state }) => {
                   const cohort = student ? cohortById(db, student.cohortId) : null;
                   return (
                     <tr key={sub.id}>
@@ -287,15 +318,25 @@ export default function SubmissionsPage() {
                         <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs md:hidden">
                           {sub.status === "released" ? (
                             <span className="font-semibold tabular-nums text-ink">{grade.percent}% · {grade.letter}</span>
+                          ) : state.kind === "marked" ? (
+                            <span className="tabular-nums text-ink-2">Marked, not released · {grade.percent}%</span>
                           ) : (
-                            <Badge tone="warning">Awaiting</Badge>
+                            <Badge tone="warning">{state.kind === "part" ? `Part marked (${state.done} of ${state.of})` : "Awaiting"}</Badge>
                           )}
+                          {state.missing && <span className="font-semibold text-warning">A mark is missing</span>}
                           {sub.late && !lateWindow && <Badge tone="error" className="capitalize">late</Badge>}
                         </span>
                       </Td>
                       <Td className="hidden xl:table-cell">{cohort ? <span className="inline-flex items-center gap-1.5 text-ink-2"><CohortDot color={cohort.color} />{cohort.name}</span> : "No cohort"}</Td>
                       <Td className="hidden md:table-cell">
-                        {sub.status === "released" ? <Badge tone="success">Released</Badge> : <Badge tone="warning">Awaiting</Badge>}
+                        {sub.status === "released" ? (
+                          <Badge tone="success">Released</Badge>
+                        ) : state.kind === "marked" ? (
+                          <Badge tone="neutral">Marked, not released</Badge>
+                        ) : (
+                          <Badge tone="warning">{state.kind === "part" ? `Part marked (${state.done} of ${state.of})` : "Awaiting"}</Badge>
+                        )}
+                        {state.missing && <span className="ml-1 text-xs font-semibold text-warning">a mark is missing</span>}
                         {sub.autoSubmitted && <span className="ml-1 text-xs text-ink-3" title="Handed in by the timer when time ran out">timed out</span>}
                         {sub.late &&
                           (lateWindow ? (
@@ -304,7 +345,7 @@ export default function SubmissionsPage() {
                             <Badge tone="error" className="ml-1 capitalize">late</Badge>
                           ))}
                       </Td>
-                      <Td className="hidden whitespace-nowrap font-semibold tabular-nums md:table-cell">{sub.status === "released" ? `${grade.percent}% · ${grade.letter}` : <span className="font-normal text-ink-3">Not yet</span>}</Td>
+                      <Td className="hidden whitespace-nowrap font-semibold tabular-nums md:table-cell">{sub.status === "released" ? `${grade.percent}% · ${grade.letter}` : state.kind === "marked" ? <span className="font-normal text-ink-2">{grade.percent}% · {grade.letter}</span> : <span className="font-normal text-ink-3">Not yet</span>}</Td>
                       <Td className="hidden min-w-[6.5rem] tabular-nums text-ink-2 md:table-cell xl:whitespace-nowrap">{sub.submittedAt ? formatTimestamp(sub.submittedAt) : "Not yet"}</Td>
                       <Td>
                         <div className="flex items-center gap-1.5">

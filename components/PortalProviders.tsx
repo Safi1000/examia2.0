@@ -37,7 +37,18 @@ function StoreErrorBridge() {
   useEffect(() => {
     let last = "";
     let lastAt = 0;
-    getStore().setErrorReporter((msg) => {
+    getStore().setErrorReporter((raw) => {
+      // "info: …" is a calm note from the store (a save still trying, a late sitter), not an error.
+      const info = raw.startsWith("info: ");
+      const msg = info ? raw.slice(6) : raw;
+      if (info) {
+        const now = Date.now();
+        if (msg === last && now - lastAt < 6000) return;
+        last = msg;
+        lastAt = now;
+        toast(msg, "info");
+        return;
+      }
       const offline = /fetch|network|timed? ?out|load failed|connection/i.test(msg) && !msg.startsWith("Some of the portal");
       // Technical messages ("addNoteAssignment: duplicate key…") become a plain sentence.
       const technical = /^[a-z][A-Za-z]+: /.test(msg);

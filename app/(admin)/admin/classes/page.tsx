@@ -8,6 +8,10 @@ import { useNow } from "@/hooks/useNow";
 import { useToast } from "@/components/toast";
 import { archivedCohortIds, canBeSwept } from "@/lib/data/selectors";
 import { isInPersonStudent } from "@/lib/in-person";
+import { useIsStaff } from "@/lib/staff";
+import { studentClassStarted } from "@/lib/portal-messages";
+import { usePausedIds } from "@/lib/paused";
+import { awayUntilMap } from "@/lib/reminders";
 import { displayName, isTestAccount } from "@/lib/display-name";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { GoogleConnect } from "@/components/admin/GoogleConnect";
@@ -52,12 +56,17 @@ export default function ClassesPage() {
   const db = useDatabase();
   const portal = useStore();
   const nowMs = useNow();
+  // "Not here yet" with Remind buttons is Hamza's only (staff have no phone numbers).
+  const staff = useIsStaff();
+  // Left out of "Not here yet": paused students, and anyone Hamza marked away until a later day.
+  const pausedIds = usePausedIds();
+  const awayUntil = useMemo(() => awayUntilMap(db), [db]);
   const { toast } = useToast();
   const today = pkDate(nowMs);
   const [picked, setPicked] = useState<string | null>(null);
   // Default to today, or the next class day (the first Monday before term starts).
   const date = picked ?? nextClassDay(today);
-  const { links, joins, ready, save, reload } = useClassLinks(date, date, true);
+  const { links, joins, ready, joinsOk, save, reload } = useClassLinks(date, date, true);
 
   const [view, setView] = useState<"day" | "week">("day");
   const weekDirty = useRef(false);
@@ -413,6 +422,34 @@ export default function ClassesPage() {
                           {isOpen ? "Close" : "More"}
                         </button>
                       </div>
+                      {/* Five minutes in: who isn't here yet, each with a ready WhatsApp. A nudge now turns an absence into a late.
+                          Hamza only; in-person students are already left out of this class list. */}
+                      {!staff && ready === true && joinsOk && phase === "live" && date === today && !s.cancelled && nowMs - s.startMs >= 5 * 60_000 && (() => {
+                        // Only once the joins were really read: after a failed read everyone would look absent.
+                        const notYet = who.filter(
+                          (w) => !isTestAccount(w) && !pausedIds.has(w.id) && (awayUntil.get(w.id) ?? "") < today && !joins.some((j) => slotKey(j) === key && j.studentId === w.id),
+                        );
+                        if (!notYet.length) return null;
+                        return (
+                          <div className="flex flex-wrap items-center gap-2 px-5 pb-3.5 sm:px-6">
+                            <span className="text-sm text-ink-3">Not here yet:</span>
+                            {notYet.map((w) => {
+                              const href = w.phone
+                                ? `https://wa.me/${w.phone.replace(/\D/g, "")}?text=${encodeURIComponent(studentClassStarted({ id: w.id, username: w.username, subject: s.subject }))}`
+                                : null;
+                              return href ? (
+                                <a key={w.id} href={href} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center rounded-full border border-border-strong px-3 text-sm font-semibold text-ink transition-colors hover:border-ink-3 hover:bg-surface-2 max-md:min-h-11">
+                                  Remind {displayName(w.username)}
+                                </a>
+                              ) : (
+                                <span key={w.id} className="inline-flex min-h-9 items-center rounded-full bg-surface-2 px-3 text-sm text-ink-3 max-md:min-h-11" title="No number saved">
+                                  {displayName(w.username)}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
                       {isOpen && (
                         <div className="space-y-3 border-t border-hairline bg-surface-2/40 px-5 py-4 sm:px-6">
                           {(s.cancelled || phase === "later") && date >= today && (

@@ -6,7 +6,10 @@ import Link from "next/link";
 import type { Student } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
-import { cohortById } from "@/lib/data/selectors";
+import { attendancePercent, cohortById, homeworkSetFor, testById } from "@/lib/data/selectors";
+import { gradeSubmission } from "@/lib/grading";
+import { buildAttention } from "@/lib/attention";
+import { useNow } from "@/hooks/useNow";
 import { useToast } from "@/components/toast";
 import { isValidPhone, normalizePhone, waDigits } from "@/lib/phone";
 import { inPersonIds as tagged } from "@/lib/in-person";
@@ -134,6 +137,44 @@ export default function RosterPage() {
   const inPersonIds = useMemo(() => tagged(db), [db]);
   const [bulkTag, setBulkTag] = useState<"" | "in" | "out">("");
   const [mode, setMode] = useState<"all" | "online" | "inperson">("all");
+  // Hamza only: sort by the same "needs you" ranking as Today.
+  const [sortBy, setSortBy] = useState<"name" | "needs">("name");
+  const nowMs = useNow();
+  const tick = Math.floor(nowMs / 300_000) * 300_000;
+
+  // Hamza only (staff never see who is slipping): three quiet figures per online
+  // student (attendance this month, homework owed, last test) and the Today
+  // ranking for the sort. The same sums as the student's own page.
+  const drift = useMemo(() => {
+    if (staff) return null;
+    const online = db.students.filter((s) => !off.has(s.cohortId) && !inPersonIds.has(s.id) && !isTestAccount(s));
+    const month = `${new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date(tick)).slice(0, 7)}-01`;
+    const handIns = new Set(db.assignmentSubmissions.map((x) => `${x.studentId}|${x.assignmentId}`));
+    const latest = new Map<string, (typeof db.submissions)[number]>();
+    for (const x of db.submissions) {
+      if (x.status !== "released") continue;
+      const cur = latest.get(x.studentId);
+      if (!cur || (x.submittedAt ?? "").localeCompare(cur.submittedAt ?? "") > 0) latest.set(x.studentId, x);
+    }
+    const figures = new Map<string, { attendance: number | null; owed: number; last: number | null }>();
+    for (const s of online) {
+      const owed = db.assignments.filter((a) => +new Date(a.dueAt) <= tick && homeworkSetFor(db, s, a) && !handIns.has(`${s.id}|${a.id}`)).length;
+      const sub = latest.get(s.id);
+      const t = sub ? testById(db, sub.testId) : undefined;
+      figures.set(s.id, { attendance: attendancePercent(db, s.id, month), owed, last: sub && t ? Math.round(gradeSubmission(t, sub).percent) : null });
+    }
+    const { all } = buildAttention(db, {
+      students: online,
+      tests: db.tests.filter((t) => t.status !== "draft"),
+      nowMs: tick,
+      checked: {},
+      profiles: {},
+      profilesReady: false,
+      activity: null,
+      recordings: [],
+    });
+    return { figures, score: new Map(all.map((r) => [r.student.id, r.score])) };
+  }, [staff, db, off, inPersonIds, tick]);
 
   const students = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -150,8 +191,8 @@ export default function RosterPage() {
         // Each number compared as bare digits, so a saved "+92 300 123…" still matches "0300123…".
         return qDigits.length >= 4 && [s.phone, s.whatsapp].some((p) => (p ?? "").replace(/\D/g, "").includes(qDigits));
       })
-      .sort((a, b) => a.username.localeCompare(b.username));
-  }, [db.students, cohortId, search, view, off, mode, inPersonIds]);
+      .sort((a, b) => (sortBy === "needs" && drift ? (drift.score.get(b.id) ?? 0) - (drift.score.get(a.id) ?? 0) : 0) || a.username.localeCompare(b.username));
+  }, [db.students, cohortId, search, view, off, mode, inPersonIds, sortBy, drift]);
 
   // Counted once for the whole list: counting per row re-read every submission
   // for every student on each keystroke in the search box or the form.
@@ -551,6 +592,15 @@ export default function RosterPage() {
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Input compact type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search students…" wrapperClassName="w-full sm:w-80" aria-label="Search students" />
+        {drift && view === "current" && (
+          <div role="group" aria-label="Sort students" className={segmentGroup}>
+            {([["name", "By name"], ["needs", "Needs attention"]] as const).map(([k, label]) => (
+              <button key={k} type="button" aria-pressed={sortBy === k} onClick={() => setSortBy(k)} className={segmentItem(sortBy === k)}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
         {inPersonIds.size > 0 && (
           <div role="group" aria-label="Show students" className={segmentGroup}>
             {([["all", "All"], ["online", "Online"], ["inperson", "In person"]] as const).map(([k, label]) => (
@@ -590,6 +640,7 @@ export default function RosterPage() {
           {students.map((s) => {
             const cohort = cohortById(db, s.cohortId);
             const released = releasedCount.get(s.id) ?? 0;
+            const fig = view === "current" ? drift?.figures.get(s.id) : undefined;
             const classNames = s.classIds.map((cid) => db.classes.find((x) => x.id === cid)?.name).filter(Boolean);
             const subjectNames = s.subjectIds.map((sid) => db.subjects.find((x) => x.id === sid)?.name).filter(Boolean);
             const nameOf = (sid: string) => db.subjects.find((x) => x.id === sid)?.name;
@@ -622,7 +673,14 @@ export default function RosterPage() {
                     <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm text-ink-2">
                       {cohort && <CohortDot color={cohort.color} />}
                       <span className="truncate">{cohort?.name ?? "No cohort"}</span>
-                      <span className="tabular-nums text-ink-3">· {released} {released === 1 ? "result" : "results"}</span>
+                      {fig ? (
+                        // Hamza only: attendance this month, homework owed, last test.
+                        <span className="tabular-nums text-ink-3">
+                          · Attendance {fig.attendance === null ? "none yet" : `${Math.round(fig.attendance)}%`} · {fig.owed} homework owed · Last test {fig.last === null ? "none yet" : `${fig.last}%`}
+                        </span>
+                      ) : (
+                        <span className="tabular-nums text-ink-3">· {released} {released === 1 ? "result" : "results"}</span>
+                      )}
                     </p>
                     {(classNames.length > 0 || subjectNames.length > 0) && (
                       <div className="mt-1.5 flex flex-wrap gap-1">

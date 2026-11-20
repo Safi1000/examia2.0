@@ -6,6 +6,7 @@ import type { Annotation, Annotations } from "@/types";
 import { Button, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { inkOutlinePath, isPenEraser, snapLine, type Pt } from "@/components/board/engine";
+import { SaveNote } from "@/components/admin/SaveStatus";
 
 /**
  * Grader markup over submitted pages.
@@ -25,6 +26,25 @@ const HOLD_STILL_PX = 4;
 const MIN_HOLD_PATH_PX = 28;
 /** Fingers stay locked out this long after the pen was last near the screen. */
 const PALM_LOCK_MS = 350;
+/**
+ * A device that marked with a pen in the last two weeks is remembered, so a
+ * finger only scrolls from the moment the pen view opens. Before, the memory
+ * started empty on every open and the first finger drag drew a line.
+ */
+const PEN_KEY = "annot_pen_seen";
+const PEN_REMEMBER_MS = 14 * 86_400_000;
+function penRemembered() {
+  try {
+    return Date.now() - Number(localStorage.getItem(PEN_KEY) ?? 0) < PEN_REMEMBER_MS;
+  } catch {
+    return false;
+  }
+}
+function rememberPen() {
+  try {
+    localStorage.setItem(PEN_KEY, String(Date.now()));
+  } catch {}
+}
 type Stroke = Extract<Annotation, { t: "draw" }>;
 
 const nid = () => Math.random().toString(36).slice(2, 10);
@@ -194,15 +214,18 @@ export function AnnotatorModal({
   onChange,
   onMarksTotal,
   onClose,
+  readOnly = false,
 }: {
   urls: string[];
   /** Index of the page the grader clicked; it is scrolled into view on open. */
   startAt?: number;
   initial: Annotations;
   onChange: (url: string, shapes: Annotation[]) => void;
-  /** Sum of the marks stamped in the margins, whenever it changes. */
-  onMarksTotal?: (total: number) => void;
+  /** Sum of the marks stamped in the margins whenever it changes, with the sum before and how many stamps are left. */
+  onMarksTotal?: (total: number, before: number, stamps: number) => void;
   onClose: () => void;
+  /** A released result: the pages and markings can be looked at, not changed. */
+  readOnly?: boolean;
 }) {
   // Seeded once per mount — callers key the modal by answer.
   const [byUrl, setByUrl] = useState<Annotations>(initial);
@@ -221,10 +244,17 @@ export function AnnotatorModal({
   const dialogRef = useRef<HTMLDivElement>(null);
   // Shared by every page: once the S Pen has touched any page, a palm on the
   // next page is already ignored instead of drawing its first mark.
-  const pen = useRef({ seen: false, nearAt: 0 });
+  // Starts as "seen" on a device that used the pen recently (see PEN_KEY).
+  const [penBefore] = useState(penRemembered);
+  const pen = useRef({ seen: penBefore, nearAt: 0, kept: false });
   const penInfo = () => pen.current;
   const onPen = (touched: boolean) => {
-    if (touched) pen.current.seen = true;
+    if (touched) {
+      pen.current.seen = true;
+      // Once per opening is enough to keep the two weeks running.
+      if (!pen.current.kept) rememberPen();
+      pen.current.kept = true;
+    }
     pen.current.nearAt = Date.now();
   };
   // Until the grader scrolls or touches anything, the page they opened stays put
@@ -305,15 +335,16 @@ export function AnnotatorModal({
     setByUrl(next);
     if (!undoing) setHistory((h) => ({ ...h, [url]: [...(h[url] ?? []), before].slice(-100) }));
     onChange(url, shapes);
-    // The marks written in the margin ARE the score: hand the caller the total
-    // so nobody adds them up by hand and mistypes it. Only when the stamps
-    // themselves change, so a pen stroke never overwrites a typed score.
+    // The marks written in the margin add up to a score: hand the caller the
+    // total (and the total before) so nobody adds them up by hand. Only when
+    // the stamps themselves change; the caller decides whether it fills the
+    // score, so a stamp never silently replaces a typed one.
     if (onMarksTotal) {
       const stamps = (list: Annotation[]) => list.filter((a): a is Extract<Annotation, { t: "mark" }> => a.t === "mark");
       const sum = (list: Annotation[]) => stamps(list).reduce((n, m) => n + m.value, 0);
       const beforeAll = Object.values(prevAll).flat();
       const after = Object.values(next).flat();
-      if (stamps(beforeAll).length !== stamps(after).length || sum(beforeAll) !== sum(after)) onMarksTotal(sum(after));
+      if (stamps(beforeAll).length !== stamps(after).length || sum(beforeAll) !== sum(after)) onMarksTotal(sum(after), sum(beforeAll), stamps(after).length);
     }
   }
 
@@ -353,10 +384,14 @@ export function AnnotatorModal({
       aria-label="Annotate answer"
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* Two rows on a tablet, one on a laptop. Every control keeps its size and
-          the row scrolls sideways rather than dropping tools off the edge. */}
+      {/* Two rows on a tablet, one on a laptop. Every control keeps its size;
+          on a tablet the row scrolls sideways, and on a phone the tools,
+          colours and size wrap onto more rows so all are in reach without swiping. */}
       <div className="shrink-0 border-b border-border bg-surface pb-2 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.5rem,env(safe-area-inset-top))] lg:flex lg:items-center lg:gap-3 lg:pl-[max(1rem,env(safe-area-inset-left))] lg:pr-[max(1rem,env(safe-area-inset-right))]">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0">
+        {readOnly ? (
+          <p className="py-2 text-sm text-ink-2">Look only: this result is already out.</p>
+        ) : (
+        <div className="flex flex-wrap items-center gap-2 pb-1 sm:flex-nowrap sm:overflow-x-auto lg:pb-0">
           {(["pen", "line", "highlight", "mark", "tick", "cross", "text", "erase"] as Tool[]).map((t) => (
             <button
               key={t}
@@ -404,6 +439,7 @@ export function AnnotatorModal({
             <input type="range" min={0.5} max={3} step={0.5} value={size} onChange={(e) => setSize(+e.target.value)} className="w-20" />
           </label>
         </div>
+        )}
 
         <div className="mt-1.5 flex items-center gap-2 lg:ml-auto lg:mt-0">
           {urls.length > 1 && (
@@ -413,24 +449,29 @@ export function AnnotatorModal({
               <button onClick={() => goto(page + 1)} disabled={page === urls.length - 1} className="h-10 w-10 rounded-full border border-border-strong text-lg transition-colors duration-150 hover:bg-surface-2 hover:text-ink disabled:opacity-40" aria-label="Next page">›</button>
             </div>
           )}
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={undo}
-            disabled={!steps.length}
-          >
-            Undo
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => commit(current, [])}
-            disabled={!currentShapes.length}
-            aria-label={urls.length > 1 ? `Clear page ${page + 1}` : "Clear"}
-          >
-            Clear
-          </Button>
-          <span className="hidden text-sm text-ink-3 xl:inline">Saved automatically</span>
+          {!readOnly && (
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={undo}
+                disabled={!steps.length}
+              >
+                Undo
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => commit(current, [])}
+                disabled={!currentShapes.length}
+                aria-label={urls.length > 1 ? `Clear page ${page + 1}` : "Clear"}
+              >
+                Clear
+              </Button>
+              {/* What is really happening to the saves, not a fixed "Saved automatically". */}
+              <SaveNote />
+            </>
+          )}
           <button onClick={onClose} aria-label="Close annotator" className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-surface-2 hover:text-ink lg:ml-0">
             <Icon.Close className="h-5 w-5" />
           </button>
@@ -457,6 +498,7 @@ export function AnnotatorModal({
                 eager={Math.abs(i - startAt) <= 1}
                 penInfo={penInfo}
                 onPen={onPen}
+                readOnly={readOnly}
                 onLoaded={() => onPageLoad(i)}
                 onCommit={(shapes) => commit(u, shapes)}
               />
@@ -482,6 +524,7 @@ function EditablePage({
   eager = true,
   penInfo,
   onPen,
+  readOnly = false,
   onLoaded,
   onCommit,
 }: {
@@ -498,6 +541,8 @@ function EditablePage({
   penInfo: () => { seen: boolean; nearAt: number };
   /** The pen touched (true) or hovered near (false) the screen. */
   onPen: (touched: boolean) => void;
+  /** Nothing draws; the page scrolls like any page. */
+  readOnly?: boolean;
   onLoaded?: () => void;
   onCommit: (shapes: Annotation[]) => void;
 }) {
@@ -834,8 +879,9 @@ function EditablePage({
           ref={svgRef}
           viewBox={`0 0 ${canvasW} ${dim.h}`}
           className={cn(
-            "absolute inset-0 h-full w-full touch-none",
-            tool === "erase" ? "cursor-pointer" : "cursor-crosshair",
+            "absolute inset-0 h-full w-full",
+            readOnly ? "pointer-events-none" : "touch-none",
+            !readOnly && (tool === "erase" ? "cursor-pointer" : "cursor-crosshair"),
           )}
           onPointerDown={down}
           onPointerMove={move}

@@ -13,6 +13,8 @@ import { QuestionModal, type QuestionDraft } from "@/components/admin/QuestionMo
 import { ImportBankModal } from "@/components/admin/ImportBankModal";
 import { ImportDocModal } from "@/components/admin/ImportDocModal";
 import { LateWindowCard } from "@/components/admin/LateWindowCard";
+import { CollectUnsentCard } from "@/components/admin/CollectUnsentCard";
+import { goesWide, wideLine } from "@/lib/test-audience";
 import { AnswerKeyModal } from "@/components/admin/AnswerKeyModal";
 import { TestPdfModal } from "@/components/admin/TestPdfModal";
 import { Card, CardHeader, CardBody, Button, Input, Select, Badge, Pill, Modal, Icon, EmptyState } from "@/components/ui";
@@ -93,6 +95,8 @@ export default function TestEditorPage() {
   const [keyOpen, setKeyOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
   const [deleteQId, setDeleteQId] = useState<string | null>(null);
+  // Publish to every class or no subject: asked once, with the pickers right there.
+  const [whoOpen, setWhoOpen] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   // Past paper questions: look at one, or swap it for another on the same topic.
   const [viewing, setViewing] = useState<string | null>(null);
@@ -205,8 +209,14 @@ export default function TestEditorPage() {
   }
 
   /** Publish, never into a window that has already closed. */
-  function publish(now: number) {
+  function publish(now: number, checkedWho = false) {
     if (!form) return;
+    // Every class or no subject: a test left on the defaults would reach every
+    // student in every level and subject. Ask first.
+    if (!checkedWho && goesWide({ cohortId: form.cohortId || null, classId: form.classId || null, subjectId: form.subjectId || null })) {
+      setWhoOpen(true);
+      return;
+    }
     let override: { opensAt: string; closesAt: string } | undefined;
     if (form.closesAt && new Date(fromLocalInput(form.closesAt)).getTime() <= now) {
       if (!window.confirm("This test's closing time has already passed, so students couldn't sit it. Publish it open from now for 7 days?")) return;
@@ -416,6 +426,7 @@ export default function TestEditorPage() {
           </CardBody>
         </Card>
         {test.status !== "draft" && <LateWindowCard test={test} />}
+        {test.status !== "draft" && <CollectUnsentCard test={test} />}
         </div>
 
         {/* Questions */}
@@ -601,6 +612,56 @@ export default function TestEditorPage() {
           toast(`${qs.length} question${qs.length === 1 ? "" : "s"} added.`, "success");
         }}
       />
+
+      <Modal
+        open={whoOpen}
+        onClose={() => setWhoOpen(false)}
+        title="Who is this test for?"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setWhoOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                setWhoOpen(false);
+                publish(Date.now(), true);
+              }}
+            >
+              Publish
+            </Button>
+          </>
+        }
+      >
+        {(() => {
+          const scope = { cohortId: form.cohortId || null, classId: form.classId || null, subjectId: form.subjectId || null };
+          const line = wideLine(db, scope);
+          const cohort = db.cohorts.find((c) => c.id === form.cohortId);
+          const classes = cohort ? db.classes.filter((cl) => !cohort.classIds.length || cohort.classIds.includes(cl.id) || cl.id === form.classId) : db.classes;
+          const subjects = cohort?.subjectIds.length ? db.subjects.filter((x) => cohort.subjectIds.includes(x.id) || x.id === form.subjectId) : db.subjects;
+          return (
+            <div className="space-y-4">
+              <p className="text-sm text-ink-2">{line ? `${line} Is that right?` : "This goes to the class and subject picked below."}</p>
+              {classes.length > 0 && (
+                <Select label="Class" value={form.classId} onChange={(e) => set("classId", e.target.value)}>
+                  <option value="">All classes</option>
+                  {classes.map((cl) => <option key={cl.id} value={cl.id}>{cl.name}</option>)}
+                </Select>
+              )}
+              <Select
+                label="Subject"
+                value={form.subjectId}
+                onChange={(e) => {
+                  const subj = db.subjects.find((x) => x.id === e.target.value);
+                  set("subjectId", e.target.value);
+                  set("subject", subj?.name ?? "General");
+                }}
+              >
+                <option value="">No subject</option>
+                {subjects.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+              </Select>
+            </div>
+          );
+        })()}
+      </Modal>
 
       <Modal
         open={!!deleteQId}

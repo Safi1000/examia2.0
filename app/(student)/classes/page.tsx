@@ -11,7 +11,7 @@ import type { Database } from "@/lib/data/seed";
 import { useSchedule, LEVEL_LABEL, levelName, RECORDING_HOURS, getSchedule, addDays, isClassDay, levelOf, pkDate, slotKey, slotsForStudent, slotsOn, span, useClassLinks } from "@/lib/classes";
 import { anythingOpen, useRecordingRows, useStudentAccess, type RecordingRow } from "@/lib/recordings";
 import { openUntil } from "@/lib/recording-access";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RecordingPlayer } from "@/components/student/RecordingPlayer";
 import { driveFileId, watchPatch } from "@/lib/watch";
 import { cn } from "@/lib/cn";
@@ -144,6 +144,23 @@ export default function ClassesPage() {
       .filter((r) => r.closesAt > nowMs && r.date <= today);
   })();
   const twoLevels = new Set(older.map((r) => r.classId)).size > 1;
+
+  // Home's "Watch" on a class recording opens here with ?watch=<class key>: open that
+  // recording's player straight away (once), as if Watch had been tapped on this page.
+  const autoOpened = useRef(false);
+  useEffect(() => {
+    if (autoOpened.current || !recordings.length || typeof window === "undefined") return;
+    const want = new URLSearchParams(window.location.search).get("watch");
+    if (!want) return;
+    autoOpened.current = true;
+    const r = recordings.find((x) => slotKey(x) === want);
+    if (!r?.recordingUrl) return;
+    updateProfile(watchPatch(want, 0));
+    const fileId = driveFileId(r.recordingUrl);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (fileId) setPlaying({ key: want, fileId, url: r.recordingUrl, title: r.subject, sub: dayName(r.date) });
+    else window.open(r.recordingUrl, "_blank", "noopener,noreferrer");
+  }, [recordings, updateProfile]);
 
   // My classes that ended in the last 3 hours with no recording yet: Meet takes
   // 30 to 60 minutes to save one, so say it is coming rather than show nothing.

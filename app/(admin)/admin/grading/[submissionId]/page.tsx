@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import type { Annotation, Answer, Question } from "@/types";
+import type { Annotation, Answer, Question, Submission } from "@/types";
+import type { Database } from "@/lib/data/seed";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { submissionById, studentById, testById, archivedCohortIds, isArchivedSubmission, asSeenBy, inLateWindow } from "@/lib/data/selectors";
 import { useToast } from "@/components/toast";
@@ -14,7 +15,7 @@ import { MarkSchemePanel } from "@/components/admin/MarkSchemePanel";
 import { idsInText, isPastPaper, sourceLabel, withoutSources } from "@/lib/paper-builder";
 import { PaperText } from "@/components/PaperText";
 import { Card, Button, Badge, Pill, Textarea, EmptyState, Icon } from "@/components/ui";
-import { awardedMarks, isFullyGraded, totalMarks } from "@/lib/scoring";
+import { isFullyGraded } from "@/lib/scoring";
 import { gradeSubmission } from "@/lib/grading";
 import { takenTimeOf } from "@/lib/photo-time";
 import { cn } from "@/lib/cn";
@@ -32,26 +33,58 @@ export default function GradingPage() {
   const [showAuto, setShowAuto] = useState(false);
   // Set by the first Release tap: a fast second tap (or Ctrl+Enter) must not release twice.
   const releasing = useRef<string | null>(null);
-  // The pen strokes on photo answers are left out of the full load (they are heavy): fetched here.
-  useEffect(() => {
-    void store.loadAnnotations(subId);
-  }, [store, subId]);
+  // Each card's comment and pen strokes still in their short pause: saved before a release.
+  const flushers = useRef(new Map<string, () => void>());
+  const registerFlush = useCallback((key: string, fn: () => void) => {
+    flushers.current.set(key, fn);
+    return () => {
+      flushers.current.delete(key);
+    };
+  }, []);
 
   const submission = submissionById(db, subId);
   const test = submission ? testById(db, submission.testId) : null;
   const student = submission ? studentById(db, submission.studentId) : null;
+  const here = !!submission;
+  // Back to unreleased (a release held because a mark didn't save, or taken
+  // back elsewhere): Release and Ctrl+Enter must work again.
+  const isOut = submission?.status === "released";
+  useEffect(() => {
+    if (!isOut) releasing.current = null;
+  }, [isOut]);
+  // The pen strokes on photo answers are left out of the full load (they are
+  // heavy): read here, fresh on every open (another device may have marked
+  // this paper), and only once the paper itself has arrived.
+  useEffect(() => {
+    if (here) void store.loadAnnotations(subId, true);
+  }, [store, subId, here]);
+
+  // The next paper's strokes and first page are fetched while this one is
+  // marked, so "Release & next" opens it at once.
+  const nextId = nextPaper(db, submission);
+  const nextPhoto = firstPhoto(db, nextId);
+  useEffect(() => {
+    if (!nextId) return;
+    void store.loadAnnotations(nextId);
+    if (nextPhoto) new Image().src = nextPhoto;
+  }, [store, nextId, nextPhoto]);
 
   if (!submission || !test || !student) {
+    // Opened from a link while the device's saved copy is on screen: the paper
+    // is probably on its way, so say so instead of "no longer exists".
+    const loading = store.restored;
     return (
       <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
-        <PageHeader title="Submission not found" back={{ href: "/admin/submissions", label: "Submissions" }} />
-        <EmptyState icon={<Icon.Inbox />} title="This submission no longer exists" />
+        <PageHeader title={loading ? "Marking" : "Submission not found"} back={{ href: "/admin/submissions", label: "Submissions" }} />
+        <EmptyState icon={<Icon.Inbox />} title={loading ? "Getting this paper…" : "This submission no longer exists"} />
       </div>
     );
   }
 
-  const total = totalMarks(test);
-  const awarded = awardedMarks(submission);
+  const released = submission.status === "released";
+  const grade = gradeSubmission(test, submission);
+  const total = grade.total;
+  const awarded = grade.awarded;
   const fullyGraded = isFullyGraded(test, submission);
   // Writing time ended at start + duration (or when the test closed, if sooner).
   // Photos taken well after that are flagged gently; nothing is blocked.
@@ -66,16 +99,8 @@ export default function GradingPage() {
       const qn = test.questions.indexOf(q) + 1;
       return urls.map((u, i) => ({ label: `Q${qn}${urls.length > 1 ? ` p${i + 1}` : ""}`, taken: takenTimeOf(u) }));
     });
-  const released = submission.status === "released";
-  const grade = gradeSubmission(test, submission);
-
-  // Where "next" goes: the oldest paper still waiting from this same test,
-  // then from any other. Archived work (switched-off cohorts) stays out.
   const off = archivedCohortIds(db);
-  const queue = db.submissions.filter((s) => s.status === "submitted" && !isArchivedSubmission(db, s, off));
-  const others = queue.filter((s) => s.id !== subId).sort((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""));
-  const nextId = (others.find((s) => s.testId === submission.testId) ?? others[0])?.id;
-  const waiting = queue.length;
+  const waiting = db.submissions.filter((s) => s.status === "submitted" && !isArchivedSubmission(db, s, off)).length;
   // Questions left blank and not yet scored: one tap gives them 0. A multiple
   // choice question with no answer at all (added after hand in, or skipped and
   // never saved) has no automatic mark, so it used to block release for good.
@@ -95,9 +120,25 @@ export default function GradingPage() {
   const mcqTotal = mcqs.reduce((sum, q) => sum + q.marks, 0);
   const name = student.username.charAt(0).toUpperCase() + student.username.slice(1);
 
+  /**
+   * A released result changes only after one deliberate step: taking it back.
+   * The student then sees nothing until it is released again, with a fresh
+   * notice, so a mark never changes under them silently.
+   */
+  function takeBack(ask = true): boolean {
+    if (ask && !window.confirm("This result is already out. Take it back to change it? The student won't see it until you release it again.")) return false;
+    store.unreleaseSubmission(subId);
+    releasing.current = null;
+    toast("Opened for marking again.", "info");
+    return true;
+  }
+
   function release(goNext: boolean) {
     if (released || releasing.current === subId) return;
     releasing.current = subId;
+    // A comment or pen strokes still in their short pause are saved now; the
+    // release itself then waits until every save for this paper has landed.
+    flushers.current.forEach((flush) => flush());
     // Refused while the test is still open (the store says why).
     if (!store.releaseSubmission(subId)) {
       releasing.current = null;
@@ -120,7 +161,7 @@ export default function GradingPage() {
           released ? (
             <>
               <Badge tone="success">Released</Badge>
-              <Button variant="secondary" onClick={() => { if (!window.confirm("Take this result back to mark again? The student won't see it until you release it again.")) return; store.unreleaseSubmission(subId); releasing.current = null; toast("Opened for marking again.", "info"); }}>
+              <Button variant="secondary" onClick={() => takeBack()}>
                 <Icon.Refresh className="h-4 w-4" /> Mark again
               </Button>
               {nextId && (
@@ -197,7 +238,19 @@ export default function GradingPage() {
         {test.questions.map((q, i) => {
           if (hideAuto && q.type === "mcq") return null;
           const a = submission.answers.find((x) => x.questionId === q.id);
-          return <GradeCard key={`${subId}-${q.id}`} index={i} question={q} answer={a} submissionId={subId} writeEndMs={writeEndMs} />;
+          return (
+            <GradeCard
+              key={`${subId}-${q.id}`}
+              index={i}
+              question={q}
+              answer={a}
+              submissionId={subId}
+              writeEndMs={writeEndMs}
+              released={released}
+              onTakeBack={takeBack}
+              registerFlush={registerFlush}
+            />
+          );
         })}
       </div>
 
@@ -211,7 +264,7 @@ export default function GradingPage() {
         {released ? (
           nextId ? <Button variant="secondary" onClick={() => router.push(`/admin/grading/${nextId}`)}>Next to mark →</Button> : <span className="min-h-11" />
         ) : (
-          <Button disabled={!fullyGraded} onClick={() => release(!!nextId)}>
+          <Button data-release disabled={!fullyGraded} onClick={() => release(!!nextId)}>
             {nextId ? "Release & next" : "Release result"}
           </Button>
         )}
@@ -220,12 +273,40 @@ export default function GradingPage() {
   );
 }
 
+/**
+ * Where "next" goes. Papers waiting to be marked stand in a fixed order (by
+ * hand in time) with this one in its place, and next is the first after it
+ * from the same test, then from any other, wrapping round. Before, it was
+ * always the oldest other paper, so Skip went A to B and back to A.
+ * Archived work (switched-off cohorts) stays out.
+ */
+function nextPaper(db: Database, current: Submission | null): string | undefined {
+  if (!current) return undefined;
+  const off = archivedCohortIds(db);
+  const order = [...db.submissions.filter((s) => s.status === "submitted" && s.id !== current.id && !isArchivedSubmission(db, s, off)), current].sort(
+    (a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? "") || a.id.localeCompare(b.id),
+  );
+  const at = order.indexOf(current);
+  const after = [...order.slice(at + 1), ...order.slice(0, at)];
+  return (after.find((s) => s.testId === current.testId) ?? after[0])?.id;
+}
+
+/** The first photo page of a paper (to have it ready before it opens). */
+function firstPhoto(db: Database, id: string | undefined): string | undefined {
+  const sub = id ? db.submissions.find((s) => s.id === id) : undefined;
+  const a = sub?.answers.find((x) => x.photoUrls?.length || x.photoDataUrl);
+  return a?.photoUrls?.[0] ?? a?.photoDataUrl;
+}
+
 function GradeCard({
   index,
   question,
   answer,
   submissionId,
   writeEndMs,
+  released,
+  onTakeBack,
+  registerFlush,
 }: {
   index: number;
   question: Question;
@@ -233,6 +314,12 @@ function GradeCard({
   submissionId: string;
   /** When this student's writing time ended (for photo time checks). */
   writeEndMs: number | null;
+  /** The result is out: any change first asks to take it back. */
+  released: boolean;
+  /** Takes the result back to mark again (asks first unless `ask` is false). True if it did. */
+  onTakeBack: (ask?: boolean) => boolean;
+  /** Lets Release save this card's comment and strokes first. */
+  registerFlush: (key: string, flush: () => void) => () => void;
 }) {
   const store = useStore();
   // Saved markings must be here before any can be drawn: a save writes the whole set.
@@ -240,13 +327,29 @@ function GradeCard({
   const awarded = answer?.marksAwarded;
   const locked = question.type === "mcq";
   const [annotating, setAnnotating] = useState<number | null>(null);
+  // A released result opens in the pen view to look at, unless taken back.
+  const [lookOnly, setLookOnly] = useState(false);
   const [page, setPage] = useState(0);
+  // A quiet line under the marks about the stamps (see onStamps).
+  const [stampNote, setStampNote] = useState<{ text: string; use?: number } | null>(null);
   // One debounce per page: a scribble is a single write, and moving to the next
   // page never cancels the previous page's pending save.
   const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   // What is still waiting to be saved, so leaving the page saves it instead of dropping it.
   const pending = useRef(new Map<string, Annotation[]>());
+  // Each page's strokes as last handed to the store, to tell what was rubbed
+  // out here (so strokes made on another device are kept, and these are not).
+  const lastSent = useRef(new Map<string, Annotation[]>());
 
+  const sendShapes = useCallback(
+    (url: string, shapes: Annotation[]) => {
+      const keep = new Set(shapes.map((s) => s.id));
+      const erased = (lastSent.current.get(url) ?? []).filter((s) => !keep.has(s.id)).map((s) => s.id);
+      lastSent.current.set(url, shapes);
+      store.saveAnnotations(submissionId, question.id, url, shapes, erased);
+    },
+    [store, submissionId, question.id],
+  );
   function saveShapes(url: string, shapes: Annotation[]) {
     clearTimeout(saveTimers.current.get(url));
     pending.current.set(url, shapes);
@@ -254,26 +357,34 @@ function GradeCard({
       url,
       setTimeout(() => {
         pending.current.delete(url);
-        store.saveAnnotations(submissionId, question.id, url, shapes);
+        sendShapes(url, shapes);
       }, 500),
     );
   }
-  useEffect(() => {
-    const timers = saveTimers.current;
-    const waiting = pending.current;
-    return () => {
-      timers.forEach(clearTimeout);
-      // Release & next, or any other way out: save the last strokes now.
-      waiting.forEach((shapes, url) => store.saveAnnotations(submissionId, question.id, url, shapes));
-      waiting.clear();
-    };
-  }, [store, submissionId, question.id]);
+  /** Saves any strokes still in their short pause, now. */
+  const flushShapes = useCallback(() => {
+    saveTimers.current.forEach(clearTimeout);
+    saveTimers.current.clear();
+    pending.current.forEach((shapes, url) => sendShapes(url, shapes));
+    pending.current.clear();
+  }, [sendShapes]);
+  // Release & next, or any other way out: save the last strokes now.
+  useEffect(() => () => flushShapes(), [flushShapes]);
+
+  function openPen(i: number) {
+    if (!strokesReady) return;
+    lastSent.current = new Map(Object.entries(answer?.annotations ?? {}));
+    const edit = !released || (window.confirm("This result is already out. Take it back to change the markings? Choose Cancel to just look.") && onTakeBack(false));
+    setLookOnly(!edit);
+    setAnnotating(i);
+  }
 
   // Feedback is typed into local state and saved after a short pause (or on
   // leaving the box): saving on every keystroke made typing lag.
   const [feedback, setFeedback] = useState(answer?.feedback ?? "");
   const feedbackRef = useRef(feedback);
-  // What was last saved: a pause, then leaving the box, must not save it twice.
+  // What was last handed to the store (which keeps trying until it lands): a
+  // pause, then leaving the box, must not save it twice.
   const savedFeedback = useRef(feedback);
   const fbTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flushFeedback = useCallback(() => {
@@ -285,17 +396,83 @@ function GradeCard({
     store.gradeAnswer(submissionId, question.id, undefined, feedbackRef.current);
   }, [store, submissionId, question.id]);
   function typeFeedback(v: string) {
+    if (released && !onTakeBack()) return;
     setFeedback(v);
     feedbackRef.current = v;
     if (fbTimer.current) clearTimeout(fbTimer.current);
     fbTimer.current = setTimeout(flushFeedback, 700);
   }
   useEffect(() => () => flushFeedback(), [flushFeedback]);
+  // A newer saved comment (fresh data after the saved copy, or written on
+  // another device) shows in the box, unless something is being typed here.
+  const incomingFeedback = answer?.feedback ?? "";
+  useEffect(() => {
+    if (incomingFeedback === savedFeedback.current || feedbackRef.current !== savedFeedback.current) return;
+    savedFeedback.current = incomingFeedback;
+    feedbackRef.current = incomingFeedback;
+    setFeedback(incomingFeedback);
+  }, [incomingFeedback]);
+  useEffect(
+    () =>
+      registerFlush(question.id, () => {
+        flushShapes();
+        flushFeedback();
+      }),
+    [registerFlush, question.id, flushShapes, flushFeedback],
+  );
 
-  function setMarks(v: number) {
+  /** `null` empties the box: the question is "not marked yet" again (never a silent 0). */
+  function setMarks(v: number | null) {
+    if (released && !onTakeBack()) return;
+    setStampNote(null);
     // Whole marks: the portal stores whole numbers, so 2.5 looked saved but was not.
-    const clamped = Math.max(0, Math.min(question.marks, Math.round(Number.isFinite(v) ? v : 0)));
+    const clamped = v === null ? null : Math.max(0, Math.min(question.marks, Math.round(Number.isFinite(v) ? v : 0)));
     store.gradeAnswer(submissionId, question.id, clamped);
+  }
+
+  /**
+   * Stamps in the margin fill the score only while it is empty or still the
+   * stamps' own total; a score typed by hand is never replaced without a tap.
+   * Taking every stamp away empties the score again (never a silent 0).
+   */
+  function onStamps(sum: number, before: number, stamps: number) {
+    const fit = (n: number) => Math.max(0, Math.min(question.marks, Math.round(n)));
+    const fromStamps = awarded === undefined || awarded === fit(before);
+    if (!stamps) {
+      if (fromStamps && awarded !== undefined) store.gradeAnswer(submissionId, question.id, null);
+      setStampNote(null);
+      return;
+    }
+    const whole = fit(sum);
+    if (!fromStamps) {
+      if (whole !== awarded) setStampNote({ text: `Stamps add up to ${sum}.`, use: whole });
+      else setStampNote(null);
+      return;
+    }
+    store.gradeAnswer(submissionId, question.id, whole);
+    // Said plainly when the score is not exactly the stamps' total.
+    setStampNote(
+      whole === sum
+        ? null
+        : sum > question.marks
+          ? { text: `Stamps add up to ${sum}, more than the ${question.marks} this question is worth. Saved as ${whole}.` }
+          : { text: `Stamps add up to ${sum}. Saved as ${whole}, as marks are whole numbers.` },
+    );
+  }
+
+  /** Enter in a marks box: on to the next one still empty, then to Release. */
+  function onMarkKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Enter" || e.metaKey || e.ctrlKey) return;
+    e.preventDefault();
+    const boxes = [...document.querySelectorAll<HTMLInputElement>("input[data-mark-box]")];
+    const at = boxes.indexOf(e.currentTarget);
+    const next = boxes.slice(at + 1).find((b) => b.value === "") ?? boxes.find((b, i) => i !== at && b.value === "");
+    if (next) {
+      next.focus();
+      next.scrollIntoView({ block: "center" });
+      return;
+    }
+    document.querySelector<HTMLElement>("[data-release]")?.focus();
   }
 
   return (
@@ -365,7 +542,7 @@ function GradeCard({
                   url={url}
                   shapes={answer?.annotations?.[url] ?? []}
                   alt={`Answer to question ${index + 1}, page ${shown + 1}`}
-                  onClick={() => strokesReady && setAnnotating(shown)}
+                  onClick={() => openPen(shown)}
                   className="block w-full"
                 />
               </div>
@@ -393,7 +570,7 @@ function GradeCard({
                   </>
                 )}
                 <button
-                  onClick={() => setAnnotating(shown)}
+                  onClick={() => openPen(shown)}
                   disabled={!strokesReady}
                   className="inline-flex min-h-11 items-center font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline disabled:text-ink-3 disabled:no-underline"
                 >
@@ -407,8 +584,9 @@ function GradeCard({
                   initial={answer?.annotations ?? {}}
                   onChange={saveShapes}
                   // Marks written in the margin add themselves up into the
-                  // score; the field below stays editable.
-                  onMarksTotal={locked ? undefined : setMarks}
+                  // score while it is empty or theirs; the field below stays editable.
+                  onMarksTotal={locked || lookOnly ? undefined : onStamps}
+                  readOnly={lookOnly}
                   onClose={() => setAnnotating(null)}
                 />
               )}
@@ -435,15 +613,20 @@ function GradeCard({
                 >
                   −
                 </button>
+                {/* Plain text that takes digits only: a scroll wheel over a number
+                    box could nudge the mark, and an emptied box is "not marked". */}
                 <input
-                  type="number"
-                  min={0}
-                  max={question.marks}
-                  step={1}
+                  type="text"
                   inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="off"
+                  data-mark-box
                   value={awarded ?? ""}
-                  onChange={(e) => setMarks(e.target.value === "" ? 0 : Number(e.target.value))}
-                  placeholder="0"
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "");
+                    setMarks(digits === "" ? null : Number(digits));
+                  }}
+                  onKeyDown={onMarkKey}
                   aria-label={`Marks out of ${question.marks}`}
                   className="h-11 w-20 rounded-field border border-field bg-surface px-3 text-center text-base font-semibold tabular-nums text-ink transition-colors hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 />
@@ -476,6 +659,20 @@ function GradeCard({
                 ))}
               </div>
             </div>
+            {stampNote && (
+              <p className="flex flex-wrap items-center gap-x-2 text-sm text-ink-3">
+                {stampNote.text}
+                {stampNote.use !== undefined && (
+                  <button
+                    type="button"
+                    onClick={() => setMarks(stampNote.use!)}
+                    className="inline-flex min-h-11 items-center font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline"
+                  >
+                    Use {stampNote.use}
+                  </button>
+                )}
+              </p>
+            )}
             <Textarea
               label="Feedback (optional)"
               value={feedback}

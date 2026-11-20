@@ -166,6 +166,25 @@ export function studentCheckIn(w: Who) {
   return student(p, `${p.hi} how are things going with your studies?`);
 }
 
+/** Today's "New this week" hello, before their first class. */
+export function studentWelcome(w: Who) {
+  const p = people(w, "welcome");
+  return student(p, `${p.hi} welcome to the classes, glad to have you. if anything on the portal is unclear, just message me here.`);
+}
+
+/** Today's "New this week" hello, once their first class is done. */
+export function studentFirstClass(w: Who) {
+  const p = people(w, "first_class");
+  return student(p, `${p.hi} how was your first class? tell me if anything was unclear and we'll go over it.`);
+}
+
+/** Classes page, a few minutes into a live class: the "Remind" button. */
+export function studentClassStarted(w: Who & { subject?: string }) {
+  const p = people(w, "class_started");
+  const s = low(w.subject);
+  return student(p, `${p.hi} ${s ? `the ${s} class` : "class"} has started. join from home on the portal, i'm keeping your seat.`);
+}
+
 export function studentTestClosing(w: Who & { title?: string; when?: string }) {
   const p = people(w, "closing");
   const when = low(w.when);

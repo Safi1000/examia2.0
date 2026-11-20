@@ -49,11 +49,14 @@ export function useClassLinks(from: string, to: string, withJoins = false, poll 
   const [links, setLinks] = useState<ClassLink[]>([]);
   const [joins, setJoins] = useState<ClassJoin[]>([]);
   const [ready, setReady] = useState<boolean | null>(null);
+  /** True once the joins were really read (a failed read is not "nobody joined"). */
+  const [joinsOk, setJoinsOk] = useState(false);
 
   const load = useCallback(async () => {
     if (DEMO) {
       setLinks(demoLinks().filter((l) => l.date >= from && l.date <= to));
       setReady(true);
+      setJoinsOk(withJoins);
       return;
     }
     const sb = supabase();
@@ -75,6 +78,9 @@ export function useClassLinks(from: string, to: string, withJoins = false, poll 
         recordingUrl: (r.recording_url as string) ?? null,
       })),
     );
+    // A failed joins read keeps what was there and says so, rather than showing everyone as not joined.
+    setJoinsOk(withJoins && !j.error);
+    if (j.error) return;
     setJoins(
       ((j.data as Record<string, unknown>[]) ?? []).map((r) => ({
         studentId: r.student_id as string,
@@ -138,7 +144,7 @@ export function useClassLinks(from: string, to: string, withJoins = false, poll 
     [load],
   );
 
-  return { links, joins, ready, save, reload: load };
+  return { links, joins, ready, joinsOk, save, reload: load };
 }
 
 /**

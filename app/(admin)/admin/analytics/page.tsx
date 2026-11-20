@@ -7,6 +7,9 @@ import { useAdminFilter } from "@/lib/admin-filter";
 import { attendancePercent, cohortById, eligibleStudents, testsForStudent } from "@/lib/data/selectors";
 import { displayName, isTestAccount } from "@/lib/display-name";
 import { inPersonIds } from "@/lib/in-person";
+import { useIsStaff } from "@/lib/staff";
+import { buildAttention } from "@/lib/attention";
+import { awayUntilMap } from "@/lib/reminders";
 import { useNow } from "@/hooks/useNow";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Badge, CohortDot, EmptyState, Icon, TableScroll, Table, Th, Td, filterField, segmentGroup, segmentItem } from "@/components/ui";
@@ -72,6 +75,7 @@ function calcAvg(subs: Submission[], testById: Map<string, Test>): number {
 
 interface PerTestRow { test: Test; count: number; avg: number | null; top: GradeLetter | null; pending: number }
 interface StudentMovement { student: Student; curAvg: number | null; delta: number | null }
+interface NeedsRow { student: Student; labels: string[]; score: number }
 interface CohortCompletion { cohort: Cohort; pct: number; submitted: number; expected: number }
 
 interface ClassViewData {
@@ -115,6 +119,8 @@ export default function AnalyticsPage() {
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
   const nowMs = useNow();
+  // Who is drifting is Hamza's only: staff see marks and grades, never activity or absences.
+  const staff = useIsStaff();
 
   const testById = useMemo(() => new Map(db.tests.map((t) => [t.id, t])), [db.tests]);
 
@@ -258,6 +264,46 @@ export default function AnalyticsPage() {
     return { overall, monthly, delta, trendPoints, bars, perTest, improved, slipping, mastery, cohortCompletion, topStudents, strugglingStudents, toMark, attendanceAvg };
   }, [base, monthSubs, prevMonthSubs, testById, db, activeMonth, nowMs]);
 
+  // Needs attention (Hamza only): the same "needs you" ranking as Today (missed
+  // tests, absences in a row, homework not handed in, a recent low mark), plus
+  // anyone with nothing handed in this month, so a student who has gone silent
+  // is never missing from it. Five at most, heaviest first.
+  const needs = useMemo((): NeedsRow[] | null => {
+    if (staff) return null;
+    const tick = Math.floor(nowMs / 300_000) * 300_000;
+    const away = awayUntilMap(db);
+    const today = new Date(tick + PKT_MS).toISOString().slice(0, 10);
+    const { all } = buildAttention(db, {
+      students: base.students,
+      tests: db.tests.filter((t) => t.status !== "draft" && base.relevantTestIds.has(t.id)),
+      nowMs: tick,
+      checked: {},
+      profiles: {},
+      profilesReady: false,
+      activity: null,
+      recordings: [],
+      awayUntil: away,
+    });
+    // This calendar month, from its 8th day on (earlier, "nothing yet" is normal).
+    const month = today.slice(0, 7);
+    const monthStart = Date.parse(`${month}-01T00:00:00+05:00`);
+    const quietCounts = Number(today.slice(8, 10)) >= 8;
+    const handed = new Set([
+      ...db.submissions.filter((x) => x.status !== "in_progress" && monthOf(x.submittedAt) === month).map((x) => x.studentId),
+      ...db.assignmentSubmissions.filter((x) => monthOf(x.submittedAt) === month).map((x) => x.studentId),
+    ]);
+    return all
+      .filter((r) => (away.get(r.student.id) ?? "") < today)
+      .map((r) => {
+        const silent = quietCounts && +new Date(r.student.createdAt) < monthStart && !handed.has(r.student.id);
+        const labels = [...(silent ? ["Nothing handed in this month"] : []), ...r.reasons.map((x) => x.label)];
+        return { student: r.student, labels, score: r.score + (silent ? 4 : 0) };
+      })
+      .filter((x) => x.labels.length > 0 && x.score >= 3)
+      .sort((a, b) => b.score - a.score || a.student.username.localeCompare(b.student.username))
+      .slice(0, 5);
+  }, [staff, db, base, nowMs]);
+
   const studentData = useMemo((): StudentViewData | null => {
     const student = db.students.find((s) => s.id === selectedStudentId);
     if (!student) return null;
@@ -351,7 +397,7 @@ export default function AnalyticsPage() {
       {!hasData ? (
         <EmptyState icon={<Icon.Chart />} title="No released results yet" message="Release some results to see analytics." />
       ) : view === "class" ? (
-        <ClassView data={classData} db={db} prevMonth={prevMonth} activeMonth={activeMonth} />
+        <ClassView data={classData} db={db} prevMonth={prevMonth} activeMonth={activeMonth} needs={needs} />
       ) : !studentData ? (
         <EmptyState icon={<Icon.Chart />} title="Pick a student" message="Choose a student from the dropdown above." />
       ) : (
@@ -368,11 +414,14 @@ function ClassView({
   db,
   prevMonth,
   activeMonth,
+  needs,
 }: {
   data: ClassViewData;
   db: ReturnType<typeof useDatabase>;
   prevMonth: string;
   activeMonth: string;
+  /** Hamza's needs-you list; null for staff (they get the marks-only card). */
+  needs: NeedsRow[] | null;
 }) {
   const monthLabel = activeMonth ? formatMonth(activeMonth).split(" ")[0] : "All time";
 
@@ -450,9 +499,32 @@ function ClassView({
           </Card>
         )}
 
-        {prevMonth && (
+        {needs && (
           <Card className="p-5 sm:p-6">
             <h2 className="mb-3 text-base font-semibold tracking-[-0.01em] text-ink">Needs attention</h2>
+            {needs.length === 0 ? (
+              <p className="text-sm text-ink-3">Nobody looks like they are drifting right now.</p>
+            ) : (
+              <ul className="space-y-2">
+                {needs.map(({ student, labels }) => (
+                  <li key={student.id}>
+                    <Link href={`/admin/roster/${student.id}`} className="-mx-2 flex min-h-12 flex-col justify-center rounded-field px-2 py-1.5 transition-colors hover:bg-white/[0.025]">
+                      <span className="truncate text-base font-semibold capitalize text-ink">{displayName(student.username)}</span>
+                      <span className="line-clamp-2 text-sm text-ink-2">{labels.join(" · ")}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Link href="/admin/today#attention" className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-ink-2 hover:text-ink">
+              Full list on Today
+            </Link>
+          </Card>
+        )}
+
+        {!needs && prevMonth && (
+          <Card className="p-5 sm:p-6">
+            <h2 className="mb-3 text-base font-semibold tracking-[-0.01em] text-ink">Marks dropped</h2>
             {data.slipping.length === 0 ? (
               <p className="text-sm text-ink-3">No notable drops this month.</p>
             ) : (

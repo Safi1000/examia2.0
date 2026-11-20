@@ -109,17 +109,27 @@ export function PageStack({ urls: given, label, pageWord = "Page" }: { urls: str
   );
 }
 
-/** Every page in one scrollable reader. Read-only — no markup tools. */
-function PageViewerModal({
+/**
+ * Every page in one scrollable reader. Read-only — no markup tools.
+ *
+ * Also used for a student's own marked pages (results): `renderPage` draws
+ * each page (with Hamza's marks on top), and `wide` opens every page at
+ * double size on a phone, to move around with a finger.
+ */
+export function PageViewerModal({
   urls,
   startAt,
   label,
   onClose,
+  renderPage,
+  wide = false,
 }: {
   urls: string[];
   startAt: number;
   label: string;
   onClose: () => void;
+  renderPage?: (url: string, index: number) => React.ReactNode;
+  wide?: boolean;
 }) {
   const [page, setPage] = useState(startAt);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -162,6 +172,21 @@ function PageViewerModal({
       document.body.style.overflow = prev;
       if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
+  }, []);
+
+  // Pages drawn by `renderPage` have no onLoad of their own: the page tapped
+  // is brought into view once its picture has loaded.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !renderPage) return;
+    const onLoad = (e: Event) => {
+      const page = (e.target as Element | null)?.closest?.("[data-page]");
+      if (page && page.getAttribute("data-page") === String(startAt)) page.scrollIntoView({ block: "start" });
+    };
+    el.addEventListener("load", onLoad, true);
+    return () => el.removeEventListener("load", onLoad, true);
+    // Only when the reader opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // The counter and arrows follow the page on screen as it is scrolled.
@@ -228,18 +253,22 @@ function PageViewerModal({
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
           {urls.map((u, i) => (
             // A past paper picture opens at double size on a phone (move around it with a finger), so its small print is easy to read.
-            <div key={u} data-page={i} className={parseCrop(u) ? "min-w-[42rem] sm:min-w-0" : undefined}>
+            <div key={u} data-page={i} className={wide || parseCrop(u) ? "min-w-[42rem] sm:min-w-0" : undefined}>
               {urls.length > 1 && (
                 <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-3">Page {i + 1} of {urls.length}</p>
               )}
               <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-sm)]">
-                <PaperImage
-                  url={u}
-                  width={1800}
-                  loading={i === startAt ? "eager" : "lazy"}
-                  alt={`${label}, page ${i + 1}`}
-                  onLoad={i === startAt ? (el) => (el.closest("[data-page]") ?? el).scrollIntoView({ block: "start" }) : undefined}
-                />
+                {renderPage ? (
+                  renderPage(u, i)
+                ) : (
+                  <PaperImage
+                    url={u}
+                    width={1800}
+                    loading={i === startAt ? "eager" : "lazy"}
+                    alt={`${label}, page ${i + 1}`}
+                    onLoad={i === startAt ? (el) => (el.closest("[data-page]") ?? el).scrollIntoView({ block: "start" }) : undefined}
+                  />
+                )}
               </div>
             </div>
           ))}

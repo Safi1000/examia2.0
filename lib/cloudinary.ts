@@ -25,8 +25,8 @@ export async function uploadNote(file: File, onProgress?: OnProgress): Promise<{
   form.append("file", file);
   form.append("upload_preset", CLOUDINARY_NOTES_PRESET);
 
-  // Big notes on a slow line get ten minutes, not two.
-  const res = await postWithProgress(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/raw/upload`, form, onProgress, 600_000);
+  // Big notes on a slow line: a full minute of no movement before giving up.
+  const res = await postWithProgress(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/raw/upload`, form, onProgress, 60_000);
   if (!res.ok) {
     console.error("Cloudinary upload failed", res.status, res.text);
     throw new Error("That file didn't upload. Try again.");
@@ -40,17 +40,42 @@ export async function uploadNote(file: File, onProgress?: OnProgress): Promise<{
 export type OnProgress = (fraction: number) => void;
 
 /** POST to Cloudinary with upload progress (fetch can't report it). */
-function postWithProgress(url: string, form: FormData, onProgress?: OnProgress, timeoutMs = 120_000): Promise<{ ok: boolean; status: number; text: string }> {
+function postWithProgress(url: string, form: FormData, onProgress?: OnProgress, idleMs = 30_000): Promise<{ ok: boolean; status: number; text: string }> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", url);
-    if (onProgress) xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
-    xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, text: xhr.responseText });
-    xhr.onerror = () => reject(new Error("Upload failed. Check your internet and try again."));
-    // A stalled connection must end, so the student can simply try again.
-    xhr.timeout = timeoutMs;
-    xhr.ontimeout = () => reject(new Error("The upload took too long. Check your internet and try again."));
-    xhr.onabort = () => reject(new Error("Upload stopped. Try again."));
+    // A stalled connection must end, so the student can simply try again. But
+    // a big file on slow data that is still moving is never cut off: only
+    // `idleMs` with nothing sent ends it. Once every byte is sent, Cloudinary
+    // may take a while to process a PDF, so that last wait is longer.
+    let stalled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const watch = (ms: number) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        stalled = true;
+        xhr.abort();
+      }, ms);
+    };
+    xhr.upload.onprogress = (e) => {
+      if (!e.lengthComputable) return watch(idleMs);
+      onProgress?.(e.loaded / e.total);
+      watch(e.loaded >= e.total ? Math.max(idleMs, 120_000) : idleMs);
+    };
+    xhr.upload.onload = () => watch(Math.max(idleMs, 120_000));
+    xhr.onload = () => {
+      clearTimeout(timer);
+      resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, text: xhr.responseText });
+    };
+    xhr.onerror = () => {
+      clearTimeout(timer);
+      reject(new Error("Upload failed. Check your internet and try again."));
+    };
+    xhr.onabort = () => {
+      clearTimeout(timer);
+      reject(new Error(stalled ? "The upload stopped moving. Check your internet and try again." : "Upload stopped. Try again."));
+    };
+    watch(idleMs);
     xhr.send(form);
   });
 }
