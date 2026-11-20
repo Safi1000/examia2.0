@@ -466,11 +466,16 @@ function PdfReader({ url, authToken, data, onFail, startPage, highlight, onPage,
     };
     let pinch: { d: number } | null = null;
     const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    // Double tap, as phone readers do: twice the size around the finger, and again back to the page width.
+    let tap: { x: number; y: number; at: number; moved: boolean } | null = null;
+    let lastTap: { x: number; y: number; at: number } | null = null;
     const onTouchStart = (e: TouchEvent) => {
       fingers = e.touches.length;
       pinch = e.touches.length === 2 ? { d: dist(e.touches) } : null;
+      tap = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, at: Date.now(), moved: false } : null;
     };
     const onTouchMove = (e: TouchEvent) => {
+      if (tap && e.touches.length === 1 && Math.hypot(e.touches[0].clientX - tap.x, e.touches[0].clientY - tap.y) > 10) tap.moved = true;
       if (!pinch || e.touches.length !== 2) return;
       e.preventDefault();
       const d = dist(e.touches);
@@ -480,13 +485,25 @@ function PdfReader({ url, authToken, data, onFail, startPage, highlight, onPage,
     const onTouchEnd = (e: TouchEvent) => {
       fingers = e.touches.length;
       pinch = null;
+      if (e.type !== "touchend" || e.touches.length || !tap || tap.moved || Date.now() - tap.at > 300) {
+        tap = null;
+        return;
+      }
+      const now = Date.now();
+      if (lastTap && now - lastTap.at < 320 && Math.hypot(tap.x - lastTap.x, tap.y - lastTap.y) < 30) {
+        e.preventDefault();
+        if (zoomRef.current > 1.05) fitWidth();
+        else zoomAt(2 / zoomRef.current, tap.x, tap.y);
+        lastTap = null;
+      } else lastTap = { x: tap.x, y: tap.y, at: now };
+      tap = null;
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     el.addEventListener("gesturestart", onGestureStart);
     el.addEventListener("gesturechange", onGestureChange);
     el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("touchend", onTouchEnd, { passive: false });
     el.addEventListener("touchcancel", onTouchEnd);
     return () => {
       el.removeEventListener("wheel", onWheel);
@@ -497,7 +514,7 @@ function PdfReader({ url, authToken, data, onFail, startPage, highlight, onPage,
       el.removeEventListener("touchend", onTouchEnd);
       el.removeEventListener("touchcancel", onTouchEnd);
     };
-  }, [zoomAt]);
+  }, [zoomAt, fitWidth]);
 
   const btn = "flex h-11 w-11 items-center justify-center rounded-full text-lg font-semibold text-ink hover:bg-surface-2 disabled:opacity-40";
   return (

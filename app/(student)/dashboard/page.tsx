@@ -5,7 +5,8 @@ import { useMemo } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useNow } from "@/hooks/useNow";
 import { useDatabase } from "@/lib/data/store";
-import { attendancePercent, joinedMs, studentById } from "@/lib/data/selectors";
+import { joinedMs, studentById } from "@/lib/data/selectors";
+import { headlineAttendance } from "@/components/student/AttendanceCard";
 import { dueFor } from "@/lib/due";
 import { gradeSubmission } from "@/lib/grading";
 import { AnnouncementsPanel } from "@/components/student/AnnouncementsPanel";
@@ -30,8 +31,10 @@ import { overallTarget } from "@/components/student/targets";
 import { SectionTitle } from "@/components/student/PortalKit";
 import { JOIN_EARLY_MIN, RECORDING_HOURS, addDays, pkDate, slotKey, slotsForStudent, useClassLinks, useSchedule } from "@/lib/classes";
 
+/** In Pakistan time, like every other time on Home. After midnight it is not morning yet. */
 function greeting(d = new Date()) {
-  const h = d.getHours();
+  const h = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: "Asia/Karachi" }).format(d));
+  if (h < 4) return "Hello";
   if (h < 12) return "Morning";
   if (h < 18) return "Afternoon";
   return "Evening";
@@ -77,10 +80,9 @@ export default function DashboardPage() {
   const overdue = due?.overdue ?? [];
 
   const { plan, perf, mission, books } = heavy;
-  // This month's attendance (last month's until the first class is marked) and syllabus covered.
-  const ym = new Date(nowMs + 5 * 3_600_000).toISOString().slice(0, 7);
-  const prevYm = new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7) - 2, 1)).toISOString().slice(0, 7);
-  const attendance = attendancePercent(db, student.id, `${ym}-01`) ?? attendancePercent(db, student.id, `${prevYm}-01`);
+  // This month's attendance (last month's until three classes are marked), the same figure Progress shows, and syllabus covered.
+  const att = headlineAttendance(db, student.id, nowMs);
+  const attendance = att.percent != null && att.monthName ? { percent: att.percent, month: att.monthName } : null;
   // Chapters covered across their subjects: the same count Progress shows per subject.
   const chapters = books.reduce((a, b) => ({ covered: a.covered + b.covered, total: a.total + b.total }), { covered: 0, total: 0 });
   const syllabus = chapters.total ? chapters : null;
@@ -149,7 +151,8 @@ export default function DashboardPage() {
     ...tests.open.map((t) => ({ key: t.id, href: `/test/${t.id}`, title: t.title, meta: `Test · closes ${formatRelative(t.closesAt, nowMs)}`, cta: "Start", focus: { kind: "test" as const, subject: t.subject, id: t.id } })),
     // Straight to that homework on the Homework page, not the top of the list.
     ...overdue.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · overdue since ${formatWhen(a.dueAt)}`, cta: "Hand in work", ctaShort: "Hand in", focus: { kind: "homework" as const, subject: subjectOf(a.subjectId), id: a.id } })),
-    ...dueSoon.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · due ${formatWhen(a.dueAt)}`, cta: "Hand in work", ctaShort: "Hand in", focus: { kind: "homework" as const, subject: subjectOf(a.subjectId), id: a.id } })),
+    // Homework due in the next 3 days counts as to do, the same rule as the Homework tab's number; later homework stays on the list, quietly.
+    ...dueSoon.map((a) => ({ key: a.id, href: `/assignments#a-${a.id}`, title: a.title, meta: `Homework · due ${formatRelative(a.dueAt, nowMs)}`, cta: "Hand in work", ctaShort: "Hand in", quiet: +new Date(a.dueAt) - nowMs >= 3 * 86_400_000, focus: { kind: "homework" as const, subject: subjectOf(a.subjectId), id: a.id } })),
     ...recordingTodo,
     ...newResults,
   ];
@@ -177,7 +180,7 @@ export default function DashboardPage() {
         {todo.length > 0 && (
           <section aria-labelledby="todo-title">
             <SectionTitle id="todo-title" count={toDoCount}>
-              {toDoCount > 0 ? "To do" : "New for you"}
+              {todo.some((x) => x.focus) ? "To do" : "New for you"}
             </SectionTitle>
             <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
               {todo.map((x) => (
@@ -223,7 +226,7 @@ export default function DashboardPage() {
           <div className="surface flex items-center gap-4 rounded-card p-5 sm:p-6">
             <p className="text-base text-ink-2">
               <span className="block font-semibold text-ink">Nothing due right now.</span>
-              {tests.next ? `Next test opens ${formatWhen(tests.next.opensAt)}.` : "New tests and homework show up here."}
+              Good time to read a chapter or try your Daily 5.
             </p>
           </div>
         )}
@@ -275,7 +278,7 @@ function HomeHero({ name, status, studentId, totalMinutes }: { name: string; sta
   return (
     <IslandHeader studentId={studentId} totalMinutes={totalMinutes} timeOfDay={partOfDay()}>
       <p className="label-quiet text-ink-2">
-        {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+        {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Karachi" })}
       </p>
       <h1 className="mt-2 break-words text-title font-bold tracking-[-0.025em] text-ink [text-shadow:0_2px_18px_rgba(0,0,0,0.35)] sm:text-title-lg">
         {greeting()}, {name}.
@@ -302,7 +305,7 @@ function CardHead({ title, more }: { title: string; more: string }) {
  * on. The trend, the line chart and each subject against its target live on
  * Progress, one tap away.
  */
-function PerformanceCard({ perf, attendance, syllabus, target }: { perf: Snapshot | null; attendance: number | null; syllabus: { covered: number; total: number } | null; target?: string }) {
+function PerformanceCard({ perf, attendance, syllabus, target }: { perf: Snapshot | null; attendance: { percent: number; month: string } | null; syllabus: { covered: number; total: number } | null; target?: string }) {
   const graded = !!perf && perf.marked >= 3;
   return (
     <Link href="/progress" className="surface surface-link block rounded-card p-5 sm:p-6">
@@ -327,12 +330,13 @@ function PerformanceCard({ perf, attendance, syllabus, target }: { perf: Snapsho
           {attendance != null && (
             <div>
               <dt className="text-xs text-ink-3">Attendance</dt>
-              <dd className={cn("mt-0.5 text-lg font-bold tabular-nums", attendance >= 75 ? "text-ink" : "text-warning")}>{Math.round(attendance)}%</dd>
+              <dd className={cn("mt-0.5 text-lg font-bold tabular-nums", attendance.percent >= 75 ? "text-ink" : "text-warning")}>{Math.round(attendance.percent)}%</dd>
+              <dd className="mt-0.5 text-xs text-ink-3">{attendance.month}</dd>
             </div>
           )}
           {syllabus != null && (
             <div>
-              <dt className="text-xs text-ink-3">Chapters covered</dt>
+              <dt className="text-xs text-ink-3">Chapters</dt>
               <dd className="mt-0.5 flex items-baseline gap-1 tabular-nums">
                 <span className="text-lg font-bold text-ink">{syllabus.covered}</span>
                 <span className="text-xs text-ink-2">of {syllabus.total}</span>
@@ -386,6 +390,9 @@ function PlanCard({ week, plan, nowMs, workOn }: { week: PlanWeek | null; plan: 
             </span>
           </p>
         </div>
+      ) : plan.papers.length > 0 ? (
+        // Every paper is behind them.
+        <p className="mt-2 text-base text-ink-2">Your exams are done. Well done.</p>
       ) : (
         <p className="mt-2 text-sm text-ink-2 tabular-nums">
           <span className="font-bold text-ink">{daysLeft}</span> {daysLeft === 1 ? "day" : "days"} to exams

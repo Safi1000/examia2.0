@@ -105,8 +105,8 @@ function ScoreRing({ data }: { data: ReportData }) {
         ) : null}
         {data.change != null ? (
           <Text style={{ fontSize: 6.6, color: data.change >= 0 ? GOOD : BAD, fontWeight: 600 }}>
-            {data.change >= 0 ? "+" : "−"}
-            {Math.abs(Math.round(data.change))} vs last month
+            {/* In words, as the on-screen report says it (no minus signs). */}
+            {Math.round(data.change) === 0 ? "Same as last month" : `${data.change > 0 ? "Up" : "Down"} ${Math.abs(Math.round(data.change))} on last month`}
           </Text>
         ) : null}
       </View>
@@ -129,8 +129,7 @@ function Attendance({ a }: { a: ReportData["attendance"] }) {
         <Text style={{ fontSize: 22, fontWeight: 800, color: tone, lineHeight: 1 }}>{Math.round(a.percent)}%</Text>
         {delta != null && delta !== 0 ? (
           <Text style={{ fontSize: 6.6, fontWeight: 600, color: delta > 0 ? GOOD : BAD, marginLeft: 6, marginBottom: 2 }}>
-            {delta > 0 ? "+" : "−"}
-            {Math.abs(delta)} vs last month
+            {delta > 0 ? "Up" : "Down"} {Math.abs(delta)} on last month
           </Text>
         ) : delta === 0 ? (
           <Text style={{ fontSize: 6.6, color: MUTED, marginLeft: 6, marginBottom: 2 }}>same as last month</Text>
@@ -440,14 +439,14 @@ export function ReportDocument({ data }: { data: ReportData }) {
                   </View>
                   <Text style={{ width: 34, fontSize: 9.5, fontWeight: 800, textAlign: "right", color: INK }}>{Math.round(r.percent)}%</Text>
                   <Text style={{ width: 30, fontSize: 6.8, textAlign: "right", fontWeight: 600, color: d == null ? MUTED : d >= 0 ? GOOD : BAD }}>
-                    {d == null ? "" : `${d >= 0 ? "+" : "−"}${Math.abs(d)}`}
+                    {d == null ? "" : d === 0 ? "Same" : `${d > 0 ? "Up" : "Down"} ${Math.abs(d)}`}
                   </Text>
                 </View>
               );
             })}
             {listed.length ? (
               <Legend>
-                <Text style={{ fontSize: 6.2, color: MUTED, marginTop: 3 }}>+/− = points above or below the class</Text>
+                <Text style={{ fontSize: 6.2, color: MUTED, marginTop: 3 }}>Up or Down: points above or below the class</Text>
               </Legend>
             ) : (
               <Text style={{ fontSize: 7.5, color: MUTED }}>No marked tests this month yet.</Text>

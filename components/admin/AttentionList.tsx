@@ -51,7 +51,13 @@ function studentMessage(r: AttentionRow, nowMs: number) {
 
 /** To the parent: only facts a parent can see for themselves (never Groundwork, sign-ins or recordings opened). */
 function parentMessage(r: AttentionRow) {
-  const facts = r.reasons.map((x) => x.parent).filter((x): x is string => !!x);
+  // The absence line already says they missed classes, so the recording line would say it twice; two facts at most reads as a note, not a report.
+  const absent = r.reasons.some((x) => x.kind === "absent_streak");
+  const facts = r.reasons
+    .filter((x) => !(absent && x.kind === "recording"))
+    .map((x) => x.parent)
+    .filter((x): x is string => !!x)
+    .slice(0, 2);
   return parentUpdate({ id: r.student.id, username: r.student.username, facts });
 }
 
@@ -99,7 +105,7 @@ export function AttentionList({
 
   const closeNote = (saved: boolean) => {
     setEditing(null);
-    if (saved) toast("Note saved", "success");
+    if (saved) toast("Note saved.", "success");
   };
   const act = (id: string, a: AttentionAct) => {
     onAct(id, a);
@@ -146,10 +152,10 @@ export function AttentionList({
       <li key={s.id} className="py-3.5">
         <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2.5">
           <div className="min-w-0 flex-1 basis-64">
-            <Link href={`/admin/roster/${s.id}`} className="text-base font-semibold text-ink underline-offset-4 hover:underline">
+            <Link href={`/admin/roster/${s.id}`} className="inline-flex items-center text-base font-semibold text-ink underline-offset-4 hover:underline pointer-coarse:min-h-11">
               {name}
             </Link>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <div className="mt-1.5 flex pointer-coarse:mt-0 flex-wrap gap-1.5">
               {r.newSinceCheck && <Badge tone="warning">New since you checked</Badge>}
               {r.score >= AT_RISK && <Badge tone="error">At risk of leaving</Badge>}
               {r.isNew && <Badge tone="brand">Joined {shortDate(Date.parse(s.createdAt))}</Badge>}
@@ -163,10 +169,15 @@ export function AttentionList({
             </div>
             {r.good && <p className="mt-1.5 text-sm text-ink-2">{r.good}</p>}
             {ladder && <p className="mt-1.5 text-sm text-ink-2">{ladder}</p>}
-            <p className="mt-1 truncate text-sm text-ink-3">
-              {r.lastChecked ? `Last checked in ${shortDate(r.lastChecked)}` : "Not checked in yet"}
-              {note && <span title={note}> · Note: {note}</span>}
-            </p>
+            {/* Rows under "Not spoken to lately" already say how long it has been in their tag: only the note is added. */}
+            {r.rotation ? (
+              note && <p className="mt-1 truncate text-sm text-ink-3" title={note}>Note: {note}</p>
+            ) : (
+              <p className="mt-1 truncate text-sm text-ink-3">
+                {r.lastChecked ? `Last checked in ${shortDate(r.lastChecked)}` : "Not checked in yet"}
+                {note && <span title={note}> · Note: {note}</span>}
+              </p>
+            )}
           </div>
           {/* Quiet buttons on every row: gold stays for the page's one main action. */}
           <div className="flex shrink-0 flex-wrap items-center gap-2">

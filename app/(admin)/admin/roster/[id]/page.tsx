@@ -13,7 +13,7 @@ import { useAuth } from "@/lib/auth-context";
 import { isTa } from "@/lib/staff";
 import Link from "next/link";
 import { Suspense } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { attendancePercent, cohortById, homeworkSetFor, studentById, submissionsForStudent, testById } from "@/lib/data/selectors";
 import { isInPersonStudent } from "@/lib/in-person";
@@ -33,6 +33,9 @@ import { StudentNoteCard } from "@/components/admin/StudentNote";
 import { statLabel, statTile, statValue } from "@/components/admin/surface";
 import { StudentActivitySection } from "@/components/admin/ActivityParts";
 import { gradeSubmission } from "@/lib/grading";
+import { shownPercent } from "@/lib/performance";
+import { fmtTime } from "@/lib/activity";
+import { RowMenu } from "@/components/admin/RowMenu";
 import { topicMastery } from "@/lib/scoring";
 import { buildStudentReport } from "@/lib/report-build";
 import { isReportLinkLive, REPORT_LINK_DAYS, reportLinkDay, reportLinkExpiry } from "@/lib/report-data";
@@ -46,7 +49,7 @@ function monthOf(iso: string | null | undefined) {
 function formatMonthLabel(m: string) {
   if (!m) return "All time";
   const [y, mo] = m.split("-");
-  return new Date(Number(y), Number(mo) - 1, 1).toLocaleString("default", { month: "long", year: "numeric" });
+  return new Date(Number(y), Number(mo) - 1, 1).toLocaleString("en-GB", { month: "long", year: "numeric" });
 }
 
 /** Suspense wrapper: `useSearchParams` needs a boundary during prerender. */
@@ -77,6 +80,7 @@ function StudentDetail() {
   const [downloading, setDownloading] = useState(false);
   // The report whose fresh link is being made, for its button's spinner.
   const [refreshing, setRefreshing] = useState<string | null>(null);
+  const [allHomework, setAllHomework] = useState(false);
   const reportNow = useNow();
 
   // Landing here from the roster's WhatsApp button (?report=1) opens the report
@@ -172,7 +176,7 @@ function StudentDetail() {
       setReportOpen(false);
     } catch (err) {
       console.error("PDF generation failed:", err);
-      toast("Could not build the report.", "error");
+      toast("Couldn't build the report. Check your internet and try again.", "error");
     } finally {
       setDownloading(false);
     }
@@ -202,7 +206,7 @@ function StudentDetail() {
     } catch (err) {
       tab.cancel();
       console.error("WhatsApp send failed:", err);
-      toast(err instanceof Error ? err.message : "Could not build the report.", "error");
+      toast(err instanceof Error ? err.message : "Couldn't build the report. Check your internet and try again.", "error");
     } finally {
       setSending(false);
     }
@@ -216,7 +220,7 @@ function StudentDetail() {
     if (!notesConfigured()) {
       // Nowhere to host it: fall back to the file itself.
       saveBlob(built.blob, built.fileName);
-      toast("Uploads aren't set up, so the report was saved instead.", "info");
+      toast("File uploads are switched off, so the report was saved to this device instead. Ask your developer to check the file storage.", "info");
       return null;
     }
 
@@ -254,7 +258,7 @@ function StudentDetail() {
       toast(linkLasts(), "success");
     } catch (err) {
       tab.cancel();
-      toast(err instanceof Error ? err.message : "Could not make a fresh link.", "error");
+      toast(err instanceof Error ? err.message : "Couldn't make a fresh link. Check your internet and try again.", "error");
     } finally {
       setRefreshing(null);
     }
@@ -286,9 +290,9 @@ function StudentDetail() {
                 target="_blank"
                 rel="noreferrer"
                 className={buttonClasses({ variant: "secondary", size: "sm" })}
-                title={`Chat with ${student.username}: ${student.phone}`}
+                title={`WhatsApp ${displayName(student.username)}: ${student.phone}`}
               >
-                <Icon.Users className="h-4 w-4" /> Student
+                WhatsApp student
               </a>
             )}
             {student.whatsapp && (
@@ -297,15 +301,13 @@ function StudentDetail() {
                 target="_blank"
                 rel="noreferrer"
                 className={buttonClasses({ variant: "secondary", size: "sm" })}
-                title={`Chat with the parent: ${student.whatsapp}`}
+                title={`WhatsApp the parent: ${student.whatsapp}`}
               >
-                <Icon.Users className="h-4 w-4" /> Parent
+                WhatsApp parent
               </a>
             )}
-            <Link href={`/admin/roster?edit=${student.id}`} className={buttonClasses({ variant: "secondary", size: "sm" })}>
-              <Icon.Edit className="h-4 w-4" /> Edit details
-            </Link>
-            <ResetPassword studentId={student.id} username={student.username} phone={student.phone} parent={student.whatsapp} />
+            {/* Edit, login details and password sit under one More button, so the row stays one line on a phone. */}
+            <ResetPassword studentId={student.id} username={student.username} phone={student.phone} parent={student.whatsapp} editHref={`/admin/roster?edit=${student.id}`} />
             {/* In-person students get no monthly report. */}
             {!isInPersonStudent(db, student) && (
               <Button variant="secondary" size="sm" onClick={openReport}>
@@ -333,7 +335,7 @@ function StudentDetail() {
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Homework owed" value={String(data.owed)} />
         <Stat label="Last test" value={data.lastPct === null ? "None yet" : `${data.lastPct}%`} />
-        <Stat label="Average" value={data.avg === null ? "None yet" : `${data.avg}%`} />
+        <Stat label="Average" value={data.avg === null ? "None yet" : `${Math.round(data.avg)}%`} />
         <Stat
           label="Attendance this month"
           value={isInPersonStudent(db, student) ? "In person" : data.attendance != null ? `${data.attendance}%` : "None yet"}
@@ -366,7 +368,7 @@ function StudentDetail() {
         <p className="text-base text-ink-2">No homework set for {displayName(student.username)} yet.</p>
       ) : (
         <Card className="divide-y divide-hairline overflow-hidden p-0">
-          {data.homework.slice(0, 8).map(({ a, state }) => (
+          {(allHomework ? data.homework : data.homework.slice(0, 8)).map(({ a, state }) => (
             <div key={a.id} className="flex items-center justify-between gap-3 px-5 py-3">
               <div className="min-w-0">
                 <Link href={`/admin/assignments?open=${a.id}`} className="block truncate text-base font-semibold text-ink underline-offset-4 hover:underline">{a.title}</Link>
@@ -385,14 +387,19 @@ function StudentDetail() {
           ))}
         </Card>
       )}
-      {data.homework.length > 8 && <p className="mt-2 text-sm text-ink-3">Showing the latest 8 of {data.homework.length}.</p>}
+      {data.homework.length > 8 && (
+        <button type="button" onClick={() => setAllHomework((v) => !v)} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline">
+          {allHomework ? "Show the latest 8" : `Show all ${data.homework.length}`}
+        </button>
+      )}
 
-      <h2 className="mb-3 mt-10 text-xl font-semibold tracking-[-0.015em] text-ink">Submissions</h2>
+      <h2 className="mb-3 mt-10 text-xl font-semibold tracking-[-0.015em] text-ink">Tests</h2>
       {data.subs.length === 0 ? (
-        <EmptyState icon={<Icon.Inbox />} title="No submissions" />
+        <EmptyState icon={<Icon.Inbox />} title="No tests handed in yet" />
       ) : (
         <Card className="divide-y divide-hairline overflow-hidden p-0">
-          {data.subs.map((s) => {
+          {/* Newest first, so the latest test is at the top. */}
+          {[...data.subs].reverse().map((s) => {
             const test = testById(db, s.testId);
             const grade = test ? gradeSubmission(test, s) : null;
             return (
@@ -403,14 +410,14 @@ function StudentDetail() {
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   {s.status === "released" && grade ? (
-                    <Badge tone="success" className="tabular-nums">{grade.percent}% · {grade.letter}</Badge>
+                    <Badge tone="success" className="tabular-nums">{shownPercent(grade.percent)}% · {grade.letter}</Badge>
                   ) : s.status === "in_progress" ? (
                     <Badge tone="neutral">In progress</Badge>
                   ) : (
-                    <Badge tone="warning">Awaiting</Badge>
+                    <Badge tone="warning">To mark</Badge>
                   )}
                   <Link href={`/admin/grading/${s.id}`} className={buttonClasses({ variant: "secondary", size: "sm" })}>
-                    {s.status === "released" ? "Review" : "Grade"}
+                    {s.status === "released" ? "Open" : "Mark"}
                   </Link>
                 </div>
               </div>
@@ -430,7 +437,7 @@ function StudentDetail() {
           <>
             <Button variant="secondary" onClick={() => setReportOpen(false)} disabled={downloading || sending}>Cancel</Button>
             <Button variant="secondary" onClick={downloadReport} loading={downloading} disabled={data.months.length === 0 || sending}>
-              {downloading ? "Generating..." : "Download PDF"}
+              {downloading ? "Making the PDF…" : "Download PDF"}
             </Button>
             <Button
               onClick={sendReportOnWhatsapp}
@@ -438,7 +445,7 @@ function StudentDetail() {
               disabled={data.months.length === 0 || downloading || !student.whatsapp}
               title={student.whatsapp ? `Send to ${student.whatsapp}` : "Add the parent's WhatsApp number first"}
             >
-              {sending ? "Preparing..." : "Send on WhatsApp"}
+              {sending ? "Preparing…" : "Send on WhatsApp"}
             </Button>
           </>
         }
@@ -469,7 +476,7 @@ function StudentDetail() {
               id="report-note"
               value={teacherNote}
               onChange={(e) => setTeacherNote(e.target.value)}
-              placeholder="Add a personal note for the parent..."
+              placeholder="Add a personal note for the parent…"
               rows={4}
               maxLength={260}
               className="w-full resize-none rounded-field border border-field bg-surface px-3.5 py-3 text-base leading-relaxed text-ink placeholder:text-ink-3 transition-colors hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
@@ -541,7 +548,8 @@ function TheirPortal({ profile, initial }: { profile: Profile; initial: string }
   return (
     <Card className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3 p-5 sm:p-6">
       {/* Their chosen picture, else their initial (it used to show a bare "?"). */}
-      <Avatar id={profile.avatar} initials={initial} className="h-10 w-10" />
+      {/* Only a picture they chose: a bare initial beside the numbers read like a grade. */}
+      {profile.avatar && <Avatar id={profile.avatar} initials={initial} className="h-10 w-10" />}
       {targets.length > 0 && (
         <p className="text-sm text-ink-2">
           Aiming for{" "}
@@ -554,7 +562,7 @@ function TheirPortal({ profile, initial }: { profile: Profile; initial: string }
         </p>
       )}
       <p className="text-sm text-ink-2">
-        Groundwork: <span className="font-semibold text-ink">{weekHours} h</span> this week
+        Groundwork: <span className="font-semibold text-ink">{fmtTime(weekHours * 3600)}</span> this week
         {goal ? ` of ${goal} h` : ""}
         {streak > 1 ? ` · ${streak} day streak` : ""}
       </p>
@@ -581,8 +589,9 @@ function TheirPortal({ profile, initial }: { profile: Profile; initial: string }
  * (copy, or WhatsApp to the student or parent). Passwords are never stored
  * in a readable form, so this is also how Hamza re-sends login details.
  */
-function ResetPassword({ studentId, username, phone, parent }: { studentId: string; username: string; phone?: string; parent?: string }) {
+function ResetPassword({ studentId, username, phone, parent, editHref }: { studentId: string; username: string; phone?: string; parent?: string; editHref: string }) {
   const store = useStore();
+  const router = useRouter();
   const { toast } = useToast();
   const [step, setStep] = useState<"idle" | "confirm" | "busy" | "done">("idle");
   const [kind, setKind] = useState<"reset" | "welcome">("reset");
@@ -603,16 +612,18 @@ function ResetPassword({ studentId, username, phone, parent }: { studentId: stri
 
   return (
     <>
-      <Button variant="secondary" size="sm" onClick={() => { setKind("welcome"); setStep("confirm"); }}>
-        <Icon.Users className="h-4 w-4" /> Send login details
-      </Button>
-      <Button variant="secondary" size="sm" onClick={() => { setKind("reset"); setStep("confirm"); }}>
-        <Icon.Lock className="h-4 w-4" /> Reset password
-      </Button>
+      <RowMenu
+        label={`More for ${displayName(username)}`}
+        items={[
+          { label: "Edit details", onSelect: () => router.push(editHref) },
+          { label: "Send login details", onSelect: () => { setKind("welcome"); setStep("confirm"); } },
+          { label: "Reset password", onSelect: () => { setKind("reset"); setStep("confirm"); } },
+        ]}
+      />
       <Modal
         open={step === "confirm" || step === "busy"}
         onClose={() => setStep("idle")}
-        title={kind === "welcome" ? `Send ${username} their login?` : `Reset ${username}'s password?`}
+        title={kind === "welcome" ? `Send ${displayName(username)} their login?` : `Reset ${displayName(username)}'s password?`}
         description={
           kind === "welcome"
             ? "Passwords can't be read back, so this makes a new one and puts it in the welcome message. Their old password stops working."

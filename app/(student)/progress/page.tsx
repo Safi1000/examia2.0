@@ -9,7 +9,7 @@ import { useDatabase } from "@/lib/data/store";
 import { useNow } from "@/hooks/useNow";
 import { studentById, submissionsForStudent, testById, testsForStudent } from "@/lib/data/selectors";
 import { gradeSubmission } from "@/lib/grading";
-import { topicMastery } from "@/lib/scoring";
+import { isVagueTopic, topicMastery } from "@/lib/scoring";
 import { GRADE_FLOOR, performanceSnapshot, shownPercent } from "@/lib/performance";
 import { formatDate } from "@/lib/time";
 import { studentSubjects } from "@/components/student/Welcome";
@@ -26,6 +26,9 @@ import { AttendanceCard } from "@/components/student/AttendanceCard";
 import type { Mission } from "@/components/student/FocusMode";
 import { EmptyArt, GradeMedallion, PageHeader, SectionTitle } from "@/components/student/PortalKit";
 
+/** Results shown before "See all": the latest, so subjects and topics stay near the top. */
+const RESULTS_SHOWN = 5;
+
 const FocusMode = dynamic(() => import("@/components/student/FocusMode"), { ssr: false });
 
 /**
@@ -38,6 +41,7 @@ export default function ProgressPage() {
   const nowMs = useNow();
   const student = session?.studentId ? studentById(db, session.studentId) : null;
   const [practise, setPractise] = useState<Mission | null>(null);
+  const [allResults, setAllResults] = useState(false);
   const books = useMemo(() => (student ? syllabusProgress(db, student) : []), [db, student]);
   const notesFor = useMemo(() => (student ? topicNotesFinder(db, student) : null), [db, student]);
 
@@ -53,10 +57,13 @@ export default function ProgressPage() {
     const topics = topicMastery(
       results.map((r) => r.test),
       results.map((r) => r.sub),
-    ).filter((m) => m.available > 0);
+    ).filter((m) => m.available > 0 && !isVagueTopic(m.name));
     // Tests that are over (or already handed in), so a test still open today isn't "missed".
     const done0 = new Set(submissionsForStudent(db, student.id).filter((s) => s.status !== "in_progress").map((s) => s.testId));
-    const set = testsForStudent(db, student).filter((t) => +new Date(t.closesAt) <= nowMs || done0.has(t.id));
+    const mineAll = testsForStudent(db, student);
+    const set = mineAll.filter((t) => +new Date(t.closesAt) <= nowMs || done0.has(t.id));
+    // Open now and not handed in yet: not missed, but not done either.
+    const openNow = mineAll.filter((t) => +new Date(t.opensAt) <= nowMs && +new Date(t.closesAt) > nowMs && !done0.has(t.id)).length;
     return {
       results,
       snap: performanceSnapshot(db, student),
@@ -64,6 +71,7 @@ export default function ProgressPage() {
       strong: [...topics].filter((m) => m.percent >= 75).sort((a, b) => b.percent - a.percent).slice(0, 5),
       handed: set.filter((t) => done0.has(t.id)).length,
       setCount: set.length,
+      openNow,
     };
   }, [db, student, nowMs]);
 
@@ -72,6 +80,10 @@ export default function ProgressPage() {
   const targetFor = (subject: string) => pickedTarget(profile.targets, student, subject);
   // One target beside the overall grade, only when every subject's target is the same.
   const overall = snap ? overallTarget(profile.targets, student, snap.bySubject.map((x) => x.subject)) : undefined;
+
+  // Missed ones, and any still open, so "4 / 4" never reads as nothing left to do.
+  const missed = data.setCount - data.handed;
+  const testsLine = [missed > 0 ? `${missed} missed` : "None missed", data.openNow > 0 ? `${data.openNow} open now` : ""].filter(Boolean).join(" · ");
 
   const pace = (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 [&>*]:min-w-0">
@@ -108,7 +120,7 @@ export default function ProgressPage() {
                   <p className="mt-3 text-lg font-semibold text-ink">
                     {snap.marked} of 3 tests marked
                   </p>
-                  <p className="mt-0.5 text-sm text-ink-3">Your grade shows after three, so one test can’t decide it.</p>
+                  <p className="mt-0.5 text-sm text-ink-3">Your grade shows after three, so one test can&apos;t decide it.</p>
                 </div>
               ) : (
               <div className="mt-4 flex items-center gap-5">
@@ -120,9 +132,9 @@ export default function ProgressPage() {
                 </div>
               </div>
               )}
-              {snap.delta != null && Math.abs(snap.delta) >= 1 && (
-                <p className={cn("mt-3 text-sm font-semibold tabular-nums", snap.delta > 0 ? "text-success" : "text-warning")}>
-                  {snap.delta > 0 ? "▲ Up" : "▼ Down"} {Math.abs(Math.round(snap.delta))}% on the tests before
+              {snap.delta != null && Math.abs(Math.round(snap.delta)) >= 1 && (
+                <p className="mt-3 text-sm font-semibold tabular-nums text-ink-2">
+                  Last {Math.min(5, snap.marked)} tests: {Math.abs(Math.round(snap.delta))} {Math.abs(Math.round(snap.delta)) === 1 ? "point" : "points"} {snap.delta > 0 ? "higher" : "lower"} than the ones before.
                 </p>
               )}
               {(snap.grade === "A*" || snap.grade === "A") && snap.marked >= 3 && (
@@ -137,13 +149,13 @@ export default function ProgressPage() {
             <div className="surface flex items-center justify-between gap-4 rounded-card p-5 sm:block sm:p-6">
               <div>
                 <p className="text-sm font-semibold text-ink-3">Tests done</p>
-                <p className="mt-0.5 text-sm text-ink-3 sm:hidden">{data.setCount - data.handed > 0 ? `${data.setCount - data.handed} missed` : "None missed"}</p>
+                <p className="mt-0.5 text-sm text-ink-3 sm:hidden">{testsLine}</p>
               </div>
               <p className="text-title font-bold tracking-[-0.025em] tabular-nums text-ink sm:mt-2">
                 {data.handed}
                 <span className="text-lg font-semibold text-ink-3"> / {data.setCount}</span>
               </p>
-              <p className="mt-1 hidden text-sm text-ink-3 sm:block">{data.setCount - data.handed > 0 ? `${data.setCount - data.handed} missed` : "None missed"}</p>
+              <p className="mt-1 hidden text-sm text-ink-3 sm:block">{testsLine}</p>
             </div>
           </section>
 
@@ -151,12 +163,12 @@ export default function ProgressPage() {
           <section>
             <SectionTitle count={results.length}>Results</SectionTitle>
             <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
-              {results.map(({ test, sub, pct }) => (
+              {(allResults ? results : results.slice(0, RESULTS_SHOWN)).map(({ test, sub, pct }) => (
                 <li key={sub.id}>
                   <Link href={`/results/${test.id}`} className="row-link flex items-center gap-4 px-5 py-4 sm:px-6">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-hairline bg-surface-2 text-base font-bold tracking-[-0.02em] text-ink">{gradeSubmission(test, sub).letter}</span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-base font-semibold text-ink">{test.title}</span>
+                      <span className="line-clamp-2 break-words text-base font-semibold text-ink">{test.title}</span>
                       <span className="mt-0.5 block text-sm text-ink-3 tabular-nums">
                         {test.subject}
                         {sub.submittedAt ? ` · ${formatDate(sub.submittedAt)}` : ""}
@@ -168,6 +180,15 @@ export default function ProgressPage() {
                 </li>
               ))}
             </ul>
+            {results.length > RESULTS_SHOWN && (
+              <button
+                type="button"
+                onClick={() => setAllResults(!allResults)}
+                className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline"
+              >
+                {allResults ? "Show fewer" : `See all ${results.length} results`}
+              </button>
+            )}
           </section>
 
           {/* 3. Which subject needs me? */}
@@ -193,7 +214,7 @@ export default function ProgressPage() {
                     </div>
                     {target && (
                       <p className={cn("mt-2 text-sm font-semibold", gap ? "text-warning" : "text-success")}>
-                        {gap ? `${gap}% to your ${target}` : `On track for ${target}`}
+                        {gap ? `${gap} ${gap === 1 ? "point" : "points"} to your ${target}` : `On track for ${target}`}
                       </p>
                     )}
                     </div>
@@ -258,8 +279,8 @@ export default function ProgressPage() {
                 ) : (
                   <ul className="mt-3 flex flex-wrap gap-2">
                     {data.strong.map((m) => (
-                      <li key={m.topic} className="rounded-full border border-success/20 bg-success-soft px-3 py-1.5 text-xs font-semibold text-success tabular-nums">
-                        {m.name} {Math.round(m.percent)}%
+                      <li key={m.topic} className="rounded-full border border-border-strong px-3 py-1.5 text-sm tabular-nums">
+                        <span className="font-semibold text-ink">{m.name}</span> <span className="text-ink-2">{Math.round(m.percent)}%</span>
                       </li>
                     ))}
                   </ul>

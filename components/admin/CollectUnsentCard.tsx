@@ -84,9 +84,9 @@ export function CollectUnsentCard({ test }: { test: Test }) {
       const failed = r.failed?.length ?? 0;
       setFound(null);
       if (failed) toast(`${got} brought in. ${failed} didn't save (${r.failed!.map(nameOf).join(", ")}). Try again.`, got ? "info" : "error");
-      else toast(`${got} ${got === 1 ? "paper" : "papers"} brought in. They're in Submissions, marked as handed in at time up.`, "success");
+      else toast(`${got} ${got === 1 ? "paper" : "papers"} brought in. They're in Marking, marked as handed in at time up.`, "success");
     } catch {
-      toast("That didn't finish. Check Submissions, then try again for anyone missing.", "error");
+      toast("That didn't finish. Check Marking, then try again for anyone missing.", "error");
     } finally {
       setCollecting(false);
     }

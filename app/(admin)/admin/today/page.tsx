@@ -19,7 +19,7 @@ import { isInPersonStudent } from "@/lib/in-person";
 import { buildAttention, recordingReport } from "@/lib/attention";
 import { AttentionList, type AttentionAct } from "@/components/admin/AttentionList";
 import { usePushDevices } from "@/lib/push-devices";
-import { AWAY_UNTIL, CONTACT_PARENT, CONTACT_STUDENT, awayUntilMap } from "@/lib/reminders";
+import { AWAY_UNTIL, CONTACT_PARENT, CONTACT_STUDENT, awayUntilMap, messageWhen } from "@/lib/reminders";
 import { StartCard } from "@/components/admin/StartCard";
 import { SlippingCard } from "@/components/admin/SlippingCard";
 import { WellBuiltCard } from "@/components/admin/WellBuiltCard";
@@ -237,7 +237,7 @@ export default function TodayPage() {
           data.toMark[0] ? (
             // One gold button per view: while a class is about to start, Start class is the gold one.
             <Link href={`/admin/grading/${data.toMark[0].id}`} className={buttonClasses({ variant: heroClass ? "secondary" : "primary" })}>
-              Start marking ({data.toMark.length})
+              Mark next ({data.toMark.length})
             </Link>
           ) : undefined
         }
@@ -309,7 +309,7 @@ export default function TodayPage() {
                       </span>
                       <span className="shrink-0 text-right text-sm tabular-nums text-ink-3">
                         {sub.submittedAt ? new Date(sub.submittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Asia/Karachi" }) : ""}
-                        {days > 0 && <span className="block text-xs font-semibold text-warning">Waiting {days} days</span>}
+                        {days > 0 && <span className="block text-xs font-semibold text-ink-3">Waiting {days} {days === 1 ? "day" : "days"}</span>}
                       </span>
                     </Link>
                   </li>
@@ -354,7 +354,7 @@ export default function TodayPage() {
                 <li key={test.id} className="py-3 first:pt-1">
                   <div className="flex items-baseline justify-between gap-3">
                     <Link href={`/admin/tests/${test.id}`} className="inline-flex min-h-11 items-center text-base font-semibold text-ink underline-offset-4 hover:underline">{test.title}</Link>
-                    <span className="shrink-0 text-sm text-warning">Closes {formatRelative(test.closesAt, nowMs)}</span>
+                    <span className="shrink-0 text-sm tabular-nums text-ink-3">Closes {formatRelative(test.closesAt, nowMs)}</span>
                   </div>
                   <p className="text-sm tabular-nums text-ink-2">
                     {eligible.length - missing.length} of {eligible.length} handed in
@@ -364,8 +364,8 @@ export default function TodayPage() {
                       {(allMissing.includes(test.id) ? missing : missing.slice(0, 12)).map((s) => {
                         // To the student if we have their number, else to the parent (worded for them).
                         const link = s.phone
-                          ? waTo(s.phone, studentTestClosing({ id: s.id, username: s.username, title: test.title, when: formatRelative(test.closesAt, nowMs) }))
-                          : waTo(s.whatsapp, parentTestClosing({ id: s.id, username: s.username, title: test.title, when: formatRelative(test.closesAt, nowMs) }));
+                          ? waTo(s.phone, studentTestClosing({ id: s.id, username: s.username, title: test.title, when: messageWhen(test.closesAt, nowMs) }))
+                          : waTo(s.whatsapp, parentTestClosing({ id: s.id, username: s.username, title: test.title, when: messageWhen(test.closesAt, nowMs) }));
                         return link ? (
                           <a key={s.id} href={link} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center rounded-full border border-border-strong px-3 text-sm font-semibold text-ink transition-colors hover:border-ink-3 hover:bg-surface-2 max-md:min-h-11">
                             Remind {nameOf(s)}
@@ -408,7 +408,7 @@ export default function TodayPage() {
           <h2 className={panelTitle}>Weakest topics</h2>
           <p className="mt-1 max-w-[65ch] text-sm text-ink-3">From released results{cohortName ? ` in ${cohortName}` : ""}. A retest is drafted from your question bank and past tests, and stays hidden until you publish it.</p>
           {data.weak.length === 0 ? (
-            <p className="mt-3 text-base text-ink-2">{data.hasResults ? "No topic is under 70%. Nice." : "No results released yet."}</p>
+            <p className="mt-3 text-base text-ink-2">{data.hasResults ? "No topic is under 70%." : "No results released yet."}</p>
           ) : (
             <ul className="mt-4 grid divide-y divide-hairline border-t border-hairline md:grid-cols-3 md:divide-x md:divide-y-0">
               {data.weak.map((w) => (
@@ -427,7 +427,7 @@ export default function TodayPage() {
                     onClick={() => makeRetest(w.subject, w.name)}
                   >
                     <Icon.Refresh className="h-4 w-4" />
-                    {w.available === 0 ? "No questions yet" : `Make a retest (${w.available} Q)`}
+                    {w.available === 0 ? "No questions yet" : `Make a retest, ${w.available} ${w.available === 1 ? "question" : "questions"}`}
                   </Button>
                 </li>
               ))}

@@ -278,7 +278,7 @@ export default function NotesPage() {
     <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       <PageHeader
         title="Notes"
-        subtitle={`${showingCount} showing to students${unsharedCount ? ` · ${unsharedCount} not given to a batch yet` : ""}${hiddenCount ? ` · ${hiddenCount} hidden` : ""}`}
+        subtitle={`${showingCount} showing to students${unsharedCount ? ` · ${unsharedCount} not given to a cohort yet` : ""}${hiddenCount ? ` · ${hiddenCount} hidden` : ""}`}
         actions={
           <span data-owner className="contents">
             <Button onClick={() => setUpload({})}>
@@ -338,7 +338,8 @@ export default function NotesPage() {
         />
       ) : view === "chapters" && !q && activeBook?.book ? (
         <>
-          <div className="-mx-5 mb-4 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] sm:-mx-8 sm:px-8 [&::-webkit-scrollbar]:hidden">
+          {/* Wider screens: the level and subject chips wrap, so none is hidden past the edge. Phones: one row that swipes, faded at the edge. */}
+          <div className="mb-4 flex gap-2 max-sm:-mx-5 max-sm:overflow-x-auto max-sm:px-5 max-sm:pb-1 max-sm:[mask-image:linear-gradient(to_right,#000_calc(100%-24px),transparent)] max-sm:[scrollbar-width:none] sm:flex-wrap max-sm:[&::-webkit-scrollbar]:hidden">
             {opts.map((o) => (
               <Chip key={o.key} on={o.key === activeBook.key} onClick={() => setBookKey(o.key)}>
                 {o.label}
@@ -612,7 +613,7 @@ function AllNotes({
     setAsk(null);
     sel.clear();
     setBulkCohort("");
-    toast(`${plural(notes, "note")} taken away from ${db.cohorts.find((c) => c.id === bulkCohort)?.name ?? "that batch"}.`, "success", gone.length ? {
+    toast(`${plural(notes, "note")} taken away from ${db.cohorts.find((c) => c.id === bulkCohort)?.name ?? "that cohort"}.`, "success", gone.length ? {
       label: "Undo",
       onClick: () => {
         void Promise.allSettled(gone.map((a) => store.addNoteAssignment(a.noteId, a.cohortId, a.classId, a.subjectId))).then((r) => {
@@ -650,7 +651,7 @@ function AllNotes({
     { id: "assign", label: "Who gets them", primary: true, run: () => setAsk("assign") },
     ...(shown.length ? [{ id: "hide", label: "Hide from students", run: () => setAsk("hide") }] : []),
     ...(hidden.length ? [{ id: "show", label: "Show to students", run: () => setAsk("show") }] : []),
-    ...(sharedWith.length ? [{ id: "unshare", label: "Take away from a batch", run: () => setAsk("unshare") }] : []),
+    ...(sharedWith.length ? [{ id: "unshare", label: "Take away from a cohort", run: () => setAsk("unshare") }] : []),
     { id: "delete", label: "Delete", danger: true, run: () => setAsk("delete") },
   ];
 
@@ -660,18 +661,18 @@ function AllNotes({
         open={ask === "assign"}
         onClose={() => setAsk(null)}
         title={`Share ${plural(chosen.length, "note")}`}
-        description="Students in that batch (and class and subject, if you pick them) see these notes and get a notice."
+        description="Students in that cohort (and level and subject, if you pick them) see these notes and get a notice."
         confirmLabel="Share"
         disabled={!bulkCohort}
         onConfirm={runAssign}
       >
-        <Select label="Batch" value={bulkCohort} onChange={(e) => setBulkCohort(e.target.value)}>
+        <Select label="Cohort" value={bulkCohort} onChange={(e) => setBulkCohort(e.target.value)}>
           <option value="">Choose…</option>
           {db.cohorts.filter((c) => c.active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Select label="Class" value={bulkClass} onChange={(e) => setBulkClass(e.target.value)}>
-            <option value="">All classes</option>
+          <Select label="Level" value={bulkClass} onChange={(e) => setBulkClass(e.target.value)}>
+            <option value="">All levels</option>
             {db.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
           <Select label="Subject" value={bulkSubject} onChange={(e) => setBulkSubject(e.target.value)}>
@@ -685,13 +686,13 @@ function AllNotes({
       <ConfirmBulk
         open={ask === "unshare"}
         onClose={() => setAsk(null)}
-        title={`Take ${plural(chosen.length, "note")} away from a batch`}
-        description="Students in that batch stop seeing them. The notes stay here, and other batches keep them."
+        title={`Take ${plural(chosen.length, "note")} away from a cohort`}
+        description="Students in that cohort stop seeing them. The notes stay here, and other cohorts keep them."
         confirmLabel="Take away"
         disabled={!bulkCohort}
         onConfirm={runUnshare}
       >
-        <Select label="Batch" value={bulkCohort} onChange={(e) => setBulkCohort(e.target.value)}>
+        <Select label="Cohort" value={bulkCohort} onChange={(e) => setBulkCohort(e.target.value)}>
           <option value="">Choose…</option>
           {sharedWith.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select>
@@ -763,7 +764,7 @@ function AllNotes({
                           {b.label}
                         </Badge>
                       ))}
-                      {assigned && !books.length && <Badge tone="neutral">Shared with a batch</Badge>}
+                      {assigned && !books.length && <Badge tone="neutral">Shared with a cohort</Badge>}
                     </div>
                   </div>
                   {actions(n)}
@@ -958,10 +959,10 @@ function UploadModal({
       if (!r.books.length) return setError(`Choose who gets "${r.file.name}".`);
       for (const k of r.books) {
         const o = optOf(k)!;
-        if (!cohortsFor(db, o, cohorts).length) return setError(`None of the batches you picked take ${o.label}. Tick a batch that does.`);
+        if (!cohortsFor(db, o, cohorts).length) return setError(`None of the cohorts you picked take ${o.label}. Tick a cohort that does.`);
       }
     }
-    if (!DEMO && !notesConfigured()) return setError("Note uploads aren't set up yet. Ask your developer to check the file storage settings.");
+    if (!DEMO && !notesConfigured()) return setError("File uploads are switched off. Ask your developer to check the file storage, then try again.");
     setBusy(true);
     let ok = 0;
     let bad = 0;
@@ -1051,7 +1052,7 @@ function UploadModal({
           <Button onClick={onClose}>Done</Button>
         ) : (
           <>
-            <Button variant="secondary" onClick={onClose} disabled={busy}>
+            <Button variant="secondary" onClick={requestClose} disabled={busy}>
               Cancel
             </Button>
             <Button onClick={() => void publish()} disabled={busy || !waiting} loading={busy}>
@@ -1068,7 +1069,7 @@ function UploadModal({
           <BookPicker opts={allOpts} picked={defaults} onToggle={(k) => applyDefaults(toggle(defaults, k))} disabled={busy} />
           {activeCohorts.length > 1 && (
             <>
-              <p className="mb-2 mt-4 text-sm font-semibold text-ink-2">Batches</p>
+              <p className="mb-2 mt-4 text-sm font-semibold text-ink-2">Cohorts</p>
               <div className="flex flex-wrap gap-2">
                 {activeCohorts.map((c) => (
                   <Chip key={c.id} on={cohorts.includes(c.id)} onClick={() => setCohorts(toggle(cohorts, c.id))} disabled={busy}>
@@ -1076,7 +1077,7 @@ function UploadModal({
                   </Chip>
                 ))}
               </div>
-              <p className="mt-1.5 text-sm text-ink-3">Only batches that take that class and subject get the note.</p>
+              <p className="mt-1.5 text-sm text-ink-3">Only cohorts that take that level and subject get the note.</p>
             </>
           )}
         </section>
@@ -1096,14 +1097,17 @@ function UploadModal({
             }}
             className={cn("rounded-tile border-2 border-dashed px-4 py-6 text-center transition-colors duration-150", drag ? "border-ink-3 bg-surface-2" : "border-border-strong")}
           >
-            <p className="text-base text-ink-2">Drop PDFs here, as many as you like</p>
+            {/* Phones can't drop files or pick a folder: only "Choose files" is offered there. */}
+            <p className="text-base text-ink-2 pointer-coarse:hidden">Drop PDFs here, as many as you like</p>
             <div className="mt-3 flex flex-wrap justify-center gap-2">
               <Button size="sm" variant="secondary" onClick={() => fileRef.current?.click()} disabled={busy}>
                 Choose files
               </Button>
-              <Button size="sm" variant="secondary" onClick={() => folderRef.current?.click()} disabled={busy}>
-                Choose a folder
-              </Button>
+              <span className="contents pointer-coarse:hidden">
+                <Button size="sm" variant="secondary" onClick={() => folderRef.current?.click()} disabled={busy}>
+                  Choose a folder
+                </Button>
+              </span>
             </div>
             <p className="mt-3 text-sm text-ink-3">PDF works best (students can search inside it). Word, PowerPoint, Excel and images work too.</p>
             <input ref={fileRef} type="file" multiple accept={ACCEPT} className="hidden" onChange={(e) => e.target.files && (addFiles(e.target.files), (e.target.value = ""))} />
@@ -1230,6 +1234,8 @@ function AssignModal({ db, store, opts, note, onClose }: { db: Db; store: Store;
   const [books, setBooks] = useState<string[]>([]);
   const [cohorts, setCohorts] = useState<string[]>(activeCohorts.map((c) => c.id));
   const [busy, setBusy] = useState(false);
+  // "Stop showing to …": asked in the portal's own dialog.
+  const [removeAsk, setRemoveAsk] = useState<(typeof current)[number] | null>(null);
   const onBooks = booksOf(note, db.noteAssignments, opts);
   const firstBook = onBooks[0]?.book ?? null;
   const [slot, setSlot] = useState(() => (firstBook ? (slotIn(firstBook, note) ?? "") : ""));
@@ -1279,6 +1285,28 @@ function AssignModal({ db, store, opts, note, onClose }: { db: Db; store: Store;
 
   return (
     <Modal open onClose={onClose} title={note.title} size="md" footer={<Button variant="secondary" onClick={onClose}>Done</Button>}>
+      <Modal
+        open={!!removeAsk}
+        onClose={() => setRemoveAsk(null)}
+        title={removeAsk ? `Stop showing this note to ${label(removeAsk)}?` : ""}
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setRemoveAsk(null)}>Keep it</Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (removeAsk) store.deleteNoteAssignment(removeAsk.id);
+                setRemoveAsk(null);
+              }}
+            >
+              Stop showing
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-2">The note stays here, and you can give it to them again.</p>
+      </Modal>
       <div className="space-y-6">
         <section>
           <p className="mb-2 text-sm font-semibold text-ink">Goes to now</p>
@@ -1291,8 +1319,8 @@ function AssignModal({ db, store, opts, note, onClose }: { db: Db; store: Store;
                   {label(a)}
                   <button
                     type="button"
-                    onClick={() => window.confirm(`Stop showing this note to ${label(a)}?`) && store.deleteNoteAssignment(a.id)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-ink-3 transition-colors hover:text-error"
+                    onClick={() => setRemoveAsk(a)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-ink-3 transition-colors hover:text-error pointer-coarse:h-11 pointer-coarse:w-11"
                     aria-label={`Stop showing to ${label(a)}`}
                   >
                     <Icon.Close className="h-3.5 w-3.5" />

@@ -181,7 +181,7 @@ function TextAnswer({ question, answer, onChange }: { question: Extract<Question
         maxLength={limit}
         rows={4}
         onChange={(e) => onChange({ ...answer, text: e.target.value })}
-        placeholder="Write here..."
+        placeholder="Write your answer here…"
         aria-label="Your answer"
         className="overflow-hidden"
       />

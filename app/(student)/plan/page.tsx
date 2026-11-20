@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useDatabase } from "@/lib/data/store";
 import { useNow } from "@/hooks/useNow";
@@ -22,7 +22,7 @@ const PHASE: Record<PlanWeek["phase"], { label: string; tasks: Task[] }> = {
   learn: {
     label: "Learn and practise",
     tasks: [
-      { text: "Revise this week's focus topics (or class topics) from your notes", href: "/notes" },
+      { text: "Revise this week's topics from your notes", href: "/notes" },
       "Do every test set this week",
       "Redo any question you dropped marks on",
     ],
@@ -52,6 +52,8 @@ const taskText = (t: Task) => (typeof t === "string" ? t : t.text);
 /** The day the countdown counts to (the same date the footer names). */
 const examStart = (opts: Intl.DateTimeFormatOptions) => new Date(`${EXAMS.start}T00:00:00`).toLocaleDateString("en-GB", opts);
 const rowLink = "-my-3 flex min-h-11 flex-1 items-center gap-3 py-3 underline-offset-4 hover:underline";
+/** Weeks ahead shown before "Show all weeks": the near future, not a list to May. */
+const AHEAD_SHOWN = 3;
 
 export default function PlanPage() {
   const { session } = useAuth();
@@ -62,14 +64,27 @@ export default function PlanPage() {
   // Homework from the same list Home uses, and each focus topic's notes.
   const due = useMemo(() => (student ? dueFor(db, student, nowMs) : null), [db, student, nowMs]);
   const notesFor = useMemo(() => (student ? topicNotesFinder(db, student) : null), [db, student]);
+  const [allWeeks, setAllWeeks] = useState(false);
 
   if (!student || !plan) return null;
-  const homework = [...(due?.overdue ?? []), ...(due?.dueSoon ?? [])];
+  // This week's homework only (overdue, or due before next Monday); later ones are counted in a quiet line.
+  const weekEnds = (() => {
+    const w = plan.weeks.find((x) => x.isCurrent) ?? plan.weeks[0];
+    return w ? +w.start + 7 * 86_400_000 : nowMs;
+  })();
+  const later = (due?.dueSoon ?? []).filter((a) => +new Date(a.dueAt) >= weekEnds);
+  const homework = [...(due?.overdue ?? []), ...(due?.dueSoon ?? []).filter((a) => +new Date(a.dueAt) < weekEnds)];
 
   if (plan.weeks.length === 0) {
+    // Every one of their papers is behind them: not "exams are here" all summer.
+    const done = plan.papers.length > 0 && !nextExam(plan.papers, nowMs);
     return (
       <div className="mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
-        <EmptyState icon={<Icon.Flag />} title="Exams are here" message="Good luck. Rest well and trust the work you've done." />
+        {done ? (
+          <EmptyState icon={<Icon.Flag />} title="Your exams are done" message="Well done for getting through them. Your next plan shows here once I add your next exam dates." />
+        ) : (
+          <EmptyState icon={<Icon.Flag />} title="Exams are here" message="Good luck. Rest well and trust the work you've done." />
+        )}
       </div>
     );
   }
@@ -82,7 +97,7 @@ export default function PlanPage() {
     <div className="mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
       <div className="rise space-y-10">
       <PageHeader title="Your plan to the exams">
-        It rebuilds itself from your marks, so weak topics come round more often.
+        I build this from your marks, so your weak topics come round more often.
       </PageHeader>
 
       {/* Countdown: one surface, two numbers split by a hairline. */}
@@ -90,7 +105,7 @@ export default function PlanPage() {
         <div className="p-5 sm:p-6">
           {/* One-line labels on both sides, so the two numbers sit on the same line. */}
           <p className="text-sm text-ink-2">{paper ? `${plan.papers[0] === paper ? "First" : "Next"} paper in` : "Exams in"}</p>
-          <p className="mt-2 flex items-baseline gap-1.5 text-title-lg font-bold leading-none tracking-[-0.025em] text-brand tabular-nums">
+          <p className="mt-2 flex items-baseline gap-1.5 text-title-lg font-bold leading-none tracking-[-0.025em] text-ink tabular-nums">
             {plan.daysLeft}
             <span className="text-base font-semibold tracking-normal text-ink-2">{plan.daysLeft === 1 ? "day" : "days"}</span>
           </p>
@@ -125,7 +140,7 @@ export default function PlanPage() {
                     </span>
                   </span>
                   <span className="shrink-0 text-right text-sm tabular-nums text-ink-2">
-                    {d < 0 ? "Done" : d === 0 ? <span className="font-semibold text-brand">Today</span> : <><span className="text-base font-bold text-ink">{d}</span> {d === 1 ? "day" : "days"}</>}
+                    {d < 0 ? "Done" : d === 0 ? <span className="font-semibold text-ink">Today</span> : <><span className="text-base font-bold text-ink">{d}</span> {d === 1 ? "day" : "days"}</>}
                   </span>
                 </li>
               );
@@ -198,6 +213,11 @@ export default function PlanPage() {
               </Link>
             </li>
           ))}
+          {later.length > 0 && (
+            <li className="py-3 text-sm text-ink-3">
+              And {later.length} more {later.length === 1 ? "piece" : "pieces"} of homework due later.
+            </li>
+          )}
           {PHASE[current.phase].tasks.map((task) => (
             <li key={taskText(task)} className="flex items-center gap-3 py-3 text-base text-ink">
               {typeof task === "string" ? (
@@ -225,7 +245,7 @@ export default function PlanPage() {
         <section aria-labelledby="ahead">
           <SectionTitle id="ahead">The weeks ahead</SectionTitle>
           <ol className="surface divide-y divide-hairline overflow-hidden rounded-card">
-            {upcoming.map((w) => (
+            {(allWeeks ? upcoming : upcoming.slice(0, AHEAD_SHOWN)).map((w) => (
               <li key={w.index} className="flex flex-col gap-1.5 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                 <span className="shrink-0 text-base text-ink-2">
                   <span className="font-semibold text-ink tabular-nums">{weekLabel(w.start)}</span> · {PHASE[w.phase].label}
@@ -242,6 +262,15 @@ export default function PlanPage() {
               </li>
             ))}
           </ol>
+          {upcoming.length > AHEAD_SHOWN && (
+            <button
+              type="button"
+              onClick={() => setAllWeeks(!allWeeks)}
+              className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline"
+            >
+              {allWeeks ? "Show fewer weeks" : `Show all ${upcoming.length} weeks`}
+            </button>
+          )}
         </section>
       )}
 

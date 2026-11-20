@@ -16,6 +16,7 @@ import { Button, Card, Select, EmptyState, Icon, Modal, filterField, segmentGrou
 import { buttonClasses } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { useClassLinks, useSchedule } from "@/lib/classes";
+import { useNow } from "@/hooks/useNow";
 
 type Mode = "daily" | "monthly";
 
@@ -37,6 +38,7 @@ export default function AttendancePage() {
   const { toast } = useToast();
   const { cohortId } = useAdminFilter();
   useSchedule(); // re-render when the timetable loads: class times decide who "Mark the rest" may sweep
+  const nowMs = useNow();
 
   const [mode, setMode] = useState<Mode>("daily");
   // The class stays picked while Hamza moves around the console (as the other pages' filters do).
@@ -102,8 +104,8 @@ export default function AttendancePage() {
           ))}
         </div>
 
-        <Select value={classId} onChange={(e) => setClassId(e.target.value)} compact wrapperClassName="min-w-0 flex-1 basis-48 max-sm:basis-full sm:max-w-64" aria-label="Class">
-          <option value="">All classes</option>
+        <Select value={classId} onChange={(e) => setClassId(e.target.value)} compact wrapperClassName="min-w-0 flex-1 basis-48 max-sm:basis-full sm:max-w-64" aria-label="Level">
+          <option value="">All levels</option>
           {db.classes.map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
@@ -133,6 +135,9 @@ export default function AttendancePage() {
           )}
         </div>
       </div>
+
+      {/* The date written the console's way ("Friday 20 November"); the box itself follows the device. */}
+      {mode === "daily" && <p className="mb-3 text-sm font-semibold text-ink-2">{dayLabel(date)}</p>}
 
       {students.length === 0 ? (
         <EmptyState icon={<Icon.Users />} title="Nobody in this class" message="Pick another class or cohort." />
@@ -221,7 +226,12 @@ export default function AttendancePage() {
     // counted as "not marked" or swept up by "Mark the rest".
     // Paused students keep their row too, but are never swept up either.
     const unmarked = rows.filter((r) => !r.mark && !r.before && !isTestAccount(r.s) && !pausedIds.has(r.s.id));
-    const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit", hour12: true });
+    // "8:55 PM", written like every other time in the console.
+    const clock = (at: string | number) =>
+      new Date(at).toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit", hour12: true }).replace(/\s?(am|pm)\b/i, (_, m: string) => ` ${m.toUpperCase()}`);
+    // Before their class has started, "Didn't tap Join" would be unfair: say when the class is instead.
+    const classStart = (s: (typeof students)[number]) =>
+      Math.min(...slotsForStudent(db, s, date).filter((sl) => !classId || sl.classId === classId).map((sl) => sl.startMs));
     // Present goes straight in (Undo is right there); absent is asked first.
     const markRest = (status: AttendanceStatus) => {
       const ask = { status, ids: unmarked.map((r) => r.s.id), classId, date };
@@ -234,8 +244,8 @@ export default function AttendancePage() {
       <>
         {/* The day at a glance, and one tap for everyone not marked yet. */}
         <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-          <span className="font-semibold text-success">{count("present")} present</span>
-          <span className="font-semibold text-warning">{count("late")} late</span>
+          <span className="font-semibold tabular-nums text-success">{count("present")} present</span>
+          <span className="font-semibold tabular-nums text-warning">{count("late")} late</span>
           <span className="font-semibold tabular-nums text-error">{count("absent")} absent</span>
           <span className="tabular-nums text-ink-3">{unmarked.length} not marked</span>
           {unmarked.length > 0 && (
@@ -265,7 +275,7 @@ export default function AttendancePage() {
               <span className="min-w-36 flex-1">
                 <span className="block truncate text-base font-semibold text-ink">{displayName(s.username)}</span>
                 <span className="block text-sm tabular-nums text-ink-3">
-                  {join ? `Joined ${clock(join.joinedAt)}` : "Didn't tap Join"}
+                  {join ? `Joined ${clock(join.joinedAt)}` : Number.isFinite(classStart(s)) && nowMs < classStart(s) ? `Class at ${clock(classStart(s))}` : "Didn't tap Join"}
                   {mark && !counted ? " · added to the portal after this class, so this mark is not counted" : before ? " · added to the portal after this class" : !mark && " · not marked yet"}
                 </span>
               </span>

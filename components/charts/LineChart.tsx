@@ -27,6 +27,8 @@ export function LineChart({
   const box = useRef<HTMLDivElement>(null);
   const empty = points.length === 0;
   const [W, setW] = useState(320);
+  // The point being read (tap or hover): its value is written above it.
+  const [at, setAt] = useState<number | null>(null);
   useEffect(() => {
     const el = box.current;
     if (!el) return;
@@ -38,7 +40,8 @@ export function LineChart({
     // Runs again once there is something to draw (an empty chart renders nothing).
   }, [empty]);
   const H = height;
-  const padX = 28;
+  // Room on the left for "100%".
+  const padX = 36;
   const padY = 22;
   const innerW = W - padX * 2;
   const innerH = H - padY * 2;
@@ -83,6 +86,7 @@ export function LineChart({
           <line x1={padX} x2={W - padX} y1={y(g)} y2={y(g)} stroke={color.border} strokeWidth="1" />
           <text x={padX - 5} y={y(g) + 3.5} textAnchor="end" fontSize="12" fill={color.ink3} className="tabular">
             {g}
+            {unit}
           </text>
         </g>
       ))}
@@ -103,7 +107,18 @@ export function LineChart({
 
       {points.map((p, i) => (
         <g key={i}>
-          <circle cx={x(i)} cy={y(p.value)} r="3.5" fill={color.surface} stroke={color.brand} strokeWidth="2.5" />
+          <circle cx={x(i)} cy={y(p.value)} r={at === i ? 5 : 3.5} fill={color.surface} stroke={color.brand} strokeWidth="2.5" />
+          {/* A fingertip-sized target round each dot: tap or hover to read its value. */}
+          <circle
+            cx={x(i)}
+            cy={y(p.value)}
+            r="16"
+            fill="transparent"
+            className="cursor-pointer"
+            onPointerEnter={() => setAt(i)}
+            onPointerLeave={() => setAt((cur) => (cur === i ? null : cur))}
+            onClick={() => setAt((cur) => (cur === i ? null : i))}
+          />
           {showLabel(i) && (
             <text
               x={x(i)}
@@ -118,6 +133,21 @@ export function LineChart({
           )}
         </g>
       ))}
+
+      {at !== null && points[at] && (
+        <text
+          x={Math.min(W - padX, Math.max(padX, x(at)))}
+          y={Math.max(12, y(points[at].value) - 12)}
+          textAnchor={x(at) < padX + 50 ? "start" : x(at) > W - padX - 50 ? "end" : "middle"}
+          fontSize="12"
+          fontWeight="600"
+          fill={color.ink}
+          className="tabular pointer-events-none"
+        >
+          {points[at].label}: {Math.round(points[at].value)}
+          {unit}
+        </text>
+      )}
     </svg>
     </div>
   );

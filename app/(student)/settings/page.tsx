@@ -16,7 +16,7 @@ export default function StudentSettingsPage() {
   const db = useDatabase();
   const student = studentId ? studentById(db, studentId) : null;
   return (
-    <div className="mx-auto max-w-2xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
+    <div className="mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
       <div className="rise space-y-10">
       <PageHeader title="Settings">How your portal looks, your notifications and your password.</PageHeader>
 
@@ -39,6 +39,9 @@ function ChangePassword() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<{ field: "current" | "next" | "confirm"; msg: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  // Typing blind three times on a phone is hard: one switch shows all three.
+  const [show, setShow] = useState(false);
+  const kind = show ? "text" : "password";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -87,7 +90,7 @@ function ChangePassword() {
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Input
           label="Current password"
-          type="password"
+          type={kind}
           autoComplete="current-password"
           value={current}
           onChange={(e) => { setCurrent(e.target.value); setError(null); }}
@@ -96,7 +99,7 @@ function ChangePassword() {
         />
         <Input
           label="New password"
-          type="password"
+          type={kind}
           autoComplete="new-password"
           value={next}
           onChange={(e) => { setNext(e.target.value); setError(null); }}
@@ -106,13 +109,21 @@ function ChangePassword() {
         />
         <Input
           label="New password again"
-          type="password"
+          type={kind}
           autoComplete="new-password"
           value={confirm}
           onChange={(e) => { setConfirm(e.target.value); setError(null); }}
           error={error?.field === "confirm" ? error.msg : undefined}
           required
         />
+        <button
+          type="button"
+          onClick={() => setShow(!show)}
+          aria-pressed={show}
+          className="-mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline"
+        >
+          {show ? "Hide passwords" : "Show passwords"}
+        </button>
         <Button type="submit" size="lg" loading={busy} disabled={!current || !next || !confirm} className="w-full sm:w-auto">
           Change password
         </Button>

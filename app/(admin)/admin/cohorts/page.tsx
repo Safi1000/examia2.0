@@ -122,9 +122,9 @@ export default function CohortsPage() {
                     <p className="text-sm tabular-nums text-ink-3">{studentCount} {studentCount === 1 ? "student" : "students"} · {testCount} {testCount === 1 ? "test" : "tests"}</p>
                     {!c.active && (
                       <p className="mt-1.5 flex flex-wrap gap-x-4 text-sm font-semibold">
-                        <Link href="/admin/roster?archive=1" className="text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline">Students</Link>
+                        <Link href="/admin/roster?archive=1" className="text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline">Roster</Link>
                         <Link href="/admin/tests?archive=1" className="text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline">Tests</Link>
-                        <Link href="/admin/submissions?archive=1" className="text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline">Marks</Link>
+                        <Link href="/admin/submissions?archive=1" className="text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline">Marking</Link>
                       </p>
                     )}
                     {(classNames.length > 0 || subjectNames.length > 0) && (
@@ -195,7 +195,7 @@ export default function CohortsPage() {
             <Icon.ChevronRight className="h-4 w-4 transition-transform duration-200 ease-[var(--ease-out)] group-open:rotate-90" />
             Archived cohorts ({db.cohorts.filter((c) => !c.active).length})
           </summary>
-          <p className="mb-3 mt-1 text-sm text-ink-3">Hidden from every other screen in the portal. Open a cohort&apos;s Students, Tests or Marks to look back.</p>
+          <p className="mb-3 mt-1 text-sm text-ink-3">Hidden from every other screen in the portal. Open Roster, Tests or Marking to look back.</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {db.cohorts.filter((c) => !c.active).map(card)}
           </div>
@@ -235,8 +235,8 @@ export default function CohortsPage() {
             </div>
           </div>
           <div>
-            <Label>Classes</Label>
-            <p className="mb-2 text-sm text-ink-3">Which classes are offered in this cohort?</p>
+            <Label>Levels</Label>
+            <p className="mb-2 text-sm text-ink-3">Which levels does this cohort take?</p>
             <ChipToggle items={db.classes} selected={selClassIds} onToggle={toggleClass} />
           </div>
           <div>
@@ -331,11 +331,11 @@ export default function CohortsPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setDeleting(null)}>Cancel</Button>
-            <Button variant="danger" onClick={confirmDelete} disabled={!reassignTo}>Delete &amp; reassign</Button>
+            <Button variant="danger" onClick={confirmDelete} disabled={!reassignTo}>Delete and reassign</Button>
           </>
         }
       >
-        <Select label="Move students & tests to" value={reassignTo} onChange={(e) => setReassignTo(e.target.value)}>
+        <Select label="Move students and tests to" value={reassignTo} onChange={(e) => setReassignTo(e.target.value)}>
           <option value="">Choose a cohort…</option>
           {/* Archived cohorts are offered last and named as such: students moved there can't sign in. */}
           {db.cohorts.filter((c) => c.id !== deleting?.id && c.active).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}

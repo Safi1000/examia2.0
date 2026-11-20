@@ -9,14 +9,14 @@ export const STAFF_AREAS = [
   { key: "homework", label: "Reply to homework", pages: ["/admin/assignments"] },
   { key: "students", label: "Look up students", hint: "Names, marks and attendance. No phone numbers, no changes.", pages: ["/admin/roster"] },
   { key: "notes", label: "Read notes", hint: "Read only. No uploading, hiding or deleting.", pages: ["/admin/notes"] },
-  { key: "tests", label: "Tests", hint: "See, set, edit, close and release tests. No deleting, no messaging students.", pages: ["/admin/tests"] },
+  { key: "tests", label: "Tests", hint: "Set, edit, close and release tests. No deleting or messaging students.", pages: ["/admin/tests"] },
   { key: "bank", label: "Question bank", pages: ["/admin/bank"] },
   { key: "attendance", label: "Attendance", pages: ["/admin/attendance"] },
   // Not the Recordings page: it shows who opened each recording.
-  { key: "classes", label: "Classes", hint: "Change class times and links. Not the recordings page.", pages: ["/admin/classes"] },
+  { key: "classes", label: "Classes", hint: "Class days, times and Meet links. Not the Recordings page.", pages: ["/admin/classes"] },
   { key: "whiteboard", label: "Whiteboard", pages: ["/admin/whiteboard"] },
   { key: "announcements", label: "Announcements", pages: ["/admin/announcements"] },
-  { key: "analytics", label: "Analytics", hint: "Marks and grades only.", pages: ["/admin/analytics"] },
+  { key: "analytics", label: "Analytics", hint: "Marks, grades and the attendance average. Not who is slipping.", pages: ["/admin/analytics"] },
 ] as const satisfies ReadonlyArray<{ key: string; label: string; hint?: string; pages: readonly string[] }>;
 
 export type StaffArea = (typeof STAFF_AREAS)[number]["key"];

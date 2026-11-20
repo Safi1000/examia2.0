@@ -341,7 +341,7 @@ function MiniTimer({ view, actions }: { view: FloatView; actions: Actions }) {
         <button
           type="button"
           onClick={() => (view.paused ? actions.resume() : actions.pause())}
-          className="h-9 shrink-0 rounded-full bg-white px-4 text-sm font-semibold text-black active:scale-[0.97]"
+          className="h-11 shrink-0 rounded-full bg-white px-5 text-sm font-semibold text-black active:scale-[0.97]"
         >
           {view.paused ? "Resume" : "Pause"}
         </button>

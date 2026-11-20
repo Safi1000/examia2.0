@@ -68,6 +68,16 @@ export interface TopicMastery {
   band: MasteryBand;
 }
 
+/**
+ * A tag that names no topic a student can revise: untagged ("General"), the
+ * whole syllabus, or a unit or paper number alone. Kept in my analytics, left
+ * out of a student's weak topics and plan ("Work on: Unit 5" tells them nothing).
+ */
+export function isVagueTopic(name: string): boolean {
+  const n = name.trim().toLowerCase();
+  return !n || n === "general" || /^(full|whole) syllabus$/.test(n) || /^(unit|paper)\s*\d+[a-z]?$/.test(n);
+}
+
 export function topicMastery(
   tests: Test[],
   submissions: Submission[],

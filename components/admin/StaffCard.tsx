@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { DEMO } from "@/lib/demo";
 import { newPassword } from "@/lib/password";
 import { useToast } from "@/components/toast";
-import { Button, Card, CardBody, CardHeader, Input, Modal } from "@/components/ui";
+import { Button, Card, CardBody, CardHeader, Icon, Input, Modal } from "@/components/ui";
 import { formatTimestamp } from "@/lib/time";
 import { DEFAULT_ACCESS, STAFF_AREAS, type StaffArea } from "@/lib/staff-areas";
 
@@ -29,9 +29,9 @@ async function call(method: string, body?: unknown): Promise<{ ok: boolean; data
   return { ok: res.ok, data: (await res.json().catch(() => ({}))) as Record<string, unknown> };
 }
 
-const NEVER = "Never for staff: student activity and Groundwork, Today, phone numbers and parent messages, adding or changing students, cohorts, export and these settings.";
+const NEVER = "Student activity and Groundwork, Today, phone numbers and parent messages, adding or changing students, cohorts, export and these settings.";
 // Preview only: one sample person, so the switches can be tried.
-const SAMPLE: Assistant = { id: "demo-staff", name: "Sample assistant", email: "assistant@example.com", paused: false, lastSeen: null, access: [...DEFAULT_ACCESS] };
+const SAMPLE: Assistant = { id: "demo-staff", name: "Sample staff", email: "staff@example.com", paused: false, lastSeen: null, access: [...DEFAULT_ACCESS] };
 
 export function StaffCard() {
   const { toast } = useToast();
@@ -114,6 +114,13 @@ export function StaffCard() {
     }
   }
 
+  /** Their newest line in the log (marking, a reply), or their last sign in if that is newer: someone signed in for weeks still shows when they last worked. */
+  function lastActive(a: Assistant): string {
+    const worked = log.find((l) => l.name === (a.name || "Staff"))?.at;
+    if (worked && (!a.lastSeen || +new Date(worked) >= +new Date(a.lastSeen))) return `Last active ${formatTimestamp(worked)}`;
+    return a.lastSeen ? `Last signed in ${formatTimestamp(a.lastSeen)}` : "Not signed in yet";
+  }
+
   async function reset(a: Assistant) {
     if (!window.confirm(`Give ${a.name || "this person"} a new password? Their old one stops working straight away.`)) return;
     const password = newPassword() + newPassword();
@@ -126,13 +133,15 @@ export function StaffCard() {
         <h2 className="text-base font-semibold tracking-[-0.01em] text-ink">Staff</h2>
       </CardHeader>
       <CardBody className="space-y-5">
-        <p className="text-sm text-ink-2">
-          Give a teaching assistant, or anyone you choose, their own sign-in, then switch on only the parts of the console they need.
-        </p>
-        <p className="text-sm text-ink-3">{NEVER}</p>
-        <p className="text-sm text-ink-3">
-          The console holds them to this. It is a guard rail, not a lock: give a sign-in only to someone you trust, until a developer adds the stricter role. A change reaches someone already signed in within a few minutes, and pausing signs them out of the console in the same time.
-        </p>
+        <p className="text-sm text-ink-2">Give someone their own sign-in, then switch on only the parts they need.</p>
+        <details className="group text-sm">
+          <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-1.5 font-semibold text-ink-2 transition-colors hover:text-ink md:min-h-0">
+            <Icon.ChevronRight className="h-4 w-4 transition-transform duration-200 group-open:rotate-90" aria-hidden />
+            What staff can never see
+          </summary>
+          <p className="mt-2 text-ink-3">{NEVER}</p>
+          <p className="mt-2 text-ink-3">Give a sign-in only to someone you trust. A change reaches someone already signed in within a few minutes, and Pause signs them out in the same time.</p>
+        </details>
 
         {failed && (
           <p className="text-sm text-error">
@@ -147,7 +156,7 @@ export function StaffCard() {
             <div className="min-w-0">
               <p className="truncate text-base font-semibold text-ink">{a.name || "Staff"}</p>
               <p className="truncate text-sm text-ink-3">
-                {a.email} · {a.paused ? "Paused" : a.lastSeen ? `Last signed in ${formatTimestamp(a.lastSeen)}` : "Not signed in yet"}
+                {a.email} · {a.paused ? "Paused" : lastActive(a)}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
@@ -200,7 +209,7 @@ export function StaffCard() {
                 onClick={() =>
                   void navigator.clipboard
                     ?.writeText(`Sign in: www.hamzateaches.com/admin\nEmail: ${shown.email}\nPassword: ${shown.password}`)
-                    .then(() => toast("Copied", "success"))
+                    .then(() => toast("Sign-in copied.", "success"))
                     .catch(() => toast("Couldn't copy. Select the text instead.", "error"))
                 }
               >

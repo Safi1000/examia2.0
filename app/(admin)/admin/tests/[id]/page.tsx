@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import type { Question } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
@@ -25,7 +25,8 @@ import { familyOfCode, idsInText, isPastPaper, newSeed, parseId, questionFromBui
 import { PaperText } from "@/components/PaperText";
 
 /** The same words the marking screen uses. */
-const TYPE_LABEL: Record<Question["type"], string> = { mcq: "Choice", text: "Written", photo: "Photo" };
+// The same three names everywhere a question type is shown: the add box, the import screen and the past paper builder.
+const TYPE_LABEL: Record<Question["type"], string> = { mcq: "Multiple choice", text: "Typed answer", photo: "Photo answer" };
 
 function stripDraft(d: QuestionDraft): Omit<Question, "id" | "order"> {
   const { subject: _s, ...rest } = d;
@@ -101,6 +102,13 @@ export default function TestEditorPage() {
   // Past paper questions: look at one, or swap it for another on the same topic.
   const [viewing, setViewing] = useState<string | null>(null);
   const [swapping, setSwapping] = useState<string | null>(null);
+  // Asked in the portal's own dialog (not the browser's): swapping on a sat test, and publishing after the close time.
+  const [swapAsk, setSwapAsk] = useState<Question | null>(null);
+  const [lateAsk, setLateAsk] = useState(false);
+  // A missing mark saves as it is typed (after a short pause), so Publish is ready the moment the number is in.
+  // The box stays while it has focus, so "12" is never cut short at "1".
+  const [typingMarks, setTypingMarks] = useState<string | null>(null);
+  const marksTimer = useRef<number | undefined>(undefined);
 
   const questions = useMemo(() => (test ? [...test.questions].sort((a, b) => a.order - b.order) : []), [test]);
 
@@ -126,13 +134,13 @@ export default function TestEditorPage() {
     .sort((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""));
   const totalMarks = questions.reduce((n, q) => n + Math.max(0, q.marks), 0);
 
-  async function swap(q: Question) {
+  async function swap(q: Question, confirmed = false) {
     if (!test) return;
     const from = idsInText(q.prompt)[0];
     const family = from ? familyOfCode(parseId(from)?.code ?? "") : null;
     if (!from || !family) return;
     // Students who already answered it would be marked against the new question's answer.
-    if (sat > 0 && !window.confirm(`${sat === 1 ? "1 student has" : `${sat} students have`} already handed this test in. Swapping this question changes their marks for it. Swap anyway?`)) return;
+    if (sat > 0 && !confirmed) return setSwapAsk(q);
     setSwapping(q.id);
     try {
       const exclude = [...classHistoryIds(db, test.cohortId, test.classId), ...questions.flatMap((x) => idsInText(x.prompt))];
@@ -170,6 +178,11 @@ export default function TestEditorPage() {
   /** Saves the details; false (with the reason shown) if they can't be saved. */
   function saveSettings(quiet = false, override?: { opensAt: string; closesAt: string }): boolean {
     if (!form || !canSave) return false;
+    // An emptied box is "not set", never a silent 1 minute.
+    if (!(form.durationMinutes >= 1)) {
+      toast("Type the writing time.", "error");
+      return false;
+    }
     const opens = override?.opensAt ?? form.opensAt;
     const closes = override?.closesAt ?? form.closesAt;
     if (!opens || !closes) {
@@ -209,7 +222,7 @@ export default function TestEditorPage() {
   }
 
   /** Publish, never into a window that has already closed. */
-  function publish(now: number, checkedWho = false) {
+  function publish(now: number, checkedWho = false, lateOk = false) {
     if (!form) return;
     // Every class or no subject: a test left on the defaults would reach every
     // student in every level and subject. Ask first.
@@ -219,7 +232,7 @@ export default function TestEditorPage() {
     }
     let override: { opensAt: string; closesAt: string } | undefined;
     if (form.closesAt && new Date(fromLocalInput(form.closesAt)).getTime() <= now) {
-      if (!window.confirm("This test's closing time has already passed, so students couldn't sit it. Publish it open from now for 7 days?")) return;
+      if (!lateOk) return setLateAsk(true);
       override = { opensAt: toLocalInput(new Date(now).toISOString()), closesAt: toLocalInput(new Date(now + 7 * 86_400_000).toISOString()) };
       set("opensAt", override.opensAt);
       set("closesAt", override.closesAt);
@@ -270,13 +283,13 @@ export default function TestEditorPage() {
               </Link>
             ) : sat > 0 ? (
               <Link href="/admin/submissions" className={buttonClasses({ variant: "ghost" })}>
-                Submissions ({sat})
+                Papers ({sat})
               </Link>
             ) : null}
             <Pill>{test.testCode}</Pill>
             {questions.length > 0 && (
               <Button variant="secondary" onClick={() => setPdfOpen(true)}>
-                <Icon.Download className="h-4 w-4" /> Download as PDF
+                <Icon.Download className="h-4 w-4" /> Download PDF
               </Button>
             )}
             {test.status !== "draft" && (
@@ -384,11 +397,11 @@ export default function TestEditorPage() {
                 <>
                   {classes.length > 0 && (
                     <Select
-                      label="Class"
+                      label="Level"
                       value={form.classId}
                       onChange={(e) => set("classId", e.target.value)}
                     >
-                      <option value="">All classes</option>
+                      <option value="">All levels</option>
                       {classes.map((cl) => <option key={cl.id} value={cl.id}>{cl.name}</option>)}
                     </Select>
                   )}
@@ -481,7 +494,7 @@ export default function TestEditorPage() {
                         <span className="text-sm font-semibold tabular-nums text-ink-3">Q{i + 1}</span>
                         <Badge tone="neutral">{TYPE_LABEL[q.type]}</Badge>
                         {q.topic.trim() && <Badge tone="neutral" className="max-w-full truncate">{q.topic}</Badge>}
-                        <Pill>{q.marks}m</Pill>
+                        <Pill>{q.marks} {q.marks === 1 ? "mark" : "marks"}</Pill>
                       </div>
                       <div className="-mr-1 flex shrink-0 items-center">
                         <button onClick={() => move(i, -1)} disabled={i === 0} className="flex h-11 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-30" aria-label={`Move question ${i + 1} up`}>
@@ -512,7 +525,7 @@ export default function TestEditorPage() {
                       ) : (
                         <p className="mt-1.5 text-base italic text-ink-3">Answer the attached paper</p>
                       )}
-                      {q.marks <= 0 && (
+                      {(q.marks <= 0 || typingMarks === q.id) && (
                         <label className="mt-2 flex items-center gap-2 text-sm text-ink-2">
                           Marks
                           <input
@@ -520,7 +533,17 @@ export default function TestEditorPage() {
                             min={1}
                             inputMode="numeric"
                             placeholder="?"
-                            onBlur={(e) => { if (Number(e.target.value) > 0) setQuestionMarks(q, Number(e.target.value)); }}
+                            onFocus={() => setTypingMarks(q.id)}
+                            onChange={(e) => {
+                              const v = Number(e.target.value);
+                              window.clearTimeout(marksTimer.current);
+                              if (v > 0) marksTimer.current = window.setTimeout(() => setQuestionMarks(q, v), 500);
+                            }}
+                            onBlur={(e) => {
+                              window.clearTimeout(marksTimer.current);
+                              if (Number(e.target.value) > 0) setQuestionMarks(q, Number(e.target.value));
+                              setTypingMarks(null);
+                            }}
                             onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                             className="h-11 w-20 rounded-field border border-warning/50 bg-surface px-3 text-center text-base font-semibold tabular-nums text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                             aria-label={`Marks for question ${i + 1}`}
@@ -626,6 +649,53 @@ export default function TestEditorPage() {
       />
 
       <Modal
+        open={!!swapAsk}
+        onClose={() => setSwapAsk(null)}
+        title="Swap anyway?"
+        description={`${sat === 1 ? "1 student has" : `${sat} students have`} already handed this test in. Swapping this question changes their marks for it.`}
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setSwapAsk(null)}>Keep this question</Button>
+            <Button
+              onClick={() => {
+                const q = swapAsk;
+                setSwapAsk(null);
+                if (q) void swap(q, true);
+              }}
+            >
+              Swap anyway
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-2">Check their marks for this question after the swap.</p>
+      </Modal>
+
+      <Modal
+        open={lateAsk}
+        onClose={() => setLateAsk(false)}
+        title="The closing time has passed"
+        description="Students couldn't sit it as it is. It can open from now for 7 days instead."
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setLateAsk(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                setLateAsk(false);
+                publish(Date.now(), true, true);
+              }}
+            >
+              Publish for 7 days
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-2">To choose other times, change the opening and closing times first, then press Publish.</p>
+      </Modal>
+
+      <Modal
         open={whoOpen}
         onClose={() => setWhoOpen(false)}
         title="Who is this test for?"
@@ -653,8 +723,8 @@ export default function TestEditorPage() {
             <div className="space-y-4">
               <p className="text-sm text-ink-2">{line ? `${line} Is that right?` : "This goes to the class and subject picked below."}</p>
               {classes.length > 0 && (
-                <Select label="Class" value={form.classId} onChange={(e) => set("classId", e.target.value)}>
-                  <option value="">All classes</option>
+                <Select label="Level" value={form.classId} onChange={(e) => set("classId", e.target.value)}>
+                  <option value="">All levels</option>
                   {classes.map((cl) => <option key={cl.id} value={cl.id}>{cl.name}</option>)}
                 </Select>
               )}

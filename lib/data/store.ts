@@ -51,7 +51,7 @@ import type {
   TestStatus,
 } from "@/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { createSeed, type Database } from "@/lib/data/seed";
+import type { Database } from "@/lib/data/seed";
 import { lateWindows } from "@/lib/data/selectors";
 import { reportLinkExpiry } from "@/lib/report-data";
 import { DEMO } from "@/lib/demo";
@@ -969,7 +969,11 @@ class Store {
   private async hydrate(initial: boolean) {
     if (DEMO) {
       // Preview-only: the sample data stands in for the database.
-      if (initial || !this.ready) this.state = this.staff ? forStaff(createSeed()) : createSeed();
+      // Loaded only here, so the sample students and tests never ship in the real portal.
+      if (initial || !this.ready) {
+        const { createSeed } = await import("@/lib/data/seed");
+        this.state = this.staff ? forStaff(createSeed()) : createSeed();
+      }
       this.ready = true;
       this.notify();
       return;
@@ -3283,7 +3287,7 @@ class Store {
       const assignment = this.state.assignments.find((a) => a.id === before.assignmentId);
       this.logActivity({
         type: "submission_reviewed",
-        title: `Hamza replied on "${assignment?.title ?? "your assignment"}"`,
+        title: assignment?.title ? `I replied on your homework "${assignment.title}"` : "I replied on your homework",
         description: this.state.subjects.find((x) => x.id === assignment?.subjectId)?.name,
         studentId: before.studentId,
         // Straight to that homework (its card opens even inside Done).

@@ -18,6 +18,8 @@ import { SaveNote } from "@/components/admin/SaveStatus";
  */
 
 const COLORS = ["#ef4444", "#22c55e", "#3b82f6", "#eab308", "#111827"];
+/** Spoken names for the pen colours (a screen reader read the codes out). */
+const COLOR_NAMES: Record<string, string> = { "#ef4444": "Red", "#22c55e": "Green", "#3b82f6": "Blue", "#eab308": "Yellow", "#111827": "Black" };
 type Tool = "pen" | "line" | "highlight" | "mark" | "tick" | "cross" | "text" | "erase";
 
 /** Same feel as the whiteboard: hold the pen still to straighten a stroke. */
@@ -391,7 +393,7 @@ export function AnnotatorModal({
         {readOnly ? (
           <p className="py-2 text-sm text-ink-2">Look only: this result is already out.</p>
         ) : (
-        <div className="flex flex-wrap items-center gap-2 pb-1 sm:flex-nowrap sm:overflow-x-auto lg:pb-0">
+        <div className="flex flex-wrap items-center gap-2 pb-1 sm:flex-nowrap sm:overflow-x-auto sm:max-lg:pr-6 sm:max-lg:[mask-image:linear-gradient(to_right,#000_calc(100%-24px),transparent)] lg:pb-0">
           {(["pen", "line", "highlight", "mark", "tick", "cross", "text", "erase"] as Tool[]).map((t) => (
             <button
               key={t}
@@ -418,7 +420,7 @@ export function AnnotatorModal({
                   const v = Number(e.target.value);
                   setMarkValue(Number.isFinite(v) ? Math.max(0, v) : 0);
                 }}
-                className="h-10 w-16 rounded-field border border-field bg-surface px-2 text-center font-mono text-base font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                className="h-10 w-16 rounded-field border border-field bg-surface px-2 text-center font-mono pointer-coarse:h-11 text-base font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 aria-label="Marks to stamp"
               />
             </label>
@@ -428,9 +430,9 @@ export function AnnotatorModal({
             <button
               key={c}
               onClick={() => setColor(c)}
-              aria-label={`Colour ${c}`}
+              aria-label={COLOR_NAMES[c] ?? "Colour"}
               aria-pressed={color === c}
-              className={cn("h-8 w-8 shrink-0 rounded-full border-2 transition-shadow duration-150", color === c ? "border-ink ring-2 ring-ink/60 ring-offset-2 ring-offset-surface" : "border-border")}
+              className={cn("h-8 w-8 shrink-0 rounded-full border-2 transition-shadow duration-150 pointer-coarse:h-11 pointer-coarse:w-11", color === c ? "border-ink ring-2 ring-ink/60 ring-offset-2 ring-offset-surface" : "border-border")}
               style={{ background: c }}
             />
           ))}
@@ -444,9 +446,9 @@ export function AnnotatorModal({
         <div className="mt-1.5 flex items-center gap-2 lg:ml-auto lg:mt-0">
           {urls.length > 1 && (
             <div className="flex shrink-0 items-center gap-1.5 text-sm text-ink-2">
-              <button onClick={() => goto(page - 1)} disabled={page === 0} className="h-10 w-10 rounded-full border border-border-strong text-lg transition-colors duration-150 hover:bg-surface-2 hover:text-ink disabled:opacity-40" aria-label="Previous page">‹</button>
+              <button onClick={() => goto(page - 1)} disabled={page === 0} className="h-10 w-10 rounded-full border border-border-strong text-lg transition-colors duration-150 hover:bg-surface-2 hover:text-ink disabled:opacity-40 pointer-coarse:h-11 pointer-coarse:w-11" aria-label="Previous page">‹</button>
               <span className="tabular-nums">{page + 1} / {urls.length}</span>
-              <button onClick={() => goto(page + 1)} disabled={page === urls.length - 1} className="h-10 w-10 rounded-full border border-border-strong text-lg transition-colors duration-150 hover:bg-surface-2 hover:text-ink disabled:opacity-40" aria-label="Next page">›</button>
+              <button onClick={() => goto(page + 1)} disabled={page === urls.length - 1} className="h-10 w-10 rounded-full border border-border-strong text-lg transition-colors duration-150 hover:bg-surface-2 hover:text-ink disabled:opacity-40 pointer-coarse:h-11 pointer-coarse:w-11" aria-label="Next page">›</button>
             </div>
           )}
           {!readOnly && (
@@ -472,7 +474,7 @@ export function AnnotatorModal({
               <SaveNote />
             </>
           )}
-          <button onClick={onClose} aria-label="Close annotator" className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-surface-2 hover:text-ink lg:ml-0">
+          <button onClick={onClose} aria-label="Close annotator" className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-surface-2 hover:text-ink pointer-coarse:h-11 pointer-coarse:w-11 lg:ml-0">
             <Icon.Close className="h-5 w-5" />
           </button>
         </div>

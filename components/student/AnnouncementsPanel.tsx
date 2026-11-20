@@ -6,23 +6,27 @@ import { useDismissibleAnnouncements } from "@/hooks/useDismissibleAnnouncements
 import { Icon } from "@/components/ui";
 import { formatDate } from "@/lib/time";
 import { SectionTitle } from "@/components/student/PortalKit";
+import { useNow } from "@/hooks/useNow";
 
 /**
  * Hamza's notices, compact: one card, one line each (tap a line to read it
- * in full), pinned first. Three show; the rest open with "Show all".
+ * in full), pinned first. Three show, plus anything from the last two days
+ * (a notification about a new note opens Home, so that note must be in view);
+ * the rest open with "Show all".
  */
 export function AnnouncementsPanel({ student }: { student: Student }) {
   const { pinned, dismissible, dismiss } = useDismissibleAnnouncements(student);
   const [open, setOpen] = useState<string | null>(null);
   const [all, setAll] = useState(false);
+  const nowMs = useNow();
 
   const items = [...pinned.map((a) => ({ ...a, pinned: true })), ...dismissible.map((a) => ({ ...a, pinned: false }))];
   if (!items.length) return null;
-  const shown = all ? items : items.slice(0, 3);
+  const shown = all ? items : items.filter((a, i) => i < 3 || nowMs - +new Date(a.createdAt) < 2 * 86_400_000);
 
   return (
     <section aria-labelledby="ann-title">
-      <SectionTitle id="ann-title">From Hamza</SectionTitle>
+      <SectionTitle id="ann-title">From me</SectionTitle>
       <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
         {shown.map((a) => {
           const isOpen = open === a.id;
@@ -51,7 +55,7 @@ export function AnnouncementsPanel({ student }: { student: Student }) {
           );
         })}
       </ul>
-      {items.length > 3 && (
+      {(all ? items.length > 3 : items.length > shown.length) && (
         <button type="button" onClick={() => setAll(!all)} className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline">
           {all ? "Show fewer" : `Show all ${items.length}`}
         </button>

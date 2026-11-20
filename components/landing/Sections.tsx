@@ -11,6 +11,9 @@ import { useBooking } from "./BookingModal";
 import { SHOT_RATIO, SHOTS as shots, VIDEO_REVIEWS as videoReviews, type VideoReview } from "@/lib/reviews";
 import { FAQS as faqs, posterFor, track, waLink, type LevelName, type SubjectName } from "@/lib/landing";
 import { SUBJECT_PAGES } from "@/lib/subjects";
+import { WordsStagger } from "@/components/spell/words-stagger";
+import { HighlightedText } from "@/components/spell/highlighted-text";
+import { Signature } from "@/components/spell/signature";
 
 /**
  * The small line above a section heading. Capitals (`caps`) at most once per
@@ -73,7 +76,7 @@ export function FreeLesson() {
         <div data-reveal className="text-center">
           <Eyebrow>Your free lesson</Eyebrow>
           <h2 className="mx-auto mt-4 max-w-[22ch] text-[2rem] leading-[1.08] md:text-5xl">
-            Pick your subject and level.
+            <WordsStagger className="justify-center">Pick your subject and level.</WordsStagger>
           </h2>
           <p className="mx-auto mt-4 max-w-[62ch] text-balance text-lg leading-relaxed text-muted-foreground">
             Free trial lesson in O Level, IGCSE, AS or A Level Accounting, Business or Economics.
@@ -224,7 +227,7 @@ export function Difference() {
         <div data-reveal className="text-center">
           <Eyebrow caps>How it&apos;s different</Eyebrow>
           <h2 className="mx-auto mt-4 max-w-[22ch] text-[2rem] leading-[1.08] md:text-5xl">
-            Most classes vs my class.
+            Most classes vs <HighlightedText>my class.</HighlightedText>
           </h2>
         </div>
 
@@ -316,10 +319,10 @@ export function MeetHamza() {
           </div>
         </div>
 
-        <div>
+        <div data-reveal>
           <p className="pc-label">Your teacher</p>
           <h2 className="mt-4 max-w-[22ch] text-[2rem] leading-[1.08] md:text-5xl">
-            I teach the way I wish someone had taught me.
+            <WordsStagger>I teach the way I wish someone had taught me.</WordsStagger>
           </h2>
           <div className="mt-6 max-w-[62ch] space-y-4 text-lg leading-relaxed text-body">
             <p>
@@ -327,6 +330,7 @@ export function MeetHamza() {
               stuck on last week.
             </p>
           </div>
+          <Signature className="mt-4 h-14 w-auto md:h-16" />
 
           <dl className="pc-surface mt-8 grid grid-cols-3 divide-x divide-hairline rounded-tile">
             {[
@@ -442,7 +446,9 @@ export function Reviews() {
       <div className="mx-auto max-w-6xl px-5">
         <div data-reveal className="text-center">
           <Eyebrow>Reviews</Eyebrow>
-          <h2 className="mx-auto mt-4 text-[2rem] leading-[1.08] md:text-5xl">What my students say.</h2>
+          <h2 className="mx-auto mt-4 text-[2rem] leading-[1.08] md:text-5xl">
+            <WordsStagger className="justify-center">What my students say.</WordsStagger>
+          </h2>
         </div>
 
         {/* Phones: one swipe row per kind of review (videos, voice notes,
@@ -548,7 +554,7 @@ export function Faq() {
         <div data-reveal className="text-center">
           <Eyebrow>FAQ</Eyebrow>
           <h2 className="mx-auto mt-4 max-w-[22ch] text-[2rem] leading-[1.08] md:text-5xl">
-            Questions people ask me.
+            <WordsStagger className="justify-center">Questions people ask me.</WordsStagger>
           </h2>
         </div>
         <div data-reveal className="pc-surface mt-6 rounded-card px-5 md:mt-12 md:px-10">

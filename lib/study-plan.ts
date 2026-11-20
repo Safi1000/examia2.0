@@ -9,7 +9,7 @@
 import type { Student } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { testsForStudent } from "@/lib/data/selectors";
-import { topicMastery } from "@/lib/scoring";
+import { isVagueTopic, topicMastery } from "@/lib/scoring";
 import { daysUntil, examsForStudent, nextExam, type ExamPaper } from "@/lib/exam-dates";
 
 /**
@@ -85,7 +85,9 @@ export function buildStudyPlan(db: Database, student: Student, nowMs: number): S
   // Every topic Hamza has tagged in this student's subjects (tests + bank).
   const topicKeys = new Map<string, PlanTopic>();
   const add = (subject: string, name: string) => {
-    const n = name.trim() || "General";
+    // Untagged, whole-syllabus and unit-only tags are no topic to revise: they stay out of the plan.
+    if (isVagueTopic(name)) return;
+    const n = name.trim();
     const key = `${subject.toLowerCase()}|${n.toLowerCase()}`;
     if (!topicKeys.has(key)) topicKeys.set(key, { subject, name: n, percent: null });
   };

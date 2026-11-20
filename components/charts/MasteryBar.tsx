@@ -27,8 +27,11 @@ export function MasteryBar({
   topic,
   percent,
   band,
+  note,
 }: {
   topic: string;
+  /** A small grey line under the bar (a few marks only), so it is never the part cut off. */
+  note?: string;
   percent: number;
   band: MasteryBand;
 }) {
@@ -53,6 +56,7 @@ export function MasteryBar({
           <span className="block h-full w-px bg-ink/25" />
         </span>
       </div>
+      {note && <p className="mt-1 text-xs text-ink-3">{note}</p>}
     </div>
   );
 }

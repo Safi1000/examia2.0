@@ -39,7 +39,6 @@ import {
   slotsOn,
   timeLabel,
   clock,
-  span,
   useSchedule,
   useClassLinks,
   type DaySlot,
@@ -70,6 +69,7 @@ export default function ClassesPage() {
 
   const [view, setView] = useState<"day" | "week">("day");
   const weekDirty = useRef(false);
+  const [leaveWeek, setLeaveWeek] = useState(false);
   const [openRow, setOpenRow] = useState<string | null>(null);
   // Cancel / move / extra: tell the students in that class (bell note + phone).
   const [tell, setTell] = useState(true);
@@ -101,7 +101,7 @@ export default function ClassesPage() {
       return false;
     }
     const ok = await save(targets, field, value);
-    toast(ok ? (value.trim() ? "Saved" : "Removed") : "Couldn't save. Try again.", ok ? "success" : "error");
+    toast(ok ? (value.trim() ? "Link saved." : "Link removed.") : "Couldn't save. Try again.", ok ? "success" : "error");
     return ok;
   }
 
@@ -239,18 +239,21 @@ export default function ClassesPage() {
   }
 
   /** Undo "Teach together": both classes go back to their usual times and their own rooms. */
-  async function teachApart(s: DaySlot) {
+  // Classes moved for this day that come after the pair (most likely slid when they were joined): asked about in the portal's own dialog.
+  const [apartAsk, setApartAsk] = useState<{ slot: DaySlot; moved: DaySlot[] } | null>(null);
+  function teachApart(s: DaySlot) {
+    if (workingRef.current) return;
+    const mate = slots.find((x) => x.level === s.joint?.level && x.subject === s.joint?.subject);
+    const pair = mate ? [s, mate] : [s];
+    const moved = live.filter((x) => !pair.includes(x) && x.changed && !x.extra && !x.joint && x.start >= s.end);
+    if (moved.length) return setApartAsk({ slot: s, moved });
+    void splitApart(s, []);
+  }
+  async function splitApart(s: DaySlot, back: DaySlot[]) {
     if (workingRef.current) return;
     const mate = slots.find((x) => x.level === s.joint?.level && x.subject === s.joint?.subject);
     const pair = mate ? [s, mate] : [s];
     const notify = tell && date >= today;
-    // Classes moved for this day that come after the pair: most likely slid when they were joined.
-    const moved = live.filter((x) => !pair.includes(x) && x.changed && !x.extra && !x.joint && x.start >= s.end);
-    const back =
-      moved.length > 0 &&
-      window.confirm(`Also put ${moved.map((x) => `${x.subject} · ${LEVEL_LABEL[x.level]}`).join(" and ")} back to ${moved.length === 1 ? "its" : "their"} usual time? Press Cancel to leave ${moved.length === 1 ? "it" : "them"} where ${moved.length === 1 ? "it is" : "they are"}.`)
-        ? moved
-        : [];
     workingRef.current = true;
     setWorking(true);
     try {
@@ -316,7 +319,7 @@ export default function ClassesPage() {
             key={v}
             type="button"
             onClick={() => {
-              if (v === "day" && weekDirty.current && !window.confirm("You have timetable changes that aren't saved. Leave them?")) return;
+              if (v === "day" && weekDirty.current) return setLeaveWeek(true);
               if (v === "day") weekDirty.current = false;
               setView(v);
             }}
@@ -386,8 +389,9 @@ export default function ClassesPage() {
                 {slots.map((s) => {
                   const key = slotKey(s);
                   const link = linkFor(s);
-                  const who = enrolled.get(key) ?? [];
-                  const joined = joins.filter((j) => slotKey(j) === key).length;
+                  // Students only: Hamza's test account and in-person students neither count nor add to the total, and a second Join tap is one student.
+                  const who = (enrolled.get(key) ?? []).filter((w) => !isTestAccount(w));
+                  const joined = new Set(joins.filter((j) => slotKey(j) === key && who.some((w) => w.id === j.studentId)).map((j) => j.studentId)).size;
                   const phase = nowMs < s.startMs ? "later" : nowMs < s.endMs ? "live" : "done";
                   const isOpen = openRow === key;
                   return (
@@ -395,7 +399,7 @@ export default function ClassesPage() {
                       <div className="flex items-center gap-3 px-5 py-3.5 sm:px-6">
                         <span className="w-14 shrink-0 text-sm font-semibold tabular-nums text-ink">{timeLabel(s.start)}</span>
                         <span className="min-w-0 flex-1">
-                          <span className={cn("block truncate text-base font-semibold text-ink", s.cancelled && "line-through")}>
+                          <span className={cn("block break-words text-base font-semibold text-ink", s.cancelled && "line-through")}>
                             {s.subject} <span className="font-normal text-ink-3">· {levelName(s)}</span>
                           </span>
                           <span className="block text-sm text-ink-3">
@@ -405,7 +409,7 @@ export default function ClassesPage() {
                                 ? `Live now · ${joined} of ${who.length} joined`
                                 : phase === "done" || date < today
                                   ? `${who.length ? `${joined} of ${who.length} joined` : "No students in this level"}${link?.recordingUrl ? " · recording ready" : ""}`
-                                  : `${span(s.start, s.end)}${s.joint ? ` · ${LEVEL_LABEL[s.level]} students` : s.extra ? " · extra class" : s.changed ? " · changed for this day" : ""}${link?.meetUrl ? " · link ready" : ""}`}
+                                  : `Until ${clock(s.end)}${s.joint ? ` · ${LEVEL_LABEL[s.level]} students` : s.extra ? " · extra class" : s.changed ? " · changed for this day" : ""}${link?.meetUrl ? " · link ready" : ""}`}
                           </span>
                         </span>
                         {phase === "live" && date === today && !s.cancelled && link?.meetUrl && (
@@ -477,7 +481,7 @@ export default function ClassesPage() {
                                   {phase === "later" && (
                                     <>
                                       {" "}
-                                      <button type="button" disabled={working} className="font-semibold text-ink underline underline-offset-4 disabled:opacity-50" onClick={() => void teachApart(s)}>
+                                      <button type="button" disabled={working} className="font-semibold text-ink underline underline-offset-4 disabled:opacity-50" onClick={() => teachApart(s)}>
                                         Teach them separately
                                       </button>
                                     </>
@@ -532,8 +536,9 @@ export default function ClassesPage() {
                               </div>
                               <LinkField
                                 key={`m-${key}-${link?.meetUrl ?? ""}`}
-                                label={s.joint ? "Meet link (shared by both classes)" : "Meet link"}
-                                placeholder="Paste the Meet link (made for you if Google is connected)"
+                                label="Meet link"
+                                note={s.joint ? "Shared by both classes." : undefined}
+                                placeholder="Paste the Meet link"
                                 initial={link?.meetUrl ?? ""}
                                 disabled={ready === false}
                                 onSave={(v) => store(s.joint ? [leadOf(s), ...slots.filter((x) => x.joint?.follows && leadOf(x) === leadOf(s))] : [s], "meetUrl", v)}
@@ -627,7 +632,53 @@ export default function ClassesPage() {
       )}
 
       {/* Setup sits quietly under the classes: the day's classes come first. */}
-      <GoogleConnect onSynced={() => void reload()} />
+      {/* Owner only: the Google check is Hamza's, and staff would only ever see its error card. */}
+      {!staff && <GoogleConnect onSynced={() => void reload()} />}
+
+      <Modal
+        open={!!apartAsk}
+        onClose={() => setApartAsk(null)}
+        title="Put the later classes back too?"
+        description={apartAsk ? `${apartAsk.moved.map((x) => `${x.subject} · ${LEVEL_LABEL[x.level]}`).join(" and ")} ${apartAsk.moved.length === 1 ? "was" : "were"} moved for this day.` : undefined}
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => { const a = apartAsk; setApartAsk(null); if (a) void splitApart(a.slot, []); }}>
+              Leave {apartAsk?.moved.length === 1 ? "it" : "them"}
+            </Button>
+            <Button onClick={() => { const a = apartAsk; setApartAsk(null); if (a) void splitApart(a.slot, a.moved); }}>
+              Put {apartAsk?.moved.length === 1 ? "it" : "them"} back
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-2">Both joined classes go back to their usual times and their own links either way.</p>
+      </Modal>
+
+      <Modal
+        open={leaveWeek}
+        onClose={() => setLeaveWeek(false)}
+        title="Leave without saving?"
+        description="Your timetable changes aren't saved yet."
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setLeaveWeek(false)}>Keep editing</Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setLeaveWeek(false);
+                weekDirty.current = false;
+                setView("day");
+              }}
+            >
+              Leave them
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-2">Day changes save straight away; the weekly timetable only saves when you press Save timetable.</p>
+      </Modal>
 
       <Modal
         open={noneHeld}
@@ -765,12 +816,15 @@ function nextClassDay(today: string) {
 /** A link box that saves itself on paste, Enter or leaving the field. */
 function LinkField({
   label,
+  note,
   placeholder,
   initial,
   disabled,
   onSave,
 }: {
   label: string;
+  /** A short line under the box (a long label would wrap in its narrow column on a phone). */
+  note?: string;
   placeholder: string;
   initial: string;
   disabled?: boolean;
@@ -793,6 +847,7 @@ function LinkField({
     }
   };
   return (
+    <div>
     <div className="flex items-center gap-2">
       <span className="label-quiet w-20 shrink-0 text-ink-3">{label}</span>
       <input
@@ -828,6 +883,8 @@ function LinkField({
         </a>
       )}
     </div>
+    {note && <p className="mt-1 pl-[5.5rem] text-xs text-ink-3">{note}</p>}
+    </div>
   );
 }
 
@@ -852,6 +909,7 @@ function DayActions({
 }) {
   const [moving, setMoving] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [cancelAsk, setCancelAsk] = useState(false);
   const [start, setStart] = useState(slot.start);
   const [end, setEnd] = useState(slot.end);
   const small = "h-10 rounded-full px-3.5 text-sm font-semibold transition-colors pointer-coarse:h-11 pointer-coarse:px-4 disabled:opacity-50";
@@ -894,12 +952,33 @@ function DayActions({
         disabled={busy}
         aria-busy={busy}
         className={`${small} text-ink-3 hover:bg-surface-2 hover:text-error`}
-        onClick={() => {
-          if (window.confirm(`Cancel ${slot.subject} for this day?${tell ? " Students in it will be told." : " Students won't get a message (the box is unticked)."}`)) void onCancel();
-        }}
+        onClick={() => setCancelAsk(true)}
       >
         {busy ? "Saving" : "Cancel class"}
       </button>
+      <Modal
+        open={cancelAsk}
+        onClose={() => setCancelAsk(false)}
+        title={`Cancel ${slot.subject} for this day?`}
+        description={tell ? "Students in it will be told." : "Students won't get a message (the box is unticked)."}
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setCancelAsk(false)}>Keep the class</Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setCancelAsk(false);
+                void onCancel();
+              }}
+            >
+              Cancel class
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-2">It stays on the list, and More then shows Put this class back on.</p>
+      </Modal>
     </span>
   );
 }

@@ -159,7 +159,7 @@ export function AutomationSettings() {
             </button>
           </div>
         ) : !settings ? (
-          <p className="flex items-center gap-2 py-3 text-sm text-ink-3"><Spinner size={16} className="text-ink-3" /> Loading…</p>
+          <p role="status" className="flex items-center gap-2 py-3 text-sm text-ink-3 animate-[arc-appear_200ms_300ms_both]"><span aria-hidden className="contents"><Spinner size={16} className="text-ink-3" /></span> Loading…</p>
         ) : (
           <ul className="divide-y divide-hairline">
             {SWITCHES.map((s) => (

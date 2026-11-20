@@ -24,6 +24,9 @@ import { ShareMoment } from "@/components/student/ShareMoment";
 import { Icon, chipClass } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 
+const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+/** Under a day's dot: "25m", "1h 5m". */
+const fmtShort = (min: number) => (min < 60 ? `${min}m` : `${Math.floor(min / 60)}h${min % 60 ? ` ${min % 60}m` : ""}`);
 const fmt = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`);
 const card = "surface rounded-card p-5 sm:p-6";
 const kicker = "label-quiet text-ink-3";
@@ -50,14 +53,19 @@ export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
         {streak.weeks > 0 && (
           <div className="text-right">
             <p className="text-title font-semibold tabular-nums text-brand">{streak.weeks}</p>
-            <p className="mt-1 text-xs text-ink-3">{streak.weeks === 1 ? "week streak" : "weeks in a row"}</p>
+            <p className="mt-1 text-sm text-ink-3">{streak.weeks === 1 ? "week streak" : "weeks in a row"}</p>
           </div>
         )}
       </div>
       <ol className="mt-5 grid grid-cols-7 gap-1.5" aria-label="Days studied this week">
         {days.map((d, i) => (
           <li key={d.date} className="flex flex-col items-center gap-1.5">
+            {/* Each day reads in full to a screen reader; the dot and letters below are for the eye. */}
+            <span className="sr-only">
+              {DAY_NAMES[i]}: {d.minutes ? fmt(d.minutes) : d.isFuture ? "still to come" : "no study"}
+            </span>
             <span
+              aria-hidden
               className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold ${
                 d.minutes > 0 ? "bg-ink text-paper" : d.isToday ? "border-2 border-ink-3 text-ink" : d.isFuture ? "border border-border text-ink-3" : "bg-surface-2 text-ink-3"
               }`}
@@ -65,7 +73,9 @@ export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
             >
               {d.minutes > 0 ? "✓" : ""}
             </span>
-            <span className={`text-xs ${d.isToday ? "font-semibold text-ink" : "text-ink-3"}`}>{["M", "T", "W", "T", "F", "S", "S"][i]}</span>
+            <span aria-hidden className={`text-xs ${d.isToday ? "font-semibold text-ink" : "text-ink-3"}`}>{["M", "T", "W", "T", "F", "S", "S"][i]}</span>
+            {/* The minutes, visible on a phone (a hover label never shows there). */}
+            <span aria-hidden className="min-h-4 whitespace-nowrap text-xs tabular-nums text-ink-2">{d.minutes > 0 ? fmtShort(d.minutes) : ""}</span>
           </li>
         ))}
       </ol>
@@ -75,7 +85,7 @@ export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
           <select
             value={target}
             onChange={(e) => updateProfile({ daysTarget: Number(e.target.value) })}
-            className="h-11 rounded-field border border-field bg-surface px-3 text-base font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:text-sm"
+            className="h-11 rounded-full border border-field bg-surface px-4 text-base font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:text-sm"
           >
             {DAYS_TARGETS.map((t) => (
               <option key={t} value={t}>
@@ -125,7 +135,7 @@ export function SlotsCard({ nowMs }: { nowMs: number }) {
                 Next: {DAY_SHORT[next.slot.day]} at {clock12(next.slot.time)}
               </>
             ) : (
-              "Pick when you’ll study"
+              "Pick when you'll study"
             )}
           </p>
           <p className="mt-1 text-sm text-ink-3">{next ? "Your phone reminds you at each one." : "A set time, every week, is what turns studying into a habit."}</p>

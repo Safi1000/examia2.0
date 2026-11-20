@@ -19,6 +19,7 @@ import { formatTimestamp, formatWhen, toLocalInput, fromLocalInput } from "@/lib
 import { BulkBar, ConfirmBulk, NameList, OneByOne, RowCheck, SelectAll, plural, waLink, type BulkAction, type Step } from "@/components/admin/BulkBar";
 import { useSelection } from "@/lib/use-selection";
 import { displayName } from "@/lib/display-name";
+import { messageWhen } from "@/lib/reminders";
 import { useNow } from "@/hooks/useNow";
 import { useAuth } from "@/lib/auth-context";
 import { staffLog, useIsStaff } from "@/lib/staff";
@@ -43,8 +44,9 @@ const blank = (cohortId: string): Form => ({
   title: "",
   instructions: "",
   attachments: [],
-  // A week out, which is what "weekly assignment" means in practice.
-  dueAt: toLocalInput(new Date(Date.now() + 7 * 86_400_000).toISOString()),
+  // A week out at 11:59 PM (the same evening time past paper homework uses), not the minute the form opened.
+  // Picking a level and subject moves it to their next class.
+  dueAt: `${toLocalInput(new Date(Date.now() + 7 * 86_400_000).toISOString()).slice(0, 10)}T23:59`,
   cohortId,
   classId: "",
   subjectId: "",
@@ -69,8 +71,8 @@ function owedFor(db: Db, a: Assignment, off = archivedCohortIds(db)) {
   );
 }
 
-/** The deadline as the reminder message words it ("Fri 14 Nov, 9:00 pm"). */
-const dueWords = (iso: string) => new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+/** The deadline as the reminder message words it ("tomorrow at 9:00 PM Pakistan time"), never the device's own clock. */
+const dueWords = (iso: string, nowMs: number) => messageWhen(iso, nowMs);
 
 /** The time right now, read when an action runs (not while drawing the page). */
 const clock = () => Date.now();
@@ -208,7 +210,7 @@ export default function AdminAssignmentsPage() {
     label: "Undo",
     onClick: () => {
       before.forEach((a) => store.updateAssignment(a.id, payloadOf(a)));
-      toast(`Deadline put back on ${plural(before.length, "homework", "homeworks")}.`, "success");
+      toast(`Deadline put back on ${plural(before.length, "piece of homework", "pieces of homework")}.`, "success");
     },
   });
 
@@ -218,7 +220,7 @@ export default function AdminAssignmentsPage() {
     chosen.forEach((a) => store.updateAssignment(a.id, { ...payloadOf(a), dueAt: new Date(Math.max(at, +new Date(a.dueAt)) + 86_400_000).toISOString() }));
     setAsk(null);
     sel.clear();
-    toast(`${plural(before.length, "homework", "homeworks")} given one more day.`, "success", undoDue(before));
+    toast(`${plural(before.length, "piece of homework", "pieces of homework")} given one more day.`, "success", undoDue(before));
   }
 
   function runDue() {
@@ -228,7 +230,7 @@ export default function AdminAssignmentsPage() {
     setAsk(null);
     sel.clear();
     setBulkDue("");
-    toast(`${plural(before.length, "homework", "homeworks")} now due ${formatWhen(bulkDueIso)}.`, "success", undoDue(before));
+    toast(`${plural(before.length, "piece of homework", "pieces of homework")} now due ${formatWhen(bulkDueIso)}.`, "success", undoDue(before));
   }
 
   function runDelete() {
@@ -236,7 +238,7 @@ export default function AdminAssignmentsPage() {
     chosen.forEach((a) => store.deleteAssignment(a.id));
     setAsk(null);
     sel.clear();
-    toast(`${plural(n, "homework", "homeworks")} deleted.`, "success");
+    toast(`${plural(n, "piece of homework", "pieces of homework")} deleted.`, "success");
   }
 
   // Before the deadline only, as on each homework: no nudging towards late work.
@@ -244,7 +246,7 @@ export default function AdminAssignmentsPage() {
     if (!openHw.length) return toast("These have all closed. Reminders are only for homework still open.", "info");
     const list: Step[] = openHw.flatMap((a) =>
       owedFor(db, a).map((s) => {
-        const message = studentHomeworkDue({ id: s.id, username: s.username, title: a.title, due: dueWords(a.dueAt) });
+        const message = studentHomeworkDue({ id: s.id, username: s.username, title: a.title, due: dueWords(a.dueAt, clock()) });
         const href = waLink(s.phone, message);
         return { id: `${a.id}|${s.id}`, name: displayName(s.username), detail: `${a.title}${s.phone ? ` · ${s.phone}` : ""}`, message, href, missing: href ? undefined : "no student number saved" };
       }),
@@ -398,12 +400,12 @@ export default function AdminAssignmentsPage() {
                       {[cohort?.name, cls?.name, subj?.name].filter(Boolean).join(" › ") || "All students"}
                       {" · "}
                       {handedReal.length} of {setForCount} handed in
-                      {handIns.some((h) => !h.feedback) && <span className="font-semibold text-ink"> · {handIns.filter((h) => !h.feedback).length} to reply</span>}
+                      {handedReal.some((h) => !h.feedback) && <span className="font-semibold text-ink"> · {handedReal.filter((h) => !h.feedback).length} to reply</span>}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Button variant="secondary" size="sm" onClick={() => setOpenId(a.id)}>
-                      Hand-ins ({handIns.length})
+                      Hand-ins ({handedReal.length})
                     </Button>
                     <span data-owner className="contents">
                       <Button variant="secondary" size="sm" onClick={() => openEdit(a)}>
@@ -425,7 +427,7 @@ export default function AdminAssignmentsPage() {
       <ConfirmBulk
         open={ask === "extend"}
         onClose={() => setAsk(null)}
-        title={`Give ${plural(chosen.length, "homework", "homeworks")} one more day?`}
+        title={`Give ${plural(chosen.length, "piece of homework", "pieces of homework")} one more day?`}
         description="Each is due a day after its deadline, or a day from now if it has already closed (it opens again)."
         confirmLabel="Give one more day"
         onConfirm={runExtend}
@@ -436,7 +438,7 @@ export default function AdminAssignmentsPage() {
       <ConfirmBulk
         open={ask === "due"}
         onClose={() => setAsk(null)}
-        title={`New deadline for ${plural(chosen.length, "homework", "homeworks")}`}
+        title={`New deadline for ${plural(chosen.length, "piece of homework", "pieces of homework")}`}
         description="Pakistan time."
         confirmLabel="Change deadline"
         disabled={!bulkDueIso || !!bulkDueProblem}
@@ -457,9 +459,9 @@ export default function AdminAssignmentsPage() {
       <ConfirmBulk
         open={ask === "delete"}
         onClose={() => setAsk(null)}
-        title={`Delete ${plural(chosen.length, "homework", "homeworks")}?`}
+        title={`Delete ${plural(chosen.length, "piece of homework", "pieces of homework")}?`}
         description={handInsLost ? `Their ${plural(handInsLost, "hand-in")} and your feedback go too. This cannot be undone.` : "This cannot be undone."}
-        confirmLabel={`Delete ${plural(chosen.length, "homework", "homeworks")}`}
+        confirmLabel={`Delete ${plural(chosen.length, "piece of homework", "pieces of homework")}`}
         danger
         ack={handInsLost ? `I understand ${plural(handInsLost, "student hand-in")} will be deleted for good.` : undefined}
         onConfirm={runDelete}
@@ -509,8 +511,8 @@ export default function AdminAssignmentsPage() {
                   {db.cohorts.filter((c) => c.active || c.id === form.cohortId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </Select>
               )}
-              <Select label="Class" value={form.classId} onChange={(e) => setForm({ ...form, classId: e.target.value, ...(editing === "new" && !dueTyped ? { dueAt: dueFor(e.target.value, form.subjectId, form.dueAt) } : {}) })}>
-                <option value="">All classes</option>
+              <Select label="Level" value={form.classId} onChange={(e) => setForm({ ...form, classId: e.target.value, ...(editing === "new" && !dueTyped ? { dueAt: dueFor(e.target.value, form.subjectId, form.dueAt) } : {}) })}>
+                <option value="">All levels</option>
                 {db.classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </Select>
               <Select label="Subject" value={form.subjectId} onChange={(e) => setForm({ ...form, subjectId: e.target.value, ...(editing === "new" && !dueTyped ? { dueAt: dueFor(form.classId, e.target.value, form.dueAt) } : {}) })}>
@@ -655,8 +657,9 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
   const off = archivedCohortIds(db);
   const owed = a ? owedFor(db, a, off) : [];
   const open = a ? +new Date(a.dueAt) > nowMs : false;
-  const nameOf = (u: string) => u.charAt(0).toUpperCase() + u.slice(1);
-  const due = a ? dueWords(a.dueAt) : "";
+  // The same tidy name as the Roster ("Amelia K").
+  const nameOf = (u: string) => displayName(u);
+  const due = a ? dueWords(a.dueAt, nowMs) : "";
 
   // Groundwork time on this homework, from blocks started on it. One request for everyone (the
   // activity route sends this month's and last month's per-homework time whatever the start day).
@@ -728,15 +731,15 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
         return (
           <div key={s.id} className="border-b border-hairline pb-5 last:border-0 last:pb-0">
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className="text-base font-semibold capitalize text-ink">{student?.username ?? "Unknown"}</span>
+              <span className="text-base font-semibold text-ink">{student ? displayName(student.username) : "Unknown"}</span>
               <span className="text-sm text-ink-3">handed in {formatTimestamp(s.submittedAt)}</span>
               {focusNote(s.studentId)}
             </div>
-            <PageStack urls={s.fileUrls} label={`${student?.username ?? "Student"}'s work`} />
+            <PageStack urls={s.fileUrls} label={`${student ? displayName(student.username) : "Student"}'s work`} />
             <FeedbackBox
               initial={s.feedback ?? ""}
               onDirty={(on) => onUnsent(s.id, on)}
-              onSave={(text) => { store.setAssignmentFeedback(s.id, text); onUnsent(s.id, false); toast("Feedback sent.", "success"); staffLog(session, `replied to ${student?.username ?? "a student"}'s homework`); }}
+              onSave={(text) => { store.setAssignmentFeedback(s.id, text); onUnsent(s.id, false); toast("Feedback sent.", "success"); staffLog(session, `replied to ${student ? displayName(student.username) : "a student"}'s homework${a ? `, "${a.title}"` : ""}`); }}
             />
           </div>
         );

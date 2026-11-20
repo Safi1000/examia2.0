@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { Annotation, Answer, Question, Submission } from "@/types";
@@ -14,9 +14,11 @@ import { PageStack } from "@/components/PageStack";
 import { MarkSchemePanel } from "@/components/admin/MarkSchemePanel";
 import { idsInText, isPastPaper, sourceLabel, withoutSources } from "@/lib/paper-builder";
 import { PaperText } from "@/components/PaperText";
-import { Card, Button, Badge, Pill, Textarea, EmptyState, Icon } from "@/components/ui";
+import { Card, Button, Badge, Pill, Textarea, EmptyState, Icon, Modal } from "@/components/ui";
 import { isFullyGraded } from "@/lib/scoring";
 import { gradeSubmission } from "@/lib/grading";
+import { shownPercent } from "@/lib/performance";
+import { displayName } from "@/lib/display-name";
 import { takenTimeOf } from "@/lib/photo-time";
 import { cn } from "@/lib/cn";
 import { panel } from "@/components/admin/surface";
@@ -31,6 +33,8 @@ export default function GradingPage() {
   // Auto-marked MCQs are hidden by default so the written and photo answers
   // that actually need a decision are on screen first.
   const [showAuto, setShowAuto] = useState(false);
+  // "Mark again" on a released result: asked in the portal's own dialog.
+  const [markAgain, setMarkAgain] = useState(false);
   // Set by the first Release tap: a fast second tap (or Ctrl+Enter) must not release twice.
   const releasing = useRef<string | null>(null);
   // Each card's comment and pen strokes still in their short pause: saved before a release.
@@ -75,8 +79,8 @@ export default function GradingPage() {
     const loading = store.restored;
     return (
       <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
-        <PageHeader title={loading ? "Marking" : "Submission not found"} back={{ href: "/admin/submissions", label: "Submissions" }} />
-        <EmptyState icon={<Icon.Inbox />} title={loading ? "Getting this paper…" : "This submission no longer exists"} />
+        <PageHeader title={loading ? "Marking" : "Paper not found"} back={{ href: "/admin/submissions", label: "Marking" }} />
+        <EmptyState icon={<Icon.Inbox />} title={loading ? "Getting this paper…" : "This paper no longer exists"} />
       </div>
     );
   }
@@ -118,7 +122,8 @@ export default function GradingPage() {
     0,
   );
   const mcqTotal = mcqs.reduce((sum, q) => sum + q.marks, 0);
-  const name = student.username.charAt(0).toUpperCase() + student.username.slice(1);
+  // The same tidy name as the Roster ("Amelia K"), not the sign-in name.
+  const name = displayName(student.username);
 
   /**
    * A released result changes only after one deliberate step: taking it back.
@@ -155,34 +160,57 @@ export default function GradingPage() {
       <ReleaseShortcut enabled={fullyGraded && !released} onRelease={() => release(!!nextId)} />
       <PageHeader
         title="Marking"
-        subtitle={`${name} · ${test.title}${waiting ? ` · ${waiting} waiting to be marked` : ""}`}
-        back={{ href: "/admin/submissions", label: "Submissions" }}
+        subtitle={`${name}${submission.late && !inLateWindow(db, submission) ? " (late)" : submission.autoSubmitted ? " (timed out)" : ""} · ${test.title}${waiting ? ` · ${waiting} to mark` : ""}`}
+        back={{ href: "/admin/submissions", label: "Marking" }}
         actions={
           released ? (
             <>
               <Badge tone="success">Released</Badge>
-              <Button variant="secondary" onClick={() => takeBack()}>
+              <Button variant="secondary" onClick={() => setMarkAgain(true)}>
                 <Icon.Refresh className="h-4 w-4" /> Mark again
               </Button>
               {nextId && (
-                <Button onClick={() => router.push(`/admin/grading/${nextId}`)}>Next to mark →</Button>
+                <Button onClick={() => router.push(`/admin/grading/${nextId}`)}>Next paper</Button>
               )}
             </>
           ) : (
             <>
               {nextId && (
                 <Link href={`/admin/grading/${nextId}`} className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-ink-2 hover:text-ink">
-                  Skip to next →
+                  Skip to next paper
                 </Link>
               )}
               <Button variant="secondary" disabled={!fullyGraded} onClick={() => release(!!nextId)}>
-                {nextId ? "Release & next" : "Release result"}
-                <kbd className="ml-1.5 hidden rounded-[5px] border border-current/30 px-1 font-sans text-xs font-semibold opacity-70 lg:inline">Ctrl ↵</kbd>
+                {nextId ? "Release and next" : "Release result"}
+                <ShortcutHint />
               </Button>
             </>
           )
         }
       />
+
+      <Modal
+        open={markAgain}
+        onClose={() => setMarkAgain(false)}
+        title="Take this result back to mark again?"
+        description="The student won't see it until you release it again."
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setMarkAgain(false)}>Keep it out</Button>
+            <Button
+              onClick={() => {
+                setMarkAgain(false);
+                takeBack(false);
+              }}
+            >
+              Mark again
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-2">They get a fresh notice when it goes out again.</p>
+      </Modal>
 
       {/* Running total */}
       <Card ruled className="mb-5 flex flex-wrap items-center justify-between gap-3 p-5 sm:p-6">
@@ -191,8 +219,15 @@ export default function GradingPage() {
           <p className="mt-1 text-title font-semibold tabular-nums tracking-[-0.02em] text-ink">{awarded}<span className="text-base font-normal text-ink-3">/{total}</span></p>
         </div>
         <div className="text-right">
-          <p className="text-lg font-semibold tabular-nums text-ink">{grade.percent}%</p>
-          <p className="text-sm text-ink-3">Grade {grade.letter}</p>
+          {/* A grade only once every answer has a mark: before that it would read as a U for a paper not yet marked. */}
+          {fullyGraded || released ? (
+            <>
+              <p className="text-lg font-semibold tabular-nums text-ink">{shownPercent(grade.percent)}%</p>
+              <p className="text-sm text-ink-3">Grade {grade.letter}</p>
+            </>
+          ) : (
+            <p className="text-sm text-ink-3">So far</p>
+          )}
         </div>
         {!fullyGraded && !released && (
           <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-tile border border-warning/25 bg-warning-soft px-4 py-3 text-sm text-warning">
@@ -259,13 +294,13 @@ export default function GradingPage() {
           mark button that was underneath. */}
       <div data-toast-avoid className="sticky bottom-3 z-30 mt-6 flex items-center justify-between gap-3 rounded-full border border-border-strong bg-surface py-2 pl-5 pr-2 shadow-[var(--shadow-lg)] max-md:bottom-24">
         <span className="text-base font-semibold tabular-nums text-ink">
-          {awarded}/{total} <span className="font-normal text-ink-3">· {grade.percent}%{released ? " · Released" : ""}</span>
+          {awarded}/{total} <span className="font-normal text-ink-3">{fullyGraded || released ? `· ${shownPercent(grade.percent)}%` : "so far"}{released ? " · Released" : ""}</span>
         </span>
         {released ? (
-          nextId ? <Button variant="secondary" onClick={() => router.push(`/admin/grading/${nextId}`)}>Next to mark →</Button> : <span className="min-h-11" />
+          nextId ? <Button variant="secondary" onClick={() => router.push(`/admin/grading/${nextId}`)}>Next paper</Button> : <span className="min-h-11" />
         ) : (
           <Button data-release disabled={!fullyGraded} onClick={() => release(!!nextId)}>
-            {nextId ? "Release & next" : "Release result"}
+            {nextId ? "Release and next" : "Release result"}
           </Button>
         )}
       </div>
@@ -482,7 +517,7 @@ function GradeCard({
           <span className="text-sm font-semibold tabular-nums text-ink-3">Q{index + 1}</span>
           <Badge tone="neutral">{question.type === "mcq" ? "Choice" : question.type === "photo" ? "Photo" : "Written"}</Badge>
           {question.topic.trim() && <Badge tone="neutral">{question.topic}</Badge>}
-          <Pill>{question.marks}m</Pill>
+          <Pill>{question.marks} {question.marks === 1 ? "mark" : "marks"}</Pill>
           {locked && <span className="inline-flex items-center gap-1 text-xs text-ink-3"><Icon.Lock className="h-3 w-3" /> marked automatically</span>}
         </div>
       </div>
@@ -690,7 +725,15 @@ function GradeCard({
 
 const GRACE_MS = 2 * 60_000;
 // Pakistan time, like every other time in the portal (not the device's own zone).
-const clock = (ms: number) => new Date(ms).toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit", hour12: true });
+const clock = (ms: number) =>
+  new Date(ms).toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit", hour12: true }).replace(/\s?(am|pm)\b/i, (_, m: string) => ` ${m.toUpperCase()}`);
+
+const isMac = () => /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+/** "⌘ Enter" on a Mac or iPad, "Ctrl Enter" elsewhere (both keys work everywhere). */
+function ShortcutHint() {
+  const mac = useSyncExternalStore(() => () => {}, isMac, () => false);
+  return <kbd className="ml-1.5 hidden rounded-[5px] border border-current/30 px-1 font-sans text-xs font-semibold opacity-70 lg:inline">{mac ? "⌘ Enter" : "Ctrl Enter"}</kbd>;
+}
 
 /** Ctrl or Cmd + Enter anywhere on the page releases the result. */
 function ReleaseShortcut({ enabled, onRelease }: { enabled: boolean; onRelease: () => void }) {

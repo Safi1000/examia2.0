@@ -16,6 +16,27 @@ const STATUS = {
   absent: { dot: "bg-error", label: "Absent" },
 } as const;
 
+/** Fewer marks than this in a month and its percent swings too far (one absence on the 2nd reads 0%). */
+const MIN_CLASSES = 3;
+
+/**
+ * The attendance headline Home and Progress share: this month once at least
+ * three of its classes are marked (or I typed the month in), else last month.
+ */
+export function headlineAttendance(db: Pick<Database, "attendanceDays" | "attendanceMonths" | "students">, studentId: string, nowMs: number) {
+  const thisMonth = monthOf(nowMs);
+  const d = new Date(`${thisMonth}-01T12:00:00Z`);
+  d.setUTCMonth(d.getUTCMonth() - 1);
+  const lastMonth = d.toISOString().slice(0, 7);
+  const typedNow = db.attendanceMonths.some((a) => a.studentId === studentId && a.month === `${thisMonth}-01`);
+  const marked = countedDays(db, studentId).filter((x) => x.date.startsWith(thisMonth)).length;
+  const prev = attendancePercent(db, studentId, `${lastMonth}-01`);
+  // A new student with no last month still sees this month from the first marked class.
+  const now = typedNow || marked >= MIN_CLASSES || (marked > 0 && prev == null) ? attendancePercent(db, studentId, `${thisMonth}-01`) : null;
+  const month = now != null ? thisMonth : prev != null ? lastMonth : null;
+  return { percent: now ?? prev, month, monthName: month ? monthName(month) : null, prev: now != null ? prev : null, prevName: monthName(lastMonth) };
+}
+
 /**
  * A student's own class register: this month's attendance, last month for
  * comparison, and their last classes as a row of marks. Hidden when there is
@@ -25,19 +46,13 @@ const STATUS = {
 export function AttendanceCard({ db, studentId, nowMs }: { db: Pick<Database, "attendanceDays" | "attendanceMonths" | "students">; studentId: string; nowMs: number }) {
   const data = useMemo(() => {
     const days = countedDays(db, studentId).sort((a, b) => a.date.localeCompare(b.date));
-    const thisMonth = monthOf(nowMs);
-    const d = new Date(`${thisMonth}-01T12:00:00Z`);
-    d.setUTCMonth(d.getUTCMonth() - 1);
-    const lastMonth = d.toISOString().slice(0, 7);
-    // Before this month's first class, show last month as the headline.
-    const now = attendancePercent(db, studentId, `${thisMonth}-01`);
-    const prev = attendancePercent(db, studentId, `${lastMonth}-01`);
-    const headMonth = now != null ? thisMonth : prev != null ? lastMonth : null;
-    const inMonth = headMonth ? days.filter((x) => x.date.startsWith(headMonth)) : [];
+    const head = headlineAttendance(db, studentId, nowMs);
+    const inMonth = head.month ? days.filter((x) => x.date.startsWith(head.month!)) : [];
     return {
-      percent: now ?? prev,
-      headMonth,
-      prev: now != null ? prev : null,
+      percent: head.percent,
+      headMonth: head.month,
+      prev: head.prev,
+      prevName: head.prevName,
       counts: {
         present: inMonth.filter((x) => x.status === "present").length,
         late: inMonth.filter((x) => x.status === "late").length,
@@ -51,7 +66,8 @@ export function AttendanceCard({ db, studentId, nowMs }: { db: Pick<Database, "a
   if (data.percent == null || !data.headMonth) return null;
   const pct = Math.round(data.percent);
   const diff = data.prev != null ? Math.round(data.percent - data.prev) : null;
-  const tone = pct >= 90 ? "text-success" : pct >= 75 ? "text-ink" : "text-warning";
+  // The same two levels as Home: plain from 75%, amber below.
+  const tone = pct >= 75 ? "text-ink" : "text-warning";
 
   return (
     <section className="surface rounded-card p-5 sm:p-6" aria-labelledby="att-h">
@@ -63,8 +79,8 @@ export function AttendanceCard({ db, studentId, nowMs }: { db: Pick<Database, "a
         <div className="text-right">
           <p className={cn("text-title font-bold leading-none tabular-nums", tone)}>{pct}%</p>
           {diff != null && diff !== 0 && (
-            <p className={cn("mt-1.5 text-sm font-semibold", diff > 0 ? "text-success" : "text-warning")}>
-              {diff > 0 ? "Up" : "Down"} {Math.abs(diff)}% on last month
+            <p className="mt-1.5 text-sm font-semibold text-ink-2 tabular-nums">
+              {diff > 0 ? "Up" : "Down"} {Math.abs(diff)} {Math.abs(diff) === 1 ? "point" : "points"} on {data.prevName}
             </p>
           )}
         </div>
@@ -104,7 +120,7 @@ export function AttendanceCard({ db, studentId, nowMs }: { db: Pick<Database, "a
           <p className="mt-1 text-sm text-ink-3" aria-live="polite">
             {(() => {
               const x = data.recent.find((r) => r.id === picked);
-              return x ? <span className="font-semibold text-ink-2">{`${dayLabel(x.date)}: ${STATUS[x.status].label}`}</span> : `Your last ${data.recent.length} classes, oldest first. Tap one to see its day.`;
+              return x ? <span className="font-semibold text-ink-2">{`${dayLabel(x.date)}: ${STATUS[x.status].label}`}</span> : data.recent.length === 1 ? "Your last class. Tap it to see its day." : `Your last ${data.recent.length} classes, oldest first. Tap one to see its day.`;
             })()}
           </p>
         </>

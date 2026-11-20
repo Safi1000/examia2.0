@@ -21,7 +21,10 @@ export function CalmStart({ name, nowMs, onStart, away = false }: { name: string
   const world = worldFor(profile.world);
   const quote = quoteFor(nowMs);
   // The clock on the wall: the phone's own time (it showed Pakistan time, an hour ahead, on a phone in the Gulf).
-  const time = new Date(nowMs).toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true }).replace(/\s?[ap]m$/i, "");
+  const clock = new Date(nowMs).toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true });
+  const time = clock.replace(/\s?[ap]m$/i, "");
+  // AM or PM in small type beside it, so the big numbers read as the time, not a countdown.
+  const meridiem = /pm$/i.test(clock) ? "PM" : "AM";
   const [tray, setTray] = useState(false);
 
   return (
@@ -29,7 +32,10 @@ export function CalmStart({ name, nowMs, onStart, away = false }: { name: string
       <Backdrop world={world.id} away={away} />
       <section className="calm relative flex min-h-[calc(100svh-68px)] flex-col text-white" aria-label="Groundwork">
         <div className="flex flex-1 flex-col items-center justify-center px-6 pb-8 text-center">
-          <p className="calm-time font-semibold leading-none tabular-nums tracking-[-0.045em] [text-shadow:0_2px_30px_rgba(0,0,0,.25)]">{time}</p>
+          <p className="calm-time font-semibold leading-none tabular-nums tracking-[-0.045em] [text-shadow:0_2px_30px_rgba(0,0,0,.25)]">
+            {time}
+            <span className="ml-2 text-2xl font-medium tracking-normal text-white/70 sm:text-3xl">{meridiem}</span>
+          </p>
           <h1 className="mt-3 text-title font-medium tracking-[-0.02em] text-white/95 [text-shadow:0_1px_16px_rgba(0,0,0,.35)] sm:text-title-lg">
             {greeting(nowMs)}, {name}.
           </h1>

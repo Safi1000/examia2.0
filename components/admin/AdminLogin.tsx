@@ -46,10 +46,11 @@ export function AdminLogin() {
     }
     if (ok) {
       lock.reset();
-      router.replace("/admin/today");
+      // The console's front door sends Hamza to Today and staff straight to their own first page (no flash of Today).
+      router.replace("/admin");
     } else {
       lock.registerFailure();
-      setError("That email and password don't match an administrator account.");
+      setError("That email and password don't match. Check both and try again.");
       setBusy(false);
     }
   }
@@ -57,14 +58,14 @@ export function AdminLogin() {
   return (
     <AuthShell
       kicker="Restricted · Teacher console"
-      title="Teacher sign in"
+      title="Console sign in"
       footer={
         <button
           type="button"
           onClick={() => router.push("/login")}
           className="inline-flex min-h-11 items-center px-3 text-ink-3 transition-colors hover:text-ink-2"
         >
-          ← Back
+          Student sign in
         </button>
       }
     >

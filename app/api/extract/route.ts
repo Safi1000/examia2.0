@@ -95,25 +95,25 @@ async function textFor(file: File): Promise<string> {
   if (mime.startsWith("image/") || ["png", "jpg", "jpeg", "webp"].includes(ext)) {
     return fromImage(buf);
   }
-  throw new Error(`Unsupported file type: ${file.name}`);
+  throw new Error("this kind of file can't be read. Use a PDF, Word file or photo.");
 }
 
 export async function POST(req: NextRequest) {
   if (!(await isAdmin(req))) {
-    return NextResponse.json({ error: "Not authorised." }, { status: 401 });
+    return NextResponse.json({ error: "Please sign in again, then try once more." }, { status: 401 });
   }
 
   let form: FormData;
   try {
     form = await req.formData();
   } catch {
-    return NextResponse.json({ error: "Expected multipart form data." }, { status: 400 });
+    return NextResponse.json({ error: "Those files didn't come through. Pick them again." }, { status: 400 });
   }
 
   const files = form.getAll("files").filter((f): f is File => f instanceof File);
-  if (!files.length) return NextResponse.json({ error: "No files uploaded." }, { status: 400 });
+  if (!files.length) return NextResponse.json({ error: "Pick a file to read first." }, { status: 400 });
   if (files.length > MAX_FILES) {
-    return NextResponse.json({ error: `Too many files (max ${MAX_FILES}).` }, { status: 400 });
+    return NextResponse.json({ error: `Pick up to ${MAX_FILES} files at a time.` }, { status: 400 });
   }
 
   const questions: DraftQuestion[] = [];

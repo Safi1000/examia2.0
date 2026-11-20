@@ -4,7 +4,7 @@ import { Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
 /**
- * A topic with the student's mark so far ("new" when never tested). With
+ * A topic with the student's mark so far ("not tested yet" when never tested). With
  * `href` it opens that topic's notes; without, it is plain text (it may sit
  * inside a card that is already a link).
  */
@@ -12,13 +12,9 @@ export function TopicChip({ t, href, label }: { t: PlanTopic; href?: string; lab
   const inner = (
     <>
       <span className="font-semibold text-ink">{t.name}</span>
-      <span
-        className={cn(
-          "tabular-nums",
-          t.percent === null ? "text-ink-3" : t.percent < 50 ? "text-error" : t.percent < 70 ? "text-warning" : "text-success",
-        )}
-      >
-        {t.percent === null ? "new" : `${t.percent}%`}
+      {/* Plain grey, not red, amber and green: gold stays the one colour on the page. */}
+      <span className={cn("tabular-nums", t.percent === null ? "text-ink-3" : "text-ink-2")}>
+        {t.percent === null ? "not tested yet" : `${t.percent}%`}
       </span>
     </>
   );

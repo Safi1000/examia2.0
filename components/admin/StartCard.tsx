@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 import { levelName, clock, span, type DaySlot } from "@/lib/timetable";
@@ -40,7 +41,12 @@ export function StartCard({ slot, url, nowMs }: { slot: DaySlot; url: string | n
           <p className="text-xs text-ink-3">Opens Meet, and turns this tab into the board to share.</p>
         </div>
       ) : (
-        <p className="max-w-[16rem] text-sm text-ink-2">No Meet link yet. If Google is connected it appears here automatically; or open More on the class to paste one.</p>
+        <div className="flex max-w-[18rem] flex-col items-start gap-2 sm:items-end">
+          <p className="text-sm text-ink-2 sm:text-right">No Meet link yet. Paste one on Classes, under More on this class.</p>
+          <Link href="/admin/classes" className={buttonClasses({ variant: "secondary" })}>
+            Add the Meet link <Icon.ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
       )}
     </section>
   );

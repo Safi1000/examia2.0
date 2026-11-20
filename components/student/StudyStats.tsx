@@ -8,6 +8,9 @@ import { LEVELS, STUDY_NAME, currentStats, levelFor, mondayOf } from "@/lib/focu
 import { addDays, pkDate } from "@/lib/timetable";
 import { Avatar } from "@/components/student/Avatar";
 import { Card } from "@/components/ui";
+import { useState } from "react";
+
+const dayLabel = (ymd: string) => new Date(`${ymd}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 
 const WEEKS = 12;
 
@@ -31,6 +34,8 @@ export function StudyStats({ nowMs }: { nowMs: number }) {
     m <= 0 ? "var(--color-surface-2)" : m < 30 ? "rgba(251,193,89,0.3)" : m < 60 ? "rgba(251,193,89,0.55)" : m < 120 ? "rgba(251,193,89,0.8)" : "#FBC159";
   const subjects = Object.entries(stats.bySubject).sort((a, b) => b[1] - a[1]);
   const weekMax = Math.max(1, ...subjects.map(([, m]) => m));
+  // A tapped day: its date and minutes show under the calendar (phones have no hover).
+  const [picked, setPicked] = useState<string | null>(null);
 
   return (
     <Card className="space-y-6 p-5 sm:p-6">
@@ -58,26 +63,36 @@ export function StudyStats({ nowMs }: { nowMs: number }) {
 
       <div>
         <p className="mb-2 text-base font-semibold text-ink">Study calendar</p>
-        <div className="flex max-w-md gap-[3px]" role="img" aria-label="Study minutes per day for the last 12 weeks">
+        <div className="flex max-w-md gap-[3px]" role="group" aria-label="Study minutes per day for the last 12 weeks">
           {Array.from({ length: WEEKS }, (_, w) => (
             <div key={w} className="flex flex-1 flex-col gap-[3px]">
               {Array.from({ length: 7 }, (_, d) => {
                 const day = addDays(start, w * 7 + d);
                 const m = day > today ? -1 : (days[day] ?? 0);
+                if (m < 0) return <span key={d} aria-hidden className="aspect-square w-full" />;
+                const text = `${dayLabel(day)}: ${m ? `${m} min` : "no study"}`;
                 return (
-                  <span
+                  <button
                     key={d}
-                    title={m >= 0 ? `${day}: ${m} min` : undefined}
-                    className="aspect-square w-full rounded-[3px]"
-                    style={{ background: m < 0 ? "transparent" : shade(m) }}
+                    type="button"
+                    onClick={() => setPicked(picked === day ? null : day)}
+                    aria-pressed={picked === day}
+                    aria-label={text}
+                    title={text}
+                    className={`aspect-square w-full rounded-[3px] ${picked === day ? "ring-2 ring-ink ring-offset-1 ring-offset-surface" : ""}`}
+                    style={{ background: shade(m) }}
                   />
                 );
               })}
             </div>
           ))}
         </div>
-        <p className="mt-2 text-sm text-ink-3">
-          {stats.streak > 1 ? `${stats.streak} day streak. ` : ""}Each square is a day; brighter means more study.
+        <p className="mt-2 text-sm text-ink-3" aria-live="polite">
+          {picked ? (
+            <span className="font-semibold text-ink-2">{`${dayLabel(picked)}: ${days[picked] ? `${days[picked]} min` : "no study"}`}</span>
+          ) : (
+            `${stats.streak > 1 ? `${stats.streak} day streak. ` : ""}Each square is a day; brighter means more study. Tap one to see it.`
+          )}
         </p>
       </div>
 

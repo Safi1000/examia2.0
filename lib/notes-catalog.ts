@@ -890,7 +890,7 @@ export const NOTE_BOOKS: NoteBook[] = [
           ],
           [
             "2.2.4",
-            "Cost–volume–profit analysis"
+            "Cost-volume-profit analysis"
           ]
         ]
       }

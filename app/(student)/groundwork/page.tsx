@@ -104,7 +104,7 @@ export default function GroundworkPage() {
                 {oneThing && (
                   <li className="flex items-center gap-4 px-5 py-4">
                     <span className="min-w-0 flex-1">
-                      <span className="block text-xs text-ink-3">My one thing</span>
+                      <span className="block text-sm text-ink-3">My one thing</span>
                       <span className={`block truncate text-base font-semibold text-ink ${oneThing.done ? "line-through opacity-60" : ""}`}>{oneThing.text}</span>
                     </span>
                     <button
@@ -127,7 +127,7 @@ export default function GroundworkPage() {
                       className="row-link flex min-w-0 flex-1 items-center gap-4 py-4 pl-5 pr-3 text-left"
                     >
                       <span className="min-w-0 flex-1">
-                        <span className="line-clamp-2 block text-xs text-ink-3">
+                        <span className="line-clamp-2 block text-sm text-ink-3">
                           {it.tag} · {it.subject}
                           {it.kind === "homework" ? ` · ${it.why}` : ""}
                         </span>
@@ -163,12 +163,12 @@ export default function GroundworkPage() {
                   <li key={p.key}>
                     <Link href={p.href} className="row-link flex w-full items-center gap-4 px-5 py-4 text-left">
                       <span className="min-w-0 flex-1">
-                        <span className="line-clamp-2 block text-xs text-ink-3">
+                        <span className="line-clamp-2 block text-sm text-ink-3">
                           {p.fresh ? "Past papers · new this week" : "Past papers · keep it fresh"} · {p.subject}
                         </span>
                         <span className="line-clamp-2 block text-base font-semibold text-ink">{p.chapter.name}</span>
                       </span>
-                      <span className="shrink-0 text-sm font-medium tabular-nums text-ink-2">{p.count} questions</span>
+                      <span className="shrink-0 text-sm font-medium tabular-nums text-ink-2">{p.count} {p.count === 1 ? "question" : "questions"}</span>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-ink-3" aria-hidden>
                         <path d="m9 6 6 6-6 6" />
                       </svg>
@@ -215,7 +215,7 @@ export default function GroundworkPage() {
                 <ol>
                   {top.top.map((t, i) => (
                     <li key={i} className="flex items-center gap-3 px-3 py-2.5">
-                      <span className="w-5 text-center text-sm font-semibold tabular-nums text-ink-3">{i + 1}</span>
+                      <span className="w-5 text-center text-sm font-semibold tabular-nums text-ink-3">{t.rank ?? i + 1}</span>
                       <Avatar id={t.avatar} initials={t.name[0]} level={t.level} className="h-9 w-9 text-sm" />
                       <span className="min-w-0 flex-1 truncate text-base font-medium text-ink">{t.name}</span>
                       <span className="tabular-nums text-sm text-ink-2">{fmt(t.minutes)}</span>
@@ -225,7 +225,7 @@ export default function GroundworkPage() {
               ) : (
                 <p className="px-3 py-3 text-base text-ink-2">{top ? "Nobody yet this week. One session puts you at the top." : "Your class's top three shows here."}</p>
               )}
-              {top?.me && top.me.rank > 3 && (
+              {top?.me && (top.me.inTop === false || (top.me.inTop === undefined && top.me.rank > 3)) && (
                 <p className="border-t border-hairline px-3 pb-2 pt-3 text-sm text-ink-2">
                   You&apos;re <span className="font-semibold text-ink">#{top.me.rank}</span> with {fmt(top.me.minutes)}.
                 </p>

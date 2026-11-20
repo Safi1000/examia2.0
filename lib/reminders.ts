@@ -36,15 +36,15 @@ export interface Reminder {
 }
 
 export const KINDS: Record<ReminderKind, { label: string; tone: "warning" | "error" | "brand" }> = {
-  missed_test: { label: "Skipped a test", tone: "warning" },
-  absent_streak: { label: "Absent 2+ days", tone: "error" },
+  missed_test: { label: "Missed a test", tone: "warning" },
+  absent_streak: { label: "Absent", tone: "error" },
   low_score: { label: "Low result", tone: "warning" },
   report_due: { label: "Report to send", tone: "brand" },
 };
 
 const monthName = (month: string) => {
   const [y, m] = month.split("-");
-  return new Date(Number(y), Number(m) - 1, 1).toLocaleString("default", { month: "long", year: "numeric" });
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleString("en-GB", { month: "long", year: "numeric" });
 };
 
 /*
@@ -228,4 +228,23 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
   }
 
   return out;
+}
+
+/**
+ * A deadline as a WhatsApp message says it, in real words a parent can read
+ * hours later: "today at 9:00 PM", "tomorrow at 6:00 PM", "on Fri 14 Nov at
+ * 9:00 PM", always in Pakistan time and saying so (Gulf families read it too).
+ */
+export function messageWhen(iso: string, nowMs: number): string {
+  const at = new Date(iso);
+  const zone = "Asia/Karachi";
+  const day = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: zone });
+  const time = at.toLocaleTimeString("en-GB", { timeZone: zone, hour: "numeric", minute: "2-digit", hour12: true }).replace(/\s?(am|pm)\b/i, (_, m: string) => ` ${m.toUpperCase()}`);
+  const on =
+    day(at) === day(new Date(nowMs))
+      ? "today"
+      : day(at) === day(new Date(nowMs + 86_400_000))
+        ? "tomorrow"
+        : `on ${at.toLocaleDateString("en-GB", { timeZone: zone, weekday: "short", day: "numeric", month: "short" })}`;
+  return `${on} at ${time} Pakistan time`;
 }

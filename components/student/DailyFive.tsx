@@ -314,16 +314,25 @@ function Sheet({
               </p>
               <ul className="surface mx-auto mt-8 max-w-sm divide-y divide-hairline overflow-hidden rounded-card text-left">
                 {questions.map((qq, k) => {
+                  // Not answered yet (the day's set can change when a new note comes out): an empty ring, not a cross.
+                  const unanswered = picks[k] === undefined;
                   const ok = picks[k] === qq.a;
                   return (
                     <li key={qq.id}>
                       <button
                         type="button"
                         onClick={() => setI(k)}
+                        aria-label={`Question ${qq.n}, ${qq.topic}: ${unanswered ? "not answered yet" : ok ? "right" : "wrong"}`}
                         className="row-link flex min-h-12 w-full items-center gap-3 px-5 py-3 text-base"
                       >
-                        <span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-full", ok ? "bg-success-soft text-success" : "bg-error-soft text-error")}>
-                          {ok ? <Icon.Check className="h-3.5 w-3.5" /> : <Icon.Close className="h-3.5 w-3.5" />}
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "flex h-6 w-6 shrink-0 items-center justify-center rounded-full",
+                            unanswered ? "border border-border-strong" : ok ? "bg-success-soft text-success" : "bg-error-soft text-error",
+                          )}
+                        >
+                          {unanswered ? null : ok ? <Icon.Check className="h-3.5 w-3.5" /> : <Icon.Close className="h-3.5 w-3.5" />}
                         </span>
                         <span className="min-w-0 flex-1 truncate text-ink">{qq.topic}</span>
                         <span className="text-sm text-ink-3 tabular-nums">Q{qq.n}</span>

@@ -11,7 +11,7 @@ import { PageStack } from "@/components/PageStack";
 import { PastPaperHomework } from "@/components/student/PastPaperHomework";
 import { SOURCES_PREFIX, withoutSourcesLine } from "@/lib/paper-builder";
 import { Card, Button, Badge, EmptyState, Icon } from "@/components/ui";
-import { formatTimestamp, formatWhen } from "@/lib/time";
+import { formatRelative, formatTimestamp, formatWhen } from "@/lib/time";
 import { cn } from "@/lib/cn";
 import { useNow } from "@/hooks/useNow";
 import { FocusOnThis } from "@/components/student/FocusOnThis";
@@ -164,7 +164,8 @@ function AssignmentCard({ assignment, studentId, lead, newReply }: { assignment:
   const mine = db.assignmentSubmissions.find(
     (s) => s.assignmentId === assignment.id && s.studentId === studentId,
   );
-  const overdue = +new Date(assignment.dueAt) < useNow();
+  const nowMs = useNow();
+  const overdue = +new Date(assignment.dueAt) < nowMs;
   const fromPapers = (assignment.instructions ?? "").split("\n").some((l) => l.startsWith(SOURCES_PREFIX));
   const instructions = withoutSourcesLine(assignment.instructions ?? "");
   const subjectName = assignment.subjectId ? db.subjects.find((x) => x.id === assignment.subjectId)?.name : undefined;
@@ -277,7 +278,7 @@ function AssignmentCard({ assignment, studentId, lead, newReply }: { assignment:
   return (
     <Card id={`a-${assignment.id}`} className="scroll-mt-24 p-5 sm:p-6">
       <div className="flex items-center justify-between gap-2">
-        <p className="min-w-0 truncate text-xs font-medium text-ink-3">{subjectName ?? "Homework"}</p>
+        <p className="min-w-0 truncate text-sm font-medium text-ink-3">{subjectName ?? "Homework"}</p>
         {newReply ? (
           <Badge tone="success">New reply</Badge>
         ) : mine ? (
@@ -287,7 +288,16 @@ function AssignmentCard({ assignment, studentId, lead, newReply }: { assignment:
         )}
       </div>
       <h2 className="mt-1.5 text-base font-semibold leading-snug text-ink">{assignment.title}</h2>
-      <p className={cn("mt-1 text-sm tabular-nums", overdue && !mine ? "font-semibold text-warning" : "text-ink-2")}>Due {formatWhen(assignment.dueAt)}</p>
+      {/* Still to hand in: how long is left first, as Home and Tests say it, then the date. */}
+      <p className={cn("mt-1 text-sm tabular-nums", overdue && !mine ? "font-semibold text-warning" : "text-ink-2")}>
+        {!mine && !overdue ? (
+          <>
+            Due {formatRelative(assignment.dueAt, nowMs)} <span className="text-ink-3">· {formatWhen(assignment.dueAt)}</span>
+          </>
+        ) : (
+          <>Due {formatWhen(assignment.dueAt)}</>
+        )}
+      </p>
       {/* Past paper homework: the line naming the papers is for Hamza only. */}
       {instructions && <p className="mt-3 max-w-[65ch] whitespace-pre-wrap text-base leading-relaxed text-ink-2">{instructions}</p>}
 
@@ -339,7 +349,7 @@ function AssignmentCard({ assignment, studentId, lead, newReply }: { assignment:
 
       {mine?.feedback && (
         <div ref={replyRef} className="mt-4 rounded-tile bg-surface-2 p-4">
-          <p className="label-quiet text-ink-3">From Hamza</p>
+          <p className="label-quiet text-ink-3">My feedback</p>
           <p className="mt-1.5 whitespace-pre-wrap text-base leading-relaxed text-ink">{mine.feedback}</p>
         </div>
       )}

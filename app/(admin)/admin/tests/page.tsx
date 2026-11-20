@@ -20,6 +20,8 @@ import { displayName } from "@/lib/display-name";
 import { gradeSubmission } from "@/lib/grading";
 import { isFullyGraded } from "@/lib/scoring";
 import { formatWhen, fromLocalInput } from "@/lib/time";
+import { LEVEL_LABEL, levelOf } from "@/lib/timetable";
+import { shownPercent } from "@/lib/performance";
 import { useNow } from "@/hooks/useNow";
 import { buttonClasses } from "@/components/ui/Button";
 import { PastPaperSheet, type PastPaperBuild } from "@/components/admin/PastPaperSheet";
@@ -297,8 +299,8 @@ export default function AdminTestsPage() {
           Subject: t.subject,
           Student: st ? displayName(st.username) : "Removed student",
           Username: st?.username ?? "",
-          Status: sub.status === "released" ? "Released" : "Awaiting marking",
-          "Mark %": sub.status === "released" ? Math.round(g.percent) : "",
+          Status: sub.status === "released" ? "Released" : "To mark",
+          "Mark %": sub.status === "released" ? shownPercent(g.percent) : "",
           Grade: sub.status === "released" ? g.letter : "",
           "Handed in": sub.submittedAt ? sub.submittedAt.slice(0, 16).replace("T", " ") : "",
         });
@@ -312,7 +314,7 @@ export default function AdminTestsPage() {
   function startChase() {
     if (staff) return;
     const list = chaseSteps(db, live, now);
-    if (!list.length) return toast(drafts.length === chosen.length ? "These are drafts: nobody has been set them yet." : "Everyone has handed these in.", "info");
+    if (!list.length) return toast(drafts.length === chosen.length ? "These are drafts, so nobody can hand them in yet." : "Everyone has handed these in.", drafts.length === chosen.length ? "info" : "success");
     setSteps(list);
   }
 
@@ -325,7 +327,7 @@ export default function AdminTestsPage() {
     { id: "cohort", label: "Set cohort", run: () => setAsk("cohort") },
     ...(running.length ? [{ id: "close", label: "Close now", run: () => setAsk("close") }] : []),
     { id: "duplicate", label: "Duplicate", run: () => setAsk("duplicate") },
-    { id: "export", label: "Download results", run: exportResults },
+    { id: "export", label: "Download spreadsheet", run: exportResults },
     ...(live.length ? [{ id: "draft", label: "Back to draft", run: () => setAsk("draft") }] : []),
     ...(staff ? [] : [{ id: "delete", label: "Delete", danger: true, run: () => setAsk("delete") }]),
   ];
@@ -371,9 +373,13 @@ export default function AdminTestsPage() {
   // From past papers: a draft test, questions and answers in, opened to check and publish.
   const [papersOpen, setPapersOpen] = useState(false);
   async function fromPapers(b: PastPaperBuild) {
-    const topic = b.topicNames.length > 1 ? `${b.topicNames[0]} and ${b.topicNames.length - 1} more` : (b.topicNames[0] ?? "Past papers");
+    // Students see this title: the level, then up to two topics in plain words ("AS Economics: Elasticity and Demand").
+    const topic =
+      b.topicNames.length > 2 ? "mixed topics" : b.topicNames.length === 2 ? `${b.topicNames[0]} and ${b.topicNames[1]}` : (b.topicNames[0] ?? "Past papers");
+    const cls = db.classes.find((c) => c.id === b.classId);
+    const level = cls ? levelOf(cls) : null;
     const id = store.addTest({
-      title: `${b.subjectName.replace(/ Studies$/, "")}: ${topic}`,
+      title: `${level ? `${LEVEL_LABEL[level]} ` : ""}${b.subjectName.replace(/ Studies$/, "")}: ${topic}`,
       subject: b.subjectName,
       subjectId: b.subjectId,
       classId: b.classId,
@@ -465,7 +471,12 @@ export default function AdminTestsPage() {
                     <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <Pill>{t.testCode}</Pill>
-                      <Badge tone={STATUS_TONE[liveStatus(t)]} className="capitalize">{liveStatus(t)}</Badge>
+                      {/* Published for later: not "Active" until students can actually sit it. */}
+                      {liveStatus(t, now) === "active" && now < +new Date(t.opensAt) ? (
+                        <Badge tone="neutral">Opens {formatWhen(t.opensAt)}</Badge>
+                      ) : (
+                        <Badge tone={STATUS_TONE[liveStatus(t, now)]} className="capitalize">{liveStatus(t, now)}</Badge>
+                      )}
                     </div>
                     <h3 className="mt-1.5 text-base font-semibold tracking-[-0.01em] text-ink">
                       <Link href={`/admin/tests/${t.id}`} className="underline-offset-4 hover:underline">{t.title}</Link>
@@ -473,7 +484,7 @@ export default function AdminTestsPage() {
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm tabular-nums text-ink-3">
                       <span>{t.subject}</span>
                       <span>·</span>
-                      <span>{t.questions.length} Q</span>
+                      <span>{t.questions.length} {t.questions.length === 1 ? "question" : "questions"}</span>
                       <span>·</span>
                       <span>{t.durationMinutes} min</span>
                       {cohort ? <CohortTag color={cohort.color} name={cohort.name} className="text-xs" /> : <span className="text-xs text-ink-3">All cohorts</span>}
@@ -481,13 +492,13 @@ export default function AdminTestsPage() {
                     </div>
 
                 <div className="col-span-2 grid grid-cols-3 gap-2 border-t border-hairline pt-3 lg:col-span-1 lg:col-start-2 lg:max-w-md lg:self-center lg:border-0 lg:pt-0 xl:col-start-auto xl:max-w-none">
-                  <Stat label="Submissions" value={String(stats.submissionCount)} />
+                  <Stat label="Handed in" value={String(stats.submissionCount)} />
                   {stats.averagePercent != null ? (
-                    <Stat label="Average" value={`${stats.averagePercent}%`} />
+                    <Stat label="Average" value={`${Math.round(stats.averagePercent)}%`} />
                   ) : (
                     <Stat
-                      label={stats.pendingCount > 0 ? "Awaiting" : "Average"}
-                      value={stats.pendingCount > 0 ? `${stats.pendingCount} to mark` : stats.submissionCount > 0 ? "All marked" : "None yet"}
+                      label={stats.pendingCount > 0 ? "To mark" : "Average"}
+                      value={stats.pendingCount > 0 ? String(stats.pendingCount) : stats.submissionCount > 0 ? "All marked" : "None yet"}
                     />
                   )}
                   <Stat label="Completion" value={`${stats.completionPercent}%`} />

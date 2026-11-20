@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { WordsStagger } from "@/components/spell/words-stagger";
 import { SwipeItem, SwipeRow } from "./ReviewSlider";
 import { BackPlate, Chip, Stage, Tick, after, hand, plate } from "./Vignette";
 
@@ -292,7 +293,9 @@ export function InsideLesson() {
       <div className="mx-auto max-w-6xl px-5">
         <div data-reveal className="text-center">
           <p className="text-sm font-semibold text-faint">What you get</p>
-          <h2 id="inside-title" className="mx-auto mt-4 max-w-[22ch] text-[2rem] leading-[1.08] md:text-5xl">Inside my classes.</h2>
+          <h2 id="inside-title" className="mx-auto mt-4 max-w-[22ch] text-[2rem] leading-[1.08] md:text-5xl">
+            <WordsStagger className="justify-center">Inside my classes.</WordsStagger>
+          </h2>
           <p className="mx-auto mt-4 max-w-[62ch] text-balance text-lg leading-relaxed text-muted-foreground">
             How my online classes work.
           </p>

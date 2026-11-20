@@ -28,7 +28,7 @@ export function GuideCover({
       aria-hidden
       className={`relative flex aspect-[3/4] flex-col justify-between overflow-hidden rounded-l-[10px] rounded-r-[14px] p-4 shadow-[inset_6px_0_0_rgba(0,0,0,0.25),0_18px_36px_rgba(0,0,0,0.35)] ${s.box} ${className}`}
     >
-      <span className={`text-[10px] font-bold uppercase tracking-[0.22em] ${s.label}`}>{label}</span>
+      <span className={`text-xs font-bold uppercase tracking-[0.22em] ${s.label}`}>{label}</span>
       <span className="absolute inset-x-4 top-[38%] grid gap-1.5 opacity-30">
         <i className="block h-[3px] rounded bg-current" />
         <i className="block h-[3px] w-4/5 rounded bg-current" />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, Card, Icon, chipClass } from "@/components/ui";
+import { Button, Card, Icon, Modal, chipClass } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { saveWeekly } from "@/components/ScheduleGate";
 import { useSchedule, useScheduleLoaded } from "@/lib/classes";
@@ -50,6 +50,7 @@ export function TimetableEditor({ onDirtyChange }: { onDirtyChange?: (dirty: boo
   const loaded = useScheduleLoaded();
   const [draft, setDraft] = useState<Schedule>(() => structuredClone(saved));
   const [busy, setBusy] = useState(false);
+  const [clashAsk, setClashAsk] = useState<string | null>(null);
   // Rows sit in time order, but not while a time is being typed: a row that
   // jumped mid-edit took the cursor (or the tablet's time picker) with it.
   const [frozen, setFrozen] = useState<number[] | null>(null);
@@ -106,7 +107,7 @@ export function TimetableEditor({ onDirtyChange }: { onDirtyChange?: (dirty: boo
     });
   };
 
-  async function save() {
+  async function save(force = false) {
     // A cleared time box is "": the server would drop that class without a word.
     const blank = draft.slots.find((s) => !isTime(s.start) || !isTime(s.end));
     if (blank) return toast(`${LEVEL_LABEL[blank.level]} ${blank.subject}: fill in both the start and the end time.`, "error");
@@ -128,7 +129,7 @@ export function TimetableEditor({ onDirtyChange }: { onDirtyChange?: (dirty: boo
     // Two levels at once is allowed (a joint class), but never by accident. Asked once, when it's new.
     const before = clashes(saved);
     const fresh = [...clashes(draft)].filter(([k]) => !before.has(k)).map(([, v]) => v);
-    if (fresh.length && !window.confirm(`${fresh[0]} are at the same time${fresh.length > 1 ? `, and ${fresh.length - 1} more like it` : ""}. Save anyway?`)) return;
+    if (fresh.length && !force) return setClashAsk(`${fresh[0]} are at the same time${fresh.length > 1 ? `, and ${fresh.length - 1} more like it` : ""}.`);
     setBusy(true);
     try {
       setDraft(structuredClone(await saveWeekly(draft)));
@@ -226,7 +227,14 @@ export function TimetableEditor({ onDirtyChange }: { onDirtyChange?: (dirty: boo
       })}
 
       {/* Phones: sits above the bottom bar (it used to hide behind it), squared off when it wraps. */}
-      <div data-toast-avoid className="sticky bottom-4 z-30 ml-auto flex w-fit flex-wrap items-center justify-end gap-2 rounded-full border border-hairline-strong bg-surface p-1.5 shadow-[var(--shadow-lg)] max-md:bottom-[calc(5.75rem+env(safe-area-inset-bottom))] max-sm:rounded-card">
+      {/* Floats over the list only while there is something to save; otherwise it sits quietly under the last row. */}
+      <div
+        data-toast-avoid
+        className={cn(
+          "z-30 ml-auto mt-4 flex w-fit flex-wrap items-center justify-end gap-2 rounded-full border border-hairline-strong bg-surface p-1.5 max-sm:rounded-card",
+          dirty && "sticky bottom-4 shadow-[var(--shadow-lg)] max-md:bottom-[calc(5.75rem+env(safe-area-inset-bottom))]",
+        )}
+      >
         <Button
           variant="ghost"
           size="sm"
@@ -253,6 +261,29 @@ export function TimetableEditor({ onDirtyChange }: { onDirtyChange?: (dirty: boo
           Save timetable
         </Button>
       </div>
+
+      <Modal
+        open={!!clashAsk}
+        onClose={() => setClashAsk(null)}
+        title="Two levels at the same time?"
+        description={clashAsk ?? undefined}
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setClashAsk(null)}>Go back</Button>
+            <Button
+              onClick={() => {
+                setClashAsk(null);
+                void save(true);
+              }}
+            >
+              Save anyway
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-2">That is fine for a class taught together. Otherwise go back and change one of the times.</p>
+      </Modal>
     </div>
   );
 }

@@ -201,8 +201,8 @@ export default function QuestionBankPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone="neutral">{b.subject}</Badge>
                   {b.topic.trim() && <Badge tone="neutral">{b.topic}</Badge>}
-                  <Badge tone="neutral">{b.type === "mcq" ? "Choice" : b.type === "photo" ? "Photo" : "Written"}</Badge>
-                  <Pill>{b.marks}m</Pill>
+                  <Badge tone="neutral">{b.type === "mcq" ? "Multiple choice" : b.type === "photo" ? "Photo answer" : "Typed answer"}</Badge>
+                  <Pill>{b.marks} {b.marks === 1 ? "mark" : "marks"}</Pill>
                 </div>
                 <p className="mt-1.5 max-w-[75ch] text-pretty text-base leading-relaxed text-ink">{b.prompt}</p>
               </div>

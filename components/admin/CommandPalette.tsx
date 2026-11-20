@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
 import { useDatabase } from "@/lib/data/store";
 import { displayName, isTestAccount } from "@/lib/display-name";
 import { Icon } from "@/components/ui";
@@ -20,7 +20,7 @@ type Row = { key: string; group: "Do" | "Go to" | "Students" | "Tests"; label: s
 const ACTIONS: Array<Omit<Row, "key" | "group" | "words">> = [
   { label: "Set homework from past papers", href: "/admin/assignments?set=papers" },
   { label: "Mark attendance", href: "/admin/attendance" },
-  { label: "Start marking", href: "/admin/submissions" },
+  { label: "Mark papers", href: "/admin/submissions" },
   { label: "Add or import students", href: "/admin/roster" },
   { label: "Post an announcement", href: "/admin/announcements" },
   { label: "Open the whiteboard", href: "/admin/whiteboard" },
@@ -32,7 +32,7 @@ const PAGES: Array<[string, string]> = [
   ["Recordings", "/admin/recordings"],
   ["Whiteboard", "/admin/whiteboard"],
   ["Tests", "/admin/tests"],
-  ["Submissions", "/admin/submissions"],
+  ["Marking", "/admin/submissions"],
   ["Homework", "/admin/assignments"],
   ["Notes", "/admin/notes"],
   ["Roster", "/admin/roster"],
@@ -46,9 +46,12 @@ const PAGES: Array<[string, string]> = [
   ["Settings", "/admin/settings"],
 ];
 
+const isMac = () => /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
 export function CommandPalette() {
+  // "⌘K" on a Mac, "Ctrl K" elsewhere (both keys work everywhere).
+  const mac = useSyncExternalStore(() => () => {}, isMac, () => true);
   const db = useDatabase();
-  const router = useRouter();
   const { session } = useAuth();
   const ta = isTa(session);
   const [open, setOpen] = useState(false);
@@ -56,6 +59,7 @@ export function CommandPalette() {
   const [at, setAt] = useState(0);
   const opener = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLUListElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
 
   const show = () => {
     setQuery("");
@@ -106,22 +110,52 @@ export function CommandPalette() {
   }, [all, query]);
   const cur = Math.min(at, Math.max(0, rows.length - 1));
 
-  const go = (r: Row | undefined) => {
-    if (!r) return;
-    setOpen(false);
-    router.push(r.href);
-  };
+  // While open: the page behind stays still, and Tab moves only between the box and its results.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onTab = (e: KeyboardEvent) => {
+      const box = panel.current;
+      if (e.key !== "Tab" || !box) return;
+      const items = [...box.querySelectorAll<HTMLElement>("input,a[href]")];
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!box.contains(document.activeElement)) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onTab);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("keydown", onTab);
+    };
+  }, [open]);
+
+  // Results are real links, so the thin progress line shows as the page opens, as it does for every other link.
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") return close();
-    if (e.key === "Enter") return go(rows[cur]);
+    if (e.key === "Enter") {
+      e.preventDefault();
+      list.current?.querySelector<HTMLAnchorElement>(`[data-i="${cur}"]`)?.click();
+      return;
+    }
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
     e.preventDefault();
     const next = rows.length ? (cur + (e.key === "ArrowDown" ? 1 : rows.length - 1)) % rows.length : 0;
     setAt(next);
     list.current?.querySelector(`[data-i="${next}"]`)?.scrollIntoView({ block: "nearest" });
   };
-  const onPick = (e: React.MouseEvent<HTMLButtonElement>) => go(rows[Number(e.currentTarget.dataset.i)]);
-  const onHover = (e: React.MouseEvent<HTMLButtonElement>) => setAt(Number(e.currentTarget.dataset.i));
+  const onPick = () => setOpen(false);
+  const onHover = (e: React.MouseEvent<HTMLAnchorElement>) => setAt(Number(e.currentTarget.dataset.i));
 
   return (
     <>
@@ -135,13 +169,13 @@ export function CommandPalette() {
       >
         <Icon.Search className="h-4 w-4" />
         <span className="max-md:hidden">Search</span>
-        <kbd className="ml-3 rounded-full border border-hairline px-2 py-0.5 font-sans text-xs font-semibold text-ink-3 max-md:hidden">⌘K</kbd>
+        <kbd className="ml-3 rounded-full border border-hairline px-2 py-0.5 font-sans text-xs font-semibold text-ink-3 max-md:hidden">{mac ? "⌘K" : "Ctrl K"}</kbd>
       </button>
 
       {open && (
         <div className="fixed inset-0 z-[70] flex items-start justify-center px-4 pt-[12dvh]" role="dialog" aria-modal="true" aria-label="Search and quick actions">
           <div className="absolute inset-0 animate-fade-in bg-black/60" onClick={close} aria-hidden />
-          <div className="relative flex max-h-[70dvh] w-full max-w-xl animate-scale-in flex-col overflow-hidden rounded-card border border-hairline-strong bg-surface shadow-[var(--shadow-lg)]">
+          <div ref={panel} className="relative flex max-h-[70dvh] w-full max-w-xl animate-scale-in flex-col overflow-hidden rounded-card border border-hairline-strong bg-surface shadow-[var(--shadow-lg)]">
             <div className="flex items-center gap-3 border-b border-hairline px-4">
               <Icon.Search className="h-5 w-5 shrink-0 text-ink-3" />
               <input
@@ -163,8 +197,8 @@ export function CommandPalette() {
               {rows.map((r, i) => (
                 <li key={r.key}>
                   {(i === 0 || rows[i - 1].group !== r.group) && <p className="label-quiet px-3 pb-1 pt-3 text-ink-3 first:pt-1">{r.group}</p>}
-                  <button
-                    type="button"
+                  <Link
+                    href={r.href}
                     data-i={i}
                     onClick={onPick}
                     onMouseMove={onHover}
@@ -172,7 +206,7 @@ export function CommandPalette() {
                   >
                     <span className="truncate">{r.label}</span>
                     {r.hint ? <span className="shrink-0 truncate text-xs font-normal text-ink-3">{r.hint}</span> : i === cur && <Icon.ChevronRight className="h-4 w-4 shrink-0 text-ink-3" />}
-                  </button>
+                  </Link>
                 </li>
               ))}
             </ul>

@@ -682,7 +682,7 @@ function RecordingItem({
           onClick={() => {
             void navigator.clipboard
               ?.writeText(r.url)
-              .then(() => toast("Link copied", "success"))
+              .then(() => toast("Link copied.", "success"))
               .catch(() => toast("Couldn't copy. Use Open, then copy the address.", "error"));
           }}
         >

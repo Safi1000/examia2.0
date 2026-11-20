@@ -21,8 +21,9 @@ import type { Mission } from "@/components/student/FocusMode";
 const FocusMode = dynamic(() => import("@/components/student/FocusMode"), { ssr: false });
 
 export interface TopThree {
-  top: Array<{ name: string; avatar?: string; minutes: number; level?: number }>;
-  me: { rank: number; minutes: number } | null;
+  /** `rank`: the shared place (equal minutes, equal place). Missing from an older cached copy. */
+  top: Array<{ name: string; avatar?: string; minutes: number; level?: number; rank?: number }>;
+  me: { rank: number; minutes: number; inTop?: boolean } | null;
 }
 
 /** This week's top 3 study hours in the student's cohort (first names only). */
@@ -69,8 +70,12 @@ export function todaysMission(db: Database, student: Student, nowMs: number): Mi
   if (!pick) return null;
   // "Open the notes for it" opens that note straight away, not the whole list.
   const note = db.notes.find((n) => n.title.toLowerCase().includes(pick.topic.toLowerCase()));
-  return { ...pick, noteHref: note ? `/notes?open=${note.id}` : undefined };
+  // 25 minutes, as the row on Home says: the timer opens on it, not on the last length used.
+  return { ...pick, noteHref: note ? `/notes?open=${note.id}` : undefined, minutes: MISSION_MIN };
 }
+
+/** Today's mission is one standard block. */
+const MISSION_MIN = 25;
 
 const fmt = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`);
 
@@ -121,7 +126,7 @@ export function StudyBuddy({
             <span className="min-w-0 flex-1">
               <span className="block text-base font-semibold text-ink">Today&apos;s mission</span>
               <span className="block truncate text-sm text-ink-2">
-                {mission.topic} <span className="text-ink-3">· {mission.subject} · 25 min</span>
+                {mission.topic} <span className="text-ink-3">· {mission.subject} · {mission.minutes ?? MISSION_MIN} min</span>
               </span>
             </span>
             <Icon.ChevronRight className="h-4 w-4 shrink-0 text-ink-3" />
@@ -144,8 +149,8 @@ export function StudyBuddy({
           <p className="text-sm text-ink-2 tabular-nums">
             <span className="font-semibold text-ink">{fmt(stats.weekMinutes)}</span> <span className="whitespace-nowrap">of {profile.weeklyGoal ?? 5} h this week</span>
           </p>
-          <p className="text-xs text-ink-3">
-            {level.name}
+          <p className="text-sm text-ink-3">
+            {level.name} level
             {stats.streak > 1 && ` · ${stats.streak} day streak`}
           </p>
         </div>

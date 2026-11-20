@@ -57,7 +57,7 @@ export function SyllabusCard({ books, index }: { books: BookProgress[]; index: T
               </p>
             </div>
             <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-surface-2" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${b.subject}: ${pct}% of the syllabus covered`}>
-              <div className="h-full rounded-full bg-brand transition-[width] duration-200 ease-[var(--ease-out)]" style={{ width: `${Math.max(pct, b.covered ? 3 : 0)}%` }} />
+              <div className="h-full rounded-full bg-ink-3 transition-[width] duration-200 ease-[var(--ease-out)]" style={{ width: `${Math.max(pct, b.covered ? 3 : 0)}%` }} />
             </div>
 
             {b.latest ? (
@@ -69,7 +69,7 @@ export function SyllabusCard({ books, index }: { books: BookProgress[]; index: T
                 </p>
                 {latest && (
                   <Link href={latest.href} className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-border-strong px-4 text-sm font-semibold text-ink transition-colors duration-150 hover:border-ink-3 hover:bg-surface-2">
-                    {latest.count} past paper questions
+                    {latest.count} past paper {latest.count === 1 ? "question" : "questions"}
                   </Link>
                 )}
               </div>
@@ -80,7 +80,7 @@ export function SyllabusCard({ books, index }: { books: BookProgress[]; index: T
             {done.length > 1 && (
               <>
                 <button type="button" onClick={() => setOpenKey(open ? null : b.key)} aria-expanded={open} className="mt-1 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-ink-2 hover:text-ink">
-                  {open ? "Hide chapters" : `All ${done.length} chapters covered`}
+                  {open ? "Hide chapters" : `See the ${done.length} chapters covered`}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`transition-transform ${open ? "rotate-90" : ""}`} aria-hidden>
                     <path d="m9 6 6 6-6 6" />
                   </svg>
@@ -95,7 +95,7 @@ export function SyllabusCard({ books, index }: { books: BookProgress[]; index: T
                           <span className="min-w-0 flex-1 truncate text-ink">{c.name}</span>
                           {t ? (
                             <Link href={t.href} className="inline-flex min-h-11 shrink-0 items-center text-sm font-semibold text-ink-2 hover:text-ink hover:underline">
-                              {t.count} questions
+                              {t.count} {t.count === 1 ? "question" : "questions"}
                             </Link>
                           ) : (
                             <span className="shrink-0 text-sm text-ink-3">No questions yet</span>

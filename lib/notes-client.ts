@@ -118,6 +118,9 @@ export type NoteHit = { noteId: string; page: number; snippet: string };
 /** Search inside every note this person can read. */
 export async function searchInsideNotes(q: string, signal?: AbortSignal): Promise<{ hits: NoteHit[]; more: boolean }> {
   const res = await fetch(`/api/notes/search?q=${encodeURIComponent(q)}`, { headers: { Authorization: `Bearer ${await token()}` }, signal });
+  if (res.status === 401 || res.status === 403) throw new Error("You've been signed out. Sign in again to search your notes.");
+  if (res.status === 429) throw new Error("That's a lot of searches. Give it a minute, then try again.");
+  if (res.status >= 500) throw new Error("Search isn't working on my side. Try again in a minute.");
   if (!res.ok) throw new Error("Search didn't work. Check your internet and try again.");
   return (await res.json()) as { hits: NoteHit[]; more: boolean };
 }

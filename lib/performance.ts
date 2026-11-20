@@ -2,7 +2,7 @@ import type { Student, Test } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { submissionsForStudent, testById } from "@/lib/data/selectors";
 import { capAs, gradeLetter, gradeSubmission, isAsClass, isAsStudent } from "@/lib/grading";
-import { topicMastery } from "@/lib/scoring";
+import { isVagueTopic, topicMastery } from "@/lib/scoring";
 
 /**
  * The student's performance at a glance, for Home: where they are now (last
@@ -79,7 +79,7 @@ export function performanceSnapshot(db: Database, student: Student): Snapshot | 
       results.map((r) => r.test),
       results.map((r) => r.sub),
     )
-      .filter((m) => m.available > 0 && m.percent < 70)
+      .filter((m) => m.available > 0 && m.percent < 70 && !isVagueTopic(m.name))
       .slice(0, 2)
       .map((m) => ({ subject: m.subject, name: m.name, percent: Math.round(m.percent) })),
   };
@@ -94,6 +94,6 @@ export function weakTopics(db: Database, student: Student): Array<{ subject: str
   });
   if (!tests.length) return [];
   return topicMastery(tests, released)
-    .filter((m) => m.available > 0 && m.percent < 70)
+    .filter((m) => m.available > 0 && m.percent < 70 && !isVagueTopic(m.name))
     .map((m) => ({ subject: m.subject, topic: m.name }));
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { Answer, Question } from "@/types";
 import type { Database } from "@/lib/data/seed";
@@ -328,6 +329,13 @@ function Sheet({
         {/* 1. Class */}
         <section aria-labelledby="pp-class" className="space-y-3">
           <h3 id="pp-class" className="label-quiet text-ink-3">Class</h3>
+          {/* With no cohort switched on, Build and check can never light up: say why. */}
+          {cohorts.length === 0 && (
+            <p className="rounded-tile bg-surface-2 px-4 py-3 text-sm text-ink-2">
+              Switch on a cohort under{" "}
+              <Link href="/admin/cohorts" className="font-semibold text-ink underline underline-offset-4">Cohorts</Link> first.
+            </p>
+          )}
           {cohorts.length > 1 && (
             <Select label="Cohort" value={cohortId} onChange={(e) => { setCohortId(e.target.value); setClassId(""); setSubjectId(""); }}>
               {cohorts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -420,7 +428,7 @@ function Sheet({
             <h3 id="pp-mix" className="label-quiet text-ink-3">Questions</h3>
             <div className="grid gap-3 sm:grid-cols-2">
               {hasMcq && <Stepper label="Multiple choice" hint={mode === "test" ? "Marked automatically" : "Students write the letter"} value={mix.mcq} max={30} onChange={(v) => setMix({ ...mix, mcq: v })} />}
-              <Stepper label="Written" hint={mode === "test" ? "Photo answers you mark, with the mark scheme beside them" : "Whole questions from Paper 2"} value={mix.written} max={6} onChange={(v) => setMix({ ...mix, written: v })} />
+              <Stepper label={mode === "test" ? "Photo answer" : "Written questions"} hint={mode === "test" ? "Photo answers you mark, with the mark scheme beside them" : "Whole questions from Paper 2"} value={mix.written} max={6} onChange={(v) => setMix({ ...mix, written: v })} />
             </div>
             {!hasMcq && <p className="text-sm text-ink-3">This subject has no multiple choice paper, so it&apos;s written questions only.</p>}
             {short && picked.size > 0 && (
@@ -550,7 +558,7 @@ function ReviewItem({
   onRemove: () => void;
 }) {
   const question = useMemo(() => ({ ...questionFromBuilt(q), id: `review-${q.id}`, order: index }) as Question, [q, index]);
-  const form = q.kind === "written" ? "Written, photo answer" : mode === "homework" || !q.typed ? "Picture with A to D" : "Typed";
+  const form = q.kind === "written" ? "Photo answer" : mode === "homework" || !q.typed ? "Picture with A to D" : "Typed";
   return (
     <li className="rounded-tile border border-hairline p-4">
       <div className="flex flex-wrap items-center gap-2">

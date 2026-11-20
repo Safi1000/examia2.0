@@ -5,6 +5,8 @@ import type { Database } from "@/lib/data/seed";
 import { awardedMarks } from "@/lib/scoring";
 import { gradeSubmission } from "@/lib/grading";
 import { archivedCohortIds } from "@/lib/data/selectors";
+import { displayName, isTestAccount } from "@/lib/display-name";
+import { shownPercent } from "@/lib/performance";
 
 export type EntityKey =
   | "cohorts"
@@ -141,15 +143,17 @@ export function marksSheet(db: Database): Record<string, string | number>[] {
   // Released scripts by test and student, found once (not searched for every cell).
   const released = new Map<string, (typeof db.submissions)[number]>();
   for (const x of db.submissions) if (x.status === "released") released.set(`${x.testId}|${x.studentId}`, x);
+  // Hamza's own test account is never in the marks sheet; names read as on the Roster ("Ali Khan").
   return db.students
-    .filter((s) => !off.has(s.cohortId))
+    .filter((s) => !off.has(s.cohortId) && !isTestAccount(s))
     .sort((a, b) => cohortName(a.cohortId).localeCompare(cohortName(b.cohortId)) || a.username.localeCompare(b.username))
     .map((s) => {
-      const row: Record<string, string | number> = { Student: s.username.charAt(0).toUpperCase() + s.username.slice(1), Cohort: cohortName(s.cohortId) };
+      const row: Record<string, string | number> = { Student: displayName(s.username), Cohort: cohortName(s.cohortId) };
       const got: number[] = [];
       for (const t of tests) {
         const sub = released.get(`${t.id}|${s.id}`);
-        const pct = sub ? Math.round(gradeSubmission(t, sub).percent) : null;
+        // Rounded the way every screen rounds it (never up into the next grade).
+        const pct = sub ? shownPercent(gradeSubmission(t, sub).percent) : null;
         row[label.get(t.id)!] = pct ?? "";
         if (pct !== null) got.push(pct);
       }

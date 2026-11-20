@@ -53,13 +53,13 @@ export function RemindersPanel() {
   /** Builds and records the report, returning its private link. Not marked as sent yet. */
   async function reportLink(r: Reminder): Promise<{ link: string; reportId: string } | null> {
     if (!notesConfigured()) {
-      toast("Uploads are not configured, so the report has no link yet.", "error");
+      toast("File uploads are switched off, so the report has no link yet. Ask your developer to check the file storage, then try again.", "error");
       return null;
     }
     const month = r.ref.slice(0, 7);
     const built = await buildStudentReport(db, r.student.id, month);
     if (!built) {
-      toast(`Could not build the report for ${displayName(r.student.username)}.`, "error");
+      toast(`Couldn't build the report for ${displayName(r.student.username)}. Check your internet and try again.`, "error");
       return null;
     }
     const { url } = await uploadNote(new File([built.blob], built.fileName, { type: "application/pdf" }));
@@ -103,7 +103,7 @@ export function RemindersPanel() {
     } catch (err) {
       tab.cancel();
       console.error("Reminder failed:", err);
-      toast("Could not prepare that message.", "error");
+      toast("Couldn't prepare that message. Try again.", "error");
       return { ok: false, reportId: null };
     } finally {
       setBusy(null);

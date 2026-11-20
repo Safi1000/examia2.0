@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useNow } from "@/hooks/useNow";
 import { useDatabase } from "@/lib/data/store";
@@ -10,11 +10,15 @@ import { EmptyState, Icon } from "@/components/ui";
 import { testWindow } from "@/lib/time";
 import { EmptyArt, PageHeader, SectionTitle } from "@/components/student/PortalKit";
 
-/** Every test in one place: open now, coming up, and past (with results). */
+/** Past tests shown before "Show all": the newest, so results stay a short scroll away. */
+const PAST_SHOWN = 8;
+
+/** Every test in one place: open now, coming up, and finished (handed in, marked or closed). */
 export default function TestsPage() {
   const { session } = useAuth();
   const db = useDatabase();
   const nowMs = useNow();
+  const [allPast, setAllPast] = useState(false);
   const student = session?.studentId ? studentById(db, session.studentId) : null;
 
   const groups = useMemo(() => {
@@ -58,7 +62,7 @@ export default function TestsPage() {
       )}
 
       {groups.open.length > 0 && (
-        <Section title="Open now" live>
+        <Section title="Open now">
           {groups.open.map((t, i) => (
             <TestCard key={t.id} test={t} submission={submissionFor(db, student.id, t.id)} nowMs={nowMs} lead={i === 0} />
           ))}
@@ -74,10 +78,20 @@ export default function TestsPage() {
       )}
 
       {groups.past.length > 0 && (
-        <Section title="Past tests">
-          {groups.past.map((t) => (
+        // Handed in (even while still open for others), marked, or closed.
+        <Section title="Finished">
+          {(allPast ? groups.past : groups.past.slice(0, PAST_SHOWN)).map((t) => (
             <TestCard key={t.id} test={t} submission={submissionFor(db, student.id, t.id)} nowMs={nowMs} />
           ))}
+          {groups.past.length > PAST_SHOWN && (
+            <button
+              type="button"
+              onClick={() => setAllPast(!allPast)}
+              className="inline-flex min-h-11 items-center text-sm font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline"
+            >
+              {allPast ? "Show fewer" : `Show all ${groups.past.length}`}
+            </button>
+          )}
         </Section>
       )}
       </div>
@@ -85,10 +99,10 @@ export default function TestsPage() {
   );
 }
 
-function Section({ title, live, children }: { title: string; live?: boolean; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <SectionTitle live={live}>{title}</SectionTitle>
+      <SectionTitle>{title}</SectionTitle>
       <div className="space-y-3">{children}</div>
     </section>
   );

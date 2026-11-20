@@ -132,8 +132,8 @@ export default function ActivityPage() {
           </button>
         </Card>
       ) : !data ? (
-        <Card className="flex items-center gap-3 p-5 text-base text-ink-3 sm:p-6">
-          <Spinner size={18} /> Loading activity…
+        <Card className="flex items-center gap-3 p-5 text-base text-ink-3 sm:p-6 animate-[arc-appear_200ms_300ms_both]">
+          <span aria-hidden className="contents"><Spinner size={18} /></span> Loading activity…
         </Card>
       ) : students.length === 0 ? (
         <EmptyState icon={<Icon.Users />} title="No students here" message="Add students in Roster, or pick another cohort." />
@@ -240,7 +240,7 @@ export default function ActivityPage() {
                         <span className="truncate text-base font-semibold text-ink">{displayName(s.username)}</span>
                       </span>
                       <span className="mt-0.5 block truncate text-sm text-ink-3">
-                        Seen {fmtAgo(seen, nowMs).toLowerCase()}
+                        {seen ? `Seen ${fmtAgo(seen, nowMs).toLowerCase()}` : "Never signed in"}
                         {notes ? ` · ${notes} ${notes === 1 ? "note" : "notes"}` : ""}
                         {` · ${on} ${on === 1 ? "day" : "days"} active`}
                       </span>

@@ -96,7 +96,7 @@ export function StudyCoach({
                     {s.name}
                   </p>
                   {pct != null && (
-                    <span className="shrink-0 text-sm tabular-nums text-ink-2">{pct}% overall</span>
+                    <span className="shrink-0 text-sm tabular-nums text-ink-2">{pct}% across your tests</span>
                   )}
                 </div>
                 {pct != null && (
@@ -132,9 +132,9 @@ export function StudyCoach({
                     href={waTextLink(`Hi Hamza, it's ${first}. I'm stuck on ${s.name} (${s.subject})${test ? ` from ${test.title}` : ""}. Can you help me with it?`)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex min-h-11 items-center px-3 font-semibold text-ink-2 hover:text-ink"
+                    className="inline-flex min-h-11 items-center rounded-full border border-border-strong px-4 font-semibold text-ink transition-colors duration-150 hover:border-ink-3 hover:bg-surface-2"
                   >
-                    Ask Hamza on WhatsApp
+                    Ask me on WhatsApp
                   </a>
                 </div>
               </li>

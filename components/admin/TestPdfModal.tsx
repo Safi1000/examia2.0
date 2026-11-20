@@ -50,7 +50,7 @@ export function TestPdfModal({ open, onClose, test, className }: { open: boolean
   );
 
   return (
-    <Modal open={open} onClose={() => (busy ? undefined : onClose())} title="Download as PDF" description="A4, ready to print." size="md">
+    <Modal open={open} onClose={() => (busy ? undefined : onClose())} title="Download PDF" description="A4, ready to print." size="md">
       <div className="space-y-3">
         {row("paper", "Question paper", "For students: name and date lines, every question in this test's order.")}
         {row("answers", "Marking sheet", "For you: the answer to each question, its marks and the mark scheme.")}

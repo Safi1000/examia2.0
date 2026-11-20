@@ -25,7 +25,7 @@ export function FilterChips({
     // Laptop and tablet: one row that wraps under its label. Phone: one line that
     // scrolls sideways to the screen edge, so a long list never stacks three rows deep.
     <div
-      className="flex items-center gap-1.5 max-sm:-mx-5 max-sm:overflow-x-auto max-sm:px-5 max-sm:[scrollbar-width:none] sm:flex-wrap max-sm:[&::-webkit-scrollbar]:hidden"
+      className="flex items-center gap-1.5 max-sm:-mx-5 max-sm:overflow-x-auto max-sm:px-5 max-sm:[mask-image:linear-gradient(to_right,#000_calc(100%-24px),transparent)] max-sm:[scrollbar-width:none] sm:flex-wrap max-sm:[&::-webkit-scrollbar]:hidden"
       role="group"
       aria-label={label}
     >

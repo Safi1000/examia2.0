@@ -28,7 +28,7 @@ function RecordingsIcon({ active, className }: { active?: boolean; className?: s
 // Grouped by the job you're doing, so the list reads as a console, not a
 // pile of links. `also` lists pages reached from an item that have no item of
 // their own, so the menu still shows where you are.
-const GROUPS: Array<{ title: string; fold?: boolean; items: Array<{ href: string; label: string; Icon: (typeof NavIcon)[keyof typeof NavIcon]; also?: string[] }> }> = [
+export const GROUPS: Array<{ title: string; fold?: boolean; items: Array<{ href: string; label: string; Icon: (typeof NavIcon)[keyof typeof NavIcon]; also?: string[] }> }> = [
   {
     title: "Teach",
     items: [
@@ -42,7 +42,7 @@ const GROUPS: Array<{ title: string; fold?: boolean; items: Array<{ href: string
     title: "Work",
     items: [
       { href: "/admin/tests", label: "Tests", Icon: NavIcon.Tests },
-      { href: "/admin/submissions", label: "Submissions", Icon: NavIcon.Inbox, also: ["/admin/grading"] },
+      { href: "/admin/submissions", label: "Marking", Icon: NavIcon.Inbox, also: ["/admin/grading"] },
       { href: "/admin/assignments", label: "Homework", Icon: NavIcon.Assignments },
       { href: "/admin/notes", label: "Notes", Icon: NavIcon.Notes },
     ],
@@ -174,10 +174,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       {/* Who's signed in, and the way out. */}
       <div className="surface m-3 flex items-center gap-3 rounded-tile p-2.5 md:max-xl:pl-3.5">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs font-bold text-ink ring-1 ring-inset ring-hairline md:max-xl:hidden">
-          {ta ? (session?.staffName || "A").slice(0, 2).toUpperCase() : "HS"}
+          {ta ? (session?.staffName || "St").slice(0, 2).toUpperCase() : "HS"}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-ink">{ta ? session?.staffName || "Assistant" : "Hamza Sadaqat"}</span>
+          <span className="block truncate text-sm font-semibold text-ink">{ta ? session?.staffName || "Staff" : "Hamza Sadaqat"}</span>
           <span className="block text-xs text-ink-3">{ta ? "Staff" : "Teacher"}</span>
         </span>
         <button

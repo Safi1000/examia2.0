@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Button, Icon, Modal } from "@/components/ui";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useBackClosesMenu } from "@/components/student/useBackToClose";
 import type { Activity } from "@/types";
 
 /** The dropdown is a preview, not the archive — the full history lives at /notifications. */
@@ -53,14 +54,19 @@ export function NotificationBell() {
     };
   }, [open]);
 
+  // The phone's Back closes the open list first; a page opened from it takes its place in history.
+  const leave = useBackClosesMenu(open, () => setOpen(false));
+
   const preview = activities.slice(0, PREVIEW_COUNT);
 
   function onSelect(a: Activity) {
     if (isUnread(a)) markRead([a.id]);
-    setOpen(false);
     const href = resolveLink(a);
     // Internal pages only: never follow an outside link from a notification.
-    if (href && href.startsWith("/") && !href.startsWith("//")) router.push(href);
+    const go = !!href && href.startsWith("/") && !href.startsWith("//");
+    if (go) leave();
+    setOpen(false);
+    if (go && href) router.replace(href);
   }
 
   return (
@@ -124,7 +130,7 @@ export function NotificationBell() {
 
           <div className="border-t border-hairline">
             <button
-              onClick={() => { setOpen(false); router.push(allHref); }}
+              onClick={() => { leave(); setOpen(false); router.replace(allHref); }}
               className="flex min-h-11 w-full items-center justify-center gap-1.5 px-4 py-3 text-sm font-semibold text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink"
             >
               Show all notifications

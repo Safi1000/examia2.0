@@ -60,3 +60,57 @@ export function useBackToClose(onBack: () => boolean | void) {
     };
   }, []);
 }
+
+/** A menu that just closed by a tap outside: its entry comes off a moment later (see `leaving` above). */
+let menuLeaving: { key: string; timer: ReturnType<typeof setTimeout> } | null = null;
+
+/**
+ * For a small menu or dropdown (the account menu, the bell): while it is open,
+ * the phone's Back closes it instead of leaving the page. Closing it any other
+ * way (a tap outside, Escape) takes its history entry off again.
+ *
+ * Returns `leave`: call it just before an item in the menu navigates, and
+ * navigate with replace, so the new page takes the menu's entry instead of
+ * stepping back first (stepping back while a page is loading would undo it).
+ */
+export function useBackClosesMenu(open: boolean, close: () => void): () => void {
+  const closeRef = useRef(close);
+  const leaving = useRef(false);
+  useEffect(() => {
+    closeRef.current = close;
+  }, [close]);
+  useEffect(() => {
+    if (!open) return;
+    leaving.current = false;
+    let key: string;
+    // Re-opened straight after closing (React runs effects twice in development): take the entry over.
+    if (menuLeaving && currentView() === menuLeaving.key) {
+      clearTimeout(menuLeaving.timer);
+      key = menuLeaving.key;
+      menuLeaving = null;
+    } else {
+      key = `m${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+      window.history.pushState({ view: key }, "");
+    }
+    let popped = false;
+    const onPop = () => {
+      if (currentView() === key) return;
+      popped = true;
+      closeRef.current();
+    };
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      if (popped || leaving.current) return;
+      // Closed by a tap outside or Escape: step back off the entry a moment later.
+      const timer = setTimeout(() => {
+        if (menuLeaving?.key === key) menuLeaving = null;
+        if (currentView() === key) window.history.back();
+      }, 0);
+      menuLeaving = { key, timer };
+    };
+  }, [open]);
+  return () => {
+    leaving.current = true;
+  };
+}

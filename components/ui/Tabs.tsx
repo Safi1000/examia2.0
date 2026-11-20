@@ -58,7 +58,7 @@ export function Tabs({
             onClick={() => onChange(t.id)}
             className={cn(
               "relative min-h-11 whitespace-nowrap px-3.5 py-2.5 text-sm font-semibold transition-colors",
-              selected ? "text-brand" : "text-ink-3 hover:text-ink-2",
+              selected ? "text-ink" : "text-ink-3 hover:text-ink-2",
             )}
           >
             {t.label}

@@ -9,7 +9,7 @@ import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { useToast } from "@/components/toast";
 import { AdminFilterProvider } from "@/lib/admin-filter";
 import { AdminLogin } from "@/components/admin/AdminLogin";
-import { Sidebar } from "@/components/admin/Sidebar";
+import { GROUPS, Sidebar } from "@/components/admin/Sidebar";
 import { Icon } from "@/components/ui";
 import { LogoTight } from "@/components/Brand";
 import { Splash } from "@/components/Splash";
@@ -31,9 +31,10 @@ const IDLE_MS = 3 * 60 * 60 * 1000;
 const TITLES: Record<string, string> = {
   "/admin/today": "Today",
   "/admin/classes": "Classes",
+  "/admin/recordings": "Recordings",
   "/admin/whiteboard": "Whiteboard",
   "/admin/tests": "Tests",
-  "/admin/submissions": "Submissions",
+  "/admin/submissions": "Marking",
   "/admin/grading": "Marking",
   "/admin/assignments": "Homework",
   "/admin/bank": "Question bank",
@@ -71,7 +72,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     document.documentElement.setAttribute("data-ta", "");
     return () => document.documentElement.removeAttribute("data-ta");
   }, [ta]);
-  useDocumentTitle(isAdmin ? pageTitle(pathname, TITLES, "Teacher console") : "Teacher sign in · Hamza Teaches");
+  useDocumentTitle(isAdmin ? pageTitle(pathname, TITLES, "Teacher console") : "Console sign in · Hamza Teaches");
 
   useSessionTimeout(
     () => {
@@ -127,6 +128,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
   }, [drawerOpen]);
+
+  // Phone tab bar. Hamza: the four everyday jobs. Staff: their own pages (up to four), spread evenly; More opens the rest and sign out.
+  const tabs: Array<{ href: string; label: string; I: (p: { active?: boolean; className?: string }) => React.ReactNode }> = ta
+    ? GROUPS.flatMap((g) => g.items)
+        .filter((i) => taMayOpen(i.href, session))
+        .slice(0, 4)
+        .map((i) => ({ href: i.href, label: i.href === "/admin/whiteboard" ? "Board" : i.label, I: i.Icon }))
+    : [
+        { href: "/admin/today", label: "Today", I: NavIcon.Today },
+        { href: "/admin/classes", label: "Classes", I: NavIcon.Classes },
+        { href: "/admin/whiteboard", label: "Board", I: NavIcon.Board },
+        { href: "/admin/submissions", label: "Marking", I: NavIcon.Inbox },
+      ];
 
   if (initializing) {
     return <PortalSkeleton side="admin" />;
@@ -187,7 +201,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 type="button"
                 onClick={() => setMobileOpen(true)}
                 className="flex h-11 w-11 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-surface-2 md:hidden"
-                aria-label="Open navigation"
+                aria-label="Open menu"
                 aria-haspopup="dialog"
                 aria-expanded={drawerOpen}
               >
@@ -208,16 +222,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Phones: the four everyday jobs at the thumb; everything else under More. */}
         {!/^\/admin\/whiteboard/.test(pathname) && (
           <nav aria-label="Quick" className="fixed inset-x-3 bottom-3 z-40 md:hidden" style={{ marginBottom: "env(safe-area-inset-bottom)" }}>
-            <ul className="surface grid grid-cols-5 rounded-card p-1.5">
-              {[
-                { href: "/admin/today", label: "Today", I: NavIcon.Today },
-                { href: "/admin/classes", label: "Classes", I: NavIcon.Classes },
-                { href: "/admin/whiteboard", label: "Board", I: NavIcon.Board },
-                { href: "/admin/submissions", label: "Marking", I: NavIcon.Inbox },
-              ]
-                // Staff only see the tabs switched on for them (the menu button still opens the rest).
-                .filter(({ href }) => !ta || taMayOpen(href, session))
-                .map(({ href, label, I }) => {
+            <ul className="surface grid rounded-card p-1.5" style={{ gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))` }}>
+              {tabs.map(({ href, label, I }) => {
                 // Marking a paper is still the Marking tab.
                 const on = pathname.startsWith(href) || (href === "/admin/submissions" && pathname.startsWith("/admin/grading"));
                 return (
@@ -228,7 +234,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       className={cn("flex h-[52px] flex-col items-center justify-center gap-1 rounded-tile text-xs font-semibold transition-[background-color,color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.98]", on ? "bg-white/[0.07] text-ink" : "text-ink-3")}
                     >
                       <I active={on} className="h-5 w-5" />
-                      {label}
+                      {/* A long page name (Announcements) is cut short rather than pushing its neighbours. */}
+                      <span className="max-w-full truncate px-0.5">{label}</span>
                     </Link>
                   </li>
                 );

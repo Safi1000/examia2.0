@@ -8,7 +8,7 @@ import { ClassNow } from "@/components/student/ClassNow";
 import { Badge, EmptyState, Icon, Skeleton } from "@/components/ui";
 import type { Student } from "@/types";
 import type { Database } from "@/lib/data/seed";
-import { useSchedule, LEVEL_LABEL, levelName, RECORDING_HOURS, getSchedule, addDays, isClassDay, levelOf, pkDate, slotKey, slotsForStudent, slotsOn, span, useClassLinks } from "@/lib/classes";
+import { useSchedule, LEVEL_LABEL, levelName, RECORDING_HOURS, getSchedule, addDays, isClassDay, levelOf, pkDate, slotKey, slotsForStudent, slotsOn, span, spanHere, useClassLinks } from "@/lib/classes";
 import { anythingOpen, useRecordingRows, useStudentAccess, type RecordingRow } from "@/lib/recordings";
 import { openUntil } from "@/lib/recording-access";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -19,6 +19,7 @@ import { subjectsAtLevel } from "@/lib/levels";
 import { PageHeader, SectionTitle } from "@/components/student/PortalKit";
 import { chipClass } from "@/components/ui/Segmented";
 import { buttonClasses } from "@/components/ui/Button";
+import { formatRelative } from "@/lib/time";
 
 /**
  * The student's classes that were called off on a date. `slotsForStudent`
@@ -109,11 +110,16 @@ export default function ClassesPage() {
       }
     return links
       .filter((l) => l.recordingUrl && closes.has(slotKey(l)))
-      .map((l) => ({
-        ...l,
-        closesAt: openUntil(slotKey(l), l.date, closes.get(slotKey(l))!, access, nowMs),
-        subject: db.subjects.find((s) => s.id === l.subjectId)?.name ?? "Class",
-      }))
+      .map((l) => {
+        const cls = db.classes.find((c) => c.id === l.classId);
+        const lvl = cls ? levelOf(cls) : null;
+        return {
+          ...l,
+          closesAt: openUntil(slotKey(l), l.date, closes.get(slotKey(l))!, access, nowMs),
+          subject: db.subjects.find((s) => s.id === l.subjectId)?.name ?? "Class",
+          level: lvl ? LEVEL_LABEL[lvl] : (cls?.name ?? ""),
+        };
+      })
       .filter((l) => l.closesAt > nowMs)
       .sort((a, b) => b.closesAt - a.closesAt);
   })();
@@ -144,6 +150,8 @@ export default function ClassesPage() {
       .filter((r) => r.closesAt > nowMs && r.date <= today);
   })();
   const twoLevels = new Set(older.map((r) => r.classId)).size > 1;
+  // A student at two levels (AS and A2) sees which level each recent recording is from.
+  const recentTwoLevels = new Set(recordings.map((r) => r.classId)).size > 1;
 
   // Home's "Watch" on a class recording opens here with ?watch=<class key>: open that
   // recording's player straight away (once), as if Watch had been tapped on this page.
@@ -211,7 +219,11 @@ export default function ClassesPage() {
                 <span className="shrink-0 text-right">
                   <span className={cn("block text-sm tabular-nums", s.cancelled ? "text-ink-3 line-through" : "text-ink-2")}>{span(s.start, s.end)}</span>
                   {/* The page is in Pakistan time; a phone set to another zone gets its own start time too. */}
-                  {!s.cancelled && away(s.startMs) && <span className="mt-0.5 block text-sm text-ink-3 tabular-nums">{ownClock(s.startMs)} your time</span>}
+                  {!s.cancelled && away(s.startMs) && (
+                    <span className="mt-0.5 block text-sm text-ink-3 tabular-nums">
+                      {ownClock(s.startMs)} to {ownClock(s.endMs)} your time
+                    </span>
+                  )}
                 </span>
               </li>
             ))}
@@ -230,7 +242,7 @@ export default function ClassesPage() {
               <li key={slotKey(p)} className="surface-quiet flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-card px-5 py-4 sm:px-6">
                 <span className="min-w-0">
                   <span className="block text-base font-semibold text-ink">{p.subject}</span>
-                  <span className="mt-0.5 block text-sm text-ink-3 tabular-nums">Today, {span(p.start, p.end)}</span>
+                  <span className="mt-0.5 block text-sm text-ink-3 tabular-nums">Today, {spanHere(p.date, p.start, p.end)}</span>
                 </span>
                 <span className="text-sm text-ink-3">Recording on its way, usually within an hour</span>
               </li>
@@ -254,7 +266,8 @@ export default function ClassesPage() {
                   <span className="min-w-0">
                     <span className="block text-base font-semibold text-ink">{r.subject}</span>
                     <span className="mt-0.5 block text-sm text-ink-3 tabular-nums">
-                      {dayName(r.date)} · open until {closesLabel(r.closesAt)}
+                      {dayName(r.date)}
+                      {recentTwoLevels && r.level ? ` · ${r.level}` : ""} · open until {closesLabel(r.closesAt)}
                     </span>
                   </span>
                   {watched.has(slotKey(r)) ? (
@@ -267,7 +280,7 @@ export default function ClassesPage() {
                         Watch <Icon.ChevronRight className="h-4 w-4" />
                       </span>
                       {r.closesAt - nowMs < 6 * 3_600_000 && (
-                        <span className="text-sm font-semibold text-warning">Closes in {Math.max(1, Math.round((r.closesAt - nowMs) / 3_600_000))} h</span>
+                        <span className="text-sm font-semibold text-warning tabular-nums">Closes {formatRelative(new Date(r.closesAt).toISOString(), nowMs)}</span>
                       )}
                     </span>
                   )}

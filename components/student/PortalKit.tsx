@@ -48,8 +48,6 @@ export function SectionTitle({
   action?: React.ReactNode;
   sub?: React.ReactNode;
   id?: string;
-  /** A slow gold dot: something here wants doing now. */
-  live?: boolean;
 }) {
   return (
     // Flush with the page edge, like the page title above it and the cards below it.

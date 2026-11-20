@@ -6,7 +6,8 @@ import { notifyAnnouncement, pushReady } from "@/lib/push-server";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  if (!pushReady()) return NextResponse.json({ sent: 0, ready: false });
+  // Not set up on the server is not "no phones to notify": answered as a send that couldn't go out, so the console says so.
+  if (!pushReady()) return NextResponse.json({ sent: 0, ready: false, error: "phone notifications are not set up" }, { status: 503 });
   const token = req.headers.get("authorization")?.replace(/^Bearer /, "");
   if (!token) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {

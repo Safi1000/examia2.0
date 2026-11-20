@@ -20,8 +20,9 @@ import { VAPID } from "@/lib/push-client";
 import { Button } from "@/components/ui/Button";
 
 /** A big option tile, chosen: the neutral off-white step. Gold stays for the Next button. */
+// The chosen one gets a clear off-white outline (a shade lighter alone was hard to see), never gold.
 const tile = (on: boolean) =>
-  on ? "border-white/[0.16] bg-white/[0.09] text-ink shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]" : "border-border-strong text-ink-2 hover:border-ink-3 hover:text-ink";
+  on ? "border-ink bg-white/[0.09] text-ink shadow-[inset_0_0_0_1px_var(--color-ink)]" : "border-border-strong text-ink-2 hover:border-ink-3 hover:text-ink";
 
 /** The subjects a student takes: their own, else their cohort's, else all. */
 export function studentSubjects(db: Database, student: Student): string[] {

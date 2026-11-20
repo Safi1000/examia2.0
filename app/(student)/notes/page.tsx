@@ -240,7 +240,7 @@ function Library({ db, student, positions, onOpen, want }: { db: Db; student: St
                   className="surface surface-link mb-10 flex w-full items-center gap-4 rounded-card p-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:p-6"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-ink-3">Continue reading</span>
+                    <span className="block truncate text-sm font-semibold text-ink-3">Continue reading · {r.shelf.label}</span>
                     <span className="mt-1 block truncate text-base font-semibold text-ink">{r.chapter ? r.chapter.name : r.note.title}</span>
                     <span className="mt-2 flex items-center gap-3">
                       <span className="h-1 flex-1 overflow-hidden rounded-full bg-surface-2">
@@ -328,6 +328,8 @@ function SearchBox({ value, onChange }: { value: string; onChange: (v: string) =
         placeholder="Search inside your notes"
         autoComplete="off"
         enterKeyHint="search"
+        // The keyboard's Search key closes the keyboard, so it stops covering the results.
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
         className="h-12 w-full rounded-full border border-field bg-surface pl-12 pr-11 text-base text-ink placeholder:text-ink-3 transition-colors duration-150 hover:border-ink-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand [&::-webkit-search-cancel-button]:hidden"
       />
       {value && (
@@ -429,9 +431,10 @@ function ShelfView({ shelf, positions, nowMs, onOpen }: { shelf: Shelf; position
                     );
                   if (!notes)
                     return (
+                      // Not out yet: muted grey that still reads easily; the word Soon says it can't open.
                       <li key={num} className="flex min-h-12 items-center gap-3 py-2.5 pr-5 text-ink-3">
-                        <span className="w-10 shrink-0 text-sm tabular-nums opacity-70">{num}</span>
-                        <span className="min-w-0 flex-1 text-base leading-snug opacity-70">{name}</span>
+                        <span className="w-10 shrink-0 text-sm tabular-nums">{num}</span>
+                        <span className="min-w-0 flex-1 text-base leading-snug">{name}</span>
                         <span className="shrink-0 text-sm">Soon</span>
                       </li>
                     );
@@ -537,7 +540,7 @@ function NoteRow({
       {num !== "" || !showDate ? <span className="w-10 shrink-0 text-sm font-semibold tabular-nums text-ink-3">{num}</span> : null}
       <span className="min-w-0 flex-1">
         <span className="line-clamp-2 text-base font-semibold leading-snug text-ink">{title}</span>
-        {(showDate || fresh || k || pos) && (
+        {(showDate || (fresh && !pos) || k || pos) && (
           <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-ink-3">
             {showDate && <span>{fmtDate(note.createdAt)}</span>}
             {k && <span>{k}</span>}
@@ -551,7 +554,8 @@ function NoteRow({
                 <Icon.Check className="h-4 w-4" /> Read
               </span>
             )}
-            {fresh && <span className="rounded-full bg-surface-2 px-2 py-px text-xs font-semibold text-ink">New</span>}
+            {/* New until they open it. */}
+            {fresh && !pos && <span className="rounded-full bg-surface-2 px-2 py-px text-xs font-semibold text-ink">New</span>}
           </span>
         )}
       </span>

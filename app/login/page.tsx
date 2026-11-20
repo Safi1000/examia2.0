@@ -50,7 +50,7 @@ export default function StudentLoginPage() {
       setError(
         err instanceof Error && err.message === "network"
           ? "Can't reach the server. Check your internet and try again."
-          : "You're signed in, but your portal didn't load. Check your internet and tap Enter again.",
+          : "You're signed in, but your portal didn't load. Check your internet and tap Sign in again.",
       );
       setBusy(false);
       return;
@@ -89,7 +89,7 @@ export default function StudentLoginPage() {
             rel="noopener noreferrer"
             className="inline-flex min-h-11 items-center text-ink-2 underline decoration-white/20 underline-offset-4 transition-colors duration-200 hover:text-ink hover:decoration-current"
           >
-            Message Hamza
+            Message me
           </a>
         </>
       }
@@ -150,7 +150,7 @@ export default function StudentLoginPage() {
         {lock.isLocked && (
           <AuthAlert tone="warning">
             Too many wrong tries. Try again in{" "}
-            <span className="font-mono">
+            <span className="tabular-nums">
               {formatCountdown(lock.remainingSeconds)}
             </span>
             .
@@ -158,7 +158,7 @@ export default function StudentLoginPage() {
         )}
 
         <SubmitButton busy={busy} disabled={!canSubmit}>
-          Enter
+          Sign in
         </SubmitButton>
       </form>
     </AuthShell>

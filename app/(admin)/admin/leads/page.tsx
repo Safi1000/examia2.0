@@ -5,11 +5,13 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { Button, Card, EmptyState, Icon, Spinner, chipClass } from "@/components/ui";
 import { DEMO } from "@/lib/demo";
 import { INTERESTS, type Lead } from "@/lib/leads";
-import { waDigits } from "@/lib/phone";
 import { supabase } from "@/lib/supabase";
 import { BulkBar, OneByOne, RowCheck, SelectAll, copyText, plural, waLink, type BulkAction, type Step } from "@/components/admin/BulkBar";
 import { useSelection } from "@/lib/use-selection";
 import { useToast } from "@/components/toast";
+
+// A sign-up from an earlier year shows its year.
+const THIS_YEAR = new Date().getFullYear();
 
 /** Everyone who joined the waitlist from the free tools, newest first. */
 export default function LeadsPage() {
@@ -70,7 +72,7 @@ export default function LeadsPage() {
         ),
     },
     { id: "copy", label: "Copy numbers", run: () => void copyNumbers() },
-    { id: "export", label: "Download as spreadsheet", run: () => csv(chosen) },
+    { id: "export", label: "Download spreadsheet", run: () => csv(chosen) },
   ];
 
   function csv(list: Lead[] = shown) {
@@ -123,7 +125,7 @@ export default function LeadsPage() {
           </button>
         </Card>
       ) : leads === null ? (
-        <p className="flex items-center gap-2 text-sm text-ink-3"><Spinner size={16} className="text-ink-3" /> Loading…</p>
+        <p role="status" className="flex items-center gap-2 text-sm text-ink-3 animate-[arc-appear_200ms_300ms_both]"><span aria-hidden className="contents"><Spinner size={16} className="text-ink-3" /></span> Loading…</p>
       ) : shown.length === 0 ? (
         <EmptyState
           icon={<Icon.Users />}
@@ -143,12 +145,17 @@ export default function LeadsPage() {
                     {l.name} <span className="font-normal text-ink-3">· {[l.level, ...l.subjects].filter(Boolean).join(", ")}</span>
                   </span>
                   <span className="block text-sm text-ink-3">
-                    {l.interests.map(label).join(" · ") || "No preference"} · from {l.source || "site"} · {new Date(l.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Asia/Karachi" })}
+                    {l.interests.map(label).join(" · ") || "No preference"} · from {l.source || "site"} · {new Date(l.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Asia/Karachi", ...(new Date(l.createdAt).getFullYear() !== THIS_YEAR ? { year: "numeric" } : {}) })}
                   </span>
                 </span>
-                <a href={`https://wa.me/${waDigits(l.phone)}`} target="_blank" rel="noreferrer" className="inline-flex h-10 shrink-0 items-center rounded-full border border-border-strong px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-2 max-md:h-11">
-                  WhatsApp
-                </a>
+                {/* A number WhatsApp can't use would open an empty chat: say so instead, as the one-by-one sender does. */}
+                {waLink(l.phone) ? (
+                  <a href={waLink(l.phone)!} target="_blank" rel="noreferrer" className="inline-flex h-10 shrink-0 items-center rounded-full border border-border-strong px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-2 max-md:h-11">
+                    WhatsApp
+                  </a>
+                ) : (
+                  <span className="shrink-0 text-sm text-ink-3">Number looks wrong</span>
+                )}
               </li>
             ))}
           </ul>

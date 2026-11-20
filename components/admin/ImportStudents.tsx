@@ -26,8 +26,8 @@ type Made = { username: string; password: string; phone?: string; parent?: strin
 const FIELDS: Array<[Field, string]> = [
   ["name", "Name"],
   ["username", "Username"],
-  ["phone", "Student WhatsApp"],
-  ["parent", "Parent WhatsApp"],
+  ["phone", "Student's WhatsApp"],
+  ["parent", "Parent's WhatsApp"],
   ["level", "Level"],
   ["subjects", "Subjects"],
 ];

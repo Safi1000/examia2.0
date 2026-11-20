@@ -66,7 +66,7 @@ export default function SubmittedPage() {
             <span className="text-ink tabular-nums">{formatDuration(submission.durationSeconds)}</span>
           </Row>
         )}
-        <Row label="Submission">
+        <Row label="Status">
           {submission.autoSubmitted ? (
             <Badge tone="warning">Handed in at time up</Badge>
           ) : (

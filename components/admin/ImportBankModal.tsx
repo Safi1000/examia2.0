@@ -91,7 +91,7 @@ export function ImportBankModal({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone="neutral">{b.subject}</Badge>
-                  <span className="text-xs text-ink-3">{b.type === "mcq" ? "Choice" : b.type === "photo" ? "Photo" : "Written"} · {b.topic} · {b.marks}m</span>
+                  <span className="text-xs text-ink-3">{b.type === "mcq" ? "Multiple choice" : b.type === "photo" ? "Photo answer" : "Typed answer"} · {b.topic} · {b.marks} {b.marks === 1 ? "mark" : "marks"}</span>
                 </div>
                 <p className="mt-1 text-base text-ink">{b.prompt}</p>
               </div>

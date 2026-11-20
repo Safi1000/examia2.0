@@ -119,7 +119,7 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
       }
       setStatus("off");
     } catch {
-      toast("Couldn’t turn them off. Try again.", "error");
+      toast("Couldn't turn them off. Try again.", "error");
     } finally {
       setBusy(false);
     }
@@ -135,6 +135,9 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
       toast("Couldn't save that. Try again.", "error");
     }
   }
+
+  // Not set up on this site (no push key, as in the preview): no promise of reminders, then "coming soon". Hidden, as the welcome does.
+  if (status === "notReady") return null;
 
   return (
     // Grouped like iOS Settings: the title and its help line above, the button beside them, one card of rows below.
@@ -178,7 +181,6 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
         </p>
       )}
       {status === "unsupported" && <p className="px-5 py-4 text-base text-ink-2 sm:px-6">This browser can&apos;t show notifications.</p>}
-      {status === "notReady" && <p className="px-5 py-4 text-base text-ink-2 sm:px-6">Notifications are coming soon.</p>}
 
       {status === "on" && (
         <ul className="divide-y divide-hairline">

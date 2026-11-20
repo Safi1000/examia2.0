@@ -46,14 +46,14 @@ export default function ResultsPage() {
   }
   if (!submission || submission.status !== "released") {
     return (
-      <div className="mx-auto max-w-2xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
+      <div className="mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
         <BackLink />
         {submission ? (
           <EmptyState
             className="mt-4"
             icon={<Icon.Clock />}
-            title="Results pending"
-            message={`${submission.submittedAt ? `Handed in ${formatTimestamp(submission.submittedAt)}. ` : ""}I haven't released this result yet. It shows up here as soon as it's ready.`}
+            title="I'm still marking this"
+            message={`${submission.submittedAt ? `Handed in ${formatTimestamp(submission.submittedAt)}. ` : ""}It shows here as soon as I release it.`}
           />
         ) : (
           // Never handed in (or not sat yet): there is no result to wait for.
@@ -81,7 +81,7 @@ export default function ResultsPage() {
   const best = personalBest(db, student.id, test, submission, grade.percent);
 
   return (
-    <div className="mx-auto max-w-2xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
+    <div className="mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
       <div className="rise">
       <BackLink />
 
@@ -110,7 +110,7 @@ export default function ResultsPage() {
               {grade.awarded}
               <span className="text-title font-bold tracking-[-0.02em] text-ink-3">/{grade.total}</span>
             </p>
-            <p className="mt-2 text-base text-ink-2 tabular-nums">{shownPercent(grade.percent)}% overall</p>
+            <p className="mt-2 text-base text-ink-2 tabular-nums">{shownPercent(grade.percent)}% on this test</p>
             {waiting > 0 && (
               <p className="mt-1 text-sm text-ink-3">
                 {waiting === 1 ? "1 answer is" : `${waiting} answers are`} still waiting for my marking.
@@ -161,15 +161,18 @@ export default function ResultsPage() {
         )}
 
         <div className="mt-6 flex flex-wrap gap-x-5 gap-y-1 border-t border-hairline pt-4 text-sm text-ink-2 tabular-nums">
-          <span className="inline-flex items-center gap-1.5">
-            <Icon.Check className="h-4 w-4 text-ink-3" />
-            Handed in {submission.submittedAt ? formatTimestamp(submission.submittedAt) : "not yet"}
-          </span>
+          {/* No time on record (an older paper): say nothing rather than "Handed in not yet" on a marked paper. */}
+          {submission.submittedAt && (
+            <span className="inline-flex items-center gap-1.5">
+              <Icon.Check className="h-4 w-4 text-ink-3" />
+              Handed in {formatTimestamp(submission.submittedAt)}
+            </span>
+          )}
           {/* Unknown on older papers: say nothing rather than "0s". */}
           {!!submission.durationSeconds && submission.durationSeconds > 0 && (
             <span className="inline-flex items-center gap-1.5">
               <Icon.Clock className="h-4 w-4 text-ink-3" />
-              {formatDuration(submission.durationSeconds)}
+              Time taken {formatDuration(submission.durationSeconds)}
             </span>
           )}
         </div>
@@ -289,28 +292,28 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
                   ) : (
                     <span className="whitespace-pre-wrap">{opt}</span>
                   )}
-                  {chosen && <span className="ml-auto shrink-0 text-xs font-semibold">Your pick</span>}
+                  {chosen && <span className="ml-auto shrink-0 text-sm font-semibold">Your pick</span>}
                   {correct && !chosen && (
-                    <span className="ml-auto shrink-0 text-xs font-semibold">Correct answer</span>
+                    <span className="ml-auto shrink-0 text-sm font-semibold">Correct answer</span>
                   )}
                 </li>
               );
             })}
           </ul>
-          {picked < 0 && <p className="mt-2 text-sm italic text-ink-3">(no answer picked)</p>}
+          {picked < 0 && <p className="mt-2 text-sm text-ink-3">You did not answer this.</p>}
           </>
           );
         })()}
 
         {question.type === "text" && (
           <div className="whitespace-pre-wrap rounded-tile bg-surface-2 p-4 text-base leading-relaxed text-ink">
-            {answer?.text ? answer.text : <span className="italic text-ink-3">(blank)</span>}
+            {answer?.text ? answer.text : <span className="text-ink-3">You did not answer this.</span>}
           </div>
         )}
 
         {question.type === "photo" && (() => {
           const photos = answer?.photoUrls ?? (answer?.photoDataUrl ? [answer.photoDataUrl] : []);
-          if (!photos.length) return <p className="text-sm italic text-ink-3">(no photo)</p>;
+          if (!photos.length) return <p className="text-sm text-ink-3">You did not answer this.</p>;
           const shapesOf = (url: string) => answer?.annotations?.[url] ?? [];
           return (
             <div className="space-y-2">
@@ -355,7 +358,7 @@ function BreakdownCard({ index, question, answer }: { index: number; question: Q
 
       {answer?.feedback && (
         <div className="mt-4 rounded-tile bg-surface-2 p-4">
-          <p className="label-quiet text-ink-3">From Hamza</p>
+          <p className="label-quiet text-ink-3">My feedback</p>
           <p className="mt-1.5 whitespace-pre-wrap text-base leading-relaxed text-ink">{answer.feedback}</p>
         </div>
       )}
@@ -384,7 +387,7 @@ function personalBest(db: Database, studentId: string, test: { id: string; subje
   }
   const rise = mine - earlier[0].pct;
   if (rise >= 1) {
-    return { line: `+${rise}% on your last test`, big: `+${rise}%`, sub: `on my last ${test.subject} test` };
+    return { line: `+${rise} ${rise === 1 ? "point" : "points"} on your last test`, big: `+${rise}%`, sub: `on my last ${test.subject} test` };
   }
   return null;
 }

@@ -31,6 +31,8 @@ export function ImportDocModal({
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  // "Close without adding?": asked in the portal's own dialog.
+  const [closeAsk, setCloseAsk] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [drafts, setDrafts] = useState<DraftQuestion[]>([]);
   const [problems, setProblems] = useState<string[]>([]);
@@ -130,7 +132,7 @@ export function ImportDocModal({
 
   // A stray tap outside, Esc or Cancel must not throw away questions read from a whole paper.
   function requestClose() {
-    if ((drafts.length > 0 || pasted.trim()) && !window.confirm("Close without adding these questions? They will be lost.")) return;
+    if (drafts.length > 0 || pasted.trim()) return setCloseAsk(true);
     close();
   }
 
@@ -190,7 +192,7 @@ export function ImportDocModal({
           errors?: string[];
           error?: string;
         };
-        if (!res.ok) throw new Error(json.error ?? "Extraction failed.");
+        if (!res.ok) throw new Error(json.error ?? "Couldn't read that file. Try again.");
         found.push(...(json.questions ?? []));
         errors.push(...(json.errors ?? []));
       }
@@ -201,7 +203,7 @@ export function ImportDocModal({
         toast(tooBig.length ? "That file is over 4 MB. Save it as a smaller PDF and try again." : "No questions could be read from those files.", "error");
       }
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Extraction failed.", "error");
+      toast(e instanceof Error ? e.message : "Couldn't read that file. Try again.", "error");
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -391,9 +393,9 @@ export function ImportDocModal({
                             value={d.type}
                             onChange={(e) => changeType(i, e.target.value as DraftQuestion["type"])}
                           >
-                            <option value="mcq">MCQ</option>
-                            <option value="text">Text</option>
-                            <option value="photo">Photo</option>
+                            <option value="mcq">Multiple choice</option>
+                            <option value="text">Typed answer</option>
+                            <option value="photo">Photo answer</option>
                           </Select>
                         </div>
                         <div>
@@ -487,6 +489,29 @@ export function ImportDocModal({
           </>
         )}
       </div>
+      <Modal
+        open={closeAsk}
+        onClose={() => setCloseAsk(false)}
+        title="Close without adding these questions?"
+        description="The questions read from the paper will be lost."
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setCloseAsk(false)}>Keep them</Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setCloseAsk(false);
+                close();
+              }}
+            >
+              Close without adding
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-2">Keep them to add them to the test.</p>
+      </Modal>
     </Modal>
   );
 }

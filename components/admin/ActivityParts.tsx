@@ -50,7 +50,8 @@ export function DailyBars({ days, from, to, compact = false }: { days: Record<st
         {vals.map((v, i) => (
           <span
             key={list[i]}
-            className={cn("flex-1 rounded-t-[2px]", v >= 60 ? "bg-brand" : "bg-surface-2")}
+            // Days before tracking began are left blank, not grey like a day they skipped.
+            className={cn("flex-1 rounded-t-[2px]", v >= 60 ? "bg-brand" : list[i] < TRACKING_SINCE ? "bg-transparent" : "bg-surface-2")}
             style={{ height: v >= 60 ? `${Math.max(14, (v / max) * 100)}%` : "2px" }}
           />
         ))}
@@ -199,8 +200,8 @@ export function StudentActivitySection({ studentId }: { studentId: string }) {
           </button>
         </Card>
       ) : !data ? (
-        <Card className="flex items-center gap-3 p-5 text-base text-ink-3 sm:p-6">
-          <Spinner size={18} /> Loading activity…
+        <Card className="flex items-center gap-3 p-5 text-base text-ink-3 sm:p-6 animate-[arc-appear_200ms_300ms_both]">
+          <span aria-hidden className="contents"><Spinner size={18} /></span> Loading activity…
         </Card>
       ) : (
         <>

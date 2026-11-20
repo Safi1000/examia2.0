@@ -428,13 +428,14 @@ function ClassView({
   return (
     <div className="space-y-5">
       <div className={cn("grid grid-cols-2 gap-3 sm:grid-cols-3", data.attendanceAvg != null ? "xl:grid-cols-6" : "lg:grid-cols-5")}>
-        <MetricCard label="All-time average" value={`${data.overall}%`} />
-        <MetricCard label={`Average (${monthLabel})`} value={`${data.monthly}%`} delta={data.delta} />
-        <MetricCard label={`A/A* (${monthLabel})`} value={String(data.topStudents)} note="students" />
-        <MetricCard label="Needs support" value={String(data.strugglingStudents)} note="students at E or U" />
-        <MetricCard label="Waiting to be marked" value={String(data.toMark)} note="scripts" />
+        {/* Whole percentages, as on Today and the student pages. */}
+        <MetricCard label="All-time average" value={`${Math.round(data.overall)}%`} />
+        <MetricCard label={`Average (${monthLabel})`} value={`${Math.round(data.monthly)}%`} delta={data.delta} />
+        <MetricCard label={`A/A* (${monthLabel})`} value={String(data.topStudents)} note={data.topStudents === 1 ? "student" : "students"} />
+        <MetricCard label="Needs support" value={String(data.strugglingStudents)} note={`${data.strugglingStudents === 1 ? "student" : "students"} at E or U`} />
+        <MetricCard label="To mark" value={String(data.toMark)} note={data.toMark === 1 ? "paper" : "papers"} />
         {data.attendanceAvg != null && (
-          <MetricCard label="Attendance" value={`${data.attendanceAvg}%`} note={`${activeMonth ? monthLabel : "This month"} average`} />
+          <MetricCard label="Attendance" value={`${Math.round(data.attendanceAvg)}%`} note={`${activeMonth ? monthLabel : "This month"} average`} />
         )}
       </div>
 
@@ -463,7 +464,8 @@ function ClassView({
                 <MasteryBar
                   key={m.topic}
                   // Two questions are not enough to call a topic weak: say so.
-                  topic={m.available < SMALL_SAMPLE_MARKS ? `${m.topic} (only ${m.available} mark${m.available === 1 ? "" : "s"} so far)` : m.topic}
+                  topic={m.topic}
+                  note={m.available < SMALL_SAMPLE_MARKS ? `Only ${m.available} mark${m.available === 1 ? "" : "s"} so far` : undefined}
                   percent={m.percent}
                   band={m.band}
                 />
@@ -489,7 +491,7 @@ function ClassView({
                           {cohort && <p className="flex items-center gap-1 text-xs text-ink-3"><CohortDot color={cohort.color} />{cohort.name}</p>}
                         </div>
                         <span className="text-base font-semibold tabular-nums text-ink">{curAvg}%</span>
-                        <Badge tone="success">+{delta}%</Badge>
+                        <Badge tone="success">Up {Math.round(delta ?? 0)} points</Badge>
                       </Link>
                     </li>
                   );
@@ -539,7 +541,7 @@ function ClassView({
                           {cohort && <p className="flex items-center gap-1 text-xs text-ink-3"><CohortDot color={cohort.color} />{cohort.name}</p>}
                         </div>
                         <span className="text-base font-semibold tabular-nums text-ink">{curAvg}%</span>
-                        <Badge tone="error">{delta}%</Badge>
+                        <Badge tone="error">Down {Math.abs(Math.round(delta ?? 0))} points</Badge>
                       </Link>
                     </li>
                   );
@@ -570,7 +572,7 @@ function ClassView({
                   <Td className="tabular-nums">{count}</Td>
                   <Td className="tabular-nums">
                     {avg != null ? (
-                      `${avg}%`
+                      `${Math.round(avg)}%`
                     ) : pending > 0 ? (
                       <span className="text-warning">{pending} to mark</span>
                     ) : (
@@ -658,7 +660,8 @@ function MetricCard({
       <p className={cn(statValue, toneClass)}>{value}</p>
       {delta != null && (
         <p className={cn(statNote, "font-semibold", delta > 0 ? "text-success" : delta < 0 ? "text-error" : "text-ink-3")}>
-          {delta > 0 ? "+" : ""}{delta}% vs last month
+          {/* Said in words, as the student report does (no plus or minus signs). */}
+          {Math.round(delta) === 0 ? "Same as last month" : `${delta > 0 ? "Up" : "Down"} ${Math.abs(Math.round(delta))} ${Math.abs(Math.round(delta)) === 1 ? "point" : "points"} on last month`}
         </p>
       )}
       {note && <p className={statNote}>{note}</p>}

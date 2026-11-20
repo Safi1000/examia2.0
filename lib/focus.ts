@@ -103,7 +103,7 @@ export const LEVELS = [
   { name: "Sharp", hours: 15, frame: "#C7CCD1" },
   { name: "Scholar", hours: 30, frame: "#FBC159" },
   { name: "Topper", hours: 60, frame: "conic-gradient(#FBC159, #FFE3A3, #E5A832, #FBC159)" },
-  { name: "Legend", hours: 100, frame: "conic-gradient(#7DB7F5, #FBC159, #F07A6A, #7FD1A6, #7DB7F5)" },
+  { name: "Legend", hours: 100, frame: "conic-gradient(#FFE3A3, #FBC159, #B07A4A, #E5A832, #FFE3A3)" },
 ] as const;
 
 export function levelFor(totalMinutes: number) {

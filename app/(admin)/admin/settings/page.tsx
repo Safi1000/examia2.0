@@ -15,7 +15,7 @@ import { levelOf, subjectOf } from "@/lib/timetable";
 export default function AdminSettingsPage() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5 px-5 py-8 sm:px-8">
-      <PageHeader title="Settings" subtitle="Automations, your assistant, levels and waitlist" />
+      <PageHeader title="Settings" subtitle="Automations, staff, notes, levels and waitlist" />
       <AutomationSettings />
       <StaffCard />
       <NotesKeyCard />

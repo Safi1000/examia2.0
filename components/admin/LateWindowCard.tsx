@@ -10,13 +10,17 @@ import { Card, CardHeader, CardBody, Button, Select, chipClass } from "@/compone
 import { buttonClasses } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { SITE_URL } from "@/lib/seo";
+import { displayName } from "@/lib/display-name";
 import { parentReopened, studentReopened } from "@/lib/portal-messages";
 
 const HOURS = [4, 6, 12, 24] as const;
 
-const nameOf = (s: Student) => s.username.charAt(0).toUpperCase() + s.username.slice(1);
+const nameOf = (s: Student) => displayName(s.username);
+// "Fri 9:30 PM": capital AM and PM, like every other time in the console.
 const pkTime = (iso: string) =>
-  new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Karachi", weekday: "short", hour: "numeric", minute: "2-digit", hour12: true });
+  new Date(iso)
+    .toLocaleString("en-GB", { timeZone: "Asia/Karachi", weekday: "short", hour: "numeric", minute: "2-digit", hour12: true })
+    .replace(/\s?(am|pm)\b/i, (_, m: string) => ` ${m.toUpperCase()}`);
 const left = (ms: number) => {
   const mins = Math.max(1, Math.round(ms / 60_000));
   return mins < 60 ? `${mins} min left` : `${Math.round(mins / 60)} h left`;

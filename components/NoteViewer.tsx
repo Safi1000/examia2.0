@@ -33,7 +33,10 @@ async function askFor(noteId: string): Promise<Ticket> {
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({ noteId }),
   });
-  if (res.status === 404) throw new Error("This note isn't available any more. Ask Hamza if you need it.");
+  if (res.status === 404) throw new Error("This note isn't available any more. Ask me if you need it.");
+  if (res.status === 401 || res.status === 403) throw new Error("You've been signed out. Sign in again, then open this note.");
+  if (res.status === 429) throw new Error("Too many notes opened at once. Give it a minute, then try again.");
+  if (res.status >= 500) throw new Error("This note didn't open on my side. Try again in a minute.");
   if (!res.ok) throw new Error("This note didn't open. Check your internet and try again.");
   return { ...((await res.json()) as { url: string; fileType: string; fileName?: string }), token };
 }

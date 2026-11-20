@@ -7,6 +7,7 @@ import { Modal, Button, Input, Textarea, Label, Checkbox } from "@/components/ui
 import { cn } from "@/lib/cn";
 import { uploadAsImages } from "@/lib/cloudinary";
 import { useToast } from "@/components/toast";
+import { idsInText, sourceLabel, withoutSources } from "@/lib/paper-builder";
 
 /**
  * Question payload minus the test-only `order` / `id`; `subject` for bank items.
@@ -15,7 +16,18 @@ import { useToast } from "@/components/toast";
  */
 export type QuestionDraft = Omit<QuestionCommon, "id"> & { subject?: string } & QuestionVariant;
 
-const TYPE_LABEL: Record<QuestionType, string> = { mcq: "Multiple choice", text: "Written answer", photo: "Photo answer" };
+const TYPE_LABEL: Record<QuestionType, string> = { mcq: "Multiple choice", text: "Typed answer", photo: "Photo answer" };
+const LETTERS = "ABCDEF";
+/** The most options a question can hold (the import screen allows up to six too). */
+const MAX_OPTIONS = 6;
+
+/** A past paper question's source line ("Q3 · 0452/12 May/June 2024"), kept out of the edit box and put back on save. */
+const sourcesOf = (prompt: string | undefined) => idsInText(prompt).map(sourceLabel).join(" · ");
+/** Compares two prompts by what was written and which sources they name, not by where the source line sits. */
+const samePrompt = (p: unknown) => {
+  const t = String(p ?? "");
+  return `${withoutSources(t)}|${idsInText(t).join(",")}`;
+};
 
 export function QuestionModal({
   open,
@@ -43,10 +55,13 @@ export function QuestionModal({
   // Callers pass a `key` that changes per open/target, so opening the modal (or
   // switching which question is being edited) remounts it with fresh values.
   const [type, setType] = useState<QuestionType>(initial?.type ?? "mcq");
-  const [prompt, setPrompt] = useState(initial?.prompt ?? "");
+  // A past paper question's source line is shown as a label, never in the box, so tidying the box can't break the mark scheme link, Swap or the "never set twice" check.
+  const [source] = useState(() => sourcesOf(initial?.prompt));
+  const [prompt, setPrompt] = useState(() => (source ? withoutSources(initial?.prompt ?? "") : (initial?.prompt ?? "")));
   const [topic, setTopic] = useState(initial?.topic ?? "");
   const [subject, setSubject] = useState(initial?.subject ?? "");
-  const [marks, setMarks] = useState(initial?.marks ?? 2);
+  // A new multiple choice question is usually worth 1 mark; written work 2.
+  const [marks, setMarks] = useState(initial?.marks ?? 1);
   // Every option the question has (imported ones can have five or six), padded to four boxes.
   // Cutting to four used to drop the fifth option, and with it the right answer.
   const [options, setOptions] = useState<string[]>(
@@ -89,7 +104,7 @@ export function QuestionModal({
     const e: Record<string, string> = {};
     // A photo question is usually just "answer the attached paper", so the prompt isn't worth
     // typing out. The topic tag is always optional (it only groups results by topic).
-    if (type !== "photo" && !prompt.trim()) e.prompt = "A question prompt is required.";
+    if (type !== "photo" && !prompt.trim() && !source) e.prompt = "A question prompt is required.";
     if (withSubject && !subject.trim()) e.subject = "Choose a subject.";
     // Whole marks only: the portal stores marks as whole numbers, so 2.5 would not save.
     if (!Number.isInteger(marks) || marks < 1 || marks > 100) e.marks = "Marks must be a whole number from 1 to 100.";
@@ -109,7 +124,8 @@ export function QuestionModal({
 
   function build(): QuestionDraft {
     // No topic given: filed under "General", so results still group neatly.
-    const common = { prompt: prompt.trim(), topic: topic.trim() || "General", marks, attachments, ...(withSubject ? { subject: subject.trim() } : {}) };
+    const stem = prompt.trim();
+    const common = { prompt: source ? (stem ? `${stem}\n\n${source}` : source) : stem, topic: topic.trim() || "General", marks, attachments, ...(withSubject ? { subject: subject.trim() } : {}) };
     let draft: QuestionDraft;
     if (type === "mcq") {
       draft = { ...common, type: "mcq", options: options.map((o) => o.trim()).filter(Boolean), correctIndex } as QuestionDraft;
@@ -141,7 +157,10 @@ export function QuestionModal({
   // Editing: Previous / Next without closing. A changed question is saved first; an unchanged one is left alone.
   const snap = (d: Partial<QuestionDraft> | null | undefined) => {
     const v = (d ?? {}) as Record<string, unknown>;
-    return JSON.stringify([v.type, String(v.prompt ?? "").trim(), String(v.topic ?? "").trim() || "General", v.marks, v.options ?? null, v.correctIndex ?? null, v.maxLength ?? null, v.showCounter ?? null, v.attachments ?? [], withSubject ? String(v.subject ?? "").trim() : null]);
+    // Compared with the same defaults and clean-up the form applies, so an untouched question never reads as changed.
+    const text = v.type === "text";
+    const options = Array.isArray(v.options) ? (v.options as string[]).map((o) => String(o).trim()).filter(Boolean) : null;
+    return JSON.stringify([v.type, samePrompt(v.prompt), String(v.topic ?? "").trim() || "General", v.marks, options, v.correctIndex ?? null, text ? (v.maxLength ?? 400) : null, text ? (v.showCounter ?? true) : null, v.attachments ?? [], withSubject ? String(v.subject ?? "").trim() : null]);
   };
   const canGo = !!initial && !!onGo && !!position;
   function go(dir: -1 | 1) {
@@ -154,13 +173,14 @@ export function QuestionModal({
     onGo!(dir, draft);
   }
 
-  // Closing by a stray tap outside the box (or Esc) must not throw away a typed question.
-  const dirty =
-    prompt.trim() !== (initial?.prompt ?? "").trim() ||
-    attachments.length !== (initial?.attachments?.length ?? 0) ||
-    (type === "mcq" && options.join("\n").trim() !== (initial?.type === "mcq" ? initial.options.join("\n") : "").trim());
+  // Closing by a stray tap outside the box (or Esc) must not throw away a change: the right answer,
+  // marks, topic and type count too, not only the words.
+  const dirty = initial
+    ? snap(build()) !== snap(initial)
+    : !!prompt.trim() || attachments.length > 0 || options.some((o) => o.trim());
+  const [closeAsk, setCloseAsk] = useState(false);
   function requestClose() {
-    if (dirty && !window.confirm(initial ? "Close without saving your changes to this question?" : "Close without adding this question? What you typed will be lost.")) return;
+    if (dirty) return setCloseAsk(true);
     onClose();
   }
 
@@ -203,10 +223,10 @@ export function QuestionModal({
           )}
           {adding && (
             <Button variant="secondary" onClick={handleNext} disabled={uploading} title="Ctrl+Enter">
-              Add &amp; next
+              Add and next
             </Button>
           )}
-          <Button onClick={handleSave} disabled={uploading}>{initial ? "Save changes" : adding ? "Add & close" : "Add question"}</Button>
+          <Button onClick={handleSave} disabled={uploading}>{initial ? "Save changes" : adding ? "Add and close" : "Add question"}</Button>
         </>
       }
     >
@@ -235,7 +255,11 @@ export function QuestionModal({
               <button
                 key={t}
                 type="button"
-                onClick={() => setType(t)}
+                onClick={() => {
+                  setType(t);
+                  // A new question's marks follow its type until they are typed by hand.
+                  if (!initial && marks === (type === "mcq" ? 1 : 2)) setMarks(t === "mcq" ? 1 : 2);
+                }}
                 aria-pressed={type === t}
                 className={
                   "min-h-11 rounded-field border px-2 py-2.5 text-sm font-semibold transition-colors duration-150 ease-[var(--ease-out)] " +
@@ -265,8 +289,9 @@ export function QuestionModal({
                 ? "What are you asking? Tip: paste the question with its A) B) C) D) options and they fill in by themselves"
                 : "What are you asking?"
           }
-          required={type !== "photo"}
+          required={type !== "photo" && !source}
         />
+        {source && <p className="-mt-2 text-xs text-ink-3">Source: {source}. Kept with the question for the mark scheme and Swap.</p>}
 
         <div>
           <Label>Question paper (optional)</Label>
@@ -330,7 +355,7 @@ export function QuestionModal({
                     type="button"
                     role="radio"
                     aria-checked={correctIndex === i}
-                    aria-label={`Mark option ${i + 1} as correct`}
+                    aria-label={`Mark option ${LETTERS[i] ?? i + 1} as correct`}
                     onClick={() => setCorrectIndex(i)}
                     className={cn(
                       // The circle stays small; its tap area reaches the edges of the row.
@@ -350,13 +375,22 @@ export function QuestionModal({
                         (e.currentTarget.closest(".space-y-2")?.querySelectorAll("input")[i + 1] as HTMLInputElement | undefined)?.focus();
                       }
                     }}
-                    placeholder={`Option ${i + 1}`}
+                    placeholder={`Option ${LETTERS[i] ?? i + 1}`}
                     className="w-full rounded-sm bg-transparent text-base text-ink outline-none placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
-                    aria-label={`Option ${i + 1}`}
+                    aria-label={`Option ${LETTERS[i] ?? i + 1}`}
                   />
                 </div>
               ))}
             </div>
+            {options.length < MAX_OPTIONS && (
+              <button
+                type="button"
+                onClick={() => setOptions((prev) => [...prev, ""])}
+                className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline"
+              >
+                Add option {LETTERS[options.length]}
+              </button>
+            )}
             <p className="mt-1.5 text-sm text-ink-3">Tap the circle to mark the correct answer.</p>
             {errors.options && <p className="mt-1.5 text-sm font-medium text-error">{errors.options}</p>}
           </div>
@@ -377,6 +411,29 @@ export function QuestionModal({
           </p>
         )}
       </div>
+      <Modal
+        open={closeAsk}
+        onClose={() => setCloseAsk(false)}
+        title={initial ? "Close without saving?" : "Close without adding?"}
+        description={initial ? "Your changes to this question will be lost." : "What you typed will be lost."}
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setCloseAsk(false)}>Keep editing</Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setCloseAsk(false);
+                onClose();
+              }}
+            >
+              Close without saving
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-2">Keep editing to go back to it.</p>
+      </Modal>
     </Modal>
   );
 }

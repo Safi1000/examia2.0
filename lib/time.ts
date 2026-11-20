@@ -117,14 +117,29 @@ export function formatDate(iso: string): string {
   });
 }
 
-/** "in 3 hours", "in 2 days", "in 25 min" — for deadlines on cards. */
+/**
+ * "in 25 min", "in 1 h 30 min", "in 5 hours", "tomorrow at 9:00 PM", "in 3 days":
+ * for deadlines on cards. Always rounded down, so a student never reads more
+ * time than they have.
+ */
 export function formatRelative(iso: string, nowMs: number): string {
-  const mins = Math.round((+new Date(iso) - nowMs) / 60000);
+  const at = new Date(iso);
+  const mins = Math.floor((+at - nowMs) / 60000);
   if (mins <= 0) return "now";
   if (mins < 60) return `in ${mins} min`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `in ${hours} hour${hours === 1 ? "" : "s"}`;
-  const days = Math.round(hours / 24);
+  const hours = Math.floor(mins / 60);
+  // Under three hours the minutes matter: "in 1 h 30 min", not "in 2 hours".
+  if (hours < 3) return mins % 60 ? `in ${hours} h ${mins % 60} min` : `in ${hours} hour${hours === 1 ? "" : "s"}`;
+  if (hours < 24) return `in ${hours} hours`;
+  // The next calendar day (on this phone's clock): say the day and time.
+  const away = awayFromPakistan(at);
+  const zone = away ? undefined : PK;
+  const tomorrow = dayKey(new Date(nowMs + 86_400_000), zone) === dayKey(at, zone);
+  if (tomorrow) {
+    const time = upperMeridiem(at.toLocaleTimeString("en-GB", { timeZone: zone, hour: "numeric", minute: "2-digit", hour12: true }));
+    return `tomorrow at ${time}${away ? " your time" : ""}`;
+  }
+  const days = Math.floor(hours / 24);
   return `in ${days} day${days === 1 ? "" : "s"}`;
 }
 

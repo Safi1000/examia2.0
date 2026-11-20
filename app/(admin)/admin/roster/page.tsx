@@ -23,7 +23,6 @@ import { RowMenu } from "@/components/admin/RowMenu";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { ArchiveTabs, archiveFromUrl, type ArchiveView } from "@/components/admin/ArchiveTabs";
 import { Card, Button, Input, Select, Label, CohortDot, Modal, EmptyState, Icon, Badge, segmentGroup, segmentItem, chipClass } from "@/components/ui";
-import { cn } from "@/lib/cn";
 import { cld } from "@/lib/cld";
 import { LoginDetails } from "@/components/admin/LoginDetails";
 import { ImportStudents } from "@/components/admin/ImportStudents";
@@ -67,6 +66,21 @@ function ChipToggle({
   );
 }
 
+/** "Ali Khan" → "AK": first letters of the first and last name, as the roster shows it. */
+const initialsOf = (username: string) => {
+  const parts = displayName(username).split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : (parts[0]?.[1] ?? ""))).toUpperCase();
+};
+
+/** A small speech bubble for the WhatsApp button (a people icon read as "group"). Drawn like the console's other icons. */
+function WhatsAppMark() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="h-5 w-5">
+      <path d="M4.5 19.5l1.2-3.6A7.5 7.5 0 1 1 8.4 18.6z" />
+    </svg>
+  );
+}
+
 export default function RosterPage() {
   const staff = useIsStaff();
   const db = useDatabase();
@@ -106,7 +120,7 @@ export default function RosterPage() {
       const url = await uploadImage(square);
       setForm((f) => ({ ...f, photoUrl: url }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not upload that photo.");
+      setError(err instanceof Error ? err.message : "Couldn't upload that photo. Check your internet and try again.");
     } finally {
       setPhotoBusy(false);
       if (photoRef.current) photoRef.current.value = "";
@@ -380,7 +394,7 @@ export default function RosterPage() {
     ...(db.classes.length ? [{ id: "level", label: "Set level", run: () => setAsk("level") }] : []),
     ...(db.subjects.length ? [{ id: "subjects", label: "Set subjects", run: () => setAsk("subjects") }] : []),
     { id: "tag", label: "Tag in person or online", run: () => setAsk("tag") },
-    { id: "export", label: "Download as spreadsheet", run: exportRows },
+    { id: "export", label: "Download spreadsheet", run: exportRows },
     ...(chosen.some((s) => !pausedIds.has(s.id)) ? [{ id: "pause", label: "Pause access", run: () => void setAccess(real.filter((s) => !pausedIds.has(s.id)), true) }] : []),
     ...(chosen.some((s) => pausedIds.has(s.id)) ? [{ id: "resume", label: "Resume access", run: () => void setAccess(chosen.filter((s) => pausedIds.has(s.id)), false) }] : []),
     { id: "delete", label: "Delete", danger: true, run: () => setAsk("delete") },
@@ -484,7 +498,7 @@ export default function RosterPage() {
     }
     const phone = !noNumbers && form.phone.trim() ? (fixPhone(form.phone) ?? "") : "";
     if (phone && !isValidPhone(phone)) {
-      return setError("Student's number must include the country code, e.g. +923001234567.");
+      return setError("Student's WhatsApp must include the country code, e.g. +923001234567.");
     }
 
     const fields = {
@@ -525,7 +539,7 @@ export default function RosterPage() {
       if (fields.levelSubjects && store.levelsSaveFailed) toast("Saved, but the subjects for each level didn't save. Open the student and save again.", "error");
       setEditing(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save this student.");
+      setError(err instanceof Error ? err.message : "Couldn't save this student. Check your internet and try again.");
     } finally {
       setSaving(false);
     }
@@ -556,13 +570,13 @@ export default function RosterPage() {
         if (staff || !unset.length || !db.classes.length) return null;
         return (
           <div className="mb-4 rounded-tile border border-warning/30 bg-warning-soft px-4 py-3 text-sm leading-relaxed text-ink">
-            {unset.length === 1 ? "1 student has" : `${unset.length} students have`} no level or subjects set, so subject tests, notes and assignments
+            {unset.length === 1 ? "1 student has" : `${unset.length} students have`} no level or subjects set, so subject tests, notes and homework
             don&apos;t reach them. Tap a name to pick them:{" "}
             {unset.slice(0, 12).map((s, i, all) => (
               // The comma stays glued to its name, so a line never starts with one.
               <span key={s.id}>
                 <span className="whitespace-nowrap">
-                  <button type="button" onClick={() => openEdit(s)} className="font-semibold capitalize text-ink underline decoration-warning/60 underline-offset-4 hover:decoration-warning">
+                  <button type="button" onClick={() => openEdit(s)} className="font-semibold text-ink underline decoration-warning/60 underline-offset-4 hover:decoration-warning pointer-coarse:inline-block pointer-coarse:py-2.5">
                     {displayName(s.username)}
                   </button>
                   {i < all.length - 1 && ","}
@@ -585,8 +599,8 @@ export default function RosterPage() {
       />
       {view === "archive" && (
         <p className="mb-4 text-sm text-ink-2">
-          Students from switched-off cohorts. Tick the ones coming back, then use Add to cohort in the bar.
-          Their old tests and marks stay in the archive.
+          Students from switched-off cohorts.
+          <span data-owner> Tick the ones coming back, then use Add to cohort in the bar.</span> Their old tests and marks stay in the archive.
         </p>
       )}
 
@@ -629,7 +643,9 @@ export default function RosterPage() {
                 ? "Students from archived cohorts appear here."
                 : cohortId || mode !== "all"
                   ? "Nobody here yet. Pick another cohort or filter, or add a student."
-                  : "Add a student to get started."
+                  : staff
+                    ? "No students yet."
+                    : "Add a student to get started."
           }
         />
       ) : (
@@ -659,7 +675,7 @@ export default function RosterPage() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={cld(s.photoUrl, 96)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                     ) : (
-                      s.username.slice(0, 2)
+                      initialsOf(s.username)
                     )}
                   </span>
                   <div className="min-w-0">
@@ -707,25 +723,34 @@ export default function RosterPage() {
                       rel="noreferrer"
                       className="flex h-10 w-10 items-center justify-center rounded-full transition-colors max-md:h-11 max-md:w-11 text-ink-3 hover:bg-surface-2 hover:text-ink"
                       aria-label={`WhatsApp ${displayName(s.username)}`}
-                      title={`Chat with ${displayName(s.username)}: ${s.phone}`}
+                      title={`WhatsApp ${displayName(s.username)}: ${s.phone}`}
                     >
-                      <Icon.Users className="h-5 w-5" />
+                      <WhatsAppMark />
                     </a>
                   )}
                   {/* Straight to the report dialog, which is where the send lives. In-person students get no monthly report. */}
-                  {!inPersonIds.has(s.id) && (
-                  <Link
-                    href={`/admin/roster/${s.id}?report=1`}
-                    className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-full transition-colors max-md:h-11 max-md:w-11",
-                      s.whatsapp ? "text-ink-2 hover:bg-surface-2 hover:text-ink" : "pointer-events-none text-ink-3/40",
-                    )}
-                    aria-label={s.whatsapp ? `Send ${displayName(s.username)}'s report on WhatsApp` : `${displayName(s.username)} has no WhatsApp number`}
-                    title={s.whatsapp ? `Send report to ${s.whatsapp}` : "Add the parent's WhatsApp number first"}
-                  >
-                    <Icon.Megaphone className="h-5 w-5" />
-                  </Link>
-                  )}
+                  {/* No parent number: the faded report button opens the edit box (where the number goes), not a dead end with a hover tip phones never show. */}
+                  {!inPersonIds.has(s.id) &&
+                    (s.whatsapp ? (
+                      <Link
+                        href={`/admin/roster/${s.id}?report=1`}
+                        className="flex h-10 w-10 items-center justify-center rounded-full text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11"
+                        aria-label={`Monthly report for ${displayName(s.username)}`}
+                        title={`Monthly report, sent to ${s.whatsapp}`}
+                      >
+                        <Icon.Doc className="h-5 w-5" />
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => openEdit(s)}
+                        className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3/50 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11"
+                        aria-label={`Add the parent's WhatsApp for ${displayName(s.username)}, for the monthly report`}
+                        title="Add the parent's WhatsApp first"
+                      >
+                        <Icon.Doc className="h-5 w-5" />
+                      </button>
+                    ))}
                   <button onClick={() => openEdit(s)} className="flex h-10 w-10 items-center justify-center rounded-full transition-colors max-md:h-11 max-md:w-11 text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label={`Edit ${displayName(s.username)}`}>
                     <Icon.Edit className="h-5 w-5" />
                   </button>
@@ -818,7 +843,7 @@ export default function RosterPage() {
         open={ask === "tag"}
         onClose={() => setAsk(null)}
         title={`Tag ${plural(chosen.length, "student")}`}
-        description="In person students keep no phone numbers and get no register, monthly report or parent messages."
+        description="Students taught in person keep no phone numbers and get no register, monthly report or parent messages."
         confirmLabel="Tag"
         disabled={!bulkTag}
         onConfirm={runTag}
@@ -869,7 +894,7 @@ export default function RosterPage() {
               label={<span className="font-semibold text-ink">Taught in person</span>}
             />
             <p className="mt-1.5 pl-[30px] text-sm text-ink-3">
-              A physical student: classes, recordings and tests in the portal. No phone numbers, register, monthly report or parent messages.
+              Comes to class in person: classes, recordings and tests in the portal. No phone numbers, register, monthly report or parent messages.
             </p>
           </div>
           {form.inPerson ? null : (
@@ -885,7 +910,7 @@ export default function RosterPage() {
               hint="Country code required. Reports go here."
             />
             <Input
-              label="Student's number"
+              label="Student's WhatsApp"
               type="tel"
               inputMode="tel"
               value={form.phone}
@@ -905,7 +930,7 @@ export default function RosterPage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={form.photoUrl} alt="" className="h-full w-full object-cover" />
                 ) : (
-                  form.username.slice(0, 2) || "?"
+                  (form.username ? initialsOf(form.username) : "?")
                 )}
               </span>
               <input
@@ -939,15 +964,15 @@ export default function RosterPage() {
             </Select>
           )}
           <div>
-            <Label>Classes</Label>
+            <Label>Level</Label>
             <p className="mb-2 text-sm text-ink-3">
-              {form.cohortId ? "Pick their level. Taking two (AS and A2 together)? Pick both." : "Select a cohort first to see available classes."}
+              {form.cohortId ? "Pick their level. Taking two (AS and A2 together)? Pick both." : "Select a cohort first to see its levels."}
             </p>
             <ChipToggle
               items={availableClasses}
               selected={form.classIds}
               onToggle={toggleClass}
-              placeholder={form.cohortId ? "No classes assigned to this cohort yet." : ""}
+              placeholder={form.cohortId ? "No levels set for this cohort yet." : ""}
             />
           </div>
           {twoLevels ? (

@@ -31,6 +31,7 @@ import { PortalAmbient } from "@/components/PortalAmbient";
 import { PortalManifest } from "@/components/PortalManifest";
 import { pageTitle, useDocumentTitle } from "@/hooks/usePageTitle";
 import { useRecoverFocus } from "@/components/student/focus-session";
+import { useBackClosesMenu } from "@/components/student/useBackToClose";
 import { setActivityPath, startActivity } from "@/lib/activity-tracker";
 import { supabase } from "@/lib/supabase";
 import { DEMO } from "@/lib/demo";
@@ -73,7 +74,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     if (!initializing && !loadFailed && (!session || session.role !== "student")) router.replace("/login");
   }, [session, initializing, loadFailed, router]);
   // Tab title per page; the test runner sets its own (the countdown).
-  useDocumentTitle(/^\/test\/[^/]+$/.test(pathname) ? null : pageTitle(pathname, TITLES, "Hamza Teaches"));
+  useDocumentTitle(
+    /^\/test\/[^/]+$/.test(pathname) ? null : /^\/test\/[^/]+\/submitted$/.test(pathname) ? "Handed in · Hamza Teaches" : pageTitle(pathname, TITLES, "Hamza Teaches"),
+  );
   // Groundwork minutes from a session that was cut off (closed app, flat
   // battery) are added once that session is clearly over.
   useRecoverFocus(!initializing && session?.role === "student" && !!session.studentId);
@@ -165,7 +168,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
         <p className="text-xl font-bold text-ink">This class has finished</p>
         <p className="max-w-sm text-base text-ink-2">
-          Your class has finished for now. If you think this is a mistake, message Hamza.
+          Your class has finished for now. If you think this is a mistake, message me.
         </p>
         <Button variant="secondary" onClick={() => { logout(); router.replace("/login"); }} className="mt-2">
           Sign out
@@ -353,6 +356,9 @@ function AccountMenu({
     return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", esc); };
   }, [open]);
   const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+  // The phone's Back closes the open menu first. A page picked from the menu takes its place in history.
+  const leave = useBackClosesMenu(open, () => setOpen(false));
+  const go = () => { leave(); setOpen(false); };
 
   return (
     <div
@@ -383,7 +389,8 @@ function AccountMenu({
           <Link
             role="menuitem"
             href="/progress"
-            onClick={() => setOpen(false)}
+            replace
+            onClick={go}
             className="flex h-11 w-full items-center gap-3 rounded-field px-3 text-base font-medium text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:bg-surface-2 md:hidden"
           >
             <NavIcon.Progress className="h-5 w-5" />
@@ -392,7 +399,8 @@ function AccountMenu({
           <Link
             role="menuitem"
             href="/groundwork"
-            onClick={() => setOpen(false)}
+            replace
+            onClick={go}
             className="flex h-11 w-full items-center gap-3 rounded-field px-3 text-base font-medium text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:bg-surface-2 md:hidden"
           >
             <NavIcon.Groundwork className="h-5 w-5" />
@@ -401,7 +409,8 @@ function AccountMenu({
           <Link
             role="menuitem"
             href="/settings"
-            onClick={() => setOpen(false)}
+            replace
+            onClick={go}
             className="flex h-11 w-full items-center gap-3 rounded-field px-3 text-base font-medium text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:bg-surface-2"
           >
             <NavIcon.Settings className="h-5 w-5" />
@@ -418,13 +427,13 @@ function AccountMenu({
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z" />
             </svg>
-            Message Hamza
+            Message me
           </a>
           {confirming ? (
             <div className="rounded-field bg-surface-2 px-3 pb-3 pt-2.5" role="group" aria-label="Sign out of the portal?">
               <p className="text-base font-semibold text-ink">Sign out of the portal?</p>
               <div className="mt-2.5 flex gap-2">
-                <Button variant="secondary" size="sm" role="menuitem" onClick={onSignOut} className="flex-1">
+                <Button variant="secondary" size="sm" role="menuitem" onClick={() => { leave(); onSignOut(); }} className="flex-1">
                   Sign out
                 </Button>
                 <Button ref={keep} variant="ghost" size="sm" role="menuitem" onClick={() => setConfirming(false)} className="flex-1">
@@ -452,10 +461,13 @@ function AccountMenu({
 /**
  * The first-run welcome, but never over a class: from 10 minutes before a
  * class until it ends, the Join button stays in reach and the welcome waits.
+ * Once it has started it stays, so a student part way through never loses their picks.
  */
 function WelcomeWhenFree({ db, student }: { db: Parameters<typeof Welcome>[0]["db"]; student: NonNullable<ReturnType<typeof studentById>> }) {
   const nowMs = useNow();
   useSchedule(); // re-check when the timetable arrives
   const busy = slotsForStudent(db, student, pkDate(nowMs)).some((s) => nowMs >= s.startMs - 10 * 60_000 && nowMs < s.endMs);
-  return busy ? null : createPortal(<Welcome db={db} student={student} />, document.body);
+  const [started, setStarted] = useState(false);
+  if (!busy && !started) setStarted(true);
+  return busy && !started ? null : createPortal(<Welcome db={db} student={student} />, document.body);
 }

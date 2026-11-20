@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { STUDY_NAME, MIN_COUNTED, currentStats, quoteFor, recordFocus, recordFocusOn } from "@/lib/focus";
+import { STUDY_NAME, MIN_COUNTED, currentStats, quoteFor, recordFocusOn } from "@/lib/focus";
 import { clearRunning, loadRunning, minutesToAdd, ownRunning, saveRunning } from "@/components/student/focus-session";
 import { useBackToClose } from "@/components/student/useBackToClose";
 import { AWAY_GRACE_MS, awayFor, awayLabel, creditedAway, hideTip, setFocusRoomOpen, tipHidden } from "@/components/student/focus-away";
@@ -32,6 +32,9 @@ import { trackFocusItem, type FocusItem } from "@/lib/activity-tracker";
  * sound plays, keeps the screen awake, and ends with a study receipt.
  * Loaded only when opened, so the rest of the portal doesn't carry it.
  */
+/** The last subject choice, for study that is none of their subjects. */
+const OTHER_CHOICE = "Something else";
+
 export interface Mission {
   subject: string;
   topic: string;
@@ -87,7 +90,7 @@ export default function FocusMode({
   /** The homework or test this room's blocks are on: every counted minute is also counted against it. */
   const [focusItem] = useState<FocusItem | undefined>(() => (mission?.item?.id ? { kind: mission.item.kind, id: mission.item.id } : undefined));
   // The subject it opened with is always in the list (a test in a subject they don't take, or no subjects yet).
-  const [subjectChoices] = useState(() => [...new Set([...subjects, subject, "Something else"])]);
+  const [subjectChoices] = useState(() => [...new Set([...subjects, subject, OTHER_CHOICE])]);
   const [focusMin, setFocusMinRaw] = useState(() => Math.max(5, Math.min(120, mission?.minutes ?? lastLength() ?? 25)));
   // The length a student picks is remembered on this device for next time.
   const setFocusMin = (next: number | ((m: number) => number)) =>
@@ -186,7 +189,10 @@ export default function FocusMode({
       // One moment for the copy on screen and the saved copy (which is written later, or much later when offline),
       // so both put the minutes on the same day.
       const at = Date.now();
-      updateProfile((latest) => ({ focus: recordFocus(latest.focus, m, subj, at) }));
+      // On the day the block started: a late block that runs past midnight stays on yesterday, so it never breaks that day's streak.
+      const began = startedAt.current ?? at;
+      // "Something else" is filed under Other in the week's subjects.
+      updateProfile((latest) => ({ focus: recordFocusOn(latest.focus, m, subj === OTHER_CHOICE ? "Other" : subj, began, at) }));
       trackFocusItem(focusItem, m, at);
     }
     return logged.current;
@@ -514,7 +520,8 @@ export default function FocusMode({
     if (!running) return clearLockScreen();
     showOnLockScreen(
       { title: held ? "Paused" : phase === "rest" ? `Break · ${minsLeft} min left` : `${minsLeft} min left`, subject, totalMs: total, leftMs: left, paused: held },
-      { play: resume, pause, stop: () => void end() },
+      // Stop on the lock screen only pauses: one touch in the notification shade never ends the whole session.
+      { play: resume, pause, stop: pause },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running, minsLeft, held, phase, subject]);
@@ -612,7 +619,8 @@ export default function FocusMode({
       ? {
           id: receiptId(sessionAt),
           name: firstName,
-          subject,
+          // The receipt and its share card say "Study", never "Something else".
+          subject: subject === OTHER_CHOICE ? "Study" : subject,
           intention: intention.trim() || undefined,
           intentionDone: finished,
           startedAt: sessionAt,
@@ -813,7 +821,7 @@ export default function FocusMode({
           <div className="shrink-0 pb-2">
             <div role="alertdialog" aria-labelledby="gw-away-title" className={cn("away-in mx-auto w-full max-w-sm rounded-card p-5 text-center", glass)}>
               <p id="gw-away-title" className="text-base font-medium leading-snug text-white [text-wrap:balance]">
-                You were away {awayLabel(sheet.ms)}. The builder waited.
+                You were away {awayLabel(sheet.ms)}. Your world waited for you.
               </p>
               <button
                 ref={resumeBtn}
@@ -873,7 +881,7 @@ export default function FocusMode({
               <p className="mt-2 text-base text-white/75">
                 {mission?.item
                   ? `${receipt.focusedMin} ${receipt.focusedMin === 1 ? "minute" : "minutes"} on ${mission.item.title}. Added to your week.`
-                  : `${receipt.focusedMin} minutes of ${subject} added to your week.`}
+                  : `${receipt.focusedMin} ${receipt.focusedMin === 1 ? "minute" : "minutes"} of ${subject === OTHER_CHOICE ? "study" : subject} added to your week.`}
               </p>
               {mission?.item?.href && (
                 <Link href={mission.item.href} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-white/70 underline-offset-4 hover:text-white hover:underline">

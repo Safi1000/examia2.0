@@ -21,6 +21,8 @@ import { buttonClasses } from "@/components/ui/Button";
 import { gradeSubmission, isAllMcq } from "@/lib/grading";
 import { isFullyGraded } from "@/lib/scoring";
 import { formatTimestamp } from "@/lib/time";
+import { shownPercent } from "@/lib/performance";
+import { useIsStaff } from "@/lib/staff";
 import type { Submission, Test } from "@/types";
 
 /**
@@ -42,6 +44,8 @@ export default function SubmissionsPage() {
   const store = useStore();
   const { toast } = useToast();
   const { cohortId } = useAdminFilter();
+  // Staff have no ticks or bulk bar, so their table has no empty tick column either.
+  const staff = useIsStaff();
 
   const [subjectFilter, setSubjects] = useStickyFilter("submissions.subject");
   const [classFilter, setClasses] = useStickyFilter("submissions.class");
@@ -145,7 +149,7 @@ export default function SubmissionsPage() {
 
   function chase() {
     const list = chaseSteps(db, chosenTests, nowMs);
-    if (!list.length) return toast("Everyone set these tests has handed them in.", "info");
+    if (!list.length) return toast("Everyone has handed these in.", "success");
     setSteps({ title: "Message who hasn't handed in", label: "Open WhatsApp", noun: "chat", list });
   }
 
@@ -156,15 +160,15 @@ export default function SubmissionsPage() {
         Username: student?.username ?? "",
         Test: test.title,
         Subject: test.subject,
-        Status: sub.status === "released" ? "Released" : "Awaiting marking",
-        "Mark %": sub.status === "released" ? Math.round(grade.percent) : "",
+        Status: sub.status === "released" ? "Released" : "To mark",
+        "Mark %": sub.status === "released" ? shownPercent(grade.percent) : "",
         Grade: sub.status === "released" ? grade.letter : "",
         Late: sub.late ? "Yes" : "No",
         "Handed in": sub.submittedAt ? sub.submittedAt.slice(0, 16).replace("T", " ") : "",
       })),
-      "submissions",
+      "papers",
     );
-    toast(`Downloaded ${plural(chosenRows.length, "submission")}.`, "success");
+    toast(`Downloaded ${plural(chosenRows.length, "paper")}.`, "success");
   }
 
   function runDelete() {
@@ -172,7 +176,7 @@ export default function SubmissionsPage() {
     chosenRows.forEach((r) => store.deleteSubmission(r.sub.id));
     setAsk(null);
     sel.clear();
-    toast(`${plural(n, "submission")} deleted.`, "success");
+    toast(`${plural(n, "paper")} deleted.`, "success");
   }
 
   const actions: BulkAction[] = [
@@ -183,7 +187,7 @@ export default function SubmissionsPage() {
       run: () => (ready.length ? setAsk("release") : toast("Nothing to release: the ticked papers aren't fully marked yet, or are already released.", "info")),
     },
     { id: "chase", label: "Message who hasn't handed in", run: chase },
-    { id: "export", label: "Download as spreadsheet", run: exportRows },
+    { id: "export", label: "Download spreadsheet", run: exportRows },
     { id: "delete", label: "Delete", danger: true, run: () => setAsk("delete") },
   ];
   actions[0] = { ...actions[0], primary: true };
@@ -207,8 +211,8 @@ export default function SubmissionsPage() {
   if (db.tests.length === 0) {
     return (
       <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
-        <PageHeader title="Submissions" />
-        <EmptyState icon={<Icon.Inbox />} title="No tests yet" />
+        <PageHeader title="Marking" />
+        <EmptyState icon={<Icon.Inbox />} title="No tests yet" message="Papers show here to mark once students hand in a test." />
       </div>
     );
   }
@@ -216,8 +220,8 @@ export default function SubmissionsPage() {
   return (
     <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       <PageHeader
-        title="Submissions"
-        subtitle={`${rows.length} submission${rows.length === 1 ? "" : "s"} shown · ${toMarkCount} to mark`}
+        title="Marking"
+        subtitle={`${rows.length} paper${rows.length === 1 ? "" : "s"} shown · ${toMarkCount} to mark`}
         actions={
           releasable.length > 0 || nextToMark ? (
             <>
@@ -260,7 +264,7 @@ export default function SubmissionsPage() {
           onChange={setSubjects}
         />
         <FilterChips
-          label="Class"
+          label="Level"
           options={db.classes.map((c) => ({ value: c.id, label: c.name }))}
           selected={classFilter}
           onChange={setClasses}
@@ -268,7 +272,7 @@ export default function SubmissionsPage() {
         <FilterChips
           label="Status"
           options={[
-            { value: "submitted", label: "Awaiting grading" },
+            { value: "submitted", label: "To mark" },
             { value: "released", label: "Released" },
           ]}
           selected={statuses}
@@ -278,16 +282,16 @@ export default function SubmissionsPage() {
 
 
       {rows.length === 0 ? (
-        <EmptyState icon={<Icon.Inbox />} title="No submissions" message="Nothing matches the current filters." />
+        <EmptyState icon={<Icon.Inbox />} title="No papers" message="Nothing matches the current filters." />
       ) : (
-        <div role="group" aria-label="Submissions" onKeyDown={sel.listKeyDown}>
-        <span data-owner className="contents"><SelectAll sel={sel} noun="submission" /></span>
+        <div role="group" aria-label="Papers" onKeyDown={sel.listKeyDown}>
+        <span data-owner className="contents"><SelectAll sel={sel} noun="paper" /></span>
         <Card className="overflow-hidden p-0">
           <TableScroll className={tableBox}>
             <Table stickyFirst className={stickyHead}>
               <thead>
                 <tr>
-                  <Th className="w-10"><span className="sr-only">Select</span></Th>
+                  {!staff && <Th className="w-10"><span className="sr-only">Select</span></Th>}
                   <Th>Student</Th>
                   <Th>Test</Th>
                   <Th className="hidden xl:table-cell">Cohort</Th>
@@ -302,13 +306,15 @@ export default function SubmissionsPage() {
                   const cohort = student ? cohortById(db, student.cohortId) : null;
                   return (
                     <tr key={sub.id}>
-                      <Td>
-                        <span data-owner className="contents"><RowCheck id={sub.id} checked={sel.isSelected(sub.id)} onToggle={sel.toggle} label={`Select ${student?.username ?? "submission"}`} /></span>
-                      </Td>
-                      <Td className="font-semibold capitalize">
-                        {/* On a phone the actions sit off to the side: the name opens the paper too. */}
-                        <Link href={`/admin/grading/${sub.id}`} className="underline-offset-4 hover:underline">
-                          {student?.username ?? "Removed student"}
+                      {!staff && (
+                        <Td>
+                          <span data-owner className="contents"><RowCheck id={sub.id} checked={sel.isSelected(sub.id)} onToggle={sel.toggle} label={`Select ${student ? displayName(student.username) : "paper"}`} /></span>
+                        </Td>
+                      )}
+                      <Td className="font-semibold">
+                        {/* On a phone the actions sit off to the side: the name opens the paper too (a full fingertip tall). */}
+                        <Link href={`/admin/grading/${sub.id}`} className="inline-flex items-center underline-offset-4 hover:underline pointer-coarse:min-h-11">
+                          {student ? displayName(student.username) : "Removed student"}
                         </Link>
                       </Td>
                       <Td className="min-w-[8rem] text-ink-2 xl:min-w-[10rem]">
@@ -317,11 +323,11 @@ export default function SubmissionsPage() {
                         <span className="block text-xs text-ink-3">{test.subject}</span>
                         <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs md:hidden">
                           {sub.status === "released" ? (
-                            <span className="font-semibold tabular-nums text-ink">{grade.percent}% · {grade.letter}</span>
+                            <span className="font-semibold tabular-nums text-ink">{shownPercent(grade.percent)}% · {grade.letter}</span>
                           ) : state.kind === "marked" ? (
-                            <span className="tabular-nums text-ink-2">Marked, not released · {grade.percent}%</span>
+                            <span className="tabular-nums text-ink-2">Marked, not released · {shownPercent(grade.percent)}%</span>
                           ) : (
-                            <Badge tone="warning">{state.kind === "part" ? `Part marked (${state.done} of ${state.of})` : "Awaiting"}</Badge>
+                            <Badge tone="warning">{state.kind === "part" ? `Part marked (${state.done} of ${state.of})` : "To mark"}</Badge>
                           )}
                           {state.missing && <span className="font-semibold text-warning">A mark is missing</span>}
                           {sub.late && !lateWindow && <Badge tone="error" className="capitalize">late</Badge>}
@@ -334,7 +340,7 @@ export default function SubmissionsPage() {
                         ) : state.kind === "marked" ? (
                           <Badge tone="neutral">Marked, not released</Badge>
                         ) : (
-                          <Badge tone="warning">{state.kind === "part" ? `Part marked (${state.done} of ${state.of})` : "Awaiting"}</Badge>
+                          <Badge tone="warning">{state.kind === "part" ? `Part marked (${state.done} of ${state.of})` : "To mark"}</Badge>
                         )}
                         {state.missing && <span className="ml-1 text-xs font-semibold text-warning">a mark is missing</span>}
                         {sub.autoSubmitted && <span className="ml-1 text-xs text-ink-3" title="Handed in by the timer when time ran out">timed out</span>}
@@ -345,16 +351,16 @@ export default function SubmissionsPage() {
                             <Badge tone="error" className="ml-1 capitalize">late</Badge>
                           ))}
                       </Td>
-                      <Td className="hidden whitespace-nowrap font-semibold tabular-nums md:table-cell">{sub.status === "released" ? `${grade.percent}% · ${grade.letter}` : state.kind === "marked" ? <span className="font-normal text-ink-2">{grade.percent}% · {grade.letter}</span> : <span className="font-normal text-ink-3">Not yet</span>}</Td>
+                      <Td className="hidden whitespace-nowrap font-semibold tabular-nums md:table-cell">{sub.status === "released" ? `${shownPercent(grade.percent)}% · ${grade.letter}` : state.kind === "marked" ? <span className="font-normal text-ink-2">{shownPercent(grade.percent)}% · {grade.letter}</span> : <span className="font-normal text-ink-3">Not yet</span>}</Td>
                       <Td className="hidden min-w-[6.5rem] tabular-nums text-ink-2 md:table-cell xl:whitespace-nowrap">{sub.submittedAt ? formatTimestamp(sub.submittedAt) : "Not yet"}</Td>
                       <Td>
                         <div className="flex items-center gap-1.5">
                           <Link href={`/admin/grading/${sub.id}`} className={cn(buttonClasses({ variant: "secondary", size: "sm" }), "max-md:hidden")}>
-                            {sub.status === "released" ? "Review" : "Grade"}
+                            {sub.status === "released" ? "Open" : "Mark"}
                           </Link>
                           <span data-owner className="contents">
                             <RowMenu
-                              label={`More for ${student?.username ?? "this"} submission`}
+                              label={`More for ${student ? `${displayName(student.username)}'s` : "this"} paper`}
                               items={[{ label: "Delete", danger: true, onSelect: () => setDeleteId(sub.id) }]}
                             />
                           </span>
@@ -431,9 +437,9 @@ export default function SubmissionsPage() {
       <ConfirmBulk
         open={ask === "delete"}
         onClose={() => setAsk(null)}
-        title={`Delete ${plural(chosenRows.length, "submission")}?`}
+        title={`Delete ${plural(chosenRows.length, "paper")}?`}
         description="The students' answers, photos and marks for these papers are removed for good. This cannot be undone."
-        confirmLabel={`Delete ${plural(chosenRows.length, "submission")}`}
+        confirmLabel={`Delete ${plural(chosenRows.length, "paper")}`}
         danger
         ack={`I understand ${plural(chosenRows.length, "student's paper", "students' papers")} will be deleted.`}
         onConfirm={runDelete}
@@ -449,11 +455,11 @@ export default function SubmissionsPage() {
       <Modal
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
-        title="Delete submission?"
+        title="Delete paper?"
         footer={
           <>
             <Button variant="secondary" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button variant="danger" onClick={() => { if (deleteId) store.deleteSubmission(deleteId); setDeleteId(null); toast("Submission deleted.", "success"); }}>Delete</Button>
+            <Button variant="danger" onClick={() => { if (deleteId) store.deleteSubmission(deleteId); setDeleteId(null); toast("Paper deleted.", "success"); }}>Delete</Button>
           </>
         }
       >
@@ -462,7 +468,7 @@ export default function SubmissionsPage() {
             const sub = db.submissions.find((x) => x.id === deleteId);
             const who = db.students.find((x) => x.id === sub?.studentId)?.username;
             const what = db.tests.find((x) => x.id === sub?.testId)?.title;
-            return who && what ? `This permanently removes ${displayName(who)}'s submission for ${what}.` : "This permanently removes the student's submission.";
+            return who && what ? `This permanently removes ${displayName(who)}'s paper for ${what}.` : "This permanently removes the student's paper.";
           })()}
         </p>
       </Modal>

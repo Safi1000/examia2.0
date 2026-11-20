@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Submission, Test } from "@/types";
 import { Badge, Card, Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
-import { testWindow, formatDate, formatRelative, formatWhen } from "@/lib/time";
+import { testWindow, formatRelative, formatWhen } from "@/lib/time";
 import { gradeSubmission } from "@/lib/grading";
 import { FocusOnThis } from "@/components/student/FocusOnThis";
 import { AddToCalendar } from "@/components/student/AddToCalendar";
@@ -58,7 +58,7 @@ export function TestCard({
     <Card className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
       <div className="min-w-0">
         {/* The test code is Hamza's own reference: students only need the subject. */}
-        <p className="text-xs font-medium text-ink-3">{test.subject}</p>
+        <p className="text-sm font-medium text-ink-3">{test.subject}</p>
         <h3 className="mt-1 text-base font-semibold leading-snug text-ink">{test.title}</h3>
         <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-ink-2 tabular-nums">
           <span className="inline-flex items-center gap-1"><Icon.Clock className="h-4 w-4" />{test.durationMinutes} min</span>
@@ -77,7 +77,8 @@ export function TestCard({
         )}
 
         {window === "open" && !submission && (
-          <span className={closingSoon ? "text-sm font-semibold text-warning tabular-nums" : "text-sm text-ink-2 tabular-nums"}>
+          // Under a day left: the same words, just firmer (gold stays for the Start button).
+          <span className={closingSoon ? "text-sm font-semibold text-ink tabular-nums" : "text-sm text-ink-2 tabular-nums"}>
             {test.reopened ? "Opened for you, closes" : "Closes"} {formatRelative(test.closesAt, nowMs)}
           </span>
         )}
@@ -92,10 +93,11 @@ export function TestCard({
           </div>
         )}
 
-        {window === "open" && submitted && (
+        {/* Waiting for marks reads the same whether the test is still open for others or has closed. */}
+        {submitted && (
           <div className="sm:text-right">
             <Badge tone="neutral">Handed in</Badge>
-            <p className="mt-1 text-sm text-ink-3">Awaiting results</p>
+            <p className="mt-1 text-sm text-ink-3">I&apos;ll mark it soon.</p>
           </div>
         )}
 
@@ -106,20 +108,14 @@ export function TestCard({
         )}
 
         {released && (
-          <Link href={`/results/${test.id}`} className={buttonClasses({ variant: "secondary", className: "w-full sm:w-auto" })}>
+          <Link href={`/results/${test.id}`} className={buttonClasses({ variant: "secondary", className: "ml-auto sm:ml-0" })}>
             View result
           </Link>
         )}
 
-        {window === "closed" && submitted && (
-          <div className="sm:text-right">
-            <Badge tone="warning">Awaiting results</Badge>
-            <p className="mt-1 text-sm text-ink-3">Closed {formatDate(test.closesAt)}</p>
-          </div>
-        )}
-
         {window === "closed" && !submission && (
-          <div className="text-right">
+          // Left on phones like every other card's status, right beside the title on wider screens.
+          <div className="sm:text-right">
             <Badge tone="neutral">Closed</Badge>
             <p className="mt-1 text-sm text-ink-3">Not attempted</p>
             <AskToReopen title={test.title} />

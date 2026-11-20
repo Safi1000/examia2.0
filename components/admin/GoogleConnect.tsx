@@ -129,7 +129,7 @@ export function GoogleConnect({ onSynced }: { onSynced: () => void }) {
   return (
     <div className="mt-10 border-t border-hairline pt-5 text-sm">
       {!status.ready ? (
-        <p className="text-ink-3">Automatic Meet links switch on once the Google keys are added.</p>
+        <p className="text-ink-3">Meet links are not made automatically yet, so paste each one under More on the class.</p>
       ) : status.broken ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-tile border border-warning/40 bg-warning-soft px-4 py-3">
           <p className="text-ink">Google has disconnected (a password change or removed access). Reconnect it so classes keep getting Meet links.</p>

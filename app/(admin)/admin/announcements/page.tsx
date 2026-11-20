@@ -9,7 +9,7 @@ import { useToast } from "@/components/toast";
 import { RowMenu } from "@/components/admin/RowMenu";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Card, Button, Textarea, Select, Checkbox, Badge, CohortTag, Modal, EmptyState, Icon } from "@/components/ui";
-import { formatDate } from "@/lib/time";
+import { formatTimestamp } from "@/lib/time";
 import { useAdminFilter } from "@/lib/admin-filter";
 
 const MAX = 250;
@@ -47,7 +47,7 @@ export default function AnnouncementsPage() {
           !toPhones
             ? "Announcement posted."
             : sent === null
-              ? "Posted. The phone notification couldn't go out; it still shows in the portal."
+              ? "Posted. Phone notifications couldn't go out (they may not be set up yet), so it shows in the portal only."
               : sent === 0
                 ? "Posted. No phones to notify right now (quiet hours, or no one has notifications on)."
                 : `Posted and sent to ${sent} ${sent === 1 ? "student" : "students"}.`,
@@ -109,7 +109,7 @@ export default function AnnouncementsPage() {
                     <div className="mb-1.5 flex flex-wrap items-center gap-2">
                       {a.pinned && <Badge tone="info"><Icon.Flag className="h-3 w-3" /> Pinned</Badge>}
                       {cohort ? <CohortTag color={cohort.color} name={cohort.name} className="text-xs" /> : <span className="text-sm text-ink-3">All cohorts</span>}
-                      <span className="text-sm tabular-nums text-ink-3">{formatDate(a.createdAt)}</span>
+                      <span className="text-sm tabular-nums text-ink-3">{formatTimestamp(a.createdAt)}</span>
                     </div>
                     <p className="max-w-[75ch] whitespace-pre-line break-words text-pretty text-base leading-relaxed text-ink">{a.body}</p>
                     {!a.pinned && (
@@ -117,7 +117,7 @@ export default function AnnouncementsPage() {
                     )}
                   </div>
                   <div className="flex shrink-0 justify-end gap-1">
-                    <button type="button" aria-pressed={a.pinned} onClick={() => store.updateAnnouncement(a.id, { pinned: !a.pinned })} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11" aria-label="Pinned" title={a.pinned ? "Unpin" : "Pin"}>
+                    <button type="button" onClick={() => store.updateAnnouncement(a.id, { pinned: !a.pinned })} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11" aria-label={a.pinned ? "Unpin" : "Pin"} title={a.pinned ? "Unpin" : "Pin"}>
                       <Icon.Flag className={a.pinned ? "h-5 w-5 text-info" : "h-5 w-5"} />
                     </button>
                     <button type="button" onClick={() => openEdit(a)} className="flex h-10 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink max-md:h-11 max-md:w-11" aria-label="Edit">
@@ -138,7 +138,7 @@ export default function AnnouncementsPage() {
         title={editing === "new" ? "New announcement" : "Edit announcement"}
         footer={
           <>
-            <Button variant="secondary" disabled={posting} onClick={() => setEditing(null)}>Cancel</Button>
+            <Button variant="secondary" disabled={posting} onClick={closeEditor}>Cancel</Button>
             <Button onClick={() => void save()} loading={posting} disabled={!body.trim() || nobody}>{editing === "new" ? "Post" : "Save"}</Button>
           </>
         }
@@ -172,7 +172,7 @@ export default function AnnouncementsPage() {
         footer={
           <>
             <Button variant="secondary" onClick={() => setDeleting(null)}>Cancel</Button>
-            <Button variant="danger" onClick={() => { if (deleting) store.deleteAnnouncement(deleting.id); setDeleting(null); toast("Deleted.", "success"); }}>Delete</Button>
+            <Button variant="danger" onClick={() => { if (deleting) store.deleteAnnouncement(deleting.id); setDeleting(null); toast("Announcement deleted.", "success"); }}>Delete</Button>
           </>
         }
       >

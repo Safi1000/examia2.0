@@ -42,11 +42,14 @@ export async function GET(req: NextRequest) {
     entry = await job;
     cache.set(cohortId, entry);
   }
-  const rank = entry.rows.findIndex((r) => r.id === me.id);
+  // Equal minutes share a place: 1 + everyone with more. The list itself breaks ties by name.
+  const placeOf = (minutes: number) => 1 + entry.rows.filter((r) => r.minutes > minutes).length;
+  const mine = entry.rows.find((r) => r.id === me.id);
   return NextResponse.json(
     {
-      top: entry.rows.slice(0, 3).map(({ name, avatar, minutes, level }) => ({ name, avatar, minutes, level })),
-      me: rank >= 0 ? { rank: rank + 1, minutes: entry.rows[rank].minutes } : null,
+      top: entry.rows.slice(0, 3).map(({ name, avatar, minutes, level }) => ({ name, avatar, minutes, level, rank: placeOf(minutes) })),
+      // inTop: shown in the list above (a tie can share 3rd place yet sort 4th by name).
+      me: mine ? { rank: placeOf(mine.minutes), minutes: mine.minutes, inTop: entry.rows.indexOf(mine) < 3 } : null,
     },
     { headers: { "Cache-Control": "private, no-store" } },
   );
@@ -81,6 +84,6 @@ async function buildRows(sb: ReturnType<typeof serviceClient>, cohortId: string)
     }
     if (data.users.length < 1000) break;
   }
-  rows.sort((a, b) => b.minutes - a.minutes);
+  rows.sort((a, b) => b.minutes - a.minutes || a.name.localeCompare(b.name));
   return { at: Date.now(), rows };
 }

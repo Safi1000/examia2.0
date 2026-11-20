@@ -4,6 +4,8 @@ import { useDatabase } from "@/lib/data/store";
 import { cohortById, studentById, submissionById, testById, testForStudent } from "@/lib/data/selectors";
 import { useAuth } from "@/lib/auth-context";
 import { useNow } from "@/hooks/useNow";
+import { useState } from "react";
+import { useToast } from "@/components/toast";
 import { Badge, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import {
@@ -60,6 +62,14 @@ const STATUS_TONE: Record<TestNotificationStatus, "info" | "success" | "warning"
   closed: "neutral",
 };
 
+/** What a student reads on the badge: plain words, not the console's. */
+const STUDENT_LABEL: Record<TestNotificationStatus, string> = {
+  upcoming: "Coming up",
+  active: "Open now",
+  closing_soon: "Closes soon",
+  closed: "Closed",
+};
+
 /** Label above a value. */
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -106,6 +116,8 @@ function TestDetails({ testId, updatedAt }: { testId: string; updatedAt?: string
   const status = testNotificationStatus(test.opensAt, test.closesAt, now);
   const countdown = testCountdown(test, now);
   const cohort = cohortById(db, test.cohortId);
+  // Class names are mine to manage: a student only needs the subject.
+  const student = session?.role === "student";
 
   return (
     <div className="mt-2.5 overflow-hidden rounded-tile bg-surface-2">
@@ -116,13 +128,13 @@ function TestDetails({ testId, updatedAt }: { testId: string; updatedAt?: string
           <span className="truncate">{test.title}</span>
         </p>
         <Badge tone={STATUS_TONE[status]} className="shrink-0">
-          {STATUS_LABEL[status]}
+          {(student ? STUDENT_LABEL : STATUS_LABEL)[status]}
         </Badge>
       </div>
 
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3.5 px-3.5 py-3">
         <Field label="Subject" value={test.subject} />
-        <Field label="Cohort" value={cohort?.name ?? "All cohorts"} />
+        {!student && <Field label="Cohort" value={cohort?.name ?? "All cohorts"} />}
         <WhenField label="Starts" iso={test.opensAt} />
         <WhenField label="Closes" iso={test.closesAt} />
         <Field label="Duration" value={formatTestDuration(test.durationMinutes)} />
@@ -133,7 +145,7 @@ function TestDetails({ testId, updatedAt }: { testId: string; updatedAt?: string
             </dt>
             <dd
               className={cn(
-                "mt-1 truncate text-sm font-semibold tabular",
+                "mt-1 truncate text-sm font-semibold tabular-nums",
                 status === "closing_soon" ? "text-warning" : "text-ink",
               )}
             >
@@ -149,7 +161,7 @@ function TestDetails({ testId, updatedAt }: { testId: string; updatedAt?: string
 
       {updatedAt && (
         <p className="border-t border-hairline px-3.5 py-2 text-sm text-ink-2">
-          I changed something in this test. The details below are up to date.
+          I changed something in this test. The details above are up to date.
         </p>
       )}
 
@@ -189,7 +201,7 @@ function SubmissionDetails({ submissionId }: { submissionId: string }) {
       ? { label: "Result released", tone: "info" as const }
       : submission.autoSubmitted
         ? { label: "Handed in when time ran out", tone: "warning" as const }
-        : { label: "Submitted successfully", tone: "success" as const };
+        : { label: "Handed in", tone: "success" as const };
 
   // submittedAt is only absent while a paper is still in progress.
   const at = submission.submittedAt;
@@ -205,7 +217,7 @@ function SubmissionDetails({ submissionId }: { submissionId: string }) {
       </div>
 
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3.5 px-3.5 py-3">
-        <Field label="Student" value={student?.username ?? "Unknown student"} />
+        <Field label="Student" value={student?.username ?? "A removed student"} />
         <Field label="Cohort" value={cohort?.name ?? "None"} />
         <Field label="Subject" value={test?.subject ?? "None"} />
         <Field label="Test" value={test?.title ?? "None"} />
@@ -215,13 +227,21 @@ function SubmissionDetails({ submissionId }: { submissionId: string }) {
 
       <div className="flex items-center justify-end border-t border-hairline px-3.5 py-2.5">
         <span className="flex items-center gap-1 text-sm font-semibold text-ink-2">
-          View Submission
+          View paper
           <Icon.ChevronRight className="h-4 w-4" />
         </span>
       </div>
     </div>
   );
 }
+
+/**
+ * Deletes still waiting out their Undo. Module level, so a row stays hidden
+ * if the bell list closes and opens again in the meantime.
+ */
+const pendingDelete = new Set<string>();
+/** The same time the toast with Undo stays up. */
+const UNDO_MS = 7000;
 
 /**
  * A single notification. The bell renders the "compact" variant; /notifications
@@ -248,6 +268,35 @@ export function NotificationItem({
 }) {
   const now = useNow();
   const full = variant === "full";
+  const { toast } = useToast();
+  const [, redraw] = useState(0);
+
+  // One tap on the bin hides the row at once; it is only deleted once the Undo has gone.
+  function remove() {
+    if (!onClear) return;
+    const id = activity.id;
+    const clear = onClear;
+    pendingDelete.add(id);
+    redraw((n) => n + 1);
+    // Leaving the page (closing the tab or the app) inside the Undo time still deletes it.
+    const flush = () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("pagehide", flush);
+      if (!pendingDelete.delete(id)) return;
+      clear(id);
+    };
+    const timer = window.setTimeout(flush, UNDO_MS);
+    window.addEventListener("pagehide", flush);
+    toast("Notification deleted.", "default", {
+      label: "Undo",
+      onClick: () => {
+        window.clearTimeout(timer);
+        window.removeEventListener("pagehide", flush);
+        pendingDelete.delete(id);
+        redraw((n) => n + 1);
+      },
+    });
+  }
 
   // A hand-in carries BOTH a testId and a submissionId. It gets the submission
   // panel, not the schedule panel — the reader is staff about to grade it, and
@@ -310,7 +359,7 @@ export function NotificationItem({
 
         {/* Relative stamp, with the exact time on hover as the brief asks. */}
         <span
-          className="mt-1 block text-sm text-ink-3 tabular"
+          className="mt-1 block text-sm text-ink-3 tabular-nums"
           title={formatDateTime(activity.createdAt)}
         >
           {relativeTime(activity.createdAt, now)}
@@ -320,6 +369,7 @@ export function NotificationItem({
   );
 
   const inert = !activity.link && !unread;
+  if (pendingDelete.has(activity.id)) return null;
 
   // The row and the delete control are siblings, not nested: a <button> inside
   // a <button> is invalid, and clicking delete must never also open the link.
@@ -347,7 +397,7 @@ export function NotificationItem({
       {onClear && (
         <button
           type="button"
-          onClick={() => onClear(activity.id)}
+          onClick={remove}
           aria-label={`Delete notification: ${activity.title}`}
           title="Delete notification"
           className={cn(

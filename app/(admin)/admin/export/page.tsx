@@ -60,7 +60,7 @@ export default function ExportPage() {
     };
     const name = exportFilename(COMPANY_SLUG, todayStamp(Date.now()), "json");
     download(JSON.stringify(payload, null, 2), name, "application/json");
-    toast(`Downloaded ${keys.length} ${keys.length === 1 ? "list" : "lists"} as JSON.`, "success");
+    toast(`Backup file of ${keys.length} ${keys.length === 1 ? "list" : "lists"} downloaded.`, "success");
   }
 
   function downloadCsv(key: EntityKey) {
@@ -69,7 +69,7 @@ export default function ExportPage() {
     const name = `${COMPANY_SLUG}-${key}-${todayStamp(Date.now())}.csv`;
     // The byte-order mark makes Excel read names in any script correctly.
     download(CSV_BOM + csv, name, "text/csv;charset=utf-8");
-    toast(`Downloaded ${ENTITY_LABEL[key]} as CSV.`, "success");
+    toast(`${ENTITY_LABEL[key]} spreadsheet downloaded.`, "success");
   }
 
   function downloadMarks() {
@@ -87,7 +87,7 @@ export default function ExportPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
-      <PageHeader title="Data export" subtitle="Download a snapshot of your portal data." />
+      <PageHeader title="Export" subtitle="Download a copy of your portal data." />
 
       <Card className="mb-5 max-w-2xl p-5 sm:p-6">
         <h2 className="text-base font-semibold text-ink">Marks spreadsheet</h2>
@@ -115,8 +115,8 @@ export default function ExportPage() {
                 </span>
               } />
               {TABULAR.includes(key) && (
-                <button onClick={() => downloadCsv(key)} aria-label={`Download ${ENTITY_LABEL[key]} as CSV`} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink">
-                  <Icon.Download className="h-4 w-4" /> CSV
+                <button onClick={() => downloadCsv(key)} aria-label={`Download ${ENTITY_LABEL[key]} spreadsheet`} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink">
+                  <Icon.Download className="h-4 w-4" /> Spreadsheet
                 </button>
               )}
             </li>
@@ -125,14 +125,14 @@ export default function ExportPage() {
 
         <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-hairline pt-4">
           <Button variant="secondary" onClick={downloadJson} disabled={selected.size === 0}>
-            <Icon.Download className="h-4 w-4" /> Download JSON
+            <Icon.Download className="h-4 w-4" /> Download backup file
           </Button>
           <p className="min-w-0 break-all font-mono text-xs text-ink-3">
             {exportFilename(COMPANY_SLUG, today, "json")}
           </p>
         </div>
         <p className="mt-3 text-sm text-ink-3">
-          The JSON file holds every ticked list. Cohorts, students and submissions can also be downloaded on their own as a spreadsheet (CSV).
+          The backup file holds every ticked list, for keeping safe or for your developer. Cohorts, students and submissions can also be downloaded on their own as a spreadsheet.
         </p>
       </Card>
     </div>
