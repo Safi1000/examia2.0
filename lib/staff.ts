@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { DEMO } from "@/lib/demo";
 import type { Session } from "@/types";
 import { STAFF_AREAS, staffAllowed } from "@/lib/staff-areas";
+import { useAuth } from "@/lib/auth-context";
 
 export { STAFF_AREAS, DEFAULT_ACCESS, cleanAccess, type StaffArea } from "@/lib/staff-areas";
 
@@ -18,6 +19,13 @@ export { STAFF_AREAS, DEFAULT_ACCESS, cleanAccess, type StaffArea } from "@/lib/
  * item 4, is the real role.
  */
 export const isTa = (session: Session | null | undefined) => session?.role === "admin" && session.staff === "ta";
+
+/**
+ * True on a staff member's console (not Hamza's). Use this, not only the
+ * owner-only mark, wherever something must not open or run for staff: an
+ * address typed by hand, a window, an action.
+ */
+export const useIsStaff = () => isTa(useAuth().session);
 
 /** Pages every staff member may open, whatever is switched on. */
 const ALWAYS = ["/admin/notifications"];

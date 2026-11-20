@@ -98,7 +98,7 @@ export function LateWindowCard({ test }: { test: Test }) {
                     </p>
                   </div>
                   {wa && (
-                    <a href={wa} target="_blank" rel="noopener noreferrer" className={buttonClasses({ variant: "secondary", size: "sm" })}>
+                    <a data-owner href={wa} target="_blank" rel="noopener noreferrer" className={buttonClasses({ variant: "secondary", size: "sm" })}>
                       WhatsApp
                     </a>
                   )}

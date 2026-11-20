@@ -412,6 +412,21 @@ function testPatchToRow(patch: Partial<Omit<Test, "id" | "createdAt" | "question
   return row;
 }
 
+/** What a staff sign-in reads of a student: no phone, WhatsApp or email. */
+const STUDENT_FOR_STAFF = "id,username,photo_url,cohort_id,created_at";
+/** Feed rows that say what a student opened or did on their own: never loaded for staff. */
+const STAFF_NEVER: ActivityType[] = ["test_started", "notes_accessed", "notes_downloaded", "well_built"];
+/** The same data with everything that is Hamza's alone taken out (see Store.setStaff). */
+function forStaff(db: Database): Database {
+  return {
+    ...db,
+    students: db.students.map((s) => ({ ...s, phone: undefined, whatsapp: undefined, email: undefined })),
+    activities: db.activities.filter((a) => !STAFF_NEVER.includes(a.type)),
+    reports: [],
+    remindersSent: [],
+  };
+}
+
 // ---------------------------------------------------------------------------
 class Store {
   private state: Database = EMPTY;
@@ -468,7 +483,7 @@ class Store {
   }
   /** Show the last saved copy straight away; the real load replaces it. */
   restore(snap: Snapshot) {
-    this.state = snap.db;
+    this.state = this.staff ? forStaff(snap.db) : snap.db;
     this.ready = true;
     this.restored = true;
     this.notify();
@@ -559,6 +574,40 @@ class Store {
   private audience: "admin" | "student" = "admin";
 
   /**
+   * A staff sign-in (anyone Hamza gave a console sign-in, not Hamza). Phone
+   * numbers, emails, what students opened, parent reports and the reminder
+   * log never reach this device, and the actions that are Hamza's alone stop
+   * here, whatever a screen let through.
+   */
+  setStaff(on: boolean) {
+    this.staff = on;
+  }
+  private staff = false;
+  private ownerOnly(): boolean {
+    if (!this.staff) return true;
+    this.report("Only Hamza can do that.");
+    return false;
+  }
+  /** One line in the staff log, at most once per `key` every 10 minutes (a marking run is one line, not forty). */
+  private noted = new Map<string, number>();
+  private note(key: string, what: string) {
+    if (!this.staff || DEMO) return;
+    const now = Date.now();
+    if (now - (this.noted.get(key) ?? 0) < 600_000) return;
+    this.noted.set(key, now);
+    void supabase()
+      .auth.getSession()
+      .then(({ data }) => {
+        const token = data.session?.access_token;
+        if (!token) return;
+        return fetch("/api/admin/staff", { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ what }), keepalive: true });
+      })
+      .catch(() => {});
+  }
+  private nameOf = (studentId?: string) => this.state.students.find((x) => x.id === studentId)?.username ?? "a student";
+  private titleOf = (testId?: string) => this.state.tests.find((x) => x.id === testId)?.title ?? "a test";
+
+  /**
    * Pull one test and its questions straight from the database and merge them
    * into the cache. This is the guarantee that a student always sits the LATEST
    * version of a paper: option text, option order, marks and the question set
@@ -614,7 +663,7 @@ class Store {
   private async hydrate(initial: boolean) {
     if (DEMO) {
       // Preview-only: the sample data stands in for the database.
-      if (initial || !this.ready) this.state = createSeed();
+      if (initial || !this.ready) this.state = this.staff ? forStaff(createSeed()) : createSeed();
       this.ready = true;
       this.notify();
       return;
@@ -626,6 +675,7 @@ class Store {
     // student screen (reports, reminders): don't spend a round trip or data.
     const empty = Promise.resolve({ data: [] as Row[], error: null });
     const staffOnly = <T,>(q: () => T) => (this.audience === "student" ? empty : q());
+    const ownerRows = <T,>(q: () => T) => (this.audience === "student" || this.staff ? empty : q());
     // The admin's level list is its own request: start it now, alongside the rest.
     const levelsReady = this.readLevels([]);
     // Late windows (one student sits a missed test) live in the feed as
@@ -650,13 +700,14 @@ class Store {
         ? Promise.resolve([] as Activity[])
         : quiet(sb.from("activities").select("*").eq("type", "student_joined_class").not("student_id", "is", null).not("class_id", "is", null)),
       // This week's "Well built" notes, so Today never offers to send one twice.
-      this.audience === "student"
+      this.audience === "student" || this.staff
         ? Promise.resolve([] as Activity[])
         : quiet(sb.from("activities").select("*").eq("type", "well_built").gte("created_at", new Date(Date.now() - 8 * 86_400_000).toISOString())),
     ]).then(([a, b, s, l, c]) => [...a, ...b, ...s, ...l, ...c]);
     const [coh, stu, tst, sub, ann, bnk, keys, cls, subj, cCls, cSubj, sCls, sSubj, nts, nAssigns, asg, asgSubs, attD, attM, rep, rem, acts] = await Promise.all([
       sb.from("cohorts").select("*").order("created_at"),
-      allRows((a, b) => sb.from("students").select("*").order("created_at").order("id").range(a, b)),
+      // Staff: no phone numbers or emails are even asked for.
+      allRows((a, b) => sb.from("students").select(this.staff ? STUDENT_FOR_STAFF : "*").order("created_at").order("id").range(a, b)),
       sb.from("tests").select("*, questions(*)").order("created_at"),
       allRows((a, b) => sb.from("submissions").select(`*, ${ANSWERS_LIGHT}`).order("id").range(a, b)),
       sb.from("announcements").select("*").order("created_at", { ascending: false }),
@@ -675,10 +726,13 @@ class Store {
       // Students see their own register on Progress (RLS returns only their rows).
       allRows((a, b) => sb.from("attendance_days").select("*").order("id").range(a, b)),
       allRows((a, b) => sb.from("attendance_months").select("*").order("id").range(a, b)),
-      staffOnly(() => allRows((a, b) => sb.from("reports").select("*").order("created_at", { ascending: false }).order("id").range(a, b))),
-      staffOnly(() => allRows((a, b) => sb.from("reminders_sent").select("*").order("id").range(a, b))),
-      // Feed is capped: the bell only ever shows recent history.
-      sb.from("activities").select("*").order("created_at", { ascending: false }).limit(100),
+      // Parent reports and the reminder log are Hamza's alone.
+      ownerRows(() => allRows((a, b) => sb.from("reports").select("*").order("created_at", { ascending: false }).order("id").range(a, b))),
+      ownerRows(() => allRows((a, b) => sb.from("reminders_sent").select("*").order("id").range(a, b))),
+      // Feed is capped: the bell only ever shows recent history. Staff never get what students opened.
+      this.staff
+        ? sb.from("activities").select("*").not("type", "in", `(${STAFF_NEVER.join(",")})`).order("created_at", { ascending: false }).limit(100)
+        : sb.from("activities").select("*").order("created_at", { ascending: false }).limit(100),
     ]);
     // Signed out while this was loading: these rows belong to the person who left.
     if (epoch !== this.epoch) return;
@@ -809,6 +863,7 @@ class Store {
       notes: keep(nts, () => ((nts.data as Row[]) ?? []).map(mapNote), prev.notes),
       noteAssignments: keep(nAssigns, () => ((nAssigns.data as Row[]) ?? []).map(mapNoteAssignment), prev.noteAssignments),
     };
+    if (this.staff) this.state = forStaff(this.state);
     this.ready = true;
     this.restored = false;
     this.notify();
@@ -820,6 +875,8 @@ class Store {
     this.ready = false;
     this.restored = false;
     this.owner = null;
+    this.staff = false;
+    this.noted.clear();
     this.epoch++;
     this.strokesLoaded.clear();
     if (this.saveTimer) clearTimeout(this.saveTimer);
@@ -910,6 +967,7 @@ class Store {
 
   // ---- Cohorts ---------------------------------------------------------
   addCohort(name: string, color: CohortColor) {
+    if (!this.ownerOnly()) throw new Error("Only Hamza can do that.");
     const id = genId();
     const createdAt = new Date().toISOString();
     this.commit((d) => d.cohorts.push({ id, name, color, classIds: [], subjectIds: [], createdAt, active: true }));
@@ -917,6 +975,7 @@ class Store {
     return id;
   }
   updateCohort(id: string, patch: Partial<Pick<Cohort, "name" | "color">>) {
+    if (!this.ownerOnly()) return;
     this.commit((d) => {
       const c = d.cohorts.find((x) => x.id === id);
       if (c) Object.assign(c, patch);
@@ -924,6 +983,7 @@ class Store {
     this.run(supabase().from("cohorts").update(patch).eq("id", id), "updateCohort");
   }
   deleteCohort(id: string, reassignToId: string) {
+    if (!this.ownerOnly()) return;
     this.commit((d) => {
       d.students.forEach((s) => { if (s.cohortId === id) s.cohortId = reassignToId; });
       d.tests.forEach((t) => { if (t.cohortId === id) t.cohortId = reassignToId; });
@@ -950,6 +1010,7 @@ class Store {
   }
 
   setCohortClasses(cohortId: string, classIds: string[]) {
+    if (!this.ownerOnly()) return;
     this.commit((d) => {
       const c = d.cohorts.find((x) => x.id === cohortId);
       if (c) c.classIds = classIds;
@@ -964,6 +1025,7 @@ class Store {
     })();
   }
   setCohortSubjects(cohortId: string, subjectIds: string[]) {
+    if (!this.ownerOnly()) return;
     this.commit((d) => {
       const c = d.cohorts.find((x) => x.id === cohortId);
       if (c) c.subjectIds = subjectIds;
@@ -980,6 +1042,7 @@ class Store {
 
   // ---- Classes & Subjects (global catalogue) ---------------------------
   addClass(name: string): string {
+    if (!this.ownerOnly()) throw new Error("Only Hamza can do that.");
     const id = genId();
     const createdAt = new Date().toISOString();
     this.commit((d) => d.classes.push({ id, name, createdAt }));
@@ -987,6 +1050,7 @@ class Store {
     return id;
   }
   updateClass(id: string, name: string) {
+    if (!this.ownerOnly()) return;
     this.commit((d) => {
       const c = d.classes.find((x) => x.id === id);
       if (c) c.name = name;
@@ -994,6 +1058,7 @@ class Store {
     this.run(supabase().from("classes").update({ name }).eq("id", id), "updateClass");
   }
   deleteClass(id: string) {
+    if (!this.ownerOnly()) return;
     this.commit((d) => {
       d.classes = d.classes.filter((c) => c.id !== id);
       d.cohorts.forEach((c) => { c.classIds = c.classIds.filter((ci) => ci !== id); });
@@ -1003,6 +1068,7 @@ class Store {
     this.run(supabase().from("classes").delete().eq("id", id), "deleteClass");
   }
   addSubject(name: string): string {
+    if (!this.ownerOnly()) throw new Error("Only Hamza can do that.");
     const id = genId();
     const createdAt = new Date().toISOString();
     this.commit((d) => d.subjects.push({ id, name, createdAt }));
@@ -1010,6 +1076,7 @@ class Store {
     return id;
   }
   updateSubject(id: string, name: string) {
+    if (!this.ownerOnly()) return;
     this.commit((d) => {
       const s = d.subjects.find((x) => x.id === id);
       if (s) s.name = name;
@@ -1017,6 +1084,7 @@ class Store {
     this.run(supabase().from("subjects").update({ name }).eq("id", id), "updateSubject");
   }
   deleteSubject(id: string) {
+    if (!this.ownerOnly()) return;
     this.commit((d) => {
       d.subjects = d.subjects.filter((s) => s.id !== id);
       d.cohorts.forEach((c) => { c.subjectIds = c.subjectIds.filter((si) => si !== id); });
@@ -1028,6 +1096,7 @@ class Store {
 
   // ---- Student class/subject enrolment ---------------------------------
   setStudentClasses(studentId: string, classIds: string[]) {
+    if (!this.ownerOnly()) return;
     const before = this.state.students.find((x) => x.id === studentId)?.classIds ?? [];
     const student = this.state.students.find((x) => x.id === studentId);
     const nameOf = (id: string) => this.state.classes.find((c) => c.id === id)?.name ?? "a class";
@@ -1141,6 +1210,7 @@ class Store {
     );
   }
   setStudentSubjects(studentId: string, subjectIds: string[]) {
+    if (!this.ownerOnly()) return;
     const before = this.state.students.find((x) => x.id === studentId)?.subjectIds ?? [];
     // A subject added to a student already in the portal: their work in it starts now.
     // (A new student's first subjects are covered by the day their account was made.)
@@ -1181,6 +1251,7 @@ class Store {
    * auth and the core row, these are admin-only writes straight to the table.
    */
   setStudentProfile(id: string, patch: { whatsapp?: string; phone?: string; photoUrl?: string }) {
+    if (!this.ownerOnly()) return;
     const row: Row = {};
     if (patch.whatsapp !== undefined) row.whatsapp = patch.whatsapp.trim() || null;
     if (patch.phone !== undefined) row.phone = patch.phone.trim() || null;
@@ -1238,6 +1309,7 @@ class Store {
 
   /** Creates the student and returns their new id. */
   async addStudent(input: Omit<Student, "id" | "createdAt">): Promise<string> {
+    if (!this.ownerOnly()) throw new Error("Only Hamza can do that.");
     if (DEMO) {
       // Preview only: no real sign-in account, just the roster row.
       const { tempPassword: _pw, ...rest } = input;
@@ -1276,6 +1348,7 @@ class Store {
    * still get every subject at every level they take, as before.
    */
   async setStudentLevels(studentId: string, levels: LevelSubjects) {
+    if (!this.ownerOnly()) throw new Error("Only Hamza can do that.");
     const clean = Object.fromEntries(Object.entries(levels).filter(([, ids]) => ids.length));
     this.commit((d) => {
       const st = d.students.find((x) => x.id === studentId);
@@ -1332,6 +1405,7 @@ class Store {
    * failed rename never looks saved. Levels and subjects follow, each safely.
    */
   async updateStudent(id: string, patch: Partial<Omit<Student, "id" | "createdAt">>): Promise<Row> {
+    if (!this.ownerOnly()) throw new Error("Only Hamza can do that.");
     const s = this.state.students.find((x) => x.id === id);
     const done = DEMO
       ? ({} as Row)
@@ -1377,6 +1451,7 @@ class Store {
   }
   /** Deletes the student and their sign in; resolves once the server has done it (throws if not). */
   async deleteStudent(id: string) {
+    if (!this.ownerOnly()) throw new Error("Only Hamza can do that.");
     if (DEMO) {
       this.commit((d) => {
         d.students = d.students.filter((s) => s.id !== id);
@@ -1399,6 +1474,7 @@ class Store {
     return this.testSaves.get(id) ?? Promise.resolve();
   }
   addTest(input: Omit<Test, "id" | "createdAt" | "questions"> & { questions?: Question[] }): string {
+    this.note(`newtest:${input.title}`, `made the test "${input.title}"`);
     const id = genId();
     const createdAt = new Date().toISOString();
     this.commit((d) =>
@@ -1449,6 +1525,7 @@ class Store {
    * its questions, then the MCQ answers), so a copy can never end up half made.
    */
   async duplicateTest(testId: string): Promise<string> {
+    this.note(`copytest:${testId}`, `made a copy of the test "${this.titleOf(testId)}"`);
     const src = this.state.tests.find((t) => t.id === testId);
     if (!src) throw new Error("That test isn't here any more.");
     const id = genId();
@@ -1563,6 +1640,7 @@ class Store {
     return this.state.cohorts.find((c) => c.id === cohortId)?.name;
   }
   updateTest(id: string, patch: Partial<Omit<Test, "id" | "createdAt" | "questions">>) {
+    this.note(`test:${id}:${patch.status ?? ""}`, patch.status ? `set the test "${this.titleOf(id)}" to ${patch.status}` : `edited the test "${this.titleOf(id)}"`);
     const before = this.state.tests.find((x) => x.id === id);
     const wasVisible = !!before && before.status !== "draft";
     // Snapshot for rollback: an update that never reached the database must not
@@ -1665,6 +1743,7 @@ class Store {
     this.updateTest(id, { status });
   }
   deleteTest(id: string) {
+    if (!this.ownerOnly()) return;
     const test = this.state.tests.find((t) => t.id === id);
     const title = test?.title;
     const wasVisible = !!test && test.status !== "draft";
@@ -1695,6 +1774,7 @@ class Store {
   }
   /** `bank: false` skips the bank copy (past paper questions: the papers are the bank). */
   addQuestion(testId: string, q: Omit<Question, "id" | "order">, opts?: { bank?: boolean }) {
+    this.note(`test:${testId}`, `edited the test "${this.titleOf(testId)}"`);
     const id = genId();
     let order = 0;
     this.commit((d) => {
@@ -1732,6 +1812,7 @@ class Store {
     this.addBankItem({ ...q, subject: test.subject } as Omit<QuestionBankItem, "id">);
   }
   updateQuestion(testId: string, questionId: string, q: Omit<Question, "id" | "order">) {
+    this.note(`test:${testId}`, `edited the test "${this.titleOf(testId)}"`);
     let order = 0;
     this.commit((d) => {
       const t = d.tests.find((x) => x.id === testId);
@@ -1829,6 +1910,7 @@ class Store {
     return job;
   }
   deleteQuestion(testId: string, questionId: string) {
+    this.note(`test:${testId}`, `edited the test "${this.titleOf(testId)}"`);
     this.commit((d) => {
       const t = d.tests.find((x) => x.id === testId);
       if (t) t.questions = t.questions.filter((q) => q.id !== questionId).map((q, i) => ({ ...q, order: i }));
@@ -1843,6 +1925,7 @@ class Store {
     }, () => {});
   }
   reorderQuestions(testId: string, orderedIds: string[]) {
+    this.note(`test:${testId}`, `edited the test "${this.titleOf(testId)}"`);
     this.commit((d) => {
       const t = d.tests.find((x) => x.id === testId);
       if (!t) return;
@@ -1864,6 +1947,7 @@ class Store {
     });
   }
   importBankItems(testId: string, bankIds: string[]) {
+    this.note(`test:${testId}`, `edited the test "${this.titleOf(testId)}"`);
     const sb = supabase();
     const pending: { id: string; rest: Omit<Question, "id" | "order">; order: number; correctIndex?: number }[] = [];
     this.commit((d) => {
@@ -2012,6 +2096,10 @@ class Store {
   }
   /** `marksAwarded: undefined` edits feedback only — it does NOT score a zero. */
   gradeAnswer(submissionId: string, questionId: string, marksAwarded: number | undefined, feedback?: string) {
+    {
+      const paper = this.state.submissions.find((x) => x.id === submissionId);
+      this.note(`mark:${submissionId}`, `marked ${this.nameOf(paper?.studentId)}'s paper for "${this.titleOf(paper?.testId)}"`);
+    }
     // A question added after this paper was handed in has no answer row yet:
     // create it, so the mark saves and the paper can still be released.
     const sub = this.state.submissions.find((s) => s.id === submissionId);
@@ -2102,6 +2190,7 @@ class Store {
    * this screen straight away; if saving fails it comes off again and throws.
    */
   async sendWellBuilt(studentId: string, note: string): Promise<void> {
+    if (!this.ownerOnly()) throw new Error("Only Hamza can do that.");
     const row: Activity = {
       id: genId(),
       type: "well_built",
@@ -2141,6 +2230,7 @@ class Store {
    * Everyone else still sees it closed. Opening again replaces the old window.
    */
   reopenForStudent(testId: string, studentId: string, hours: number): string {
+    this.note(`late:${testId}:${studentId}`, `opened a late window for ${this.nameOf(studentId)} on "${this.titleOf(testId)}"`);
     const until = new Date(Date.now() + hours * 3_600_000).toISOString();
     const t = this.state.tests.find((x) => x.id === testId);
     const when = new Date(until).toLocaleString("en-GB", { timeZone: "Asia/Karachi", weekday: "short", hour: "numeric", minute: "2-digit", hour12: true });
@@ -2185,6 +2275,7 @@ class Store {
    * in the activities table (see lib/in-person.ts); students never see it.
    */
   setInPerson(studentId: string, on: boolean) {
+    if (!this.ownerOnly()) return;
     const isTag = (a: Activity) => a.type === "student_in_person" && a.studentId === studentId;
     const has = this.state.activities.some(isTag);
     if (on === has) return;
@@ -2231,6 +2322,7 @@ class Store {
     if (this.stillOpen(sub?.testId)) return false;
     // Already out (a second tap): the student was told once; don't tell them again.
     if (sub?.status === "released") return true;
+    this.note(`release:${submissionId}`, `released ${this.nameOf(sub?.studentId)}'s result for "${this.titleOf(sub?.testId)}"`);
     this.commit((d) => {
       const s = d.submissions.find((x) => x.id === submissionId);
       if (s) { s.status = "released"; s.releasedAt = releasedAt; }
@@ -2299,6 +2391,7 @@ class Store {
     // Captured before the commit flips them to "released" — afterwards there is
     // no way to tell which submissions this call actually released.
     const released = this.state.submissions.filter((s) => s.testId === testId && s.status === "submitted");
+    if (released.length) this.note(`releaseAll:${testId}`, `released ${released.length} result${released.length === 1 ? "" : "s"} for "${this.titleOf(testId)}"`);
     this.commit((d) => {
       d.submissions
         .filter((s) => s.testId === testId && s.status === "submitted")
@@ -2334,6 +2427,10 @@ class Store {
     });
   }
   unreleaseSubmission(submissionId: string) {
+    {
+      const paper = this.state.submissions.find((x) => x.id === submissionId);
+      this.note(`unrelease:${submissionId}`, `took back ${this.nameOf(paper?.studentId)}'s result for "${this.titleOf(paper?.testId)}" to mark again`);
+    }
     this.commit((d) => {
       const sub = d.submissions.find((s) => s.id === submissionId);
       if (sub) { sub.status = "submitted"; sub.releasedAt = undefined; }
@@ -2344,12 +2441,14 @@ class Store {
     );
   }
   deleteSubmission(submissionId: string) {
+    if (!this.ownerOnly()) return;
     this.commit((d) => { d.submissions = d.submissions.filter((s) => s.id !== submissionId); });
     this.run(supabase().from("submissions").delete().eq("id", submissionId), "deleteSubmission");
   }
 
   // ---- Announcements ---------------------------------------------------
   async addAnnouncement(input: Omit<Announcement, "id" | "createdAt" | "dismissedBy">, toPhones = false): Promise<number | null> {
+    this.note(`ann:${input.body.slice(0, 40)}`, `posted an announcement: "${input.body.slice(0, 80)}"`);
     const id = genId();
     const createdAt = new Date().toISOString();
     this.commit((d) => d.announcements.unshift({ ...input, id, createdAt, dismissedBy: [] }));
@@ -2397,6 +2496,7 @@ class Store {
     }
   }
   updateAnnouncement(id: string, patch: Partial<Pick<Announcement, "body" | "pinned" | "cohortId">>) {
+    this.note(`annedit:${id}`, "edited an announcement");
     this.commit((d) => {
       const a = d.announcements.find((x) => x.id === id);
       if (a) Object.assign(a, patch);
@@ -2408,6 +2508,7 @@ class Store {
     this.run(supabase().from("announcements").update(row).eq("id", id), "updateAnnouncement");
   }
   deleteAnnouncement(id: string) {
+    this.note(`anndel:${id}`, "deleted an announcement");
     this.commit((d) => { d.announcements = d.announcements.filter((a) => a.id !== id); });
     this.run(supabase().from("announcements").delete().eq("id", id), "deleteAnnouncement");
   }
@@ -2426,6 +2527,7 @@ class Store {
    * analytics. Nothing is deleted and it can be switched back on.
    */
   setCohortActive(id: string, active: boolean) {
+    if (!this.ownerOnly()) return;
     this.commit((d) => {
       const c = d.cohorts.find((x) => x.id === id);
       if (c) c.active = active;
@@ -2440,6 +2542,7 @@ class Store {
    * test, absence or report.
    */
   markReminderSent(studentId: string, kind: string, ref: string) {
+    if (!this.ownerOnly()) return;
     const id = genId();
     const sentAt = new Date().toISOString();
     this.commit((d) => {
@@ -2471,6 +2574,7 @@ class Store {
     pdfUrl: string;
     teacherNote?: string;
   }): Promise<ReportRecord> {
+    if (!this.ownerOnly()) throw new Error("Only Hamza can do that.");
     const existing = this.state.reports.find(
       (r) => r.studentId === input.studentId && r.month === input.month,
     );
@@ -2512,6 +2616,7 @@ class Store {
    * start its link's 7 days from this moment (the Send or "Sent, next" press).
    */
   markReportSent(reportId: string) {
+    if (!this.ownerOnly()) return;
     const now = Date.now();
     const sentAt = new Date(now).toISOString();
     const expiresAt = reportLinkExpiry(now);
@@ -2531,6 +2636,7 @@ class Store {
    * Awaited, so the link only goes out once it really works.
    */
   async freshReportLink(reportId: string): Promise<ReportRecord> {
+    if (!this.ownerOnly()) throw new Error("Only Hamza can do that.");
     const now = Date.now();
     const { data, error } = await supabase()
       .from("reports")
@@ -2556,6 +2662,7 @@ class Store {
    * called for the names the teacher actually taps.
    */
   setAttendance(studentId: string, classId: string | null, date: string, status: AttendanceStatus) {
+    this.note(`attendance:${classId}:${date}`, `marked attendance for ${date}`);
     const existing = this.state.attendanceDays.find(
       (a) => a.studentId === studentId && a.classId === classId && a.date === date,
     );
@@ -2635,6 +2742,7 @@ class Store {
 
   /** The month's percentage, typed by hand or accepted from the daily register. */
   setMonthlyAttendance(studentId: string, month: string, percent: number) {
+    this.note(`attmonth:${month}`, `set monthly attendance for ${month}`);
     const clamped = Math.max(0, Math.min(100, Math.round(percent * 10) / 10));
     const existing = this.state.attendanceMonths.find(
       (a) => a.studentId === studentId && a.month === month,
@@ -2657,6 +2765,7 @@ class Store {
 
   // ---- Weekly assignments ----------------------------------------------
   addAssignment(input: Omit<Assignment, "id" | "createdAt">) {
+    if (!this.ownerOnly()) throw new Error("Only Hamza can do that.");
     const id = genId();
     const createdAt = new Date().toISOString();
     this.commit((d) => d.assignments.unshift({ ...input, id, createdAt }));
@@ -2676,6 +2785,7 @@ class Store {
     return id;
   }
   updateAssignment(id: string, patch: Omit<Assignment, "id" | "createdAt">) {
+    if (!this.ownerOnly()) return;
     this.commit((d) => {
       const idx = d.assignments.findIndex((a) => a.id === id);
       if (idx >= 0) d.assignments[idx] = { ...d.assignments[idx], ...patch };
@@ -2694,6 +2804,7 @@ class Store {
     );
   }
   deleteAssignment(id: string) {
+    if (!this.ownerOnly()) return;
     this.commit((d) => {
       d.assignments = d.assignments.filter((a) => a.id !== id);
       d.assignmentSubmissions = d.assignmentSubmissions.filter((s) => s.assignmentId !== id);
@@ -2771,11 +2882,13 @@ class Store {
 
   // ---- Question bank ---------------------------------------------------
   addBankItem(item: Omit<QuestionBankItem, "id">) {
+    this.note("bank", "changed the question bank");
     const id = genId();
     this.commit((d) => d.bank.push({ ...item, id } as QuestionBankItem));
     this.run(supabase().from("question_bank").insert(bankToRow(id, item)), "addBankItem");
   }
   updateBankItem(id: string, item: Omit<QuestionBankItem, "id">) {
+    this.note("bank", "changed the question bank");
     this.commit((d) => {
       const idx = d.bank.findIndex((b) => b.id === id);
       if (idx >= 0) d.bank[idx] = { ...item, id } as QuestionBankItem;
@@ -2785,6 +2898,7 @@ class Store {
     this.run(supabase().from("question_bank").update(fields).eq("id", id), "updateBankItem");
   }
   deleteBankItem(id: string) {
+    this.note("bank", "changed the question bank");
     this.commit((d) => { d.bank = d.bank.filter((b) => b.id !== id); });
     this.run(supabase().from("question_bank").delete().eq("id", id), "deleteBankItem");
   }
@@ -2796,6 +2910,7 @@ class Store {
    * "disappear" on the next reload — the caller shows the real error instead.
    */
   async addNote(title: string, fileUrl: string, fileType: string, fileName: string): Promise<string> {
+    if (!this.ownerOnly()) throw new Error("Only Hamza can do that.");
     const id = genId();
     const createdAt = new Date().toISOString();
     this.commit((d) => d.notes.unshift({ id, title, fileUrl, fileType, fileName, createdAt }));
@@ -2840,6 +2955,7 @@ class Store {
     return { deleted: onlyHere.length, unlinked: shared.length };
   }
   deleteNote(id: string) {
+    if (!this.ownerOnly()) return;
     const title = this.state.notes.find((n) => n.id === id)?.title;
     this.commit((d) => {
       d.notes = d.notes.filter((n) => n.id !== id);
@@ -2865,6 +2981,7 @@ class Store {
   }
   /** Rename a note, or hide/show it for students (a marker on its file type). Throws on failure. */
   async updateNote(id: string, patch: { title?: string; fileType?: string }): Promise<void> {
+    if (!this.ownerOnly()) throw new Error("Only Hamza can do that.");
     const before = this.state.notes.find((n) => n.id === id);
     if (!before) return;
     this.commit((d) => {
@@ -2886,6 +3003,7 @@ class Store {
   /** Rolls the optimistic row back if the insert fails, so an assignment can
    *  never appear attached to a note without existing in the database. */
   async addNoteAssignment(noteId: string, cohortId: string, classId: string | null, subjectId: string | null): Promise<void> {
+    if (!this.ownerOnly()) throw new Error("Only Hamza can do that.");
     const id = genId();
     const createdAt = new Date().toISOString();
     this.commit((d) => d.noteAssignments.push({ id, noteId, cohortId, classId, subjectId, createdAt }));
@@ -2925,6 +3043,7 @@ class Store {
     });
   }
   deleteNoteAssignment(id: string) {
+    if (!this.ownerOnly()) return;
     this.commit((d) => { d.noteAssignments = d.noteAssignments.filter((na) => na.id !== id); });
     this.run(supabase().from("note_assignments").delete().eq("id", id), "deleteNoteAssignment");
   }
@@ -3026,6 +3145,8 @@ class Store {
         { event: "INSERT", schema: "public", table: "activities" },
         (payload) => {
           const row = payload.new as Row;
+          // Staff never get what students opened, live or saved.
+          if (this.staff && STAFF_NEVER.includes(row.type as ActivityType)) return;
           let added = false;
           this.commit((d) => {
             if (d.activities.some((a) => a.id === row.id)) return; // idempotent

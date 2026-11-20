@@ -1,5 +1,6 @@
 "use client";
 
+import { useIsStaff } from "@/lib/staff";
 import { useRef, useState } from "react";
 import type { Announcement } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
@@ -14,6 +15,8 @@ import { useAdminFilter } from "@/lib/admin-filter";
 const MAX = 250;
 
 export default function AnnouncementsPage() {
+  // Sending to phones is Hamza's; the server refuses staff, so they are not offered it.
+  const staff = useIsStaff();
   const db = useDatabase();
   // A new notice starts on the cohort picked in the sidebar.
   const { cohortId: viewing } = useAdminFilter();
@@ -39,7 +42,7 @@ export default function AnnouncementsPage() {
       postingRef.current = true;
       setPosting(true);
       try {
-        const sent = await store.addAnnouncement({ body: text, pinned, cohortId: cohortId || null }, toPhones);
+        const sent = await store.addAnnouncement({ body: text, pinned, cohortId: cohortId || null }, toPhones && !staff);
         toast(
           !toPhones
             ? "Announcement posted."
@@ -158,7 +161,7 @@ export default function AnnouncementsPage() {
               : `${editing === "new" ? "This goes to" : "This shows to"} ${audience.length} ${audience.length === 1 ? "student" : "students"} ${audienceWhere}.`}
           </p>
           <Checkbox checked={pinned} onChange={setPinned} label="Pin to the top (always visible, not dismissible)" />
-          {editing === "new" && <Checkbox checked={toPhones} onChange={setToPhones} label="Also send to their phones (for something important)" />}
+          {editing === "new" && !staff && <Checkbox checked={toPhones} onChange={setToPhones} label="Also send to their phones (for something important)" />}
         </div>
       </Modal>
 

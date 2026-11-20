@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse, after } from "next/server";
 import { classChangeCopy } from "@/lib/notify-copy";
-import { adminIdFromRequest } from "@/lib/admin-auth";
+import { staffWith } from "@/lib/admin-auth";
+import { addStaffLine } from "@/lib/staff-log-server";
 import { notifyClassChange, pushReady, serviceClient } from "@/lib/push-server";
 import {
   LEVEL_LABEL,
@@ -36,8 +37,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const adminId = await adminIdFromRequest(req);
-  if (!adminId) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  // Hamza, or a staff member Hamza switched Classes on for.
+  const who = await staffWith(req, "classes");
+  if (!who) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const adminId = who.id;
   if (!pushReady()) return NextResponse.json({ error: "not set up" }, { status: 400 });
   const body = (await req.json().catch(() => null)) as
     | ({ op: "weekly" } & Pick<Schedule, "termStarts" | "days" | "slots">)
@@ -73,6 +76,7 @@ export async function POST(req: NextRequest) {
   // Calendar reads the latest timetable again, since several changes made one
   // after another (a joint class) finish in any order.
   after(async () => {
+    if (who.ta) await addStaffLine(sb, who.name || "Staff", body.op === "day" ? `changed the ${body.level} ${body.subject} class on ${body.date}${body.notify ? " and told students" : ""}` : "changed the weekly timetable");
     if (body.op === "day") {
       if (body.notify && body.date >= today) await tellStudents(sb, body).catch((e) => console.error("[schedule] notify", e));
       await syncCalendar(sb, await loadSchedule(sb, true).catch(() => next), body).catch((e) => console.error("[schedule] calendar", e));

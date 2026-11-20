@@ -1,7 +1,5 @@
 "use client";
 
-import { useAuth } from "@/lib/auth-context";
-import { staffLog } from "@/lib/staff";
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -27,7 +25,6 @@ export default function GradingPage() {
   const subId = String(params.submissionId);
   const db = useDatabase();
   const store = useStore();
-  const { session } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   // Auto-marked MCQs are hidden by default so the written and photo answers
@@ -107,7 +104,6 @@ export default function GradingPage() {
       return;
     }
     toast(`${name}'s result released.`, "success");
-    staffLog(session, `released ${name}'s result for "${test?.title ?? "a test"}"`);
     if (goNext && nextId) router.push(`/admin/grading/${nextId}`);
   }
 

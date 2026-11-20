@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { adminIdFromRequest, staffFromRequest } from "@/lib/admin-auth";
 import { serviceClient } from "@/lib/push-server";
 import { DEFAULT_ACCESS, cleanAccess, isStaffArea } from "@/lib/staff-areas";
+import { addStaffLine, readStaffLog as readLog } from "@/lib/staff-log-server";
 
 /**
  * Staff accounts (a teaching assistant, or anyone Hamza gives a sign-in) and their log.
@@ -13,6 +14,7 @@ import { DEFAULT_ACCESS, cleanAccess, isStaffArea } from "@/lib/staff-areas";
  *   DELETE { id }             remove their account for good
  * Staff (the staff member themselves, or Hamza):
  *   PUT    { what }           add one line to the log ("released ...", "replied to ...")
+ *   GET    ?me=1              their own name and switched on parts, fresh (403 once paused or removed)
  *
  * Their account carries role "admin" plus staff "ta" and `access` (see lib/admin-auth.ts).
  * Only accounts with that mark can be changed here, never Hamza's or a student's.
@@ -21,27 +23,12 @@ import { DEFAULT_ACCESS, cleanAccess, isStaffArea } from "@/lib/staff-areas";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const noStore = { "Cache-Control": "private, no-store" };
-const BUCKET = "teacher";
-const LOG = "staff-log.json";
-const LOG_MAX = 2000;
 
 type Sb = ReturnType<typeof serviceClient>;
-type Line = { at: string; name: string; what: string };
 const ready = () => !!(process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.NEXT_PUBLIC_SUPABASE_URL);
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status, headers: noStore });
 const isUuid = (v: unknown): v is string => typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v);
 const okPassword = (v: unknown): v is string => typeof v === "string" && v.length >= 10 && v.length <= 72;
-
-async function readLog(sb: Sb): Promise<Line[]> {
-  const { data } = await sb.storage.from(BUCKET).download(LOG);
-  if (!data) return [];
-  try {
-    const v = JSON.parse(await data.text()) as Line[];
-    return Array.isArray(v) ? v : [];
-  } catch {
-    return [];
-  }
-}
 
 async function assistants(sb: Sb) {
   const out: Array<{ id: string; name: string; email: string; paused: boolean; lastSeen: string | null; access: string[] }> = [];
@@ -68,6 +55,11 @@ async function assistant(sb: Sb, id: string) {
 }
 
 export async function GET(req: NextRequest) {
+  if (req.nextUrl.searchParams.get("me") === "1") {
+    const me = await staffFromRequest(req);
+    if (!me) return bad("forbidden", 403);
+    return NextResponse.json({ staff: me.ta, name: me.name, access: me.access }, { headers: noStore });
+  }
   if (!(await adminIdFromRequest(req))) return bad("forbidden", 403);
   if (!ready()) return NextResponse.json({ staff: [], log: [] }, { headers: noStore });
   const sb = serviceClient();
@@ -135,9 +127,6 @@ export async function DELETE(req: NextRequest) {
   return NextResponse.json({ ok: true }, { headers: noStore });
 }
 
-/** One writer at a time in this server, so two lines never overwrite each other. */
-let queue: Promise<unknown> = Promise.resolve();
-
 export async function PUT(req: NextRequest) {
   const who = await staffFromRequest(req);
   if (!who) return bad("forbidden", 403);
@@ -145,15 +134,6 @@ export async function PUT(req: NextRequest) {
   const b = (await req.json().catch(() => null)) as { what?: unknown } | null;
   const what = typeof b?.what === "string" ? b.what.replace(/\s+/g, " ").trim().slice(0, 200) : "";
   if (!what) return bad("bad request");
-  const sb = serviceClient();
-  const job = async () => {
-    const { data: bucket } = await sb.storage.getBucket(BUCKET);
-    if (!bucket) await sb.storage.createBucket(BUCKET, { public: false });
-    const log = await readLog(sb);
-    log.push({ at: new Date().toISOString(), name: who.ta ? who.name || "Staff" : "Hamza", what });
-    await sb.storage.from(BUCKET).upload(LOG, new Blob([JSON.stringify(log.slice(-LOG_MAX))], { type: "application/json" }), { upsert: true, contentType: "application/json" });
-  };
-  queue = queue.then(job, job);
-  await queue.catch(() => {});
+  await addStaffLine(serviceClient(), who.ta ? who.name || "Staff" : "Hamza", what);
   return NextResponse.json({ ok: true }, { headers: noStore });
 }

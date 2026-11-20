@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { cleanAccess } from "@/lib/staff-areas";
 import { createClient } from "@supabase/supabase-js";
 import { loadNoteText, searchPages, searchTerms, type SearchHit } from "@/lib/note-text";
 import { isHidden } from "@/lib/notes-library";
@@ -50,7 +51,10 @@ export async function GET(req: NextRequest) {
   const { data: user } = await sb.auth.getUser();
   if (!user.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (tooMany(user.user.id)) return NextResponse.json({ error: "too many searches" }, { status: 429, headers: { "Retry-After": "60" } });
-  const admin = (user.user.app_metadata as { role?: string } | undefined)?.role === "admin";
+  const meta = user.user.app_metadata as { role?: string; staff?: string; access?: unknown } | undefined;
+  const admin = meta?.role === "admin";
+  // A staff member reads notes only when Hamza switched that part on for them.
+  if (admin && meta?.staff === "ta" && !cleanAccess(meta.access).includes("notes")) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const { data: notes, error } = await sb.from("notes").select("id, file_type").limit(1000);
   if (error) return NextResponse.json({ error: "could not list notes" }, { status: 500 });

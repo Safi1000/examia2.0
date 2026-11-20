@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { cleanAccess } from "@/lib/staff-areas";
 import { createClient } from "@supabase/supabase-js";
 import { signViewUrl } from "@/lib/signed-view";
 import { isHidden } from "@/lib/notes-library";
@@ -46,7 +47,10 @@ export async function POST(req: NextRequest) {
   if (error || !note || !fileUrl) return NextResponse.json({ error: "not found" }, { status: 404 });
   // A note Hamza hid is still assigned (row-level security lets it through),
   // so only an admin may open it, the same rule as /api/notes/search.
-  const admin = (user.user.app_metadata as { role?: string } | undefined)?.role === "admin";
+  const meta = user.user.app_metadata as { role?: string; staff?: string; access?: unknown } | undefined;
+  const admin = meta?.role === "admin";
+  // A staff member reads notes only when Hamza switched that part on for them.
+  if (admin && meta?.staff === "ta" && !cleanAccess(meta.access).includes("notes")) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   if (!admin && isHidden(String(note.file_type ?? ""))) return NextResponse.json({ error: "not found" }, { status: 404 });
 
   // A student's PDF is read by our own reader, which sends the sign-in with the

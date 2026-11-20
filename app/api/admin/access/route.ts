@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { adminIdFromRequest, isStaffRequest } from "@/lib/admin-auth";
+import { adminIdFromRequest, staffWith } from "@/lib/admin-auth";
 import { serviceClient } from "@/lib/push-server";
 import { pausedStudentIds } from "@/lib/paused-server";
 
@@ -26,7 +26,8 @@ const ready = () => !!(process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.NEXT
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status, headers: noStore });
 
 export async function GET(req: NextRequest) {
-  if (!(await isStaffRequest(req))) return bad("forbidden", 403);
+  // Hamza, or staff whose part of the console lists students. Not someone who may only read notes.
+  if (!(await staffWith(req, "students", "marking", "homework", "tests", "attendance", "classes", "analytics"))) return bad("forbidden", 403);
   if (!ready()) return NextResponse.json({ paused: [] }, { headers: noStore });
   const sb = serviceClient();
   try {

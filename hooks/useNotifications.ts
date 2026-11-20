@@ -6,7 +6,34 @@ import { useDatabase, useStore } from "@/lib/data/store";
 import { useAuth } from "@/lib/auth-context";
 import { joinedMs, studentById, submissionFor, testForStudent } from "@/lib/data/selectors";
 import { resolveActivityLink } from "@/lib/notifications";
-import type { Activity } from "@/types";
+import type { Activity, ActivityType } from "@/types";
+import { isTa } from "@/lib/staff";
+import { staffAllowed, type StaffArea } from "@/lib/staff-areas";
+
+/**
+ * Which part of the console each kind of news belongs to. A staff member sees
+ * only news for the parts Hamza switched on for them. Kinds not listed here
+ * (what a student opened or started, Well built notes, system alerts) are
+ * never shown to staff.
+ */
+const STAFF_NEWS: Partial<Record<ActivityType, StaffArea[]>> = {
+  test_submitted: ["marking"],
+  test_completed: ["marking"],
+  submission_reviewed: ["marking"],
+  result_released: ["marking"],
+  test_created: ["tests"],
+  test_updated: ["tests"],
+  test_deleted: ["tests"],
+  notes_uploaded: ["notes"],
+  notes_assigned: ["notes"],
+  notes_deleted: ["notes"],
+  announcement_posted: ["announcements"],
+  student_joined_class: ["students"],
+  student_subject_joined: ["students"],
+  student_left_class: ["students"],
+};
+/** A hand-in with no test on it is homework. */
+const newsParts = (a: Activity): StaffArea[] => (a.type === "test_submitted" && !a.testId ? ["homework"] : (STAFF_NEWS[a.type] ?? []));
 
 /**
  * The notification feed for the current session.
@@ -43,6 +70,8 @@ export function useNotifications() {
   // A student only sees what happened since their account was made.
   const me = session?.studentId ? studentById(db, session.studentId) : null;
   const since = me ? joinedMs(me) : 0;
+  const staff = isTa(session);
+  const staffParts = staff ? staffAllowed(session?.staffAccess).join() : "";
   const activities = useMemo(
     () =>
       db.activities.filter(
@@ -52,9 +81,11 @@ export function useNotifications() {
           // A late window is the student's news; Hamza manages it on the test page.
           (!!me || a.type !== "test_reopened") &&
           // In-person tags are bookkeeping, not news.
-          a.type !== "student_in_person",
+          a.type !== "student_in_person" &&
+          // Staff: only news for a part switched on for them, and never a note addressed to one student.
+          (!staff || (a.audience !== "student" && newsParts(a).some((k) => staffParts.split(",").includes(k)))),
       ), // already newest-first from the store
-    [db.activities, userId, since, me],
+    [db.activities, userId, since, me, staff, staffParts],
   );
 
   const isUnread = useCallback(

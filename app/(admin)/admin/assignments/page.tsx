@@ -21,7 +21,7 @@ import { useSelection } from "@/lib/use-selection";
 import { displayName } from "@/lib/display-name";
 import { useNow } from "@/hooks/useNow";
 import { useAuth } from "@/lib/auth-context";
-import { staffLog } from "@/lib/staff";
+import { staffLog, useIsStaff } from "@/lib/staff";
 import { useActivity } from "@/lib/activity-admin";
 import { fmtTime } from "@/lib/activity";
 import { nextClassStart, pkDate } from "@/lib/timetable";
@@ -78,6 +78,8 @@ const clock = () => Date.now();
 export default function AdminAssignmentsPage() {
   const db = useDatabase();
   const store = useStore();
+  // Staff reply to homework; setting it is Hamza's.
+  const staff = useIsStaff();
   const { toast } = useToast();
   const { cohortId } = useAdminFilter();
   const nowMs = useNow();
@@ -97,11 +99,11 @@ export default function AdminAssignmentsPage() {
     const id = q.get("open");
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (id) setOpenId(id);
-    if (q.get("set") === "papers") {
+    if (q.get("set") === "papers" && !staff) {
       setPapersFor({ classId: q.get("class") ?? undefined, subjectId: q.get("subject") ?? undefined });
       setPapersOpen(true);
     }
-  }, []);
+  }, [staff]);
   // With one cohort switched on there is nothing to choose: it is used, and its picker is hidden.
   const activeCohorts = db.cohorts.filter((c) => c.active);
   const soleCohort = activeCohorts.length === 1 ? activeCohorts[0].id : "";
@@ -598,7 +600,7 @@ export default function AdminAssignmentsPage() {
         )}
       </Modal>
 
-      <PastPaperSheet open={papersOpen} onClose={() => setPapersOpen(false)} mode="homework" defaultCohortId={cohortId ?? null} onBuilt={fromPapers} defaultClassId={papersFor.classId} defaultSubjectId={papersFor.subjectId} />
+      <PastPaperSheet open={papersOpen && !staff} onClose={() => setPapersOpen(false)} mode="homework" defaultCohortId={cohortId ?? null} onBuilt={fromPapers} defaultClassId={papersFor.classId} defaultSubjectId={papersFor.subjectId} />
 
       {/* Hand-ins + feedback */}
       <Modal
@@ -660,7 +662,9 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
   // activity route sends this month's and last month's per-homework time whatever the start day).
   const [from] = useState(() => pkDate(Date.now()));
   const { data: activity } = useActivity(from, db);
-  const focusSecs = (studentId: string) => activity?.[studentId]?.focusHomework?.[assignmentId] ?? 0;
+  // Groundwork time is Hamza's alone: the server refuses it to staff, and nothing is drawn for them.
+  const staffView = useIsStaff();
+  const focusSecs = (studentId: string) => (staffView ? 0 : (activity?.[studentId]?.focusHomework?.[assignmentId] ?? 0));
   const focusNote = (studentId: string) => {
     const secs = focusSecs(studentId);
     return secs >= 60 ? <span className="text-sm tabular-nums text-ink-3">{fmtTime(secs)} in Groundwork</span> : null;
@@ -670,7 +674,7 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
   const used = setFor.filter((id) => focusSecs(id) >= 60);
   const usedSecs = used.reduce((n, id) => n + focusSecs(id), 0);
   // Kept at its height while loading, so the list doesn't jump when the numbers arrive.
-  const summary = setFor.length > 0 && (
+  const summary = !staffView && setFor.length > 0 && (
     <p className="min-h-5 text-sm tabular-nums text-ink-2" aria-live="polite">
       {activity
         ? `${used.length} of ${setFor.length} used Groundwork for this${used.length ? `, ${fmtTime(usedSecs)} in total` : ""}.`

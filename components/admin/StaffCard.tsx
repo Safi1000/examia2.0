@@ -115,6 +115,7 @@ export function StaffCard() {
   }
 
   async function reset(a: Assistant) {
+    if (!window.confirm(`Give ${a.name || "this person"} a new password? Their old one stops working straight away.`)) return;
     const password = newPassword() + newPassword();
     if (await run("PATCH", { id: a.id, action: "password", password }, "New password set.")) setShown({ email: a.email, password });
   }
@@ -130,7 +131,7 @@ export function StaffCard() {
         </p>
         <p className="text-sm text-ink-3">{NEVER}</p>
         <p className="text-sm text-ink-3">
-          The console holds them to this. It is a guard rail, not a lock: give a sign-in only to someone you trust, until a developer adds the stricter role. A change shows the next time they open the console.
+          The console holds them to this. It is a guard rail, not a lock: give a sign-in only to someone you trust, until a developer adds the stricter role. A change reaches someone already signed in within a few minutes, and pausing signs them out of the console in the same time.
         </p>
 
         {failed && (

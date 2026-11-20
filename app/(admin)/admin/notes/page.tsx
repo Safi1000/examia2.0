@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth-context";
-import { isTa } from "@/lib/staff";
+import { isTa, useIsStaff } from "@/lib/staff";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { useToast } from "@/components/toast";
@@ -460,6 +460,7 @@ function NoteActions({
 
 /** One book, unit by unit: what's uploaded on each chapter and what's still to come. */
 function BookView({ db, opt, actions, onUpload }: { db: Db; opt: BookOpt; actions: (n: Note) => React.ReactNode; onUpload: (slot: string) => void }) {
+  const staff = useIsStaff();
   const book = opt.book!;
   const bySlot = new Map<string, Note[]>();
   const more: Note[] = [];
@@ -509,6 +510,14 @@ function BookView({ db, opt, actions, onUpload }: { db: Db; opt: BookOpt; action
               {u.chapters.map(([c, name]) => {
                 const list = bySlot.get(c);
                 if (list) return list.map((n) => row(n, c));
+                // Staff read notes: an empty chapter is a plain row, with nothing to tap.
+                if (staff)
+                  return (
+                    <div key={c} className="flex min-h-12 w-full items-center gap-3 px-4 py-2.5 sm:px-5">
+                      <span className="w-10 shrink-0 text-sm tabular-nums text-ink-3">{c}</span>
+                      <span className="min-w-0 flex-1 text-base text-ink-3">{name}</span>
+                    </div>
+                  );
                 return (
                   // The whole row uploads to this chapter: one tap, no small button to aim for.
                   <button
@@ -554,6 +563,8 @@ function AllNotes({
   q: string;
   actions: (n: Note) => React.ReactNode;
 }) {
+  // Staff read notes: no ticking, hiding, sharing or deleting.
+  const staff = useIsStaff();
   const { toast } = useToast();
   const [bulkCohort, setBulkCohort] = useState("");
   const [bulkClass, setBulkClass] = useState("");
@@ -725,7 +736,7 @@ function AllNotes({
         <p className="py-10 text-center text-base text-ink-3">{q ? "No note has that name." : "No notes yet."}</p>
       ) : (
         <div role="group" aria-label="Notes" onKeyDown={sel.listKeyDown}>
-        <SelectAll sel={sel} noun="note" className="px-4" />
+        {!staff && <SelectAll sel={sel} noun="note" className="px-4" />}
         <Card className="divide-y divide-hairline overflow-hidden p-0">
           {list.map((n) => {
             const books = booksOf(n, db.noteAssignments, opts);
@@ -734,7 +745,7 @@ function AllNotes({
               <div key={n.id} className={cn("px-4 py-4 transition-colors duration-150 hover:bg-white/[0.018] sm:px-5", isHidden(n.fileType) && "opacity-70")}>
                 <div className="flex flex-wrap items-start gap-3">
                   <span className="pt-1.5">
-                    <RowCheck id={n.id} checked={sel.isSelected(n.id)} onToggle={sel.toggle} label={`Select ${n.title}`} />
+                    {!staff && <RowCheck id={n.id} checked={sel.isSelected(n.id)} onToggle={sel.toggle} label={`Select ${n.title}`} />}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-base font-semibold text-ink">{n.title}</p>
@@ -763,7 +774,7 @@ function AllNotes({
         </Card>
         </div>
       )}
-      <BulkBar count={sel.count} onClear={sel.clear} actions={bulkActions} />
+      {!staff && <BulkBar count={sel.count} onClear={sel.clear} actions={bulkActions} />}
     </>
   );
 }

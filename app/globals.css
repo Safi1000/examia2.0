@@ -897,7 +897,8 @@ html[data-app] .web-only {
   display: none !important;
 }
 
-/* The teaching assistant's console: anything marked owner-only is not shown to her (see lib/staff.ts). */
+/* A staff member's console: anything marked owner-only is not shown to them (see lib/staff.ts).
+   The mark is on <html> (admin layout), so this also reaches pop up windows drawn in <body>. */
 [data-ta] [data-owner] {
   display: none !important;
 }

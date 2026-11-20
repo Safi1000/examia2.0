@@ -15,13 +15,15 @@ const KEY = "last";
 /** Older than this, a copy is more confusing than helpful: wait for fresh data. */
 const MAX_AGE_MS = 7 * 24 * 3_600_000;
 /** Bump when the cached shape changes so old copies are ignored. */
-const VERSION = 1;
+// 2 (Nov 2026): a staff member's copy now remembers that they are staff, and holds no phone numbers.
+const VERSION = 2;
 
 export type Snapshot = {
   v: number;
   userId: string;
   savedAt: number;
-  session: { role: "admin" | "student"; studentId?: string };
+  /** Everything the screens branch on. Leaving the staff fields out once made a staff member look like Hamza on reopening. */
+  session: { role: "admin" | "student"; studentId?: string; staff?: "ta"; staffName?: string; staffAccess?: string[] };
   db: Database;
 };
 

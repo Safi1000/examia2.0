@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { isAdminRequest } from "@/lib/admin-auth";
+import { isAdminRequest, isStaffRequest } from "@/lib/admin-auth";
 import { levelSubjectsByStudent, serviceClient } from "@/lib/push-server";
 import { cleanLevels } from "@/lib/levels";
 
@@ -14,7 +14,8 @@ export const dynamic = "force-dynamic";
 const ready = () => !!(process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.NEXT_PUBLIC_SUPABASE_URL);
 
 export async function GET(req: NextRequest) {
-  if (!(await isAdminRequest(req))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  // Staff read it too (which subjects a student takes at each level, nothing private): without it their class lists are wrong.
+  if (!(await isStaffRequest(req))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   if (!ready()) return NextResponse.json({});
   const map = await levelSubjectsByStudent(serviceClient());
   return NextResponse.json(Object.fromEntries(map), { headers: { "Cache-Control": "private, no-store" } });

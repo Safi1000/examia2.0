@@ -39,6 +39,13 @@ async function resolveSession(user: User): Promise<Session> {
 }
 
 const sameProfile = (a: Profile, b: Profile) => JSON.stringify(a) === JSON.stringify(b);
+/** Same person with the same reach: role, student, and for staff their name and switched on parts. */
+const sameSession = (a: Session, b: Session) =>
+  a.role === b.role && a.studentId === b.studentId && a.staff === b.staff && (a.staffName ?? "") === (b.staffName ?? "") && (a.staffAccess ?? []).join() === (b.staffAccess ?? []).join();
+const isStaffUser = (user: User) => {
+  const m = user.app_metadata as { role?: string; staff?: string } | undefined;
+  return m?.role === "admin" && m.staff === "ta";
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -66,6 +73,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Role is known from the sign-in itself; load the portal while the
     // student record is looked up, instead of one after the other.
     store.setAudience((user.app_metadata as Record<string, unknown>)?.role === "admin" ? "admin" : "student");
+    // Known from the sign-in itself, before anything is read or shown.
+    store.setStaff(isStaffUser(user));
     const applyPrefs = (next: Session) => {
       // Server-stored preference is the source of truth; fall back to this
       // device's last choice, then default. Sync the local cache either way.
@@ -78,22 +87,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Open instantly from the copy saved on this device last time, then
     // swap in fresh data when it arrives (lib/data/snapshot.ts).
     const snap = await readSnapshot(user.id).catch(() => null);
-    if (snap && currentUserId.current === user.id) {
-      store.restore(snap);
-      setSession(snap.session as Session);
-      applyPrefs(snap.session as Session);
+    // A staff member's saved copy must say so; one that doesn't is not used.
+    const usable = snap && (!isStaffUser(user) || snap.session.staff === "ta") ? snap : null;
+    if (usable && currentUserId.current === user.id) {
+      store.restore(usable);
+      // Who a console sign-in is (Hamza or staff, and which parts) always comes from the sign-in itself, never the saved copy.
+      const shown = (user.app_metadata as Record<string, unknown>)?.role === "admin" ? await resolveSession(user) : (usable.session as Session);
+      setSession(shown);
+      applyPrefs(shown);
       setInitializing(false);
     }
     try {
       const [next] = await Promise.all([resolveSession(user), store.load()]);
       if (currentUserId.current !== user.id) return false; // signed out meanwhile
-      setSession((cur) => (cur && cur.role === next.role && cur.studentId === next.studentId ? cur : next));
-      if (!snap) applyPrefs(next);
-      store.setOwner(user.id, { role: next.role, studentId: next.studentId });
+      // The fresh answer always wins; the saved one is kept only when nothing differs.
+      setSession((cur) => (cur && sameSession(cur, next) ? cur : next));
+      if (!usable) applyPrefs(next);
+      store.setOwner(user.id, { role: next.role, studentId: next.studentId, staff: next.staff, staffName: next.staffName, staffAccess: next.staffAccess });
     } catch (e) {
       console.error("auth establish failed", e);
       // Already showing the saved copy: stay on it quietly and catch up later.
-      if (snap) {
+      if (usable) {
         store.softRefresh(15_000);
         return true;
       }
@@ -109,7 +123,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /** Preview-only sign-in as a sample student or the admin (lib/demo.ts). */
   const establishDemo = useCallback(async (role: DemoRole) => {
     setDemoRole(role);
-    await getStore().load();
     // Preview only: ?ta=1 shows the console as the teaching assistant sees it (?ta=0 goes back).
     let ta = false;
     try {
@@ -117,6 +130,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (q === "1" || q === "0") localStorage.setItem("ht_demo_ta", q);
       ta = localStorage.getItem("ht_demo_ta") === "1";
     } catch {}
+    getStore().setStaff(role === "admin" && ta);
+    await getStore().load();
     setSession(role === "admin" ? (ta ? { role: "admin", staff: "ta", staffName: "Assistant", staffAccess: [...DEFAULT_ACCESS] } : { role: "admin" }) : { role: "student", studentId: DEMO_STUDENT_ID });
     try {
       setProfile(JSON.parse(localStorage.getItem(DEMO_PROFILE_KEY) ?? "{}") as Profile);
@@ -310,6 +325,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("online", retryUnsaved);
     };
   }, [session?.role, retryUnsaved]);
+
+  // A staff member's switches, and whether Hamza paused or removed them, are
+  // checked again whenever they come back to the tab and every few minutes,
+  // so a change in Settings applies in minutes, not at their next sign-in.
+  const isStaff = session?.role === "admin" && session.staff === "ta";
+  useEffect(() => {
+    if (DEMO || !isStaff) return;
+    let busy = false;
+    const check = async () => {
+      if (busy || document.visibilityState !== "visible") return;
+      busy = true;
+      try {
+        const { data } = await supabase().auth.getSession();
+        const token = data.session?.access_token;
+        const me = currentUserId.current;
+        if (!token || !me) return;
+        const res = await fetch("/api/admin/staff?me=1", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+        if (currentUserId.current !== me) return;
+        // Paused or removed: this device signs out now. (A weak signal is not a no.)
+        if (res.status === 403) return logout();
+        if (!res.ok) return;
+        const fresh = (await res.json()) as { name?: string; access?: unknown };
+        const next: Session = { role: "admin", staff: "ta", staffName: typeof fresh.name === "string" ? fresh.name : "", staffAccess: cleanAccess(fresh.access) };
+        setSession((cur) => (cur && !sameSession(cur, next) ? next : cur));
+        getStore().setOwner(me, { role: "admin", staff: "ta", staffName: next.staffName, staffAccess: next.staffAccess });
+      } catch {
+        // Offline: nothing changes; the next check tries again.
+      } finally {
+        busy = false;
+      }
+    };
+    const timer = setInterval(() => void check(), 4 * 60_000);
+    const onVis = () => void check();
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onVis);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onVis);
+    };
+  }, [isStaff, logout]);
 
   const retryLoad = useCallback(() => {
     if (failedUser) void establish(failedUser);

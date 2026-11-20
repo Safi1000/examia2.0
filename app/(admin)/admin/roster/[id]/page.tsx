@@ -420,8 +420,9 @@ function StudentDetail() {
       )}
 
       {/* Monthly Report Modal */}
+      {/* Hamza's only: staff never get this window, whatever the address says. */}
       <Modal
-        open={reportOpen}
+        open={reportOpen && !ta}
         onClose={() => setReportOpen(false)}
         title="Monthly report"
         description="Pick the month and add an optional teacher note."

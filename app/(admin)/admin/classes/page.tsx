@@ -485,7 +485,7 @@ export default function ClassesPage() {
                                   </Button>
                                 </div>
                               )}
-                              <div>
+                              <div data-owner>
                                 <Link
                                   href={`/admin/assignments?set=papers&class=${s.classId}&subject=${s.subjectId}`}
                                   className="inline-flex h-10 items-center gap-1.5 text-sm font-semibold text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline max-md:h-11"

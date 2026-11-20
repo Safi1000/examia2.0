@@ -155,7 +155,7 @@ async function send(op: Op): Promise<Schedule> {
   if (!res) return undo("Can't reach the server. Check your internet and try again.");
   const body = await res.json().catch(() => ({}));
   // The server answers with a sentence for mistakes Hamza can fix, and a bare code otherwise.
-  if (res.status === 403) return undo("Your session has expired. Sign in again, then save.");
+  if (res.status === 403) return undo("That didn't save. Only Hamza, or staff with Classes switched on, can change class times. If that is you, sign in again and retry.");
   if (!res.ok) return undo(typeof body.error === "string" && /^[A-Z]/.test(body.error) ? body.error : "Couldn't save. Try again.");
   const saved = cleanSchedule(body);
   if (!saved) return undo("Couldn't save. Try again.");

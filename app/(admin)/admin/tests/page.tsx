@@ -1,5 +1,6 @@
 "use client";
 
+import { useIsStaff } from "@/lib/staff";
 import { useMemo, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -34,6 +35,8 @@ const STATUS_TONE: Record<TestStatus, "neutral" | "success" | "warning"> = {
 const clock = () => Date.now();
 
 export default function AdminTestsPage() {
+  // Staff set, edit, close and release tests. Deleting one, and messaging students, stay with Hamza.
+  const staff = useIsStaff();
   const db = useDatabase();
   const store = useStore();
   const router = useRouter();
@@ -245,6 +248,7 @@ export default function AdminTestsPage() {
   }
 
   function runDelete() {
+    if (staff) return setAsk(null);
     const n = chosen.length;
     chosen.forEach((t) => store.deleteTest(t.id));
     setAsk(null);
@@ -278,6 +282,7 @@ export default function AdminTestsPage() {
   }
 
   function startChase() {
+    if (staff) return;
     const list = chaseSteps(db, live, now);
     if (!list.length) return toast(drafts.length === chosen.length ? "These are drafts: nobody has been set them yet." : "Everyone has handed these in.", "info");
     setSteps(list);
@@ -288,13 +293,13 @@ export default function AdminTestsPage() {
     ...(pending.length ? [{ id: "release", label: "Release results", run: () => setAsk("release") }] : []),
     ...(live.length ? [{ id: "extend", label: "One more day", run: () => setAsk("extend") }] : []),
     { id: "close-at", label: "Change close time", run: () => setAsk("close-at") },
-    ...(live.length ? [{ id: "chase", label: "Message who hasn't sat it", run: startChase }] : []),
+    ...(live.length && !staff ? [{ id: "chase", label: "Message who hasn't sat it", run: startChase }] : []),
     { id: "cohort", label: "Set cohort", run: () => setAsk("cohort") },
     ...(running.length ? [{ id: "close", label: "Close now", run: () => setAsk("close") }] : []),
     { id: "duplicate", label: "Duplicate", run: () => setAsk("duplicate") },
     { id: "export", label: "Download results", run: exportResults },
     ...(live.length ? [{ id: "draft", label: "Back to draft", run: () => setAsk("draft") }] : []),
-    { id: "delete", label: "Delete", danger: true, run: () => setAsk("delete") },
+    ...(staff ? [] : [{ id: "delete", label: "Delete", danger: true, run: () => setAsk("delete") }]),
   ];
   if (actions[0] && !actions[0].danger) actions[0] = { ...actions[0], primary: true };
 
@@ -474,7 +479,7 @@ export default function AdminTestsPage() {
                           title: "Make a copy to edit: same questions and answers, as a hidden draft",
                           onSelect: () => void duplicate(t.id),
                         },
-                        { label: "Delete", danger: true, onSelect: () => setDeleteId(t.id) },
+                        ...(staff ? [] : [{ label: "Delete", danger: true, onSelect: () => setDeleteId(t.id) }]),
                       ]}
                     />
                   </div>

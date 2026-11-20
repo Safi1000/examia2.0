@@ -1,5 +1,6 @@
 "use client";
 
+import { useIsStaff } from "@/lib/staff";
 import { useMemo, useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import type { Student } from "@/types";
@@ -64,6 +65,7 @@ function ChipToggle({
 }
 
 export default function RosterPage() {
+  const staff = useIsStaff();
   const db = useDatabase();
   const store = useStore();
   const { toast } = useToast();
@@ -384,6 +386,7 @@ export default function RosterPage() {
   }
 
   function openNew() {
+    if (staff) return;
     setEditing("new");
     setForm({ inPerson: false, username: "", email: "", whatsapp: "", phone: "", photoUrl: "", cohortId: cohortId ?? db.cohorts.find((c) => c.active)?.id ?? db.cohorts[0]?.id ?? "", tempPassword: genPassword(), classIds: [], subjectIds: [], levelSubjects: {} });
     setError(null);
@@ -394,6 +397,8 @@ export default function RosterPage() {
     if (editAsked.current) return;
     const id = new URLSearchParams(window.location.search).get("edit");
     if (!id) return;
+    // Staff look students up; they never open the edit box, however it is asked for.
+    if (staff) return void window.history.replaceState(null, "", window.location.pathname);
     const s = db.students.find((x) => x.id === id);
     if (!s) return;
     editAsked.current = true;
@@ -403,6 +408,7 @@ export default function RosterPage() {
   }, [db.students]);
 
   function openEdit(s: Student) {
+    if (staff) return;
     setEditing(s);
     setForm({ inPerson: inPersonIds.has(s.id), username: s.username, email: s.email ?? "", whatsapp: s.whatsapp ?? "", phone: s.phone ?? "", photoUrl: s.photoUrl ?? "", cohortId: s.cohortId, tempPassword: "", classIds: [...s.classIds], subjectIds: [...s.subjectIds], levelSubjects: Object.fromEntries(s.classIds.map((c) => [c, [...(s.levelSubjects?.[c] ?? s.subjectIds)]])) });
     setError(null);
@@ -486,7 +492,7 @@ export default function RosterPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
-      {bulk && <ImportStudents open onClose={() => setBulk(false)} defaultCohort={cohortId ?? db.cohorts.find((c) => c.active)?.id ?? ""} />}
+      {bulk && !staff && <ImportStudents open onClose={() => setBulk(false)} defaultCohort={cohortId ?? db.cohorts.find((c) => c.active)?.id ?? ""} />}
       {sent && (
         <LoginDetails open kind={sent.kind ?? "welcome"} onClose={() => setSent(null)} username={sent.username} password={sent.password} phone={sent.phone} parent={sent.parent} />
       )}
@@ -505,7 +511,8 @@ export default function RosterPage() {
       {/* Tests, notes and assignments reach students through their level and subjects. */}
       {(() => {
         const unset = db.students.filter((s) => !off.has(s.cohortId) && (!s.classIds.length || !s.subjectIds.length));
-        if (!unset.length || !db.classes.length) return null;
+        // Setting a student's level is Hamza's: staff don't get the strip or its edit buttons.
+        if (staff || !unset.length || !db.classes.length) return null;
         return (
           <div className="mb-4 rounded-tile border border-warning/30 bg-warning-soft px-4 py-3 text-sm leading-relaxed text-ink">
             {unset.length === 1 ? "1 student has" : `${unset.length} students have`} no level or subjects set, so subject tests, notes and assignments

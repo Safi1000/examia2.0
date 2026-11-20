@@ -1,7 +1,7 @@
 "use client";
 
 import { ScheduleGate } from "@/components/ScheduleGate";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useDataReady } from "@/lib/data/store";
@@ -63,6 +63,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (ta && !taMayOpen(pathname, session)) router.replace(taHome(session));
   }, [ta, pathname, router, session]);
+  // The staff mark sits on the page itself, so owner-only things are also
+  // hidden inside pop up windows and menus, which are drawn outside this layout.
+  useLayoutEffect(() => {
+    if (!ta) return;
+    document.documentElement.setAttribute("data-ta", "");
+    return () => document.documentElement.removeAttribute("data-ta");
+  }, [ta]);
   useDocumentTitle(isAdmin ? pageTitle(pathname, TITLES, "Teacher console") : "Teacher sign in · Hamza Teaches");
 
   useSessionTimeout(

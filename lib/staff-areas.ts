@@ -9,10 +9,11 @@ export const STAFF_AREAS = [
   { key: "homework", label: "Reply to homework", pages: ["/admin/assignments"] },
   { key: "students", label: "Look up students", hint: "Names, marks and attendance. No phone numbers, no changes.", pages: ["/admin/roster"] },
   { key: "notes", label: "Read notes", hint: "Read only. No uploading, hiding or deleting.", pages: ["/admin/notes"] },
-  { key: "tests", label: "Tests", hint: "See, set and edit tests.", pages: ["/admin/tests"] },
+  { key: "tests", label: "Tests", hint: "See, set, edit, close and release tests. No deleting, no messaging students.", pages: ["/admin/tests"] },
   { key: "bank", label: "Question bank", pages: ["/admin/bank"] },
   { key: "attendance", label: "Attendance", pages: ["/admin/attendance"] },
-  { key: "classes", label: "Classes and recordings", pages: ["/admin/classes", "/admin/recordings"] },
+  // Not the Recordings page: it shows who opened each recording.
+  { key: "classes", label: "Classes", hint: "Change class times and links. Not the recordings page.", pages: ["/admin/classes"] },
   { key: "whiteboard", label: "Whiteboard", pages: ["/admin/whiteboard"] },
   { key: "announcements", label: "Announcements", pages: ["/admin/announcements"] },
   { key: "analytics", label: "Analytics", hint: "Marks and grades only.", pages: ["/admin/analytics"] },
