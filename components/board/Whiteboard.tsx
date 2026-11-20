@@ -693,7 +693,7 @@ const CHROME: Record<"light" | "dark", React.CSSProperties> = {
     "--bd-solid-fg": "#FFFFFF",
     "--bd-swatch-edge": "inset 0 0 0 1px rgba(20,22,24,0.10)",
     "--bd-tip-bg": "rgba(27,30,33,0.96)",
-    "--bd-hl-chip": "#F6C76E",
+    "--bd-hl-chip": "#F4DA86",
   } as React.CSSProperties,
   dark: {
     "--bd-fg": "#F0EDE8",
@@ -716,7 +716,7 @@ const CHROME: Record<"light" | "dark", React.CSSProperties> = {
     "--bd-solid-fg": "#1B1E21",
     "--bd-swatch-edge": "inset 0 0 0 1px rgba(255,255,255,0.10)",
     "--bd-tip-bg": "rgba(27,30,33,0.96)",
-    "--bd-hl-chip": "#FBC159",
+    "--bd-hl-chip": "#E8D08A",
   } as React.CSSProperties,
 };
 /** Makes a 36px control a 44px touch target without making it look bigger. */
@@ -730,7 +730,7 @@ const CTL = (lead: boolean) =>
   `relative flex shrink-0 items-center justify-center rounded-full ${lead ? "h-11 w-11 [&_svg]:h-[22px] [&_svg]:w-[22px]" : `h-9 w-9 [&_svg]:h-5 [&_svg]:w-5 ${HIT}`}`;
 /** Press, hover and focus for every control (only colour and scale animate; none with reduced motion). */
 const PRESS =
-  "transition-[background-color,color,transform] duration-[120ms] ease-[cubic-bezier(.16,1,.3,1)] active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--bd-sel)] disabled:pointer-events-none disabled:text-[color:var(--bd-fg-3)]";
+  "transition-[background-color,color,transform] duration-200 ease-[cubic-bezier(.22,1,.36,1)] active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--bd-sel)] disabled:pointer-events-none disabled:text-[color:var(--bd-fg-3)]";
 /** A quiet control: muted, full colour on hover. */
 const QUIET = "text-[color:var(--bd-fg-2)] hover:bg-[var(--bd-hover)] hover:text-[color:var(--bd-fg)]";
 /** A neutral "on" state (Bold on, a menu open, Arrow on). Never gold. */
@@ -857,7 +857,7 @@ const Divider = ({ across = false, lead = true }: { across?: boolean; lead?: boo
 function Swatch({ ink, on, size = 28 }: { ink: string; on: boolean; size?: number }) {
   return (
     <span
-      className="block rounded-full transition-[box-shadow] duration-[120ms] motion-reduce:transition-none"
+      className="block rounded-full transition-[box-shadow] duration-300 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none"
       style={{ width: size, height: size, background: ink, boxShadow: on ? `0 0 0 3px var(--bd-panel), 0 0 0 5px ${ink}` : "var(--bd-swatch-edge)" }}
     />
   );
@@ -5756,7 +5756,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
 .wb-rise{animation:wb-rise 160ms cubic-bezier(.16,1,.3,1) 40ms both}
 .wb-fade{animation:wb-fade-in 100ms ease-out both}
 .wb-toast{animation:wb-toast 180ms cubic-bezier(.16,1,.3,1) both}
-.wb-disc{transition:transform 200ms cubic-bezier(.2,.8,.2,1)}
+.wb-disc{transition:transform 340ms cubic-bezier(.32,.72,0,1)}
 .wb-hl-band{stroke:var(--bd-hl-chip)}
 .wb-tool-on .wb-hl-band{stroke:currentColor}
 [data-laptop] .wb-ic{stroke-width:1.9}
@@ -6011,7 +6011,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
       )}
 
       {/* Everything on top of the board fades while the pen is down, and on the laptop when the mouse rests. */}
-      <div className={`transition-opacity ${inking ? "duration-200" : "duration-[240ms]"} ease-out ${toolsHidden ? "hidden" : ""} ${quiet ? "pointer-events-none opacity-0" : inking ? "opacity-20" : ""}`}>
+      <div className={`transition-[opacity,translate] ${inking ? "duration-500" : "duration-[420ms]"} ease-[cubic-bezier(.22,1,.36,1)] ${toolsHidden ? "hidden" : ""} ${quiet ? "pointer-events-none opacity-0" : inking ? "opacity-20" : ""}`}>
         {/* What is selected: one look for everything. A gold frame 8 px around it with a handle at each
             corner (drag one: bigger or smaller, same shape), typed text also a side handle (how wide its
             lines run); a lone straight line instead has a handle at each end and a soft halo. A drag
@@ -6416,7 +6416,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
                 {...tipOn(b.tip, b.keys, b.hint)}
                 onPointerDown={palmDown}
                 onClick={onToolButton}
-                className={`${PRESS} ${ctl} ${toolIndex === i ? "wb-tool-on text-[color:var(--bd-tool-fg)] transition-[color] duration-[120ms]" : QUIET}`}
+                className={`${PRESS} ${ctl} ${toolIndex === i ? "wb-tool-on text-[color:var(--bd-tool-fg)] transition-[color] duration-300" : QUIET}`}
               >
                 {b.icon}
                 {/* The Pen shows the ink in hand at its nib, whatever tool is on. */}

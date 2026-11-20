@@ -47,7 +47,7 @@ export type TextStyle = { bold?: boolean; italic?: boolean };
 /** The font for typed text, in its style. */
 export const textFont = (size: number, st: TextStyle = {}) => `${st.italic ? "italic " : ""}${st.bold ? 700 : 500} ${size}px ${boardFont()}`;
 /** The highlighter: brand gold (see THEMES[..].highlight for each board; this is the paper's). */
-export const HIGHLIGHT = "rgba(251, 193, 89, 0.50)";
+export const HIGHLIGHT = "rgba(250, 226, 140, 0.55)";
 
 export interface Camera {
   x: number;
@@ -112,9 +112,12 @@ export const THEMES: Record<ThemeId, Theme> = {
     // charcoal on a TV) and a deep brand gold (plain gold is too light on white).
     // (v2, 20 Nov: brighter, every one at least 4.5 to 1 on the paper: charcoal, royal blue, a warm
     // clear red, emerald green; gold only on old boards.)
-    ink: { "#F3F1EC": "#14171A", "#8FD0F5": "#1B55F0", "#F07A6A": "#DE2B20", "#7FD1A6": "#00843D", "#FBC159": "#A36600" },
+    // (v3, 20 Nov, Hamza: "softer, premium": soft charcoal, ink navy, brick red, forest green. All
+    // at least 5.6 to 1 on the paper.)
+    ink: { "#F3F1EC": "#22262B", "#8FD0F5": "#2F4A8A", "#F07A6A": "#B2402F", "#7FD1A6": "#2F6B4A", "#FBC159": "#A36600" },
     accent: "#B07A12",
-    highlight: "rgba(251, 193, 89, 0.50)",
+    // A soft butter highlighter (v3: the gold read too heavy), laid on with multiply so ink stays crisp.
+    highlight: "rgba(250, 226, 140, 0.55)",
     highlightBlend: "multiply",
     ring: { border: "rgba(20,22,24,0.55)", fill: "rgba(20,22,24,0.05)" },
   },
@@ -123,10 +126,11 @@ export const THEMES: Record<ThemeId, Theme> = {
     bg: "#212427",
     // (Twice as strong as it was: on the tablet the print could not be seen at all.)
     print: { rgb: "240,237,232", dots: 0.38, lines: 0.15, grid: 0.11, major: 0.21 },
-    ink: { "#F3F1EC": "#F3F1EC", "#8FD0F5": "#4FA3FF", "#F07A6A": "#FF6E55", "#7FD1A6": "#38D985", "#FBC159": "#FBC159" },
+    // (v3: softer pastels, warm white, periwinkle, coral, sage; all at least 6.7 to 1.)
+    ink: { "#F3F1EC": "#ECE8E1", "#8FD0F5": "#93B2E6", "#F07A6A": "#E99383", "#7FD1A6": "#8FC7A3", "#FBC159": "#E9C27A" },
     accent: "#FBC159",
     // (Plain drawing: multiplying on charcoal would hide it.)
-    highlight: "rgba(251, 193, 89, 0.26)",
+    highlight: "rgba(250, 226, 140, 0.20)",
     highlightBlend: "source-over",
     ring: { border: "rgba(255,255,255,0.7)", fill: "rgba(255,255,255,0.05)" },
   },
