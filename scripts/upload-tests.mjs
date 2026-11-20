@@ -96,7 +96,7 @@ function build(t) {
   if (sectionAMarks + writtenMarks !== header) throw new Error(`${t.folder}: header ${header} but A ${sectionAMarks} + written ${writtenMarks}`);
   const nums = written.flatMap((x) => [...x.body.matchAll(/^\*\*(\d+)\./gm)].map((m) => Number(m[1])));
   const range = nums.length ? (nums.length === 1 ? `Question ${nums[0]}` : nums.length === 2 ? `Questions ${nums[0]} and ${nums[1]}` : `Questions ${Math.min(...nums)} to ${Math.max(...nums)}`) : "the written questions";
-  const writtenPrompt = nums.length ? `Upload photos of your written answers (${range}).` : "Upload photos of your written answers.";
+  const writtenPrompt = "Submit your handwritten answers to these questions.";
   const topic = (qp.match(/^# [^:]+:\s*(.+)$/m) || [])[1]?.trim() || "General";
   return { header, mcqs, writtenMarks, writtenPrompt, topic, pdf: join(SRC, "_upload", `${t.folder}.pdf`) };
 }
