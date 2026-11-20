@@ -97,6 +97,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ items: out, recent: recent.data ?? [], cloud: CLOUDINARY_CLOUD, preset: CLOUDINARY_PRESET }, { headers: noStore });
     }
 
+    if (body.action === "check") {
+      // Read-only: how named tests stand in the portal right now (for a pre-opening check).
+      const titles = Array.isArray(body.titles) ? (body.titles as unknown[]).map((t) => text(t, 200)).filter(Boolean).slice(0, 30) : [];
+      if (!titles.length) return NextResponse.json({ error: "Needs titles." }, { status: 400, headers: noStore });
+      const [tests, cls, subj] = await Promise.all([
+        sb.from("tests").select("id,title,subject,status,test_code,duration_minutes,upload_minutes,opens_at,closes_at,cohort_id,class_id,subject_id").in("title", titles),
+        sb.from("classes").select("id,name"),
+        sb.from("subjects").select("id,name"),
+      ]);
+      for (const r of [tests, cls, subj]) if (r.error) throw new Error(r.error.message);
+      const rows = (tests.data ?? []) as Row[];
+      const ids = rows.map((r) => r.id as string);
+      const [qs, subs] = await Promise.all([
+        ids.length ? sb.from("questions").select("id,test_id,type,prompt,marks,options,attachment_urls,sort_order").in("test_id", ids) : Promise.resolve({ data: [], error: null }),
+        ids.length ? sb.from("submissions").select("id,test_id").in("test_id", ids) : Promise.resolve({ data: [], error: null }),
+      ]);
+      if (qs.error) throw new Error(qs.error.message);
+      if (subs.error) throw new Error(subs.error.message);
+      const qRows = (qs.data ?? []) as Row[];
+      const keys = qRows.length ? await sb.from("question_keys").select("question_id,correct_index").in("question_id", qRows.map((q) => q.id as string)) : { data: [], error: null };
+      if (keys.error) throw new Error(keys.error.message);
+      const keyOf = new Map(((keys.data ?? []) as Row[]).map((k) => [k.question_id as string, k.correct_index as number]));
+      const nameOf = (list: unknown, id: unknown) => ((list ?? []) as Row[]).find((r) => r.id === id)?.name ?? null;
+      const out = rows.map((t) => ({
+        title: t.title, status: t.status, testCode: t.test_code, subject: t.subject,
+        className: nameOf(cls.data, t.class_id), subjectName: nameOf(subj.data, t.subject_id), allCohorts: t.cohort_id === null,
+        durationMinutes: t.duration_minutes, uploadMinutes: t.upload_minutes, opensAt: t.opens_at, closesAt: t.closes_at,
+        submissions: ((subs.data ?? []) as Row[]).filter((s) => s.test_id === t.id).length,
+        questions: qRows.filter((q) => q.test_id === t.id).sort((a, b) => (a.sort_order as number) - (b.sort_order as number)).map((q) => ({
+          type: q.type, marks: q.marks, prompt: String(q.prompt ?? "").slice(0, 160),
+          options: Array.isArray(q.options) ? (q.options as unknown[]).length : 0,
+          key: q.type === "mcq" ? (keyOf.has(q.id as string) ? keyOf.get(q.id as string) : null) : undefined,
+          pages: Array.isArray(q.attachment_urls) ? (q.attachment_urls as string[]) : [],
+        })),
+      }));
+      return NextResponse.json({ tests: out, missing: titles.filter((t) => !rows.some((r) => r.title === t)) }, { headers: noStore });
+    }
+
     if (body.action === "create") {
       const level = asLevel(body.level);
       const subject = asSubject(body.subject);

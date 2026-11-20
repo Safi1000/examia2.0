@@ -6,7 +6,8 @@
  *   node site/scripts/upload-tests.mjs --plan            where each test goes + the latest test names
  *   node site/scripts/upload-tests.mjs --dry             build every test and print it, upload nothing
  *   node site/scripts/upload-tests.mjs [folder ...]      upload (all, or the folders named)
- *   add --replace to swap an existing DRAFT of the same name
+ *   node site/scripts/upload-tests.mjs --check           read-only: is every test ready to open?
+ *   add --replace to swap an existing draft, or correct a published test nobody has started
  *
  * Reads tests/_source/upload.json:
  *   { "opensAt": "...+05:00", "closesAt": "...+05:00", "durationMinutes": 40, "uploadMinutes": 5,
@@ -136,6 +137,48 @@ const key = findKey();
 if (!key) {
   console.log("NO KEY. In the console: Settings, Notes from Claude, Make upload key. Then run this again.");
   process.exit(1);
+}
+
+if (flag("--check")) {
+  // Read-only: is each test ready to open? (published, times, class and subject, keys, marks, pages load)
+  const pk = (iso) => new Date(iso).toLocaleString("en-GB", { timeZone: "Asia/Karachi", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true });
+  const res = await api(key, { action: "check", titles: todo.map((t) => t.title) });
+  if (!res.ok) { console.log(`Check failed (${res.status}): ${JSON.stringify(res.data)}`); process.exit(1); }
+  for (const m of res.data.missing) console.log(`\n✗ ${m}: NOT IN THE PORTAL`);
+  let allOk = res.data.missing.length === 0;
+  for (const t of res.data.tests) {
+    const want = todo.find((x) => x.title === t.title);
+    const problems = [];
+    if (t.status === "draft") problems.push("still a DRAFT (students can't see it until you press Publish)");
+    if (t.status === "closed") problems.push("status is CLOSED");
+    const opens = Date.parse(t.opensAt), closes = Date.parse(t.closesAt);
+    if (closes - opens < (t.durationMinutes + t.uploadMinutes) * 60000) problems.push("the window is shorter than writing + upload time");
+    if (closes < Date.now()) problems.push("the closing time has already passed");
+    if (want && cfg.opensAt && Date.parse(cfg.opensAt) !== opens) problems.push(`opens ${pk(t.opensAt)}, planned ${pk(cfg.opensAt)}`);
+    if (want && cfg.closesAt && Date.parse(cfg.closesAt) !== closes) problems.push(`closes ${pk(t.closesAt)}, planned ${pk(cfg.closesAt)}`);
+    if (!t.className || !t.subjectName) problems.push("no class or no subject set (it would go to every student)");
+    const mcqs = t.questions.filter((q) => q.type === "mcq");
+    mcqs.forEach((q, i) => {
+      if (q.key === null || q.key === undefined) problems.push(`MCQ ${i + 1} has NO answer key`);
+      if (q.options < 2) problems.push(`MCQ ${i + 1} has ${q.options} options`);
+    });
+    for (const [i, q] of t.questions.entries()) if (!(q.marks >= 1)) problems.push(`question ${i + 1} has ${q.marks} marks`);
+    const photo = t.questions.filter((q) => q.type === "photo");
+    if (!photo.length) problems.push("no photo-answer question for the written part");
+    for (const q of photo) {
+      if (!q.pages.length) problems.push("the written part has no paper pages");
+      for (const u of q.pages) { const r = await fetch(u); if (!r.ok) problems.push(`a paper page does not load (${r.status})`); }
+    }
+    const total = t.questions.reduce((s, q) => s + q.marks, 0);
+    if (total % 5 !== 0) problems.push(`total is ${total}, not a round number`);
+    if (problems.length) allOk = false;
+    console.log(`\n${problems.length ? "✗" : "✓"} ${t.title}  [${t.status}, ${t.testCode}]  ${t.className} / ${t.subjectName}`);
+    console.log(`  ${pk(t.opensAt)} to ${pk(t.closesAt)} · ${t.durationMinutes} min + ${t.uploadMinutes} min upload · ${mcqs.length} MCQs (keys ${mcqs.filter((q) => q.key !== null && q.key !== undefined).length}/${mcqs.length}) · written ${photo.reduce((s, q) => s + q.marks, 0)} marks on ${photo.reduce((s, q) => s + q.pages.length, 0)} page(s) · total ${total} · ${t.submissions} started`);
+    for (const q of photo) console.log(`  Written prompt: "${q.prompt}"`);
+    for (const p of problems) console.log(`  ! ${p}`);
+  }
+  console.log(allOk ? "\nAll ready." : "\nFix the ! lines above.");
+  process.exit(0);
 }
 
 const plan = await api(key, { action: "plan", items: todo.map((t) => ({ level: t.level, subject: t.subject })) });
