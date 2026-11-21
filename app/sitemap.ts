@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { allArticles } from "@/lib/blog";
 import { CITY_PAGES } from "@/lib/city-pages";
+import { COUNTRY_PAGES } from "@/lib/country-pages";
 import { SYLLABI } from "@/lib/syllabus";
 import { GULF_CITY_PAGES } from "@/lib/gulf-pages";
 import { PAPERS, liveSyllabuses, paperSlug } from "@/lib/mcq-papers";
@@ -8,6 +9,7 @@ import { PUBLIC_ROUTES, absolute } from "@/lib/seo";
 import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
 import { PAST_PAPER_SYLLABI, paperHref, papersFor } from "@/lib/past-papers";
 import { hasTopical, topicalFor } from "@/lib/topical";
+import { SUBJECT_PAGES, tuitionPath } from "@/lib/subjects";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const articles = await allArticles();
@@ -17,6 +19,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly" as const,
       priority: r.priority,
     })),
+    // Subject tuition pages: Accounting, Business, Economics.
+    ...SUBJECT_PAGES.map((s) => ({ url: absolute(tuitionPath(s.slug)), changeFrequency: "monthly" as const, priority: 0.8 })),
     // One page per syllabus: refreshed when a new session's thresholds are added.
     ...THRESHOLD_PAGES.map((p) => ({
       url: absolute(`/grade-thresholds/${p.slug}`),
@@ -34,6 +38,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ]),
     ...PAST_PAPER_SYLLABI.flatMap((s) => papersFor(s.code).map((p) => ({ url: absolute(paperHref(s.slug, p)), changeFrequency: "yearly" as const, priority: 0.6 }))),
     ...SYLLABI.map((s) => ({ url: absolute(`/syllabus/${s.slug}`), changeFrequency: "monthly" as const, priority: 0.7 })),
+    ...COUNTRY_PAGES.map((c) => ({ url: absolute(`/online-classes/${c.slug}`), changeFrequency: "monthly" as const, priority: 0.6 })),
     ...[...CITY_PAGES, ...GULF_CITY_PAGES].map((c) => ({
       url: absolute(`/online-classes/${c.slug}`),
       changeFrequency: "monthly" as const,

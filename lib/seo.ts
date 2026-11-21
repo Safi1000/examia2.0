@@ -4,7 +4,7 @@
  */
 import { COMPANY_NAME } from "@/lib/config";
 import { LANDING } from "@/lib/landing";
-import { SUBJECT_PAGES } from "@/lib/subjects";
+import { SUBJECT_PAGES, tuitionPath } from "@/lib/subjects";
 
 /** No trailing slash. The live site serves on www (hamzateaches.com redirects there). Override per deploy. */
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.hamzateaches.com").replace(
@@ -93,7 +93,7 @@ export function personLd() {
     jobTitle: "Accounting, Business and Economics tutor",
     worksFor: { "@id": ORG_ID },
     sameAs: SAME_AS,
-    knowsAbout: ["Accounting", "Business Studies", "Economics", "Cambridge O Level", "Cambridge IGCSE", "Cambridge International AS & A Level"],
+    knowsAbout: ["Accounting", "Business Studies", "Economics", "Cambridge O Level", "Cambridge IGCSE", "Cambridge International AS & A Level", "Pearson Edexcel"],
   };
 }
 
@@ -176,16 +176,16 @@ export function breadcrumbLd(trail: Array<{ name: string; path: string }>) {
   };
 }
 
-/** One Course per subject and level, printed on the homepage. */
-export function coursesLd() {
-  return SUBJECT_PAGES.flatMap((s) =>
+/** One Course per subject and level: all of them on the homepage, one subject's on its tuition page. */
+export function coursesLd(slug?: string) {
+  return SUBJECT_PAGES.filter((s) => !slug || s.slug === slug).flatMap((s) =>
     s.levels.map((l) => ({
       "@context": "https://schema.org",
       "@type": "Course",
       name: `${s.subject} tuition: ${l.level}`,
       description: `${l.title}. ${l.body} Cambridge and Pearson Edexcel.`,
       courseCode: l.codes,
-      url: absolute("/"),
+      url: absolute(tuitionPath(s.slug)),
       provider: { "@id": ORG_ID, "@type": "EducationalOrganization", name: COMPANY_NAME },
       inLanguage: "en",
       hasCourseInstance: [{ "@type": "CourseInstance", courseMode: "online" }],

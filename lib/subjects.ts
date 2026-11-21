@@ -1,6 +1,7 @@
 /**
- * Subject and level content: the homepage course data (lib/seo.ts coursesLd). Plain data, no
- * "use client", so server pages can read it for metadata and structured data.
+ * Subject and level content: the subject tuition pages (/tuition/[slug]), the homepage
+ * picker's codes and the course data (lib/seo.ts coursesLd). Plain data, no "use client",
+ * so server pages can read it for metadata and structured data.
  *
  * Level titles and blurbs are the homepage picker's own copy. Syllabus codes
  * and section names follow the Cambridge syllabuses; check them against the
@@ -20,22 +21,29 @@ export interface LevelInfo {
 export interface SubjectInfo {
   slug: string;
   subject: SubjectName;
-  /** <title>, about 60 characters. */
+  /** <title> without the brand; fitTitle() adds " | Hamza Teaches" (about 60 characters in all). */
   seoTitle: string;
   /** Meta description, about 155 characters. */
   seoDescription: string;
   h1: string;
   intro: string;
   levels: LevelInfo[];
+  /** Review screenshots from lib/reviews.ts (by src) that are about this subject. Only ones already on the homepage. */
+  reviewShots?: string[];
+  /** Questions only this subject needs, answered from facts already on the site. */
+  faq?: Array<{ q: string; a: string }>;
 }
+
+/** The subject tuition page for a slug. */
+export const tuitionPath = (slug: string) => `/tuition/${slug}`;
 
 export const SUBJECT_PAGES: SubjectInfo[] = [
   {
     slug: "accounting",
     subject: "Accounting",
-    seoTitle: "Accounting Tuition: O Level, IGCSE and A Level | Hamza Teaches",
+    seoTitle: "Accounting Tuition: O Level, IGCSE, A Level",
     seoDescription:
-      "Live small group Accounting classes for O Level (7707), IGCSE (0452), AS and A2 (9706). Live online. Watch a free trial lesson first.",
+      "Live small group Accounting classes on Google Meet for O Level 7707, IGCSE 0452 and AS and A Level 9706. Cambridge and Edexcel. Book a free trial lesson.",
     h1: "Accounting tuition for O Level, IGCSE and A Level",
     intro:
       "From double entry to investment appraisal, taught in the order the examiner expects, with past paper practice every week.",
@@ -86,9 +94,9 @@ export const SUBJECT_PAGES: SubjectInfo[] = [
   {
     slug: "business",
     subject: "Business",
-    seoTitle: "Business Tuition: O Level, IGCSE and A Level | Hamza Teaches",
+    seoTitle: "Business Tuition: O Level, IGCSE, A Level",
     seoDescription:
-      "Live small group Business classes for O Level (7081, was 7115), IGCSE (0264, was 0450), AS and A2 (9609). Live online. Free trial lesson.",
+      "Small live Business classes on Google Meet: O Level 7081 (was 7115), IGCSE 0264 (was 0450), AS and A Level 9609. Cambridge and Edexcel. Free trial lesson.",
     h1: "Business tuition for O Level, IGCSE and A Level",
     intro:
       "How a firm actually reaches a decision, and how to build the argument the mark scheme rewards on the long case study questions.",
@@ -134,13 +142,20 @@ export const SUBJECT_PAGES: SubjectInfo[] = [
         ],
       },
     ],
+    reviewShots: ["/reviews/armaan.jpg", "/reviews/talal.jpg"],
+    faq: [
+      {
+        q: "My Business syllabus code changed. Which one do you teach?",
+        a: "Both, depending on when you sit. O Level Business 7081 replaces Business Studies 7115 from June 2027, and IGCSE Business 0264 replaces Business Studies 0450 from the 2027 exams. AS and A Level stays 9609.",
+      },
+    ],
   },
   {
     slug: "economics",
     subject: "Economics",
-    seoTitle: "Economics Tuition: O Level, IGCSE and A Level | Hamza Teaches",
+    seoTitle: "Economics Tuition: O Level, IGCSE, A Level",
     seoDescription:
-      "Live small group Economics classes for O Level (2281), IGCSE (0455), AS and A2 (9708). Live online. Watch a free trial lesson first.",
+      "Live small group Economics classes on Google Meet for O Level 2281, IGCSE 0455 and AS and A Level 9708. Cambridge and Edexcel. Book a free trial lesson.",
     h1: "Economics tuition for O Level, IGCSE and A Level",
     intro:
       "Diagrams you can draw under pressure, and evaluation answers that pick a side and back it up.",

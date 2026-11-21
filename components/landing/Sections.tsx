@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useId, useMemo, useRef, useState } from "react";
 import { PillButton } from "./PillButton";
 import { SeatTicket } from "./Vignette";
@@ -10,7 +11,7 @@ import { SwipeItem, SwipeRow } from "./ReviewSlider";
 import { useBooking } from "./BookingModal";
 import { SHOT_RATIO, SHOTS as shots, VIDEO_REVIEWS as videoReviews, type VideoReview } from "@/lib/reviews";
 import { FAQS as faqs, posterFor, track, waLink, type LevelName, type SubjectName } from "@/lib/landing";
-import { SUBJECT_PAGES } from "@/lib/subjects";
+import { SUBJECT_PAGES, tuitionPath } from "@/lib/subjects";
 import { WordsStagger } from "@/components/spell/words-stagger";
 import { HighlightedText } from "@/components/spell/highlighted-text";
 import { Signature } from "@/components/spell/signature";
@@ -157,6 +158,15 @@ export function FreeLesson() {
           })}
         </div>
 
+        <p className="mt-8 text-center">
+          <Link
+            href={tuitionPath(SUBJECT_PAGES.find((p) => p.subject === subject)?.slug ?? "")}
+            className="inline-flex min-h-11 items-center gap-1.5 text-base font-semibold text-body underline decoration-hairline-strong underline-offset-4 transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+          >
+            Everything I teach in {subject}
+            <span aria-hidden>→</span>
+          </Link>
+        </p>
       </div>
     </section>
   );

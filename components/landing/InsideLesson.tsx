@@ -303,7 +303,7 @@ export function InsideLesson() {
         <div className="mt-6 md:mt-12">
           <SwipeRow labelledBy="inside-title" className="md:grid md:grid-cols-3 md:gap-5">
             <SwipeItem className="md:col-span-2">
-              <Card title="Small live classes" text="On Google Meet or Zoom, cameras on. Ask me anything, any time." art={<LiveArt />} />
+              <Card title="Small live classes" text="On Google Meet, cameras on. Ask me anything, any time." art={<LiveArt />} />
             </SwipeItem>
             <SwipeItem>
               <Card title="Every class recorded" text="Missed a class? Watch it the same night. It stays open for 48 hours." art={<RecordedArt />} />

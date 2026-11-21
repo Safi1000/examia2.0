@@ -110,6 +110,7 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
 
         <TrialBox
           from={`past-papers:${s.code}`}
+          classes
           subject={s.subject}
           level={s.trialLevel}
           title="Marked your paper and lost marks you can't explain?"

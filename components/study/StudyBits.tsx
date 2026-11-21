@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { BookButton } from "@/components/landing/BookingModal";
 import type { LevelName, SubjectName } from "@/lib/landing";
+import { SUBJECT_PAGES, tuitionPath } from "@/lib/subjects";
 
 /** Shared pieces for the public study pages (thresholds, guides, city pages). */
 export function Crumbs({ trail }: { trail: Array<{ name: string; href?: string }> }) {
@@ -80,7 +81,8 @@ const quietLink =
 
 /**
  * The one ask on a study page: a free trial lesson. `classes` adds one quiet line
- * linking to the online classes pages (leave it off on those pages themselves).
+ * linking to the online classes pages (leave it off on those pages themselves),
+ * and to the subject's tuition page when `subject` is set.
  */
 export function TrialBox({
   from,
@@ -97,6 +99,7 @@ export function TrialBox({
   body: string;
   classes?: boolean;
 }) {
+  const tuition = subject ? SUBJECT_PAGES.find((p) => p.subject === subject) : undefined;
   return (
     <aside className="mt-16 rounded-card border border-hairline bg-card-raised p-6 md:p-10">
       <h2 className="max-w-[24ch] text-2xl font-bold leading-tight text-foreground md:text-3xl">{title}</h2>
@@ -108,7 +111,16 @@ export function TrialBox({
       </div>
       {classes && (
         <p className="mt-5 text-base leading-relaxed text-muted-foreground">
-          See how the{" "}
+          {tuition && (
+            <>
+              See what my{" "}
+              <Link href={tuitionPath(tuition.slug)} className={quietLink}>
+                {tuition.subject} classes
+              </Link>{" "}
+              cover, and how the{" "}
+            </>
+          )}
+          {!tuition && <>See how the </>}
           <Link href="/online-classes" className={quietLink}>
             online classes
           </Link>{" "}

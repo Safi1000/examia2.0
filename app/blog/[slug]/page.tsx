@@ -15,6 +15,7 @@ import { MarketingShell } from "@/components/landing/MarketingShell";
 import { allArticles, articleSlugs, getArticle } from "@/lib/blog";
 import { absolute, articleLd, breadcrumbLd, fitTitle } from "@/lib/seo";
 import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
+import { SUBJECT_PAGES, tuitionPath } from "@/lib/subjects";
 
 export const dynamicParams = false;
 
@@ -53,6 +54,7 @@ export default async function ArticlePage({ params }: Props) {
   // Short topic for the WhatsApp message: the title before any bracket or colon.
   const topic = a.title.split(/[(:]/)[0].trim().toLowerCase();
   const ctaProps = { slug, topic, subject: a.subject, level: a.level };
+  const tuition = SUBJECT_PAGES.find((p) => p.subject === a.subject);
   const headings = headingsFromSource(fs.readFileSync(path.join(process.cwd(), "content", "blog", `${slug}.mdx`), "utf8"));
 
   const related = (await allArticles()).filter((o) => o.slug !== slug && o.subject === a.subject).slice(0, 2);
@@ -122,7 +124,15 @@ export default async function ArticlePage({ params }: Props) {
           <ArticleCta variant="end" {...ctaProps} />
 
           <p className="mt-6 text-base leading-relaxed text-muted-foreground">
-            Want the whole syllabus taught live? See how my{" "}
+            Want the whole syllabus taught live? See what my{" "}
+            {tuition ? (
+              <Link href={tuitionPath(tuition.slug)} className="font-semibold text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">
+                {a.subject} classes
+              </Link>
+            ) : (
+              <>{a.subject} classes</>
+            )}{" "}
+            cover, and how my{" "}
             <Link href="/online-classes" className="font-semibold text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">
               online classes
             </Link>{" "}
