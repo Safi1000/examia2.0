@@ -85,13 +85,8 @@ export default async function TopicPage({ params }: Props) {
           {e.topic.num} {e.topic.name}
         </p>
         <h1 className="mt-1 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{e.sub.name}</h1>
-        {intro.length > 0 && <p className="mt-4 max-w-[64ch] text-base leading-relaxed text-body md:text-lg">{intro.join(" ")}</p>}
-        <p className="mt-4 max-w-[58ch] text-lg leading-relaxed text-muted-foreground">
-          {hasMcq && hasWritten
-            ? "Warm up with a few multiple choice. Then try a written one and mark it the way an examiner would."
-            : hasMcq
-              ? "Every multiple choice question on this topic. Tap an answer. You'll know straight away."
-              : "Every written question on this topic. Try one properly, then check yourself against the mark scheme."}
+        <p className="mt-3 text-base text-muted-foreground">
+          <span className="tabular-nums">{questions.length}</span> questions · {hasMcq && hasWritten ? "multiple choice and written" : hasMcq ? "multiple choice" : "written"} · mark schemes included
         </p>
 
         <div className="mt-8">
@@ -128,6 +123,13 @@ export default async function TopicPage({ params }: Props) {
             </Link>
           )}
         </nav>
+
+        {intro.length > 0 && (
+          <section aria-labelledby="about-q" className="mt-12 border-t border-hairline pt-6">
+            <h2 id="about-q" className="text-sm font-semibold text-muted-foreground">About these questions</h2>
+            <p className="mt-2 max-w-[64ch] text-sm leading-relaxed text-faint">{intro.join(" ")}</p>
+          </section>
+        )}
 
         <RelatedLinks links={syllabusLinks(s.code, ["checklist"]).filter((l) => !reading.some((r) => r.href === l.href))} />
 

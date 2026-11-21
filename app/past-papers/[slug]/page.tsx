@@ -86,23 +86,15 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
         </div>
         <div className="mt-8"><Crumbs trail={[{ name: "Home", href: "/" }, { name: "Past papers", href: "/past-papers" }, { name: s.short }]} /></div>
         <h1 className="mt-4 text-4xl font-bold leading-[1.06] tracking-tight text-foreground md:text-5xl">{searchName(s)} past papers</h1>
-        {intro.length > 0 && (
-          <p className="mt-4 max-w-[70ch] text-base leading-relaxed text-muted-foreground">
-            {intro.join(" ")}
-            {(s.next || s.revised) && next && (
-              <>
-                {" "}
-                <Link href={`/syllabus/${next.slug}`} className="font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 hover:decoration-foreground">
-                  What changed
-                </Link>
-              </>
-            )}
-          </p>
-        )}
         <p className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-base font-semibold">
           {hasTopical(s.code) && (
             <Link href={`/past-papers/${s.slug}/topics`} className="inline-flex min-h-11 items-center text-foreground underline decoration-hairline-strong underline-offset-[6px] transition-colors duration-150 hover:decoration-foreground">
               Revise by topic
+            </Link>
+          )}
+          {(s.next || s.revised) && next && (
+            <Link href={`/syllabus/${next.slug}`} className="inline-flex min-h-11 items-center text-muted-foreground underline decoration-hairline-strong underline-offset-[6px] transition-colors duration-150 hover:text-foreground">
+              What changed for 2027
             </Link>
           )}
         </p>
@@ -119,6 +111,13 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
           title="Marked your paper and lost marks you can't explain?"
           body={`That is what I fix in class: the exact ${s.short} questions you keep dropping marks on, with the mark scheme open. Start with one free lesson.`}
         />
+
+        {intro.length > 0 && (
+          <section aria-labelledby="about-p" className="mt-12 border-t border-hairline pt-6">
+            <h2 id="about-p" className="text-sm font-semibold text-muted-foreground">About these papers</h2>
+            <p className="mt-2 max-w-[70ch] text-sm leading-relaxed text-faint">{intro.join(" ")}</p>
+          </section>
+        )}
 
         <Section title="Keep exploring">
           <nav aria-label="Also for this syllabus" className="flex flex-col divide-y divide-hairline border-y border-hairline text-lg">
