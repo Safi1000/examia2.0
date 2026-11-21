@@ -1,12 +1,18 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ArticleHeader } from "@/components/blog/ArticleHeader";
+import { ArticleToc } from "@/components/blog/ArticleToc";
+import { AuthorBio } from "@/components/blog/AuthorBio";
+import { headingsFromSource } from "@/components/blog/headings";
 import { notFound } from "next/navigation";
 import { PAST_PAPER_SYLLABI } from "@/lib/past-papers";
 import { SYLLABI } from "@/lib/syllabus";
 import { JsonLd } from "@/components/JsonLd";
 import { ArticleCta } from "@/components/blog/ArticleCta";
 import { MarketingShell } from "@/components/landing/MarketingShell";
-import { allArticles, articleSlugs, formatDate, getArticle } from "@/lib/blog";
+import { allArticles, articleSlugs, getArticle } from "@/lib/blog";
 import { absolute, articleLd, breadcrumbLd, fitTitle } from "@/lib/seo";
 import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
 
@@ -47,6 +53,7 @@ export default async function ArticlePage({ params }: Props) {
   // Short topic for the WhatsApp message: the title before any bracket or colon.
   const topic = a.title.split(/[(:]/)[0].trim().toLowerCase();
   const ctaProps = { slug, topic, subject: a.subject, level: a.level };
+  const headings = headingsFromSource(fs.readFileSync(path.join(process.cwd(), "content", "blog", `${slug}.mdx`), "utf8"));
 
   const related = (await allArticles()).filter((o) => o.slug !== slug && o.subject === a.subject).slice(0, 2);
   // Free resources for this article: its calculator (by topic) and past papers for its codes.
@@ -101,16 +108,9 @@ export default async function ArticlePage({ params }: Props) {
             <Link href="/blog" className="transition-colors duration-200 hover:text-ink">The Exam Room</Link>
           </nav>
 
-          <header className="mt-8">
-            <p className="text-sm font-semibold text-faint">
-              {a.subject} · {a.level} · {a.type}
-            </p>
-            <h1 className="mt-4 text-balance text-4xl font-bold leading-[1.08] tracking-tight text-ink md:text-5xl">{a.title}</h1>
-            <p className="mt-6 text-lg leading-relaxed text-muted-foreground">{a.description}</p>
-            <p className="mt-6 border-b border-hairline pb-8 text-sm text-faint">
-              By Hamza · {a.updated ? <>Updated <time dateTime={a.updated}>{formatDate(a.updated)}</time></> : <time dateTime={a.date}>{formatDate(a.date)}</time>} · {a.minutes} min read · <span className="tabular-nums">{a.code}</span>
-            </p>
-          </header>
+          <ArticleHeader a={a} sections={headings.length} />
+
+          <ArticleToc slug={slug} headings={headings} minutes={a.minutes} />
 
           {a.summary && a.summary.length > 0 && (
             <section aria-labelledby="in-short-h" className="mt-10 rounded-tile border border-hairline bg-card p-5 md:p-6">
@@ -123,9 +123,11 @@ export default async function ArticlePage({ params }: Props) {
             </section>
           )}
 
-          <div className="pb-2">
+          <div id="article-body" className="pb-2">
             <Post components={{ BookingBox: () => <ArticleCta variant="mid" {...ctaProps} /> }} />
           </div>
+
+          <AuthorBio />
 
           <ArticleCta variant="end" {...ctaProps} />
 

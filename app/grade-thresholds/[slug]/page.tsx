@@ -63,9 +63,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!p) return {};
   const latest = sessionsOf(p.syllabuses[0])[0];
   const renamed = NEW_CODES[p.code];
+  // Code and year first: students search "9609 threshold 2026".
+  const year = String(latest).match(/\d{4}/)?.[0] ?? "";
+  const who = `${p.level === "AS and A Level" ? "A Level" : p.level} ${p.subject}`;
+  const full = `${p.code} Grade Thresholds ${year}: ${who} A* and A Marks`;
   const title = renamed
-    ? fitTitle(`${p.name} Grade Thresholds (now ${renamed})`)
-    : fitTitle(`${p.name} Grade Thresholds (${latest})`);
+    ? fitTitle(`${p.code} Grade Thresholds ${year}: ${who} (now ${renamed})`)
+    : fitTitle(full.length <= 60 ? full : `${p.code} Grade Thresholds ${year}: ${who} A* Marks`);
   const description = `Official Cambridge ${p.name} grade thresholds, June 2024 to ${latest}, every variant, and the marks you need for an A* or A in 2027.`;
   const url = `/grade-thresholds/${p.slug}`;
   return {

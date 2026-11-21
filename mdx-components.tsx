@@ -1,13 +1,15 @@
 import type { MDXComponents } from "mdx/types";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import Link from "next/link";
+import { headingId, textOf } from "@/components/blog/headings";
 
 /**
  * How article text looks. Required by @next/mdx. Article-specific boxes
  * (<BookingBox />) are passed in by app/blog/[slug]/page.tsx.
  */
 const components: MDXComponents = {
-  h2: (p) => <h2 className="mt-14 scroll-mt-28 text-2xl font-bold leading-tight text-foreground md:text-3xl" {...p} />,
+  // The id matches the "On this page" list (components/blog/headings.ts).
+  h2: (p) => <h2 id={headingId(textOf(p.children))} className="mt-14 scroll-mt-28 text-2xl font-bold leading-tight text-foreground md:text-3xl" {...p} />,
   h3: (p) => <h3 className="mt-10 text-xl font-bold text-foreground" {...p} />,
   p: (p) => <p className="mt-5 text-lg leading-[1.75] text-body" {...p} />,
   ul: (p) => <ul className="mt-5 list-disc space-y-2 pl-6 text-lg leading-[1.7] text-body marker:text-faint" {...p} />,

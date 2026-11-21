@@ -12,7 +12,7 @@ import { articleLd, breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
  * Business and Economics without a school. Dates are the British Council's
  * own published deadlines; update them when the May / June 2027 table is out.
  */
-const title = "Private Candidate Guide Pakistan: O Level and A Level 2027";
+const title = "O Level and A Level as a Private Candidate in Pakistan (2027)";
 const description =
   "How to sit Cambridge O Level, IGCSE and A Level as a private candidate in Pakistan: British Council registration, deadlines, fees, and a study plan for 2027.";
 const UPDATED = "2026-10-23";

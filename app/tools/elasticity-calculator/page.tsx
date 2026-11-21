@@ -4,7 +4,7 @@ import { ToolShell } from "@/components/tools/ToolShell";
 import { topicLink } from "@/components/study/RelatedLinks";
 import { fitTitle } from "@/lib/seo";
 
-const title = "Elasticity Calculator: PED, YED and XED";
+const title = "Free Elasticity Calculator: PED, YED and XED";
 const description = "Free elasticity calculator for IGCSE, O Level and A Level Economics: price, income and cross elasticity of demand with the working and what it means.";
 
 export const metadata: Metadata = {

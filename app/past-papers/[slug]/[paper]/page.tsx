@@ -48,8 +48,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!x) return {};
   const { s, p } = x;
   const qpFile = fileName(p.code, p.session, "qp", p.pv);
-  const title = `${cieCode(p)} Past Paper & Mark Scheme (${qpFile})`;
-  const description = `${s.name} ${sessionLabel(p.session)} ${paperTitle(p)}${variantText(p)}: question paper ${qpFile}${p.ms ? `, mark scheme ${fileName(p.code, p.session, "ms", p.pv)}` : ""}${p.insert ? ", insert" : ""}.${s.next ? ` Practice for ${s.next.code} too.` : ""} Read online, practise timed${p.mcq ? ", marked instantly" : ""}. No ads.`;
+  // Code first, then the subject in words, so the result reads clearly in Google.
+  const title = `${cieCode(p)} ${s.subject} Past Paper${p.ms ? " and Mark Scheme" : ""}`;
+  const description = `Open the paper${p.ms ? " and mark scheme side by side" : ""}, free, no download. ${s.name} ${sessionLabel(p.session)} ${paperTitle(p)}${variantText(p)}: question paper ${qpFile}${p.ms ? `, mark scheme ${fileName(p.code, p.session, "ms", p.pv)}` : ""}${p.insert ? ", insert" : ""}.${s.next ? ` Practice for ${s.next.code} too.` : ""} Read online, practise timed${p.mcq ? ", marked instantly" : ""}. No ads.`;
   const url = paperHref(s.slug, p);
   return {
     title: { absolute: title },
