@@ -39,7 +39,7 @@ export function SlippingCard({ db, profiles, nowMs, cohortId }: { db: Database; 
   return (
     <Card className="mt-4 p-5 sm:p-6 lg:mt-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-base font-semibold tracking-[-0.01em] text-ink">Slipping in Groundwork</h2>
+        <h2 className="text-base font-semibold tracking-[-0.01em] text-ink">Slipping in Focus</h2>
         <span className="text-sm text-ink-3">No study in 5 days or more · only you see this</span>
       </div>
       <ul className="mt-3 flex flex-wrap gap-2">

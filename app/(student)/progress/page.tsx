@@ -294,7 +294,7 @@ export default function ProgressPage() {
 
       <Link href="/groundwork" className="surface-quiet surface-link flex items-center justify-between gap-3 rounded-card p-5 text-base text-ink-2 sm:p-6">
         <span>
-          Your study time, level and streak are in <span className="font-semibold text-ink">Groundwork</span>
+          Your study time, level and streak are in <span className="font-semibold text-ink">Focus</span>
         </span>
         <Icon.ChevronRight className="h-5 w-5 shrink-0 text-ink-3" />
       </Link>

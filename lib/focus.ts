@@ -2,7 +2,7 @@ import type { FocusStats } from "@/lib/profile";
 import { addDays, pkDate } from "@/lib/timetable";
 
 /** The study space's name, in one place so it can be changed in one line. */
-export const STUDY_NAME = "Groundwork";
+export const STUDY_NAME = "Focus";
 
 /** Session lengths offered by the study timer, in minutes. */
 export const FOCUS_MODES = [

@@ -194,7 +194,7 @@ export function CalmStart({ name, nowMs, onStart, away = false }: { name: string
       />
       <section
         className="calm gw-snap relative flex flex-col text-white [touch-action:pan-y]"
-        aria-label="Groundwork"
+        aria-label="Focus"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerEnd}

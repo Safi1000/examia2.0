@@ -131,7 +131,7 @@ export function showOnLockScreen(info: { title: string; subject: string; totalMs
   try {
     ms.metadata = new MediaMetadata({
       title: info.title,
-      artist: `Groundwork · ${info.subject}`,
+      artist: `Focus · ${info.subject}`,
       album: "Hamza Teaches",
       artwork: [
         { src: "/brand-icons/app-512.png?v=2", sizes: "512x512", type: "image/png" },

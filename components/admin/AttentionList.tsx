@@ -266,7 +266,7 @@ export function AttentionList({
           </span>
         )}
       </div>
-      {loadingMore && !nothing && <p className="mt-1 text-sm text-ink-3">Still checking Groundwork, recordings and portal visits.</p>}
+      {loadingMore && !nothing && <p className="mt-1 text-sm text-ink-3">Still checking focus time, recordings and portal visits.</p>}
       {followUp && (followUp.cameBack.length > 0 || followUp.stillAway.length > 0) && (
         <p className="mt-2 text-sm text-ink-2">
           <span className="text-ink-3">Since you messaged, last 7 days: </span>

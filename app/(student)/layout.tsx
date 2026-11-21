@@ -43,7 +43,7 @@ const TITLES: Record<string, string> = {
   "/progress": "Progress",
   "/assignments": "Homework",
   "/tests": "Tests",
-  "/groundwork": "Groundwork",
+  "/groundwork": "Focus",
   "/classes": "Classes",
   "/notes": "Notes",
   "/settings": "Settings",
@@ -185,7 +185,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     { href: "/dashboard", label: "Home", short: "Home", Icon: NavIcon.Home },
     { href: "/classes", label: "Classes", short: "Classes", Icon: NavIcon.Classes },
     { href: "/tests", label: "Tests", short: "Tests", Icon: NavIcon.Tests },
-    { href: "/groundwork", label: "Groundwork", short: "Groundwork", Icon: NavIcon.Groundwork, feature: true },
+    { href: "/groundwork", label: "Focus", short: "Focus", Icon: NavIcon.Groundwork, feature: true },
     { href: "/assignments", label: "Homework", short: "Homework", Icon: NavIcon.Tasks },
     { href: "/notes", label: "Notes", short: "Notes", Icon: NavIcon.Notes },
     { href: "/progress", label: "Progress", short: "Progress", Icon: NavIcon.Progress },
@@ -404,7 +404,7 @@ function AccountMenu({
             className="flex h-11 w-full items-center gap-3 rounded-field px-3 text-base font-medium text-ink-2 transition-colors duration-150 hover:bg-surface-2 hover:text-ink active:bg-surface-2 md:hidden"
           >
             <NavIcon.Groundwork className="h-5 w-5" />
-            Groundwork
+            Focus
           </Link>
           <Link
             role="menuitem"

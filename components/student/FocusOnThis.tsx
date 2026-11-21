@@ -45,7 +45,7 @@ export function FocusOnThis({
   const student = session?.studentId ? studentById(db, session.studentId) : null;
   if (!student) return null;
   const subjects = studentSubjects(db, student);
-  const label = `Focus on ${title} in Groundwork`;
+  const label = `Focus on ${title} in Focus`;
 
   return (
     <>

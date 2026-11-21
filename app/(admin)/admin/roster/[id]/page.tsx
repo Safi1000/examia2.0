@@ -562,7 +562,7 @@ function TheirPortal({ profile, initial }: { profile: Profile; initial: string }
         </p>
       )}
       <p className="text-sm text-ink-2">
-        Groundwork: <span className="font-semibold text-ink">{fmtTime(weekHours * 3600)}</span> this week
+        Focus: <span className="font-semibold text-ink">{fmtTime(weekHours * 3600)}</span> this week
         {goal ? ` of ${goal} h` : ""}
         {streak > 1 ? ` · ${streak} day streak` : ""}
       </p>

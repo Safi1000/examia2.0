@@ -12,7 +12,7 @@ export const AREAS = ["groundwork", "notes", "tests", "homework", "classes", "pl
 export type Area = (typeof AREAS)[number];
 
 export const AREA_LABEL: Record<Area, string> = {
-  groundwork: "Groundwork",
+  groundwork: "Focus",
   notes: "Notes",
   tests: "Tests and results",
   homework: "Homework",

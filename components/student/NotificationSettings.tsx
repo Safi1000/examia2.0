@@ -204,7 +204,7 @@ export function NotificationSettings({ studentId }: { studentId: string }) {
           {/* Groundwork study times and class recordings: also on the profile. */}
           {(
             [
-              ["notifyStudy", "Study times", "At your Groundwork study time, if you haven't studied yet that day"],
+              ["notifyStudy", "Study times", "At your study time, if you haven't studied yet that day"],
               ["notifyRecordings", "Class recordings", "A few hours before one closes"],
             ] as const
           ).map(([key, label, hint]) => (

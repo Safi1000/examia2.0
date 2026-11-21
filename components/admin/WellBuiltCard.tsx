@@ -109,10 +109,10 @@ export function WellBuiltCard({ db, profiles, nowMs, cohortId }: { db: Database;
     <Card className="mt-4 p-5 sm:p-6 lg:mt-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className={panelTitle}>Focused most this week</h2>
-        <span className="text-sm text-ink-3">Groundwork minutes since Monday · only you see this</span>
+        <span className="text-sm text-ink-3">Focus minutes since Monday · only you see this</span>
       </div>
       {top.length === 0 ? (
-        <p className="mt-2 text-base text-ink-2">No Groundwork study logged this week yet.</p>
+        <p className="mt-2 text-base text-ink-2">No focus time logged this week yet.</p>
       ) : (
         <ol className="mt-3 divide-y divide-hairline border-t border-hairline">
           {top.map((x, i) => {
@@ -153,7 +153,7 @@ export function WellBuiltCard({ db, profiles, nowMs, cohortId }: { db: Database;
         open={!!compose}
         onClose={() => !sending && setCompose(null)}
         title="Send well built"
-        description={compose ? `To ${compose.name}. It shows in their notifications and opens Groundwork.` : undefined}
+        description={compose ? `To ${compose.name}. It shows in their notifications and opens Focus.` : undefined}
         size="sm"
         footer={
           <>

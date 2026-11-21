@@ -670,7 +670,7 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
   const focusSecs = (studentId: string) => (staffView ? 0 : (activity?.[studentId]?.focusHomework?.[assignmentId] ?? 0));
   const focusNote = (studentId: string) => {
     const secs = focusSecs(studentId);
-    return secs >= 60 ? <span className="text-sm tabular-nums text-ink-3">{fmtTime(secs)} in Groundwork</span> : null;
+    return secs >= 60 ? <span className="text-sm tabular-nums text-ink-3">{fmtTime(secs)} in Focus</span> : null;
   };
   // Everyone it was set for (handed in or not), without Hamza's test account.
   const setFor = [...new Set([...rows.map((r) => r.studentId), ...owed.map((s) => s.id)])].filter((id) => !isTestAccount(studentById(db, id)));
@@ -680,7 +680,7 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
   const summary = !staffView && setFor.length > 0 && (
     <p className="min-h-5 text-sm tabular-nums text-ink-2" aria-live="polite">
       {activity
-        ? `${used.length} of ${setFor.length} used Groundwork for this${used.length ? `, ${fmtTime(usedSecs)} in total` : ""}.`
+        ? `${used.length} of ${setFor.length} used Focus for this${used.length ? `, ${fmtTime(usedSecs)} in total` : ""}.`
         : "\u00a0"}
     </p>
   );

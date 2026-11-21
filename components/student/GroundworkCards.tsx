@@ -126,7 +126,7 @@ export function WeekCard({ nowMs, name, headline = true }: { nowMs: number; name
         {streak.hit && (
           <ShareMoment
             label="Share my week"
-            moment={{ kicker: "Groundwork · this week", big: `${streak.thisWeek} study days`, sub: streak.weeks > 1 ? `${streak.weeks} weeks in a row` : `${fmt(stats.weekMinutes)} of study this week`, name, scene: worldScene(profile.world) }}
+            moment={{ kicker: "Focus · this week", big: `${streak.thisWeek} study days`, sub: streak.weeks > 1 ? `${streak.weeks} weeks in a row` : `${fmt(stats.weekMinutes)} of study this week`, name, scene: worldScene(profile.world) }}
           />
         )}
       </div>
@@ -304,7 +304,7 @@ export function SundayReview({ week, name }: { week: string; nowMs: number; name
           Done, plan set
         </button>
         {studied >= target && (
-          <ShareMoment label="Share my week" moment={{ kicker: "Groundwork · my week", big: `${studied} study days`, sub: `${fmt(minutes)} of study`, name, scene: worldScene(profile.world) }} />
+          <ShareMoment label="Share my week" moment={{ kicker: "Focus · my week", big: `${studied} study days`, sub: `${fmt(minutes)} of study`, name, scene: worldScene(profile.world) }} />
         )}
       </div>
     </section>

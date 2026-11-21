@@ -29,7 +29,7 @@ async function call(method: string, body?: unknown): Promise<{ ok: boolean; data
   return { ok: res.ok, data: (await res.json().catch(() => ({}))) as Record<string, unknown> };
 }
 
-const NEVER = "Student activity and Groundwork, Today, phone numbers and parent messages, adding or changing students, cohorts, export and these settings.";
+const NEVER = "Student activity and Focus, Today, phone numbers and parent messages, adding or changing students, cohorts, export and these settings.";
 // Preview only: one sample person, so the switches can be tried.
 const SAMPLE: Assistant = { id: "demo-staff", name: "Sample staff", email: "staff@example.com", paused: false, lastSeen: null, access: [...DEFAULT_ACCESS] };
 

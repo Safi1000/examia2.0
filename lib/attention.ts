@@ -471,7 +471,7 @@ export function buildAttention(
       const last = lastStudyDay(p, today);
       if (last ? last < addDays(today, -(ATTENTION.groundworkDays - 1)) : neverCounts) {
         const ago = last ? Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${last}T12:00:00Z`)) / DAY) : null;
-        reasons.push({ kind: "groundwork", label: ago === null ? "No Groundwork yet" : `No Groundwork in ${ago} days`, parent: null });
+        reasons.push({ kind: "groundwork", label: ago === null ? "No focus time yet" : `No focus time in ${ago} days`, parent: null });
       }
     }
 
@@ -480,7 +480,7 @@ export function buildAttention(
     const newSinceCheck = !!lastChecked && reasons.some((r) => RESURFACE.includes(r.kind) && (r.at ?? 0) > lastChecked);
     const week = groundworkWeekMinutes(p, nowMs);
     const goodBits: string[] = [];
-    if (week > 0) goodBits.push(`${fmtMinutes(week)} in Groundwork this week`);
+    if (week > 0) goodBits.push(`${fmtMinutes(week)} in Focus this week`);
     // Focus time on recent homework, from the activity file (absent when there is none). At most 16 h per homework is believed.
     const hwFocus = act?.focusHomework;
     const hwMin = hwFocus ? Math.round(recentHomework.reduce((n, id) => n + Math.min(960 * 60, Math.max(0, Number(hwFocus[id]) || 0)), 0) / 60) : 0;

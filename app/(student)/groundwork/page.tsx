@@ -218,7 +218,7 @@ export default function GroundworkPage() {
               top?.me && top.me.rank <= 3 && top.me.minutes > 0 ? (
                 <ShareMoment
                   label="Share"
-                  moment={{ kicker: "Groundwork · top this week", big: top.me.rank === 1 ? "#1 in my class" : `Top ${top.me.rank} in my class`, sub: `${fmt(top.me.minutes)} of study this week`, name, scene }}
+                  moment={{ kicker: "Focus · top this week", big: top.me.rank === 1 ? "#1 in my class" : `Top ${top.me.rank} in my class`, sub: `${fmt(top.me.minutes)} of study this week`, name, scene }}
                 />
               ) : null
             }

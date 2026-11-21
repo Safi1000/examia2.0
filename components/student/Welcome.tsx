@@ -177,7 +177,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
     },
     {
       title: "How much will you study each week?",
-      sub: "Outside class. Groundwork keeps count for you.",
+      sub: "Outside class. Focus keeps count for you.",
       body: (
         <div className="grid grid-cols-2 gap-2.5">
           {WEEKLY_GOALS.map((h) => (
