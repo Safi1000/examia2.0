@@ -78,8 +78,9 @@ export default function TestsPage() {
       )}
 
       {groups.past.length > 0 && (
-        // Handed in (even while still open for others), marked, or closed.
-        <Section title="Finished">
+        // Handed in (even while still open for others), marked, or closed without
+        // an attempt. "Finished" was untrue for a test the student never sat.
+        <Section title="Past tests">
           {(allPast ? groups.past : groups.past.slice(0, PAST_SHOWN)).map((t) => (
             <TestCard key={t.id} test={t} submission={submissionFor(db, student.id, t.id)} nowMs={nowMs} />
           ))}

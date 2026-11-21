@@ -109,6 +109,8 @@ export default function TestEditorPage() {
   // The box stays while it has focus, so "12" is never cut short at "1".
   const [typingMarks, setTypingMarks] = useState<string | null>(null);
   const marksTimer = useRef<number | undefined>(undefined);
+  /** When Publish last went through, so a double click publishes once. */
+  const lastPublish = useRef(0);
 
   const questions = useMemo(() => (test ? [...test.questions].sort((a, b) => a.order - b.order) : []), [test]);
 
@@ -176,7 +178,7 @@ export default function TestEditorPage() {
   }
 
   /** Saves the details; false (with the reason shown) if they can't be saved. */
-  function saveSettings(quiet = false, override?: { opensAt: string; closesAt: string }): boolean {
+  function saveSettings(quiet = false, override?: { opensAt: string; closesAt: string }, publishing = false): boolean {
     if (!form || !canSave) return false;
     // An emptied box is "not set", never a silent 1 minute.
     if (!(form.durationMinutes >= 1)) {
@@ -215,6 +217,9 @@ export default function TestEditorPage() {
       cohortId: saved.cohortId || null,
       opensAt: fromLocalInput(opens),
       closesAt: fromLocalInput(closes),
+      // Publishing goes in the same write as the details. Two writes finishing
+      // close together is what announced a new test twice.
+      ...(publishing ? { status: "active" as const } : {}),
     });
     setForm(saved);
     if (!quiet) toast("Test saved.", "success");
@@ -224,6 +229,8 @@ export default function TestEditorPage() {
   /** Publish, never into a window that has already closed. */
   function publish(now: number, checkedWho = false, lateOk = false) {
     if (!form) return;
+    // A double click (or Enter pressed twice) publishes once.
+    if (now - lastPublish.current < 3000) return;
     // Every class or no subject: a test left on the defaults would reach every
     // student in every level and subject. Ask first.
     if (!checkedWho && goesWide({ cohortId: form.cohortId || null, classId: form.classId || null, subjectId: form.subjectId || null })) {
@@ -237,8 +244,8 @@ export default function TestEditorPage() {
       set("opensAt", override.opensAt);
       set("closesAt", override.closesAt);
     }
-    if (!saveSettings(true, override)) return;
-    store.setTestStatus(id, "active");
+    if (!saveSettings(true, override, true)) return;
+    lastPublish.current = now;
     const opensMs = new Date(fromLocalInput(override?.opensAt ?? form.opensAt)).getTime();
     toast(
       opensMs > now

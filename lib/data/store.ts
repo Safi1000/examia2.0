@@ -81,6 +81,35 @@ type ChannelEntry = {
 type QuestionInput = Omit<QuestionCommon, "id"> & QuestionVariant;
 type BankInput = Omit<QuestionCommon, "id"> & QuestionVariant & { subject: string };
 
+/**
+ * The same uuid every time for the same (kind, test, cohort): used as the feed
+ * row id for one-off announcements, so the primary key refuses a second copy.
+ * A 128 bit string hash (cyrb128) laid out as a uuid; not secret, only stable.
+ */
+function stableActivityId(kind: string, testId: string, cohortId: string | null | undefined): string {
+  const key = `${kind}|${testId}|${cohortId ?? "all"}`;
+  let h1 = 1779033703, h2 = 3144134277, h3 = 1013904242, h4 = 2773480762;
+  for (let i = 0; i < key.length; i++) {
+    const k = key.charCodeAt(i);
+    h1 = h2 ^ Math.imul(h1 ^ k, 597399067);
+    h2 = h3 ^ Math.imul(h2 ^ k, 2869860233);
+    h3 = h4 ^ Math.imul(h3 ^ k, 951274213);
+    h4 = h1 ^ Math.imul(h4 ^ k, 2716044179);
+  }
+  h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067);
+  h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233);
+  h3 = Math.imul(h1 ^ (h3 >>> 17), 951274213);
+  h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179);
+  h1 ^= h2 ^ h3 ^ h4;
+  h2 ^= h1;
+  h3 ^= h1;
+  h4 ^= h1;
+  const hex = [h1, h2, h3, h4].map((n) => (n >>> 0).toString(16).padStart(8, "0")).join("");
+  // Version 8 ("custom") and the RFC 4122 variant, so it is a well formed uuid.
+  const v = `${hex.slice(0, 12)}8${hex.slice(13, 16)}${((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16)}${hex.slice(17)}`;
+  return `${v.slice(0, 8)}-${v.slice(8, 12)}-${v.slice(12, 16)}-${v.slice(16, 20)}-${v.slice(20, 32)}`;
+}
+
 function genId(): string {
   // Supabase columns are uuid; generating client-side keeps action returns sync.
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
@@ -1781,6 +1810,8 @@ class Store {
   // ---- Tests + questions ----------------------------------------------
   /** Each new test's row write, so questions added straight away can wait for it (questions.test_id is a foreign key). */
   private testSaves = new Map<string, Promise<void>>();
+  /** Tests this tab has already announced as new (claimed before the feed row comes back). */
+  private announcedTests = new Set<string>();
   /** Resolves once a test made with addTest is in the database (at once in demo, or for older tests). */
   testSaved(id: string): Promise<void> {
     return this.testSaves.get(id) ?? Promise.resolve();
@@ -1907,12 +1938,19 @@ class Store {
   private announceTestCreated(testId: string) {
     const t = this.state.tests.find((x) => x.id === testId);
     if (!t || !this.testIsReady(t)) return;
-    const alreadyAnnounced = this.state.activities.some(
-      (a) => a.type === "test_created" && a.testId === testId,
-    );
+    // The feed rows below come back only through realtime, a moment later, so
+    // the feed check alone let two saves finishing close together (Publish
+    // saves the details and the status as two writes) both announce. The set
+    // is claimed synchronously, so this tab files it once; the stable row ids
+    // below stop a second tab or a retry from adding a copy in the database.
+    const alreadyAnnounced =
+      this.announcedTests.has(testId) ||
+      this.state.activities.some((a) => a.type === "test_created" && a.testId === testId);
     if (alreadyAnnounced) return;
+    this.announcedTests.add(testId);
 
     this.logActivity({
+      id: stableActivityId("test_created:admin", testId, t.cohortId),
       type: "test_created",
       title: `Test created: "${t.title}"`,
       description: [t.subject, this.cohortName(t.cohortId)].filter(Boolean).join(" • "),
@@ -2035,6 +2073,8 @@ class Store {
     const t = this.state.tests.find((x) => x.id === testId);
     if (!t) return;
     this.logActivity({
+      // One "New test" row per test and cohort, ever: a repeat insert is ignored.
+      id: type === "test_created" ? stableActivityId("test_created:student", testId, t.cohortId) : undefined,
       type,
       title: type === "test_created" ? `New test: "${t.title}"` : `Test updated: "${t.title}"`,
       // The card below the title renders the full schedule from the test itself.
@@ -3484,6 +3524,12 @@ class Store {
    * optimistically here — that would double up the entry for the actor.
    */
   logActivity(input: {
+    /**
+     * A fixed row id (see stableActivityId) makes the write idempotent: a
+     * second insert with the same id is ignored by the primary key instead of
+     * adding a copy. Omitted, the database picks a fresh id as before.
+     */
+    id?: string;
     type: ActivityType;
     title: string;
     description?: string;
@@ -3501,21 +3547,26 @@ class Store {
     link?: string;
     audience?: Activity["audience"];
   }) {
+    const row = {
+      ...(input.id ? { id: input.id } : {}),
+      type: input.type,
+      title: input.title,
+      description: input.description ?? null,
+      student_id: input.studentId ?? null,
+      test_id: input.testId ?? null,
+      note_id: input.noteId ?? null,
+      submission_id: input.submissionId ?? null,
+      cohort_id: input.cohortId ?? null,
+      class_id: input.classId ?? null,
+      subject_id: input.subjectId ?? null,
+      link: input.link ?? null,
+      audience: input.audience ?? "admin",
+    };
+    const table = supabase().from("activities");
     this.run(
-      supabase().from("activities").insert({
-        type: input.type,
-        title: input.title,
-        description: input.description ?? null,
-        student_id: input.studentId ?? null,
-        test_id: input.testId ?? null,
-        note_id: input.noteId ?? null,
-        submission_id: input.submissionId ?? null,
-        cohort_id: input.cohortId ?? null,
-        class_id: input.classId ?? null,
-        subject_id: input.subjectId ?? null,
-        link: input.link ?? null,
-        audience: input.audience ?? "admin",
-      }),
+      // With a fixed id, "insert unless that row is already there": the primary
+      // key turns a double click, a retry or a second tab into a no-op.
+      input.id ? table.upsert(row, { onConflict: "id", ignoreDuplicates: true }) : table.insert(row),
       "logActivity",
     );
   }
