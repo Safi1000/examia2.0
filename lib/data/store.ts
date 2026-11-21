@@ -56,6 +56,7 @@ import { lateWindows } from "@/lib/data/selectors";
 import { reportLinkExpiry } from "@/lib/report-data";
 import { DEMO } from "@/lib/demo";
 import { supabase } from "@/lib/supabase";
+import { TIDY_MAX, TIDY_TYPES, findDoubledNotices, isUuid, stillExtra, type DoubledNotice, type NoticeRow } from "@/lib/doubled-notices";
 import { cleanLevels, type LevelSubjects } from "@/lib/levels";
 import { clearSnapshot, writeSnapshot, type Snapshot } from "@/lib/data/snapshot";
 
@@ -3608,6 +3609,103 @@ class Store {
       });
     });
     this.run(supabase().rpc("clear_activities", { p_ids: null }), "clearAllActivities");
+  }
+
+  /**
+   * Every notice row "Tidy doubled notices" looks at, read in full (the feed
+   * cache holds only the newest 100). Hamza's own read under RLS: admins see
+   * every row. Null when the read failed.
+   */
+  private async noticeRows(): Promise<NoticeRow[] | null> {
+    if (DEMO) {
+      return this.state.activities
+        .filter((a) => (TIDY_TYPES as readonly string[]).includes(a.type))
+        .map((a) => ({ id: a.id, type: a.type, title: a.title, testId: a.testId ?? null, cohortId: a.cohortId ?? null, studentId: a.studentId ?? null, audience: a.audience, createdAt: a.createdAt }));
+    }
+    const sb = supabase();
+    const { data, error } = await allRows((a, b) =>
+      sb
+        .from("activities")
+        .select("id,type,title,test_id,cohort_id,student_id,audience,created_at")
+        .in("type", [...TIDY_TYPES])
+        .order("created_at")
+        .order("id")
+        .range(a, b),
+    );
+    if (error || !data) return null;
+    return data.map((r) => ({
+      id: r.id as string,
+      type: r.type as string,
+      title: r.title as string,
+      testId: (r.test_id as string) ?? null,
+      cohortId: (r.cohort_id as string) ?? null,
+      studentId: (r.student_id as string) ?? null,
+      audience: r.audience as string,
+      createdAt: r.created_at as string,
+    }));
+  }
+
+  /** Look only: the doubled notices and their extra copies. Nothing is removed. */
+  async loadDoubledNotices(): Promise<DoubledNotice[] | null> {
+    if (this.staff) return null;
+    const rows = await this.noticeRows();
+    return rows ? findDoubledNotices(rows) : null;
+  }
+
+  /**
+   * Remove extra copies of doubled notices, owner only. Takes the ids the
+   * screen showed, re reads the rows and removes only ids that are still an
+   * extra copy now: the oldest copy of each notice always stays, whatever the
+   * list says. Read and cleared marks live on the row itself, so they go with a
+   * removed copy; nothing else stores an activity id (phone notices are logged
+   * by test, not by notice row).
+   *
+   * Hamza's own delete under the table's existing admin delete rule, the same
+   * way the in person tag and reopen rows are removed. `removed` holds the ids
+   * the database confirmed; `stopped` means it failed part way.
+   */
+  async removeDoubledNotices(ids: string[]): Promise<{ removed: string[]; stopped?: boolean } | { error: string }> {
+    if (!this.ownerOnly()) return { error: "Only Hamza can do that." };
+    if (!Array.isArray(ids)) return { error: "Nothing was removed." };
+    if (ids.length > TIDY_MAX) return { error: `At most ${TIDY_MAX} at a time. Nothing was removed.` };
+    // Live rows have uuid ids; anything else is dropped before it reaches the database.
+    const asked = [...new Set(ids.filter((id) => typeof id === "string" && (DEMO ? /^[\w-]{1,64}$/.test(id) : isUuid(id))))];
+    if (!asked.length) return { removed: [] };
+    const rows = await this.noticeRows();
+    if (!rows) return { error: "Couldn't check the notices. Nothing was removed." };
+    const safe = stillExtra(rows, asked);
+    if (!safe.length) return { removed: [] };
+    const gone: string[] = [];
+    let stopped = false;
+    if (DEMO) gone.push(...safe);
+    else {
+      const sb = supabase();
+      // A short id list per request keeps each address well under the size limit.
+      for (let i = 0; i < safe.length; i += 100) {
+        const { data, error } = await sb
+          .from("activities")
+          .delete()
+          .in("id", safe.slice(i, i + 100))
+          .in("type", [...TIDY_TYPES])
+          .select("id");
+        if (error) {
+          stopped = true;
+          break;
+        }
+        gone.push(...((data as Row[] | null) ?? []).map((r) => r.id as string));
+      }
+    }
+    this.dropActivities(gone);
+    if (stopped && !gone.length) return { error: "Couldn't remove them. Nothing was removed." };
+    return stopped ? { removed: gone, stopped } : { removed: gone };
+  }
+
+  private dropActivities(ids: string[]) {
+    if (!ids.length) return;
+    const drop = new Set(ids);
+    this.commit((d) => {
+      d.activities = d.activities.filter((a) => !drop.has(a.id));
+    });
   }
 
   /**

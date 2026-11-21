@@ -29,6 +29,15 @@ export default function AdminSettingsPage() {
           </Link>
         </CardBody>
       </Card>
+      <Card className="max-w-2xl">
+        <CardHeader><h2 className="text-base font-semibold text-ink">Housekeeping</h2></CardHeader>
+        <CardBody>
+          <p className="mb-4 text-base text-ink-2">Some New test notices were sent twice before 21 November. See them first, then remove the extra copies.</p>
+          <Link href="/admin/settings/tidy" className={buttonClasses({ variant: "secondary" })}>
+            Tidy doubled notices
+          </Link>
+        </CardBody>
+      </Card>
     </div>
   );
 }
