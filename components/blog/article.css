@@ -20,10 +20,6 @@
   .ah-photo {
     animation: ah-settle 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
   }
-  .ah-chip {
-    animation: ah-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-    animation-delay: calc(700ms + var(--i, 0) * 90ms);
-  }
   .toc-dot { transition: background-color 0.3s, transform 0.3s; }
   .toc-ring { transition: stroke-dashoffset 0.25s linear; }
   .resume-in { animation: ah-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
@@ -43,4 +39,25 @@
 @keyframes ah-settle {
   from { opacity: 0; transform: scale(0.92); }
   to { opacity: 1; transform: scale(1); }
+}
+
+/* The rule under the byline: a short gold lead-in, then the hairline. */
+.ah-rule {
+  background: linear-gradient(to right, var(--color-gold) 0 3.5rem, var(--color-border) 3.5rem);
+  transform-origin: left center;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ah-rule { animation: ah-rule 1.1s cubic-bezier(0.65, 0, 0.35, 1) 0.45s both; }
+}
+@keyframes ah-rule {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* The article's first paragraph is the answer: set a little larger, like a standfirst. */
+#article-body > p:first-of-type {
+  margin-top: 2.25rem;
+  font-size: 1.25rem;
+  line-height: 1.65;
+  color: var(--color-ink);
 }

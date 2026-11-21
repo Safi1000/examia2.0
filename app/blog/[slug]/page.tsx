@@ -108,20 +108,10 @@ export default async function ArticlePage({ params }: Props) {
             <Link href="/blog" className="transition-colors duration-200 hover:text-ink">The Exam Room</Link>
           </nav>
 
-          <ArticleHeader a={a} sections={headings.length} />
+          <ArticleHeader a={a} />
 
           <ArticleToc slug={slug} headings={headings} minutes={a.minutes} />
 
-          {a.summary && a.summary.length > 0 && (
-            <section aria-labelledby="in-short-h" className="mt-10 rounded-tile border border-hairline bg-card p-5 md:p-6">
-              <h2 id="in-short-h" className="text-sm font-semibold text-ink">In short</h2>
-              <ul className="mt-3 list-disc space-y-2 pl-5 text-lg leading-[1.7] text-body marker:text-faint">
-                {a.summary.map((s) => (
-                  <li key={s} className="pl-1">{s}</li>
-                ))}
-              </ul>
-            </section>
-          )}
 
           <div id="article-body" className="pb-2">
             <Post components={{ BookingBox: () => <ArticleCta variant="mid" {...ctaProps} /> }} />
