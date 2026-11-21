@@ -16,7 +16,7 @@ export function IntroLogo() {
   return (
     <div aria-hidden className="intro-splash">
       <div className="intro-splash__mark">
-        <Logo className="h-14 sm:h-20" />
+        <Logo className="h-14 sm:h-20" sizes="(min-width: 640px) 180px, 125px" />
       </div>
     </div>
   );

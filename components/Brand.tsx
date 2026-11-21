@@ -19,12 +19,16 @@ const ALT = "Hamza Teaches";
  * w=640 is the nearest allowed width at or above 480, so the image is never
  * shrunk; q=75 is the only quality the service allows (next.config qualities).
  */
-const LOGO_SRC = `/_next/image?url=${encodeURIComponent(logo.src)}&w=640&q=75`;
+const logoAt = (w: number) => `/_next/image?url=${encodeURIComponent(logo.src)}&w=${w}&q=75`;
+const LOGO_SRC = logoAt(640);
+/** Smaller copies for small spots: the header shows the logo about 130 px wide, so phones fetch 256 or 384 px, not 640. */
+const LOGO_SRCSET = `${logoAt(256)} 256w, ${logoAt(384)} 384w, ${logoAt(640)} 640w`;
 
-export function Logo({ className }: { className?: string }) {
+/** `sizes`: how wide the logo is shown, so the browser picks the smallest copy that stays sharp. */
+export function Logo({ className, sizes = "140px" }: { className?: string; sizes?: string }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={LOGO_SRC} alt={ALT} width={logo.width} height={logo.height} decoding="async" className={cn("w-auto object-contain", className)} />
+    <img src={LOGO_SRC} srcSet={LOGO_SRCSET} sizes={sizes} alt={ALT} width={logo.width} height={logo.height} decoding="async" className={cn("w-auto object-contain", className)} />
   );
 }
 
@@ -47,7 +51,7 @@ export function BrandMark({ size = 28 }: { size?: number }) {
 const TRIM = { x: 23, y: 74, w: 438, h: 67 };
 
 /** The wordmark with its empty margins cropped away. Height sets the lettering size. */
-export function LogoTight({ className }: { className?: string }) {
+export function LogoTight({ className, sizes = "220px" }: { className?: string; sizes?: string }) {
   return (
     <span
       className={cn("relative inline-block overflow-hidden", className)}
@@ -56,6 +60,8 @@ export function LogoTight({ className }: { className?: string }) {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={LOGO_SRC}
+        srcSet={LOGO_SRCSET}
+        sizes={sizes}
         alt={ALT}
         decoding="async"
         className="absolute max-w-none"

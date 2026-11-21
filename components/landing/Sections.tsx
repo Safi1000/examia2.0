@@ -600,7 +600,7 @@ export function Closing() {
     <section className="py-20 md:py-28">
       <div className="mx-auto max-w-3xl px-5 text-center">
         <div data-reveal="ticket" className="mb-10 md:mb-12">
-          <SeatTicket logo={<LogoTight className="h-full" />} />
+          <SeatTicket logo={<LogoTight className="h-full" sizes="400px" />} />
         </div>
         <Eyebrow caps>Free trial lesson</Eyebrow>
         <h2 className="mx-auto mt-4 max-w-[18ch] text-[2.25rem] leading-[1.06] md:text-6xl">

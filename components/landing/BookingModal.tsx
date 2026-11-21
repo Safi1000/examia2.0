@@ -2,7 +2,14 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { track, type LevelName, type SubjectName } from "@/lib/landing";
-import { BookingFlow } from "./BookingFlow";
+import dynamic from "next/dynamic";
+
+/** The booking calendar's code loads on the first tap of a Book button, not with every page (smaller first load). */
+const loadFlow = () => import("./BookingFlow").then((m) => m.BookingFlow);
+const BookingFlow = dynamic(loadFlow, {
+  ssr: false,
+  loading: () => <div className="min-h-[320px]" aria-busy="true" />,
+});
 
 type OpenArgs = { subject?: SubjectName; level?: LevelName; from: string };
 /** Marks the history entry pushed while the booking sheet is open. */
@@ -159,7 +166,14 @@ export function BookButton({
 }) {
   const { open } = useBooking();
   return (
-    <button type="button" onClick={() => open({ from, subject, level })} className={className}>
+    <button
+      type="button"
+      onClick={() => open({ from, subject, level })}
+      onPointerEnter={() => void loadFlow()}
+      onTouchStart={() => void loadFlow()}
+      onFocus={() => void loadFlow()}
+      className={className}
+    >
       {children}
     </button>
   );
