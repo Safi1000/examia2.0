@@ -10,15 +10,15 @@ import { articleLd, breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
  * Private candidates in Pakistan: how to enter Cambridge O Level, IGCSE and
  * AS/A Level through the British Council, and how to prepare Accounting,
  * Business and Economics without a school. Facts checked against official
- * British Council and Cambridge pages on 22 November 2026
- * (seo/research-private-candidates-pk-2026-11-22.md). Still to update when
+ * British Council and Cambridge pages on 21 November 2026
+ * (seo/research-private-candidates-pk-2026-11-21.md). Still to update when
  * published: May / June 2027 British Council deadlines, late fee amounts,
  * private candidate centre cities, June 2027 IGCSE / O Level results date.
  */
 const title = "O Level and A Level as a Private Candidate in Pakistan (2027)";
 const description =
   "Register as a private candidate in Pakistan for Cambridge O Level, IGCSE and A Level 2027: deadlines, fees, Statement of Entry, documents and exam dates.";
-const UPDATED = "2026-11-22";
+const UPDATED = "2026-11-21";
 
 export const metadata: Metadata = {
   title: fitTitle(title),
@@ -121,7 +121,7 @@ export default function PrivateCandidatesPakistan() {
         <h1 className="mt-8 text-title leading-[1.1] sm:text-title-lg">
           Sitting O Level, IGCSE or A Level as a private candidate in Pakistan
         </h1>
-        <p className="mt-4 text-base text-muted-foreground">Updated 22 November 2026.</p>
+        <p className="mt-4 text-base text-muted-foreground">Updated 21 November 2026.</p>
 
         <Section
           id="registration"
