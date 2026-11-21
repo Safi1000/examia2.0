@@ -5,6 +5,7 @@ import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import "@/components/landing/public-calm.css";
 import { Crumbs, Section, Table, TrialBox } from "@/components/study/StudyBits";
 import { CITY_PAGES } from "@/lib/city-pages";
+import { COUNTRY_PAGES } from "@/lib/country-pages";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 import { DEFAULT_SCHEDULE, LEVEL_LABEL, span, type LevelKey } from "@/lib/timetable";
 
@@ -94,6 +95,16 @@ export default function OnlineClassesPakistan() {
           <p className="mt-5 text-lg leading-relaxed text-body">
             Studying in the UAE, Saudi Arabia, Qatar, Oman, Kuwait or Bahrain? See the{" "}
             <Link href="/online-classes/gulf" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">class times for Gulf students</Link>.
+          </p>
+          <p className="mt-3 text-lg leading-relaxed text-body">
+            Studying in{" "}
+            {COUNTRY_PAGES.map((c, i) => (
+              <span key={c.slug}>
+                {i > 0 && (i === COUNTRY_PAGES.length - 1 ? " or " : ", ")}
+                <Link href={`/online-classes/${c.slug}`} className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">{c.country}</Link>
+              </span>
+            ))}
+            ? Each page has the class times on your own clock.
           </p>
         </Section>
 
