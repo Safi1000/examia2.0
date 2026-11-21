@@ -9,6 +9,7 @@ import { ScrollTable as Table } from "./ScrollTable";
 import "@/components/landing/public-calm.css";
 import { RelatedLinks, syllabusLinks } from "@/components/study/RelatedLinks";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
+import { fitDescription } from "@/lib/topic-seo";
 import {
   THRESHOLD_PAGES,
   averagePct,
@@ -51,6 +52,66 @@ const CHANGES_2027: Record<string, { note: string; href: string }> = {
 /** Business syllabuses renamed for 2027 exams. */
 const NEW_CODES: Record<string, string> = { "0450": "0264", "7115": "7081" };
 
+/**
+ * The snippet opens with the real headline number for the latest session (the
+ * A* minimum where the syllabus has one, else the top grade), then what else
+ * the page holds. 140 to 158 characters.
+ */
+function thresholdDescription(p: NonNullable<ReturnType<typeof thresholdPage>>): string {
+  const s = p.syllabuses.find((x) => gradesOf(x)[0] === "A*") ?? p.syllabuses[0];
+  const latest = sessionsOf(s)[0];
+  const oldest = sessionsOf(s).at(-1);
+  const top = gradesOf(s)[0];
+  const a = spread(s, latest, top);
+  const shown = gradeShown(s.qualification, top);
+  const grade = shown === "A*" ? "An A*" : /^[aeiou]/i.test(shown) ? `An ${shown}` : `A ${shown}`;
+  const who = `${s.qualification} ${p.subject === "Business" && s.qualification !== "A Level" ? "Business Studies" : p.subject} ${p.code}`;
+  const renamed = NEW_CODES[p.code] ? ` (now ${NEW_CODES[p.code]})` : "";
+  const fallback = `Official Cambridge ${p.name}${renamed} grade thresholds, ${oldest} to ${latest}, every variant, and the marks you need for an A* or A in 2027.`;
+  if (!a) return fitDescription([fallback]);
+  const marks =
+    a.low.min === a.high.min
+      ? `${a.low.min} out of ${a.low.max} (${pct(a.low.min, a.low.max)}%)`
+      : `${a.low.min} to ${a.high.min} out of ${a.low.max} (${pct(a.low.min, a.low.max)}% to ${pct(a.high.min, a.high.max)}%)`;
+  const head = `${grade} in ${who} needed ${marks} in ${latest}.`;
+  return fitDescription([
+    `${head} Every variant since ${oldest}, plus 2027 target marks and a grade checker.`,
+    `${head} Every variant since ${oldest}, plus 2027 target marks.`,
+    `${head} Official thresholds for every variant since ${oldest}, plus 2027 target marks and a grade checker.`,
+    `${head} Official thresholds for every variant since ${oldest}, plus 2027 targets.`,
+    `${head} Every variant since ${oldest} and 2027 targets.`,
+    `${head} Every variant and 2027 targets.`,
+    head,
+  ]);
+}
+
+/**
+ * "Why are economics grade thresholds so high?", answered only from the
+ * tables: the average A minimum against the other subjects at the same level
+ * in the same session. Returns null unless economics really is the highest.
+ */
+function economicsFaq(p: NonNullable<ReturnType<typeof thresholdPage>>): { q: string; a: string } | null {
+  if (p.subject !== "Economics") return null;
+  const s = p.syllabuses.find((x) => x.qualification !== "AS Level") ?? p.syllabuses[0];
+  const latest = sessionsOf(s)[0];
+  const mine = averagePct(s, latest, "A");
+  if (mine === null) return null;
+  const rivals = THRESHOLD_PAGES.filter((o) => o.subject !== "Economics" && o.level === p.level)
+    .map((o) => {
+      const r = o.syllabuses.find((x) => x.qualification === s.qualification);
+      const v = r ? averagePct(r, latest, "A") : null;
+      return v === null || !r ? null : { name: `${r.qualification} ${o.subject === "Business" && r.qualification !== "A Level" ? "Business Studies" : o.subject} ${o.code}`, v };
+    })
+    .filter((x): x is { name: string; v: number } => x !== null);
+  if (!rivals.length || rivals.some((r) => r.v >= mine)) return null;
+  const list = rivals.map((r) => `${r.v}% in ${r.name}`);
+  const against = list.length === 1 ? list[0] : `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`;
+  return {
+    q: "Why are economics grade thresholds so high?",
+    a: `They are higher than in the other subjects on this site. In ${latest} the average minimum for an A in ${s.qualification} Economics ${p.code} was ${mine}% of the total, against ${against}. Cambridge sets each threshold after marking, so it follows how the papers worked out rather than a fixed percentage. A high threshold means every lost mark counts for more.`,
+  };
+}
+
 export const dynamicParams = false;
 export function generateStaticParams() {
   return THRESHOLD_PAGES.map((p) => ({ slug: p.slug }));
@@ -70,7 +131,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = renamed
     ? fitTitle(`${p.code} Grade Thresholds ${year}: ${who} (now ${renamed})`)
     : fitTitle(full.length <= 60 ? full : `${p.code} Grade Thresholds ${year}: ${who} A* Marks`);
-  const description = `Official Cambridge ${p.name} grade thresholds, June 2024 to ${latest}, every variant, and the marks you need for an A* or A in 2027.`;
+  const description = thresholdDescription(p);
   const url = `/grade-thresholds/${p.slug}`;
   return {
     title,
@@ -114,6 +175,8 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
       });
     return out;
   });
+  const econ = economicsFaq(p);
+  if (econ) faq.push(econ);
   faq.push(
     {
       q: "Why are the thresholds different for each variant?",

@@ -11,7 +11,6 @@ import {
   PAST_PAPER_SYLLABI,
   answerKey,
   cieCode,
-  fileName,
   filesFor,
   paperBySlug,
   paperHref,
@@ -24,7 +23,8 @@ import {
 } from "@/lib/past-papers";
 import { absolute, breadcrumbLd } from "@/lib/seo";
 import paperText from "@/lib/past-paper-text.json";
-import { topicsInPaper } from "@/lib/topical";
+import { articlesForPaper, paperDescription, paperQuestions } from "@/lib/paper-seo";
+import { QuestionByQuestion } from "@/components/papers/QuestionByQuestion";
 
 export const dynamicParams = false;
 export function generateStaticParams() {
@@ -47,10 +47,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const x = await load(params);
   if (!x) return {};
   const { s, p } = x;
-  const qpFile = fileName(p.code, p.session, "qp", p.pv);
   // Code first, then the subject in words, so the result reads clearly in Google.
   const title = `${cieCode(p)} ${s.subject} Past Paper${p.ms ? " and Mark Scheme" : ""}`;
-  const description = `Open the paper${p.ms ? " and mark scheme side by side" : ""}, free, no download. ${s.name} ${sessionLabel(p.session)} ${paperTitle(p)}${variantText(p)}: question paper ${qpFile}${p.ms ? `, mark scheme ${fileName(p.code, p.session, "ms", p.pv)}` : ""}${p.insert ? ", insert" : ""}.${s.next ? ` Practice for ${s.next.code} too.` : ""} Read online, practise timed${p.mcq ? ", marked instantly" : ""}. No ads.`;
+  // Opens with this paper's own facts (A grade mark, length, questions), 140 to 158 characters.
+  const description = paperDescription(s, p);
   const url = paperHref(s.slug, p);
   return {
     title: { absolute: title },
@@ -75,7 +75,10 @@ export default async function PaperPage({ params }: Props) {
   // The paper's own words, for search engines and screen readers. Skipped when
   // the PDF's text lost its spaces (some older papers), as it would read badly.
   const textPages = ((paperText as unknown as Record<string, Array<[string, string]>>)[f.qp.name] ?? []).filter(([, t]) => (t.match(/ /g)?.length ?? 0) > t.length / 9);
-  const inPaper = topicsInPaper(s.code, p.key).slice(0, 10);
+  const questions = paperQuestions(s, p);
+  // Up to two articles for this syllabus and paper, ahead of the calculator link.
+  const articles = await articlesForPaper(s, p);
+  const related = [...syllabusLinks(s.code, ["tool"]), ...articles, ...syllabusLinks(s.code).filter((l) => l.href.startsWith("/tools/"))];
   const levelWord = s.level === "AS and A Level" ? "Cambridge International AS and A Level" : `Cambridge ${s.level}`;
   const topA = t?.grades.find(([g]) => g === "A");
   const about = [
@@ -116,6 +119,7 @@ export default async function PaperPage({ params }: Props) {
           isAccessibleForFree: true,
           ...(p.minutes ? { timeRequired: `PT${p.minutes}M` } : {}),
           provider: { "@type": "Organization", name: "Hamza Teaches", url: absolute("/") },
+          isPartOf: { "@type": "CollectionPage", name: `${s.name} past papers`, url: absolute(`/past-papers/${s.slug}`) },
         }}
       />
       <JsonLd
@@ -174,20 +178,9 @@ export default async function PaperPage({ params }: Props) {
             About this paper
           </h2>
           <p className="mt-2 text-base leading-relaxed text-muted-foreground">{about}</p>
-          {inPaper.length > 0 && (
-            <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-              Topics in this paper:{" "}
-              {inPaper.map((t, i) => (
-                <span key={t.slug}>
-                  {i > 0 && " · "}
-                  <Link href={`/past-papers/${s.slug}/topics/${t.slug}`} className="text-foreground underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:decoration-foreground">
-                    {t.sub.name}
-                  </Link>
-                </span>
-              ))}
-            </p>
-          )}
         </section>
+
+        <QuestionByQuestion rows={questions} code={code} />
 
         {textPages.length > 0 && (
           <details className="pc-surface group mt-8 max-w-[70ch] rounded-card px-5 py-1 open:pb-5">
@@ -262,7 +255,7 @@ export default async function PaperPage({ params }: Props) {
           </nav>
         </div>
 
-        <RelatedLinks small links={syllabusLinks(s.code)} className="mt-12 max-w-[70ch]" />
+        <RelatedLinks small links={related} className="mt-12 max-w-[70ch]" />
 
         <div className="mx-auto max-w-4xl">
           <TrialBox

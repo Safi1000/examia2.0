@@ -5,11 +5,13 @@ import { MarketingShell } from "@/components/landing/MarketingShell";
 import { Crumbs } from "@/components/study/StudyBits";
 import { PastPapersNav } from "@/components/past-papers/Bits";
 import { PAPER_LEVELS, PAST_PAPER_SYLLABI, codesLabel } from "@/lib/past-papers";
-import { hasTopical } from "@/lib/topical";
+import { hasTopical, topicalFor } from "@/lib/topical";
+import { topicsHubDescription } from "@/lib/topic-seo";
 import { breadcrumbLd } from "@/lib/seo";
 
 const title = "Topical Past Papers: Accounting, Business, Economics";
-const description = "Cambridge O Level, IGCSE and A Level past paper questions sorted by syllabus topic, Paper 1 and Paper 2, with mark schemes. Free, no ads.";
+// Leads with the real number of questions across every syllabus.
+const description = topicsHubDescription(PAST_PAPER_SYLLABI.filter((s) => hasTopical(s.code)).map((s) => ({ s, entries: topicalFor(s.code) })));
 
 export const metadata: Metadata = {
   title: { absolute: `${title} | Hamza Teaches` },

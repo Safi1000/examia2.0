@@ -9,10 +9,11 @@ import { PaperSearch } from "@/components/past-papers/PaperSearch";
 import { hasTopical } from "@/lib/topical";
 import { PastPapersNav } from "@/components/past-papers/Bits";
 import { syllabusLinks } from "@/components/study/RelatedLinks";
-import { YEAR_RANGE, searchName, PAST_PAPER_SYLLABI, fileName, paperHref, paperNumbers, papersFor, pastPaperSyllabus, pdfUrl, sessionKey, sessionLabel, sessionsFor } from "@/lib/past-papers";
+import { searchName, PAST_PAPER_SYLLABI, fileName, paperHref, paperNumbers, papersFor, pastPaperSyllabus, pdfUrl, sessionKey, sessionLabel, sessionsFor } from "@/lib/past-papers";
 import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
 import { syllabusByCode, SYLLABI } from "@/lib/syllabus";
-import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
+import { breadcrumbLd, faqLd } from "@/lib/seo";
+import { hubDescription, hubIntro, hubTitle } from "@/lib/paper-seo";
 
 export const dynamicParams = false;
 export function generateStaticParams() {
@@ -24,10 +25,11 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const s = pastPaperSyllabus((await params).slug);
   if (!s) return {};
-  const title = `${searchName(s)} Past Papers ${YEAR_RANGE}`;
-  const description = `${s.name}${s.next ? ` (${s.next.code} from ${s.next.from})` : ""} past papers ${YEAR_RANGE} with mark schemes, inserts, examiner reports and grade thresholds. Read online, practise timed, no ads.`;
+  // "7707 Past Papers 2022 to 2026: Papers and Mark Schemes", years from the papers held.
+  const title = hubTitle(s);
+  const description = hubDescription(s);
   return {
-    title: fitTitle(title),
+    title: { absolute: title },
     description,
     alternates: { canonical: `/past-papers/${s.slug}` },
     openGraph: { title, description, url: `/past-papers/${s.slug}`, type: "website", images: ["/opengraph-image"] },
@@ -57,6 +59,7 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
   const thresholds = THRESHOLD_PAGES.find((p) => p.code === s.code);
   const syllabus = syllabusByCode(s.code) ?? SYLLABI.find((x) => x.replaces === s.code) ?? null;
   const next = s.next ? syllabusByCode(s.next.code) : s.revised ? syllabus : null;
+  const intro = hubIntro(s);
   const tool = syllabusLinks(s.code).find((l) => l.href.startsWith("/tools/"));
   const faq = [
     {
@@ -83,10 +86,10 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
         </div>
         <div className="mt-8"><Crumbs trail={[{ name: "Home", href: "/" }, { name: "Past papers", href: "/past-papers" }, { name: s.short }]} /></div>
         <h1 className="mt-4 text-4xl font-bold leading-[1.06] tracking-tight text-foreground md:text-5xl">{searchName(s)} past papers</h1>
-        {(s.next || s.revised) && (
-          <p className="mt-3 text-base text-muted-foreground">
-            {s.next ? `${s.next.code} replaces ${s.code} from ${s.next.from}.` : `New syllabus from ${s.revised}, same code.`}
-            {next && (
+        {intro.length > 0 && (
+          <p className="mt-4 max-w-[70ch] text-base leading-relaxed text-muted-foreground">
+            {intro.join(" ")}
+            {(s.next || s.revised) && next && (
               <>
                 {" "}
                 <Link href={`/syllabus/${next.slug}`} className="font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 hover:decoration-foreground">

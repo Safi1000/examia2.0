@@ -11,6 +11,8 @@ import { PAST_PAPER_SYLLABI, pastPaperSyllabus } from "@/lib/past-papers";
 import { currentSyllabus, topicEntry, topicalFor } from "@/lib/topical";
 import { resourcesFor } from "@/lib/syllabus";
 import { breadcrumbLd } from "@/lib/seo";
+import { allArticles } from "@/lib/blog";
+import { topicArticles, topicDescription, topicIntro, topicTitle } from "@/lib/topic-seo";
 
 export const dynamicParams = false;
 export function generateStaticParams() {
@@ -34,10 +36,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const x = await load(params);
   if (!x) return {};
   const { s, e } = x;
-  const codes = s.next ? `${s.code}/${s.next.code}` : s.code;
-  const title = `${e.sub.name}: ${codes} Topical Past Paper Questions`;
-  const kinds = [e.questions.some((q) => q.kind === "mcq") && "multiple choice", e.questions.some((q) => q.kind === "written") && "written"].filter(Boolean).join(" and ");
-  const description = `Every ${s.name} past paper ${kinds} question on ${e.sub.name.toLowerCase()} (topic ${e.sub.num}), newest first, with mark schemes. Answer MCQs on screen. Free, no ads.`;
+  const all = topicalFor(s.code).filter((t) => t.questions.length);
+  // Count first: "Incomplete Records: 42 Past Paper Questions (7707)". The count is what this page lists.
+  const title = topicTitle(s, e, all);
+  const description = topicDescription(s, e, all);
   const url = `/past-papers/${s.slug}/topics/${e.slug}`;
   return { title: { absolute: title }, description, alternates: { canonical: url }, openGraph: { title, description, url, type: "website", images: ["/opengraph-image"] } };
 }
@@ -60,6 +62,9 @@ export default async function TopicPage({ params }: Props) {
     ...resourcesFor(`${e.topic.name} ${e.sub.name} ${e.sub.parts.map((p) => p.name).join(" ")}`),
     ...(syl ? [{ href: `/syllabus/${syl.slug}#s-${e.sub.num}`, label: "What the syllabus says" }] : []),
   ];
+  // Up to two blog articles on this topic for this syllabus, skipping any already linked above.
+  reading.push(...topicArticles(s, e, await allArticles(), reading.map((l) => l.href)));
+  const intro = topicIntro(s, e, syl);
   return (
     <MarketingShell>
       <JsonLd
@@ -80,6 +85,7 @@ export default async function TopicPage({ params }: Props) {
           {e.topic.num} {e.topic.name}
         </p>
         <h1 className="mt-1 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{e.sub.name}</h1>
+        {intro.length > 0 && <p className="mt-4 max-w-[64ch] text-base leading-relaxed text-body md:text-lg">{intro.join(" ")}</p>}
         <p className="mt-4 max-w-[58ch] text-lg leading-relaxed text-muted-foreground">
           {hasMcq && hasWritten
             ? "Warm up with a few multiple choice. Then try a written one and mark it the way an examiner would."

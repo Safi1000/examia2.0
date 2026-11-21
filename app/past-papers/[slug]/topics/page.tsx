@@ -9,7 +9,8 @@ import { PastPapersNav } from "@/components/past-papers/Bits";
 import { TopicProgress } from "@/components/past-papers/TopicProgress";
 import { PAST_PAPER_SYLLABI, pastPaperSyllabus, searchName } from "@/lib/past-papers";
 import { currentSyllabus, hasTopical, topicalFor } from "@/lib/topical";
-import { breadcrumbLd } from "@/lib/seo";
+import { breadcrumbLd, fitTitle } from "@/lib/seo";
+import { topicIndexDescription, topicIndexTitle } from "@/lib/topic-seo";
 
 export const dynamicParams = false;
 export function generateStaticParams() {
@@ -21,10 +22,12 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const s = pastPaperSyllabus((await params).slug);
   if (!s) return {};
-  const title = `${searchName(s)} Topical Past Papers`;
-  const description = `${s.name}${s.next ? ` and ${s.next.code}` : ""} past paper questions sorted by syllabus topic: Paper 1 and Paper 2, with mark schemes. Answer multiple choice on screen. Free, no ads.`;
+  const entries = topicalFor(s.code);
+  // With the real question count, so each syllabus's snippet is distinct.
+  const title = topicIndexTitle(s, entries, searchName(s));
+  const description = topicIndexDescription(s, entries);
   const url = `/past-papers/${s.slug}/topics`;
-  return { title: { absolute: `${title} | Hamza Teaches` }, description, alternates: { canonical: url }, openGraph: { title, description, url, type: "website", images: ["/opengraph-image"] } };
+  return { title: { absolute: fitTitle(title) }, description, alternates: { canonical: url }, openGraph: { title, description, url, type: "website", images: ["/opengraph-image"] } };
 }
 
 export default async function TopicIndex({ params }: Props) {
