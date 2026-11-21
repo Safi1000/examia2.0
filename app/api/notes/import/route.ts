@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { serviceClient } from "@/lib/push-server";
 import { checkKey, touchKey } from "@/lib/notes-import-server";
-import { bookFor, chapterTitle, isHidden, levelOfName, matchChapter, setHidden, slotOf, subjectOfName, type NoteLevel, type NoteSubject } from "@/lib/notes-library";
+import { bookFor, chapterTitle, isHidden, levelOfName, matchChapter, pinnedNumber, setHidden, slotOf, subjectOfName, type NoteLevel, type NoteSubject } from "@/lib/notes-library";
 import { saveNoteText } from "@/lib/note-text";
 import { CLOUDINARY_CLOUD, CLOUDINARY_NOTES_PRESET } from "@/lib/config";
 
@@ -90,7 +90,8 @@ async function planOne(sb: SupabaseClient, level: NoteLevel, subject: NoteSubjec
     return plain(n.title) === plain(rawTitle) || plain(n.fileName) === plain(fileName || rawTitle);
   });
   return {
-    title: ch ? (ch.unit ? ch.name : chapterTitle(ch.num, ch.name)) : rawTitle,
+    // A pinned note ("3.1.5 · Statement of cash flows") keeps its own name; others take the chapter's.
+    title: ch && !pinnedNumber(rawTitle) ? (ch.unit ? ch.name : chapterTitle(ch.num, ch.name)) : rawTitle,
     chapter: ch ? { num: ch.num, name: ch.name, unit: !!ch.unit } : null,
     batches: [...new Set(where.links.map((l) => l.cohort))],
     there: there.map((n) => ({ id: n.id, title: n.title })),

@@ -50,6 +50,12 @@ export function numberOf(title: string): string | null {
   return m ? m[1] : null;
 }
 
+/** "3.1.5 · Statement of cash flows" → "3.1.5": a note pinned to a chapter that keeps its own name. */
+export function pinnedNumber(title: string): string | null {
+  const m = title.trim().match(/^(\d{1,2}(?:\.\d{1,2}){1,2}|U\d{1,2})\s+·\s+\S/);
+  return m ? m[1] : null;
+}
+
 /** A chapter, or (unit: true) a whole unit in one note; `num` is then the unit's number. */
 export type ChapterRef = { book: NoteBook; num: string; name: string; unit?: boolean };
 
@@ -79,6 +85,14 @@ function findChapter(book: NoteBook, title: string, fileName: string): ChapterRe
   const all = book.units.flatMap((u) => u.chapters);
   const ref = (ch: [string, string]): ChapterRef => ({ book, num: ch[0], name: ch[1] });
   const strip = (t: string) => t.replace(/^\s*\d{1,2}(?:\.\d{1,2}){1,2}[\s.:)-]*/, "");
+  // 0. Pinned on purpose: "3.1.5 · Statement of cash flows" files the note on 3.1.5 and keeps its own name.
+  const pin = pinnedNumber(title);
+  if (pin) {
+    const ch = all.find(([n]) => n === pin);
+    if (ch) return ref(ch);
+    const unit = book.units.find((u) => u.num === pin);
+    if (unit) return { book, num: unit.num, name: unit.name, unit: true };
+  }
   // 1. A whole unit's exact name, then a chapter's (the same name can have a different number in another book).
   for (const t of [title, fileName]) {
     const plain = t ? norm(strip(t).replace(/^unit\s+\d+\s*/i, "")) : "";

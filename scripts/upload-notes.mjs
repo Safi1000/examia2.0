@@ -69,7 +69,9 @@ function listPdfs() {
         const path = join(dir, f);
         const rel = relative(ROOT, path);
         if (only.length && !only.some((o) => rel.includes(o))) continue;
-        out.push({ path, rel, level, subject, fileName: f, title: typeof pinned[rel] === "string" ? `${pinned[rel]}.` : f.replace(/\.pdf$/i, "") });
+        // A pinned note goes up as "3.1.5 · Statement of cash flows": filed on that chapter, keeping its own name.
+        const name = f.replace(/\.pdf$/i, "");
+        out.push({ path, rel, level, subject, fileName: f, title: typeof pinned[rel] === "string" ? `${pinned[rel]} · ${name}` : name });
       }
     }
   return out;
