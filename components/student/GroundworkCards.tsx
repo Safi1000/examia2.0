@@ -31,8 +31,35 @@ const fmt = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)}
 const card = "surface rounded-card p-5 sm:p-6";
 const kicker = "label-quiet text-ink-3";
 
-/** This week: one dot per day, the days target, the weekly streak and hours. */
-export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
+/**
+ * The week at a glance, first thing under the scene: the two or three numbers
+ * that matter, large and calm (time focused, study days against the goal, and
+ * the weekly streak once there is one). The same sources as WeekCard below.
+ */
+export function WeekGlance({ nowMs }: { nowMs: number }) {
+  const { profile } = useAuth();
+  const target = profile.daysTarget ?? DEFAULT_DAYS_TARGET;
+  const streak = weekStreak(profile.focus, target, nowMs);
+  const stats = currentStats(profile.focus, nowMs);
+  const items = [
+    { big: fmt(stats.weekMinutes), small: "focused this week" },
+    { big: `${streak.thisWeek} of ${target}`, small: "study days this week" },
+    ...(streak.weeks > 0 ? [{ big: String(streak.weeks), small: streak.weeks === 1 ? "week streak" : "weeks in a row" }] : []),
+  ];
+  return (
+    <dl className={`grid gap-x-4 gap-y-6 ${items.length === 3 ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2"}`} aria-label="This week at a glance">
+      {items.map((it) => (
+        <div key={it.small} className="flex min-w-0 flex-col-reverse">
+          <dt className="mt-1.5 text-sm text-ink-3">{it.small}</dt>
+          <dd className="text-[2.5rem] font-semibold leading-none tracking-[-0.03em] tabular-nums text-ink sm:text-5xl">{it.big}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** This week: one dot per day, the days target, the weekly streak and hours. `headline={false}` leaves the numbers to WeekGlance above. */
+export function WeekCard({ nowMs, name, headline = true }: { nowMs: number; name: string; headline?: boolean }) {
   const { profile, updateProfile } = useAuth();
   const target = profile.daysTarget ?? DEFAULT_DAYS_TARGET;
   const days = weekDays(profile.focus, nowMs);
@@ -41,6 +68,7 @@ export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
   const level = levelFor(stats.totalMinutes ?? 0);
   return (
     <section className={card}>
+      {headline && (
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-title font-semibold tracking-[-0.025em] tabular-nums text-ink">
@@ -57,7 +85,8 @@ export function WeekCard({ nowMs, name }: { nowMs: number; name: string }) {
           </div>
         )}
       </div>
-      <ol className="mt-5 grid grid-cols-7 gap-1.5" aria-label="Days studied this week">
+      )}
+      <ol className={`${headline ? "mt-5" : ""} grid grid-cols-7 gap-1.5`} aria-label="Days studied this week">
         {days.map((d, i) => (
           <li key={d.date} className="flex flex-col items-center gap-1.5">
             {/* Each day reads in full to a screen reader; the dot and letters below are for the eye. */}

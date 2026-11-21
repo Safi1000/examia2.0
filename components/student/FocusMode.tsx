@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { STUDY_NAME, MIN_COUNTED, currentStats, quoteFor, recordFocusOn } from "@/lib/focus";
+import { STUDY_NAME, MIN_COUNTED, currentStats, recordFocusOn } from "@/lib/focus";
+import { QUOTES } from "@/lib/groundwork";
+import { pickQuote } from "@/lib/groundwork-quotes";
 import { clearRunning, loadRunning, minutesToAdd, ownRunning, saveRunning } from "@/components/student/focus-session";
 import { useBackToClose } from "@/components/student/useBackToClose";
 import { AWAY_GRACE_MS, awayFor, awayLabel, creditedAway, hideTip, setFocusRoomOpen, tipHidden } from "@/components/student/focus-away";
@@ -27,7 +29,10 @@ import { trackFocusItem, type FocusItem } from "@/lib/activity-tracker";
  * focus, with one big timer on top. The world follows this timer exactly
  * (see worldPhase and worldProgress below).
  *
- * Controls fade away while they work and come back on a touch. The timer can
+ * The moment a block starts, everything but the clock, the line of quote and
+ * the world fades away; one tap brings back a few quiet word buttons (Pause,
+ * End), which hide again a few seconds later. The line changes every few
+ * minutes (lib/groundwork-quotes.ts, the same rule as the phone app). The timer can
  * float over other apps (picture-in-picture), sits on the lock screen while a
  * sound plays, keeps the screen awake, and ends with a study receipt.
  * Loaded only when opened, so the rest of the portal doesn't carry it.
@@ -52,6 +57,9 @@ export interface Mission {
 
 type Phase = "setup" | "focus" | "rest" | "done";
 type Block = { kind: "focus" | "rest"; min: number };
+
+/** While a block runs, the controls hide by themselves this long after the last touch. */
+const AUTO_HIDE_MS = 4000;
 
 const restFor = (focus: number) => Math.max(3, Math.min(15, Math.round(focus / 5)));
 
@@ -112,9 +120,16 @@ export default function FocusMode({
   const [pauses, setPauses] = useState(0);
   const [finished, setFinished] = useState<boolean | null>(null);
   const [checked, setChecked] = useState<null | "got" | "shaky">(null);
-  const [idle, setIdle] = useState(false);
   const [fs, setFs] = useState(false);
-  const [quote] = useState(() => quoteFor(Math.floor(Date.now() / 60_000)));
+  /** This block's seed for its lines of quote (which middle lines, see lib/groundwork-quotes.ts). */
+  const [seed, setSeed] = useState(0);
+  /** The setup fading out for a moment as the first block starts. */
+  const [leaving, setLeaving] = useState(false);
+  /** While a block runs: the controls are up (a tap brought them back). */
+  const [peek, setPeek] = useState(false);
+  /** Keyboard focus is inside the controls: they stay up. */
+  const [within, setWithin] = useState(false);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [sessionAt, setSessionAt] = useState<number | null>(null);
   const [picker, setPicker] = useState(false);
   /** How far the last focus block got (1 = finished): what the world shows on the receipt. */
@@ -368,6 +383,12 @@ export default function FocusMode({
 
   const startBlock = () => {
     wakeChime();
+    // Everything but the clock, the line and the world fades away as it starts.
+    setPeek(false);
+    if (live.current.phase === "setup") {
+      setLeaving(true);
+      setTimeout(() => setLeaving(false), 460);
+    }
     // A block from an earlier visit that was cut off: count it before this one takes its place.
     const old = loadRunning();
     const at = Date.now();
@@ -381,6 +402,7 @@ export default function FocusMode({
       }
     }
     setSessionAt((v) => v ?? at);
+    setSeed(at % 1_000_000_007);
     logged.current = 0;
     startedAt.current = at;
     markGone(null);
@@ -530,27 +552,90 @@ export default function FocusMode({
     setTitleOverride(`${clock(left)} · ${held ? "Paused" : phase === "rest" ? "Break" : subject}`);
   }, [running, left, phase, subject, held]);
 
-  // ---- Controls fade away while they work; any touch brings them back.
+  // ---- While a block runs only the clock, the line and the world show. One tap brings the controls back;
+  // they hide again AUTO_HIDE_MS after the last touch, and a tap on empty space hides them at once.
+  // Paused, the away sheet, or keyboard focus inside them: they stay. Hidden, they are only faded:
+  // Tab still reaches them (and brings them back) and screen readers still find them.
+  const immersive = running && pausedLeft == null;
+  const shown = !immersive || peek || within;
   useEffect(() => {
-    if (!running || pausedLeft != null) return;
-    let t = setTimeout(() => setIdle(true), 3500);
-    const wake = () => {
-      setIdle(false);
-      clearTimeout(t);
-      t = setTimeout(() => setIdle(true), 3500);
+    if (!immersive) return;
+    const clear = () => {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+      hideTimer.current = null;
+    };
+    const poke = () => {
+      setPeek(true);
+      clear();
+      hideTimer.current = setTimeout(() => {
+        hideTimer.current = null;
+        setPeek(false);
+      }, AUTO_HIDE_MS);
     };
     const el = panel.current;
-    el?.addEventListener("pointermove", wake);
-    el?.addEventListener("pointerdown", wake);
-    window.addEventListener("keydown", wake);
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Element | null;
+      // A control: it stays up for a while after this touch.
+      if (t?.closest("button, a, select, input, [role=alertdialog]")) return poke();
+      // Empty space: shows them, or hides them at once if they are up.
+      if (hideTimer.current) {
+        clear();
+        setPeek(false);
+      } else poke();
+    };
+    const onMove = (e: PointerEvent) => e.pointerType === "mouse" && poke();
+    const onKey = () => poke();
+    el?.addEventListener("pointerdown", onDown);
+    el?.addEventListener("pointermove", onMove);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      clear();
+      el?.removeEventListener("pointerdown", onDown);
+      el?.removeEventListener("pointermove", onMove);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [immersive]);
+  // Back from a pause (or the away sheet): the controls stay up for a moment, then go.
+  const wasHeld = useRef(false);
+  useEffect(() => {
+    if (wasHeld.current && immersive) {
+      setPeek(true);
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+      hideTimer.current = setTimeout(() => {
+        hideTimer.current = null;
+        setPeek(false);
+      }, AUTO_HIDE_MS);
+    }
+    wasHeld.current = running && !immersive;
+  }, [immersive, running]);
+  // Keyboard focus inside the controls (Tab, not a tap) keeps them up.
+  useEffect(() => {
+    const el = panel.current;
+    if (!el) return;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    let keyboard = false;
+    const onKey = () => (keyboard = true);
+    const onPointer = () => (keyboard = false);
+    const check = () => {
+      const at = document.activeElement;
+      setWithin(keyboard && !!at && el.contains(at) && !!at.closest("[data-gw-controls]"));
+    };
+    const later = () => {
+      clearTimeout(t);
+      t = setTimeout(check, 0);
+    };
+    document.addEventListener("keydown", onKey, true);
+    document.addEventListener("pointerdown", onPointer, true);
+    el.addEventListener("focusin", check);
+    el.addEventListener("focusout", later);
     return () => {
       clearTimeout(t);
-      setIdle(false);
-      el?.removeEventListener("pointermove", wake);
-      el?.removeEventListener("pointerdown", wake);
-      window.removeEventListener("keydown", wake);
+      document.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("pointerdown", onPointer, true);
+      el.removeEventListener("focusin", check);
+      el.removeEventListener("focusout", later);
     };
-  }, [running, pausedLeft]);
+  }, []);
 
   // ---- Full screen where the browser allows it (desktop, Android).
   const fsOk = typeof document !== "undefined" && !!document.fullscreenEnabled;
@@ -642,9 +727,20 @@ export default function FocusMode({
   const worldPhase: WorldPhase =
     phase === "setup" ? "idle" : phase === "focus" ? (pausedLeft != null ? "paused" : "building") : phase === "rest" ? "done" : builtFrac >= 1 ? "done" : "paused";
   const worldProgress = phase === "setup" ? 0 : phase === "focus" ? Math.min(1, Math.max(0, 1 - left / total)) : phase === "rest" ? 1 : builtFrac;
-  const accent = phase === "rest" ? "#7FD1A6" : "#FBC159";
-  const hide = running && idle && pausedLeft == null;
-  const fade = cn("transition-opacity duration-700", hide ? "pointer-events-none opacity-0" : "opacity-100");
+  const hide = !shown;
+  // Out in 450ms; back in 300ms with a small rise. Reduced motion: a plain short fade (the room's style below).
+  const fade = cn(
+    "gw-fade transition-[opacity,transform] ease-[cubic-bezier(0.16,1,0.3,1)]",
+    hide ? "pointer-events-none translate-y-[7px] opacity-0 duration-[450ms]" : "translate-y-0 opacity-100 duration-300",
+  );
+  // The line of quote: it changes every few minutes through a focus block; the closing line through the break.
+  const line = phase === "rest" ? QUOTES[QUOTES.length - 1] : pickQuote(QUOTES, focusMin, Math.max(0, total - left), seed);
+  // What this block is for, shown with the controls.
+  const forLabel = phase === "rest" ? "Break" : [subject, intention.trim()].filter(Boolean).join(" · ");
+  // The running controls: plain words, no fill, no border, a 44px touch area.
+  const quietBtn =
+    "flex min-h-11 min-w-11 items-center justify-center rounded-full px-3 text-[15px] font-medium text-white/75 [text-shadow:0_1px_12px_rgba(0,0,0,.45)] transition-colors duration-150 hover:text-white active:opacity-50";
+  const plainIcon = "flex h-11 w-11 items-center justify-center rounded-full text-white/75 [filter:drop-shadow(0_1px_8px_rgba(0,0,0,.45))] transition-colors duration-150 hover:text-white";
   // A solid dark tint, no blur: a blur over a moving 3D world is redone on every frame, and that
   // alone made the room stutter on laptops without a separate graphics card.
   const glass = "bg-paper/70 border border-hairline-strong";
@@ -674,29 +770,31 @@ export default function FocusMode({
 
       <div
         className={cn(
-          "relative mx-auto flex h-full w-full max-w-5xl flex-col px-5 sm:px-8",
+          "room-body relative mx-auto flex h-full w-full max-w-5xl flex-col px-5 sm:px-8",
           "pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))]",
           (phase === "setup" || phase === "done") && "overflow-y-auto overscroll-contain",
         )}
       >
-        {/* Top bar */}
-        <div className={cn("flex h-14 shrink-0 items-center justify-between gap-3", fade)}>
-          <p className="label-quiet min-w-0 truncate text-white/70">
-            {running ? (phase === "rest" ? "Break" : subject) : STUDY_NAME}
+        {/* Top bar. While a block runs it is part of the controls: what the block is for, and (where the browser can) float and full screen. */}
+        <div className={cn("flex h-14 shrink-0 items-center justify-between gap-3", running && fade)} data-gw-controls={running ? "" : undefined}>
+          <p className={cn("min-w-0 truncate", running ? "text-sm text-white/65 [text-shadow:0_1px_10px_rgba(0,0,0,.5)]" : "label-quiet text-white/70")}>
+            {running ? forLabel : STUDY_NAME}
           </p>
           {/* The picker hangs from the whole group (right aligned), so on a phone it stays on screen. */}
           <div className="relative flex shrink-0 items-center gap-2">
-            <button type="button" onClick={() => setPicker((v) => !v)} aria-expanded={picker} className={roundBtn} aria-label={`World: ${world.title}. Change world`} title={world.title}>
-              <WorldGlyph size={20} />
-            </button>
-            {picker && <WorldPicker current={world.id} placement="below" onPick={(id) => updateProfile({ world: id })} onClose={() => setPicker(false)} />}
+            {!running && (
+              <button type="button" onClick={() => setPicker((v) => !v)} aria-expanded={picker} className={roundBtn} aria-label={`World: ${world.title}. Change world`} title={world.title}>
+                <WorldGlyph size={20} />
+              </button>
+            )}
+            {picker && !running && <WorldPicker current={world.id} placement="below" onPick={(id) => updateProfile({ world: id })} onClose={() => setPicker(false)} />}
             {running && float.kind && (
-              <button type="button" onClick={() => void (float.active ? float.close() : float.open())} className={roundBtn} aria-label={float.active ? "Stop floating the timer" : "Float the timer over other apps"} title="Float (P)">
+              <button type="button" onClick={() => void (float.active ? float.close() : float.open())} className={plainIcon} aria-label={float.active ? "Stop floating the timer" : "Float the timer over other apps"} title="Float (P)">
                 <Glyph.Float />
               </button>
             )}
             {fsOk && (
-              <button type="button" onClick={toggleFs} className={roundBtn} aria-label={fs ? "Exit full screen" : "Full screen"} title="Full screen (F)">
+              <button type="button" onClick={toggleFs} className={running ? plainIcon : roundBtn} aria-label={fs ? "Exit full screen" : "Full screen"} title="Full screen (F)">
                 {fs ? <Glyph.Shrink /> : <Glyph.Expand />}
               </button>
             )}
@@ -708,8 +806,15 @@ export default function FocusMode({
           </div>
         </div>
 
-        {phase === "setup" && (
-          <div className="flex flex-1 flex-col items-center justify-center pb-8 text-center">
+        {(phase === "setup" || leaving) && (
+          <div
+            className={cn(
+              "flex flex-1 flex-col items-center justify-center pb-8 text-center",
+              phase !== "setup" && "gw-leave pointer-events-none absolute inset-x-5 bottom-0 top-[calc(3.5rem+max(0.75rem,env(safe-area-inset-top)))] sm:inset-x-8",
+            )}
+            inert={phase !== "setup"}
+            aria-hidden={phase !== "setup" || undefined}
+          >
             {mission && (
               <p className="mb-8 max-w-xs truncate text-sm text-white/60">
                 {mission.tag ? `${mission.tag} · ` : ""}
@@ -798,27 +903,41 @@ export default function FocusMode({
         )}
 
         {running && (
-          <div className="flex flex-1 flex-col items-center justify-start pt-2" onClick={() => setIdle(false)}>
-            {/* A small pill under the top bar, so the world and the builder fill the screen. No blur on touch screens: it would sit over the live 3D canvas. */}
-            <div className="flex h-10 items-center gap-2 rounded-full border border-hairline-strong bg-paper/70 pl-3.5 pr-4">
-              <span aria-hidden className={cn("h-1.5 w-1.5 shrink-0 rounded-full", pausedLeft != null && "opacity-40")} style={{ background: accent }} />
-              <span className={cn("text-lg font-normal leading-none tabular-nums lg:text-xl", pausedLeft != null ? "text-ink/60" : "text-ink")} role="timer" aria-live="off">
+          <div className="gw-in flex flex-1 flex-col items-center">
+            {/* The clock, now the countdown: the same big quiet numbers as the start screen. */}
+            <div className="mt-[clamp(0rem,6dvh,3.5rem)] flex flex-col items-center text-center">
+              <p
+                role="timer"
+                aria-live="off"
+                aria-label={`${clock(left)} ${phase === "rest" ? "of the break" : `left of ${focusMin} minutes`}${pausedLeft != null ? ", paused" : ""}`}
+                className={cn(
+                  "room-count font-semibold leading-none tabular-nums tracking-[-0.045em] text-white [text-shadow:0_2px_30px_rgba(0,0,0,.3)] transition-opacity duration-300",
+                  held && "opacity-60",
+                )}
+              >
                 {clock(left)}
-              </span>
-              <span className="text-xs leading-none text-ink/65">{pausedLeft != null ? "paused" : phase === "rest" ? "break" : "left"}</span>
+              </p>
+              {/* A few quiet words under it: always for a pause or the break; otherwise only with the controls. */}
+              <p
+                aria-hidden
+                className={cn(
+                  "mt-2 min-h-5 text-[13px] text-white/60 [text-shadow:0_1px_10px_rgba(0,0,0,.5)]",
+                  phase === "focus" && pausedLeft == null && fade,
+                )}
+              >
+                {pausedLeft != null ? "Paused" : phase === "rest" ? "Break. Stand up, drink some water" : `left of ${focusMin} minutes`}
+              </p>
             </div>
-            {phase === "rest" && <p className="mt-2.5 text-xs text-ink/65 [text-shadow:0_1px_8px_rgba(0,0,0,.5)]">Stand up, drink some water</p>}
-            {phase === "rest" && (
-              <figure className="mb-4 mt-auto max-w-sm px-6 pt-6 text-center [text-shadow:0_1px_10px_rgba(0,0,0,.55)]">
-                <blockquote className="text-base leading-snug text-white/80 [text-wrap:balance]">“{quote.text}”</blockquote>
-                {quote.by && <figcaption className="mt-1 text-xs text-white/40">{quote.by}</figcaption>}
-              </figure>
-            )}
+
+            {/* The line of quote, low and quiet. A new line cross fades in every few minutes. */}
+            <div className="mt-auto w-full max-w-md px-2 pb-3 pt-6">
+              <QuoteLine line={line} />
+            </div>
           </div>
         )}
 
         {sheet && (
-          <div className="shrink-0 pb-2">
+          <div className="room-foot shrink-0">
             <div role="alertdialog" aria-labelledby="gw-away-title" className={cn("away-in mx-auto w-full max-w-sm rounded-card p-5 text-center", glass)}>
               <p id="gw-away-title" className="text-base font-medium leading-snug text-white [text-wrap:balance]">
                 You were away {awayLabel(sheet.ms)}. Your world waited for you.
@@ -843,33 +962,19 @@ export default function FocusMode({
         )}
 
         {running && !sheet && (
-          <div className={cn("shrink-0 pb-2", fade)}>
-            <div className="mx-auto flex max-w-sm items-center justify-between">
-              <div className="flex w-20 flex-col items-center gap-1.5">
-                <button type="button" onClick={() => void end()} className={cn(roundBtn, "h-14 w-14")} aria-label="End session">
-                  <Glyph.X />
-                </button>
-                <span className="text-xs text-white/70">End</span>
-              </div>
-              <button
-                type="button"
-                onClick={phase === "rest" ? skipBreak : togglePause}
-                className="flex h-[76px] w-[76px] items-center justify-center rounded-full bg-ink text-paper shadow-[0_18px_40px_-12px_rgba(0,0,0,.6)] transition-transform duration-150 ease-[var(--ease-out)] active:scale-[0.98]"
-                aria-label={phase === "rest" ? "Skip the break" : pausedLeft != null ? "Resume" : "Pause"}
-              >
-                {phase === "rest" || pausedLeft != null ? <Glyph.Play /> : <Glyph.Pause />}
+          <div className={cn("room-foot shrink-0", fade)} data-gw-controls="">
+            <div className="flex items-center justify-center gap-6 sm:gap-10">
+              <button type="button" onClick={phase === "rest" ? skipBreak : togglePause} className={quietBtn} aria-label={phase === "rest" ? "Skip the break" : undefined}>
+                {phase === "rest" ? "Skip break" : pausedLeft != null ? "Resume" : "Pause"}
               </button>
-              <div className="flex w-20 flex-col items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => pickSound(SOUNDS[(SOUNDS.findIndex((s) => s.id === sound) + 1) % SOUNDS.length].id)}
-                  className={cn(roundBtn, "h-14 w-14", sound !== "off" && "text-brand")}
-                  aria-label={`Sound: ${SOUNDS.find((s) => s.id === sound)?.label}. Change sound`}
-                >
-                  <Glyph.Sound off={sound === "off"} />
+              {phase === "focus" && sound !== "off" && (
+                <button type="button" onClick={() => pickSound("off")} className={quietBtn} aria-label={`Sound: ${SOUNDS.find((x) => x.id === sound)?.label}. Turn it off`}>
+                  Sound off
                 </button>
-                <span className="text-xs text-white/70">{SOUNDS.find((s) => s.id === sound)?.label}</span>
-              </div>
+              )}
+              <button type="button" onClick={() => void end()} className={quietBtn} aria-label="End session">
+                End
+              </button>
             </div>
           </div>
         )}
@@ -960,6 +1065,21 @@ export default function FocusMode({
 
       <style>{`
         .room-time { font-size: clamp(3.25rem, min(16vw, 10dvh), 8rem); }
+        .room-count { font-size: clamp(5rem, min(23vw, 15dvh), 11rem); }
+        .room-foot { padding-bottom: .5rem; }
+        /* In the phone app its floating tab bar (112px above the safe area) lies over the bottom of the web view: keep everything clear of it. */
+        @media (max-width: 767px) { html[data-app] .room-body { padding-bottom: calc(112px + env(safe-area-inset-bottom)); } }
+        @keyframes gw-in { from { opacity: 0; } }
+        @keyframes gw-out { to { opacity: 0; } }
+        .gw-in { animation: gw-in .45s ease-out both; }
+        .gw-leave { animation: gw-out .45s cubic-bezier(0.16,1,0.3,1) both; }
+        .gw-line-in { animation: gw-in .6s ease-out both; }
+        .gw-line-out { animation: gw-out .6s ease-out both; }
+        /* Reduced motion: no rise, just a plain short fade (the site's global rule would make it instant). */
+        @media (prefers-reduced-motion: reduce) {
+          .gw-fade { transform: none !important; transition: opacity 160ms linear !important; }
+          .gw-in, .gw-leave, .gw-line-in, .gw-line-out { animation-duration: 160ms !important; }
+        }
         .no-scrollbar { scrollbar-width: none; } .no-scrollbar::-webkit-scrollbar { display: none; }
         @keyframes away-in { from { opacity: 0; transform: translateY(8px); } }
         @media (prefers-reduced-motion: no-preference) { .away-in { animation: away-in .4s ease-out both; } }
@@ -1009,3 +1129,39 @@ const Glyph = {
     </svg>
   ),
 };
+
+/**
+ * The line of quote while a block runs: a new line cross fades in over the
+ * old one (600ms). Only the newest is read out by a screen reader, and only
+ * when it changes: politely, so it never interrupts.
+ */
+function QuoteLine({ line }: { line: { q: string; by: string } | undefined }) {
+  const [lines, setLines] = useState(() => (line ? [{ key: 0, line }] : []));
+  const [current, setCurrent] = useState(line);
+  if (line !== current) {
+    setCurrent(line);
+    if (line) setLines((ls) => [...ls.slice(-1), { key: (ls.at(-1)?.key ?? 0) + 1, line }]);
+  }
+  useEffect(() => {
+    if (lines.length < 2) return;
+    const t = setTimeout(() => setLines((ls) => ls.slice(-1)), 650);
+    return () => clearTimeout(t);
+  }, [lines]);
+  return (
+    <div className="grid text-center" aria-live="polite">
+      {lines.map((l, i) => {
+        const old = i < lines.length - 1;
+        return (
+          <figure
+            key={l.key}
+            aria-hidden={old || undefined}
+            className={cn("col-start-1 row-start-1 self-end [text-shadow:0_1px_12px_rgba(0,0,0,.6)]", lines.length > 1 && (old ? "gw-line-out" : "gw-line-in"))}
+          >
+            <blockquote className="text-[15px] leading-snug text-white/85 [text-wrap:balance]">“{l.line.q}”</blockquote>
+            <figcaption className="mt-1 text-xs text-white/50">{l.line.by}</figcaption>
+          </figure>
+        );
+      })}
+    </div>
+  );
+}

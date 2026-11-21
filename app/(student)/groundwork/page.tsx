@@ -16,7 +16,7 @@ import { StudyStats } from "@/components/student/StudyStats";
 import { studentSubjects } from "@/components/student/Welcome";
 import { Avatar } from "@/components/student/Avatar";
 import { CalmStart } from "@/components/student/CalmStart";
-import { SlotsCard, SundayReview, WeekCard } from "@/components/student/GroundworkCards";
+import { SlotsCard, SundayReview, WeekCard, WeekGlance } from "@/components/student/GroundworkCards";
 import { ShareMoment } from "@/components/student/ShareMoment";
 import { SyllabusCard, useTopicalIndex } from "@/components/student/SyllabusCard";
 import { practiceToday, syllabusProgress } from "@/lib/syllabus-progress";
@@ -88,14 +88,27 @@ export default function GroundworkPage() {
     <div>
       <CalmStart name={name} nowMs={nowMs} onStart={() => startItem(null)} away={!!open} />
 
-      {/* The rest slides up over the world as a frosted sheet. */}
-      <div id="groundwork-more" className="scroll-mt-[68px] rounded-t-[32px] border-t border-hairline bg-paper shadow-[0_-30px_60px_-30px_rgba(0,0,0,.6)]">
-      <div className="mx-auto max-w-5xl space-y-10 px-5 pb-32 pt-8 sm:px-6 sm:pb-16 sm:pt-10">
+      {/* The rest slides up over the world as a sheet: its own calm screen, with a handle back up to the scene. */}
+      <div id="groundwork-more" className="gw-more min-h-[100svh] scroll-mt-[68px] rounded-t-[32px] border-t border-hairline bg-paper shadow-[0_-30px_60px_-30px_rgba(0,0,0,.6)] [scroll-snap-align:start]">
+      <button
+        type="button"
+        onClick={() => window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })}
+        aria-label="Back to the scene"
+        className="group mx-auto flex h-11 w-24 flex-col items-center justify-center gap-1 text-ink-3 transition-colors duration-150 hover:text-ink"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="m6 15 6-6 6 6" />
+        </svg>
+        <span aria-hidden className="h-1 w-9 rounded-full bg-hairline-strong transition-colors duration-150 group-hover:bg-ink-3" />
+      </button>
+      <div className="mx-auto max-w-5xl space-y-10 px-5 pb-32 pt-4 sm:px-6 sm:pb-16 sm:pt-6">
+        <WeekGlance nowMs={nowMs} />
+
         {sundayWeek && <SundayReview week={sundayWeek} nowMs={nowMs} name={name} />}
 
         <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-2 lg:gap-x-8">
           <Group title="This week">
-            <WeekCard nowMs={nowMs} name={name} />
+            <WeekCard nowMs={nowMs} name={name} headline={false} />
           </Group>
 
           {(later.length > 0 || oneThing || practice.length > 0) && (
