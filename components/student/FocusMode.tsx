@@ -656,24 +656,40 @@ export default function FocusMode({
       }, AUTO_HIDE_MS);
     };
     const el = panel.current;
+    // A tap on empty space counts only as a whole touch (down and up) that began inside the running room,
+    // after it was shown and settled: the finger that pressed Start (its lift, the click a phone makes after
+    // it, or a quick second tap of the same press) never reads as "show the controls".
+    const shownAt = performance.now() + 600;
+    let press: { id: number; x: number; y: number } | null = null;
     const onDown = (e: PointerEvent) => {
       const t = e.target as Element | null;
       // A control: it stays up for a while after this touch.
       if (t?.closest("button, a, select, input, [role=alertdialog]")) return poke();
+      press = e.timeStamp >= shownAt ? { id: e.pointerId, x: e.clientX, y: e.clientY } : null;
+    };
+    const onUp = (e: PointerEvent) => {
+      const p = press;
+      press = null;
+      if (!p || p.id !== e.pointerId || Math.hypot(e.clientX - p.x, e.clientY - p.y) > 12) return;
       // Empty space: shows them, or hides them at once if they are up.
       if (hideTimer.current) {
         clear();
         setPeek(false);
       } else poke();
     };
+    const onCancel = () => (press = null);
     const onMove = (e: PointerEvent) => e.pointerType === "mouse" && Date.now() > calmUntil.current && poke();
     const onKey = () => poke();
     el?.addEventListener("pointerdown", onDown);
+    el?.addEventListener("pointerup", onUp);
+    el?.addEventListener("pointercancel", onCancel);
     el?.addEventListener("pointermove", onMove);
     window.addEventListener("keydown", onKey);
     return () => {
       clear();
       el?.removeEventListener("pointerdown", onDown);
+      el?.removeEventListener("pointerup", onUp);
+      el?.removeEventListener("pointercancel", onCancel);
       el?.removeEventListener("pointermove", onMove);
       window.removeEventListener("keydown", onKey);
     };
