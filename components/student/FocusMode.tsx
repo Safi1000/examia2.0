@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { STUDY_NAME, MIN_COUNTED, currentStats, recordFocusOn } from "@/lib/focus";
@@ -13,12 +13,12 @@ import { cn } from "@/lib/cn";
 import { buttonClasses } from "@/components/ui/Button";
 import { displayName } from "@/lib/display-name";
 import { worldScene, reviewDone, topicKey } from "@/lib/groundwork";
-import { worldFor, type WorldPhase } from "@/lib/groundwork-worlds";
+import { worldFor, type BuilderBeat, type BuilderMood, type WorldPhase } from "@/lib/groundwork-worlds";
 import { pkDate, addDays } from "@/lib/timetable";
 import { setStudying } from "@/components/student/StudyRoom";
 import { SOUNDS, backgroundTicker, chime, clearLockScreen, pauseSound, playSound, restChime, showOnLockScreen, stopSound, wakeChime, type Sound } from "@/lib/focus-sound";
 import { clock, useFloatTimer } from "@/components/student/FloatTimer";
-import { GroundworkWorld } from "@/components/student/GroundworkWorld";
+import { GroundworkWorld, builderCrossNow, type BuilderMoodState } from "@/components/student/GroundworkWorld";
 import { Receipt, ShareReceipt, receiptId, type ReceiptData } from "@/components/student/StudyReceipt";
 import { setTitleOverride } from "@/hooks/usePageTitle";
 import { trackFocusItem, type FocusItem } from "@/lib/activity-tracker";
@@ -29,8 +29,10 @@ import { trackFocusItem, type FocusItem } from "@/lib/activity-tracker";
  * (see worldPhase and worldProgress below).
  *
  * The moment a block starts, everything but the clock, the line of quote and
- * the world fades away; one tap brings back a few quiet word buttons (Pause,
- * End), which hide again a few seconds later. The line changes every few
+ * the world fades away, and in the same motion the clock rises a little and
+ * the line drops into the freed space; one tap brings back a few quiet word
+ * buttons (Pause, End), with the reverse motion, and they hide again a few
+ * seconds later. The line changes every few
  * minutes (lib/groundwork-quotes.ts, the same rule as the phone app). The timer can
  * float over other apps (picture-in-picture), sits on the lock screen while a
  * sound plays, keeps the screen awake, and ends with a study receipt.
@@ -149,6 +151,8 @@ export default function FocusMode({
   /** Keyboard focus is inside the controls: they stay up. */
   const [within, setWithin] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Just after Start: a mouse that is still settling doesn't bring the controls back. */
+  const calmUntil = useRef(0);
   const [sessionAt, setSessionAt] = useState<number | null>(null);
   /** How far the last focus block got (1 = finished): what the world shows on the receipt. */
   const [builtFrac, setBuiltFrac] = useState(0);
@@ -171,6 +175,17 @@ export default function FocusMode({
   };
   /** The timer is floating over another app on purpose: leaving doesn't make the builder wait. */
   const floating = useRef(false);
+  /**
+   * The builder gets cross the moment they leave a running focus block, and stays cross until they are back and
+   * choose (within the grace: a short nod and back to work). Drawn only: no timing, saving or counting depends on it.
+   */
+  const [builder, setBuilder] = useState<BuilderMoodState>({ mood: "calm", seq: 0 });
+  const cross = useRef(false);
+  const setBuilderMood = (mood: BuilderMood, beat?: BuilderBeat) => {
+    if (cross.current === (mood === "cross")) return;
+    cross.current = mood === "cross";
+    setBuilder((b) => ({ mood, beat, seq: b.seq + 1 }));
+  };
 
   const running = phase === "focus" || phase === "rest";
   // Away past the grace: the builder waits, so everything shows the time left when they went.
@@ -185,6 +200,22 @@ export default function FocusMode({
   useEffect(() => {
     live.current = { phase, subject, planned: focusMin, endsAt, pausedLeft, sound };
   });
+
+  // ---- The builder's mood. Leaving: the earliest signal wins (on a phone, the window losing focus as the app
+  // switcher opens; then the page hiding; then the page going away), and he is drawn cross at once, in the event
+  // itself, before the phone freezes or snapshots the page. The phone app can also say so directly through
+  // window.__htBuilder("cross" | "calm"). Never on the setup, in a break, while paused with Pause, or when floating.
+  const builderLeaving = () => {
+    const l = live.current;
+    if (cross.current || l.phase !== "focus" || l.pausedLeft != null || !l.endsAt || floating.current) return;
+    builderCrossNow();
+    setBuilderMood("cross");
+  };
+  // Back without the page ever hiding (the app switcher closed again): a nod. After a hide, onVis above decides.
+  const builderBack = () => {
+    if (!cross.current || document.visibilityState === "hidden" || leftAt.current) return;
+    setBuilderMood("calm", "nod");
+  };
 
   /** Time left in the block at `at`. Once they have been away past the grace, the builder stopped when they left. */
   const remainingAt = (at: number) => {
@@ -316,16 +347,20 @@ export default function FocusMode({
       const l = live.current;
       const at = Date.now();
       if (document.visibilityState === "hidden") {
+        builderLeaving();
         if (l.phase === "focus" && l.pausedLeft == null && l.endsAt && !floating.current) markGone({ at, left: Math.max(0, l.endsAt - at) });
         return;
       }
       const gone = leftAt.current;
-      if (!gone) return;
+      if (!gone) return builderBack();
       const ms = awayFor(gone.at, at);
       if (!ms || l.phase !== "focus" || l.pausedLeft != null) {
         markGone(null);
+        // Back within the grace: "there you are", and back to work (a pause made while away: just calm).
+        setBuilderMood("calm", l.phase === "focus" && l.pausedLeft == null ? "nod" : undefined);
         return;
       }
+      // Past the grace the builder stays cross behind the sheet until they choose.
       // Kept until they choose, so the block can't finish on its own in the meantime.
       setPausedLeft(gone.left);
       setAway({ ms, left: gone.left });
@@ -333,7 +368,32 @@ export default function FocusMode({
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ---- The builder's mood (see builderLeaving above).
+  useEffect(() => {
+    // A laptop's window losing focus is not leaving (notes in another window): only a touch screen counts it.
+    const touch = matchMedia("(pointer: coarse)").matches;
+    const onBlur = () => touch && builderLeaving();
+    const w = window as Window & { __htBuilder?: (mood: BuilderMood) => void };
+    const hook = (mood: BuilderMood) => (mood === "cross" ? builderLeaving() : mood === "calm" ? builderBack() : undefined);
+    w.__htBuilder = hook;
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("pagehide", builderLeaving);
+    window.addEventListener("focus", builderBack);
+    return () => {
+      if (w.__htBuilder === hook) delete w.__htBuilder;
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("pagehide", builderLeaving);
+      window.removeEventListener("focus", builderBack);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // The block ended (or a break began) while he was cross: back to calm, no beat.
+  useEffect(() => {
+    if (phase !== "focus") setBuilderMood("calm");
+  }, [phase]);
 
   useEffect(() => {
     const onHide = () => persist();
@@ -401,8 +461,11 @@ export default function FocusMode({
 
   const startBlock = () => {
     wakeChime();
-    // Everything but the clock, the line and the world fades away as it starts.
+    // Everything but the clock, the line and the world goes at once, in the same motion as the setup leaving.
     setPeek(false);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = null;
+    calmUntil.current = Date.now() + 1200;
     if (live.current.phase === "setup") {
       setLeaving(true);
       setTimeout(() => setLeaving(false), 460);
@@ -508,10 +571,12 @@ export default function FocusMode({
   }, [sheetOn]);
   const backAndResume = () => {
     setPauses((n) => n + 1);
+    setBuilderMood("calm", "nod");
     resume();
   };
   const backFromPaper = () => {
     if (!away) return;
+    setBuilderMood("calm", "sheepish");
     markGone(null);
     setAway(null);
     const at = Date.now();
@@ -601,7 +666,7 @@ export default function FocusMode({
         setPeek(false);
       } else poke();
     };
-    const onMove = (e: PointerEvent) => e.pointerType === "mouse" && poke();
+    const onMove = (e: PointerEvent) => e.pointerType === "mouse" && Date.now() > calmUntil.current && poke();
     const onKey = () => poke();
     el?.addEventListener("pointerdown", onDown);
     el?.addEventListener("pointermove", onMove);
@@ -614,6 +679,13 @@ export default function FocusMode({
     };
   }, [immersive]);
   // Back from a pause (or the away sheet): the controls stay up for a moment, then go.
+  // Up in the same render as the resume, so the room never flashes clean (and the app's bar never twitches) in between.
+  const heldNow = running && !immersive;
+  const [heldBefore, setHeldBefore] = useState(heldNow);
+  if (heldBefore !== heldNow) {
+    setHeldBefore(heldNow);
+    if (heldBefore && immersive) setPeek(true);
+  }
   const wasHeld = useRef(false);
   useEffect(() => {
     if (wasHeld.current && immersive) {
@@ -629,9 +701,10 @@ export default function FocusMode({
   // In the phone app the tab bar goes and comes back with the controls: hidden only while a block runs
   // with its controls hidden (never paused, on the away sheet, or after the end). data-dock-hidden is set
   // only when the app took the message, so an older app (no __htDock) keeps the room clear of its bar.
+  // Before paint, so the bar, the controls, the clock and the line all start moving in the same frame.
   const dockDown = !shown && !held;
   const dockWant = useRef(dockDown);
-  useEffect(() => {
+  useLayoutEffect(() => {
     dockWant.current = dockDown;
     const ok = appDock(dockDown);
     panel.current?.toggleAttribute("data-dock-hidden", dockDown && ok);
@@ -775,11 +848,9 @@ export default function FocusMode({
     phase === "setup" ? "idle" : phase === "focus" ? (pausedLeft != null ? "paused" : "building") : phase === "rest" ? "done" : builtFrac >= 1 ? "done" : "paused";
   const worldProgress = phase === "setup" ? 0 : phase === "focus" ? Math.min(1, Math.max(0, 1 - left / total)) : phase === "rest" ? 1 : builtFrac;
   const hide = !shown;
-  // Out in 450ms; back in 300ms with a small rise. Reduced motion: a plain short fade (the room's style below).
-  const fade = cn(
-    "gw-fade transition-[opacity,transform] ease-[cubic-bezier(0.16,1,0.3,1)]",
-    hide ? "pointer-events-none translate-y-[7px] opacity-0 duration-[450ms]" : "translate-y-0 opacity-100 duration-300",
-  );
+  // The clean state is one attribute on the room (data-clean): the controls fade, the clock rises and the line
+  // drops in one motion, both ways, with the phone app's bar (the room's style below). Reduced motion: a plain short fade.
+  const fade = "gw-fade";
   // The line of quote: it changes every few minutes through a focus block; the closing line through the break.
   const line = phase === "rest" ? QUOTES[QUOTES.length - 1] : pickQuote(QUOTES, focusMin, Math.max(0, total - left), seed);
   // What this block is for, shown with the controls.
@@ -799,11 +870,12 @@ export default function FocusMode({
       role="dialog"
       aria-modal="true"
       aria-label={STUDY_NAME}
+      data-clean={running && hide ? "" : undefined}
       className={cn("focus-dark fixed inset-0 z-[70] overflow-hidden bg-[#0b0d0f] text-white outline-none", hide && "cursor-none")}
     >
       {/* Their world, building as they focus. While timing, only the top (clock) and bottom (buttons) are shaded so the build shows; around the setup and the receipt it is dimmed so the text reads. */}
       <div className="pointer-events-none absolute inset-0" aria-hidden>
-        <GroundworkWorld world={world.id} progress={worldProgress} phase={worldPhase} className="absolute inset-0 overflow-hidden" />
+        <GroundworkWorld world={world.id} progress={worldProgress} phase={worldPhase} builder={builder} className="absolute inset-0 overflow-hidden" />
         <div
           className="absolute inset-0 transition-opacity duration-1000"
           style={{ opacity: running ? 1 : 0, background: "linear-gradient(180deg,rgba(8,10,12,.6),rgba(8,10,12,.12) 34%,rgba(8,10,12,0) 50%,rgba(8,10,12,0) 72%,rgba(8,10,12,.6))" }}
@@ -939,7 +1011,7 @@ export default function FocusMode({
         {running && (
           <div className="gw-in flex flex-1 flex-col items-center">
             {/* The clock, now the countdown: the same big quiet numbers as the start screen. */}
-            <div className="mt-[clamp(0rem,6dvh,3.5rem)] flex flex-col items-center text-center">
+            <div className="gw-rise mt-[clamp(0rem,6dvh,3.5rem)] flex flex-col items-center text-center">
               <p
                 role="timer"
                 aria-live="off"
@@ -963,8 +1035,8 @@ export default function FocusMode({
               </p>
             </div>
 
-            {/* The line of quote, low and quiet. A new line cross fades in every few minutes. */}
-            <div className="mt-auto w-full max-w-md px-2 pb-3 pt-6">
+            {/* The line of quote, low and quiet. A new line cross fades in every few minutes. In the clean state it drops into the controls' space. */}
+            <div className="gw-drop mt-auto w-full max-w-md px-2 pb-3 pt-6">
               <QuoteLine line={line} />
             </div>
           </div>
@@ -1100,23 +1172,32 @@ export default function FocusMode({
       <style>{`
         .room-count { font-size: clamp(5rem, min(23vw, 15dvh), 11rem); }
         .room-foot { padding-bottom: .5rem; }
+        /* One gesture, the same both ways and the same as the phone app's own timer and bar (450ms, ease out, no bounce):
+           with the room clean (data-clean) the controls fade, the clock rises a little and the line drops into the space
+           Pause and End leave (their 44px row and its 8px foot). Transforms and opacity only. */
+        .focus-dark { --gw-glide: 450ms cubic-bezier(0.33, 1, 0.68, 1); --gw-drop: 52px; }
+        .gw-fade, .gw-rise, .gw-drop { transition: opacity var(--gw-glide), transform var(--gw-glide); }
+        [data-clean] .gw-fade { opacity: 0; transform: translateY(7px); pointer-events: none; }
+        [data-clean] .gw-rise { transform: translateY(calc(-1 * min(4dvh, 2.5rem))); }
+        [data-clean] .gw-drop { transform: translateY(var(--gw-drop)); }
         /* In the phone app its floating tab bar (112px above the safe area) lies over the bottom of the web view: keep everything clear of it.
-           While the app has hidden the bar (data-dock-hidden), Pause, End and the quote settle into its space, at the bar's own pace (out 450ms, back 300ms). */
+           While the app has hidden the bar (data-dock-hidden, set in the same frame as data-clean), the line also drops into the bar's space,
+           to a comfortable margin above the home indicator. */
         @media (max-width: 767px) {
-          html[data-app] .room-body { padding-bottom: calc(112px + env(safe-area-inset-bottom)); transition: padding-bottom 300ms cubic-bezier(0.16,1,0.3,1); }
-          html[data-app] [data-dock-hidden] .room-body { padding-bottom: max(1rem, env(safe-area-inset-bottom)); transition-duration: 450ms; }
+          html[data-app] .room-body { padding-bottom: calc(112px + env(safe-area-inset-bottom)); }
+          html[data-app] [data-dock-hidden] { --gw-drop: calc(52px + 112px + env(safe-area-inset-bottom) - max(1rem, env(safe-area-inset-bottom))); }
         }
         @keyframes gw-in { from { opacity: 0; } }
         @keyframes gw-out { to { opacity: 0; } }
-        .gw-in { animation: gw-in .45s ease-out both; }
-        .gw-leave { animation: gw-out .45s cubic-bezier(0.16,1,0.3,1) both; }
+        .gw-in { animation: gw-in var(--gw-glide) both; }
+        .gw-leave { animation: gw-out var(--gw-glide) both; }
         .gw-line-in { animation: gw-in .6s ease-out both; }
         .gw-line-out { animation: gw-out .6s ease-out both; }
-        /* Reduced motion: no rise, just a plain short fade (the site's global rule would make it instant). */
+        /* Reduced motion: nothing moves, just a plain short fade (the site's global rule would make it instant). */
         @media (prefers-reduced-motion: reduce) {
           .gw-fade { transform: none !important; transition: opacity 160ms linear !important; }
+          .gw-rise, .gw-drop { transform: none !important; transition: none !important; }
           .gw-in, .gw-leave, .gw-line-in, .gw-line-out { animation-duration: 160ms !important; }
-          html[data-app] .room-body { transition: padding-bottom 160ms linear !important; }
         }
         .no-scrollbar { scrollbar-width: none; } .no-scrollbar::-webkit-scrollbar { display: none; }
         @keyframes away-in { from { opacity: 0; transform: translateY(8px); } }

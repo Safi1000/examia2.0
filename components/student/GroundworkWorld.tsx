@@ -1,8 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { loadWorld, worldFor, type WorldHandle, type WorldId, type WorldModule, type WorldPhase, type WorldQuality } from "@/lib/groundwork-worlds";
+import { loadWorld, worldFor, type BuilderBeat, type BuilderMood, type WorldHandle, type WorldId, type WorldModule, type WorldPhase, type WorldQuality } from "@/lib/groundwork-worlds";
 import type { WorldMountOptions } from "@/lib/groundwork-worlds/types";
+
+/** The builder's mood as the page sees it; `seq` changes on every new instruction (so the same beat can play twice). */
+export type BuilderMoodState = { mood: BuilderMood; beat?: BuilderBeat; seq: number };
+
+// Worlds whose page drives the builder's mood (the focus room's): the leave handlers reach them at once, in the
+// event itself, before the browser hides or snapshots the page (a React render would come too late).
+const moodWorlds = new Set<WorldHandle>();
+/** The student is leaving: every mood-driven world shows its builder cross, drawn now. */
+export function builderCrossNow() {
+  moodWorlds.forEach((h) => {
+    try {
+      h.setMood?.("cross", { instant: true });
+    } catch {}
+  });
+}
 
 /**
  * A Groundwork world, filling its box (the whole window, where it is used):
@@ -22,17 +37,22 @@ import type { WorldMountOptions } from "@/lib/groundwork-worlds/types";
  * lighter tier (see pickWorldTier). If the GPU drops the world (a phone back
  * from another app) the still shows and the world starts again. The 3D code
  * loads only here, in the browser.
+ *
+ * - builder (optional): the builder's mood over the phase (cross while the
+ *   student is away). Pages that pass it also get builderCrossNow.
  */
 export function GroundworkWorld({
   world,
   progress,
   phase,
+  builder,
   quality,
   className,
 }: {
   world: string | undefined;
   progress: number;
   phase: WorldPhase;
+  builder?: BuilderMoodState;
   /** Force a tier; by default it is picked from the device (see pickQuality). */
   quality?: WorldQuality;
   className?: string;
@@ -130,6 +150,7 @@ export function GroundworkWorld({
             top={l.key === topKey}
             progress={progress}
             phase={phase}
+            builder={builder}
             away={away}
             tier={tier}
             reduceMotion={reduceMotion}
@@ -149,6 +170,7 @@ function WorldLayer({
   top,
   progress,
   phase,
+  builder,
   away,
   tier,
   reduceMotion,
@@ -160,6 +182,7 @@ function WorldLayer({
   top: boolean;
   progress: number;
   phase: WorldPhase;
+  builder?: BuilderMoodState;
   /** Tab hidden or scrolled out of view: nothing is drawn. */
   away: boolean;
   tier: WorldTier;
@@ -180,9 +203,9 @@ function WorldLayer({
   const p = clamp01(progress);
   // What the world should show right now: a hidden tab or a world out of view rests, as if paused.
   const shownPhase: WorldPhase = away && phase === "building" ? "paused" : phase;
-  const latest = useRef({ p, phase: shownPhase, away });
+  const latest = useRef({ p, phase: shownPhase, away, builder });
   useEffect(() => {
-    latest.current = { p, phase: shownPhase, away };
+    latest.current = { p, phase: shownPhase, away, builder };
   });
 
   // Mount the world (again if the tier or motion setting changes, or after the GPU let it go).
@@ -259,6 +282,11 @@ function WorldLayer({
       handle.setProgress(latest.current.p, { instant: true });
       handle.setPhase(latest.current.phase);
       handle.setShown?.(!latest.current.away);
+      const b = latest.current.builder;
+      if (b) {
+        moodWorlds.add(handle);
+        if (b.mood === "cross") handle.setMood?.("cross");
+      }
       // Shaders compiled, then two frames (the first one drawn), then fade it in.
       void Promise.resolve(handle.ready).then(() => {
         if (!gone) raf = requestAnimationFrame(() => (raf = requestAnimationFrame(shown)));
@@ -286,6 +314,7 @@ function WorldLayer({
       el.removeEventListener("webglcontextrestored", again);
       document.removeEventListener("visibilitychange", onBack);
       api.current = null;
+      if (handle) moodWorlds.delete(handle);
       try {
         handle?.dispose();
       } catch {}
@@ -312,6 +341,14 @@ function WorldLayer({
     if (shownPhase !== was.phase) h.setPhase(shownPhase);
     if (away !== was.away) h.setShown?.(!away);
   }, [p, shownPhase, away]);
+
+  // The builder's mood, after the timer above (a jump back to the true progress rebuilds the scene first, then the
+  // beat plays on it).
+  const moodSeq = builder?.seq;
+  useEffect(() => {
+    const b = latest.current.builder;
+    if (b) api.current?.setMood?.(b.mood, b.beat ? { beat: b.beat } : undefined);
+  }, [moodSeq]);
 
   useEffect(() => {
     if (!ready) return;

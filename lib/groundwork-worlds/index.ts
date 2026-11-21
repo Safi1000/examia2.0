@@ -10,7 +10,7 @@
  */
 import type { WorldModule } from "./types";
 
-export type { WorldHandle, WorldModule, WorldPhase, WorldQuality } from "./types";
+export type { BuilderBeat, BuilderMood, WorldHandle, WorldModule, WorldPhase, WorldQuality } from "./types";
 
 export { WORLDS, DEFAULT_WORLD, worldFor, type WorldId, type WorldInfo } from "./list";
 import type { WorldId } from "./list";

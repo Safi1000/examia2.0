@@ -5,6 +5,10 @@
  * back a small handle the timer drives.
  */
 export type WorldPhase = "idle" | "building" | "paused" | "done";
+/** The builder's mood, over any phase: cross while the student is away from a running block. */
+export type BuilderMood = "calm" | "cross";
+/** A short beat as he goes back to work: a nod ("there you are", Resume) or a sheepish scratch of the hat (studying on paper). */
+export type BuilderBeat = "nod" | "sheepish";
 export type WorldQuality = "low" | "high";
 
 export interface WorldHandle {
@@ -20,6 +24,12 @@ export interface WorldHandle {
    * without it simply keep drawing.
    */
   setShown?(shown: boolean): void;
+  /**
+   * "cross" while the student is away (only taken while building or paused), "calm" when they are back, with an
+   * optional beat on the way back to work. `instant` draws the cross pose before returning (the page is about to be
+   * hidden or snapshotted). Older worlds without it, or a world never told, stay calm.
+   */
+  setMood?(mood: BuilderMood, opts?: { beat?: BuilderBeat; instant?: boolean }): void;
   /**
    * Resolves once the world's shaders are compiled and it draws its first
    * real frame (until then it draws nothing, so the page can keep its
