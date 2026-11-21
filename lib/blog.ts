@@ -24,6 +24,11 @@ export interface ArticleMeta {
   updated?: string;
   /** Optional shorter <title> for Google when `title` is long (aim for 60 characters). */
   seoTitle?: string;
+  /**
+   * Optional "In short" box under the header: 2 to 4 plain sentences that answer the
+   * article's main question. Only facts already stated in the article itself.
+   */
+  summary?: string[];
 }
 
 export interface Article extends ArticleMeta {

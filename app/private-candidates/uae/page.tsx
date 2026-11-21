@@ -5,7 +5,7 @@ import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import "@/components/landing/public-calm.css";
 import { Crumbs, Section, Table, TrialBox } from "@/components/study/StudyBits";
 import { RelatedLinks } from "@/components/study/RelatedLinks";
-import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
+import { articleLd, breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 
 /**
  * Private candidates in the UAE: how to enter Cambridge IGCSE and AS/A Level
@@ -55,16 +55,7 @@ export default function PrivateCandidatesUae() {
         ])}
       />
       <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Article",
-          headline: title,
-          description,
-          dateModified: UPDATED,
-          datePublished: UPDATED,
-          inLanguage: "en",
-          author: { "@type": "Person", name: "Hamza Sadaqat" },
-        }}
+        data={articleLd({ path: "/private-candidates/uae", headline: title, description, datePublished: UPDATED })}
       />
       <JsonLd data={faqLd(FAQ)} />
 
@@ -76,6 +67,11 @@ export default function PrivateCandidatesUae() {
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
           Updated 23 October 2026. How British Council registration works in the UAE, the documents to keep ready, the deadlines, and
           the two rules to check before you pay.
+        </p>
+        <p className="mt-4 text-lg leading-relaxed text-body">
+          In short: you register online with the British Council, send your documents within three working days, then pay the fee. You can
+          register with only one exam centre and one exam board per session, and the British Council says the certificates it issues are not
+          endorsed by the Ministry of Education.
         </p>
 
         <Section title="Read these two rules first">
@@ -181,6 +177,7 @@ export default function PrivateCandidatesUae() {
 
         <TrialBox
           from="private-candidates:uae"
+          classes
           title="On your own. Not alone."
           body="Private candidates in the UAE join the same live classes as school students, and every weekly test is marked by me with written feedback. Start with one free lesson."
         />

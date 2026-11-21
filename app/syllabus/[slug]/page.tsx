@@ -171,6 +171,7 @@ export default async function SyllabusPage({ params }: Props) {
 
           <TrialBox
             from={`syllabus:${s.code}`}
+            classes
             subject={s.subject}
             level={s.levelName}
             title="Every topic. Taught properly."

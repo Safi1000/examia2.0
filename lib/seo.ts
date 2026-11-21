@@ -109,6 +109,48 @@ export function websiteLd() {
   };
 }
 
+/**
+ * One Article (blog posts and the written guides). Author points at the Person on the
+ * homepage by @id and repeats name and url, as Google asks for author markup. Dates
+ * must be the page's real published and last changed dates (yyyy-mm-dd).
+ */
+export function articleLd(a: {
+  path: string;
+  headline: string;
+  description: string;
+  datePublished: string;
+  dateModified?: string;
+  image?: string;
+  section?: string;
+  about?: string[];
+}) {
+  const url = absolute(a.path);
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "@id": `${url}#article`,
+    headline: a.headline,
+    description: a.description,
+    datePublished: a.datePublished,
+    dateModified: a.dateModified ?? a.datePublished,
+    url,
+    mainEntityOfPage: { "@type": "WebPage", "@id": url },
+    image: a.image ?? absolute("/opengraph-image"),
+    inLanguage: "en",
+    isAccessibleForFree: true,
+    ...(a.section ? { articleSection: a.section } : {}),
+    ...(a.about?.length ? { about: a.about } : {}),
+    author: {
+      "@type": "Person",
+      "@id": PERSON_ID,
+      name: "Hamza Sadaqat",
+      url: SITE_URL,
+      jobTitle: "Accounting, Business and Economics tutor",
+    },
+    publisher: { "@type": "EducationalOrganization", "@id": ORG_ID, name: COMPANY_NAME, url: SITE_URL },
+  };
+}
+
 export function faqLd(items: Array<{ q: string; a: string }>) {
   return {
     "@context": "https://schema.org",

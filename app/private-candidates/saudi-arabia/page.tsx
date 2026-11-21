@@ -5,7 +5,7 @@ import { MarketingShell } from "@/components/landing/MarketingShell";
 import "@/components/landing/public-calm.css";
 import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
 import { RelatedLinks } from "@/components/study/RelatedLinks";
-import { breadcrumbLd, fitTitle } from "@/lib/seo";
+import { articleLd, breadcrumbLd, fitTitle } from "@/lib/seo";
 
 /**
  * Private candidates in Saudi Arabia. The British Council Saudi Arabia pages
@@ -37,16 +37,7 @@ export default function PrivateCandidatesSaudiArabia() {
         ])}
       />
       <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Article",
-          headline: title,
-          description,
-          dateModified: UPDATED,
-          datePublished: UPDATED,
-          inLanguage: "en",
-          author: { "@type": "Person", name: "Hamza Sadaqat" },
-        }}
+        data={articleLd({ path: "/private-candidates/saudi-arabia", headline: title, description, datePublished: UPDATED })}
       />
 
       <article className="public-calm mx-auto max-w-3xl px-5 pb-24 pt-12 md:pt-20">
@@ -57,6 +48,10 @@ export default function PrivateCandidatesSaudiArabia() {
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
           Updated 23 October 2026. The British Council in Saudi Arabia publishes less detail online than it does in the UAE or Pakistan. This
           guide sticks to what it does say, and lists the questions to ask the office before you pay anything.
+        </p>
+        <p className="mt-4 text-lg leading-relaxed text-body">
+          In short: without a school, you enter Cambridge exams through the British Council, which has a separate registration route for
+          private candidates and offices in Riyadh, Jeddah and Al Khobar. Cambridge exams run in May / June and in October / November.
         </p>
 
         <Section title="Who handles your entry">
@@ -115,6 +110,7 @@ export default function PrivateCandidatesSaudiArabia() {
 
         <TrialBox
           from="private-candidates:saudi-arabia"
+          classes
           title="Your entry. My marking."
           body="Private candidates in Saudi Arabia join the same live classes as school students, and every weekly test is marked by me with written feedback. Start with one free lesson."
         />

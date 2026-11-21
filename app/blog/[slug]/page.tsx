@@ -7,8 +7,8 @@ import { JsonLd } from "@/components/JsonLd";
 import { ArticleCta } from "@/components/blog/ArticleCta";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { allArticles, articleSlugs, formatDate, getArticle } from "@/lib/blog";
-import { COMPANY_NAME } from "@/lib/config";
-import { absolute, breadcrumbLd, PERSON_ID, fitTitle } from "@/lib/seo";
+import { absolute, articleLd, breadcrumbLd, fitTitle } from "@/lib/seo";
+import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
 
 export const dynamicParams = false;
 
@@ -66,26 +66,24 @@ export default async function ArticlePage({ params }: Props) {
     ]),
     // The checklist for the article's first syllabus: what the syllabus asks, point by point.
     ...SYLLABI.filter((x) => a.code.includes(x.code)).slice(0, 1).map((x) => ({ href: `/syllabus/${x.slug}`, label: `${x.name} syllabus checklist` })),
+    // Marks needed for each grade, for the article's first syllabus that has a thresholds page.
+    ...THRESHOLD_PAGES.filter((t) => a.code.includes(t.code)).slice(0, 1).map((t) => ({ href: `/grade-thresholds/${t.slug}`, label: `${t.name} grade thresholds` })),
     { href: "/tools/exam-countdown", label: "Exam countdown" },
-  ].slice(0, 6);
+  ].slice(0, 7);
 
   return (
     <MarketingShell>
       <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Article",
+        data={articleLd({
+          path: `/blog/${slug}`,
           headline: a.title,
           description: a.description,
           datePublished: a.date,
-          dateModified: a.updated ?? a.date,
-          url: absolute(`/blog/${slug}`),
+          dateModified: a.updated,
           image: absolute(`/blog/${slug}/opengraph-image`),
-          inLanguage: "en",
+          section: a.type,
           about: [a.subject, a.level, a.code],
-          author: { "@type": "Person", "@id": PERSON_ID, name: "Hamza Sadaqat", url: absolute("/") },
-          publisher: { "@id": `${absolute("/")}/#organization`, "@type": "EducationalOrganization", name: COMPANY_NAME },
-        }}
+        })}
       />
       <JsonLd
         data={breadcrumbLd([
@@ -110,15 +108,38 @@ export default async function ArticlePage({ params }: Props) {
             <h1 className="mt-4 text-balance text-4xl font-bold leading-[1.08] tracking-tight text-ink md:text-5xl">{a.title}</h1>
             <p className="mt-6 text-lg leading-relaxed text-muted-foreground">{a.description}</p>
             <p className="mt-6 border-b border-hairline pb-8 text-sm text-faint">
-              By Hamza · {formatDate(a.updated ?? a.date)} · {a.minutes} min read · <span className="tabular-nums">{a.code}</span>
+              By Hamza · {a.updated ? <>Updated <time dateTime={a.updated}>{formatDate(a.updated)}</time></> : <time dateTime={a.date}>{formatDate(a.date)}</time>} · {a.minutes} min read · <span className="tabular-nums">{a.code}</span>
             </p>
           </header>
+
+          {a.summary && a.summary.length > 0 && (
+            <section aria-labelledby="in-short-h" className="mt-10 rounded-tile border border-hairline bg-card p-5 md:p-6">
+              <h2 id="in-short-h" className="text-sm font-semibold text-ink">In short</h2>
+              <ul className="mt-3 list-disc space-y-2 pl-5 text-lg leading-[1.7] text-body marker:text-faint">
+                {a.summary.map((s) => (
+                  <li key={s} className="pl-1">{s}</li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <div className="pb-2">
             <Post components={{ BookingBox: () => <ArticleCta variant="mid" {...ctaProps} /> }} />
           </div>
 
           <ArticleCta variant="end" {...ctaProps} />
+
+          <p className="mt-6 text-base leading-relaxed text-muted-foreground">
+            Want the whole syllabus taught live? See how my{" "}
+            <Link href="/online-classes" className="font-semibold text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">
+              online classes
+            </Link>{" "}
+            work, with class times for Pakistan and for{" "}
+            <Link href="/online-classes/gulf" className="font-semibold text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">
+              students in the Gulf
+            </Link>
+            .
+          </p>
 
           <nav aria-label="Free for this topic" className="mt-12">
             <p className="text-sm font-semibold text-muted-foreground">Free for this topic</p>

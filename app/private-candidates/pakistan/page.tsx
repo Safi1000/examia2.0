@@ -4,7 +4,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import "@/components/landing/public-calm.css";
 import { Crumbs, Section, Table, TrialBox } from "@/components/study/StudyBits";
-import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
+import { articleLd, breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 
 /**
  * Private candidates in Pakistan: how to enter Cambridge O Level, IGCSE and
@@ -58,16 +58,7 @@ export default function PrivateCandidatesPakistan() {
         ])}
       />
       <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Article",
-          headline: title,
-          description,
-          dateModified: UPDATED,
-          datePublished: UPDATED,
-          inLanguage: "en",
-          author: { "@type": "Person", name: "Hamza Sadaqat" },
-        }}
+        data={articleLd({ path: "/private-candidates/pakistan", headline: title, description, datePublished: UPDATED })}
       />
       <JsonLd data={faqLd(FAQ)} />
 
@@ -79,6 +70,11 @@ export default function PrivateCandidatesPakistan() {
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
           Updated 23 October 2026. Everything you need to enter Cambridge exams without a school: how British Council registration
           works, the deadlines, what to keep ready, and how to prepare Accounting, Business and Economics on your own.
+        </p>
+        <p className="mt-4 text-lg leading-relaxed text-body">
+          In short: yes, you can sit Cambridge exams without a school. In Pakistan you enter as a private candidate through the British
+          Council, which registers you, takes your fees and seats you at one of its exam venues. Registration is only complete once it
+          receives your payment slip and your registration summary.
         </p>
 
         <Section title="Who sits as a private candidate">
@@ -185,6 +181,7 @@ export default function PrivateCandidatesPakistan() {
 
         <TrialBox
           from="private-candidates:pakistan"
+          classes
           title="No school. Still not alone."
           body="Live small group classes online for O Level, IGCSE, AS and A Level Accounting, Business and Economics, with weekly tests I mark myself. Private candidates are welcome. Start with one free lesson."
         />

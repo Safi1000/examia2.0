@@ -56,6 +56,7 @@ export function ToolShell({
         <Section title="How it works">{how}</Section>
         <TrialBox
           from={`tool:${slug}`}
+          classes
           subject={subject}
           level={level}
           title="Know the formula. Win the marks."

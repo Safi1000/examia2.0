@@ -75,8 +75,28 @@ export function Table({ head, rows, caption }: { head: ReactNode[]; rows: ReactN
 const gold =
   "inline-flex min-h-12 w-full items-center justify-center rounded-full bg-gold px-7 text-base font-semibold text-on-brand transition-[background-color,transform] duration-150 ease-[var(--ease-out)] hover:bg-gold-hover active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:w-auto";
 
-/** The one ask on a study page: a free trial lesson. */
-export function TrialBox({ from, subject, level, title, body }: { from: string; subject?: SubjectName; level?: LevelName; title: string; body: string }) {
+const quietLink =
+  "font-semibold text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current";
+
+/**
+ * The one ask on a study page: a free trial lesson. `classes` adds one quiet line
+ * linking to the online classes pages (leave it off on those pages themselves).
+ */
+export function TrialBox({
+  from,
+  subject,
+  level,
+  title,
+  body,
+  classes,
+}: {
+  from: string;
+  subject?: SubjectName;
+  level?: LevelName;
+  title: string;
+  body: string;
+  classes?: boolean;
+}) {
   return (
     <aside className="mt-16 rounded-card border border-hairline bg-card-raised p-6 md:p-10">
       <h2 className="max-w-[24ch] text-2xl font-bold leading-tight text-foreground md:text-3xl">{title}</h2>
@@ -86,6 +106,19 @@ export function TrialBox({ from, subject, level, title, body }: { from: string; 
           Book your free trial lesson
         </BookButton>
       </div>
+      {classes && (
+        <p className="mt-5 text-base leading-relaxed text-muted-foreground">
+          See how the{" "}
+          <Link href="/online-classes" className={quietLink}>
+            online classes
+          </Link>{" "}
+          work, with class times for Pakistan and for{" "}
+          <Link href="/online-classes/gulf" className={quietLink}>
+            students in the Gulf
+          </Link>
+          .
+        </p>
+      )}
     </aside>
   );
 }

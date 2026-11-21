@@ -35,7 +35,7 @@ export default function Page() {
       slug="elasticity-calculator"
       name="Elasticity calculator"
       h1="Elasticity calculator: PED, YED and XED"
-      intro="Enter the figures before and after the change. You get the elasticity, the working, what the number means and, for PED, what happened to total revenue."
+      intro="PED is the percentage change in quantity demanded divided by the percentage change in price; YED and XED divide by the change in income or in the price of another good. Enter the figures before and after the change. You get the elasticity, the working, what the number means and, for PED, what happened to total revenue."
       subject="Economics"
       level="O Level / IGCSE"
       faq={FAQ}

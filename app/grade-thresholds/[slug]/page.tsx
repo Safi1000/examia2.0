@@ -121,6 +121,9 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
     },
   );
 
+  // The answer most students came for, shown under the intro: the A* question when there is one.
+  const lead = faq.find((f) => f.q.includes("A*")) ?? faq[0];
+
   return (
     <MarketingShell>
       <JsonLd
@@ -140,6 +143,11 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
           variant. Below them: the totals that would have been enough on every one of those papers, so you know what to aim for
           in 2027.
         </p>
+        {lead && (
+          <p className="mt-4 max-w-[64ch] text-lg leading-relaxed text-body">
+            <strong className="font-semibold text-foreground">{lead.q}</strong> {lead.a}
+          </p>
+        )}
         <a href="#calculator" className="mt-6 inline-flex min-h-11 items-center rounded-full border border-hairline-strong px-5 text-sm font-semibold text-foreground transition-[background-color,border-color,transform] duration-150 hover:border-white/25 hover:bg-white/[0.04] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
           Check your own marks
         </a>
@@ -253,6 +261,7 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
 
         <TrialBox
           from={`thresholds:${p.slug}`}
+          classes
           subject={p.subject}
           level={levelName}
           title="Know the target. Now reach it."
