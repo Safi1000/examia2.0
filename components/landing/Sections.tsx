@@ -416,6 +416,8 @@ export function VideoReviewCard({ r, tile }: { r: VideoReview; tile?: string }) 
           poster={r.poster ?? (r.src ? posterFor(r.src) : undefined)}
           title={r.name ? `Review from ${r.name}` : `Student review: ${r.meta.toLowerCase()}`}
           label="Clip coming soon"
+          // Phones: about 70% of the screen wide. Laptops: the row's 320 px height times the clip's shape.
+          sizes={`(max-width: 767px) 70vw, ${Math.round(320 * r.ratio)}px`}
         />
       </div>
       <ReviewCaption name={r.name} meta={r.meta} tile={!!tile} />
@@ -439,7 +441,7 @@ function ShotCard({ s, tile = false }: { s: (typeof shots)[number]; tile?: boole
         aria-label={`Open ${s.name}'s message full size`}
         className="group relative block focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
       >
-        <Image src={s.src} alt={s.alt} width={900} height={1524} sizes="(max-width: 768px) 45vw, 260px" className="h-auto w-full" />
+        <Image src={s.src} alt={s.alt} width={900} height={1524} sizes={`(max-width: 767px) 70vw, ${Math.round(320 * SHOT_RATIO)}px`} className="h-auto w-full" />
       </a>
       <ReviewCaption name={s.name} meta={s.meta} tile={tile} />
     </figure>

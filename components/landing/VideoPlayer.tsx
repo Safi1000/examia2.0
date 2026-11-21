@@ -22,6 +22,7 @@ export function VideoPlayer({
   className = "",
   big = false,
   auto = false,
+  sizes,
 }: {
   src?: string | null;
   title: string;
@@ -33,6 +34,8 @@ export function VideoPlayer({
   /** Start on its own, muted, with no click. The visitor unmutes if they want
    *  sound — autoplay with audio is blocked everywhere and rightly so. */
   auto?: boolean;
+  /** How wide the still is shown (a sizes value), so phones and laptops fetch a picture that fits instead of the 640 px one. */
+  sizes?: string;
 }) {
   const [playing, setPlaying] = useState(false);
   const live = playing || (auto && !!src);
@@ -96,8 +99,8 @@ export function VideoPlayer({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={sized(poster, big ? 1080 : 640)}
-            srcSet={big ? `${sized(poster, 640)} 640w, ${sized(poster, 1080)} 1080w` : undefined}
-            sizes={big ? "(min-width: 1024px) 720px, 100vw" : undefined}
+            srcSet={big ? `${sized(poster, 640)} 640w, ${sized(poster, 1080)} 1080w` : sizes ? `${sized(poster, 256)} 256w, ${sized(poster, 384)} 384w, ${sized(poster, 640)} 640w` : undefined}
+            sizes={big ? "(min-width: 1024px) 720px, 100vw" : sizes}
             alt=""
             aria-hidden
             loading={big ? "eager" : "lazy"}
