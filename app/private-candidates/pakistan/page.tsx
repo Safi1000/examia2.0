@@ -67,24 +67,7 @@ export default function PrivateCandidatesPakistan() {
         <h1 className="mt-8 text-title leading-[1.1] sm:text-title-lg">
           Sitting O Level, IGCSE or A Level as a private candidate in Pakistan
         </h1>
-        <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
-          Updated 23 October 2026. Everything you need to enter Cambridge exams without a school: how British Council registration
-          works, the deadlines, what to keep ready, and how to prepare Accounting, Business and Economics on your own.
-        </p>
-        <p className="mt-4 text-lg leading-relaxed text-body">
-          In short: yes, you can sit Cambridge exams without a school. In Pakistan you enter as a private candidate through the British
-          Council, which registers you, takes your fees and seats you at one of its exam venues. Registration is only complete once it
-          receives your payment slip and your registration summary.
-        </p>
-
-        <Section title="Who sits as a private candidate">
-          <ul className="list-disc space-y-2 pl-5 text-lg leading-relaxed text-body">
-            <li>Students whose school does not offer the subject, such as O Level Accounting at a school without a commerce teacher.</li>
-            <li>Students taking a gap year, studying at home, or finishing A Levels after leaving school.</li>
-            <li>Students retaking a subject to improve a grade for a university or scholarship application.</li>
-            <li>Students who want to finish O Levels in fewer years by taking extra subjects alongside school.</li>
-          </ul>
-        </Section>
+        <p className="mt-4 text-base text-muted-foreground">Updated 23 October 2026.</p>
 
         <Section
           title="How registration works"
@@ -179,6 +162,15 @@ export default function PrivateCandidatesPakistan() {
           </p>
         </Section>
 
+        <Section title="Who sits as a private candidate">
+          <ul className="list-disc space-y-2 pl-5 text-lg leading-relaxed text-body">
+            <li>Students whose school does not offer the subject, such as O Level Accounting at a school without a commerce teacher.</li>
+            <li>Students taking a gap year, studying at home, or finishing A Levels after leaving school.</li>
+            <li>Students retaking a subject to improve a grade for a university or scholarship application.</li>
+            <li>Students who want to finish O Levels in fewer years by taking extra subjects alongside school.</li>
+          </ul>
+        </Section>
+
         <TrialBox
           from="private-candidates:pakistan"
           classes
@@ -189,6 +181,17 @@ export default function PrivateCandidatesPakistan() {
         <Section title="Questions private candidates ask">
           <FaqList items={FAQ} />
         </Section>
+
+        <section aria-labelledby="about-guide" className="mt-12 border-t border-hairline pt-6">
+          <h2 id="about-guide" className="text-sm font-semibold text-muted-foreground">About this guide</h2>
+          <p className="mt-2 max-w-[64ch] text-sm leading-relaxed text-faint">
+            Everything you need to enter Cambridge exams without a school: how British Council registration
+            works, the deadlines, what to keep ready, and how to prepare Accounting, Business and Economics on your own.
+            In short: yes, you can sit Cambridge exams without a school. In Pakistan you enter as a private candidate through the British
+            Council, which registers you, takes your fees and seats you at one of its exam venues. Registration is only complete once it
+            receives your payment slip and your registration summary.
+          </p>
+        </section>
 
         <p className="mt-12 text-sm leading-relaxed text-faint">
           Sources:{" "}

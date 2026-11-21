@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell } from "@/components/landing/MarketingShell";
+import { RelatedLinks } from "@/components/study/RelatedLinks";
 import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
+import { allArticles } from "@/lib/blog";
 import { MCQ_SYLLABUSES, liveSyllabuses, papersFor, syllabusName } from "@/lib/mcq-papers";
 import { breadcrumbLd } from "@/lib/seo";
 import "@/components/landing/public-calm.css";
@@ -25,8 +27,10 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title, description, images: ["/opengraph-image"] },
 };
 
-export default function PastPaperMcqHub() {
+export default async function PastPaperMcqHub() {
   const subjects = ["Accounting", "Economics"] as const;
+  // Read next: the Paper 1 multiple-choice guides from The Exam Room.
+  const tips = (await allArticles()).filter((a) => a.slug.endsWith("-mcq-tips"));
   return (
     <MarketingShell>
       <JsonLd data={breadcrumbLd([{ name: "Home", path: "/" }, { name: "Past paper MCQ checker", path: "/tools/past-paper-mcq" }])} />
@@ -35,24 +39,6 @@ export default function PastPaperMcqHub() {
         <h1 className="mt-8 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">
           Do a real Paper 1. Get it marked in a second.
         </h1>
-        <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
-          Multiple-choice papers are the easiest to practise and the most boring to mark. Do a real Cambridge past paper under exam timing,
-          shade your answers here, and see your score, the questions you got wrong, and which topics they came from.
-        </p>
-
-        <Section title="How it works">
-          <ol className="list-decimal space-y-3 pl-5 text-lg leading-relaxed text-body">
-            <li>Choose your syllabus and a paper. Each one links to the official question paper on the Cambridge website.</li>
-            <li>Start the timer if you want exam conditions. It runs for the same time as the real paper.</li>
-            <li>Shade your answers on the answer sheet, then mark it. Your answers are saved on your device as you go.</li>
-            <li>Or practise one topic at a time: the checker takes you through real past paper questions on that topic, one by one, and opens the official paper at each question.</li>
-          </ol>
-          <p className="mt-5 text-base leading-relaxed text-muted-foreground">
-            The questions belong to Cambridge, so they are never copied here. You work from the official paper, and the answers come from
-            the official mark scheme.
-          </p>
-        </Section>
-
         {subjects.map((subject) => (
           <Section key={subject} title={subject}>
             <ul className="pc-surface divide-y divide-hairline overflow-hidden rounded-card">
@@ -88,11 +74,35 @@ export default function PastPaperMcqHub() {
           Business has no multiple-choice paper. For A Level Accounting, the multiple-choice paper is the AS Paper 1.
         </p>
 
+        <Section title="How it works">
+          <ol className="list-decimal space-y-3 pl-5 text-lg leading-relaxed text-body">
+            <li>Choose your syllabus and a paper. Each one links to the official question paper on the Cambridge website.</li>
+            <li>Start the timer if you want exam conditions. It runs for the same time as the real paper.</li>
+            <li>Shade your answers on the answer sheet, then mark it. Your answers are saved on your device as you go.</li>
+            <li>Or practise one topic at a time: the checker takes you through real past paper questions on that topic, one by one, and opens the official paper at each question.</li>
+          </ol>
+          <p className="mt-5 text-base leading-relaxed text-muted-foreground">
+            The questions belong to Cambridge, so they are never copied here. You work from the official paper, and the answers come from
+            the official mark scheme.
+          </p>
+        </Section>
+
+        <section aria-labelledby="about-mcq" className="mt-12 border-t border-hairline pt-6">
+          <h2 id="about-mcq" className="text-sm font-semibold text-muted-foreground">About this checker</h2>
+          <p className="mt-2 max-w-[64ch] text-sm leading-relaxed text-faint">
+            Multiple-choice papers are the easiest to practise and the most boring to mark. Do a real Cambridge past paper under exam timing,
+            shade your answers here, and see your score, the questions you got wrong, and which topics they came from.
+          </p>
+        </section>
+
+
         <TrialBox
           from="tools:past-paper-mcq"
           title="Know your score. Fix the gaps."
           body="If the same topics keep costing you marks, bring your marked papers to a free trial lesson and we will work through them together."
         />
+
+        <RelatedLinks links={tips.map((a) => ({ href: `/blog/${a.slug}`, label: a.title }))} />
       </div>
     </MarketingShell>
   );

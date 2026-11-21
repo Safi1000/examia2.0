@@ -7,7 +7,7 @@ import { WaitlistBox } from "@/components/tools/WaitlistBox";
 import { absolute, breadcrumbLd, faqLd } from "@/lib/seo";
 import type { LevelName, SubjectName } from "@/lib/landing";
 
-/** The page around every free calculator: heading, the tool, how it works, questions, the ask. */
+/** The page around every free calculator: heading, the tool, how it works, questions, the ask. The intro sits in a small About section near the end, so the tool comes straight after the heading. */
 export function ToolShell({
   slug,
   name,
@@ -51,8 +51,7 @@ export function ToolShell({
       <div className="mx-auto max-w-3xl px-5 pb-20 pt-14 md:pt-20">
         <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Free tools", href: "/tools" }, { name }]} />
         <h1 className="mt-8 text-balance text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{h1}</h1>
-        <p className="mt-5 max-w-[62ch] text-lg leading-relaxed text-muted-foreground">{intro}</p>
-        <div className="mt-10">{children}</div>
+        <div className="mt-8">{children}</div>
         <Section title="How it works">{how}</Section>
         <TrialBox
           from={`tool:${slug}`}
@@ -65,6 +64,10 @@ export function ToolShell({
         <Section title="Questions students ask">
           <FaqList items={faq} />
         </Section>
+        <section aria-labelledby="about-tool" className="mt-12 border-t border-hairline pt-6">
+          <h2 id="about-tool" className="text-sm font-semibold text-muted-foreground">About this tool</h2>
+          <p className="mt-2 max-w-[64ch] text-sm leading-relaxed text-faint">{intro}</p>
+        </section>
         <WaitlistBox source={path} />
         {related && related.length > 0 && (
           <Section title="Read next">

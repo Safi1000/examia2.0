@@ -4,11 +4,21 @@ import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import "@/components/landing/public-calm.css";
-import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
+import { Crumbs, Section, Table, TrialBox } from "@/components/study/StudyBits";
 import { RelatedLinks } from "@/components/study/RelatedLinks";
 import { CITY_PAGES, cityPage } from "@/lib/city-pages";
 import { GULF_CITY_PAGES, GULF_SOURCES, GULF_ZONES, gulfCityPage, localDay, type GulfCityPage } from "@/lib/gulf-pages";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
+import { DEFAULT_SCHEDULE, LEVEL_LABEL, span, type LevelKey } from "@/lib/timetable";
+
+/** The weekly blocks per level, from the standard timetable (same table as the online classes page). */
+function blocks() {
+  const order: LevelKey[] = ["A2", "O", "AS"];
+  return order.map((level) => {
+    const slots = DEFAULT_SCHEDULE.slots.filter((s) => s.level === level).sort((a, b) => a.start.localeCompare(b.start));
+    return { level, from: slots[0]?.start ?? "", to: slots[slots.length - 1]?.end ?? "", subjects: slots.map((s) => s.subject) };
+  });
+}
 
 export const dynamicParams = false;
 export function generateStaticParams() {
@@ -60,6 +70,14 @@ export default async function CityClassesPage({ params }: Props) {
         <h1 className="mt-8 text-title leading-[1.1] sm:text-title-lg">{c.heading}</h1>
         <p className="mt-5 text-lg leading-relaxed text-muted-foreground">{c.intro}</p>
 
+        <Section title="Class times" intro={<p>Monday to Friday, Pakistan time. Each subject is a 40 minute class.</p>}>
+          <Table
+            caption="Weekly class times"
+            head={["Level", "Time", "Subjects"]}
+            rows={blocks().map((b) => [LEVEL_LABEL[b.level], span(b.from, b.to), b.subjects.join(", ")])}
+          />
+        </Section>
+
         {c.local.map((l) => (
           <Section key={l.title} title={l.title}>
             <p className="text-lg leading-relaxed text-body">{l.body}</p>
@@ -68,7 +86,7 @@ export default async function CityClassesPage({ params }: Props) {
 
         <Section title="Everything else">
           <p className="text-lg leading-relaxed text-body">
-            Class times, what is included and the syllabuses covered are on the{" "}
+            What is included and the syllabuses covered are on the{" "}
             <Link href="/online-classes" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">online classes page</Link>. Entering without a school? Read the{" "}
             <Link href="/private-candidates/pakistan" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">private candidate guide</Link>. Checking your marks?
             Use the <Link href="/grade-thresholds" className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">official grade thresholds</Link>.

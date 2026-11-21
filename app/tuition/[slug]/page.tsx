@@ -130,19 +130,24 @@ export default async function TuitionPage({ params }: Props) {
           </BookButton>
         </div>
 
-        <section aria-labelledby="in-short-h" className="pc-surface mt-12 rounded-tile p-5 md:p-6">
+        <section aria-labelledby="in-short-h" className="pc-surface mt-8 rounded-tile p-5 md:p-6">
           <h2 id="in-short-h" className="text-sm font-semibold text-ink">
             In short
           </h2>
-          <ul className="mt-3 list-disc space-y-2 pl-5 text-lg leading-[1.7] text-body marker:text-faint">
-            <li className="pl-1">
-              I teach {s.subject} for Cambridge {keep(codes)}, and for Pearson Edexcel students too.
-            </li>
-            <li className="pl-1">Classes are small live groups on Google Meet, Monday to Friday, with cameras on.</li>
-            <li className="pl-1">
-              Every class is recorded and stays open for {RECORDING_HOURS} hours. Every week there is a test I make and mark myself.
-            </li>
-          </ul>
+          <p className="mt-2 text-base leading-relaxed text-body">
+            Cambridge {keep(codes)}, and Pearson Edexcel too.
+          </p>
+          <dl className="mt-3 divide-y divide-hairline border-y border-hairline">
+            {week.map((w) => (
+              <div key={w.level} className="flex items-baseline justify-between gap-4 py-2.5">
+                <dt className="text-base font-semibold text-foreground">{w.level}</dt>
+                <dd className="text-base tabular-nums text-body">{w.time}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            Monday to Friday, Pakistan time. Small live groups on Google Meet, cameras on.
+          </p>
         </section>
 
         <Section title="What I teach, level by level" intro={<p>{s.intro}</p>}>
@@ -184,19 +189,11 @@ export default async function TuitionPage({ params }: Props) {
           title="How a week works"
           intro={
             <p>
-              Monday to Friday, one 40 minute {s.subject} class a day at your level. Times are Pakistan time.
+              Monday to Friday, one 40 minute {s.subject} class a day at your level, at the times above, Pakistan time.
             </p>
           }
         >
-          <dl className="divide-y divide-hairline border-y border-hairline">
-            {week.map((w) => (
-              <div key={w.level} className="flex items-baseline justify-between gap-4 py-4">
-                <dt className="text-base font-semibold text-foreground">{w.level}</dt>
-                <dd className="text-base tabular-nums text-body">{w.time}</dd>
-              </div>
-            ))}
-          </dl>
-          <p className="mt-6 max-w-[62ch] text-lg leading-relaxed text-muted-foreground">
+          <p className="max-w-[62ch] text-lg leading-relaxed text-muted-foreground">
             Every week there is a test I make and mark myself. If school runs late, the recording is there for {RECORDING_HOURS} hours. Studying in
             the Gulf? See the{" "}
             <Link href="/online-classes/gulf" className={quietLink}>

@@ -64,6 +64,14 @@ export default function OnlineClassesPakistan() {
           every weekly test is made and marked by me, with feedback on the exact mistakes that cost you marks.
         </p>
 
+        <Section title="Class times" intro={<p>Monday to Friday, Pakistan time. Each subject is a 40 minute class.</p>}>
+          <Table
+            caption="Weekly class times"
+            head={["Level", "Time", "Subjects"]}
+            rows={blocks().map((b) => [LEVEL_LABEL[b.level], span(b.from, b.to), b.subjects.join(", ")])}
+          />
+        </Section>
+
         <Section title="What you get">
           <ul className="list-disc space-y-2 pl-5 text-lg leading-relaxed text-body">
             <li>Live classes five days a week, the full syllabus plus past papers.</li>
@@ -72,14 +80,6 @@ export default function OnlineClassesPakistan() {
             <li>A dedicated past paper window in March and April, before May / June exams.</li>
             <li>A direct line to me for questions between classes.</li>
           </ul>
-        </Section>
-
-        <Section title="Class times" intro={<p>Monday to Friday, Pakistan time. Each subject is a 40 minute class.</p>}>
-          <Table
-            caption="Weekly class times"
-            head={["Level", "Time", "Subjects"]}
-            rows={blocks().map((b) => [LEVEL_LABEL[b.level], span(b.from, b.to), b.subjects.join(", ")])}
-          />
         </Section>
 
         <Section title="Classes for your city">

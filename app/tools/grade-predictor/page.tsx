@@ -43,11 +43,10 @@ export default function GradePredictorPage() {
           <h1 className="mx-auto mt-8 max-w-[18ch] text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">
             Where would your mock marks land you?
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-balance text-lg leading-relaxed text-muted-foreground">
-            Pick your subject, enter your marks, and see the grade Cambridge would have given you, plus the marks
-            you need for May / June 2027.
+          <p className="mx-auto mt-4 max-w-2xl text-balance text-base leading-relaxed text-muted-foreground">
+            Your grade, plus the marks you need for May / June 2027.
           </p>
-          <div className="mt-12 text-left">
+          <div className="mt-8 text-left">
             <GradePredictor />
           </div>
         </div>

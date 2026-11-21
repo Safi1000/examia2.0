@@ -45,14 +45,7 @@ export default function PrivateCandidatesSaudiArabia() {
         <h1 className="mt-8 text-title leading-[1.1] sm:text-title-lg">
           Sitting IGCSE or A Level as a private candidate in Saudi Arabia
         </h1>
-        <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
-          Updated 23 October 2026. The British Council in Saudi Arabia publishes less detail online than it does in the UAE or Pakistan. This
-          guide sticks to what it does say, and lists the questions to ask the office before you pay anything.
-        </p>
-        <p className="mt-4 text-lg leading-relaxed text-body">
-          In short: without a school, you enter Cambridge exams through the British Council, which has a separate registration route for
-          private candidates and offices in Riyadh, Jeddah and Al Khobar. Cambridge exams run in May / June and in October / November.
-        </p>
+        <p className="mt-4 text-base text-muted-foreground">Updated 23 October 2026.</p>
 
         <Section title="Who handles your entry">
           <p className="text-lg leading-relaxed text-body">
@@ -123,6 +116,16 @@ export default function PrivateCandidatesSaudiArabia() {
             { href: "/grade-thresholds", label: "Cambridge grade thresholds" },
           ]}
         />
+
+        <section aria-labelledby="about-guide" className="mt-12 border-t border-hairline pt-6">
+          <h2 id="about-guide" className="text-sm font-semibold text-muted-foreground">About this guide</h2>
+          <p className="mt-2 max-w-[64ch] text-sm leading-relaxed text-faint">
+            The British Council in Saudi Arabia publishes less detail online than it does in the UAE or Pakistan. This
+            guide sticks to what it does say, and lists the questions to ask the office before you pay anything.
+            In short: without a school, you enter Cambridge exams through the British Council, which has a separate registration route for
+            private candidates and offices in Riyadh, Jeddah and Al Khobar. Cambridge exams run in May / June and in October / November.
+          </p>
+        </section>
 
         <p className="mt-12 text-sm leading-relaxed text-faint">
           Sources:{" "}

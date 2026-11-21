@@ -51,10 +51,6 @@ export default function GradeThresholdsHub() {
         <h1 className="mt-8 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">
           Cambridge grade thresholds for Accounting, Business and Economics
         </h1>
-        <p className="mt-5 max-w-[64ch] text-lg leading-relaxed text-muted-foreground">
-          The minimum marks for every grade, {SESSIONS.join(", ")}, for every paper variant, straight from Cambridge&apos;s published
-          tables. Each page also shows the total that would have been enough on every recent paper, and a calculator for your own marks.
-        </p>
 
         {groups.map((gr) => (
           <Section key={gr.level} title={gr.level}>
@@ -102,6 +98,14 @@ export default function GradeThresholdsHub() {
         <Section title="Questions students ask">
           <FaqList items={FAQ} />
         </Section>
+
+        <section aria-labelledby="about-gt" className="mt-12 border-t border-hairline pt-6">
+          <h2 id="about-gt" className="text-sm font-semibold text-muted-foreground">About these thresholds</h2>
+          <p className="mt-2 max-w-[64ch] text-sm leading-relaxed text-faint">
+            The minimum marks for every grade, {SESSIONS.join(", ")}, for every paper variant, straight from Cambridge&apos;s published
+            tables. Each page also shows the total that would have been enough on every recent paper, and a calculator for your own marks.
+          </p>
+        </section>
 
         <RelatedLinks
           links={[

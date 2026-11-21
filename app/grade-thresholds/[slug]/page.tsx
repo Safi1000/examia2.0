@@ -188,9 +188,6 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
     },
   );
 
-  // The answer most students came for, shown under the intro: the A* question when there is one.
-  const lead = faq.find((f) => f.q.includes("A*")) ?? faq[0];
-
   return (
     <MarketingShell>
       <JsonLd
@@ -205,21 +202,8 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
       <article className="mx-auto max-w-4xl px-5 pb-20 pt-14 md:pt-20">
         <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Grade thresholds", href: "/grade-thresholds" }, { name: p.name }]} />
         <h1 className="mt-8 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{p.name} grade thresholds{NEW_CODES[p.code] ? ` (now ${NEW_CODES[p.code]})` : ""}</h1>
-        <p className="mt-5 max-w-[64ch] text-lg leading-relaxed text-muted-foreground">
-          The official Cambridge minimum marks for every grade, {sessionsOf(p.syllabuses[0]).join(", ")}, for every paper
-          variant. Below them: the totals that would have been enough on every one of those papers, so you know what to aim for
-          in 2027.
-        </p>
-        {lead && (
-          <p className="mt-4 max-w-[64ch] text-lg leading-relaxed text-body">
-            <strong className="font-semibold text-foreground">{lead.q}</strong> {lead.a}
-          </p>
-        )}
-        <a href="#calculator" className="mt-6 inline-flex min-h-11 items-center rounded-full border border-hairline-strong px-5 text-sm font-semibold text-foreground transition-[background-color,border-color,transform] duration-150 hover:border-white/25 hover:bg-white/[0.04] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
-          Check your own marks
-        </a>
 
-        {p.syllabuses.map((s) => {
+        {p.syllabuses.map((s, i) => {
           const latest = sessionsOf(s)[0];
           const grades = gradesOf(s);
           const top = grades[0];
@@ -229,7 +213,7 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
           return (
             <div key={s.qualification}>
               {p.syllabuses.length > 1 && (
-                <h2 className="mt-16 border-t border-hairline pt-10 text-3xl font-bold text-foreground">{s.qualification}</h2>
+                <h2 className={i === 0 ? "mt-8 text-3xl font-bold text-foreground" : "mt-16 border-t border-hairline pt-10 text-3xl font-bold text-foreground"}>{s.qualification}</h2>
               )}
 
               {a && (
@@ -242,16 +226,18 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
                       : `${a.low.min} to ${a.high.min} out of ${a.low.max} (${pct(a.low.min, a.low.max)}% to ${pct(a.high.min, a.high.max)}%)`}
                     .
                   </p>
+                  {i === 0 && (
+                    <a href="#calculator" className="mt-4 inline-flex min-h-11 items-center rounded-full border border-hairline-strong px-5 text-sm font-semibold text-foreground transition-[background-color,border-color,transform] duration-150 hover:border-white/25 hover:bg-white/[0.04] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+                      Check your own marks
+                    </a>
+                  )}
                 </div>
               )}
 
               <Section
                 title={`Marks to aim for in 2027${p.syllabuses.length > 1 ? ` (${s.qualification})` : ""}`}
                 intro={
-                  <p>
-                    The highest minimum for each grade across every variant in {sessionsOf(s).length} sessions. Reach this total and you
-                    would have got the grade on every one of those papers. The paper columns split it evenly across your papers.
-                  </p>
+                  <p>Enough for the grade on every variant in the last {sessionsOf(s).length} sessions, split evenly across your papers.</p>
                 }
               >
                 {CHANGES_2027[s.code] && (
@@ -338,6 +324,15 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
         <Section title="Questions students ask">
           <FaqList items={faq} />
         </Section>
+
+        <section aria-labelledby="about-gt" className="mt-12 border-t border-hairline pt-6">
+          <h2 id="about-gt" className="text-sm font-semibold text-muted-foreground">About these thresholds</h2>
+          <p className="mt-2 max-w-[64ch] text-sm leading-relaxed text-faint">
+            The official Cambridge minimum marks for every grade, {sessionsOf(p.syllabuses[0]).join(", ")}, for every paper variant. The
+            targets table shows the highest minimum for each grade across every variant in those sessions: reach that total and you would have
+            got the grade on every one of those papers, so you know what to aim for in 2027.
+          </p>
+        </section>
 
         <RelatedLinks links={syllabusLinks(p.code, ["thresholds"])} />
 

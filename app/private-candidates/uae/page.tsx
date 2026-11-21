@@ -64,15 +64,7 @@ export default function PrivateCandidatesUae() {
         <h1 className="mt-8 text-title leading-[1.1] sm:text-title-lg">
           Sitting IGCSE or A Level as a private candidate in the UAE
         </h1>
-        <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
-          Updated 23 October 2026. How British Council registration works in the UAE, the documents to keep ready, the deadlines, and
-          the two rules to check before you pay.
-        </p>
-        <p className="mt-4 text-lg leading-relaxed text-body">
-          In short: you register online with the British Council, send your documents within three working days, then pay the fee. You can
-          register with only one exam centre and one exam board per session, and the British Council says the certificates it issues are not
-          endorsed by the Ministry of Education.
-        </p>
+        <p className="mt-4 text-base text-muted-foreground">Updated 23 October 2026.</p>
 
         <Section title="Read these two rules first">
           <ul className="list-disc space-y-2 pl-5 text-lg leading-relaxed text-body">
@@ -194,6 +186,17 @@ export default function PrivateCandidatesUae() {
             { href: "/grade-thresholds", label: "Cambridge grade thresholds" },
           ]}
         />
+
+        <section aria-labelledby="about-guide" className="mt-12 border-t border-hairline pt-6">
+          <h2 id="about-guide" className="text-sm font-semibold text-muted-foreground">About this guide</h2>
+          <p className="mt-2 max-w-[64ch] text-sm leading-relaxed text-faint">
+            How British Council registration works in the UAE, the documents to keep ready, the deadlines, and
+            the two rules to check before you pay.
+            In short: you register online with the British Council, send your documents within three working days, then pay the fee. You can
+            register with only one exam centre and one exam board per session, and the British Council says the certificates it issues are not
+            endorsed by the Ministry of Education.
+          </p>
+        </section>
 
         <p className="mt-12 text-sm leading-relaxed text-faint">
           Sources:{" "}

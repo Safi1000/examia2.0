@@ -53,20 +53,9 @@ export default async function SyllabusPage({ params }: Props) {
         <article className="mx-auto max-w-3xl px-5 pb-20 pt-14 md:pt-20">
           <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Syllabus checklists", href: "/syllabus" }, { name: s.name }]} />
           <h1 className="mt-8 text-balance text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{s.name} syllabus checklist</h1>
-          <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
-            The full Cambridge syllabus for exams in {s.exams}: {s.topics.length} topics, {subtopicCount(s)} subtopics and {pointCount(s)} learning
-            points, word for word. Tap a subtopic to see exactly what you need to know, then mark it Not sure or Confident.
+          <p className="mt-4 text-base text-muted-foreground">
+            {s.topics.length} topics, {subtopicCount(s)} subtopics, {pointCount(s)} learning points.{s.replaces ? ` Replaces ${s.replaces} from 2027.` : ""}
           </p>
-          {(s.replaces || s.changes) && (
-            <p className="mt-4 text-base text-muted-foreground">
-              {s.replaces ? `This replaces ${s.replaces} from 2027 exams. ` : ""}
-              {s.changes && (
-                <Link href={s.changes} className="font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:decoration-foreground">
-                  What changed, explained
-                </Link>
-              )}
-            </p>
-          )}
 
           <div className="mt-8">
             <Progress code={s.code} name={s.name} subtopics={subtopics} />
@@ -167,7 +156,23 @@ export default async function SyllabusPage({ params }: Props) {
             </p>
           </div>
 
-          <RelatedLinks links={[...syllabusLinks(s.code, ["checklist", "thresholds"]), { href: "/tools/revision-planner", label: "Revision planner" }]} />
+          <section aria-labelledby="about-syl" className="mt-12 border-t border-hairline pt-6">
+            <h2 id="about-syl" className="text-sm font-semibold text-muted-foreground">About this checklist</h2>
+            <p className="mt-2 max-w-[64ch] text-sm leading-relaxed text-faint">
+              The full Cambridge syllabus for exams in {s.exams}: {s.topics.length} topics, {subtopicCount(s)} subtopics and {pointCount(s)} learning
+              points, word for word. Tap a subtopic to see exactly what you need to know, then mark it Not sure or Confident.
+              {s.replaces ? ` This replaces ${s.replaces} from 2027 exams.` : ""}
+            </p>
+          </section>
+
+          <RelatedLinks
+            links={[
+              ...syllabusLinks(s.code, ["checklist", "thresholds", "tool"]),
+              ...(s.changes ? [{ href: s.changes, label: `What changed in ${s.name}, explained` }] : []),
+              ...syllabusLinks(s.code, ["papers", "topical", "checklist", "thresholds"]),
+              { href: "/tools/revision-planner", label: "Revision planner" },
+            ]}
+          />
 
           <TrialBox
             from={`syllabus:${s.code}`}
