@@ -57,7 +57,15 @@ export default async function ArticlePage({ params }: Props) {
   const tuition = SUBJECT_PAGES.find((p) => p.subject === a.subject);
   const headings = headingsFromSource(fs.readFileSync(path.join(process.cwd(), "content", "blog", `${slug}.mdx`), "utf8"));
 
-  const related = (await allArticles()).filter((o) => o.slug !== slug && o.subject === a.subject).slice(0, 2);
+  // Closest reads first: articles sharing a syllabus code, then the same level, then the same subject.
+  const codesOf = (s: string): string[] => s.match(/\b\d{4}\b/g) ?? [];
+  const mine = codesOf(a.code);
+  const related = (await allArticles())
+    .filter((o) => o.slug !== slug && o.subject === a.subject)
+    .map((o) => ({ o, score: (codesOf(o.code).some((c) => mine.includes(c)) ? 2 : 0) + (o.level === a.level ? 1 : 0) }))
+    .sort((x, y) => y.score - x.score)
+    .slice(0, 3)
+    .map((x) => x.o);
   // Free resources for this article: its calculator (by topic) and past papers for its codes.
   const toolFor: Array<[RegExp, string, string]> = [
     [/depreciation/, "/tools/depreciation-calculator", "Depreciation calculator"],
