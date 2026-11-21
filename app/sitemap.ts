@@ -32,6 +32,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absolute("/past-papers/topics"), changeFrequency: "monthly" as const, priority: 0.8 },
     ...PAST_PAPER_SYLLABI.filter((s) => hasTopical(s.code)).flatMap((s) => [
       { url: absolute(`/past-papers/${s.slug}/topics`), changeFrequency: "monthly" as const, priority: 0.8 },
+      { url: absolute(`/past-papers/${s.slug}/most-repeated-topics`), changeFrequency: "monthly" as const, priority: 0.7 },
       ...topicalFor(s.code)
         .filter((e) => e.questions.length)
         .map((e) => ({ url: absolute(`/past-papers/${s.slug}/topics/${e.slug}`), changeFrequency: "monthly" as const, priority: 0.7 })),

@@ -92,6 +92,11 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
               Revise by topic
             </Link>
           )}
+          {hasTopical(s.code) && (
+            <Link href={`/past-papers/${s.slug}/most-repeated-topics`} className="inline-flex min-h-11 items-center text-muted-foreground underline decoration-hairline-strong underline-offset-[6px] transition-colors duration-150 hover:text-foreground">
+              Most repeated topics
+            </Link>
+          )}
           {(s.next || s.revised) && next && (
             <Link href={`/syllabus/${next.slug}`} className="inline-flex min-h-11 items-center text-muted-foreground underline decoration-hairline-strong underline-offset-[6px] transition-colors duration-150 hover:text-foreground">
               What changed for 2027
