@@ -270,8 +270,8 @@ export function CalmStart({ name, nowMs, onStart, away = false }: { name: string
               </p>
             )}
             <figure className="max-w-sm md:max-w-xl">
-              <blockquote className="text-sm leading-relaxed text-white/75 [text-shadow:0_1px_10px_rgba(0,0,0,.55)] [text-wrap:balance]">“{quote.q}”</blockquote>
-              <figcaption className="mt-1 text-xs text-white/45 [text-shadow:0_1px_8px_rgba(0,0,0,.5)]">{quote.by}</figcaption>
+              <blockquote className="text-sm leading-relaxed text-white/75 [text-shadow:0_1px_10px_rgba(0,0,0,.55)] [text-wrap:balance]">{quote.by ? `“${quote.text}”` : quote.text}</blockquote>
+              {quote.by && <figcaption className="mt-1 text-xs text-white/45 [text-shadow:0_1px_8px_rgba(0,0,0,.5)]">{quote.by}</figcaption>}
             </figure>
           </div>
           <a

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { STUDY_NAME, MIN_COUNTED, currentStats, recordFocusOn } from "@/lib/focus";
-import { QUOTES } from "@/lib/groundwork";
+import { QUOTES, type Quote } from "@/lib/groundwork";
 import { pickQuote } from "@/lib/groundwork-quotes";
 import { clearRunning, loadRunning, minutesToAdd, ownRunning, saveRunning } from "@/components/student/focus-session";
 import { useBackToClose } from "@/components/student/useBackToClose";
@@ -19,7 +19,6 @@ import { setStudying } from "@/components/student/StudyRoom";
 import { SOUNDS, backgroundTicker, chime, clearLockScreen, pauseSound, playSound, restChime, showOnLockScreen, stopSound, wakeChime, type Sound } from "@/lib/focus-sound";
 import { clock, useFloatTimer } from "@/components/student/FloatTimer";
 import { GroundworkWorld } from "@/components/student/GroundworkWorld";
-import { WorldGlyph, WorldPicker } from "@/components/student/WorldPicker";
 import { Receipt, ShareReceipt, receiptId, type ReceiptData } from "@/components/student/StudyReceipt";
 import { setTitleOverride } from "@/hooks/usePageTitle";
 import { trackFocusItem, type FocusItem } from "@/lib/activity-tracker";
@@ -62,6 +61,26 @@ type Block = { kind: "focus" | "rest"; min: number };
 const AUTO_HIDE_MS = 4000;
 
 const restFor = (focus: number) => Math.max(3, Math.min(15, Math.round(focus / 5)));
+
+declare global {
+  interface Window {
+    /**
+     * Only inside the phone app's Groundwork screen (its web view adds it, mobile-1.2 site-webview.tsx):
+     * true asks the app's tab bar to step aside, false brings it back. Returns true when the app follows it.
+     */
+    __htDock?: (hidden: boolean) => boolean;
+  }
+}
+
+/** Ask the phone app (if any) to hide or show its tab bar. On the normal website it does nothing and returns false. */
+function appDock(hidden: boolean): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.__htDock?.(hidden) === true;
+  } catch {
+    return false;
+  }
+}
 
 const LENGTHS = [15, 25, 45, 60] as const;
 const LENGTH_KEY = "gw_focus_min";
@@ -131,7 +150,6 @@ export default function FocusMode({
   const [within, setWithin] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [sessionAt, setSessionAt] = useState<number | null>(null);
-  const [picker, setPicker] = useState(false);
   /** How far the last focus block got (1 = finished): what the world shows on the receipt. */
   const [builtFrac, setBuiltFrac] = useState(0);
   /** Back after more than the grace away: the "builder waited" sheet (away time, and what was left when they went). */
@@ -608,6 +626,35 @@ export default function FocusMode({
     }
     wasHeld.current = running && !immersive;
   }, [immersive, running]);
+  // In the phone app the tab bar goes and comes back with the controls: hidden only while a block runs
+  // with its controls hidden (never paused, on the away sheet, or after the end). data-dock-hidden is set
+  // only when the app took the message, so an older app (no __htDock) keeps the room clear of its bar.
+  const dockDown = !shown && !held;
+  const dockWant = useRef(dockDown);
+  useEffect(() => {
+    dockWant.current = dockDown;
+    const ok = appDock(dockDown);
+    panel.current?.toggleAttribute("data-dock-hidden", dockDown && ok);
+  }, [dockDown]);
+  useEffect(() => {
+    const showDock = () => {
+      appDock(false);
+      panel.current?.removeAttribute("data-dock-hidden");
+    };
+    const onVis = () => {
+      if (document.visibilityState === "hidden") return showDock();
+      // Back in front with the controls still hidden: ask again (the app shows its bar in the background).
+      if (dockWant.current) panel.current?.toggleAttribute("data-dock-hidden", appDock(true));
+    };
+    window.addEventListener("pagehide", showDock);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("pagehide", showDock);
+      document.removeEventListener("visibilitychange", onVis);
+      // Closing the room: the bar always comes back.
+      appDock(false);
+    };
+  }, []);
   // Keyboard focus inside the controls (Tab, not a tap) keeps them up.
   useEffect(() => {
     const el = panel.current;
@@ -653,8 +700,8 @@ export default function FocusMode({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !e.defaultPrevented) {
-        // The world picker closes itself first; the "builder waited" sheet needs an answer.
-        if (picker || sheet) return;
+        // The "builder waited" sheet needs an answer.
+        if (sheet) return;
         e.preventDefault();
         if (running) void end();
         else close();
@@ -744,7 +791,6 @@ export default function FocusMode({
   // A solid dark tint, no blur: a blur over a moving 3D world is redone on every frame, and that
   // alone made the room stutter on laptops without a separate graphics card.
   const glass = "bg-paper/70 border border-hairline-strong";
-  const roundBtn = cn("flex h-11 w-11 items-center justify-center rounded-full text-white/85 transition-[background-color,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-paper/90 hover:text-white active:scale-[0.98]", glass);
 
   return (
     <div
@@ -780,27 +826,22 @@ export default function FocusMode({
           <p className={cn("min-w-0 truncate", running ? "text-sm text-white/65 [text-shadow:0_1px_10px_rgba(0,0,0,.5)]" : "label-quiet text-white/70")}>
             {running ? forLabel : STUDY_NAME}
           </p>
-          {/* The picker hangs from the whole group (right aligned), so on a phone it stays on screen. */}
-          <div className="relative flex shrink-0 items-center gap-2">
-            {!running && (
-              <button type="button" onClick={() => setPicker((v) => !v)} aria-expanded={picker} className={roundBtn} aria-label={`World: ${world.title}. Change world`} title={world.title}>
-                <WorldGlyph size={20} />
-              </button>
-            )}
-            {picker && !running && <WorldPicker current={world.id} placement="below" onPick={(id) => updateProfile({ world: id })} onClose={() => setPicker(false)} />}
+          <div className="flex shrink-0 items-center gap-1">
             {running && float.kind && (
               <button type="button" onClick={() => void (float.active ? float.close() : float.open())} className={plainIcon} aria-label={float.active ? "Stop floating the timer" : "Float the timer over other apps"} title="Float (P)">
                 <Glyph.Float />
               </button>
             )}
+            {/* Full screen: with the controls while a block runs; in the setup only on laptops (a phone has no use for it there). */}
             {fsOk && (
-              <button type="button" onClick={toggleFs} className={running ? plainIcon : roundBtn} aria-label={fs ? "Exit full screen" : "Full screen"} title="Full screen (F)">
+              <button type="button" onClick={toggleFs} className={cn(plainIcon, !running && "hidden md:flex")} aria-label={fs ? "Exit full screen" : "Full screen"} title="Full screen (F)">
                 {fs ? <Glyph.Shrink /> : <Glyph.Expand />}
               </button>
             )}
+            {/* The setup (and the receipt) closes with one quiet word, as do Escape and the phone's Back. The world is chosen on the start screen. */}
             {!running && (
-              <button type="button" onClick={close} className={roundBtn} aria-label="Close">
-                <Glyph.X />
+              <button type="button" onClick={close} className={cn(quietBtn, "-mr-3")}>
+                {phase === "setup" ? "Cancel" : "Close"}
               </button>
             )}
           </div>
@@ -834,17 +875,10 @@ export default function FocusMode({
                 ))}
               </select>
             </label>
-            <div className="mt-4 flex max-w-full items-center gap-3 sm:gap-8">
-              <button type="button" onClick={() => setFocusMin((m) => Math.max(5, m - 5))} className={cn(roundBtn, "text-xl")} aria-label="5 minutes less">
-                −
-              </button>
-              <p className="room-time font-extralight leading-none tabular-nums tracking-[-0.05em] text-white">{clock(focusMin * 60_000)}</p>
-              <button type="button" onClick={() => setFocusMin((m) => Math.min(120, m + 5))} className={cn(roundBtn, "text-xl")} aria-label="5 minutes more">
-                +
-              </button>
-            </div>
-            <p className="mt-3 text-sm text-white/55">then a {restMin} minute break</p>
-            <div role="radiogroup" aria-label="Length" className="mt-5 flex items-center gap-1.5">
+            {/* The same big quiet numbers as the start clock and the countdown; the four lengths below set it. */}
+            <p className="room-count mt-2 font-semibold leading-none tabular-nums tracking-[-0.045em] text-white [text-shadow:0_2px_30px_rgba(0,0,0,.3)]">{clock(focusMin * 60_000)}</p>
+            <p className="mt-2 text-[13px] text-white/60">then a {restMin} minute break</p>
+            <div role="radiogroup" aria-label="Length" className="mt-7 flex items-center gap-1.5">
               {LENGTHS.map((m) => (
                 <button
                   key={m}
@@ -861,7 +895,7 @@ export default function FocusMode({
                 </button>
               ))}
             </div>
-            <div role="radiogroup" aria-label="Sound" className="mt-6 flex items-center gap-1">
+            <div role="radiogroup" aria-label="Sound" className="mt-3 flex flex-wrap items-center justify-center gap-1">
               {SOUNDS.map((x) => (
                 <button
                   key={x.id}
@@ -875,7 +909,7 @@ export default function FocusMode({
                 </button>
               ))}
             </div>
-            <button type="button" onClick={startBlock} className={buttonClasses({ size: "lg", className: "mt-8 w-full max-w-xs" })}>
+            <button type="button" onClick={startBlock} className={buttonClasses({ size: "lg", className: "mt-9 w-full max-w-xs" })}>
               Start
             </button>
             {mission?.noteHref && (
@@ -1064,11 +1098,14 @@ export default function FocusMode({
       {float.portal}
 
       <style>{`
-        .room-time { font-size: clamp(3.25rem, min(16vw, 10dvh), 8rem); }
         .room-count { font-size: clamp(5rem, min(23vw, 15dvh), 11rem); }
         .room-foot { padding-bottom: .5rem; }
-        /* In the phone app its floating tab bar (112px above the safe area) lies over the bottom of the web view: keep everything clear of it. */
-        @media (max-width: 767px) { html[data-app] .room-body { padding-bottom: calc(112px + env(safe-area-inset-bottom)); } }
+        /* In the phone app its floating tab bar (112px above the safe area) lies over the bottom of the web view: keep everything clear of it.
+           While the app has hidden the bar (data-dock-hidden), Pause, End and the quote settle into its space, at the bar's own pace (out 450ms, back 300ms). */
+        @media (max-width: 767px) {
+          html[data-app] .room-body { padding-bottom: calc(112px + env(safe-area-inset-bottom)); transition: padding-bottom 300ms cubic-bezier(0.16,1,0.3,1); }
+          html[data-app] [data-dock-hidden] .room-body { padding-bottom: max(1rem, env(safe-area-inset-bottom)); transition-duration: 450ms; }
+        }
         @keyframes gw-in { from { opacity: 0; } }
         @keyframes gw-out { to { opacity: 0; } }
         .gw-in { animation: gw-in .45s ease-out both; }
@@ -1079,6 +1116,7 @@ export default function FocusMode({
         @media (prefers-reduced-motion: reduce) {
           .gw-fade { transform: none !important; transition: opacity 160ms linear !important; }
           .gw-in, .gw-leave, .gw-line-in, .gw-line-out { animation-duration: 160ms !important; }
+          html[data-app] .room-body { transition: padding-bottom 160ms linear !important; }
         }
         .no-scrollbar { scrollbar-width: none; } .no-scrollbar::-webkit-scrollbar { display: none; }
         @keyframes away-in { from { opacity: 0; transform: translateY(8px); } }
@@ -1135,7 +1173,7 @@ const Glyph = {
  * old one (600ms). Only the newest is read out by a screen reader, and only
  * when it changes: politely, so it never interrupts.
  */
-function QuoteLine({ line }: { line: { q: string; by: string } | undefined }) {
+function QuoteLine({ line }: { line: Quote | undefined }) {
   const [lines, setLines] = useState(() => (line ? [{ key: 0, line }] : []));
   const [current, setCurrent] = useState(line);
   if (line !== current) {
@@ -1157,8 +1195,8 @@ function QuoteLine({ line }: { line: { q: string; by: string } | undefined }) {
             aria-hidden={old || undefined}
             className={cn("col-start-1 row-start-1 self-end [text-shadow:0_1px_12px_rgba(0,0,0,.6)]", lines.length > 1 && (old ? "gw-line-out" : "gw-line-in"))}
           >
-            <blockquote className="text-[15px] leading-snug text-white/85 [text-wrap:balance]">“{l.line.q}”</blockquote>
-            <figcaption className="mt-1 text-xs text-white/50">{l.line.by}</figcaption>
+            <blockquote className="text-[15px] leading-snug text-white/85 [text-wrap:balance]">{l.line.by ? `“${l.line.text}”` : l.line.text}</blockquote>
+            {l.line.by && <figcaption className="mt-1 text-xs text-white/50">{l.line.by}</figcaption>}
           </figure>
         );
       })}

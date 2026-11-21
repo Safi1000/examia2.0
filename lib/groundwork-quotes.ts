@@ -7,7 +7,7 @@
  *  - the lines in between follow list order, spread evenly through the block,
  *    never closer than MIN_GAP_MIN minutes apart and never twice in a block;
  *  - at most MAX_CHANGES changes in one block.
- * The lines themselves are the site's QUOTES list (lib/groundwork.ts); this
+ * The lines themselves are the QUOTES list in lib/groundwork.ts; this
  * file only decides which one and when. Pure and deterministic for a seed.
  */
 
