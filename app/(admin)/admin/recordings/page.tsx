@@ -378,7 +378,7 @@ export default function RecordingsPage() {
         <Card className="mb-4 p-5 sm:p-6">
           <h2 className={panelTitle}>Move recordings to this Google account</h2>
           <p className="mt-1 max-w-[65ch] text-base text-ink-2">
-            {plural(move.toMove, "video")} still {move.toMove === 1 ? "lives" : "live"} in another Google account. Moving makes a copy of each one in {move.email ?? "the connected account"} and points its class at the copy. Nothing is deleted from the old account.
+            {plural(move.toMove, "video")} {move.toMove === 1 ? "is" : "are"} not fully in this account&apos;s own Drive folder yet. Moving puts each one in {move.email ?? "the connected account"}, in its own &quot;Hamza Teaches recordings&quot; folder, and points its class at it. Nothing is deleted from the old account.
           </p>
           <p className="mt-2 max-w-[65ch] text-sm text-ink-2">
             First, in the old account&apos;s Google Drive, share the &quot;Hamza Teaches recordings&quot; folder with {move.email ?? "the new account"} as Editor.

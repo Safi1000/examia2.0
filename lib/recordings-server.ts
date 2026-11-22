@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { LEVEL_LABEL, RECORDING_HOURS, addDays, at, levelOf, pkDate, setSchedule, slotsOn, subjectOf } from "@/lib/timetable";
 import { loadSchedule } from "@/lib/schedule-server";
-import { RECORDINGS_ROOT, closeLinkSharing, copyIntoAccount, copyRecording, driveFreeBytes, fileIdOf, moveToReplaced, openLinkSharing, ownedVideoIds, trashFile } from "@/lib/google";
+import { RECORDINGS_ROOT, closeLinkSharing, copyIntoAccount, copyRecording, driveFreeBytes, fileIdOf, fileInto, moveToReplaced, openLinkSharing, ownedFolderIds, ownedVideos, trashFile } from "@/lib/google";
 import { CATCH_UP_HOURS, cleanAccess, emptyAccess, openUntil, splitKey, viewOf, type AccessFile } from "@/lib/recording-access";
 
 /**
@@ -400,54 +400,85 @@ export interface MoveInfo {
   freeBytes: number | null;
 }
 
-/** Recordings whose video the connected account does not own, one entry per video. */
-async function foreignVideos(sb: Sb, token: string) {
-  const [rows, owned] = await Promise.all([recordingRows(sb), ownedVideoIds(token)]);
-  const byFile = new Map<string, RecRow[]>();
+/**
+ * Recordings that are not properly in the connected account yet, one entry per video:
+ *   foreign    the video belongs to another Google account (needs a copy);
+ *   misplaced  the video is this account's, but sits in a folder this account
+ *              doesn't own (or in no folder), so it would be lost from view
+ *              when the other account's folder goes.
+ */
+async function unsettledVideos(sb: Sb, token: string) {
+  const [rows, owned, folders] = await Promise.all([recordingRows(sb), ownedVideos(token), ownedFolderIds(token)]);
+  const foreign = new Map<string, RecRow[]>();
+  const misplaced = new Map<string, RecRow[]>();
   for (const r of rows) {
     const f = fileIdOf(r.url);
-    if (!f || owned.has(f)) continue;
-    byFile.set(f, [...(byFile.get(f) ?? []), r]);
+    if (!f) continue;
+    const parents = owned.get(f);
+    const into = !parents ? foreign : parents.some((p) => folders.has(p)) ? null : misplaced;
+    if (into) into.set(f, [...(into.get(f) ?? []), r]);
   }
-  return byFile;
+  return { foreign, misplaced };
 }
 
-/** After Hamza connects a different Google account: how many recordings are still in the old one. */
+/** After Hamza connects a different Google account: how many recordings are not settled in it yet. */
 export async function moveStatus(sb: Sb, token: string): Promise<MoveInfo> {
   const [videos, freeBytes, { data }] = await Promise.all([
-    foreignVideos(sb, token),
+    unsettledVideos(sb, token),
     driveFreeBytes(token).catch(() => null),
     sb.from("google_account").select("email").eq("id", 1).maybeSingle(),
   ]);
-  return { email: (data?.email as string | null) ?? null, toMove: videos.size, freeBytes };
+  return { email: (data?.email as string | null) ?? null, toMove: videos.foreign.size + videos.misplaced.size, freeBytes };
 }
+
+/** Filing a video is quick (no copy): many per press, inside this much time. */
+const FILE_BATCH = 25;
+const FILE_BUDGET_MS = 25_000;
 
 /**
  * "Move recordings to this account": the next few videos are copied into the
- * connected account (same level and subject folders), and every class that
+ * connected account (its own level and subject folders), and every class that
  * used the old video now points at the copy. A recording open to students
  * right now stays open on the copy. The old account's files are never touched.
+ * Videos this account already owns but that sit in another account's folder
+ * are filed into its own folders first (no copy, the link stays the same).
  * `skip` holds recordings that already failed in this run, so the rest carry on.
  */
 export async function moveBatch(sb: Sb, token: string, now: number, skip: string[]) {
   const start = Date.now();
   const skipped = new Set(skip);
-  const videos = [...(await foreignVideos(sb, token)).entries()].filter(([, rows]) => !rows.some((r) => skipped.has(r.key)));
+  const fresh = ([, rows]: [string, RecRow[]]) => !rows.some((r) => skipped.has(r.key));
+  const all = await unsettledVideos(sb, token);
+  const misplaced = [...all.misplaced.entries()].filter(fresh);
+  const videos = [...all.foreign.entries()].filter(fresh);
   const [{ data: classes }, { data: subjects }] = await Promise.all([sb.from("classes").select("id,name"), sb.from("subjects").select("id,name")]);
+  const folderOf = (r: RecRow) => {
+    const c = classes?.find((x) => x.id === r.classId);
+    const s = subjects?.find((x) => x.id === r.subjectId);
+    const lvl = c ? levelOf({ name: c.name as string }) : null;
+    const sub = s ? subjectOf({ name: s.name as string }) : null;
+    return lvl && sub ? [RECORDINGS_ROOT, LEVEL_LABEL[lvl].replace(" / ", " and "), sub] : [RECORDINGS_ROOT, "Other"];
+  };
+  const failed: Array<{ key: string; why: string }> = [];
+  let moved = 0;
+  let filed = 0;
+  for (const [f, rows] of misplaced) {
+    if (filed + failed.length >= FILE_BATCH || Date.now() - start > FILE_BUDGET_MS) break;
+    try {
+      await fileInto(token, f, folderOf(rows[0]));
+      filed++;
+    } catch (e) {
+      failed.push({ key: rows[0].key, why: short(e) });
+    }
+  }
   const normal = await normalCloser(sb, now);
   const view = viewOf(await readAccess(sb), now);
   const swapped = new Map<string, string>();
-  const failed: Array<{ key: string; why: string }> = [];
-  let moved = 0;
   for (const [f, rows] of videos) {
     if (moved + failed.length >= MOVE_BATCH || Date.now() - start > MOVE_START_MS) break;
     const first = rows[0];
     try {
-      const c = classes?.find((x) => x.id === first.classId);
-      const s = subjects?.find((x) => x.id === first.subjectId);
-      const lvl = c ? levelOf({ name: c.name as string }) : null;
-      const sub = s ? subjectOf({ name: s.name as string }) : null;
-      const copy = await copyIntoAccount(token, f, lvl && sub ? [RECORDINGS_ROOT, LEVEL_LABEL[lvl].replace(" / ", " and "), sub] : [RECORDINGS_ROOT, "Other"]);
+      const copy = await copyIntoAccount(token, f, folderOf(first));
       // Students are watching it right now: the copy must open for them too.
       if (rows.some((r) => openUntil(r.key, r.date, normal(r.key), view, now) > now)) await openLinkSharing(token, copy.newId);
       for (const r of rows) {
@@ -482,5 +513,5 @@ export async function moveBatch(sb: Sb, token: string, now: number, skip: string
       for (const v of Object.values(x.catchUp.failed)) v.f = swapped.get(v.f) ?? v.f;
     }
   });
-  return { access, moved, failed, left: Math.max(0, videos.length - moved - failed.length) };
+  return { access, moved: moved + filed, failed, left: Math.max(0, videos.length + misplaced.length - moved - filed - failed.length) };
 }

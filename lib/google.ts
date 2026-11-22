@@ -236,7 +236,9 @@ async function folderPath(token: string, path: string[]): Promise<string> {
   let parent: string | null = null;
   for (let i = 0; i < path.length; i++) {
     const tag = path.slice(0, i + 1).join("/").replace(/'/g, "");
-    const q = `mimeType = '${FOLDER}' and trashed = false and appProperties has { key='htPath' and value='${tag}' }`;
+    // Only this account's own folders: after a change of Google account the old
+    // account's folders (shared with this one) carry the same tag and must not be used.
+    const q = `mimeType = '${FOLDER}' and trashed = false and 'me' in owners and appProperties has { key='htPath' and value='${tag}' }`;
     const found = await g<{ files: Array<{ id: string }> }>(
       token,
       `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)&pageSize=1`,
@@ -374,21 +376,35 @@ export async function driveFreeBytes(token: string): Promise<number | null> {
   return Number.isFinite(limit) && limit > 0 && Number.isFinite(usage) ? Math.max(0, limit - usage) : null;
 }
 
-/** Every video the connected account owns (ids only), read 1,000 at a time. */
-export async function ownedVideoIds(token: string): Promise<Set<string>> {
-  const out = new Set<string>();
-  const q = encodeURIComponent("'me' in owners and mimeType contains 'video/' and trashed = false");
+/** Read every page of a Drive list. */
+async function listAll(token: string, query: string, fields: string) {
+  const out: Array<{ id: string; parents?: string[] }> = [];
   let page = "";
   for (let i = 0; i < 50; i++) {
-    const r = await g<{ nextPageToken?: string; files?: Array<{ id: string }> }>(
+    const r = await g<{ nextPageToken?: string; files?: Array<{ id: string; parents?: string[] }> }>(
       token,
-      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=nextPageToken,files(id)&pageSize=1000${page ? `&pageToken=${encodeURIComponent(page)}` : ""}`,
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=nextPageToken,files(${fields})&pageSize=1000${page ? `&pageToken=${encodeURIComponent(page)}` : ""}`,
     );
-    for (const f of r.files ?? []) out.add(f.id);
+    out.push(...(r.files ?? []));
     if (!r.nextPageToken) break;
     page = r.nextPageToken;
   }
   return out;
+}
+
+/** Every video the connected account owns: its id and the folder(s) it sits in. */
+export async function ownedVideos(token: string): Promise<Map<string, string[]>> {
+  return new Map((await listAll(token, "'me' in owners and mimeType contains 'video/' and trashed = false", "id,parents")).map((f) => [f.id, f.parents ?? []]));
+}
+
+/** Every folder the connected account owns (ids only). */
+export async function ownedFolderIds(token: string): Promise<Set<string>> {
+  return new Set((await listAll(token, `'me' in owners and mimeType = '${FOLDER}' and trashed = false`, "id")).map((f) => f.id));
+}
+
+/** File a video this account owns into one of its own recordings folders. */
+export async function fileInto(token: string, fileId: string, folder: string[]) {
+  await moveInto(token, fileId, await folderPath(token, folder));
 }
 
 /** One copy is given this long, so a batch always answers inside the server's limit. */
