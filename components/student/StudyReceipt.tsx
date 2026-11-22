@@ -88,7 +88,7 @@ function Row({ l, r, strong, dim }: { l: string; r: string; strong?: boolean; di
   );
 }
 
-const Rule = () => <div className="my-3 border-t border-dashed border-black/35" aria-hidden />;
+const ReceiptRule = ({ glass }: { glass?: boolean }) => <div className={cn("my-3 border-t border-dashed", glass ? "border-current opacity-25" : "border-black/35")} aria-hidden />;
 const Edge = ({ flip }: { flip?: boolean }) => (
   <div
     aria-hidden
@@ -97,21 +97,32 @@ const Edge = ({ flip }: { flip?: boolean }) => (
   />
 );
 
-/** The receipt on screen. */
-export function Receipt({ r, className }: { r: ReceiptData; className?: string }) {
+/**
+ * The receipt on screen. `variant="glass"`: the focus room's frosted glass in the scene's colours (its
+ * w-card class and --w-ink), no paper edges; the share image stays the paper roll.
+ */
+export function Receipt({ r, className, variant = "paper" }: { r: ReceiptData; className?: string; variant?: "paper" | "glass" }) {
   const L = lines(r);
+  const glass = variant === "glass";
   return (
-    <figure className={cn("mx-auto w-full max-w-[340px] drop-shadow-[0_24px_40px_rgba(0,0,0,.45)] animate-[receipt-in_700ms_cubic-bezier(.16,1,.3,1)_both]", className)} aria-label="Study receipt">
-      <Edge />
-      <div className="px-6 pb-6 pt-5 text-[13px] leading-[1.65]" style={{ background: PAPER, color: INK, fontFamily: MONO }}>
+    <figure
+      className={cn(
+        "mx-auto w-full max-w-[340px]",
+        glass ? "w-card overflow-hidden rounded-[28px]" : "drop-shadow-[0_24px_40px_rgba(0,0,0,.45)] animate-[receipt-in_700ms_cubic-bezier(.16,1,.3,1)_both]",
+        className,
+      )}
+      aria-label="Study receipt"
+    >
+      {!glass && <Edge />}
+      <div className="px-6 pb-6 pt-5 text-[13px] leading-[1.65]" style={glass ? { color: "var(--w-ink)", fontFamily: MONO } : { background: PAPER, color: INK, fontFamily: MONO }}>
         <div className="text-center">
           <p className="text-[15px] font-bold tracking-[0.18em]">HAMZA TEACHES</p>
-          <p className="text-xs tracking-[0.22em] opacity-70">GROUNDWORK · STUDY RECEIPT</p>
+          <p className="text-xs tracking-[0.22em] opacity-70">FOCUS · STUDY RECEIPT</p>
         </div>
-        <Rule />
+        <ReceiptRule glass={glass} />
         <Row l={L.date} r={L.time} />
         <Row l="STUDENT" r={r.name.toUpperCase()} />
-        <Rule />
+        <ReceiptRule glass={glass} />
         <p className="font-bold">{r.subject.toUpperCase()}</p>
         <div className="pl-3">
           {L.items.map((it, i) => (
@@ -120,27 +131,27 @@ export function Receipt({ r, className }: { r: ReceiptData; className?: string }
         </div>
         {r.intention && (
           <>
-            <Rule />
+            <ReceiptRule glass={glass} />
             <p className="opacity-70">GOAL</p>
             <p className="break-words">{r.intention}</p>
             {r.intentionDone != null && <p className="mt-1 font-bold">{r.intentionDone ? "[x] DONE" : "[ ] NEXT TIME"}</p>}
           </>
         )}
-        <Rule />
+        <ReceiptRule glass={glass} />
         {L.totals.map((t) => (
           <Row key={t.l} l={t.l} r={t.r} strong={"strong" in t && t.strong} />
         ))}
-        <Rule />
+        <ReceiptRule glass={glass} />
         <div className="flex h-12 items-stretch justify-center gap-[2px]" aria-hidden>
           {bars(r.id).map((w, i) => (
-            <span key={i} style={{ width: w, background: i % 2 ? "transparent" : INK }} />
+            <span key={i} style={{ width: w, background: i % 2 ? "transparent" : glass ? "currentColor" : INK, opacity: glass ? 0.75 : undefined }} />
           ))}
         </div>
         <p className="mt-1.5 text-center text-xs tracking-[0.2em] opacity-70">{r.id}</p>
         <p className="mt-3 text-center text-[12px] font-bold tracking-[0.16em]">THANK YOU FOR STUDYING</p>
         <p className="text-center text-xs opacity-60">{SITE.toUpperCase()}</p>
       </div>
-      <Edge flip />
+      {!glass && <Edge flip />}
       <style>{`@keyframes receipt-in { from { opacity: 0; transform: translateY(-24px) scaleY(.96); transform-origin: top; } to { opacity: 1; transform: none; } } @media (prefers-reduced-motion: reduce) { figure[aria-label="Study receipt"] { animation: none !important; } }`}</style>
     </figure>
   );
@@ -254,7 +265,7 @@ export async function drawReceipt(r: ReceiptData, scene?: Scene): Promise<Blob> 
   ctx.strokeStyle = INK;
   ctx.lineWidth = 2;
   center("HAMZA TEACHES", 40, 700);
-  center("GROUNDWORK · STUDY RECEIPT", 26, 400, 0.7);
+  center("FOCUS · STUDY RECEIPT", 26, 400, 0.7);
   rule();
   row(L.date, L.time);
   row("STUDENT", r.name.toUpperCase());
@@ -339,7 +350,7 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxW: number, max
 }
 
 /** Save or share the receipt image (the phone's share sheet where it can). */
-export function ShareReceipt({ r, scene }: { r: ReceiptData; scene?: Scene }) {
+export function ShareReceipt({ r, scene, buttonClassName }: { r: ReceiptData; scene?: Scene; /** Replaces the button's look (the focus room's glass). */ buttonClassName?: string }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -399,7 +410,7 @@ export function ShareReceipt({ r, scene }: { r: ReceiptData; scene?: Scene }) {
         type="button"
         onClick={() => void go()}
         aria-busy={busy}
-        className={buttonClasses({ variant: "secondary", size: "lg", className: "px-5" })}
+        className={buttonClassName ?? buttonClasses({ variant: "secondary", size: "lg", className: "px-5" })}
       >
         <Icon.Share className="h-4 w-4" />
         {busy ? "Printing…" : failed ? "Try again" : "Share receipt"}

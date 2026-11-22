@@ -17,8 +17,14 @@ export function WorldPicker({
   onPick,
   onClose,
   placement = "above",
+  surprise = false,
+  onSurprise,
 }: {
   current: WorldId;
+  /** Surprise me is the choice (a random world each block): its tile is ringed instead of a world. */
+  surprise?: boolean;
+  /** Given: a first tile, "Surprise me", sets the random choice. */
+  onSurprise?: () => void;
   onPick: (id: WorldId) => void;
   onClose: () => void;
   /** "above": opens upward from a button at the bottom left. "below": opens downward from a button at the top right. */
@@ -62,7 +68,7 @@ export function WorldPicker({
   }, []);
 
   const pick = (id: WorldId) => {
-    if (id !== current) onPick(id);
+    if (id !== current || surprise) onPick(id);
     // Let the ring land on the new world before the card closes.
     if (closing.current) clearTimeout(closing.current);
     closing.current = setTimeout(() => close.current(), 260);
@@ -91,9 +97,33 @@ export function WorldPicker({
       } ${open ? "scale-100 opacity-100" : "scale-[0.96] opacity-0"}`}
     >
       <p className="label-quiet px-1 pb-3 text-ink-2">World</p>
-      <div role="radiogroup" aria-label="World" onKeyDown={onKey} className="grid grid-cols-4 gap-2.5">
+      <div role="radiogroup" aria-label="World" onKeyDown={onKey} className={`grid gap-2.5 ${onSurprise ? "grid-cols-5" : "grid-cols-4"}`}>
+        {onSurprise && (
+          <button
+            type="button"
+            role="radio"
+            aria-checked={surprise}
+            aria-label="Surprise me: a different world each block"
+            tabIndex={surprise ? 0 : -1}
+            onClick={() => {
+              if (!surprise) onSurprise();
+              if (closing.current) clearTimeout(closing.current);
+              closing.current = setTimeout(() => close.current(), 260);
+            }}
+            className="group flex min-w-0 flex-col items-center gap-2 rounded-tile outline-none"
+          >
+            <span
+              className={`relative flex aspect-[9/14] w-full items-center justify-center overflow-hidden rounded-field bg-surface-2 text-ink-2 ring-offset-[3px] ring-offset-surface motion-safe:transition motion-safe:duration-150 group-active:scale-[0.98] group-focus-visible:ring-2 group-focus-visible:ring-brand ${
+                surprise ? "ring-2 ring-ink" : "ring-1 ring-hairline group-hover:ring-hairline-strong"
+              }`}
+            >
+              <ShuffleGlyph size={20} />
+            </span>
+            <span className={`max-w-full truncate text-xs leading-none ${surprise ? "font-semibold text-ink" : "font-medium text-ink-3"}`}>Surprise</span>
+          </button>
+        )}
         {WORLDS.map((w) => {
-          const on = w.id === current;
+          const on = !surprise && w.id === current;
           const short = w.title.replace(/^The\s+/, "");
           return (
             <button
@@ -104,7 +134,7 @@ export function WorldPicker({
               aria-label={w.title}
               aria-describedby={`world-${w.id}-line`}
               title={w.blurb}
-              tabIndex={on ? 0 : -1}
+              tabIndex={on || (surprise && !onSurprise && w.id === current) ? 0 : -1}
               onClick={() => pick(w.id)}
               className="group flex min-w-0 flex-col items-center gap-2 rounded-tile outline-none"
             >
@@ -147,6 +177,17 @@ export function WorldGlyph({ size = 16 }: { size?: number }) {
       <path d="m3 17 6-7 4 4 3-2.5 5 5.5" />
       <path d="M16 7.5v3" />
       <path d="M16 7.5h2.2l-.6.8.6.8H16" />
+    </svg>
+  );
+}
+
+/** Two crossing arrows: the "Surprise me" (random world) choice. */
+export function ShuffleGlyph({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M3 7h3.5c2 0 3.2 1 4.3 2.8l2.4 4.4c1.1 1.8 2.3 2.8 4.3 2.8H21" />
+      <path d="M3 17h3.5c1.4 0 2.4-.5 3.2-1.4M14.3 8.4c.8-.9 1.8-1.4 3.2-1.4H21" />
+      <path d="m18 4 3 3-3 3M18 14l3 3-3 3" />
     </svg>
   );
 }

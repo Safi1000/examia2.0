@@ -5,7 +5,8 @@ import { useAuth } from "@/lib/auth-context";
 import { greeting, quoteFor } from "@/lib/groundwork";
 import { WORLDS, worldFor, type WorldId } from "@/lib/groundwork-worlds";
 import { GroundworkWorld } from "@/components/student/GroundworkWorld";
-import { WorldGlyph, WorldPicker } from "@/components/student/WorldPicker";
+import { ShuffleGlyph, WorldGlyph, WorldPicker } from "@/components/student/WorldPicker";
+import { SURPRISE, isSurprise, nextSurprise, useSurpriseWorld } from "@/lib/groundwork-surprise";
 import { buttonClasses } from "@/components/ui/Button";
 
 /** The one time "Swipe to change the scene" hint: gone after the first swipe or the first block. */
@@ -43,7 +44,18 @@ function markSeen(key: string) {
  */
 export function CalmStart({ name, nowMs, onStart, away = false }: { name: string; nowMs: number; onStart: () => void; away?: boolean }) {
   const { profile, updateProfile } = useAuth();
-  const world = worldFor(profile.world);
+  // Surprise me (the default until they pick one): a random world, a new one after each visit to the focus room.
+  const surprise = isSurprise(profile.world);
+  const surpriseId = useSurpriseWorld();
+  const world = worldFor(surprise ? surpriseId : profile.world);
+  // The random world is known only in the browser: until then the backdrop shows just a sky (no 3D world started twice).
+  const known = !surprise || surpriseId != null;
+  // Back from the focus room: the next block gets a different world.
+  const wasAway = useRef(away);
+  useEffect(() => {
+    if (wasAway.current && !away && surprise) nextSurprise();
+    wasAway.current = away;
+  }, [away, surprise]);
   const quote = quoteFor(nowMs);
   // The clock on the wall: the phone's own time (it showed Pakistan time, an hour ahead, on a phone in the Gulf).
   const clock = new Date(nowMs).toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true });
@@ -77,8 +89,9 @@ export function CalmStart({ name, nowMs, onStart, away = false }: { name: string
   /** The new world's still, held over the live one for a moment while it loads, then faded away. */
   const [cover, setCover] = useState<{ id: WorldId; fading: boolean } | null>(null);
   const pick = (id: WorldId, withCover: boolean) => {
-    if (id === world.id) return;
+    if (id === world.id && !surprise) return;
     updateProfile({ world: id });
+    if (id === world.id) return;
     hintDone();
     if (withCover) setCover({ id, fading: false });
   };
@@ -165,8 +178,8 @@ export function CalmStart({ name, nowMs, onStart, away = false }: { name: string
   };
   // Focus follows the chosen dot, like any radio group.
   useEffect(() => {
-    if (document.activeElement?.id.startsWith("gw-dot-")) document.getElementById(`gw-dot-${world.id}`)?.focus({ preventScroll: true });
-  }, [world.id]);
+    if (document.activeElement?.id.startsWith("gw-dot-")) document.getElementById(`gw-dot-${surprise ? "surprise" : world.id}`)?.focus({ preventScroll: true });
+  }, [world.id, surprise]);
   // The neighbours' stills are fetched once the page is idle, so a first swipe never shows an empty frame.
   useEffect(() => {
     const t = setTimeout(() => {
@@ -185,7 +198,7 @@ export function CalmStart({ name, nowMs, onStart, away = false }: { name: string
     <>
       <Backdrop
         world={world.id}
-        away={away}
+        away={away || !known}
         dx={dx}
         slide={slide}
         next={moving ? step(1).id : null}
@@ -209,8 +222,28 @@ export function CalmStart({ name, nowMs, onStart, away = false }: { name: string
           </p>
           {/* Which world: four small dots, the current one off-white. One tab stop; arrows move. */}
           <div role="radiogroup" aria-label="Scene" className="mt-1 flex items-center justify-center">
+            {/* First: Surprise me, a different world each block. */}
+            <button
+              id="gw-dot-surprise"
+              type="button"
+              role="radio"
+              aria-checked={surprise}
+              aria-label="Surprise me: a different world each block"
+              tabIndex={surprise ? 0 : -1}
+              onClick={() => {
+                if (surprise) return;
+                // Surprise me starts at once with a world other than the one on screen.
+                nextSurprise(world.id);
+                updateProfile({ world: SURPRISE });
+              }}
+              className={`group flex h-11 w-7 items-center justify-center rounded-full outline-none transition-colors duration-200 ${surprise ? "text-white/95" : "text-white/40 hover:text-white/70"}`}
+            >
+              <span className="rounded-full p-0.5 group-focus-visible:shadow-[0_0_0_3px_rgba(251,193,89,.9)]">
+                <ShuffleGlyph size={13} />
+              </span>
+            </button>
             {WORLDS.map((w) => {
-              const on = w.id === world.id;
+              const on = !surprise && w.id === world.id;
               return (
                 <button
                   key={w.id}
@@ -259,9 +292,20 @@ export function CalmStart({ name, nowMs, onStart, away = false }: { name: string
               className="group flex min-h-11 items-center gap-2 text-left text-xs text-white/70 transition-colors duration-150 hover:text-white"
             >
               <WorldGlyph />
-              <span className="[text-shadow:0_1px_8px_rgba(0,0,0,.5)]">{world.title}</span>
+              <span className="[text-shadow:0_1px_8px_rgba(0,0,0,.5)]">{surprise ? `Surprise me · ${world.title}` : world.title}</span>
             </button>
-            {tray && <WorldPicker current={world.id} onPick={(id) => updateProfile({ world: id })} onClose={() => setTray(false)} />}
+            {tray && (
+              <WorldPicker
+                current={world.id}
+                surprise={surprise}
+                onSurprise={() => {
+                  nextSurprise(world.id);
+                  updateProfile({ world: SURPRISE });
+                }}
+                onPick={(id) => updateProfile({ world: id })}
+                onClose={() => setTray(false)}
+              />
+            )}
           </div>
           <div className="flex flex-col items-center">
             {hint && (
