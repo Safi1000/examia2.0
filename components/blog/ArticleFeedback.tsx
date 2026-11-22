@@ -19,7 +19,7 @@ const pill =
 
 type Step = "ask" | "yes" | "why" | "thanks";
 
-export function ArticleFeedback({ slug, next, askHref }: { slug: string; next?: { href: string; title: string }; askHref: string }) {
+export function ArticleFeedback({ slug, next, askHref, shareHref }: { slug: string; next?: { href: string; title: string }; askHref: string; shareHref: string }) {
   const [step, setStep] = useState<Step>("ask");
 
   // A reader who already answered sees the quiet ending, not the question again.
@@ -90,6 +90,17 @@ export function ArticleFeedback({ slug, next, askHref }: { slug: string; next?: 
               </Link>
             </p>
           )}
+          <p className="mt-3">
+            <a
+              href={shareHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => track("article_share", { slug, via: "whatsapp" })}
+              className={pill}
+            >
+              Send it to a friend on WhatsApp
+            </a>
+          </p>
         </>
       )}
 

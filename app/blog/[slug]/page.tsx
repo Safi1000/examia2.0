@@ -133,6 +133,7 @@ export default async function ArticlePage({ params }: Props) {
             slug={slug}
             next={related[0] ? { href: `/blog/${related[0].slug}`, title: related[0].title } : undefined}
             askHref={waTextLink(`Hi, I read your article on ${topic}. I have a question.`)}
+            shareHref={`https://wa.me/?text=${encodeURIComponent(`${a.title} ${absolute(`/blog/${slug}`)}`)}`}
           />
 
           <AuthorBio />
