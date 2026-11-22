@@ -1,0 +1,87 @@
+/* Formula sheets: on paper, only the sheet prints, black on white, on A4. */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  html:has(.fs-sheet),
+  html:has(.fs-sheet) body {
+    background: #fff !important;
+    color-scheme: light !important;
+  }
+  html:has(.fs-sheet) *,
+  html:has(.fs-sheet) *::before,
+  html:has(.fs-sheet) *::after {
+    background: transparent !important;
+    background-image: none !important;
+  }
+  html:has(.fs-sheet) :is(header, footer, .wa-float, .fs-noprint, nextjs-portal) {
+    display: none !important;
+  }
+  html:has(.fs-sheet) .fs-page {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  .fs-sheet,
+  .fs-sheet * {
+    color: #000 !important;
+    background: transparent !important;
+    border-color: #b5b5b5 !important;
+    box-shadow: none !important;
+  }
+  .fs-sheet h1 {
+    font-size: 17pt !important;
+    margin: 0 !important;
+  }
+  .fs-sheet h2 {
+    font-size: 11pt !important;
+    margin: 0 !important;
+    break-after: avoid;
+  }
+  .fs-sheet section {
+    margin-top: 9pt !important;
+  }
+  .fs-sheet section > ul {
+    margin-top: 4pt !important;
+  }
+  .fs-sheet section > ul:not(.fs-list) li {
+    font-size: 9pt !important;
+    line-height: 1.35 !important;
+    margin: 0 !important;
+  }
+  .fs-sheet h1 + div {
+    margin-top: 4pt !important;
+  }
+  .fs-sheet h1 + div p {
+    font-size: 9pt !important;
+  }
+  .fs-sheet .fs-list {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 14pt;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+  .fs-sheet .fs-row {
+    padding: 5pt 0 !important;
+    break-inside: avoid;
+    border-top: 0.5pt solid #b5b5b5 !important;
+    font-size: 9pt !important;
+  }
+  .fs-sheet .fs-row * {
+    font-size: 9pt !important;
+    line-height: 1.3 !important;
+  }
+  .fs-sheet .fs-tells {
+    font-size: 8pt !important;
+    margin-top: 2pt !important;
+  }
+  .fs-sheet .fs-printonly {
+    display: block !important;
+    font-size: 8pt !important;
+    margin-top: 10pt;
+  }
+}
+.fs-printonly {
+  display: none;
+}

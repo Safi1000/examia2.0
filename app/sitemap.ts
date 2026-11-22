@@ -1,3 +1,4 @@
+import { FORMULA_SHEETS } from "@/lib/formula-sheets";
 import type { MetadataRoute } from "next";
 import { allArticles } from "@/lib/blog";
 import { CITY_PAGES } from "@/lib/city-pages";
@@ -45,6 +46,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly" as const,
       priority: 0.5,
     })),
+    { url: absolute("/tools/formula-sheet"), changeFrequency: "monthly" as const, priority: 0.7 },
+    ...FORMULA_SHEETS.map((f) => ({ url: absolute(`/tools/formula-sheet/${f.slug}`), changeFrequency: "monthly" as const, priority: 0.7 })),
     // The MCQ checker is listed only once it has papers (lib/mcq-papers.ts).
     ...(PAPERS.length ? ["/tools/past-paper-mcq"] : []).map((path) => ({ url: absolute(path), changeFrequency: "monthly" as const, priority: 0.6 })),
     ...liveSyllabuses().map((m) => ({ url: absolute(`/tools/past-paper-mcq/${m.slug}`), changeFrequency: "monthly" as const, priority: 0.5 })),
