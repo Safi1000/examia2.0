@@ -1002,6 +1002,8 @@ export default function FocusMode({
     return () => clearTimeout(t);
   }, [quoteOn, quoteKey]);
   const corner = "w-glass w-press flex h-11 w-11 items-center justify-center rounded-full";
+  /** The finish elements arrive one after another, 80 ms apart. */
+  const step = (i: number): React.CSSProperties => ({ animationDelay: `${300 + i * 80}ms` });
   const quietLink = "w-soft w-link inline-flex min-h-11 items-center rounded-full px-2 font-medium";
   const pillBase = "w-glass w-press inline-flex min-h-12 items-center justify-center whitespace-nowrap rounded-full font-semibold";
   const pill = cn(pillBase, "px-5 text-[15px]");
@@ -1055,7 +1057,8 @@ export default function FocusMode({
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         <World world={world.id} progress={worldProgress} phase={worldPhase} builder={builder} className="absolute inset-0 overflow-hidden" />
         <div className="w-scrim-run absolute inset-0 transition-opacity duration-700 ease-out" style={{ opacity: running ? 1 : 0 }} />
-        <div className="w-scrim-still absolute inset-0 transition-opacity duration-700 ease-out" style={{ opacity: running ? 0 : 1 }} />
+        <div className="w-scrim-still absolute inset-0 transition-opacity duration-700 ease-out" style={{ opacity: phase === "setup" ? 1 : 0 }} />
+        <div className="w-scrim-finish absolute inset-0 transition-opacity duration-700 ease-out" style={{ opacity: phase === "done" ? 1 : 0 }} />
       </div>
 
       <div
@@ -1193,17 +1196,18 @@ export default function FocusMode({
         )}
 
         {phase === "done" && receipt && (
-          <div className="flex flex-1 flex-col items-center justify-end gap-4 pb-2 pt-6">
-            {/* Low on the screen, so the finished build stays in view above it. The card rises; today's circle ticks in the scene's light.
-                One message, the week's circles (or one quick question), one button. */}
-            <div className="gw-finish w-card w-full max-w-[340px] rounded-[28px] px-6 pb-4 pt-7 text-center">
-              <h2 className="w-ink text-title font-semibold tracking-[-0.025em]">{afterBreak ? "Break over." : "Nicely done."}</h2>
-              <p className="w-soft mt-1.5 text-base [text-wrap:balance]">
+          <div className="flex flex-1 flex-col items-center justify-end pb-2 pt-6">
+            {/* No box: the words float on the scene, low, so the finished build stays in view above them (a soft shade rises
+                from the foot, see w-scrim-finish). They arrive one after another; today's tick draws in last. */}
+            <div className="flex w-full max-w-[340px] flex-col items-center text-center">
+              <h2 className="w-ink gw-step text-[2.5rem] font-semibold leading-tight tracking-[-0.03em]" style={step(0)}>{afterBreak ? "Break over." : "Nicely done."}</h2>
+              <p className="w-soft gw-step mt-1 text-base [text-wrap:balance]" style={step(1)}>
                 {afterBreak
                   ? "Ready for another block?"
                   : `${receipt.focusedMin} ${receipt.focusedMin === 1 ? "minute" : "minutes"} of ${mission?.item ? mission.item.title : subject === OTHER_CHOICE ? "study" : subject}`}
               </p>
               {/* The middle line: a quick question when there is one (how the topic went, or whether they finished), else the nearest goal. */}
+              <div className="gw-step w-full" style={step(2)}>
               {!afterBreak && mission && !mission.item && subject === mission.subject && !checked ? (
                 <Ask
                   q={`How did ${mission.topic} go?`}
@@ -1225,7 +1229,8 @@ export default function FocusMode({
               ) : (
                 <WeekDots className="mt-6" days={weekDays(profile.focus, now)} label={goal.label} />
               )}
-              <div className="mt-6">
+              </div>
+              <div className="gw-step mt-7 w-full max-w-[300px]" style={step(3)}>
                 {afterBreak ? (
                   <button type="button" onClick={() => startBlock(chosenMin)} className={cn(gold, "w-full")}>
                     Start {chosenMin} minutes
@@ -1236,7 +1241,7 @@ export default function FocusMode({
                   </button>
                 )}
               </div>
-              <p className="mt-2 flex items-center justify-center gap-1 text-sm">
+              <p className="gw-step mt-2 flex items-center justify-center gap-1 text-sm" style={step(4)}>
                 {afterBreak ? (
                   <button type="button" onClick={close} className={quietLink}>
                     Done
@@ -1254,11 +1259,11 @@ export default function FocusMode({
                 )}
               </p>
             </div>
-            <button type="button" onClick={() => setShowReceipt((v) => !v)} aria-expanded={showReceipt} className={cn(quietLink, "gw-finish-late text-[13px]")}>
+            <button type="button" onClick={() => setShowReceipt((v) => !v)} aria-expanded={showReceipt} className={cn(quietLink, "gw-step text-[13px]")} style={step(5)}>
               {showReceipt ? "Hide receipt" : "See receipt"}
             </button>
             {showReceipt && (
-              <div className="flex w-full max-w-[340px] flex-col gap-3 pb-4">
+              <div className="mt-2 flex w-full max-w-[340px] flex-col gap-3 pb-4">
                 <Receipt r={receipt} variant="glass" className="gw-sheet" />
                 <ShareReceipt r={receipt} scene={scene} buttonClassName={cn(pill, "w-full gap-2")} />
                 {mission?.item?.href && (
@@ -1319,6 +1324,8 @@ export default function FocusMode({
         .w-link { transition: color 150ms ease; } .w-link:hover { color: var(--w-ink); }
         .w-divider { border-color: var(--w-glass-border); }
         .w-scrim-run { background: linear-gradient(180deg, var(--w-scrim-top), color-mix(in srgb, var(--w-shade) 16%, transparent) 30%, transparent 46%, transparent 64%, var(--w-scrim-bottom)); }
+        /* The finish: only a soft shade rising from the foot in the scene's own darks, no edge, so the build above stays clear. */
+        .w-scrim-finish { background: linear-gradient(0deg, color-mix(in srgb, var(--w-shade-low) 88%, transparent), color-mix(in srgb, var(--w-shade) 68%, transparent) 30%, color-mix(in srgb, var(--w-shade) 30%, transparent) 50%, transparent 66%); }
         .w-scrim-still { background:
           radial-gradient(90% 30% at 50% 24%, color-mix(in srgb, var(--w-shade) 40%, transparent), transparent 80%),
           linear-gradient(180deg, var(--w-scrim-top), color-mix(in srgb, var(--w-shade) 18%, transparent) 45%, color-mix(in srgb, var(--w-shade) 10%, transparent) 65%, var(--w-scrim-bottom)); }
@@ -1352,7 +1359,7 @@ export default function FocusMode({
         .w-day-on { background: color-mix(in srgb, var(--w-ink) 88%, transparent); color: var(--w-shade); }
         .w-day-today { background: color-mix(in srgb, var(--w-glow) 92%, transparent); color: var(--w-shade); box-shadow: 0 0 14px color-mix(in srgb, var(--w-glow) 55%, transparent); }
         @keyframes gw-tick { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
-        .gw-tick { stroke-dasharray: 1; stroke-dashoffset: 1; animation: gw-tick 350ms cubic-bezier(0.33, 1, 0.68, 1) 820ms forwards; }
+        .gw-tick { stroke-dasharray: 1; stroke-dashoffset: 1; animation: gw-tick 350ms cubic-bezier(0.33, 1, 0.68, 1) 1300ms forwards; }
         .room-count { font-size: clamp(5rem, min(23vw, 15dvh), 11rem); }
         .room-len { font-size: clamp(5rem, min(27vw, 18dvh), 10.5rem); }
         .room-body { --room-pb: max(1rem, env(safe-area-inset-bottom)); padding-bottom: var(--room-pb); }
@@ -1390,6 +1397,10 @@ export default function FocusMode({
         .gw-roll-out-down { animation: gw-roll-out-down 180ms cubic-bezier(0.22, 1, 0.36, 1) both; }
         @keyframes gw-finish { from { opacity: 0; transform: translateY(18px); } }
         .gw-finish { animation: gw-finish 620ms cubic-bezier(0.22, 1, 0.36, 1) 380ms backwards; }
+        @keyframes gw-step { from { opacity: 0; transform: translateY(12px); } }
+        .gw-step { animation: gw-step 500ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+        @keyframes gw-today { from { opacity: 0; transform: scale(.6); } }
+        .gw-today { animation: gw-today 420ms cubic-bezier(0.22, 1, 0.36, 1) 1150ms backwards; }
         .gw-finish-late { animation: gw-finish 620ms cubic-bezier(0.22, 1, 0.36, 1) 560ms backwards; }
         @keyframes gw-sheet { from { opacity: 0; transform: translateY(24px); } }
         .gw-sheet { animation: gw-sheet 320ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
@@ -1403,7 +1414,7 @@ export default function FocusMode({
           .gw-roll-in-up, .gw-roll-in-down, .gw-roll-out-up, .gw-roll-out-down, .gw-breathe { animation: none !important; }
           .gw-breathe { opacity: .35; }
           .gw-tick { animation: none !important; stroke-dashoffset: 0; }
-          .gw-finish, .gw-finish-late, .gw-sheet { animation: gw-in 200ms linear backwards !important; }
+          .gw-finish, .gw-finish-late, .gw-sheet, .gw-step, .gw-today { animation: gw-in 200ms linear backwards !important; animation-delay: 0ms !important; }
           .focus-dark { transition: none; }
         }
         .no-scrollbar { scrollbar-width: none; } .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -1564,9 +1575,10 @@ function WeekDots({ days, label, className }: { days: Array<{ date: string; minu
         {days.map((d) => {
           const on = d.minutes > 0;
           return (
-            <span key={d.date} className={cn("relative flex h-6 w-6 items-center justify-center rounded-full", on ? (d.isToday ? "w-day-today" : "w-day-on") : "w-day")}>
+            <span key={d.date} className={cn("relative flex h-6 w-6 items-center justify-center rounded-full", on ? (d.isToday ? "w-day" : "w-day-on") : "w-day")}>
+              {on && d.isToday && <span aria-hidden className="w-day-today gw-today absolute inset-0 rounded-full" />}
               {on && (
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden className={cn("relative", d.isToday && "text-[var(--w-shade)]")}>
                   <path d="M2.5 6.3 5 8.6l4.5-5" pathLength={1} className={d.isToday ? "gw-tick" : undefined} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               )}
