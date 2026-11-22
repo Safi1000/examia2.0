@@ -37,6 +37,21 @@ function StudyMenu({ open, onClose, account }: { open: boolean; onClose: () => v
         aria-label="Free resources"
         className="animate-fade-in absolute inset-x-0 top-2 z-30 mx-auto max-w-md overflow-hidden rounded-card border border-hairline-strong bg-band-c/95 shadow-[var(--shadow-lg)] backdrop-blur-xl sm:inset-x-auto sm:right-0 sm:mx-0 sm:w-[22rem]"
       >
+        <form action="/search" role="search" className="border-b border-hairline p-3">
+          <label className="relative block">
+            <span className="sr-only">Search the site</span>
+            <svg aria-hidden viewBox="0 0 20 20" className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-faint">
+              <circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" strokeWidth="1.8" />
+              <path d="m14 14 4 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+            <input
+              type="search"
+              name="q"
+              placeholder="Search a topic or a paper code"
+              className={`min-h-12 w-full rounded-full border border-hairline-strong bg-white/[0.04] pl-11 pr-4 text-base text-ink placeholder:text-faint ${focusRing}`}
+            />
+          </label>
+        </form>
         <ul className="divide-y divide-hairline">
           {STUDY.map((l) => (
             <li key={l.href}>
