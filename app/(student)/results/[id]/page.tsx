@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
-import type { Answer, Question } from "@/types";
+import type { Answer, Question, Student, Submission, Test } from "@/types";
 import { useAuth } from "@/lib/auth-context";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { studentById, testById, submissionFor, submissionsForStudent } from "@/lib/data/selectors";
@@ -16,14 +18,19 @@ import { buttonClasses } from "@/components/ui/Button";
 import { gradeSubmission } from "@/lib/grading";
 import { formatDuration, formatTimestamp } from "@/lib/time";
 import { cn } from "@/lib/cn";
-import { StudyCoach } from "@/components/student/StudyCoach";
+import { StudyCoach, coachSteps, nextOpenTest } from "@/components/student/StudyCoach";
+import { topicNotesFinder } from "@/components/student/topic-notes";
+import { studentSubjects } from "@/components/student/Welcome";
+import type { Mission } from "@/components/student/FocusMode";
 import { ShareMoment } from "@/components/student/ShareMoment";
 import { sameSubject, shownPercent } from "@/lib/performance";
 import { displayName } from "@/lib/display-name";
 import { worldScene } from "@/lib/groundwork";
 import type { Database } from "@/lib/data/seed";
-import { PortalArt } from "@/components/student/PortalArt";
-import { GradeMedallion, MilestoneBadge, SectionTitle } from "@/components/student/PortalKit";
+import { FinishMoment, GradeMedallion, MilestoneBadge, SectionTitle, type FinishAction } from "@/components/student/PortalKit";
+
+// The same practice block Progress opens from "Practise", loaded only when asked for.
+const FocusMode = dynamic(() => import("@/components/student/FocusMode"), { ssr: false });
 
 export default function ResultsPage() {
   const params = useParams();
@@ -36,6 +43,8 @@ export default function ResultsPage() {
   const submission = student && test ? submissionFor(db, student.id, test.id) : null;
   // My markings on photo answers come separately (they are heavy).
   const store = useStore();
+  // The practice block, open after "Practise <topic>".
+  const [practise, setPractise] = useState<Mission | null>(null);
   const subId = submission?.status === "released" ? submission.id : null;
   useEffect(() => {
     if (subId) void store.loadAnnotations(subId);
@@ -79,27 +88,15 @@ export default function ResultsPage() {
     .filter((x) => x.lost > 0);
   const waiting = test.questions.filter((q) => awaitingMarks(submission.answers.find((x) => x.questionId === q.id))).length;
   const best = personalBest(db, student.id, test, submission, grade.percent);
+  const finish = finishFor(db, student, test, submission, grade, waiting, setPractise);
 
   return (
     <div className="mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
       <div className="rise">
       <BackLink />
 
-      <Card className="relative isolate mt-4 overflow-hidden p-5 sm:p-6">
-        {/* A personal best or a top grade gets the celebration picture behind the score. */}
-        {(best || grade.letter === "A*" || grade.letter === "A") && (
-          <>
-            {/* A quiet strip of the picture across the top right, fading into the card. */}
-            <PortalArt
-              group="scenes"
-              name="celebrate-top-result"
-              eager
-              className="pointer-events-none absolute inset-y-0 right-0 -z-20 w-[70%] [mask-image:linear-gradient(90deg,transparent_0%,#000_60%)] sm:w-[78%]"
-              imgClassName="object-cover object-right opacity-30 sm:opacity-60"
-            />
-            <span aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(34,37,40,0.35)_0%,rgba(34,37,40,0.75)_45%,var(--color-surface)_78%)]" />
-          </>
-        )}
+      {/* No picture behind the score: a top grade shows in the drawn medallion (A* in gold), a personal best in its line. */}
+      <Card className="mt-4 p-5 sm:p-6">
         {/* The test code is Hamza's own reference: students only need the subject. */}
         <p className="min-w-0 text-sm font-semibold text-ink-2">{test.subject}</p>
         <h1 className="mt-2 text-balance text-title font-bold tracking-[-0.025em] text-ink">{test.title}</h1>
@@ -182,7 +179,16 @@ export default function ResultsPage() {
         <StudyCoach db={db} student={student} test={test} submission={submission} />
       </div>
 
-      <section className="mt-10">
+      {/* The ending: one gold next step, one quiet way down to the questions. */}
+      <FinishMoment
+        className="mt-10"
+        title={finish.title}
+        line={finish.line}
+        primary={finish.primary}
+        secondary={{ label: "See every question", href: "#breakdown" }}
+      />
+
+      <section id="breakdown" className="mt-12 scroll-mt-24">
         <SectionTitle count={test.questions.length}>Question breakdown</SectionTitle>
         <div className="space-y-3">
           {test.questions.map((q, i) => {
@@ -192,8 +198,63 @@ export default function ResultsPage() {
         </div>
       </section>
       </div>
+      {practise &&
+        createPortal(<FocusMode subjects={studentSubjects(db, student)} mission={practise} onClose={() => setPractise(null)} />, document.body)}
     </div>
   );
+}
+
+/**
+ * The words and the one gold step under a result. In this order: practise the
+ * topic that lost the most marks (the coach's first), else the next open test,
+ * else back to Study. Kind and honest on a low score; a celebration only for a
+ * good one. Every number is from this paper.
+ */
+function finishFor(
+  db: Database,
+  student: Student,
+  test: Test,
+  submission: Submission,
+  grade: { awarded: number; total: number; letter: string },
+  waiting: number,
+  onPractise: (m: Mission) => void,
+): { title: string; line?: string; primary: FinishAction } {
+  // "General" is the coach's name for questions with no topic: nothing to name a practice after.
+  const topic = coachSteps(db, student, test, submission).find((s) => s.name !== "General");
+  const next = topic ? null : nextOpenTest(db, student, test.id);
+  const full = waiting === 0 && grade.total > 0 && grade.awarded >= grade.total;
+  const good = grade.letter === "A*" || grade.letter === "A";
+  const fair = grade.letter === "B" || grade.letter === "C";
+
+  const title = full ? "Full marks." : good ? "Brilliant work." : fair ? "Good work." : "This one was hard.";
+  // Lost marks are only named once every answer is marked, so a number is never a guess.
+  const lostLine = topic && waiting === 0 ? `${topic.lost} of ${topic.out} marks on ${topic.name}` : null;
+  let line: string | undefined;
+  if (!full && !good && !fair) {
+    // A low score: honest about it, kind, and never the end of the story.
+    line = lostLine
+      ? `Most marks went on ${topic!.name}: ${topic!.lost} of ${topic!.out}. That is the one to practise first.`
+      : "Look through each question below to see where the marks went.";
+  } else if (full) {
+    line = "Every mark on this paper.";
+  } else if (lostLine) {
+    line = `You lost ${lostLine}. Practise it now while it is fresh.`;
+  }
+  if (waiting > 0) line = "Some answers are still waiting for my marking. Your score may still go up.";
+
+  let primary: FinishAction;
+  if (topic) {
+    const notes = topicNotesFinder(db, student)(topic.subject, topic.name);
+    primary = {
+      label: `Practise ${topic.name}`,
+      onClick: () => onPractise({ subject: topic.subject, topic: topic.name, noteHref: notes?.exact ? notes.href : undefined }),
+    };
+  } else if (next) {
+    primary = { label: `Next: ${next.title}`, href: `/test/${next.id}` };
+  } else {
+    primary = { label: "Back to Study", href: "/study" };
+  }
+  return { title, line, primary };
 }
 
 /** Something was handed in for it, but I haven't put a mark on it yet. */
@@ -392,11 +453,17 @@ function personalBest(db: Database, studentId: string, test: { id: string; subje
   return null;
 }
 
+/**
+ * Back to Study on laptops in the browser. Phones get the layout's own back
+ * row, and inside the phone app its own back is the one way back.
+ */
 function BackLink() {
   return (
-    <Link href="/tests" className="-ml-1 inline-flex min-h-11 items-center gap-1.5 px-1 text-sm font-semibold text-ink-2 hover:text-ink">
-      <Icon.ArrowLeft className="h-4 w-4" /> Tests
-    </Link>
+    <div className="web-only hidden md:block">
+      <Link href="/study" className="-ml-1 inline-flex min-h-11 items-center gap-1.5 px-1 text-sm font-semibold text-ink-2 hover:text-ink">
+        <Icon.ArrowLeft className="h-4 w-4" /> Study
+      </Link>
+    </div>
   );
 }
 

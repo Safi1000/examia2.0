@@ -280,27 +280,28 @@ export function SundayReview({ week, name }: { week: string; nowMs: number; name
   const minutes = days.reduce((a, b) => a + b, 0);
   const reviewed = Object.values(profile.reviews ?? {}).filter((r) => r.step > 0).length;
   return (
-    <section className="rounded-card border border-brand/30 bg-brand-soft p-5 sm:p-6">
+    // A plain card: the page's one gold stays on Start, up on the scene.
+    <section className={card}>
       <p className={kicker}>Weekly review</p>
       <h2 className="mt-1.5 text-xl font-bold tracking-[-0.015em] text-ink">Your week, {name}.</h2>
-      <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
+      {/* One row of three numbers, each with a small label under it. */}
+      <dl className="mt-4 grid grid-cols-3 gap-4">
         {[
-          [`${studied}/${target}`, "study days"],
+          [`${studied} of ${target}`, "study days"],
           [fmt(minutes), "studied"],
           [String(reviewed), "topics reviewed"],
         ].map(([v, l]) => (
-          <div key={l} className="rounded-tile bg-surface px-2 py-3">
-            <dt className="sr-only">{l}</dt>
-            <dd className="text-lg font-bold tabular-nums text-ink">{v}</dd>
-            <dd className="text-xs text-ink-3">{l}</dd>
+          <div key={l} className="flex min-w-0 flex-col-reverse justify-end">
+            <dt className="mt-1 text-sm text-ink-3">{l}</dt>
+            <dd className="text-xl font-semibold tracking-[-0.02em] tabular-nums text-ink sm:text-2xl">{v}</dd>
           </div>
         ))}
       </dl>
       <p className="mt-4 text-base text-ink-2">
-        {studied >= target ? "Target hit. Keep the same times next week." : "Next week, pick times you can keep. Fewer, kept, beats many, missed."}
+        {studied >= target ? "Target hit. Keep the same times next week." : "Next week, pick times you can keep. A few kept times beat many missed ones."}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" onClick={() => updateProfile({ weekReviewed: week })} className={buttonClasses()}>
+        <button type="button" onClick={() => updateProfile({ weekReviewed: week })} className={buttonClasses({ variant: "secondary" })}>
           Done, plan set
         </button>
         {studied >= target && (

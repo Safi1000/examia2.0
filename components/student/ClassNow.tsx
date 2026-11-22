@@ -11,9 +11,9 @@ import { formatRelative } from "@/lib/time";
 import { useSchedule, JOIN_EARLY_MIN, addDays, clockHere, spanHere, joinClass, pkDate, slotKey, slotsForStudent, useClassLinks, type DaySlot } from "@/lib/classes";
 
 /**
- * Home-screen class card. Quiet unless a class is close: from 5 minutes
- * before the start it turns gold with a Join button (once Hamza has pasted the
- * link). Tapping Join marks the student present. With back-to-back classes the
+ * Home screen class card. Quiet unless a class is close: from 5 minutes
+ * before the start it shows a gold Join button (once Hamza has pasted the
+ * link). The card itself stays a plain surface, so Join is the one gold thing. Tapping Join marks the student present. With back-to-back classes the
  * running class and the next one show together, each with its own button.
  */
 export function ClassNow({ db, student, nowMs, nextOnPhone = true }: { db: Database; student: Student; nowMs: number; /** false: phones hide the quiet "Next class" row (Home lists the next classes there instead). */ nextOnPhone?: boolean }) {
@@ -99,9 +99,10 @@ export function ClassNow({ db, student, nowMs, nextOnPhone = true }: { db: Datab
   }
 
   return (
-    <section className="relative overflow-hidden rounded-card border border-brand/30 bg-surface bg-[linear-gradient(135deg,rgba(251,193,89,0.16),rgba(251,193,89,0.04)_60%)] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:p-6">
-      <p className="label-quiet flex items-center gap-2 text-brand">
-        <span className="h-2 w-2 rounded-full bg-brand" />
+    <section className="surface relative overflow-hidden rounded-card p-5 sm:p-6">
+      {/* Live is status: a green dot and plain words, never gold. */}
+      <p className="label-quiet flex items-center gap-2 text-ink-2">
+        <span aria-hidden className={started ? "h-2 w-2 rounded-full bg-success" : "h-2 w-2 rounded-full bg-ink-3"} />
         {started ? "Class is live" : `Starts ${formatRelative(new Date(current.startMs).toISOString(), nowMs)}`}
       </p>
       <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
@@ -129,7 +130,7 @@ export function ClassNow({ db, student, nowMs, nextOnPhone = true }: { db: Datab
         )}
       </div>
       {after && (
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-brand/20 pt-4">
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-4">
           <p className="text-sm text-ink-2">
             <span className="font-semibold text-ink">Next: {after.subject}</span> at {clockHere(after.date, after.start)}
             <span className="text-ink-3"> · starts {formatRelative(new Date(after.startMs).toISOString(), nowMs)}</span>

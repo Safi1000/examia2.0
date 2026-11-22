@@ -164,7 +164,7 @@ export function DailyFive({ books }: { books: BookProgress[] }) {
   );
 }
 
-/** Five small marks: gold for right, red for wrong, hollow for not done yet. */
+/** Five small marks: green for right, red for wrong, hollow for not done yet. */
 function Dots({ total, picks, questions }: { total: number; picks: (string | undefined)[]; questions: DailyQuestion[] }) {
   return (
     <span aria-hidden className="grid h-10 w-10 shrink-0 grid-cols-3 content-center justify-items-center gap-1 rounded-full bg-surface-2 px-2">
@@ -173,7 +173,7 @@ function Dots({ total, picks, questions }: { total: number; picks: (string | und
           key={i}
           className={cn(
             "h-1.5 w-1.5 rounded-full",
-            picks[i] === undefined ? "bg-white/20" : picks[i] === questions[i].a ? "bg-brand" : "bg-error",
+            picks[i] === undefined ? "bg-white/20" : picks[i] === questions[i].a ? "bg-success" : "bg-error",
           )}
         />
       ))}
@@ -242,7 +242,7 @@ function Sheet({
               key={qq.id}
               className={cn(
                 "h-1 flex-1 rounded-full transition-colors duration-200",
-                picks[k] === undefined ? (k === i ? "bg-white/35" : "bg-white/10") : picks[k] === qq.a ? "bg-brand" : "bg-error",
+                picks[k] === undefined ? (k === i ? "bg-white/35" : "bg-white/10") : picks[k] === qq.a ? "bg-success" : "bg-error",
               )}
             />
           ))}

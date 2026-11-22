@@ -12,6 +12,7 @@ import { PageStack } from "@/components/PageStack";
 import { isPastPaper, withoutSources } from "@/lib/paper-builder";
 import { PaperText } from "@/components/PaperText";
 import { cn } from "@/lib/cn";
+import { ProgressRing } from "@/components/student/PortalKit";
 
 /**
  * Renders one question and its answer control (MCQ / Text / Photo).
@@ -213,8 +214,11 @@ const MAX_PHOTOS = 30; // a PDF lands as one entry per page, so this is a page b
  * single URL keeps working unchanged.
  */
 /** "42%", or "almost done" once the bytes are sent and Cloudinary is processing. */
-function batchLabel(p: number) {
-  return p >= 0.99 ? "· almost done" : `· ${Math.round(p * 100)}%`;
+/** "Uploading 1 of 2 photos": the file on its way now, counted from 1. Words only, the ring shows how far. */
+function batchLabel(sent: { done: number; total: number; pdf: boolean }) {
+  const noun = sent.pdf ? "file" : "photo";
+  if (sent.total <= 1) return `Uploading 1 ${noun}`;
+  return `Uploading ${Math.min(sent.done + 1, sent.total)} of ${sent.total} ${noun}s`;
 }
 
 const photosOf = (a: Answer) => a.photoUrls ?? (a.photoDataUrl ? [a.photoDataUrl] : []);
@@ -260,6 +264,8 @@ function PhotoAnswer({ questionId, answer, onChange }: { questionId: string; ans
   };
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  // Only for the words under the camera: how many files of this batch are up.
+  const [sent, setSent] = useState({ done: 0, total: 0, pdf: false });
   const [dragging, setDragging] = useState(false);
   // Uploads started before this box was last drawn (the student went to
   // another question and came back) are still on their way.
@@ -294,6 +300,7 @@ function PhotoAnswer({ questionId, answer, onChange }: { questionId: string; ans
 
     setUploading(true);
     setProgress(0);
+    setSent({ done: 0, total: batch.length, pdf: batch.some((f) => f.type === "application/pdf") });
     const finished = trackUpload();
     try {
       // Two at a time, in the order the student picked them: many at once
@@ -313,6 +320,7 @@ function PhotoAnswer({ questionId, answer, onChange }: { questionId: string; ans
             (got) => ({ ok: true as const, urls: got }),
             () => ({ ok: false as const, file: batch[i] }),
           );
+          setSent((v) => ({ ...v, done: v.done + 1 }));
         }
       };
       await Promise.all([worker(), worker()]);
@@ -404,18 +412,15 @@ function PhotoAnswer({ questionId, answer, onChange }: { questionId: string; ans
             )}
           >
             <Icon.Camera className="h-6 w-6" />
-            <span className="text-base font-semibold">
+            <span className="inline-flex items-center gap-2 text-base font-semibold">
+              {/* A small ring, never a bar: the average across every file in this batch. */}
+              {uploading && <ProgressRing done={Math.round(progress * 100)} total={100} size={20} />}
               {uploading
-                ? `Uploading ${batchLabel(progress)}`
+                ? batchLabel(sent)
                 : urls.length
                   ? "Add more pages"
                   : "Take photos or upload a PDF"}
             </span>
-            {uploading && (
-              <span className="h-1.5 w-44 overflow-hidden rounded-full bg-surface-2" aria-hidden>
-                <span className="block h-full rounded-full bg-ink-2 transition-[width] duration-200" style={{ width: `${Math.max(4, progress * 100)}%` }} />
-              </span>
-            )}
             <span className="text-sm tabular-nums text-ink-3">
               {urls.length
                 ? `${urls.length} of ${MAX_PHOTOS} pages added`

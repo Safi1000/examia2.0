@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDataReady } from "@/lib/data/store";
+import { useAuth } from "@/lib/auth-context";
 import { useNotifications } from "@/hooks/useNotifications";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { Button, EmptyState, Icon, Modal, Skeleton, Tabs, type TabItem } from "@/components/ui";
@@ -33,6 +34,7 @@ const FILTERS: { id: NotificationCategory; label: string }[] = [
 export function NotificationsView() {
   const router = useRouter();
   const ready = useDataReady();
+  const student = useAuth().session?.role === "student";
   const { activities, unreadCount, isUnread, markRead, markAllRead, clearOne, clearAll, resolveLink } =
     useNotifications();
 
@@ -168,12 +170,15 @@ export function NotificationsView() {
       ) : shown.length === 0 ? (
         <EmptyState
           icon={<Icon.Bell className="h-5 w-5" />}
-          art={query || filter !== "all" ? undefined : <EmptyArt name="empty-all-caught-up" />}
-          title={query || filter !== "all" ? "No matches" : "Nothing yet"}
+          // Students get the plain bell, no 3D picture; the teacher's view stays as it was.
+          art={query || filter !== "all" || student ? undefined : <EmptyArt name="empty-all-caught-up" />}
+          title={query || filter !== "all" ? "No matches" : student ? "Nothing new" : "Nothing yet"}
           message={
             query || filter !== "all"
               ? "No notifications match this search or filter."
-              : "New tests, notes, results and announcements will appear here."
+              : student
+                ? "New tests, notes and results show up here."
+                : "New tests, notes, results and announcements will appear here."
           }
           action={
             query || filter !== "all" ? (

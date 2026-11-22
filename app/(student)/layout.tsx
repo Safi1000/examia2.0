@@ -35,7 +35,7 @@ import { useBackClosesMenu } from "@/components/student/useBackToClose";
 import { setActivityPath, startActivity } from "@/lib/activity-tracker";
 import { supabase } from "@/lib/supabase";
 import { DEMO } from "@/lib/demo";
-import { EmptyArt } from "@/components/student/PortalKit";
+import { BackRow, EmptyArt } from "@/components/student/PortalKit";
 
 const TITLES: Record<string, string> = {
   "/dashboard": "Home",
@@ -182,25 +182,13 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   // The test runner is distraction-free — it hides the global nav itself.
   const inRunner = /^\/test\/[^/]+$/.test(pathname);
 
-  const links = [
-    // Desktop shows them all; phones use phoneLinks (five tabs) below.
-    { href: "/dashboard", label: "Home", short: "Home", Icon: NavIcon.Home },
-    { href: "/classes", label: "Classes", short: "Classes", Icon: NavIcon.Classes },
-    { href: "/tests", label: "Tests", short: "Tests", Icon: NavIcon.Tests },
-    { href: "/groundwork", label: "Focus", short: "Focus", Icon: NavIcon.Groundwork, feature: true },
-    { href: "/assignments", label: "Homework", short: "Homework", Icon: NavIcon.Tasks },
-    { href: "/notes", label: "Notes", short: "Notes", Icon: NavIcon.Notes },
-    { href: "/progress", label: "Progress", short: "Progress", Icon: NavIcon.Progress },
-  ];
-  // Phones: five plain tabs, each page one tap away (Hamza, Nov 2026: students could not find things
-  // behind the old "Work" tab). Progress and Groundwork open from Home and from the account menu.
   const due = dueFor(db, student, nowMs);
   const testsDue = due.openTests.length;
   const homeworkDue = due.overdue.length + due.dueSoon.filter((a) => +new Date(a.dueAt) - nowMs < 3 * 86_400_000).length;
-  // Phones (Nov 2026, to match the phone app): Home, Study, the gold Focus button, Notes, More.
-  // Classes opens from Home; Progress, Settings and Notifications from More.
+  // One bar for phones and laptops (Nov 2026): Home, Study, Focus, Notes, More. Classes, My plan, Progress,
+  // Settings and Notifications open from Home and More, and light More; tests, homework and results light Study.
   const phoneLinks: PhoneTab[] = [
-    { href: "/dashboard", label: "Home", Icon: NavIcon.Home, lights: (p) => p === "/dashboard" || p === "/plan" || p.startsWith("/classes") },
+    { href: "/dashboard", label: "Home", Icon: NavIcon.Home, lights: (p) => p === "/dashboard" },
     {
       href: "/study",
       label: "Study",
@@ -210,13 +198,15 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     },
     { href: "/groundwork", label: "Focus", Icon: NavIcon.Groundwork, centre: true, lights: (p) => p.startsWith("/groundwork") },
     { href: "/notes", label: "Notes", Icon: NavIcon.Notes, lights: (p) => p.startsWith("/notes") },
-    { href: "/more", label: "More", Icon: NavIcon.More, lights: (p) => p === "/more" || p.startsWith("/progress") || p.startsWith("/settings") || p.startsWith("/notifications") },
+    { href: "/more", label: "More", Icon: NavIcon.More, lights: (p) => p === "/more" || p.startsWith("/progress") || p.startsWith("/settings") || p.startsWith("/notifications") || p.startsWith("/classes") || p === "/plan" },
   ];
-  // Results and the Done screen after a test belong to Tests; the full plan opens from Home.
-  const inTests = pathname.startsWith("/results") || /^\/test\/[^/]+\/submitted$/.test(pathname);
-  const isActive = (href: string) =>
-    pathname === href || (href === "/tests" && inTests) || (href === "/dashboard" && pathname === "/plan");
   const name = displayName(student.username);
+  // Phones in the browser: pages opened from More (or Study) get a way back. The app draws its own back.
+  const back = /^\/(progress|settings|notifications|classes|plan)(\/|$)/.test(pathname)
+    ? { href: "/more", label: "More" }
+    : /^\/(results\/|tests$|assignments$)/.test(pathname)
+      ? { href: "/study", label: "Study" }
+      : null;
   // Every page sits on warm charcoal with a faint grid (PortalAmbient);
   // Groundwork lays its full photo on top.
   const signOut = () => { logout(); router.replace("/login"); };
@@ -249,8 +239,8 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             {/* Desktop: a floating dock in the middle. */}
             <nav aria-label="Primary" className="hidden md:block">
               <ul className="flex items-center gap-0.5 rounded-full border border-hairline bg-surface/50 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                {links.map((l) => {
-                  const active = isActive(l.href);
+                {phoneLinks.map((l) => {
+                  const active = l.lights(pathname);
                   return (
                     <li key={l.href}>
                       <Link
@@ -284,6 +274,11 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         </header>
       )}
       <main id="main" tabIndex={-1} className="focus:outline-none">
+        {back && !inRunner && (
+          <div className="mx-auto max-w-3xl px-5 pt-1 sm:px-6">
+            <BackRow href={back.href} label={back.label} />
+          </div>
+        )}
         <ScheduleGate>{children}</ScheduleGate>
       </main>
       {!inRunner && !profile.onboarded && <WelcomeWhenFree db={db} student={student} />}

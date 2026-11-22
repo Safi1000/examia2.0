@@ -159,8 +159,8 @@ export default function DashboardPage() {
     ...newResults,
   ];
   const toDoCount = todo.filter((x) => !x.quiet).length;
-  // A class about to start or running turns the class card gold with its Join
-  // button: then that is the one gold action on Home, and everything else stays outlined.
+  // A class about to start or running shows its gold Join button on the class
+  // card: then that is the one gold action on Home, and everything else stays outlined.
   const classOn = slotsForStudent(db, student, pkDate(nowMs)).some((sl) => nowMs >= sl.startMs - JOIN_EARLY_MIN * 60_000 && nowMs < sl.endMs);
   // Otherwise one gold button on the list: the most urgent item. The rest stay quiet.
   const lead = classOn ? undefined : todo.find((x) => !x.quiet)?.key;
@@ -170,19 +170,19 @@ export default function DashboardPage() {
     // the week is going on the right (the same order, read left then right).
     <div className="mx-auto max-w-3xl px-5 pb-16 pt-4 sm:px-6 sm:pt-8 lg:max-w-6xl">
       <div className="space-y-10 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,22.5rem)] lg:items-start lg:gap-x-8 lg:space-y-0">
-      {/* One entrance for the page: each block rises in, 70ms apart. */}
-      <div className="rise space-y-10">
+      {/* One entrance for the page: each block rises in, 70ms apart.
+          Phones read the day's work first: hero, To do, Your classes, reminders, notices,
+          so the gold Start sits on the first screen. From 768px up the reminder card
+          goes back above To do (md:order), as it always was on laptops. */}
+      <div className="rise flex flex-col gap-10">
         {/* The greeting and the next class are one thought: 12px apart, then the usual gap to the next section. */}
-        <div className="space-y-3">
+        <div className="space-y-3 md:order-1">
           <HomeHero name={displayName(student.username).split(" ")[0]} status={status} studentId={student.id} totalMinutes={profile.focus?.totalMinutes} />
           <ClassNow db={db} student={student} nowMs={nowMs} nextOnPhone={false} />
         </div>
-        {/* Phones: Classes has no tab of its own (it lives on Home, like the phone app). */}
-        <YourClasses db={db} student={student} nowMs={nowMs} />
-        <NotifyCard />
 
         {todo.length > 0 && (
-          <section aria-labelledby="todo-title">
+          <section aria-labelledby="todo-title" className="md:order-3">
             <SectionTitle id="todo-title" count={toDoCount}>
               {todo.some((x) => x.focus) ? "To do" : "New for you"}
             </SectionTitle>
@@ -204,7 +204,8 @@ export default function DashboardPage() {
                   </Link>
                   <span className="block text-sm text-ink-3 tabular-nums [grid-area:meta]">{x.meta}</span>
                   <span className="flex items-center justify-end gap-3 max-sm:mt-1 [grid-area:actions]">
-                    {x.focus && <FocusOnThis kind={x.focus.kind} title={x.title} subject={x.focus.subject} href={x.href} id={x.focus.id} />}
+                    {/* One Focus button on the list: on the lead row only. */}
+                    {x.focus && x.key === lead && <FocusOnThis kind={x.focus.kind} title={x.title} subject={x.focus.subject} href={x.href} id={x.focus.id} />}
                     <span
                       aria-hidden
                       className={buttonClasses({ variant: x.key === lead ? "primary" : "secondary", size: "sm", className: "shrink-0" })}
@@ -227,7 +228,7 @@ export default function DashboardPage() {
         )}
 
         {todo.length === 0 && (
-          <div className="surface flex items-center gap-4 rounded-card p-5 sm:p-6">
+          <div className="surface flex items-center gap-4 rounded-card p-5 sm:p-6 md:order-3">
             <p className="text-base text-ink-2">
               <span className="block font-semibold text-ink">Nothing due right now.</span>
               Good time to read a chapter or try your Daily 5.
@@ -235,8 +236,17 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Phones: Classes has no tab of its own (it lives on Home, like the phone app). */}
+        <YourClasses db={db} student={student} nowMs={nowMs} />
+        {/* Hidden when the card has nothing to say, so it leaves no gap. */}
+        <div className="empty:hidden md:order-2">
+          <NotifyCard />
+        </div>
+
         {/* Hamza's notices: high up, but one line each so the day's work stays in view. */}
-        <AnnouncementsPanel student={student} />
+        <div className="empty:hidden md:order-4">
+          <AnnouncementsPanel student={student} />
+        </div>
       </div>
 
       <div className="rise space-y-10">
@@ -262,7 +272,7 @@ export default function DashboardPage() {
 
 /**
  * Phones only: the next few classes, then a row to the full timetable. A class
- * about to start or running is the gold card above (ClassNow, with Join), so it
+ * about to start or running is the card above (ClassNow, with Join), so it
  * is not listed again here.
  */
 function YourClasses({ db, student, nowMs }: { db: Database; student: Student; nowMs: number }) {
@@ -356,7 +366,7 @@ function PerformanceCard({ perf, attendance, syllabus, target }: { perf: Snapsho
   const graded = !!perf && perf.marked >= 3;
   return (
     <Link href="/progress" className="surface surface-link block rounded-card p-5 sm:p-6">
-      <CardHead title="How you're doing" more="Full progress" />
+      <CardHead title="How you're doing" more="Progress" />
       {!graded && (
         <p className="mt-2 text-base text-ink-2">
           {perf ? `${perf.marked} of 3 tests marked. ` : ""}Your grade shows here after three marked tests.
@@ -377,16 +387,16 @@ function PerformanceCard({ perf, attendance, syllabus, target }: { perf: Snapsho
           {attendance != null && (
             <div>
               <dt className="text-xs text-ink-3">Attendance</dt>
-              <dd className={cn("mt-0.5 text-lg font-bold tabular-nums", attendance.percent >= 75 ? "text-ink" : "text-warning")}>{Math.round(attendance.percent)}%</dd>
+              <dd className={cn("mt-0.5 text-lg font-bold tabular-nums", attendance.percent >= 75 ? "text-ink" : "text-error")}>{Math.round(attendance.percent)}%</dd>
               <dd className="mt-0.5 text-xs text-ink-3">{attendance.month}</dd>
             </div>
           )}
           {syllabus != null && (
             <div>
-              <dt className="text-xs text-ink-3">Chapters</dt>
+              <dt className="text-xs text-ink-3">Topic tracker</dt>
               <dd className="mt-0.5 flex items-baseline gap-1 tabular-nums">
                 <span className="text-lg font-bold text-ink">{syllabus.covered}</span>
-                <span className="text-xs text-ink-2">of {syllabus.total}</span>
+                <span className="text-xs text-ink-2">of {syllabus.total} chapters</span>
               </dd>
             </div>
           )}
@@ -422,7 +432,7 @@ function PlanCard({ week, plan, nowMs, workOn }: { week: PlanWeek | null; plan: 
   const newTopics = topics.some((t) => !shown.has(topicKey(t)));
   return (
     <Link href="/plan" className="surface surface-link block rounded-card p-5 sm:p-6">
-      <CardHead title="This week" more="See your full plan" />
+      <CardHead title="This week" more="My plan" />
       {paper ? (
         // The countdown to their own paper: the number, then which paper and the day it is sat.
         <div className="mt-3 flex items-center gap-4">

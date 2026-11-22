@@ -45,7 +45,7 @@ const ROWS: DirRow[] = [
   { id: "papers", title: "Past papers", detail: "Every paper with answers", href: "/past-papers", Icon: NavIcon.Tasks, words: ["paper", "pdf", "past", "pastpaper", "pp", "question paper", "ms", "cambridge", "written"] },
   { id: "practice", title: "Practice", detail: "Past paper questions by topic", href: "/past-papers/topics", Icon: NavIcon.Today, words: ["mcq", "questions", "quiz", "revise", "drill", "topical", "topic", "mistakes"] },
   { id: "progress", title: "Progress", detail: "Marks, grades and attendance", href: "/progress", Icon: NavIcon.Progress, words: ["marks", "mark", "grade", "grades", "report", "score", "scores", "result", "results", "how am i doing", "attendance", "medal", "medals", "badge"] },
-  { id: "classes", title: "Classes timetable", detail: "Your classes and recordings", href: "/classes", Icon: NavIcon.Classes, words: ["class", "timetable", "live", "meet", "zoom", "lesson", "lessons", "recording", "recordings", "schedule", "join"] },
+  { id: "classes", title: "Classes", detail: "Your timetable and recordings", href: "/classes", Icon: NavIcon.Classes, words: ["class", "timetable", "live", "meet", "zoom", "lesson", "lessons", "recording", "recordings", "schedule", "join"] },
   { id: "notifications", title: "Notifications", detail: "New tests, notes and results", href: "/notifications", Icon: NavIcon.Megaphone, words: ["bell", "alerts", "alert", "inbox", "updates", "notice", "notices", "announcement", "news"] },
   { id: "settings", title: "Settings", detail: "Account, avatar and reminders", href: "/settings", Icon: NavIcon.Settings, words: ["setting", "account", "password", "avatar", "picture", "photo", "face", "dp", "profile", "reminders", "target", "targets", "privacy"] },
   { id: "help", title: "Help and contact", detail: "Message Hamza on WhatsApp", external: true, Icon: ChatIcon, words: ["help", "contact", "whatsapp", "message", "support", "problem", "call", "hamza"] },
@@ -54,9 +54,9 @@ const ROWS: DirRow[] = [
   { id: "study", title: "Study", detail: "Your tests and homework", href: "/study", Icon: NavIcon.Tests, words: ["test", "tests", "quiz", "exam", "homework", "assignment", "assignments", "task", "due", "late", "submit", "hw"], searchOnly: true },
   { id: "tests", title: "All tests", detail: "Every test, open and past", href: "/tests", Icon: NavIcon.Tests, words: ["test", "tests", "exam", "quiz"], searchOnly: true },
   { id: "homework", title: "All homework", detail: "Every piece of homework", href: "/assignments", Icon: NavIcon.Assignments, words: ["homework", "assignment", "assignments", "hw", "submit", "hand in"], searchOnly: true },
-  { id: "focus", title: "Focus", detail: "The gold timer in the middle of the bar", href: "/groundwork", Icon: NavIcon.Groundwork, words: ["timer", "pomodoro", "study time", "clock", "concentrate", "stopwatch", "block"], searchOnly: true },
+  { id: "focus", title: "Focus", detail: "The gold timer in the middle of the bar", href: "/groundwork", Icon: NavIcon.Groundwork, words: ["timer", "pomodoro", "study time", "clock", "concentrate", "stopwatch", "block"] },
   { id: "notes", title: "Notes", detail: "Notes from every class", href: "/notes", Icon: NavIcon.Notes, words: ["note", "notes", "reading", "chapter", "chapters", "slides", "handout"], searchOnly: true },
-  { id: "plan", title: "My plan", detail: "What each week is for, up to your exams", href: "/plan", Icon: NavIcon.Plan, words: ["plan", "week", "revision", "exam date", "countdown"], searchOnly: true },
+  { id: "plan", title: "My plan", detail: "What each week is for, up to your exams", href: "/plan", Icon: NavIcon.Plan, words: ["plan", "week", "revision", "exam date", "countdown"] },
 ];
 
 /** Lower case, accents and punctuation gone, spaces squeezed. */

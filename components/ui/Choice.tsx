@@ -40,10 +40,10 @@ export function RadioCard({
         aria-hidden
         className={cn(
           "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-          checked ? "border-brand" : "border-border-strong",
+          checked ? "border-ink/70" : "border-border-strong",
         )}
       >
-        {checked && <span className="h-2.5 w-2.5 rounded-full bg-brand" />}
+        {checked && <span className="h-2.5 w-2.5 rounded-full bg-ink" />}
       </span>
       <span className="text-base leading-snug text-ink">{label}</span>
     </label>
@@ -70,11 +70,11 @@ export function Checkbox({
           // The real checkbox is visually hidden, so the box shows the keyboard focus ring.
           "flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors",
           "group-has-[:focus-visible]/check:outline-2 group-has-[:focus-visible]/check:outline-offset-2 group-has-[:focus-visible]/check:outline-brand",
-          checked ? "border-brand bg-brand" : "border-border-strong bg-surface",
+          checked ? "border-ink bg-ink text-paper" : "border-border-strong bg-surface",
         )}
       >
         {checked && (
-          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-on-brand" fill="none" stroke="currentColor" strokeWidth="3">
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3">
             <path d="m5 12 5 5 9-10" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         )}

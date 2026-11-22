@@ -5,7 +5,7 @@ import { useNow } from "@/hooks/useNow";
 import { useDatabase } from "@/lib/data/store";
 import { joinedMs, studentById } from "@/lib/data/selectors";
 import { ClassNow } from "@/components/student/ClassNow";
-import { Badge, EmptyState, Icon, Skeleton } from "@/components/ui";
+import { Badge, Icon, Skeleton } from "@/components/ui";
 import type { Student } from "@/types";
 import type { Database } from "@/lib/data/seed";
 import { useSchedule, LEVEL_LABEL, levelName, RECORDING_HOURS, getSchedule, addDays, isClassDay, levelOf, pkDate, slotKey, slotsForStudent, slotsOn, span, spanHere, useClassLinks } from "@/lib/classes";
@@ -206,9 +206,9 @@ export default function ClassesPage() {
                     {s.cancelled ? (
                       <Badge className="px-2 text-xs">Cancelled</Badge>
                     ) : s.extra ? (
-                      <Badge tone="brand" className="px-2 text-xs">Extra</Badge>
+                      <Badge className="px-2 text-xs">Extra</Badge>
                     ) : s.changed ? (
-                      <Badge tone="warning" className="px-2 text-xs">Moved</Badge>
+                      <Badge className="px-2 text-xs">Moved</Badge>
                     ) : null}
                   </span>
                   <span className="mt-0.5 block text-sm text-ink-3">
@@ -260,7 +260,7 @@ export default function ClassesPage() {
                   onClick={(e) => watch(e, slotKey(r), r.recordingUrl!, r.subject, dayName(r.date))}
                   className={cn(
                     "surface surface-link flex items-center justify-between gap-4 rounded-card px-5 py-4 sm:px-6",
-                    !watched.has(slotKey(r)) && r.closesAt - nowMs < 6 * 3_600_000 && "border-warning/50!",
+                    !watched.has(slotKey(r)) && r.closesAt - nowMs < 6 * 3_600_000 && "border-error/50!",
                   )}
                 >
                   <span className="min-w-0">
@@ -280,7 +280,7 @@ export default function ClassesPage() {
                         Watch <Icon.ChevronRight className="h-4 w-4" />
                       </span>
                       {r.closesAt - nowMs < 6 * 3_600_000 && (
-                        <span className="text-sm font-semibold text-warning tabular-nums">Closes {formatRelative(new Date(r.closesAt).toISOString(), nowMs)}</span>
+                        <span className="text-sm font-semibold text-error tabular-nums">Closes {formatRelative(new Date(r.closesAt).toISOString(), nowMs)}</span>
                       )}
                     </span>
                   )}
@@ -294,11 +294,8 @@ export default function ClassesPage() {
         ) : ready === false ? (
           <p className="surface-quiet rounded-card p-5 text-base text-ink-2 sm:p-6">Couldn&apos;t load your recordings. Check your internet, then open this page again.</p>
         ) : (
-          <EmptyState
-            icon={<Icon.Doc />}
-            title="No recordings right now"
-            message="Each class recording appears here after class."
-          />
+          // One quiet line, not a big empty box: the timetable above is what matters today.
+          <p className="text-base text-ink-2">Each class recording appears here after class.</p>
         )}
         </div>
       </section>
@@ -347,7 +344,8 @@ function PastRecordings({ items, twoLevels, watched, onWatch }: { items: PastIte
         Catch up on past classes
       </SectionTitle>
       {subjects.length > 1 && (
-        <div className="mb-3 flex gap-2 max-sm:-mx-5 max-sm:overflow-x-auto max-sm:px-5 max-sm:[scrollbar-width:none] sm:flex-wrap" role="group" aria-label="Subject">
+        // Chips wrap to a second line on phones instead of running off the edge.
+        <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Subject">
           <button type="button" className={chip(!subject)} aria-pressed={!subject} onClick={() => { setSubject(null); setAll(false); }}>
             All
           </button>

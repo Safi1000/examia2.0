@@ -13,6 +13,7 @@ import { formatRelative } from "@/lib/time";
 import { addDays, pkDate } from "@/lib/timetable";
 import { Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
+import { buttonClasses } from "@/components/ui/Button";
 import { CaughtUpMark, PageHeader, SectionTitle } from "@/components/student/PortalKit";
 
 /**
@@ -137,6 +138,9 @@ export default function StudyPage() {
 
   if (!student) return null;
   const toDo = sections.filter((s) => s.id !== "done").reduce((n, s) => n + s.rows.length, 0);
+  // The one gold button on the page: the first row of the first group still to do
+  // (late, else open now, else due soon). Every other row keeps its chevron.
+  const lead = sections.find((s) => s.id !== "done")?.rows[0]?.key;
 
   return (
     <div className="mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
@@ -164,7 +168,7 @@ export default function StudyPage() {
               </SectionTitle>
               <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
                 {rows.map((r) => (
-                  <StudyRow key={r.key} row={r} />
+                  <StudyRow key={r.key} row={r} lead={r.key === lead} />
                 ))}
               </ul>
               {s.id === "done" && s.rows.length > DONE_SHOWN && (
@@ -195,8 +199,13 @@ export default function StudyPage() {
   );
 }
 
-/** One row: the type and subject, the title, the time line and a chevron. The whole row opens that test or homework. */
-function StudyRow({ row }: { row: Row }) {
+/**
+ * One row: the type and subject, the title, the time line and a chevron. The
+ * whole row opens that test or homework. The lead row shows a gold "Start" or
+ * "Hand in" in place of the chevron (drawn, not a second link: the row is the link).
+ */
+function StudyRow({ row, lead }: { row: Row; lead?: boolean }) {
+  const cta = row.type === "Test" ? "Start" : "Hand in";
   return (
     <li>
       <Link
@@ -205,7 +214,7 @@ function StudyRow({ row }: { row: Row }) {
       >
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5 text-xs font-semibold text-ink-3">
-            {row.open && <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />}
+            {row.open && <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink-3" />}
             <span>{row.type}</span>
             {row.subject && (
               <>
@@ -215,9 +224,19 @@ function StudyRow({ row }: { row: Row }) {
             )}
           </span>
           <span className="mt-1 line-clamp-2 block break-words text-base font-semibold text-ink">{row.title}</span>
-          <span className={cn("mt-0.5 block text-sm tabular-nums", row.late ? "text-warning" : "text-ink-3")}>{row.line}</span>
+          {/* Late is status: red words, never amber that reads as gold. */}
+          <span className={cn("mt-0.5 block text-sm tabular-nums", row.late ? "text-error" : "text-ink-3")}>{row.line}</span>
         </span>
-        <Icon.ChevronRight className="h-5 w-5 shrink-0 text-ink-3" />
+        {lead ? (
+          <>
+            <span className="sr-only">, {cta}</span>
+            <span aria-hidden className={buttonClasses({ size: "sm", className: "shrink-0" })}>
+              {cta} <Icon.ChevronRight className="h-4 w-4" />
+            </span>
+          </>
+        ) : (
+          <Icon.ChevronRight className="h-5 w-5 shrink-0 text-ink-3" />
+        )}
       </Link>
     </li>
   );

@@ -208,7 +208,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
     },
     {
       title: "You're set.",
-      sub: "Here's your portal, made for you.",
+      sub: picked.length > 0 ? `Your ${picked.length} target ${picked.length === 1 ? "grade is" : "grades are"} saved.` : "Here's your portal, made for you.",
       body: (
         // One card, a row each, split by hairlines.
         <div className="surface divide-y divide-hairline rounded-card">
@@ -252,15 +252,17 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
     <div ref={dialog} tabIndex={-1} onKeyDown={onKeyDown} role="dialog" aria-modal="true" aria-labelledby="welcome-title" className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-paper outline-none">
       <div className="mx-auto flex min-h-dvh max-w-md flex-col px-6 py-10">
         <div className="flex items-center justify-between">
-          <div className="flex gap-1.5" aria-hidden>
-            {steps.map((_, i) => (
-              <span key={i} className={cn("h-1.5 rounded-full transition-[width,background-color] duration-200 ease-[var(--ease-out)]", i === step ? "w-8 bg-ink" : i < step ? "w-4 bg-ink-3" : "w-4 bg-surface-2")} />
-            ))}
+          <div>
+            <div className="flex gap-1.5" aria-hidden>
+              {steps.map((_, i) => (
+                <span key={i} className={cn("h-1.5 rounded-full transition-[width,background-color] duration-200 ease-[var(--ease-out)]", i === step ? "w-8 bg-ink" : i < step ? "w-4 bg-ink-3" : "w-4 bg-surface-2")} />
+              ))}
+            </div>
+            <p className="mt-2 text-sm text-ink-3 tabular-nums">
+              Step {step + 1} of {steps.length}
+            </p>
           </div>
-          <span className="sr-only">
-            Step {step + 1} of {steps.length}
-          </span>
-          {/* Nothing left to skip on the last step: "Open my portal" is the way on. The space is kept so the dots don't move. */}
+          {/* Nothing left to skip on the last step: "Go to Home" is the way on. The space is kept so the dots don't move. */}
           <Button variant="ghost" onClick={finish} className={cn("-mr-3", last && "invisible")} tabIndex={last ? -1 : undefined} aria-hidden={last || undefined}>
             Skip
           </Button>
@@ -281,7 +283,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
             </Button>
           )}
           <Button size="lg" onClick={forward} className="flex-1">
-            {last ? "Open my portal" : step === 0 ? "Let's set it up" : "Next"}
+            {last ? "Go to Home" : step === 0 ? "Let's set it up" : "Next"}
           </Button>
         </div>
         <p className="mt-4 text-center text-sm text-ink-3">You can change any of this later in Settings.</p>

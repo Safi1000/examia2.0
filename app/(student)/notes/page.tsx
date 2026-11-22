@@ -9,7 +9,8 @@ import { EmptyState, Icon, Spinner } from "@/components/ui";
 import { useNow } from "@/hooks/useNow";
 import { NoteViewer, preloadNote } from "@/components/NoteViewer";
 import { cn } from "@/lib/cn";
-import { EmptyArt, PageHeader } from "@/components/student/PortalKit";
+import { EmptyArt, PageHeader, ProgressRing, SectionTitle } from "@/components/student/PortalKit";
+import { buttonClasses } from "@/components/ui/Button";
 import { chipClass, segmentGroup, segmentItem } from "@/components/ui/Segmented";
 import type { Note, Student } from "@/types";
 import { shelvesFor, type Shelf } from "@/lib/note-shelves";
@@ -234,29 +235,26 @@ function Library({ db, student, positions, onOpen, want }: { db: Db; student: St
               const r = readable.get(resume[0])!;
               const p = resume[1];
               return (
+                // The lead row: the chapter they were last reading, with the page's one gold action.
                 <button
                   type="button"
                   onClick={() => onOpen({ id: r.note.id, title: r.note.title, page: p.page })}
+                  aria-label={`Carry on reading ${r.chapter ? r.chapter.name : r.note.title}, page ${p.page} of ${p.pages}`}
                   className="surface surface-link mb-10 flex w-full items-center gap-4 rounded-card p-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:p-6"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-ink-3">Continue reading · {r.shelf.label}</span>
+                    <span className="block truncate text-sm font-semibold text-ink-3">Carry on reading</span>
                     <span className="mt-1 block truncate text-base font-semibold text-ink">{r.chapter ? r.chapter.name : r.note.title}</span>
-                    <span className="mt-2 flex items-center gap-3">
-                      <span className="h-1 flex-1 overflow-hidden rounded-full bg-surface-2">
-                        <span
-                          className="block h-full rounded-full bg-ink-2"
-                          style={{
-                            width: `${Math.round((p.page / p.pages) * 100)}%`,
-                          }}
-                        />
-                      </span>
-                      <span className="shrink-0 text-sm tabular-nums text-ink-3">
-                        Page {p.page} of {p.pages}
+                    <span className="mt-2 flex items-center gap-2 text-sm tabular-nums text-ink-3">
+                      <ProgressRing done={p.page} total={p.pages} size={20} stroke={2.5} />
+                      <span className="min-w-0 truncate">
+                        Page {p.page} of {p.pages}, {r.shelf.label}
                       </span>
                     </span>
                   </span>
-                  <Icon.ChevronRight className="h-5 w-5 shrink-0 text-ink-3" />
+                  <span aria-hidden className={buttonClasses({ size: "sm", className: "shrink-0" })}>
+                    Open
+                  </span>
                 </button>
               );
             })()}
@@ -356,24 +354,22 @@ function ShelfView({ shelf, positions, nowMs, onOpen }: { shelf: Shelf; position
   const out = book ? book.units.reduce((n, u) => n + u.chapters.filter(([c]) => covered(u, c)).length, 0) : 0;
   // Units with nothing out yet start folded, so the page stays short.
   const [openUnits, setOpenUnits] = useState<Record<string, boolean>>({});
+  // Inside a unit with something ready, the chapters still to come fold into one row.
+  const [openSoon, setOpenSoon] = useState<Record<string, boolean>>({});
 
   return (
     <div className="space-y-4">
       {book && (
-        <div className="flex items-center justify-between gap-3 pb-1">
-          <h2 className="min-w-0 truncate text-xl font-bold leading-tight tracking-[-0.015em] text-ink">
-            {LEVEL_SHORT[book.level]} {book.subject}
-          </h2>
-          <span className="shrink-0 text-sm tabular-nums text-ink-3">
-            {out} of {total} ready
-          </span>
-        </div>
+        <SectionTitle action={<span className="tabular-nums text-ink-3">{out} of {total} ready</span>}>
+          {LEVEL_SHORT[book.level]} {book.subject}
+        </SectionTitle>
       )}
 
       {book?.units.map((u) => {
         const unitNotes = shelf.byChapter.get(`U${u.num}`) ?? [];
         const ready = u.chapters.filter(([c]) => covered(u, c)).length;
         const has = ready > 0;
+        const soon = u.chapters.filter(([c]) => !covered(u, c));
         const isOpen = openUnits[u.num] ?? has;
         return (
           <section key={u.num} aria-labelledby={`u-${shelf.key}-${u.num}`} className="surface overflow-hidden rounded-card">
@@ -408,7 +404,8 @@ function ShelfView({ shelf, positions, nowMs, onOpen }: { shelf: Shelf; position
                     />
                   </li>
                 ))}
-                {u.chapters.map(([num, name]) => {
+                {/* Ready chapters first, in teaching order; the rest fold into one row below. */}
+                {u.chapters.filter(([c]) => covered(u, c)).map(([num, name]) => {
                   const notes = shelf.byChapter.get(num);
                   if (!notes && unitNotes.length)
                     return (
@@ -429,15 +426,7 @@ function ShelfView({ shelf, positions, nowMs, onOpen }: { shelf: Shelf; position
                         </button>
                       </li>
                     );
-                  if (!notes)
-                    return (
-                      // Not out yet: muted grey that still reads easily; the word Soon says it can't open.
-                      <li key={num} className="flex min-h-12 items-center gap-3 py-2.5 pr-5 text-ink-3">
-                        <span className="w-10 shrink-0 text-sm tabular-nums">{num}</span>
-                        <span className="min-w-0 flex-1 text-base leading-snug">{name}</span>
-                        <span className="shrink-0 text-sm">Soon</span>
-                      </li>
-                    );
+                  if (!notes) return null;
                   return notes.map((n, k) => (
                     <li key={n.id}>
                       <NoteRow
@@ -452,6 +441,29 @@ function ShelfView({ shelf, positions, nowMs, onOpen }: { shelf: Shelf; position
                     </li>
                   ));
                 })}
+                {soon.length > 0 && has && (
+                  <li>
+                    <button
+                      type="button"
+                      aria-expanded={!!openSoon[u.num]}
+                      onClick={() => setOpenSoon((m) => ({ ...m, [u.num]: !m[u.num] }))}
+                      className="row-link -ml-5 flex min-h-12 w-[calc(100%+1.25rem)] items-center gap-3 py-2.5 pl-5 pr-5 text-left text-sm font-semibold text-ink-3 focus-visible:bg-surface-2 focus-visible:outline-none"
+                    >
+                      <span className="min-w-0 flex-1 tabular-nums">{soon.length} more coming soon</span>
+                      <Icon.ChevronRight className={cn("h-4 w-4 shrink-0 transition-transform duration-200 ease-[var(--ease-out)]", openSoon[u.num] ? "-rotate-90" : "rotate-90")} />
+                    </button>
+                  </li>
+                )}
+                {/* A unit with nothing ready lists them straight away: its header already says "Coming soon". */}
+                {(!has || openSoon[u.num]) &&
+                  soon.map(([num, name]) => (
+                    // Not out yet: muted grey that still reads easily; the word Soon says it can't open.
+                    <li key={num} className="flex min-h-12 items-center gap-3 py-2.5 pr-5 text-ink-3">
+                      <span className="w-10 shrink-0 text-sm tabular-nums">{num}</span>
+                      <span className="min-w-0 flex-1 text-base leading-snug">{name}</span>
+                      <span className="shrink-0 text-sm">Soon</span>
+                    </li>
+                  ))}
               </ul>
             )}
           </section>

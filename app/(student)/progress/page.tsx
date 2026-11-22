@@ -24,7 +24,7 @@ import { topicNotesFinder } from "@/components/student/topic-notes";
 import { syllabusProgress, type BookProgress } from "@/lib/syllabus-progress";
 import { AttendanceCard } from "@/components/student/AttendanceCard";
 import type { Mission } from "@/components/student/FocusMode";
-import { EmptyArt, GradeMedallion, PageHeader, SectionTitle } from "@/components/student/PortalKit";
+import { EmptyArt, GradeMedallion, PageHeader, ProgressRing, SectionTitle } from "@/components/student/PortalKit";
 
 /** Results shown before "See all": the latest, so subjects and topics stay near the top. */
 const RESULTS_SHOWN = 5;
@@ -32,8 +32,9 @@ const RESULTS_SHOWN = 5;
 const FocusMode = dynamic(() => import("@/components/student/FocusMode"), { ssr: false });
 
 /**
- * My progress, in the order a student asks: Where am I? How did each test go?
- * Which subject needs me? Which topics? Then their Groundwork study time.
+ * Progress, five sections in the order a student asks: Where am I (and the one
+ * gold "Practise" for the weakest topic)? How did each test go? Which subject
+ * needs me? Am I showing up? How much of the syllabus is covered?
  */
 export default function ProgressPage() {
   const { session, profile } = useAuth();
@@ -81,82 +82,101 @@ export default function ProgressPage() {
   // One target beside the overall grade, only when every subject's target is the same.
   const overall = snap ? overallTarget(profile.targets, student, snap.bySubject.map((x) => x.subject)) : undefined;
 
-  // Missed ones, and any still open, so "4 / 4" never reads as nothing left to do.
+  // Missed ones, and any still open, so "4 of 4" never reads as nothing left to do.
   const missed = data.setCount - data.handed;
-  const testsLine = [missed > 0 ? `${missed} missed` : "None missed", data.openNow > 0 ? `${data.openNow} open now` : ""].filter(Boolean).join(" · ");
+  const testsLine = [
+    `${data.handed} of ${data.setCount} tests done`,
+    missed > 0 ? `${missed} missed` : "",
+    data.openNow > 0 ? `${data.openNow} open now` : "",
+  ].filter(Boolean).join(", ");
 
-  const pace = (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 [&>*]:min-w-0">
-      <AttendanceCard db={db} studentId={student.id} nowMs={nowMs} />
-      <SyllabusDone books={books} />
-    </div>
-  );
+  // The one gold action: practise the weakest topic. The rest stay quiet links.
+  const [lead, ...otherWeak] = data.weak;
+  const practiseTopic = (m: (typeof data.weak)[number]) => {
+    const notes = notesFor?.(m.subject, m.name) ?? null;
+    // "Open the notes for it" opens that note straight away.
+    setPractise({ subject: m.subject, topic: m.name, noteHref: notes?.exact ? notes.href : undefined });
+  };
+  const lastN = snap ? Math.min(5, snap.marked) : 0;
 
   return (
     <div className="mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
       <div className="rise space-y-10">
-      <PageHeader title="My progress" />
+      <PageHeader title="Progress" />
 
       {!snap && (
         <EmptyState icon={<Icon.Chart />} art={<EmptyArt name="empty-no-tests-yet" />} title="Your grade starts with your first marked test" message="Once I release a result, your grade, subjects and topics show up here." />
       )}
 
-      {/* Showing up and keeping pace: attendance and how much of the syllabus is done. */}
-      {!snap && pace}
-
-      {!snap ? null : (
+      {snap && (
         <>
-          {/* 1. Where am I? */}
-          <section className="grid gap-3 sm:grid-cols-3">
-            <div className="surface relative overflow-hidden rounded-card p-5 sm:col-span-2 sm:p-6">
-              <p className="text-sm font-semibold text-ink-3">{snap.marked >= 3 ? "On track for" : "Your grade"}</p>
-              {snap.marked < 3 ? (
-                <div className="mt-2">
-                  <div className="flex gap-1.5" aria-hidden>
-                    {[0, 1, 2].map((i) => (
-                      <span key={i} className={cn("h-2 w-10 rounded-full", i < snap.marked ? "bg-ink" : "bg-surface-2")} />
-                    ))}
-                  </div>
-                  <p className="mt-3 text-lg font-semibold text-ink">
-                    {snap.marked} of 3 tests marked
-                  </p>
+          {/* 1. Where am I, and the one thing to do next. */}
+          <section aria-labelledby="grade-h" className="surface rounded-card p-5 sm:p-6">
+            <p id="grade-h" className="text-sm font-semibold text-ink-3">{snap.marked >= 3 ? "On track for" : "Your grade"}</p>
+            {snap.marked < 3 ? (
+              <div className="mt-4 flex items-center gap-5">
+                <ProgressRing done={snap.marked} total={3} size={88} stroke={4} label={`${snap.marked}/3`} />
+                <div className="min-w-0">
+                  <p className="text-lg font-semibold text-ink">{snap.marked} of 3 tests marked</p>
                   <p className="mt-0.5 text-sm text-ink-3">Your grade shows after three, so one test can&apos;t decide it.</p>
+                  <p className="mt-1 text-sm text-ink-2 tabular-nums">{testsLine}</p>
                 </div>
-              ) : (
+              </div>
+            ) : (
               <div className="mt-4 flex items-center gap-5">
                 <GradeMedallion grade={snap.grade} size={88} />
-                <div>
+                <div className="min-w-0">
                   <p className="text-title font-bold leading-none tracking-[-0.025em] tabular-nums text-ink">{shownPercent(snap.recent)}%</p>
-                  <p className="mt-1.5 text-sm text-ink-2">average of your last {Math.min(5, snap.marked)} tests</p>
-                  {overall && <p className="mt-1 text-sm font-semibold text-ink-2">Target {overall}</p>}
+                  <p className="mt-1.5 text-sm text-ink-2">average of your last {lastN} tests</p>
+                  <p className="mt-0.5 text-sm text-ink-2 tabular-nums">{testsLine}</p>
+                  {overall && <p className="mt-0.5 text-sm font-semibold text-ink-2">Target {overall}</p>}
                 </div>
               </div>
-              )}
-              {snap.delta != null && Math.abs(Math.round(snap.delta)) >= 1 && (
-                <p className="mt-3 text-sm font-semibold tabular-nums text-ink-2">
-                  Last {Math.min(5, snap.marked)} tests: {Math.abs(Math.round(snap.delta))} {Math.abs(Math.round(snap.delta)) === 1 ? "point" : "points"} {snap.delta > 0 ? "higher" : "lower"} than the ones before.
-                </p>
-              )}
-              {(snap.grade === "A*" || snap.grade === "A") && snap.marked >= 3 && (
-                <div className="mt-4">
-                  <ShareMoment
-                    label="Share my grade"
-                    moment={{ kicker: "Working at", big: `${snap.grade} grade`, sub: `${shownPercent(snap.recent)}% across my last ${Math.min(5, snap.marked)} tests`, name: displayName(student.username).split(" ")[0], scene: worldScene(profile.world) }}
-                  />
-                </div>
-              )}
-            </div>
-            <div className="surface flex items-center justify-between gap-4 rounded-card p-5 sm:block sm:p-6">
-              <div>
-                <p className="text-sm font-semibold text-ink-3">Tests done</p>
-                <p className="mt-0.5 text-sm text-ink-3 sm:hidden">{testsLine}</p>
-              </div>
-              <p className="text-title font-bold tracking-[-0.025em] tabular-nums text-ink sm:mt-2">
-                {data.handed}
-                <span className="text-lg font-semibold text-ink-3"> / {data.setCount}</span>
+            )}
+            {snap.delta != null && Math.abs(Math.round(snap.delta)) >= 1 && (
+              <p className="mt-3 text-sm font-semibold tabular-nums text-ink-2">
+                Last {lastN} tests: {Math.abs(Math.round(snap.delta))} {Math.abs(Math.round(snap.delta)) === 1 ? "point" : "points"} {snap.delta > 0 ? "higher" : "lower"} than the ones before.
               </p>
-              <p className="mt-1 hidden text-sm text-ink-3 sm:block">{testsLine}</p>
-            </div>
+            )}
+            {(snap.grade === "A*" || snap.grade === "A") && snap.marked >= 3 && (
+              <div className="mt-4">
+                <ShareMoment
+                  label="Share my grade"
+                  moment={{ kicker: "Working at", big: `${snap.grade} grade`, sub: `${shownPercent(snap.recent)}% across my last ${lastN} tests`, name: displayName(student.username).split(" ")[0], scene: worldScene(profile.world) }}
+                />
+              </div>
+            )}
+            {lead && (
+              <div className="mt-5 border-t border-hairline pt-5">
+                <p className="text-sm text-ink-2 tabular-nums">
+                  Your weakest topic is <span className="font-semibold text-ink">{lead.name}</span> in {lead.subject}, at {Math.round(lead.percent)}%.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => practiseTopic(lead)}
+                  className={buttonClasses({ size: "lg", fullWidth: true, className: "mt-3 sm:w-auto" })}
+                >
+                  Practise {lead.name}
+                </button>
+                {otherWeak.length > 0 && (
+                  <p className="mt-3 text-sm text-ink-3">
+                    Also worth practising:{" "}
+                    {otherWeak.map((m, i) => (
+                      <span key={m.topic}>
+                        <button
+                          type="button"
+                          onClick={() => practiseTopic(m)}
+                          className="inline-flex min-h-11 items-center font-semibold text-ink-2 underline decoration-hairline-strong underline-offset-4 hover:text-ink hover:decoration-ink-3"
+                        >
+                          {m.name}
+                        </button>
+                        {i < otherWeak.length - 1 ? ", " : ""}
+                      </span>
+                    ))}
+                  </p>
+                )}
+              </div>
+            )}
           </section>
 
           {/* 2. How did each test go? Students come here straight after a result, so it sits under the summary. */}
@@ -191,113 +211,47 @@ export default function ProgressPage() {
             )}
           </section>
 
-          {/* 3. Which subject needs me? */}
+          {/* 3. Which subject needs me? A ring for each, never a bar. */}
           <section>
-            <SectionTitle>By subject</SectionTitle>
+            <SectionTitle>Subjects</SectionTitle>
             <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
               {snap.bySubject.map((s) => {
                 const target = targetFor(s.subject);
                 const gap = target ? Math.max(0, Math.ceil(GRADE_FLOOR[target] - s.recent)) : null;
                 return (
-                  <li key={s.subject} className="px-5 py-4 sm:px-6">
-                    <div>
-                    <div className="flex items-baseline justify-between gap-3">
-                      <p className="min-w-0 truncate text-base font-semibold text-ink">{s.subject}</p>
-                      <p className="flex shrink-0 items-baseline gap-2">
-                        <span className="text-sm tabular-nums text-ink-3">{shownPercent(s.recent)}%</span>
-                        <span className="w-9 text-right text-xl font-bold leading-none tracking-[-0.02em] text-ink">{s.grade}</span>
-                      </p>
-                    </div>
-                    <div className="relative mt-3 h-1.5 rounded-full bg-surface-2" aria-hidden>
-                      <div className="h-full rounded-full bg-ink-3" style={{ width: `${Math.max(2, Math.min(100, s.recent))}%` }} />
-                      {target && <span className="absolute -top-1 h-3.5 w-0.5 rounded bg-ink" style={{ left: `${GRADE_FLOOR[target]}%` }} />}
-                    </div>
-                    {target && (
-                      <p className={cn("mt-2 text-sm font-semibold", gap ? "text-warning" : "text-success")}>
-                        {gap ? `${gap} ${gap === 1 ? "point" : "points"} to your ${target}` : `On track for ${target}`}
-                      </p>
-                    )}
-                    </div>
+                  <li key={s.subject} className="flex items-center gap-4 px-5 py-4 sm:px-6">
+                    {/* Never rounds up: 79.6% draws as 79 of 100. */}
+                    <ProgressRing done={Math.floor(s.recent)} total={100} size={40} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-base font-semibold text-ink">{s.subject}</span>
+                      {target && (
+                        <span className={cn("mt-0.5 block text-sm", gap ? "text-ink-2" : "font-semibold text-success")}>
+                          {gap ? `${gap} ${gap === 1 ? "point" : "points"} to your ${target}` : `On track for ${target}`}
+                        </span>
+                      )}
+                    </span>
+                    <span className="flex shrink-0 items-baseline gap-2">
+                      <span className="text-sm tabular-nums text-ink-3">{shownPercent(s.recent)}%</span>
+                      <span className="w-9 text-right text-xl font-bold leading-none tracking-[-0.02em] text-ink">{s.grade}</span>
+                    </span>
                   </li>
                 );
               })}
             </ul>
+            {data.strong.length > 0 && (
+              <p className="mt-3 text-sm text-ink-2">
+                <span className="font-semibold text-ink">Strong:</span> {data.strong.map((m) => m.name).join(", ")}
+              </p>
+            )}
           </section>
-
-          {pace}
-
-          {/* 4. Which topics? */}
-          {(data.weak.length > 0 || data.strong.length > 0) && (
-            <section className="grid gap-3 sm:grid-cols-2">
-              <div className="surface rounded-card p-5 sm:p-6">
-                <h2 className="text-lg font-bold tracking-[-0.01em] text-ink">Fix these next</h2>
-                {data.weak.length === 0 ? (
-                  <p className="mt-2 text-base text-ink-2">No weak topics right now. Nice.</p>
-                ) : (
-                  <ul className="mt-3 space-y-3">
-                    {data.weak.map((m, i) => {
-                      const notes = notesFor?.(m.subject, m.name) ?? null;
-                      const meta = (
-                        <span className="mt-0.5 block text-sm text-ink-3 tabular-nums">
-                          {m.subject} · {Math.round(m.percent)}%{notes ? ` · ${notes.label}` : ""}
-                        </span>
-                      );
-                      return (
-                      <li key={m.topic} className="flex items-center justify-between gap-3">
-                        {notes ? (
-                          // The topic opens its notes; Practise stays beside it.
-                          <Link href={notes.href} className="group flex min-h-11 min-w-0 flex-col justify-center">
-                            <span className="block truncate text-base font-semibold text-ink underline decoration-hairline-strong underline-offset-4 group-hover:decoration-ink-3">{m.name}</span>
-                            {meta}
-                          </Link>
-                        ) : (
-                          <span className="min-w-0">
-                            <span className="block truncate text-base font-semibold text-ink">{m.name}</span>
-                            {meta}
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            // "Open the notes for it" opens that note straight away.
-                            setPractise({ subject: m.subject, topic: m.name, noteHref: notes?.exact ? notes.href : undefined });
-                          }}
-                          className={buttonClasses({ variant: i === 0 ? "primary" : "secondary", size: "sm", className: "shrink-0" })}
-                        >
-                          Practise
-                        </button>
-                      </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-              <div className="surface rounded-card p-5 sm:p-6">
-                <h2 className="text-lg font-bold tracking-[-0.01em] text-ink">Your strengths</h2>
-                {data.strong.length === 0 ? (
-                  <p className="mt-2 text-base text-ink-2">Topics at 75% or more show here.</p>
-                ) : (
-                  <ul className="mt-3 flex flex-wrap gap-2">
-                    {data.strong.map((m) => (
-                      <li key={m.topic} className="rounded-full border border-border-strong px-3 py-1.5 text-sm tabular-nums">
-                        <span className="font-semibold text-ink">{m.name}</span> <span className="text-ink-2">{Math.round(m.percent)}%</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </section>
-          )}
-
         </>
       )}
 
-      <Link href="/groundwork" className="surface-quiet surface-link flex items-center justify-between gap-3 rounded-card p-5 text-base text-ink-2 sm:p-6">
-        <span>
-          Your study time, level and streak are in <span className="font-semibold text-ink">Focus</span>
-        </span>
-        <Icon.ChevronRight className="h-5 w-5 shrink-0 text-ink-3" />
-      </Link>
+      {/* 4. Showing up. */}
+      <AttendanceCard db={db} studentId={student.id} nowMs={nowMs} />
+
+      {/* 5. How much of each syllabus the class has covered. */}
+      <TopicTracker books={books} />
 
       </div>
       {practise &&
@@ -307,34 +261,27 @@ export default function ProgressPage() {
 }
 
 /** How many chapters of each syllabus the class has covered (a chapter counts once its notes are out). Home shows the same count. */
-function SyllabusDone({ books }: { books: BookProgress[] }) {
+function TopicTracker({ books }: { books: BookProgress[] }) {
   if (!books.length) return null;
   return (
-    <section className="surface rounded-card p-5 sm:p-6" aria-labelledby="syl-h">
-      <div className="flex items-center justify-between gap-3">
-        <h2 id="syl-h" className="text-lg font-bold tracking-[-0.01em] text-ink">Chapters covered</h2>
-        <Link href="/notes" className="-my-3 -mr-2 inline-flex min-h-11 items-center px-2 text-sm font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline">
-          Notes
-        </Link>
-      </div>
-      <ul className="mt-4 space-y-4">
-        {books.map((b) => {
-          const pct = b.total ? Math.round((b.covered / b.total) * 100) : 0;
-          return (
-            <li key={b.key}>
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="min-w-0 truncate text-base font-semibold text-ink">{b.label}</span>
-                <span className="shrink-0 text-sm tabular-nums text-ink-3">
+    <section aria-labelledby="topics-h">
+      <SectionTitle id="topics-h">Topic tracker</SectionTitle>
+      <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
+        {books.map((b) => (
+          <li key={b.key}>
+            <Link href={`/notes?shelf=${encodeURIComponent(b.key)}`} className="row-link flex items-center gap-4 px-5 py-4 sm:px-6">
+              <ProgressRing done={b.covered} total={b.total} size={40} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-base font-semibold text-ink">{b.label}</span>
+                <span className="mt-0.5 block text-sm tabular-nums text-ink-2">
                   {b.covered} of {b.total} chapters
                 </span>
-              </div>
-              <div className="mt-2 h-1.5 rounded-full bg-surface-2" aria-hidden>
-                <div className="h-full rounded-full bg-ink-3" style={{ width: `${pct > 0 ? Math.max(2, pct) : 0}%` }} />
-              </div>
-              {b.latest && <p className="mt-1.5 truncate text-sm text-ink-3">Latest: {b.latest.name}</p>}
-            </li>
-          );
-        })}
+                {b.latest && <span className="mt-0.5 block truncate text-sm text-ink-3">Latest: {b.latest.name}</span>}
+              </span>
+              <Icon.ChevronRight className="h-5 w-5 shrink-0 text-ink-3" />
+            </Link>
+          </li>
+        ))}
       </ul>
     </section>
   );

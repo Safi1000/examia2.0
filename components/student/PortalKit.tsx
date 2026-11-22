@@ -1,7 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { PortalArt } from "@/components/student/PortalArt";
+import { Icon } from "@/components/ui/Icons";
+import { buttonClasses } from "@/components/ui/Button";
 
 /**
  * The small set of shapes every student page shares, so headers, section
@@ -35,25 +38,46 @@ export function PageHeader({
   );
 }
 
-/** A section title with an optional count and a quiet action on the right. */
+/**
+ * A section title with an optional count, a grey line under it and a quiet
+ * action on the right. Use it for every heading inside a page, so pages never
+ * draw their own.
+ *
+ * Props: `children` (the words), `count?` (shown after the words when above 0),
+ * `action?` (a quiet link on the right), `sub?` (one grey line under it),
+ * `id?` (for aria-labelledby), `size?`: "page" (default, a section of the
+ * page) or "card" (a smaller title inside a card).
+ *
+ * @example
+ * <SectionTitle size="card" count={3} action={<Link href="/tests">All tests</Link>}>This week</SectionTitle>
+ */
 export function SectionTitle({
   children,
   count,
   action,
   sub,
   id,
+  size = "page",
 }: {
   children: React.ReactNode;
   count?: number;
   action?: React.ReactNode;
   sub?: React.ReactNode;
   id?: string;
+  size?: "page" | "card";
 }) {
   return (
     // Flush with the page edge, like the page title above it and the cards below it.
     <div className="mb-3 flex items-end justify-between gap-3">
       <div className="min-w-0">
-        <h2 id={id} className="flex items-center gap-2 text-xl font-bold leading-tight tracking-[-0.015em] text-ink">
+        <h2
+          id={id}
+          className={cn(
+            "flex items-center gap-2 font-bold text-ink",
+            // "card" is the smaller title Progress and Plan used to draw by hand.
+            size === "card" ? "text-lg tracking-[-0.01em]" : "text-xl leading-tight tracking-[-0.015em]",
+          )}
+        >
           {children}
           {typeof count === "number" && count > 0 && <span className="text-sm font-semibold text-ink-3 tabular-nums">{count}</span>}
           {/* After the words, so every section title starts on the same line. */}
@@ -203,5 +227,187 @@ export function CaughtUpMark() {
         </span>
       }
     />
+  );
+}
+
+/* ------------------------------------------------------------------------
+ * Progress, steps, endings and the way back. Progress is a ring or dots with
+ * words, never a horizontal bar; chosen and done are off white, never gold.
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Progress as a ring: "2 of 19" chapters, tests, pages. Never rounds up: 0 is
+ * an empty ring and the ring only closes when `done >= total`.
+ *
+ * Props: `done`, `total` (real counts only), `size?` (px, default 40),
+ * `stroke?` (px, default 3), `label?` (centre text, for example "2/19"),
+ * `tone?`: "plain" (off white, default) or "good" (green), `className?`.
+ * Screen readers hear "2 of 19". Moves from the old value to the new one,
+ * and stays still under reduced motion.
+ *
+ * @example
+ * <ProgressRing done={2} total={19} label="2/19" />
+ */
+export function ProgressRing({
+  done,
+  total,
+  size = 40,
+  stroke = 3,
+  label,
+  tone = "plain",
+  className,
+}: {
+  done: number;
+  total: number;
+  size?: number;
+  stroke?: number;
+  label?: React.ReactNode;
+  tone?: "plain" | "good";
+  className?: string;
+}) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const full = total > 0 && done >= total;
+  const frac = total > 0 ? Math.max(0, Math.min(done, total)) / total : 0;
+  // Short of the total, always leave a visible gap, so 18 of 19 never looks done.
+  const filled = full ? c : Math.min(frac * c, c - (stroke + 1.5));
+  return (
+    <span
+      role="img"
+      aria-label={`${Math.max(0, done)} of ${total}`}
+      style={{ width: size, height: size }}
+      className={cn("relative inline-grid shrink-0 place-items-center", className)}
+    >
+      <svg aria-hidden width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="absolute inset-0 -rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(240,237,232,.12)" strokeWidth={stroke} />
+        {filled > 0 && (
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke={tone === "good" ? "var(--color-success)" : "var(--color-ink)"}
+            strokeWidth={stroke}
+            strokeDasharray={c}
+            strokeDashoffset={c - filled}
+            className="transition-[stroke-dashoffset] duration-500 ease-[var(--ease-out)] motion-reduce:transition-none"
+          />
+        )}
+      </svg>
+      {label != null && (
+        <span aria-hidden className="relative font-semibold leading-none text-ink tabular-nums" style={{ fontSize: Math.max(9, Math.round(size * 0.26)) }}>
+          {label}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * Where you are in a short set (12 or fewer): one 6px dot per step, done and
+ * current off white, the rest faint. Too few for a ring, too many to read.
+ *
+ * Props: `at` (the current step, from 1), `total`, `words?` (adds "Step 2 of
+ * 5" beside the dots), `className?`.
+ *
+ * @example
+ * <StepDots at={2} total={5} words />
+ */
+export function StepDots({ at, total, words, className }: { at: number; total: number; words?: boolean; className?: string }) {
+  const now = Math.max(0, Math.min(at, total));
+  const text = `Step ${now} of ${total}`;
+  return (
+    <div className={cn("flex items-center gap-3", className)}>
+      <span role={words ? undefined : "img"} aria-label={words ? undefined : text} aria-hidden={words || undefined} className="flex items-center gap-1.5">
+        {Array.from({ length: total }, (_, i) => (
+          <span key={i} className={cn("h-1.5 w-1.5 rounded-full transition-colors", i < now ? "bg-ink" : "bg-white/15")} />
+        ))}
+      </span>
+      {words && <span className="text-sm text-ink-3 tabular-nums">{text}</span>}
+    </div>
+  );
+}
+
+/** One action for `FinishMoment`: a link when it has `href`, else a button. */
+export type FinishAction = { label: React.ReactNode; href?: string; onClick?: () => void };
+
+function FinishButton({ action, primary }: { action: FinishAction; primary?: boolean }) {
+  const cls = buttonClasses({ variant: primary ? "primary" : "ghost", size: "lg", fullWidth: true });
+  return action.href ? (
+    <Link href={action.href} onClick={action.onClick} className={cls}>{action.label}</Link>
+  ) : (
+    <button type="button" onClick={action.onClick} className={cls}>{action.label}</button>
+  );
+}
+
+/**
+ * The ending of anything a student finishes: what happened, up to three real
+ * numbers, exactly one gold next step and one quiet way out. No art.
+ *
+ * Props: `mark?` ("tick" for the green tick disc, or your own node; leave it
+ * out when a score above is already the moment), `title`, `line?` (one grey
+ * line), `facts?` (up to 3 `{ value, label }`, real numbers only), `primary`
+ * (the one gold button), `secondary?` (a quiet button), `className?`.
+ *
+ * @example
+ * <FinishMoment mark="tick" title="Done." line="Your answers are saved."
+ *   facts={[{ value: "5/5", label: "Answered" }]}
+ *   primary={{ label: "Next: Algebra foundations", href: "/test/t2" }}
+ *   secondary={{ label: "Back to Study", href: "/study" }} />
+ */
+export function FinishMoment({ mark, title, line, facts, primary, secondary, className }: {
+  mark?: "tick" | React.ReactNode;
+  title: React.ReactNode;
+  line?: React.ReactNode;
+  facts?: { value: React.ReactNode; label: React.ReactNode }[];
+  primary: FinishAction;
+  secondary?: FinishAction;
+  className?: string;
+}) {
+  const shown = (facts ?? []).slice(0, 3);
+  return (
+    <section className={cn("mx-auto max-w-md text-center", className)}>
+      {mark === "tick" ? (
+        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-success/25 bg-success-soft text-success">
+          <Icon.Check className="h-8 w-8" />
+        </div>
+      ) : mark ? <div className="mb-5 flex justify-center">{mark}</div> : null}
+      <h2 className="text-balance text-title font-bold tracking-[-0.025em] text-ink">{title}</h2>
+      {line && <p className="mt-2 text-base leading-relaxed text-pretty text-ink-2">{line}</p>}
+      {shown.length > 0 && (
+        <dl className="mt-6 flex justify-center gap-8">
+          {shown.map((f, i) => (
+            <div key={i} className="flex flex-col-reverse items-center gap-1">
+              <dt className="text-xs text-ink-3">{f.label}</dt>
+              <dd className="text-2xl font-bold leading-none text-ink tabular-nums">{f.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <div className="mt-8 flex flex-col gap-2">
+        <FinishButton action={primary} primary />
+        {secondary && <FinishButton action={secondary} />}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * A way back on phones in the browser, for pages opened from More (or Study).
+ * Hidden from 768px up and inside the phone app, which draws its own back.
+ *
+ * Props: `href`, `label` (the page you go back to, for example "More").
+ *
+ * @example
+ * <BackRow href="/more" label="More" />
+ */
+export function BackRow({ href, label }: { href: string; label: string }) {
+  return (
+    <div className="web-only md:hidden">
+      <Link href={href} className="-ml-1.5 inline-flex h-11 items-center gap-1 pr-3 text-sm font-semibold text-ink-2 transition-colors hover:text-ink">
+        <Icon.ChevronLeft className="h-4 w-4" />
+        {label}
+      </Link>
+    </div>
   );
 }

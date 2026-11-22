@@ -22,8 +22,8 @@ import { subjectsAtLevel } from "@/lib/levels";
 import { levelOf, subjectOf, pkDate, type LevelKey, type SubjectKey } from "@/lib/timetable";
 
 export const EXAM_SERIES = {
-  name: "May / June 2027",
-  source: "Cambridge Final Exam Timetable June 2027, zone 4",
+  name: "May/June 2027",
+  source: "Cambridge May/June 2027 timetable, zone 4",
   checked: "2026-11-17",
 };
 

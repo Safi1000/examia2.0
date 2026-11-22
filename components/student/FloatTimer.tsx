@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { ProgressRing } from "@/components/student/PortalKit";
 
 /**
  * The floating timer: a small always-on-top window, like a YouTube video in
@@ -54,6 +55,7 @@ let docBlocked = false;
 
 const GOLD = "#FBC159";
 const MINT = "#7FD1A6";
+const INK = "#f0ede8";
 
 /** Draw the timer for the video float (16:9). */
 function drawFrame(c: HTMLCanvasElement, v: FloatView) {
@@ -96,23 +98,23 @@ function drawFrame(c: HTMLCanvasElement, v: FloatView) {
     ctx.fillText("Stand up, drink some water.", 40, 272);
   }
 
-  const done = v.totalMs ? 1 - v.leftMs / v.totalMs : 0;
-  const y = H - 46;
-  ctx.fillStyle = "rgba(255,255,255,.12)";
-  roundRect(ctx, 40, y, W - 80, 8, 4);
-  ctx.fillStyle = accent;
-  roundRect(ctx, 40, y, Math.max(8, (W - 80) * Math.min(1, Math.max(0, done))), 8, 4);
-}
-
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  // The block's progress: a small ring beside the time, off white (green on a break), never a bar.
+  const done = v.totalMs ? Math.min(1, Math.max(0, 1 - v.leftMs / v.totalMs)) : 0;
+  const cx = W - 76;
+  const cy = 166;
+  const r = 30;
+  ctx.lineWidth = 7;
+  ctx.strokeStyle = "rgba(255,255,255,.12)";
   ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-  ctx.fill();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+  if (done > 0) {
+    ctx.strokeStyle = v.phase === "rest" ? MINT : INK;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * done);
+    ctx.stroke();
+  }
 }
 
 /** Copy the page's styles into the mini window so it looks like the portal. */
@@ -321,7 +323,9 @@ export function useFloatTimer(view: FloatView, actions: Actions, enabled: boolea
 /** The desktop mini window's content. */
 function MiniTimer({ view, actions }: { view: FloatView; actions: Actions }) {
   const rest = view.phase === "rest";
-  const done = view.totalMs ? 1 - view.leftMs / view.totalMs : 0;
+  // Seconds gone of the block's seconds, for the ring.
+  const total = Math.round(view.totalMs / 1000);
+  const gone = Math.max(0, total - Math.ceil(view.leftMs / 1000));
   return (
     <div className="flex h-full select-none flex-col justify-between bg-[#0f1214] p-5 text-white" style={{ fontFamily: "inherit" }}>
       <div className="flex items-center justify-between gap-3">
@@ -335,9 +339,10 @@ function MiniTimer({ view, actions }: { view: FloatView; actions: Actions }) {
         {rest && <p className="mt-2 text-sm text-white/65">Stand up, drink some water.</p>}
       </div>
       <div className="flex items-center gap-3">
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
-          <div className={`h-full rounded-full ${rest ? "bg-[#7FD1A6]" : "bg-[#FBC159]"}`} style={{ width: `${Math.max(2, Math.min(100, done * 100))}%` }} />
-        </div>
+        {/* The block's progress as a small ring: off white, green on a break. The time above already says it in words. */}
+        <span aria-hidden className="flex-1">
+          <ProgressRing done={gone} total={total} size={36} stroke={3.5} tone={rest ? "good" : "plain"} />
+        </span>
         <button
           type="button"
           onClick={() => (view.paused ? actions.resume() : actions.pause())}

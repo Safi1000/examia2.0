@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useDatabase } from "@/lib/data/store";
-import { studentById, testById, submissionFor, submissionsForStudent, testsForStudent, liveStatus } from "@/lib/data/selectors";
+import { studentById, testById, submissionFor, submissionsForStudent } from "@/lib/data/selectors";
 import type { Database } from "@/lib/data/seed";
-import type { Student } from "@/types";
-import { Card, Badge, Icon } from "@/components/ui";
+import { Card, Badge, Icon, EmptyState } from "@/components/ui";
+import { nextOpenTest } from "@/components/student/StudyCoach";
 import { buttonClasses } from "@/components/ui/Button";
 import { formatDuration, formatTimestamp } from "@/lib/time";
 
@@ -23,9 +23,13 @@ export default function SubmittedPage() {
 
   if (!student || !test || !submission) {
     return (
-      <div className="mx-auto max-w-md px-5 py-16 text-center text-base text-ink-2">
-        Nothing to show here.{" "}
-        <Link href="/dashboard" className="inline-flex min-h-11 items-center font-semibold text-ink underline underline-offset-4 hover:text-ink-2">Back to Home</Link>
+      <div className="mx-auto max-w-md px-5 pb-16 pt-12">
+        <EmptyState
+          icon={<Icon.Doc />}
+          title="Nothing handed in yet"
+          message="Open the test from Study to start it."
+          action={<Link href="/study" className={buttonClasses({ fullWidth: true })}>Go to Study</Link>}
+        />
       </div>
     );
   }
@@ -68,7 +72,8 @@ export default function SubmittedPage() {
         )}
         <Row label="Status">
           {submission.autoSubmitted ? (
-            <Badge tone="warning">Handed in at time up</Badge>
+            // Plain words, not an amber badge, so the gold Next below stays the only gold.
+            <span className="text-right text-ink-2">Handed in when time ran out</span>
           ) : (
             <Badge tone="success">Handed in</Badge>
           )}
@@ -116,14 +121,6 @@ function usualTurnaround(db: Database, studentId: string): number | null {
   if (waits.length < 3) return null;
   const avg = waits.reduce((a, b) => a + b, 0) / waits.length;
   return Math.max(1, Math.ceil(avg / 86_400_000));
-}
-
-/** One open test this student still has to do, soonest closing first. */
-function nextOpenTest(db: Database, student: Student, currentId: string) {
-  const now = Date.now();
-  return testsForStudent(db, student)
-    .filter((t) => t.id !== currentId && liveStatus(t, now) === "active" && +new Date(t.opensAt) <= now && (submissionFor(db, student.id, t.id)?.status ?? "in_progress") === "in_progress")
-    .sort((a, b) => a.closesAt.localeCompare(b.closesAt))[0] ?? null;
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {

@@ -15,7 +15,7 @@ import { formatRelative, formatTimestamp, formatWhen } from "@/lib/time";
 import { cn } from "@/lib/cn";
 import { useNow } from "@/hooks/useNow";
 import { FocusOnThis } from "@/components/student/FocusOnThis";
-import { EmptyArt, PageHeader } from "@/components/student/PortalKit";
+import { EmptyArt, PageHeader, ProgressRing } from "@/components/student/PortalKit";
 
 // Replies the student has seen, kept on this phone: assignment id -> the reply's time.
 const seenKey = (studentId: string) => `examia.replySeen.${studentId}`;
@@ -157,6 +157,8 @@ function AssignmentCard({ assignment, studentId, lead, newReply }: { assignment:
   const { toast } = useToast();
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  // How many files this upload holds and how many are fully up, for "Uploading 2 of 4 pages".
+  const [count, setCount] = useState({ done: 0, total: 0, pages: true });
   const fileRef = useRef<HTMLInputElement>(null);
   // The next upload replaces the work instead of adding to it (one wrong photo).
   const replacing = useRef(false);
@@ -237,6 +239,7 @@ function AssignmentCard({ assignment, studentId, lead, newReply }: { assignment:
     }
     setUploading(true);
     setProgress(0);
+    setCount({ done: 0, total: accepted.length, pages: accepted.every((f) => f.type.startsWith("image/")) });
     // The full page list once the photos are up, kept if saving it fails, so a
     // weak signal at that last step never means uploading everything again.
     let list: string[] | null = null;
@@ -255,6 +258,7 @@ function AssignmentCard({ assignment, studentId, lead, newReply }: { assignment:
             (value) => ({ status: "fulfilled" as const, value }),
             (reason: unknown) => ({ status: "rejected" as const, reason }),
           );
+          setCount((c) => ({ ...c, done: c.done + 1 }));
         }
       };
       await Promise.all([worker(), worker()]);
@@ -284,12 +288,12 @@ function AssignmentCard({ assignment, studentId, lead, newReply }: { assignment:
         ) : mine ? (
           <Badge tone={+new Date(mine.submittedAt) > +new Date(assignment.dueAt) ? "neutral" : "success"}>{+new Date(mine.submittedAt) > +new Date(assignment.dueAt) ? "Handed in late" : "Handed in"}</Badge>
         ) : (
-          overdue && <Badge tone="warning">Overdue</Badge>
+          overdue && <Badge tone="error">Overdue</Badge>
         )}
       </div>
       <h2 className="mt-1.5 text-base font-semibold leading-snug text-ink">{assignment.title}</h2>
       {/* Still to hand in: how long is left first, as Home and Tests say it, then the date. */}
-      <p className={cn("mt-1 text-sm tabular-nums", overdue && !mine ? "font-semibold text-warning" : "text-ink-2")}>
+      <p className={cn("mt-1 text-sm tabular-nums", overdue && !mine ? "font-semibold text-error" : "text-ink-2")}>
         {!mine && !overdue ? (
           <>
             Due {formatRelative(assignment.dueAt, nowMs)} <span className="text-ink-3">· {formatWhen(assignment.dueAt)}</span>
@@ -382,24 +386,31 @@ function AssignmentCard({ assignment, studentId, lead, newReply }: { assignment:
           {!mine && <FocusOnThis kind="homework" title={assignment.title} subject={subjectName} id={assignment.id} />}
         </div>
         {uploading && (
+          // Progress is a ring, never a bar: it fills with what has been sent and closes only when all is up.
           <div className="mt-2.5 flex items-center gap-2.5" role="status">
-            <span className="h-1.5 w-40 overflow-hidden rounded-full bg-surface-2" aria-hidden>
-              <span className="block h-full rounded-full bg-ink-2 transition-[width] duration-200" style={{ width: `${Math.max(4, progress * 100)}%` }} />
+            <span aria-hidden className="inline-flex">
+              <ProgressRing done={progress} total={1} size={20} stroke={2.5} />
             </span>
-            <span className="text-sm font-semibold tabular-nums text-ink-2">{progress >= 0.99 ? "Almost done…" : `Uploading ${Math.round(progress * 100)}%`}</span>
+            <span className="text-sm font-semibold tabular-nums text-ink-2">
+              {progress >= 0.99
+                ? "Almost done…"
+                : count.total <= 1
+                  ? `Uploading your ${count.pages ? "page" : "file"}`
+                  : `Uploading ${Math.min(count.done + 1, count.total)} of ${count.total} ${count.pages ? "pages" : "files"}`}
+            </span>
           </div>
         )}
         {unsaved && !uploading && (
           <div role="alert" className="mt-3 rounded-tile border border-warning/35 bg-warning-soft p-4">
-            <p className="text-sm text-ink">Your photos uploaded, but the hand-in didn&apos;t reach me. Check your internet, then tap Try again.</p>
+            <p className="text-sm text-ink">Your photos uploaded, but they didn&apos;t reach me. Check your internet, then tap Try again.</p>
             <Button variant="secondary" className="mt-3" onClick={() => void saveAgain()}>
               <Icon.Refresh className="h-4 w-4" /> Try again
             </Button>
           </div>
         )}
         {mine?.feedback && <p className="mt-2 text-sm text-ink-3">I&apos;ve already replied. If you add pages, message me so I see them.</p>}
-        {overdue && !mine && <p className="mt-2 text-sm text-ink-3">The deadline has passed, but you can still hand it in.</p>}
-        {!mine && !uploading && <p className="mt-2 text-sm text-ink-3">Take a clear photo of each page, or pick a PDF. You can add more pages after.</p>}
+        {/* One line of small print: the button already says "Hand in late" when it is late. */}
+        {!mine && !uploading && <p className="mt-2 text-sm text-ink-3">A clear photo of each page, or one PDF.</p>}
       </div>
     </Card>
   );

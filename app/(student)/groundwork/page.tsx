@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Children, useEffect, useMemo, useState } from "react";
 import { HOMEWORK_CAP, freeTime, homeworkAhead, planToday, type PlanItem } from "@/lib/groundwork-plan";
 import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
@@ -19,6 +19,7 @@ import { CalmStart } from "@/components/student/CalmStart";
 import { SlotsCard, SundayReview, WeekCard, WeekGlance } from "@/components/student/GroundworkCards";
 import { ShareMoment } from "@/components/student/ShareMoment";
 import { SyllabusCard, useTopicalIndex } from "@/components/student/SyllabusCard";
+import { SectionTitle } from "@/components/student/PortalKit";
 import { practiceToday, syllabusProgress } from "@/lib/syllabus-progress";
 import Link from "next/link";
 import type { Mission } from "@/components/student/FocusMode";
@@ -113,7 +114,7 @@ export default function GroundworkPage() {
 
           {(later.length > 0 || oneThing || practice.length > 0) && (
             <Group title="Today">
-              <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
+              <TodayList>
                 {oneThing && (
                   <li className="flex items-center gap-4 px-5 py-4">
                     <span className="min-w-0 flex-1">
@@ -124,7 +125,7 @@ export default function GroundworkPage() {
                       type="button"
                       onClick={() => updateProfile({ today: { ...oneThing, done: !oneThing.done } })}
                       aria-pressed={!!oneThing.done}
-                      className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm transition-colors duration-150 after:absolute after:-inset-1 after:content-[''] ${oneThing.done ? "border-brand bg-brand text-on-brand" : "border-border-strong text-transparent hover:text-ink-3"}`}
+                      className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm transition-colors duration-150 after:absolute after:-inset-1 after:content-[''] ${oneThing.done ? "border-ink bg-ink text-paper" : "border-border-strong text-transparent hover:text-ink-3"}`}
                       aria-label={oneThing.done ? "Mark not done" : "Mark done"}
                     >
                       ✓
@@ -188,14 +189,14 @@ export default function GroundworkPage() {
                     </Link>
                   </li>
                 ))}
-              </ul>
+              </TodayList>
             </Group>
           )}
 
         </div>
 
         {books.length > 0 && (
-          <Group title="Syllabus">
+          <Group title="Topic tracker">
             <SyllabusCard books={books} index={index} />
           </Group>
         )}
@@ -262,11 +263,33 @@ export default function GroundworkPage() {
 function Group({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="min-w-0">
-      <div className="mb-3 flex min-h-9 items-center justify-between gap-3">
-        <h2 className="text-xl font-bold leading-tight tracking-[-0.015em] text-ink">{title}</h2>
-        {action}
-      </div>
+      <SectionTitle action={action}>{title}</SectionTitle>
       {children}
     </section>
+  );
+}
+
+/** Today's rows: the first three, then "Show 3 more" for the rest, so the list stays short. */
+const TODAY_FIRST = 3;
+function TodayList({ children }: { children: React.ReactNode }) {
+  const [all, setAll] = useState(false);
+  const rows = Children.toArray(children);
+  const hidden = rows.length - TODAY_FIRST;
+  return (
+    <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
+      {all || hidden <= 0 ? rows : rows.slice(0, TODAY_FIRST)}
+      {hidden > 0 && (
+        <li>
+          <button
+            type="button"
+            onClick={() => setAll(!all)}
+            aria-expanded={all}
+            className="row-link flex min-h-11 w-full items-center px-5 py-3 text-left text-sm font-medium text-ink-2 hover:text-ink"
+          >
+            {all ? "Show less" : `Show ${hidden} more`}
+          </button>
+        </li>
+      )}
+    </ul>
   );
 }

@@ -96,8 +96,8 @@ export default function PlanPage() {
   return (
     <div className="mx-auto max-w-3xl px-5 pb-16 pt-6 sm:px-6 sm:pt-8">
       <div className="rise space-y-10">
-      <PageHeader title="Your plan to the exams">
-        I build this from your marks, so your weak topics come round more often.
+      <PageHeader title="My plan">
+        Built from your marks, so your weak topics come round more often.
       </PageHeader>
 
       {/* Countdown: one surface, two numbers split by a hairline. */}
@@ -147,7 +147,7 @@ export default function PlanPage() {
             })}
           </ol>
           <p className="mt-3 text-sm text-ink-3">
-            From {EXAM_SERIES.source}. If your statement of entry shows a different date, that one is right: tell me.
+            Dates from {EXAM_SERIES.source}. If your statement of entry shows a different date, that one is right: tell me.
           </p>
         </section>
       )}
@@ -155,7 +155,7 @@ export default function PlanPage() {
       {/* This week */}
       <section className="surface rounded-card p-5 sm:p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-bold tracking-[-0.01em] text-ink">This week</h2>
+          <SectionTitle size="card">This week</SectionTitle>
           <p className="text-sm text-ink-2">
             Week of {weekLabel(current.start)} · {PHASE[current.phase].label}
           </p>

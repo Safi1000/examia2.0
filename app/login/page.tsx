@@ -75,6 +75,8 @@ export default function StudentLoginPage() {
   }
 
   return (
+    // The script "Welcome." is off white here, so the logo is the one brand gold and Sign in turns gold when ready.
+    <div className="contents [&_p[style*='font-caveat']]:!text-ink">
     <AuthShell
       kicker="Private · Students only"
       title="Student sign in"
@@ -162,5 +164,6 @@ export default function StudentLoginPage() {
         </SubmitButton>
       </form>
     </AuthShell>
+    </div>
   );
 }

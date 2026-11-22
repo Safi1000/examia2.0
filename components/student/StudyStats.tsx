@@ -7,6 +7,7 @@ import { displayName } from "@/lib/display-name";
 import { LEVELS, STUDY_NAME, currentStats, levelFor, mondayOf } from "@/lib/focus";
 import { addDays, pkDate } from "@/lib/timetable";
 import { Avatar } from "@/components/student/Avatar";
+import { ProgressRing } from "@/components/student/PortalKit";
 import { Card } from "@/components/ui";
 import { useState } from "react";
 
@@ -30,10 +31,15 @@ export function StudyStats({ nowMs }: { nowMs: number }) {
   const today = pkDate(nowMs);
   const start = addDays(mondayOf(today), -7 * (WEEKS - 1));
   const days = stats.days ?? {};
+  // Off white steps, never gold: gold is kept for the page's one main action.
   const shade = (m: number) =>
-    m <= 0 ? "var(--color-surface-2)" : m < 30 ? "rgba(251,193,89,0.3)" : m < 60 ? "rgba(251,193,89,0.55)" : m < 120 ? "rgba(251,193,89,0.8)" : "#FBC159";
+    m <= 0 ? "var(--color-surface-2)" : m < 30 ? "rgba(240,237,232,0.1)" : m < 60 ? "rgba(240,237,232,0.22)" : m < 120 ? "rgba(240,237,232,0.4)" : "rgba(240,237,232,0.7)";
   const subjects = Object.entries(stats.bySubject).sort((a, b) => b[1] - a[1]);
-  const weekMax = Math.max(1, ...subjects.map(([, m]) => m));
+  const weekTotal = subjects.reduce((a, [, m]) => a + m, 0);
+  // This level so far, in minutes, against the minutes the level spans. Rounded down, never up.
+  const levelSpan = level.next ? (level.next.hours - level.hours) * 60 : 0;
+  const levelDone = level.next ? Math.min(levelSpan, Math.floor(total - level.hours * 60)) : 0;
+  const hrs = (min: number) => `${Math.floor(min / 6) / 10}`;
   // A tapped day: its date and minutes show under the calendar (phones have no hover).
   const [picked, setPicked] = useState<string | null>(null);
 
@@ -44,17 +50,17 @@ export function StudyStats({ nowMs }: { nowMs: number }) {
         <div className="min-w-0 flex-1">
           <p className="label-quiet text-ink-3">{STUDY_NAME}</p>
           <p className="text-lg font-bold text-ink">
-            {level.name} <span className="text-sm font-medium text-ink-3">· {Math.round(total / 6) / 10} h studied</span>
+            {level.name} <span className="text-sm font-medium text-ink-3">· {hrs(total)} h studied</span>
           </p>
           {level.next ? (
-            <>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2" aria-hidden>
-                <div className="h-full rounded-full bg-brand" style={{ width: `${Math.max(3, level.progress * 100)}%` }} />
-              </div>
-              <p className="mt-1.5 text-sm text-ink-3">
-                {Math.ceil(level.toNext)} h to {level.next.name}, and a new avatar frame
+            <div className="mt-2 flex items-center gap-3">
+              <span aria-hidden>
+                <ProgressRing done={levelDone} total={levelSpan} size={28} />
+              </span>
+              <p className="min-w-0 text-sm text-ink-3">
+                {hrs(levelDone)} of {hrs(levelSpan)} h to {level.next.name}, and a new avatar frame
               </p>
-            </>
+            </div>
           ) : (
             <p className="mt-1 text-sm text-ink-2">Top level reached.</p>
           )}
@@ -99,14 +105,15 @@ export function StudyStats({ nowMs }: { nowMs: number }) {
       {subjects.length > 0 && (
         <div>
           <p className="mb-2 text-base font-semibold text-ink">This week</p>
+          {/* Each subject's share of the week as a small ring, then its minutes. */}
           <ul className="space-y-2">
             {subjects.map(([sub, m]) => (
-              <li key={sub} className="flex items-center gap-3 text-sm">
-                <span className="w-32 shrink-0 truncate text-ink-2">{sub}</span>
-                <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
-                  <span className="block h-full rounded-full bg-brand" style={{ width: `${(m / weekMax) * 100}%` }} />
+              <li key={sub} className="flex min-h-8 items-center gap-3 text-sm">
+                <span aria-hidden>
+                  <ProgressRing done={m} total={weekTotal} size={20} stroke={2.5} />
                 </span>
-                <span className="w-16 shrink-0 text-right tabular-nums text-ink">{m} min</span>
+                <span className="min-w-0 flex-1 truncate text-ink-2">{sub}</span>
+                <span className="shrink-0 text-right tabular-nums text-ink">{m} min</span>
               </li>
             ))}
           </ul>

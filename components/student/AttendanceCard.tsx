@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { Database } from "@/lib/data/seed";
 import { attendancePercent, countedDays } from "@/lib/data/selectors";
 import { cn } from "@/lib/cn";
+import { SectionTitle } from "@/components/student/PortalKit";
 
 /** "2026-11" for a time, in Pakistan time (classes run on Pakistan dates). */
 const monthOf = (ms: number) => new Date(ms + 5 * 3_600_000).toISOString().slice(0, 7);
@@ -12,7 +13,8 @@ const dayLabel = (ymd: string) => new Date(`${ymd}T12:00:00Z`).toLocaleDateStrin
 
 const STATUS = {
   present: { dot: "bg-success", label: "Present" },
-  late: { dot: "bg-warning", label: "Late" },
+  // Off white, not amber: amber sits too close to gold, and gold is only for the main action.
+  late: { dot: "bg-ink/45", label: "Late" },
   absent: { dot: "bg-error", label: "Absent" },
 } as const;
 
@@ -66,25 +68,28 @@ export function AttendanceCard({ db, studentId, nowMs }: { db: Pick<Database, "a
   if (data.percent == null || !data.headMonth) return null;
   const pct = Math.round(data.percent);
   const diff = data.prev != null ? Math.round(data.percent - data.prev) : null;
-  // The same two levels as Home: plain from 75%, amber below.
-  const tone = pct >= 75 ? "text-ink" : "text-warning";
+  // Two levels: plain from 75%, red below (status is green or red, never amber).
+  const tone = pct >= 75 ? "text-ink" : "text-error";
 
   return (
     <section className="surface rounded-card p-5 sm:p-6" aria-labelledby="att-h">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 id="att-h" className="text-lg font-bold tracking-[-0.01em] text-ink">Attendance</h2>
-          <p className="text-sm text-ink-3">{monthName(data.headMonth)}</p>
-        </div>
-        <div className="text-right">
-          <p className={cn("text-title font-bold leading-none tabular-nums", tone)}>{pct}%</p>
-          {diff != null && diff !== 0 && (
-            <p className="mt-1.5 text-sm font-semibold text-ink-2 tabular-nums">
-              {diff > 0 ? "Up" : "Down"} {Math.abs(diff)} {Math.abs(diff) === 1 ? "point" : "points"} on {data.prevName}
-            </p>
-          )}
-        </div>
-      </div>
+      <SectionTitle
+        size="card"
+        id="att-h"
+        sub={monthName(data.headMonth)}
+        action={
+          <div className="text-right">
+            <p className={cn("text-title font-bold leading-none tabular-nums", tone)}>{pct}%</p>
+            {diff != null && diff !== 0 && (
+              <p className="mt-1.5 text-sm font-semibold text-ink-2 tabular-nums">
+                {diff > 0 ? "Up" : "Down"} {Math.abs(diff)} {Math.abs(diff) === 1 ? "point" : "points"} on {data.prevName}
+              </p>
+            )}
+          </div>
+        }
+      >
+        Attendance
+      </SectionTitle>
 
       {data.recent.length > 0 && (
         <>
