@@ -109,7 +109,7 @@ export function Welcome({ db, student }: { db: Database; student: Student }) {
         <ul className="surface divide-y divide-hairline rounded-card">
           {[
             { icon: <NavIcon.Classes className="h-6 w-6" />, t: "Join class from Home", d: "A gold Join button appears 5 minutes before each class. One tap and you are in." },
-            { icon: <NavIcon.Tests className="h-6 w-6" />, t: "One list of what's due", d: "Tests and homework show on Home with their deadlines. Tests and Homework each have their own tab, and a gold number means something is waiting." },
+            { icon: <NavIcon.Tests className="h-6 w-6" />, t: "One list of what's due", d: "Tests and homework show on Home with their deadlines. On a phone they sit together under Study, and a number on that tab means something is waiting." },
             { icon: <NavIcon.Progress className="h-6 w-6" />, t: "See where you stand", d: "Your grade, your weak topics and this week's plan, updated after every test." },
           ].map((x) => (
             <li key={x.t} className="flex gap-4 px-5 py-4">

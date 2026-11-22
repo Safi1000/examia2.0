@@ -181,6 +181,15 @@ export const NavIcon = {
       <Gold active={active}><path d="M12 15V4M8 7.5L12 3.5l4 4" fill="none" strokeWidth="1.7" /></Gold>
     </Svg>
   ),
+  /** The phone dock's More tab: four rounded squares, one lit. */
+  More: ({ active, className }: P) => (
+    <Svg active={active} className={className}>
+      <rect x="4" y="4" width="6.5" height="6.5" rx="1.8" />
+      <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8" />
+      <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.8" />
+      <Gold active={active}><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.8" strokeWidth="0" /></Gold>
+    </Svg>
+  ),
   Logout: ({ className }: P) => (
     <Svg className={className}>
       <path d="M14 4h3.5A1.5 1.5 0 0119 5.5v13a1.5 1.5 0 01-1.5 1.5H14M10 8l-4 4 4 4M6 12h9" />

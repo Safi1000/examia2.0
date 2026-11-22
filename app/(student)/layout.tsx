@@ -49,6 +49,8 @@ const TITLES: Record<string, string> = {
   "/settings": "Settings",
   "/notifications": "Notifications",
   "/results": "Result",
+  "/study": "Study",
+  "/more": "More",
 };
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
@@ -195,9 +197,21 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const due = dueFor(db, student, nowMs);
   const testsDue = due.openTests.length;
   const homeworkDue = due.overdue.length + due.dueSoon.filter((a) => +new Date(a.dueAt) - nowMs < 3 * 86_400_000).length;
-  const phoneLinks = [links[0], links[1], { ...links[2], badge: testsDue }, { ...links[4], badge: homeworkDue }, links[5]];
-  // On a phone, pages with no tab of their own light up Home (they open from it).
-  const fromHome = ["/plan", "/progress", "/groundwork", "/settings", "/notifications"];
+  // Phones (Nov 2026, to match the phone app): Home, Study, the gold Focus button, Notes, More.
+  // Classes opens from Home; Progress, Settings and Notifications from More.
+  const phoneLinks: PhoneTab[] = [
+    { href: "/dashboard", label: "Home", Icon: NavIcon.Home, lights: (p) => p === "/dashboard" || p === "/plan" || p.startsWith("/classes") },
+    {
+      href: "/study",
+      label: "Study",
+      Icon: NavIcon.Tests,
+      badge: testsDue + homeworkDue,
+      lights: (p) => p === "/study" || p.startsWith("/tests") || p.startsWith("/assignments") || p.startsWith("/test/") || p.startsWith("/results"),
+    },
+    { href: "/groundwork", label: "Focus", Icon: NavIcon.Groundwork, centre: true, lights: (p) => p.startsWith("/groundwork") },
+    { href: "/notes", label: "Notes", Icon: NavIcon.Notes, lights: (p) => p.startsWith("/notes") },
+    { href: "/more", label: "More", Icon: NavIcon.More, lights: (p) => p === "/more" || p.startsWith("/progress") || p.startsWith("/settings") || p.startsWith("/notifications") },
+  ];
   // Results and the Done screen after a test belong to Tests; the full plan opens from Home.
   const inTests = pathname.startsWith("/results") || /^\/test\/[^/]+\/submitted$/.test(pathname);
   const isActive = (href: string) =>
@@ -275,45 +289,99 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       {!inRunner && !profile.onboarded && <WelcomeWhenFree db={db} student={student} />}
       {!inRunner && <NotifyNudge />}
 
-      {/* Phones: a floating dock at the thumb. */}
-      {!inRunner && (
-        <nav
-          aria-label="Primary"
-          data-tabbar
-          className="web-only fixed inset-x-3 bottom-3 z-40 md:hidden"
-          style={{ marginBottom: "env(safe-area-inset-bottom)" }}
-        >
-          <ul className="surface grid grid-cols-5 rounded-card p-1.5">
-            {phoneLinks.map((l) => {
-              const active = isActive(l.href) || (l.href === "/dashboard" && fromHome.includes(pathname));
-              return (
-                <li key={l.href}>
-                  <Link
-                    href={l.href}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "flex h-[52px] flex-col items-center justify-center gap-1 rounded-2xl text-xs font-semibold transition-[background-color,color,transform] duration-150 active:scale-95",
-                      active ? "bg-white/[0.07] text-ink" : "text-ink-3",
-                    )}
-                  >
-                    <span className="relative">
-                      <l.Icon active={active} className="h-[20px] w-[20px]" />
-                      {"badge" in l && !!l.badge && (
-                        <span aria-hidden className="absolute -right-2.5 -top-1.5 min-w-[18px] rounded-full bg-brand px-1 text-center text-xs font-bold leading-[18px] text-on-brand tabular-nums ring-2 ring-surface">
-                          {l.badge}
-                        </span>
-                      )}
-                    </span>
-                    {l.short}
-                    {"badge" in l && !!l.badge && <span className="sr-only">, {l.badge} to do</span>}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-      )}
+      {/* Phones: a floating dock at the thumb, the same shape as the phone app's bar. */}
+      {!inRunner && <PhoneDock tabs={phoneLinks} pathname={pathname} />}
     </div>
+  );
+}
+
+type PhoneTab = {
+  href: string;
+  label: string;
+  Icon: (p: { active?: boolean; className?: string }) => React.ReactNode;
+  badge?: number;
+  /** The gold Focus button in the middle. */
+  centre?: boolean;
+  /** The pages that light this tab up. */
+  lights: (pathname: string) => boolean;
+};
+
+/**
+ * The phone dock (below md): a floating capsule with five even columns, an
+ * off-white highlight on the current tab (never gold), and the gold Focus
+ * button raised in the middle, like the phone app (mobile-1.2 components/portal.tsx Dock).
+ */
+function PhoneDock({ tabs, pathname }: { tabs: PhoneTab[]; pathname: string }) {
+  return (
+    <nav
+      aria-label="Primary"
+      data-tabbar
+      className="web-only fixed inset-x-3 bottom-3 z-40 md:hidden"
+      style={{ marginBottom: "env(safe-area-inset-bottom)" }}
+    >
+      <ul className="relative grid h-16 grid-cols-5 rounded-full border border-white/[0.08] bg-surface/[0.92] p-1.5 shadow-[0_18px_40px_-14px_rgba(0,0,0,0.75)] backdrop-blur-xl">
+        {tabs.map((t) => {
+          const active = t.lights(pathname);
+          if (t.centre) {
+            return (
+              <li key={t.href} className="relative flex justify-center">
+                <Link
+                  href={t.href}
+                  aria-label="Focus timer"
+                  aria-current={active ? "page" : undefined}
+                  className="group absolute -top-[21px] flex h-16 w-16 items-center justify-center rounded-full bg-[#25282B] outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
+                >
+                  {/* The soft gold glow under the disc. */}
+                  <span aria-hidden className="absolute h-[54px] w-[54px] rounded-full bg-brand/45 blur-[10px]" />
+                  <span
+                    aria-hidden
+                    className="relative flex h-[54px] w-[54px] items-center justify-center rounded-full bg-[linear-gradient(180deg,#FFDF94,#FBC159_55%,#F4B444)] text-on-brand shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] transition-transform duration-150 ease-[var(--ease-out)] group-active:scale-[0.92] motion-reduce:transition-none motion-reduce:group-active:scale-100"
+                  >
+                    <FocusGlyph className="h-[26px] w-[26px]" />
+                  </span>
+                </Link>
+              </li>
+            );
+          }
+          const badge = t.badge ? (t.badge > 9 ? "9+" : String(t.badge)) : null;
+          return (
+            <li key={t.href} className="min-w-0">
+              <Link
+                href={t.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "flex h-full flex-col items-center justify-center gap-1 rounded-full text-xs leading-none whitespace-nowrap outline-none transition-[background-color,color,transform] duration-150 ease-[var(--ease-out)] active:scale-[0.94] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink motion-reduce:transition-none motion-reduce:active:scale-100",
+                  active ? "bg-white/[0.09] font-semibold text-ink" : "font-medium text-ink/55",
+                )}
+              >
+                <span className="relative">
+                  <t.Icon active={active} className="h-[22px] w-[22px]" />
+                  {badge && (
+                    <span aria-hidden className="absolute -right-2.5 -top-1.5 min-w-[18px] rounded-full bg-ink px-1 text-center text-[10px] font-bold leading-[18px] text-paper tabular-nums ring-2 ring-surface">
+                      {badge}
+                    </span>
+                  )}
+                </span>
+                {t.label}
+                {badge && <span className="sr-only">, {t.badge} to do</span>}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+/** The Focus button's glyph: a filled stopwatch in dark charcoal. */
+function FocusGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden fill="none">
+      <rect x="9.5" y="2" width="5" height="2.2" rx="1.1" fill="currentColor" />
+      <path d="M18.4 6.2l1.3-1.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="12" cy="13.5" r="7.5" fill="currentColor" />
+      <path d="M12 9.5v4.2l2.6 1.6" stroke="#FBC159" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 

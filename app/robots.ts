@@ -20,6 +20,8 @@ export default function robots(): MetadataRoute.Robots {
         "/notifications",
         "/plan",
         "/settings",
+        "/study",
+        "/more",
         "/test/",
         "/results/",
         "/board-lab",

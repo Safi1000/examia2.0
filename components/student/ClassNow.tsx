@@ -16,7 +16,7 @@ import { useSchedule, JOIN_EARLY_MIN, addDays, clockHere, spanHere, joinClass, p
  * link). Tapping Join marks the student present. With back-to-back classes the
  * running class and the next one show together, each with its own button.
  */
-export function ClassNow({ db, student, nowMs }: { db: Database; student: Student; nowMs: number }) {
+export function ClassNow({ db, student, nowMs, nextOnPhone = true }: { db: Database; student: Student; nowMs: number; /** false: phones hide the quiet "Next class" row (Home lists the next classes there instead). */ nextOnPhone?: boolean }) {
   const today = pkDate(nowMs);
   useSchedule(); // re-render when the timetable loads or changes
   const slots = slotsForStudent(db, student, today);
@@ -62,7 +62,7 @@ export function ClassNow({ db, student, nowMs }: { db: Database; student: Studen
     return (
       <Link
         href="/classes"
-        className="surface surface-link flex items-center justify-between gap-3 rounded-card p-5 sm:p-6"
+        className={`surface surface-link flex items-center justify-between gap-3 rounded-card p-5 sm:p-6${nextOnPhone ? "" : " max-md:hidden"}`}
       >
         <span className="min-w-0">
           <span className="label-quiet block text-ink-3">Next class</span>

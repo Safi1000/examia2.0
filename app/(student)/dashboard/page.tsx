@@ -29,7 +29,9 @@ import { FocusOnThis } from "@/components/student/FocusOnThis";
 import { IslandHeader } from "@/components/student/IslandHeader";
 import { overallTarget } from "@/components/student/targets";
 import { SectionTitle } from "@/components/student/PortalKit";
-import { JOIN_EARLY_MIN, RECORDING_HOURS, addDays, pkDate, slotKey, slotsForStudent, useClassLinks, useSchedule } from "@/lib/classes";
+import type { Database } from "@/lib/data/seed";
+import type { Student } from "@/types";
+import { JOIN_EARLY_MIN, RECORDING_HOURS, addDays, clockHere, pkDate, slotKey, slotsForStudent, useClassLinks, useSchedule, type DaySlot } from "@/lib/classes";
 
 /** In Pakistan time, like every other time on Home. After midnight it is not morning yet. */
 function greeting(d = new Date()) {
@@ -173,8 +175,10 @@ export default function DashboardPage() {
         {/* The greeting and the next class are one thought: 12px apart, then the usual gap to the next section. */}
         <div className="space-y-3">
           <HomeHero name={displayName(student.username).split(" ")[0]} status={status} studentId={student.id} totalMinutes={profile.focus?.totalMinutes} />
-          <ClassNow db={db} student={student} nowMs={nowMs} />
+          <ClassNow db={db} student={student} nowMs={nowMs} nextOnPhone={false} />
         </div>
+        {/* Phones: Classes has no tab of its own (it lives on Home, like the phone app). */}
+        <YourClasses db={db} student={student} nowMs={nowMs} />
         <NotifyCard />
 
         {todo.length > 0 && (
@@ -253,6 +257,49 @@ export default function DashboardPage() {
       </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Phones only: the next few classes, then a row to the full timetable. A class
+ * about to start or running is the gold card above (ClassNow, with Join), so it
+ * is not listed again here.
+ */
+function YourClasses({ db, student, nowMs }: { db: Database; student: Student; nowMs: number }) {
+  const today = pkDate(nowMs);
+  const next: DaySlot[] = [];
+  for (let d = today, i = 0; next.length < 3 && i < 21; d = addDays(d, 1), i++) {
+    for (const sl of slotsForStudent(db, student, d)) {
+      if (sl.startMs - JOIN_EARLY_MIN * 60_000 > nowMs && next.length < 3) next.push(sl);
+    }
+  }
+  const dayWord = (ymd: string) =>
+    ymd === today
+      ? "Today"
+      : ymd === addDays(today, 1)
+        ? "Tomorrow"
+        : new Date(`${ymd}T12:00:00+05:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Karachi" });
+  return (
+    <section aria-labelledby="classes-title" className="md:hidden">
+      <SectionTitle id="classes-title">Your classes</SectionTitle>
+      <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
+        {next.length === 0 && <li className="px-5 py-4 text-base text-ink-2">No classes in the next three weeks.</li>}
+        {next.map((sl) => (
+          <li key={slotKey(sl)} className="flex items-center justify-between gap-3 px-5 py-3.5">
+            <span className="min-w-0 truncate text-base font-semibold text-ink">{sl.subject}</span>
+            <span className="shrink-0 text-sm text-ink-2 tabular-nums">
+              {dayWord(sl.date)}, <span className="whitespace-nowrap">{clockHere(sl.date, sl.start)}</span>
+            </span>
+          </li>
+        ))}
+        <li>
+          <Link href="/classes" className="row-link flex min-h-12 items-center justify-between gap-3 px-5 py-3 text-sm font-semibold text-ink-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand">
+            Full timetable
+            <Icon.ChevronRight className="h-4 w-4 shrink-0" />
+          </Link>
+        </li>
+      </ul>
+    </section>
   );
 }
 
