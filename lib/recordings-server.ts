@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { RECORDING_HOURS, addDays, at, pkDate, setSchedule, slotsOn } from "@/lib/timetable";
+import { LEVEL_LABEL, RECORDING_HOURS, addDays, at, levelOf, pkDate, setSchedule, slotsOn, subjectOf } from "@/lib/timetable";
 import { loadSchedule } from "@/lib/schedule-server";
-import { closeLinkSharing, copyRecording, fileIdOf, moveToReplaced, openLinkSharing, trashFile } from "@/lib/google";
+import { RECORDINGS_ROOT, closeLinkSharing, copyIntoAccount, copyRecording, driveFreeBytes, fileIdOf, moveToReplaced, openLinkSharing, ownedVideoIds, trashFile } from "@/lib/google";
 import { CATCH_UP_HOURS, cleanAccess, emptyAccess, openUntil, splitKey, viewOf, type AccessFile } from "@/lib/recording-access";
 
 /**
@@ -382,4 +382,105 @@ export async function refreshLinks(sb: Sb, token: string, keys: string[], now: n
     for (const k of done) delete x.shared[k];
   });
   return { access, refreshed: done.length, skipped: skipped.length, failed, left };
+}
+
+// ---- Moving to another Google account ------------------------------------------
+
+/** Start no new copy after this long (one copy can take 40 seconds; the server allows 60). */
+const MOVE_START_MS = 10_000;
+/** Copies per press; the page presses again until none are left. */
+const MOVE_BATCH = 3;
+
+export interface MoveInfo {
+  /** The connected Google account. */
+  email: string | null;
+  /** Videos that still live in another Google account (classes taught together share one). */
+  toMove: number;
+  /** Free Drive space in the connected account, in bytes (null: Google didn't say). */
+  freeBytes: number | null;
+}
+
+/** Recordings whose video the connected account does not own, one entry per video. */
+async function foreignVideos(sb: Sb, token: string) {
+  const [rows, owned] = await Promise.all([recordingRows(sb), ownedVideoIds(token)]);
+  const byFile = new Map<string, RecRow[]>();
+  for (const r of rows) {
+    const f = fileIdOf(r.url);
+    if (!f || owned.has(f)) continue;
+    byFile.set(f, [...(byFile.get(f) ?? []), r]);
+  }
+  return byFile;
+}
+
+/** After Hamza connects a different Google account: how many recordings are still in the old one. */
+export async function moveStatus(sb: Sb, token: string): Promise<MoveInfo> {
+  const [videos, freeBytes, { data }] = await Promise.all([
+    foreignVideos(sb, token),
+    driveFreeBytes(token).catch(() => null),
+    sb.from("google_account").select("email").eq("id", 1).maybeSingle(),
+  ]);
+  return { email: (data?.email as string | null) ?? null, toMove: videos.size, freeBytes };
+}
+
+/**
+ * "Move recordings to this account": the next few videos are copied into the
+ * connected account (same level and subject folders), and every class that
+ * used the old video now points at the copy. A recording open to students
+ * right now stays open on the copy. The old account's files are never touched.
+ * `skip` holds recordings that already failed in this run, so the rest carry on.
+ */
+export async function moveBatch(sb: Sb, token: string, now: number, skip: string[]) {
+  const start = Date.now();
+  const skipped = new Set(skip);
+  const videos = [...(await foreignVideos(sb, token)).entries()].filter(([, rows]) => !rows.some((r) => skipped.has(r.key)));
+  const [{ data: classes }, { data: subjects }] = await Promise.all([sb.from("classes").select("id,name"), sb.from("subjects").select("id,name")]);
+  const normal = await normalCloser(sb, now);
+  const view = viewOf(await readAccess(sb), now);
+  const swapped = new Map<string, string>();
+  const failed: Array<{ key: string; why: string }> = [];
+  let moved = 0;
+  for (const [f, rows] of videos) {
+    if (moved + failed.length >= MOVE_BATCH || Date.now() - start > MOVE_START_MS) break;
+    const first = rows[0];
+    try {
+      const c = classes?.find((x) => x.id === first.classId);
+      const s = subjects?.find((x) => x.id === first.subjectId);
+      const lvl = c ? levelOf({ name: c.name as string }) : null;
+      const sub = s ? subjectOf({ name: s.name as string }) : null;
+      const copy = await copyIntoAccount(token, f, lvl && sub ? [RECORDINGS_ROOT, LEVEL_LABEL[lvl].replace(" / ", " and "), sub] : [RECORDINGS_ROOT, "Other"]);
+      // Students are watching it right now: the copy must open for them too.
+      if (rows.some((r) => openUntil(r.key, r.date, normal(r.key), view, now) > now)) await openLinkSharing(token, copy.newId);
+      for (const r of rows) {
+        const { error } = await sb
+          .from("class_links")
+          .update({ recording_url: copy.url, updated_at: new Date().toISOString() })
+          .eq("on_date", r.date)
+          .eq("class_id", r.classId)
+          .eq("subject_id", r.subjectId);
+        if (error) throw new Error(error.message);
+      }
+      swapped.set(f, copy.newId);
+      moved++;
+    } catch (e) {
+      const why = short(e);
+      failed.push({
+        key: first.key,
+        why: /Google 404/.test(why)
+          ? "This account can't see the video. Share the recordings folder with it from the old account."
+          : /storageQuota|quota/i.test(why)
+            ? "Google Drive is full, or today's copy limit is used up."
+            : why,
+      });
+    }
+  }
+  // Anything the site was keeping track of by the old video's id now follows the copy.
+  const access = await mutateAccess(sb, (x) => {
+    if (!swapped.size) return;
+    for (const v of Object.values(x.shared)) v.f = swapped.get(v.f) ?? v.f;
+    if (x.catchUp) {
+      for (const t of x.catchUp.todo) t.f = swapped.get(t.f) ?? t.f;
+      for (const v of Object.values(x.catchUp.failed)) v.f = swapped.get(v.f) ?? v.f;
+    }
+  });
+  return { access, moved, failed, left: Math.max(0, videos.length - moved - failed.length) };
 }

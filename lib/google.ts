@@ -363,3 +363,58 @@ export const REPLACED_FOLDER = [RECORDINGS_ROOT, "Replaced links"];
 export async function moveToReplaced(token: string, fileId: string) {
   await moveInto(token, fileId, await folderPath(token, REPLACED_FOLDER));
 }
+
+// ---- Moving to another Google account ------------------------------------------
+
+/** Free space left in the connected account's Drive (bytes), or null when Google doesn't say. */
+export async function driveFreeBytes(token: string): Promise<number | null> {
+  const a = await g<{ storageQuota?: { limit?: string; usage?: string } }>(token, "https://www.googleapis.com/drive/v3/about?fields=storageQuota(limit,usage)");
+  const limit = Number(a.storageQuota?.limit);
+  const usage = Number(a.storageQuota?.usage);
+  return Number.isFinite(limit) && limit > 0 && Number.isFinite(usage) ? Math.max(0, limit - usage) : null;
+}
+
+/** Every video the connected account owns (ids only), read 1,000 at a time. */
+export async function ownedVideoIds(token: string): Promise<Set<string>> {
+  const out = new Set<string>();
+  const q = encodeURIComponent("'me' in owners and mimeType contains 'video/' and trashed = false");
+  let page = "";
+  for (let i = 0; i < 50; i++) {
+    const r = await g<{ nextPageToken?: string; files?: Array<{ id: string }> }>(
+      token,
+      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=nextPageToken,files(id)&pageSize=1000${page ? `&pageToken=${encodeURIComponent(page)}` : ""}`,
+    );
+    for (const f of r.files ?? []) out.add(f.id);
+    if (!r.nextPageToken) break;
+    page = r.nextPageToken;
+  }
+  return out;
+}
+
+/** One copy is given this long, so a batch always answers inside the server's limit. */
+const MOVE_COPY_TIMEOUT_MS = 40_000;
+
+/**
+ * Copy a video that lives in ANOTHER Google account (shared with this one)
+ * into this account's recordings folder. The copy belongs to this account and
+ * starts private. It is tagged with the original's id, so pressing twice (or a
+ * copy Google finished after we stopped waiting) never makes a second copy.
+ * The original is never touched.
+ */
+export async function copyIntoAccount(token: string, fileId: string, folder: string[]): Promise<{ url: string; newId: string }> {
+  const link = (id: string, web?: string) => web ?? `https://drive.google.com/file/d/${id}/view?usp=drivesdk`;
+  const q = `trashed = false and 'me' in owners and appProperties has { key='htMovedFrom' and value='${fileId.replace(/[^\w-]/g, "")}' }`;
+  const made = await g<{ files: Array<{ id: string; webViewLink?: string }> }>(
+    token,
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,webViewLink)&pageSize=1`,
+  );
+  if (made.files[0]) return { url: link(made.files[0].id, made.files[0].webViewLink), newId: made.files[0].id };
+  const src = await g<{ name?: string }>(token, `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=name`);
+  const parent = await folderPath(token, folder);
+  const copy = await g<{ id: string; webViewLink?: string }>(token, `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/copy?fields=id,webViewLink`, {
+    method: "POST",
+    body: JSON.stringify({ ...(src.name ? { name: src.name } : {}), parents: [parent], appProperties: { htMovedFrom: fileId } }),
+    signal: AbortSignal.timeout(MOVE_COPY_TIMEOUT_MS),
+  });
+  return { url: link(copy.id, copy.webViewLink), newId: copy.id };
+}

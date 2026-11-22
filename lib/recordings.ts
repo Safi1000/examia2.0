@@ -150,6 +150,10 @@ export type TeacherResult = TeacherAccess & {
   skipped?: number;
   failed?: Array<{ key: string; why: string }>;
   left?: string[];
+  /** After a change of Google account: what is still in the old one. */
+  move?: { email: string | null; toMove: number; freeBytes: number | null };
+  moved?: number;
+  moveLeft?: number;
   error?: string;
 };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { Student } from "@/types";
 import { useDatabase } from "@/lib/data/store";
@@ -196,6 +196,47 @@ export default function RecordingsPage() {
       void reload();
     }
   }
+  // ---- After a change of Google account: bring the old recordings over -----------
+  const [move, setMove] = useState<TeacherResult["move"] | null>(null);
+  const moveAsked = useRef(false);
+  const canAskMove = !!state?.ready && !!state.google;
+  useEffect(() => {
+    if (!canAskMove || moveAsked.current) return;
+    moveAsked.current = true;
+    void act("move-status").then((r) => !r.error && setMove(r.move ?? null));
+  }, [canAskMove, act]);
+  async function moveAll() {
+    let done = 0;
+    const failed: string[] = [];
+    let why = "";
+    const take = (r: TeacherResult) => {
+      done += r.moved ?? 0;
+      for (const f of r.failed ?? []) {
+        failed.push(f.key);
+        why ||= f.why;
+      }
+    };
+    const r = await run(
+      "move",
+      () => act("move"),
+      (prev) => {
+        take(prev);
+        // Nothing left, or the skip list is full: stop here and say what happened.
+        if (!prev.moveLeft || failed.length >= 400) return null;
+        setProgress(`Moving recordings: ${done} done, ${prev.moveLeft} to go. Keep this page open.`);
+        return act("move", { keys: failed });
+      },
+    );
+    if (!r || r.error) return;
+    toast(
+      failed.length ? `${plural(done, "recording")} moved. ${failed.length} couldn't be moved: ${why}` : `All done: ${plural(done, "recording")} moved to this Google account.`,
+      failed.length ? "error" : "success",
+    );
+    void reload();
+    const after = await act("move-status");
+    if (!after.error) setMove(after.move ?? null);
+  }
+
   // Delete: asked first, then the video goes to Drive's bin and the portal forgets it.
   const [delAsk, setDelAsk] = useState<Row | null>(null);
   async function removeOne() {
@@ -329,6 +370,26 @@ export default function RecordingsPage() {
       {error && !state && (
         <Card className="mb-4 p-5 text-base text-ink-2 sm:p-6">
           Couldn&apos;t load who can open recordings right now. <button type="button" className="font-semibold text-ink underline" onClick={() => void reloadAccess()}>Try again</button>
+        </Card>
+      )}
+
+      {/* ---- Move from the old Google account ---- */}
+      {move && move.toMove > 0 && (
+        <Card className="mb-4 p-5 sm:p-6">
+          <h2 className={panelTitle}>Move recordings to this Google account</h2>
+          <p className="mt-1 max-w-[65ch] text-base text-ink-2">
+            {plural(move.toMove, "video")} still {move.toMove === 1 ? "lives" : "live"} in another Google account. Moving makes a copy of each one in {move.email ?? "the connected account"} and points its class at the copy. Nothing is deleted from the old account.
+          </p>
+          <p className="mt-2 max-w-[65ch] text-sm text-ink-2">
+            First, in the old account&apos;s Google Drive, share the &quot;Hamza Teaches recordings&quot; folder with {move.email ?? "the new account"} as Editor.
+            {move.freeBytes !== null && ` Free space in this account: ${Math.floor(move.freeBytes / 1e9)} GB.`}
+          </p>
+          {progress && busy === "move" && <p className="mt-2 text-sm text-ink-2" role="status">{progress}</p>}
+          <div className="mt-3">
+            <Button loading={busy === "move"} disabled={!!busy} onClick={() => void moveAll()}>
+              Move {plural(move.toMove, "recording")}
+            </Button>
+          </div>
         </Card>
       )}
 

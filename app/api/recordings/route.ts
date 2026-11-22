@@ -9,6 +9,8 @@ import {
   endCatchUp,
   openOne,
   readAccess,
+  moveBatch,
+  moveStatus,
   refreshLinks,
   retryFailed,
   startCatchUp,
@@ -29,6 +31,8 @@ import { viewOf, type AccessFile } from "@/lib/recording-access";
  *   sweep             close the next batch of anything whose window has ended
  *   open / close      one recording: open for 48 hours, or close now
  *   refresh           give these recordings new links (a few per press)
+ *   move-status       after a change of Google account: how many videos are still in the old one
+ *   move              copy the next few into the connected account (keys = ones to skip)
  *
  * The state is a private JSON file in Supabase Storage (no database change).
  * Every Google step needs Hamza's connected Google account, so it runs here.
@@ -40,7 +44,7 @@ export const maxDuration = 60;
 const noStore = { "Cache-Control": "private, no-store" };
 const storageReady = () => !!(process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.NEXT_PUBLIC_SUPABASE_URL);
 const isKey = (k: unknown): k is string => typeof k === "string" && /^\d{4}-\d{2}-\d{2}\|[A-Za-z0-9_-]{1,64}\|[A-Za-z0-9_-]{1,64}$/.test(k);
-const ACTIONS = ["catchup-start", "catchup-continue", "catchup-retry", "catchup-close", "sweep", "open", "close", "refresh", "delete", "folder"] as const;
+const ACTIONS = ["catchup-start", "catchup-continue", "catchup-retry", "catchup-close", "sweep", "open", "close", "refresh", "delete", "folder", "move-status", "move"] as const;
 type Action = (typeof ACTIONS)[number];
 
 /** What the page needs, never the Drive file ids. */
@@ -143,6 +147,12 @@ export async function POST(req: NextRequest) {
       case "folder": {
         const url = await recordingsFolderUrl(token!);
         return NextResponse.json({ ...summarize(await readAccess(sb), now), folderUrl: url }, { headers: noStore });
+      }
+      case "move-status":
+        return NextResponse.json({ ...summarize(await readAccess(sb), now), move: await moveStatus(sb, token!) }, { headers: noStore });
+      case "move": {
+        const r = await moveBatch(sb, token!, now, keys);
+        return NextResponse.json({ ...summarize(r.access, now), moved: r.moved, failed: r.failed, moveLeft: r.left }, { headers: noStore });
       }
       case "refresh": {
         const r = await refreshLinks(sb, token!, keys, now);
