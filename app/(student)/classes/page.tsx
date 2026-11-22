@@ -98,60 +98,52 @@ export default function ClassesPage() {
   const olderOpen = !!student && anythingOpen(access, nowMs);
   const { rows: olderRows } = useRecordingRows(olderOpen);
 
+  // One list of every recording this student can open now, from two sources:
+  // the last few days' classes (each open 48 hours after it ends) and older
+  // classes Hamza has opened (a catch-up window, or one recording).
   const recordings = (() => {
     if (!student) return [];
-    // Each of my classes, and when its recording closes (48 hours after it ends).
-    const closes = new Map<string, number>();
+    // Each of my classes, and when it ended (its recording closes 48 hours later).
+    const ended = new Map<string, number>();
     for (let d = from; d <= today; d = addDays(d, 1))
       for (const s of slotsForStudent(db, student, d)) {
         // Only classes from after they joined.
         if (s.endMs < joinedMs(student)) continue;
-        closes.set(slotKey(s), s.endMs + RECORDING_HOURS * 3_600_000);
+        ended.set(slotKey(s), s.endMs);
       }
-    return links
-      .filter((l) => l.recordingUrl && closes.has(slotKey(l)))
-      .map((l) => {
-        const cls = db.classes.find((c) => c.id === l.classId);
-        const lvl = cls ? levelOf(cls) : null;
-        return {
-          ...l,
-          closesAt: openUntil(slotKey(l), l.date, closes.get(slotKey(l))!, access, nowMs),
-          subject: db.subjects.find((s) => s.id === l.subjectId)?.name ?? "Class",
-          level: lvl ? LEVEL_LABEL[lvl] : (cls?.name ?? ""),
-        };
-      })
-      .filter((l) => l.closesAt > nowMs)
-      .sort((a, b) => b.closesAt - a.closesAt);
-  })();
-
-  // Older recordings Hamza has opened: my own levels and subjects only, newest first.
-  const older = (() => {
-    if (!student || !olderOpen) return [];
-    const recent = new Set(recordings.map((r) => slotKey(r)));
-    const cohort = db.cohorts.find((c) => c.id === student.cohortId);
-    const classes = student.classIds.length ? student.classIds : (cohort?.classIds ?? []);
-    const mine = (classId: string, subjectId: string) => {
-      if (!classes.includes(classId)) return false;
-      const subjects = subjectsAtLevel(student, classId, cohort?.subjectIds);
-      return !subjects.length || subjects.includes(subjectId);
+    const describe = (classId: string, subjectId: string) => {
+      const cls = db.classes.find((c) => c.id === classId);
+      const lvl = cls ? levelOf(cls) : null;
+      return { subject: db.subjects.find((s) => s.id === subjectId)?.name ?? "Class", level: lvl ? LEVEL_LABEL[lvl] : (cls?.name ?? "") };
     };
-    return olderRows
-      .filter((r) => !recent.has(r.key) && mine(r.classId, r.subjectId))
-      .map((r) => {
-        const cls = db.classes.find((c) => c.id === r.classId);
-        const lvl = cls ? levelOf(cls) : null;
-        return {
-          ...r,
-          closesAt: openUntil(r.key, r.date, 0, access, nowMs),
-          subject: db.subjects.find((s) => s.id === r.subjectId)?.name ?? "Class",
-          level: lvl ? LEVEL_LABEL[lvl] : (cls?.name ?? ""),
-        };
-      })
-      .filter((r) => r.closesAt > nowMs && r.date <= today);
+    const out = new Map<string, RecordingItem>();
+    for (const l of links) {
+      const key = slotKey(l);
+      if (!l.recordingUrl || !ended.has(key)) continue;
+      const endMs = ended.get(key)!;
+      const closesAt = openUntil(key, l.date, endMs + RECORDING_HOURS * 3_600_000, access, nowMs);
+      if (closesAt > nowMs) out.set(key, { key, date: l.date, classId: l.classId, subjectId: l.subjectId, url: l.recordingUrl, closesAt, endMs, ...describe(l.classId, l.subjectId) });
+    }
+    if (olderOpen) {
+      // Older recordings: my own levels and subjects only.
+      const cohort = db.cohorts.find((c) => c.id === student.cohortId);
+      const classes = student.classIds.length ? student.classIds : (cohort?.classIds ?? []);
+      const mine = (classId: string, subjectId: string) => {
+        if (!classes.includes(classId)) return false;
+        const subjects = subjectsAtLevel(student, classId, cohort?.subjectIds);
+        return !subjects.length || subjects.includes(subjectId);
+      };
+      for (const r of olderRows) {
+        if (out.has(r.key) || r.date > today || !mine(r.classId, r.subjectId)) continue;
+        const closesAt = openUntil(r.key, r.date, 0, access, nowMs);
+        if (closesAt > nowMs) out.set(r.key, { ...r, closesAt, endMs: 0, ...describe(r.classId, r.subjectId) });
+      }
+    }
+    // Newest first: by date, then the later class that day, then by subject.
+    return [...out.values()].sort((a, b) => (a.date !== b.date ? (a.date < b.date ? 1 : -1) : b.endMs - a.endMs || a.subject.localeCompare(b.subject)));
   })();
-  const twoLevels = new Set(older.map((r) => r.classId)).size > 1;
-  // A student at two levels (AS and A2) sees which level each recent recording is from.
-  const recentTwoLevels = new Set(recordings.map((r) => r.classId)).size > 1;
+  // Of these, the ones from the last few days: always shown, never behind "Show all".
+  const recentCount = recordings.filter((r) => r.endMs > 0).length;
 
   // Home's "Watch" on a class recording opens here with ?watch=<class key>: open that
   // recording's player straight away (once), as if Watch had been tapped on this page.
@@ -161,13 +153,13 @@ export default function ClassesPage() {
     const want = new URLSearchParams(window.location.search).get("watch");
     if (!want) return;
     autoOpened.current = true;
-    const r = recordings.find((x) => slotKey(x) === want);
-    if (!r?.recordingUrl) return;
+    const r = recordings.find((x) => x.key === want);
+    if (!r?.url) return;
     updateProfile(watchPatch(want, 0));
-    const fileId = driveFileId(r.recordingUrl);
+    const fileId = driveFileId(r.url);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (fileId) setPlaying({ key: want, fileId, url: r.recordingUrl, title: r.subject, sub: dayName(r.date) });
-    else window.open(r.recordingUrl, "_blank", "noopener,noreferrer");
+    if (fileId) setPlaying({ key: want, fileId, url: r.url, title: r.subject, sub: dayName(r.date) });
+    else window.open(r.url, "_blank", "noopener,noreferrer");
   }, [recordings, updateProfile]);
 
   // My classes that ended in the last 3 hours with no recording yet: Meet takes
@@ -233,9 +225,83 @@ export default function ClassesPage() {
         )}
       </section>
 
-      <section>
-        <SectionTitle sub="Each recording stays open for 2 days after class, then it closes.">Recordings</SectionTitle>
-        <div className="space-y-3">
+      <RecordingList
+        items={recordings}
+        recentCount={recentCount}
+        pending={pending}
+        ready={ready}
+        nowMs={nowMs}
+        watched={watched}
+        onWatch={watch}
+      />
+      {playing && <RecordingPlayer fileId={playing.fileId} url={playing.url} title={playing.title} sub={playing.sub} onTime={addTime} onClose={closePlayer} />}
+      </div>
+    </div>
+  );
+}
+
+type RecordingItem = RecordingRow & { closesAt: number; subject: string; level: string; endMs: number };
+type PendingSlot = ReturnType<typeof slotsForStudent>[number];
+/** Recordings shown before "Show all": enough to catch up on the latest week, short enough for a phone. */
+const FIRST = 6;
+/** Under this long left, an unwatched recording says when it closes, in red. */
+const SOON_MS = 6 * 3_600_000;
+const monthName = (ymd: string) => new Date(`${ymd}T12:00:00+05:00`).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+
+/**
+ * Every recording the student can open now, in one list, newest first. Each
+ * row names its class and date and says until when it is open. Classes that
+ * ended a moment ago with no recording yet sit on top. A long list (a catch-up
+ * window) gets a subject filter and shows the latest few until asked for the
+ * rest; the last few days' recordings always show.
+ */
+function RecordingList({
+  items,
+  recentCount,
+  pending,
+  ready,
+  nowMs,
+  watched,
+  onWatch,
+}: {
+  items: RecordingItem[];
+  recentCount: number;
+  pending: PendingSlot[];
+  ready: boolean | null;
+  nowMs: number;
+  watched: Set<string>;
+  onWatch: (e: React.MouseEvent, key: string, url: string, title: string, sub: string) => void;
+}) {
+  const [subject, setSubject] = useState<string | null>(null);
+  const [all, setAll] = useState(false);
+  const long = items.length > FIRST;
+  const subjects = long ? [...new Set(items.map((i) => i.subject))].sort() : [];
+  const chosen = subject && subjects.includes(subject) ? subject : null;
+  const list = items.filter((i) => !chosen || i.subject === chosen);
+  const visible = all ? list : list.slice(0, Math.max(FIRST, chosen ? 0 : recentCount));
+  const twoLevels = new Set(items.map((i) => i.classId)).size > 1;
+  // Month names only when the list runs across more than one month.
+  const months: Array<{ name: string; rows: RecordingItem[] }> = [];
+  for (const r of visible) {
+    const name = monthName(r.date);
+    if (months[months.length - 1]?.name !== name) months.push({ name, rows: [] });
+    months[months.length - 1].rows.push(r);
+  }
+  // A catch-up window Hamza opened: say until when.
+  const catchUpEnds = Math.max(0, ...items.filter((i) => i.endMs === 0).map((i) => i.closesAt));
+  const sub = catchUpEnds
+    ? `Each recording stays open for 2 days after class. Past classes are open for you to catch up until ${closesLabel(catchUpEnds)}.`
+    : "Each recording stays open for 2 days after class, then it closes.";
+  const pick = (s: string | null) => {
+    setSubject(s);
+    setAll(false);
+  };
+  return (
+    <section>
+      <SectionTitle count={long ? items.length : undefined} sub={sub}>
+        Recordings
+      </SectionTitle>
+      <div className="space-y-3">
         {pending.length > 0 && (
           <ul className="space-y-3">
             {pending.map((p) => (
@@ -249,45 +315,71 @@ export default function ClassesPage() {
             ))}
           </ul>
         )}
-        {recordings.length ? (
-          <ul className="space-y-3">
-            {recordings.map((r) => (
-              <li key={slotKey(r)}>
-                <a
-                  href={r.recordingUrl!}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => watch(e, slotKey(r), r.recordingUrl!, r.subject, dayName(r.date))}
-                  className={cn(
-                    "surface surface-link flex items-center justify-between gap-4 rounded-card px-5 py-4 sm:px-6",
-                    !watched.has(slotKey(r)) && r.closesAt - nowMs < 6 * 3_600_000 && "border-error/50!",
-                  )}
-                >
-                  <span className="min-w-0">
-                    <span className="block text-base font-semibold text-ink">{r.subject}</span>
-                    <span className="mt-0.5 block text-sm text-ink-3 tabular-nums">
-                      {dayName(r.date)}
-                      {recentTwoLevels && r.level ? ` · ${r.level}` : ""} · open until {closesLabel(r.closesAt)}
-                    </span>
-                  </span>
-                  {watched.has(slotKey(r)) ? (
-                    <span className="inline-flex items-center gap-1 text-sm font-semibold text-success">
-                      <Icon.Check className="h-4 w-4" /> Watched
-                    </span>
-                  ) : (
-                    <span className="flex shrink-0 flex-col items-end">
-                      <span className="inline-flex items-center gap-1 text-sm font-semibold text-ink">
-                        Watch <Icon.ChevronRight className="h-4 w-4" />
-                      </span>
-                      {r.closesAt - nowMs < 6 * 3_600_000 && (
-                        <span className="text-sm font-semibold text-error tabular-nums">Closes {formatRelative(new Date(r.closesAt).toISOString(), nowMs)}</span>
-                      )}
-                    </span>
-                  )}
-                </a>
-              </li>
+        {subjects.length > 1 && (
+          // Chips wrap to a second line on phones instead of running off the edge.
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Subject">
+            <button type="button" className={chipClass(!chosen)} aria-pressed={!chosen} onClick={() => pick(null)}>
+              All
+            </button>
+            {subjects.map((s) => (
+              <button key={s} type="button" className={chipClass(chosen === s)} aria-pressed={chosen === s} onClick={() => pick(s)}>
+                {s}
+              </button>
             ))}
-          </ul>
+          </div>
+        )}
+        {items.length ? (
+          <div className="space-y-5">
+            {months.map((m) => (
+              <div key={m.name}>
+                {months.length > 1 && <p className="label-quiet mb-2 text-ink-3">{m.name}</p>}
+                <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
+                  {m.rows.map((r) => {
+                    const seen = watched.has(r.key);
+                    const soon = !seen && r.closesAt - nowMs < SOON_MS;
+                    return (
+                      <li key={r.key}>
+                        <a
+                          href={r.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => onWatch(e, r.key, r.url, r.subject, dayName(r.date))}
+                          className="row-link flex min-h-14 items-center justify-between gap-4 px-5 py-3.5 sm:px-6"
+                        >
+                          <span className="min-w-0">
+                            <span className="block text-base font-semibold text-ink">{r.subject}</span>
+                            <span className="mt-0.5 block text-sm text-ink-3 tabular-nums">
+                              {dayName(r.date)}
+                              {twoLevels && r.level ? ` · ${r.level}` : ""} · open until {closesLabel(r.closesAt)}
+                            </span>
+                          </span>
+                          {seen ? (
+                            <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-success">
+                              <Icon.Check className="h-4 w-4" /> Watched
+                            </span>
+                          ) : (
+                            <span className="flex shrink-0 flex-col items-end">
+                              <span className="inline-flex items-center gap-1 text-sm font-semibold text-ink">
+                                Watch <Icon.ChevronRight className="h-4 w-4" />
+                              </span>
+                              {soon && (
+                                <span className="text-sm font-semibold text-error tabular-nums">Closes {formatRelative(new Date(r.closesAt).toISOString(), nowMs)}</span>
+                              )}
+                            </span>
+                          )}
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+            {!all && list.length > visible.length && (
+              <button type="button" onClick={() => setAll(true)} className={buttonClasses({ variant: "secondary", fullWidth: true })}>
+                Show all {list.length}
+              </button>
+            )}
+          </div>
         ) : pending.length ? null : ready === null ? (
           // Still fetching: a placeholder, not "No recordings" for a moment and then a list.
           <Skeleton className="h-[76px] w-full rounded-card" />
@@ -297,112 +389,7 @@ export default function ClassesPage() {
           // One quiet line, not a big empty box: the timetable above is what matters today.
           <p className="text-base text-ink-2">Each class recording appears here after class.</p>
         )}
-        </div>
-      </section>
-
-      {older.length > 0 && (
-        <PastRecordings
-          items={older}
-          twoLevels={twoLevels}
-          watched={watched}
-          onWatch={watch}
-        />
-      )}
-      {playing && <RecordingPlayer fileId={playing.fileId} url={playing.url} title={playing.title} sub={playing.sub} onTime={addTime} onClose={closePlayer} />}
       </div>
-    </div>
-  );
-}
-
-type PastItem = RecordingRow & { closesAt: number; subject: string; level: string };
-/** Past classes shown before "Show all": enough to catch up on the latest week, short enough for a phone. */
-const FIRST = 6;
-const monthName = (ymd: string) => new Date(`${ymd}T12:00:00+05:00`).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-
-/**
- * Older recordings while Hamza has them open: a subject filter, months as
- * headings, newest first. Only the latest few show until the student asks for
- * the rest, so a catch-up window of 90 classes doesn't bury the page.
- */
-function PastRecordings({ items, twoLevels, watched, onWatch }: { items: PastItem[]; twoLevels: boolean; watched: Set<string>; onWatch: (e: React.MouseEvent, key: string, url: string, title: string, sub: string) => void }) {
-  const [subject, setSubject] = useState<string | null>(null);
-  const [all, setAll] = useState(false);
-  const subjects = [...new Set(items.map((i) => i.subject))].sort();
-  const list = items.filter((i) => !subject || i.subject === subject).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.subject.localeCompare(b.subject)));
-  const latest = Math.max(...items.map((i) => i.closesAt));
-  const visible = all ? list : list.slice(0, FIRST);
-  const months: Array<{ name: string; rows: PastItem[] }> = [];
-  for (const r of visible) {
-    const name = monthName(r.date);
-    if (months[months.length - 1]?.name !== name) months.push({ name, rows: [] });
-    months[months.length - 1].rows.push(r);
-  }
-  const chip = chipClass;
-  return (
-    <section>
-      <SectionTitle count={items.length} sub={`Past classes are open for you to catch up until ${closesLabel(latest)}.`}>
-        Catch up on past classes
-      </SectionTitle>
-      {subjects.length > 1 && (
-        // Chips wrap to a second line on phones instead of running off the edge.
-        <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Subject">
-          <button type="button" className={chip(!subject)} aria-pressed={!subject} onClick={() => { setSubject(null); setAll(false); }}>
-            All
-          </button>
-          {subjects.map((s) => (
-            <button key={s} type="button" className={chip(subject === s)} aria-pressed={subject === s} onClick={() => { setSubject(s); setAll(false); }}>
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-      <div className="space-y-5">
-        {months.map((m) => (
-          <div key={m.name}>
-            <p className="label-quiet mb-2 text-ink-3">{m.name}</p>
-            <ul className="surface divide-y divide-hairline overflow-hidden rounded-card">
-              {m.rows.map((r) => (
-                <li key={r.key}>
-                  <a
-                    href={r.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => onWatch(e, r.key, r.url, r.subject, dayName(r.date))}
-                    className="row-link flex min-h-14 items-center justify-between gap-4 px-5 py-3.5 sm:px-6"
-                  >
-                    <span className="min-w-0">
-                      <span className="block text-base font-semibold text-ink">{r.subject}</span>
-                      <span className="mt-0.5 block text-sm text-ink-3 tabular-nums">
-                        {dayName(r.date)}
-                        {twoLevels && r.level ? ` · ${r.level}` : ""}
-                        {r.closesAt < latest ? ` · open until ${closesLabel(r.closesAt)}` : ""}
-                      </span>
-                    </span>
-                    {watched.has(r.key) ? (
-                      <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-success">
-                        <Icon.Check className="h-4 w-4" /> Watched
-                      </span>
-                    ) : (
-                      <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-ink">
-                        Watch <Icon.ChevronRight className="h-4 w-4" />
-                      </span>
-                    )}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-      {!all && list.length > FIRST && (
-        <button
-          type="button"
-          onClick={() => setAll(true)}
-          className={buttonClasses({ variant: "secondary", fullWidth: true, className: "mt-3" })}
-        >
-          Show all {list.length}
-        </button>
-      )}
     </section>
   );
 }

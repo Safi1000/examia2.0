@@ -15,7 +15,8 @@ import { formatRelative, formatTimestamp, formatWhen } from "@/lib/time";
 import { cn } from "@/lib/cn";
 import { useNow } from "@/hooks/useNow";
 import { FocusOnThis } from "@/components/student/FocusOnThis";
-import { EmptyArt, PageHeader, ProgressRing } from "@/components/student/PortalKit";
+import { EmptyArt, FinishMoment, PageHeader, ProgressRing, type FinishAction } from "@/components/student/PortalKit";
+import { nextOpenTest } from "@/components/student/StudyCoach";
 
 // Replies the student has seen, kept on this phone: assignment id -> the reply's time.
 const seenKey = (studentId: string) => `examia.replySeen.${studentId}`;
@@ -57,10 +58,11 @@ export default function StudentAssignmentsPage() {
   const me = studentId ? db.students.find((s) => s.id === studentId) : undefined;
   const mine = me ? assignmentsForStudent(db, me) : db.assignments;
   const past = mine.filter((a) => due(a) < nowMs).sort((a, b) => due(b) - due(a));
-  const assignments = [
-    ...mine.filter((a) => due(a) >= nowMs).sort((a, b) => due(a) - due(b)),
-    ...past.filter((a) => !handedIn(a)),
-  ];
+  // Handed in on this visit: stays where it is (with its finish) instead of folding into Done.
+  const [justIn, setJustIn] = useState<Set<string>>(() => new Set());
+  const keep = (id: string) => setJustIn((s) => (s.has(id) ? s : new Set([...s, id])));
+  const upcoming = mine.filter((a) => due(a) >= nowMs).sort((a, b) => due(a) - due(b));
+  const assignments = [...upcoming, ...past.filter((a) => !handedIn(a) || justIn.has(a.id))];
   // A reply from me the student hasn't seen yet (read on this phone).
   const seen = readSeen(studentId);
   const unread = (a: Assignment) => {
@@ -71,12 +73,25 @@ export default function StudentAssignmentsPage() {
   // Homework with a new reply stays in the main list for this visit, even
   // once it is read, so it doesn't jump into Done while they read it.
   const [pinned, setPinned] = useState<Set<string>>(() => new Set());
-  const newlyUnread = past.filter((a) => handedIn(a) && !pinned.has(a.id) && unread(a));
+  const newlyUnread = past.filter((a) => handedIn(a) && !pinned.has(a.id) && !justIn.has(a.id) && unread(a));
   if (newlyUnread.length) setPinned(new Set([...pinned, ...newlyUnread.map((a) => a.id)]));
-  const assignmentsShown = [...assignments, ...past.filter((a) => handedIn(a) && pinned.has(a.id))];
+  const assignmentsShown = [...assignments, ...past.filter((a) => handedIn(a) && pinned.has(a.id) && !justIn.has(a.id))];
   // Handed in and past the deadline: folded away, so the list stays short
   // as the weeks go by (and their worksheets don't load until opened).
-  const done = past.filter((a) => handedIn(a) && !pinned.has(a.id));
+  const done = past.filter((a) => handedIn(a) && !pinned.has(a.id) && !justIn.has(a.id));
+
+  // The one gold step after handing in: the next piece of work that is due
+  // (homework still to hand in, or an open test), soonest first. Overdue
+  // homework comes after that; with nothing left, back to Study.
+  const test = me ? nextOpenTest(db, me, "") : null;
+  const nextAfter = (id: string): FinishAction => {
+    const hw = upcoming.find((a) => a.id !== id && !handedIn(a));
+    if (hw && (!test || due(hw) <= +new Date(test.closesAt))) return { label: `Next: ${hw.title}`, href: `#a-${hw.id}` };
+    if (test) return { label: `Next: ${test.title}`, href: `/test/${test.id}` };
+    const late = past.find((a) => a.id !== id && !handedIn(a));
+    if (late) return { label: `Next: ${late.title}`, href: `#a-${late.id}` };
+    return { label: "Back to Study", href: "/study" };
+  };
   const [doneOpen, setDoneOpen] = useState(() => {
     try {
       return done.some((a) => window.location.hash === `#a-${a.id}`);
@@ -124,7 +139,15 @@ export default function StudentAssignmentsPage() {
       ) : (
         <div className="space-y-3">
           {assignmentsShown.map((a) => (
-            <AssignmentCard key={a.id} assignment={a} studentId={studentId} lead={a.id === assignments.find((x) => !handedIn(x))?.id} newReply={unread(a)} />
+            <AssignmentCard
+              key={a.id}
+              assignment={a}
+              studentId={studentId}
+              lead={a.id === assignments.find((x) => !handedIn(x))?.id}
+              newReply={unread(a)}
+              next={nextAfter(a.id)}
+              onHandIn={keep}
+            />
           ))}
         </div>
       )}
@@ -140,7 +163,7 @@ export default function StudentAssignmentsPage() {
           {doneOpen && (
             <div className="mt-3 space-y-3">
               {done.map((a) => (
-                <AssignmentCard key={a.id} assignment={a} studentId={studentId} />
+                <AssignmentCard key={a.id} assignment={a} studentId={studentId} next={nextAfter(a.id)} />
               ))}
             </div>
           )}
@@ -151,7 +174,23 @@ export default function StudentAssignmentsPage() {
   );
 }
 
-function AssignmentCard({ assignment, studentId, lead, newReply }: { assignment: Assignment; studentId: string; lead?: boolean; newReply?: boolean }) {
+function AssignmentCard({
+  assignment,
+  studentId,
+  lead,
+  newReply,
+  next,
+  onHandIn,
+}: {
+  assignment: Assignment;
+  studentId: string;
+  lead?: boolean;
+  newReply?: boolean;
+  /** The gold step on the finish after handing in. */
+  next: FinishAction;
+  /** Called just before a hand in is saved, so the page keeps this card in place. */
+  onHandIn?: (id: string) => void;
+}) {
   const db = useDatabase();
   const store = useStore();
   const { toast } = useToast();
@@ -162,6 +201,17 @@ function AssignmentCard({ assignment, studentId, lead, newReply }: { assignment:
   const fileRef = useRef<HTMLInputElement>(null);
   // The next upload replaces the work instead of adding to it (one wrong photo).
   const replacing = useRef(false);
+  // Just handed in: how many pages are in now, for the finish in this card.
+  const [finished, setFinished] = useState<number | null>(null);
+  const finishRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = finishRef.current;
+    if (finished === null || !el) return;
+    // Bring the finish into view and give it focus, so a screen reader hears it.
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.focus({ preventScroll: true });
+    el.scrollIntoView({ block: "nearest", behavior: still ? "auto" : "smooth" });
+  }, [finished]);
 
   const mine = db.assignmentSubmissions.find(
     (s) => s.assignmentId === assignment.id && s.studentId === studentId,
@@ -221,9 +271,10 @@ function AssignmentCard({ assignment, studentId, lead, newReply }: { assignment:
     if (!unsaved) return;
     setUploading(true);
     try {
+      onHandIn?.(assignment.id);
       await store.submitAssignment(assignment.id, studentId, unsaved);
+      setFinished(unsaved.length);
       setUnsaved(null);
-      toast("Handed in.", "success");
     } catch (err) {
       toast(err instanceof Error ? err.message : "Not handed in. Check your internet and try again.", "error");
     } finally {
@@ -267,9 +318,12 @@ function AssignmentCard({ assignment, studentId, lead, newReply }: { assignment:
       if (!pages.length) throw new Error("Nothing uploaded. Check your internet and try again.");
       if (failed) toast(failed === 1 ? "1 file didn't upload. Add it again." : `${failed} files didn't upload. Add them again.`, "error");
       list = [...(replace ? [] : (mine?.fileUrls ?? [])), ...pages];
+      onHandIn?.(assignment.id);
       await store.submitAssignment(assignment.id, studentId, list);
       setUnsaved(null);
-      toast(replace ? "Replaced." : "Handed in.", "success");
+      // Replacing one wrong photo is a fix, not a finish: a toast says it is done.
+      if (replace) toast("Replaced.", "success");
+      else setFinished(list.length);
     } catch (err) {
       if (list) setUnsaved(list);
       toast(err instanceof Error ? err.message : "Upload failed. Try again.", "error");
@@ -311,7 +365,8 @@ function AssignmentCard({ assignment, studentId, lead, newReply }: { assignment:
         </div>
       )}
 
-      {mine && mine.fileUrls.length > 0 && (
+      {/* While the finish shows, the pages wait behind "See your pages". */}
+      {mine && mine.fileUrls.length > 0 && finished === null && (
         <div className="mt-5 border-t border-hairline pt-4">
           <p className="mb-2 text-sm tabular-nums text-ink-3">
             Your work · {mine.fileUrls.length} {mine.fileUrls.length === 1 ? "page" : "pages"} · handed in {formatTimestamp(mine.submittedAt)}
@@ -358,7 +413,19 @@ function AssignmentCard({ assignment, studentId, lead, newReply }: { assignment:
         </div>
       )}
 
-      <div className="mt-5">
+      {finished !== null && (
+        <div ref={finishRef} tabIndex={-1} className="mt-6 scroll-mb-28 scroll-mt-24 animate-fade-up border-t border-hairline pt-6 outline-none">
+          <FinishMoment
+            mark="tick"
+            title="Handed in."
+            facts={finished > 0 ? [{ value: finished, label: finished === 1 ? "Page handed in" : "Pages handed in" }] : undefined}
+            primary={next}
+            secondary={{ label: finished === 1 ? "See your page" : "See your pages", onClick: () => setFinished(null) }}
+          />
+        </div>
+      )}
+
+      <div className={cn("mt-5", finished !== null && "hidden")}>
         <input
           ref={fileRef}
           type="file"

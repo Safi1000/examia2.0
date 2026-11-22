@@ -9,8 +9,13 @@ import { getStore } from "@/lib/data/store";
  * photo answer) don't trigger a full re-read; live updates cover the rest.
  */
 const MIN_INTERVAL_MS = 2 * 60_000;
-/** Students' phones: live updates already bring new tests and results, so re-read less (data, battery). */
-const STUDENT_INTERVAL_MS = 15 * 60_000;
+/**
+ * Students: one re-read each time they come back to the tab or the app, at
+ * most once per 30 s. A test published while they were in Google Meet then
+ * shows on return, even if a live update was missed. Nothing runs while the
+ * tab is hidden.
+ */
+const STUDENT_INTERVAL_MS = 30_000;
 
 /**
  * Keeps the in-memory cache honest.
