@@ -78,6 +78,8 @@ const stepLen = (m: number, dir: 1 | -1) => clampLen(dir > 0 ? Math.floor(m / LE
 const GLIDE_MS = 700;
 const GLIDE_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 const reducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+/** The quotes shown while a block runs: only real ones, with an author. */
+const REAL_QUOTES = QUOTES.filter((q) => !!q.by);
 /** The world re-renders only when what it shows changes (once a second while building), never for the room's other state. */
 const World = memo(GroundworkWorld);
 
@@ -987,7 +989,8 @@ export default function FocusMode({
   // drops in one motion, both ways, with the phone app's bar (the room's style below). Reduced motion: a plain short fade.
   const fade = "gw-fade";
   // The line of quote: it changes every few minutes through a focus block; the closing line through the break.
-  const line = phase === "rest" ? QUOTES[QUOTES.length - 1] : pickQuote(QUOTES, focusMin, Math.max(0, total - left), seed);
+  // Only real quotes (with an author): never the generic house lines. The break gets one too, chosen by the block's seed.
+  const line = phase === "rest" ? REAL_QUOTES[seed % Math.max(1, REAL_QUOTES.length)] : pickQuote(REAL_QUOTES, focusMin, Math.max(0, total - left), seed);
   // The quote shows for 8 seconds when a block starts or the line changes, then fades (it comes back with the controls).
   const lineKey = `${seed}|${phase}|${line?.text ?? ""}`;
   const [quoteKey, setQuoteKey] = useState(lineKey);
@@ -1121,28 +1124,25 @@ export default function FocusMode({
 
         {running && (
           <div className={cn("flex flex-1 flex-col items-center", entry === "fade" && "gw-in")}>
-            {/* The clock and its hairline: all there is at rest. */}
-            <div className="gw-rise mt-[clamp(0rem,6dvh,3.5rem)] flex flex-col items-center text-center">
+            {/* The clock group, in the sky of every scene: a watch face clock, its dots, and the quote under them. */}
+            <div className="gw-rise mt-[clamp(0.5rem,5dvh,3.5rem)] flex flex-col items-center text-center">
               <p
                 ref={runClock}
                 role="timer"
                 aria-live="off"
                 aria-label={`${clock(left)} ${phase === "rest" ? "of the break" : `left of ${focusMin} minutes`}${pausedLeft != null ? ", paused" : ""}`}
-                className={cn("w-ink room-count font-semibold leading-none tabular-nums tracking-[-0.045em] transition-opacity duration-300", held && "opacity-60")}
+                className={cn("w-clock room-count transition-opacity duration-300", held && "opacity-60")}
               >
-                {clock(left)}
+                <ClockFace text={clock(left)} still={held} />
               </p>
-              <SegmentDots totalMs={total} doneMs={Math.max(0, total - left)} held={held} className={cn("mt-5", entry === "glide" && "gw-in-late")} />
+              <SegmentDots totalMs={total} doneMs={Math.max(0, total - left)} held={held} className={cn("mt-3", entry === "glide" && "gw-in-late")} />
               {/* Words only for a state that isn't obvious: paused, or the break. */}
-              <p aria-hidden className="w-soft mt-3 min-h-5 text-[13px]">
+              <p aria-hidden className="w-soft mt-1 min-h-4 text-[12px] leading-4 tracking-[0.02em]">
                 {pausedLeft != null ? "Paused" : phase === "rest" ? "Break" : ""}
               </p>
-            </div>
-
-            {/* The line of quote, small and quiet: it shows for a few seconds when it changes (and with the controls), then fades,
-                so at rest only the clock and the hairline remain. */}
-            <div className="gw-drop mt-auto w-full max-w-sm px-4 pb-3 pt-6">
-              <div className={cn("transition-opacity duration-700 ease-out", entry === "glide" && "gw-in-late")} style={{ opacity: quoteOn || shown ? 1 : 0 }}>
+              {/* The quote: in the sky under the clock, never over the bright ground. It shows for a few seconds when it
+                  changes (and with the controls), then fades, so at rest only the clock and its dots remain. */}
+              <div className={cn("mt-3 w-full max-w-[340px] px-1 transition-opacity duration-700 ease-out", entry === "glide" && "gw-in-late")} style={{ opacity: quoteOn || shown ? 1 : 0 }}>
                 <QuoteLine line={line} />
               </div>
             </div>
@@ -1351,8 +1351,8 @@ export default function FocusMode({
         }
         .w-icon { color: var(--w-ink-soft); transition: color 150ms ease; } .w-icon:hover { color: var(--w-ink); }
         /* Circles, never lines: the running block's dots and the week's days. Hairline rings, soft fills. */
-        .w-dot { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--w-ink) 45%, transparent); }
-        .w-dot-fill { background: var(--w-ink); transition: opacity 600ms ease; }
+        .w-dot { box-shadow: inset 0 0 0 0.75px var(--w-ink-soft); }
+        .w-dot-fill { background: var(--w-ink-soft); transition: opacity 600ms ease; }
         @keyframes gw-breathe { 0%, 100% { opacity: .15; } 50% { opacity: .55; } }
         .gw-breathe { animation: gw-breathe 2.4s ease-in-out infinite; }
         .w-day { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--w-ink) 30%, transparent); }
@@ -1360,7 +1360,22 @@ export default function FocusMode({
         .w-day-today { background: color-mix(in srgb, var(--w-glow) 92%, transparent); color: var(--w-shade); box-shadow: 0 0 14px color-mix(in srgb, var(--w-glow) 55%, transparent); }
         @keyframes gw-tick { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
         .gw-tick { stroke-dasharray: 1; stroke-dashoffset: 1; animation: gw-tick 350ms cubic-bezier(0.33, 1, 0.68, 1) 1300ms forwards; }
-        .room-count { font-size: clamp(5rem, min(23vw, 15dvh), 11rem); }
+        .room-count { font-size: clamp(5.5rem, min(27vw, 16dvh), 12rem); }
+        /* The clock: Inter Tight at its lightest loaded weight, large, tight and tabular, like a watch face or the Lock
+           Screen; warm ink from the scene, a soft shadow in the scene's dark, and the "case" forms so the colon sits at
+           the digits' optical middle. The colon breathes once a second (opacity only). */
+        .w-clock {
+          color: var(--w-ink);
+          font-weight: 400;
+          line-height: .9;
+          letter-spacing: -0.04em;
+          font-feature-settings: "tnum" 1, "case" 1, "ss01" 1;
+          text-shadow: 0 2px 30px color-mix(in srgb, var(--w-shade) 60%, transparent), 0 1px 2px color-mix(in srgb, var(--w-shade) 35%, transparent);
+        }
+        .w-colon { display: inline-block; transform: translateY(-0.04em); padding: 0 .02em; }
+        @keyframes gw-colon { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+        .w-colon-on { animation: gw-colon 1s ease-in-out infinite; }
+        .w-quote { color: color-mix(in srgb, var(--w-ink) 86%, transparent); text-shadow: 0 1px 18px color-mix(in srgb, var(--w-shade) 70%, transparent); }
         .room-len { font-size: clamp(5rem, min(27vw, 18dvh), 10.5rem); }
         .room-body { --room-pb: max(1rem, env(safe-area-inset-bottom)); padding-bottom: var(--room-pb); }
         .room-foot { padding-bottom: .5rem; }
@@ -1411,6 +1426,7 @@ export default function FocusMode({
           .gw-fade { transform: none !important; transition: opacity 200ms linear !important; }
           .gw-rise, .gw-drop { transform: none !important; transition: none !important; }
           .gw-in, .gw-leave, .gw-line-in, .gw-line-out, .gw-in-late { animation-duration: 200ms !important; animation-delay: 0ms !important; }
+          .w-colon-on { animation: none !important; }
           .gw-roll-in-up, .gw-roll-in-down, .gw-roll-out-up, .gw-roll-out-down, .gw-breathe { animation: none !important; }
           .gw-breathe { opacity: .35; }
           .gw-tick { animation: none !important; stroke-dashoffset: 0; }
@@ -1499,14 +1515,30 @@ function QuoteLine({ line }: { line: Quote | undefined }) {
           <figure
             key={l.key}
             aria-hidden={old || undefined}
-            className={cn("col-start-1 row-start-1 self-end", lines.length > 1 && (old ? "gw-line-out" : "gw-line-in"))}
+            className={cn("col-start-1 row-start-1 self-start", lines.length > 1 && (old ? "gw-line-out" : "gw-line-in"))}
           >
-            <blockquote className="w-soft line-clamp-2 text-[13px] leading-snug [text-wrap:balance]">{l.line.by ? `“${l.line.text}”` : l.line.text}</blockquote>
-            {l.line.by && <figcaption className="w-soft mt-0.5 text-[11px] opacity-75">{l.line.by}</figcaption>}
+            {/* Two lines at most: a long line steps down a size rather than being cut. */}
+            <blockquote className={cn("w-quote leading-[1.3] tracking-[-0.005em] [text-wrap:balance]", l.line.text.length > 64 ? "text-[16px]" : "text-[18px]")}>{l.line.text}</blockquote>
+            {l.line.by && <figcaption className="w-soft mt-1.5 text-[10.5px] font-medium uppercase tracking-[0.16em] opacity-80">{l.line.by}</figcaption>}
           </figure>
         );
       })}
     </div>
+  );
+}
+
+/** The clock's text with its colon as its own breathing span (still while paused or held). */
+function ClockFace({ text, still }: { text: string; still: boolean }) {
+  const parts = text.split(":");
+  return (
+    <>
+      {parts.map((p, i) => (
+        <span key={i}>
+          {i > 0 && <span className={cn("w-colon", !still && "w-colon-on")}>:</span>}
+          {p}
+        </span>
+      ))}
+    </>
   );
 }
 
@@ -1553,9 +1585,9 @@ function SegmentDots({ totalMs, doneMs, held, className }: { totalMs: number; do
   const per = totalMs / n;
   const filled = Math.min(n, Math.floor((doneMs + 250) / per));
   return (
-    <span aria-hidden className={cn("flex items-center justify-center gap-2", className)}>
+    <span aria-hidden className={cn("flex items-center justify-center gap-[7px]", className)}>
       {Array.from({ length: n }, (_, i) => (
-        <span key={i} className="w-dot relative block h-1.5 w-1.5 rounded-full">
+        <span key={i} className="w-dot relative block h-[5px] w-[5px] rounded-full">
           <span className={cn("w-dot-fill absolute inset-0 rounded-full", i < filled ? "opacity-100" : i === filled && !held ? "gw-breathe" : "opacity-0")} />
         </span>
       ))}
@@ -1809,7 +1841,7 @@ function LengthPicker({ value, onChange, numRef }: { value: number; onChange: (v
                 setEditing(true);
               }}
               aria-label={`${value} minutes. Tap to type a length`}
-              className="w-ink w-link rounded-2xl px-1 font-semibold leading-none tabular-nums tracking-[-0.045em]"
+              className="w-ink w-link rounded-2xl px-1 font-normal leading-none tabular-nums tracking-[-0.04em] [font-feature-settings:'tnum'_1,'case'_1]"
             >
               <span ref={numRef} className="relative inline-block">
                 <RollNumber value={value} />
