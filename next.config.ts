@@ -17,7 +17,50 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://www.facebook.com; upgrade-insecure-requests",
   },
+  // A script rule, watched before it is enforced. "Report-Only" blocks nothing:
+  // the browser only reports what WOULD have been blocked to /api/csp-report
+  // (it shows in the Vercel logs as "CSP report").
+  { key: "Content-Security-Policy-Report-Only", value: scriptPolicy() },
 ];
+
+/**
+ * Where scripts may come from, everything the site really loads:
+ * - 'self': the site's own bundles under /_next.
+ * - 'unsafe-inline': temporary, and needed for now. Next.js writes a small
+ *   inline script per page for its page data (self.__next_f), different on
+ *   every page, so hashes can't cover it; the fixed inline scripts (in-app
+ *   flag in app/layout.tsx, intro flag in app/page.tsx, the GA and Meta
+ *   loaders) rely on it too. Hashes can't be mixed in: once a hash is listed,
+ *   browsers ignore 'unsafe-inline' and the page data scripts would break.
+ *   Removing it later means nonces from a proxy, which makes every page
+ *   render per request (slower, no static pages): a separate decision.
+ * - www.googletagmanager.com: Google Analytics (components/GoogleAnalytics.tsx).
+ * - connect.facebook.net: the Meta pixel (components/MetaPixel.tsx).
+ * - vercel.live: Vercel's toolbar on preview deployments only.
+ * JSON-LD blocks (components/JsonLd.tsx) are data, not scripts, so need nothing.
+ *
+ * Switching it on, after a week with no reports:
+ * 1. Search the Vercel logs for "CSP report". Ignore reports from browser
+ *    extensions (source starts with chrome-extension:, moz-extension:,
+ *    safari-web-extension:) and from `next dev` (eval, local only).
+ * 2. Any other report means a real script is missing: add its host here,
+ *    then wait another week.
+ * 3. When clean, append scriptPolicy(false) to the enforcing
+ *    Content-Security-Policy value above (after a "; "), keep this report
+ *    only header for a while, deploy, then check by hand: homepage, a past paper page with practice, sign in, a test, the
+ *    whiteboard, the console, and the phone app. Watch for analytics and the
+ *    Meta pixel still firing (GA Realtime, Meta Events Manager).
+ */
+function scriptPolicy(report = true) {
+  const scriptSrc = [
+    "'self'",
+    "'unsafe-inline'",
+    "https://www.googletagmanager.com",
+    "https://connect.facebook.net",
+    "https://vercel.live",
+  ].join(" ");
+  return `script-src ${scriptSrc}${report ? "; report-uri /api/csp-report" : ""}`;
+}
 
 const nextConfig: NextConfig = {
   // Articles live in content/blog/*.mdx and are imported by app/blog/[slug].

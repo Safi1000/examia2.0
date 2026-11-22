@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
       }
       case "delete": {
         const r = await deleteOne(sb, token, body.key as string);
-        return NextResponse.json({ ...summarize(r.access, now), binned: r.binned }, { headers: noStore });
+        return NextResponse.json({ ...summarize(r.access, now), binned: r.binned, kept: r.kept }, { headers: noStore });
       }
       case "folder": {
         const url = await recordingsFolderUrl(token!);

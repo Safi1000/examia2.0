@@ -480,6 +480,18 @@ type Outgoing = MarkingPart & {
   timer: ReturnType<typeof setTimeout> | null;
 };
 
+/**
+ * addStudent made the sign in account, but its levels or subjects didn't
+ * save. The student exists (with the password just set), so the screen still
+ * shows the login, and says to open the student and save their levels again.
+ */
+export class StudentLinksError extends Error {
+  constructor(public studentId: string) {
+    super("Account made, but their level and subjects were not added. Send the login, then open the student and save their level and subjects again.");
+    this.name = "StudentLinksError";
+  }
+}
+
 // ---------------------------------------------------------------------------
 class Store {
   private state: Database = EMPTY;
@@ -856,6 +868,102 @@ class Store {
     this.savedAt.clear();
     this.pendingRelease.clear();
     this.savesChanged();
+    this.unsavedQs.clear();
+    this.questionSaveTicket.clear();
+    this.unsentRows.clear();
+    this.questionSavesChanged();
+  }
+
+  // ---- Question saves (adding, editing, importing questions) ----------------
+  /**
+   * Questions, or their right answers, that didn't reach the database. Like a
+   * mark in the outbox, they stay on screen marked Not saved with Try again
+   * (and Publish waits for them), instead of looking saved when they aren't.
+   * A re-read keeps them on screen (withUnsavedQuestions). Only while the tab
+   * is open.
+   */
+  private unsavedQs = new Map<string, { testId: string; question: Question; retry: () => Promise<boolean> }>();
+  /** The newest save for each question: an older one finishing late never overrides it. */
+  private questionSaveTicket = new Map<string, number>();
+  /** New questions whose row has not reached the database yet. */
+  private unsentRows = new Set<string>();
+  private questionTickets = 0;
+  private unsavedQIds: ReadonlySet<string> = new Set();
+  private questionSaveListeners = new Set<() => void>();
+  subscribeQuestionSaves = (fn: () => void) => {
+    this.questionSaveListeners.add(fn);
+    return () => {
+      this.questionSaveListeners.delete(fn);
+    };
+  };
+  /** Ids of questions that are not saved yet (a new Set only when it changes). */
+  getUnsavedQuestions = () => this.unsavedQIds;
+  private questionSavesChanged() {
+    const next = new Set(this.unsavedQs.keys());
+    if (next.size === this.unsavedQIds.size && [...next].every((x) => this.unsavedQIds.has(x))) return;
+    this.unsavedQIds = next;
+    this.questionSaveListeners.forEach((l) => l());
+  }
+  /** "Try again" on a question marked Not saved. True once it is saved. */
+  retryQuestion(questionId: string): Promise<boolean> {
+    const u = this.unsavedQs.get(questionId);
+    return u ? u.retry() : Promise.resolve(true);
+  }
+  /**
+   * Send one question's save. `send` returns an error message, or null once
+   * everything is in; it is written so running it again after a failure is safe.
+   */
+  private sendQuestion(testId: string, questionId: string, send: () => Promise<string | null>, after?: () => void): Promise<boolean> {
+    const ticket = ++this.questionTickets;
+    this.questionSaveTicket.set(questionId, ticket);
+    const attempt = async (): Promise<boolean> => {
+      this.pendingWrites++;
+      this.writeCount++;
+      let problem: string | null;
+      try {
+        problem = await send();
+      } catch (e) {
+        problem = String(e);
+      } finally {
+        this.pendingWrites--;
+      }
+      // A newer save of this question (or a delete, or signing out) took over.
+      if (this.questionSaveTicket.get(questionId) !== ticket) return !problem;
+      if (problem) {
+        this.report(problem);
+        const question = this.state.tests.find((t) => t.id === testId)?.questions.find((q) => q.id === questionId);
+        if (question) this.unsavedQs.set(questionId, { testId, question, retry: attempt });
+      } else {
+        this.unsavedQs.delete(questionId);
+        this.questionSaveTicket.delete(questionId);
+        after?.();
+      }
+      this.questionSavesChanged();
+      return !problem;
+    };
+    return attempt();
+  }
+  /** Stop tracking a question's save (deleted, or its test deleted). */
+  private forgetQuestionSave(questionId: string) {
+    this.questionSaveTicket.delete(questionId);
+    this.unsentRows.delete(questionId);
+    this.unsavedQs.delete(questionId);
+    this.questionSavesChanged();
+  }
+  /** A re-read keeps questions that are not saved yet on screen, as typed here. */
+  private withUnsavedQuestions(tests: Test[]): Test[] {
+    if (!this.unsavedQs.size) return tests;
+    return tests.map((t) => {
+      const mine = [...this.unsavedQs.values()].filter((u) => u.testId === t.id);
+      if (!mine.length) return t;
+      const questions = [...t.questions];
+      for (const u of mine) {
+        const i = questions.findIndex((q) => q.id === u.question.id);
+        if (i >= 0) questions[i] = u.question;
+        else questions.push(u.question);
+      }
+      return { ...t, questions: questions.sort((a, b) => a.order - b.order) };
+    });
   }
 
   // ---- Lifecycle -------------------------------------------------------
@@ -955,7 +1063,8 @@ class Store {
     const epoch = this.epoch;
     const [tst, keys] = await Promise.all([
       sb.from("tests").select("*, questions(*)").eq("id", testId).maybeSingle(),
-      sb.from("question_keys").select("*"), // admin-only; empty for students
+      // Paged: one request returns at most 1,000 rows (admin-only; empty for students).
+      allRows((a, b) => sb.from("question_keys").select("*").order("question_id").range(a, b)),
     ]);
     if (epoch !== this.epoch) return; // signed out meanwhile
     if (tst.error) {
@@ -1053,7 +1162,8 @@ class Store {
       allRows((a, b) => sb.from("submissions").select(`*, ${ANSWERS_LIGHT}`).order("id").range(a, b)),
       sb.from("announcements").select("*").order("created_at", { ascending: false }),
       staffOnly(() => sb.from("question_bank").select("*").order("created_at")),
-      staffOnly(() => sb.from("question_keys").select("*")), // admin-only: empty for students
+      // Paged: one request returns at most 1,000 rows, and a missing key would read as no right answer.
+      staffOnly(() => allRows((a, b) => sb.from("question_keys").select("*").order("question_id").range(a, b))), // admin-only: empty for students
       sb.from("classes").select("*").order("name"),
       sb.from("subjects").select("*").order("name"),
       sb.from("cohort_classes").select("*"),
@@ -1189,7 +1299,7 @@ class Store {
         if (lv && Object.keys(lv).length) st.levelSubjects = lv;
         return st;
       }), prev.students),
-      tests: keep(tst, () => tests, prev.tests),
+      tests: keep(tst, () => this.withUnsavedQuestions(tests), prev.tests),
       submissions: keep(sub, () => this.keepStrokes(((sub.data as Row[]) ?? []).map(mapSubmission), prev.submissions), prev.submissions),
       announcements: keep(ann, () => ((ann.data as Row[]) ?? []).map(mapAnnouncement), prev.announcements),
       bank: keep(bnk, () => ((bnk.data as Row[]) ?? []).map(mapBank), prev.bank),
@@ -1408,6 +1518,33 @@ class Store {
       d.noteAssignments = d.noteAssignments.filter((na) => na.classId !== id);
     });
     this.run(supabase().from("classes").delete().eq("id", id), "deleteClass");
+  }
+  /**
+   * What the database removes along with a level or subject that the screen
+   * doesn't hold: its Meet links, recording links, join records and feed
+   * entries (all deleted with it). Read only, for the remove warning. A count
+   * that can't be read comes back null.
+   */
+  async removalCounts(kind: "class" | "subject", id: string): Promise<{ meetLinks: number | null; recordings: number | null; joins: number | null; feed: number | null }> {
+    const col = kind === "class" ? "class_id" : "subject_id";
+    const sb = supabase();
+    const count = async (table: string, notNull?: string): Promise<number | null> => {
+      try {
+        let q = sb.from(table).select("*", { count: "exact", head: true }).eq(col, id);
+        if (notNull) q = q.not(notNull, "is", null);
+        const { count: n, error } = await q;
+        return error ? null : (n ?? 0);
+      } catch {
+        return null;
+      }
+    };
+    const [meetLinks, recordings, joins, feed] = await Promise.all([
+      count("class_links", "meet_url"),
+      count("class_links", "recording_url"),
+      count("class_joins"),
+      count("activities"),
+    ]);
+    return { meetLinks, recordings, joins, feed };
   }
   addSubject(name: string): string {
     if (!this.ownerOnly()) throw new Error("Only Hamza can do that.");
@@ -1678,9 +1815,15 @@ class Store {
       phone: input.phone ?? "",
       photoUrl: input.photoUrl ?? "",
     });
-    if (input.classIds.length) await this.setStudentClasses(student.id, input.classIds);
-    if (input.subjectIds.length) await this.setStudentSubjects(student.id, input.subjectIds);
-    if (input.levelSubjects && Object.keys(input.levelSubjects).length) await this.setStudentLevels(student.id, input.levelSubjects);
+    // The account exists now. If its levels or subjects don't save, say so in
+    // a way the screen can tell apart, so the new password is still shown.
+    try {
+      if (input.classIds.length) await this.setStudentClasses(student.id, input.classIds);
+      if (input.subjectIds.length) await this.setStudentSubjects(student.id, input.subjectIds);
+      if (input.levelSubjects && Object.keys(input.levelSubjects).length) await this.setStudentLevels(student.id, input.levelSubjects);
+    } catch {
+      throw new StudentLinksError(student.id);
+    }
     return student.id;
   }
 
@@ -1774,10 +1917,11 @@ class Store {
       // Only the fields passed in change (a password reset must not blank the numbers).
       if (st) Object.assign(st, {
         username: patch.username ?? st.username,
-        email: "email" in patch ? patch.email : st.email,
-        whatsapp: "whatsapp" in patch ? patch.whatsapp : st.whatsapp,
-        phone: "phone" in patch ? patch.phone : st.phone,
-        photoUrl: "photoUrl" in patch ? patch.photoUrl : st.photoUrl,
+        // An empty value means removed (the roster sends "" for an emptied box).
+        email: "email" in patch ? patch.email || undefined : st.email,
+        whatsapp: "whatsapp" in patch ? patch.whatsapp || undefined : st.whatsapp,
+        phone: "phone" in patch ? patch.phone || undefined : st.phone,
+        photoUrl: "photoUrl" in patch ? patch.photoUrl || undefined : st.photoUrl,
         cohortId: patch.cohortId ?? st.cohortId,
       });
     });
@@ -2105,6 +2249,7 @@ class Store {
       d.submissions = d.submissions.filter((s) => s.testId !== id);
     });
     this.run(supabase().from("tests").delete().eq("id", id), "deleteTest");
+    for (const [qid, u] of this.unsavedQs) if (u.testId === id) this.forgetQuestionSave(qid);
     // No testId on either row: the FK would cascade the entry away with the
     // test itself, and the notification has to outlive what it reports.
     this.logActivity({
@@ -2142,14 +2287,25 @@ class Store {
     // The key has a FK to questions(id), so it MUST be inserted after the
     // question row commits — otherwise a concurrent insert can lose the key and
     // the MCQ grades as wrong. Sequence the two writes.
-    void (async () => {
-      const { error: qErr } = await sb.from("questions").insert(questionToRow(testId, id, q, order));
-      if (qErr) return this.report(`addQuestion: ${qErr.message}`);
-      if (v.type === "mcq") {
-        const { error: kErr } = await sb.from("question_keys").insert({ question_id: id, correct_index: v.correctIndex });
-        if (kErr) this.report(`addQuestion/key: ${kErr.message}`);
+    // A failure keeps the question on screen marked Not saved; Try again
+    // carries on from the step that failed.
+    let rowSaved = false;
+    let keySaved = false;
+    this.unsentRows.add(id);
+    void this.sendQuestion(testId, id, async () => {
+      if (!rowSaved && this.unsentRows.has(id)) {
+        const { error: qErr } = await sb.from("questions").insert(questionToRow(testId, id, q, order));
+        if (qErr) return `addQuestion: ${qErr.message}`;
+        this.unsentRows.delete(id);
       }
-    })();
+      rowSaved = true;
+      if (v.type === "mcq" && !keySaved) {
+        const { error: kErr } = await sb.from("question_keys").upsert({ question_id: id, correct_index: v.correctIndex });
+        if (kErr) return `addQuestion/key: ${kErr.message}`;
+        keySaved = true;
+      }
+      return null;
+    });
     if (opts?.bank !== false) this.mirrorToBank(testId, q);
   }
   /** Every question authored on a test is kept in the bank for reuse. */
@@ -2179,21 +2335,32 @@ class Store {
     const v = q as QuestionInput;
     const { id: _id, test_id: _t, sort_order: _o, ...fields } = questionToRow(testId, questionId, q, order);
     void _id; void _t; void _o;
-    void (async () => {
-      const { error: qErr } = await sb.from("questions").update(fields).eq("id", questionId);
-      if (qErr) return this.report(`updateQuestion: ${qErr.message}`);
-      if (v.type === "mcq") {
-        const { error: kErr } = await sb
-          .from("question_keys")
-          .upsert({ question_id: questionId, correct_index: v.correctIndex });
-        if (kErr) this.report(`updateQuestion/key: ${kErr.message}`);
-      } else {
-        const { error: kErr } = await sb.from("question_keys").delete().eq("question_id", questionId);
-        if (kErr) this.report(`updateQuestion/key-clear: ${kErr.message}`);
-      }
+    // A failure keeps the edit on screen marked Not saved; Try again sends it all again (safe to repeat).
+    void this.sendQuestion(
+      testId,
+      questionId,
+      async () => {
+        // Edited before it was ever saved: write the whole question (an update would change nothing).
+        const fresh = this.unsentRows.has(questionId);
+        const { error: qErr } = fresh
+          ? await sb.from("questions").upsert(questionToRow(testId, questionId, q, order))
+          : await sb.from("questions").update(fields).eq("id", questionId);
+        if (qErr) return `updateQuestion: ${qErr.message}`;
+        if (fresh) this.unsentRows.delete(questionId);
+        if (v.type === "mcq") {
+          const { error: kErr } = await sb
+            .from("question_keys")
+            .upsert({ question_id: questionId, correct_index: v.correctIndex });
+          if (kErr) return `updateQuestion/key: ${kErr.message}`;
+        } else {
+          const { error: kErr } = await sb.from("question_keys").delete().eq("question_id", questionId);
+          if (kErr) return `updateQuestion/key-clear: ${kErr.message}`;
+        }
+        return null;
+      },
       // The database has just re-marked this question's MCQ answers.
-      void this.refreshTestPapers(testId);
-    })();
+      () => void this.refreshTestPapers(testId),
+    );
   }
   /**
    * Re-read the handed-in papers of one test. The database re-marks MCQ
@@ -2299,6 +2466,7 @@ class Store {
   }
   deleteQuestion(testId: string, questionId: string) {
     this.note(`test:${testId}`, `edited the test "${this.titleOf(testId)}"`);
+    this.forgetQuestionSave(questionId);
     this.commit((d) => {
       const t = d.tests.find((x) => x.id === testId);
       if (t) t.questions = t.questions.filter((q) => q.id !== questionId).map((q, i) => ({ ...q, order: i }));
@@ -2358,14 +2526,26 @@ class Store {
       });
     });
     // Persist each question, then its key (FK ordering — see addQuestion).
+    // One after another, as before. A failure keeps that question on screen marked Not saved.
+    for (const p of pending) this.unsentRows.add(p.id);
     void (async () => {
       for (const p of pending) {
-        const { error: qErr } = await sb.from("questions").insert(questionToRow(testId, p.id, p.rest, p.order));
-        if (qErr) { this.report(`importBank: ${qErr.message}`); continue; }
-        if (p.correctIndex !== undefined) {
-          const { error: kErr } = await sb.from("question_keys").insert({ question_id: p.id, correct_index: p.correctIndex });
-          if (kErr) this.report(`importBank/key: ${kErr.message}`);
-        }
+        let rowSaved = false;
+        let keySaved = false;
+        await this.sendQuestion(testId, p.id, async () => {
+          if (!rowSaved && this.unsentRows.has(p.id)) {
+            const { error: qErr } = await sb.from("questions").insert(questionToRow(testId, p.id, p.rest, p.order));
+            if (qErr) return `importBank: ${qErr.message}`;
+            this.unsentRows.delete(p.id);
+          }
+          rowSaved = true;
+          if (p.correctIndex !== undefined && !keySaved) {
+            const { error: kErr } = await sb.from("question_keys").upsert({ question_id: p.id, correct_index: p.correctIndex });
+            if (kErr) return `importBank/key: ${kErr.message}`;
+            keySaved = true;
+          }
+          return null;
+        });
       }
     })();
   }
@@ -3267,6 +3447,59 @@ class Store {
       }).eq("id", id),
       "updateAssignment",
     );
+  }
+  /**
+   * The homework form's save. Unlike addAssignment and updateAssignment it
+   * waits for the database, so the form only says "saved" once it really is.
+   * If the save fails, the list goes back to what is saved and this throws,
+   * so the form can stay open with everything typed still in it.
+   */
+  async saveAssignment(id: string | null, input: Omit<Assignment, "id" | "createdAt">): Promise<string> {
+    if (!this.ownerOnly()) throw new Error("Only Hamza can do that.");
+    const row = {
+      title: input.title,
+      instructions: input.instructions ?? null,
+      attachment_urls: input.attachments,
+      due_at: input.dueAt,
+      cohort_id: input.cohortId,
+      class_id: input.classId,
+      subject_id: input.subjectId,
+    };
+    const newId = id ?? genId();
+    const before = id ? this.state.assignments.find((a) => a.id === id) : undefined;
+    if (id) {
+      this.commit((d) => {
+        const idx = d.assignments.findIndex((a) => a.id === id);
+        if (idx >= 0) d.assignments[idx] = { ...d.assignments[idx], ...input };
+      });
+    } else {
+      const createdAt = new Date().toISOString();
+      this.commit((d) => d.assignments.unshift({ ...input, id: newId, createdAt }));
+    }
+    this.pendingWrites++;
+    this.writeCount++;
+    let problem: string | null = null;
+    try {
+      const sb = supabase().from("assignments");
+      const { error } = id ? await sb.update(row).eq("id", id) : await sb.insert({ id: newId, ...row });
+      if (error) problem = error.message;
+    } catch (e) {
+      problem = String(e);
+    } finally {
+      this.pendingWrites--;
+    }
+    if (problem) {
+      console.error("[store]", `${id ? "updateAssignment" : "addAssignment"}: ${problem}`);
+      this.commit((d) => {
+        if (!id) d.assignments = d.assignments.filter((a) => a.id !== newId);
+        else if (before) {
+          const idx = d.assignments.findIndex((a) => a.id === id);
+          if (idx >= 0) d.assignments[idx] = before;
+        }
+      });
+      throw new Error("Not saved. Check your internet and try again.");
+    }
+    return newId;
   }
   deleteAssignment(id: string) {
     if (!this.ownerOnly()) return;

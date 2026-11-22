@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { useDatabase, useStore } from "@/lib/data/store";
+import { StudentLinksError, useDatabase, useStore } from "@/lib/data/store";
 import { useToast } from "@/components/toast";
 import { waDigits } from "@/lib/phone";
 import { welcomeMessage } from "@/lib/welcome-message";
@@ -134,7 +134,12 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
         if (inPerson) store.setInPerson(id, true);
         ok.push({ username: p.username, password, phone: p.phone, parent: inPerson ? undefined : p.parent });
       } catch (e) {
-        failed.push({ line: p.line, username: p.username, why: e instanceof Error ? e.message : "Couldn't be saved" });
+        if (e instanceof StudentLinksError) {
+          // The account exists: keep its login to send, and list the level and subjects to fix.
+          if (inPerson) store.setInPerson(e.studentId, true);
+          ok.push({ username: p.username, password, phone: p.phone, parent: inPerson ? undefined : p.parent });
+          failed.push({ line: p.line, username: p.username, why: "Account made, but their level and subjects were not added. Open the student and save them again." });
+        } else failed.push({ line: p.line, username: p.username, why: e instanceof Error ? e.message : "Couldn't be saved" });
       }
       setBusy({ done: ++done, of: todo });
     }
@@ -216,7 +221,7 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
     >
       {failedRows.length > 0 && (
         <div className="mb-4 rounded-tile border border-error/30 bg-error-soft px-4 py-3 text-sm text-error">
-          <p className="font-semibold">{failedRows.length} couldn&apos;t be saved. Try them again in a minute:</p>
+          <p className="font-semibold">{failedRows.length} didn&apos;t fully save. Try them again in a minute:</p>
           <ul className="mt-1 space-y-0.5 text-sm">
             {failedRows.map((f) => (
               <li key={f.line}>

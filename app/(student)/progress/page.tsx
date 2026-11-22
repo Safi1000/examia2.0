@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import dynamic from "next/dynamic";
-import { createPortal } from "react-dom";
 import { useAuth } from "@/lib/auth-context";
 import { useDatabase } from "@/lib/data/store";
 import { useNow } from "@/hooks/useNow";
@@ -12,7 +10,6 @@ import { gradeSubmission } from "@/lib/grading";
 import { isVagueTopic, topicMastery } from "@/lib/scoring";
 import { GRADE_FLOOR, performanceSnapshot, shownPercent } from "@/lib/performance";
 import { formatDate } from "@/lib/time";
-import { studentSubjects } from "@/components/student/Welcome";
 import { EmptyState, Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
@@ -21,15 +18,15 @@ import { displayName } from "@/lib/display-name";
 import { worldScene } from "@/lib/groundwork";
 import { overallTarget, targetFor as pickedTarget } from "@/components/student/targets";
 import { topicNotesFinder } from "@/components/student/topic-notes";
-import { syllabusProgress, type BookProgress } from "@/lib/syllabus-progress";
+import { paperCodeFor, syllabusProgress, topicalFor, type BookProgress } from "@/lib/syllabus-progress";
+import { shelvesFor } from "@/lib/note-shelves";
+import { matchChapter, subjectOfName } from "@/lib/notes-library";
+import { useTopicalIndex } from "@/components/student/SyllabusCard";
 import { AttendanceCard } from "@/components/student/AttendanceCard";
-import type { Mission } from "@/components/student/FocusMode";
 import { EmptyArt, GradeMedallion, PageHeader, ProgressRing, SectionTitle } from "@/components/student/PortalKit";
 
 /** Results shown before "See all": the latest, so subjects and topics stay near the top. */
 const RESULTS_SHOWN = 5;
-
-const FocusMode = dynamic(() => import("@/components/student/FocusMode"), { ssr: false });
 
 /**
  * Progress, five sections in the order a student asks: Where am I (and the one
@@ -41,10 +38,11 @@ export default function ProgressPage() {
   const db = useDatabase();
   const nowMs = useNow();
   const student = session?.studentId ? studentById(db, session.studentId) : null;
-  const [practise, setPractise] = useState<Mission | null>(null);
   const [allResults, setAllResults] = useState(false);
   const books = useMemo(() => (student ? syllabusProgress(db, student) : []), [db, student]);
   const notesFor = useMemo(() => (student ? topicNotesFinder(db, student) : null), [db, student]);
+  const shelves = useMemo(() => (student ? shelvesFor(db, student) : []), [db, student]);
+  const topicalIndex = useTopicalIndex();
 
   const data = useMemo(() => {
     if (!student) return null;
@@ -92,11 +90,21 @@ export default function ProgressPage() {
 
   // The one gold action: practise the weakest topic. The rest stay quiet links.
   const [lead, ...otherWeak] = data.weak;
-  const practiseTopic = (m: (typeof data.weak)[number]) => {
+  // Where "Practise" goes: that topic's past paper questions; when it has none,
+  // its notes; when there are no notes either, the Study list.
+  const practiseLink = (m: (typeof data.weak)[number]): { href: string; label: string } => {
+    const subj = subjectOfName(m.subject);
+    for (const s of shelves) {
+      if (!s.book || !subj || s.book.subject !== subj) continue;
+      const ch = matchChapter(s.book, m.name);
+      const t = ch && !ch.unit ? topicalFor(topicalIndex, paperCodeFor(s.book), ch.num) : null;
+      if (t) return { href: t.href, label: `Practise ${m.name}` };
+    }
     const notes = notesFor?.(m.subject, m.name) ?? null;
-    // "Open the notes for it" opens that note straight away.
-    setPractise({ subject: m.subject, topic: m.name, noteHref: notes?.exact ? notes.href : undefined });
+    if (notes) return { href: notes.href, label: `Read the notes on ${m.name}` };
+    return { href: "/study", label: "Open your study list" };
   };
+  const leadLink = lead ? practiseLink(lead) : null;
   const lastN = snap ? Math.min(5, snap.marked) : 0;
 
   return (
@@ -146,30 +154,25 @@ export default function ProgressPage() {
                 />
               </div>
             )}
-            {lead && (
+            {lead && leadLink && (
               <div className="mt-5 border-t border-hairline pt-5">
                 <p className="text-sm text-ink-2 tabular-nums">
                   Your weakest topic is <span className="font-semibold text-ink">{lead.name}</span> in {lead.subject}, at {Math.round(lead.percent)}%.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => practiseTopic(lead)}
-                  className={buttonClasses({ size: "lg", fullWidth: true, className: "mt-3 sm:w-auto" })}
-                >
-                  Practise {lead.name}
-                </button>
+                <Link href={leadLink.href} className={buttonClasses({ size: "lg", fullWidth: true, className: "mt-3 sm:w-auto" })}>
+                  {leadLink.label}
+                </Link>
                 {otherWeak.length > 0 && (
                   <p className="mt-3 text-sm text-ink-3">
                     Also worth practising:{" "}
                     {otherWeak.map((m, i) => (
                       <span key={m.topic}>
-                        <button
-                          type="button"
-                          onClick={() => practiseTopic(m)}
+                        <Link
+                          href={practiseLink(m).href}
                           className="inline-flex min-h-11 items-center font-semibold text-ink-2 underline decoration-hairline-strong underline-offset-4 hover:text-ink hover:decoration-ink-3"
                         >
                           {m.name}
-                        </button>
+                        </Link>
                         {i < otherWeak.length - 1 ? ", " : ""}
                       </span>
                     ))}
@@ -254,8 +257,6 @@ export default function ProgressPage() {
       <TopicTracker books={books} />
 
       </div>
-      {practise &&
-        createPortal(<FocusMode subjects={studentSubjects(db, student)} mission={practise} onClose={() => setPractise(null)} />, document.body)}
     </div>
   );
 }

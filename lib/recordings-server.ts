@@ -237,13 +237,19 @@ export async function closeOne(sb: Sb, token: string, key: string) {
  * Delete one recording: the file goes to Drive's bin (Hamza can restore it there
  * for 30 days), and the portal forgets the link, so students no longer see it.
  * The automation never picks a binned file up again.
+ *
+ * Classes taught together share one video file. Then only this class's link
+ * is removed and the file stays (`kept`), so the other class's students still
+ * have it. The file goes to the bin only once no other class uses it.
  */
 export async function deleteOne(sb: Sb, token: string | null, key: string) {
-  const row = (await recordingRows(sb)).find((r) => r.key === key);
+  const rows = await recordingRows(sb);
+  const row = rows.find((r) => r.key === key);
   if (!row) throw new Error("This recording is already gone.");
   const f = fileIdOf(row.url);
+  const kept = !!f && rows.some((r) => r.key !== key && fileIdOf(r.url) === f);
   let binned = false;
-  if (f && token) {
+  if (f && token && !kept) {
     try {
       await trashFile(token, f);
       binned = true;
@@ -255,7 +261,7 @@ export async function deleteOne(sb: Sb, token: string | null, key: string) {
     delete x.overrides[key];
     delete x.shared[key];
   });
-  return { access: a, binned };
+  return { access: a, binned, kept };
 }
 
 // ---- Closing when windows end ---------------------------------------------------

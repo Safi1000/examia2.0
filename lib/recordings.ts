@@ -142,6 +142,8 @@ export type TeacherResult = TeacherAccess & {
   closed?: boolean;
   /** Delete: the file went to Drive's bin (false: only the portal link was removed). */
   binned?: boolean;
+  /** Deleted for one class only: another class taught with it still uses the video. */
+  kept?: boolean;
   /** The main recordings folder in Drive. */
   folderUrl?: string;
   refreshed?: number;

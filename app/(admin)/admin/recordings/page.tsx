@@ -208,7 +208,7 @@ export default function RecordingsPage() {
       const r = await act("delete", { key: r0.key });
       if (r.error) toast(r.error, "error");
       else {
-        toast(r.binned === false ? "Removed from the portal. Google didn't answer, so delete the video in Drive yourself." : "Deleted. It's in your Google Drive bin for 30 days.", "success");
+        toast(r.kept ? "Removed for this class. The video stays, as a class taught with it still uses it." : r.binned === false ? "Removed from the portal. Google didn't answer, so delete the video in Drive yourself." : "Deleted. It's in your Google Drive bin for 30 days.", "success");
         void reload();
       }
     } finally {
@@ -323,7 +323,7 @@ export default function RecordingsPage() {
           </>
         }
       >
-        <p className="text-sm text-ink-2">Students won&apos;t see it any more. The video goes to the bin in your Google Drive, where you can restore it for 30 days.</p>
+        <p className="text-sm text-ink-2">Students won&apos;t see it any more. The video goes to the bin in your Google Drive, where you can restore it for 30 days. If a class taught together with this one still uses the video, only this class&apos;s link is removed and the video stays.</p>
       </Modal>
 
       {error && !state && (

@@ -91,6 +91,8 @@ export default function AdminAssignmentsPage() {
   // The form as it was opened, so closing can ask before throwing away typed work.
   const [formStart, setFormStart] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState<string | null>(null);
   // Today's "Homework to reply to" opens straight onto that homework's hand-ins.
   const [openId, setOpenId] = useState<string | null>(null);
   const [papersOpen, setPapersOpen] = useState(false);
@@ -269,6 +271,7 @@ export default function AdminAssignmentsPage() {
     const f = blank(cohortId ?? (soleCohort || activeCohorts[0]?.id) ?? "");
     setFormStart(JSON.stringify(f));
     setForm(f);
+    setSaveFailed(null);
   }
   function openEdit(a: Assignment) {
     setPpQs(null);
@@ -284,13 +287,16 @@ export default function AdminAssignmentsPage() {
     };
     setFormStart(JSON.stringify(f));
     setForm(f);
+    setSaveFailed(null);
   }
 
   function closeForm() {
+    if (saving) return;
     if (form && JSON.stringify(form) !== formStart && !window.confirm("Close without saving this homework? What you typed will be lost.")) return;
     setForm(null);
     setEditing(null);
     setPpQs(null);
+    setSaveFailed(null);
   }
 
   function markUnsent(id: string, on: boolean) {
@@ -319,8 +325,8 @@ export default function AdminAssignmentsPage() {
     }
   }
 
-  function save() {
-    if (!form) return;
+  async function save() {
+    if (!form || saving) return;
     if (!form.dueAt) return toast("Set a due date.", "error");
     if (!form.cohortId) return toast("Choose a cohort.", "error");
     // Pages still uploading would be left off the homework.
@@ -338,8 +344,19 @@ export default function AdminAssignmentsPage() {
       classId: form.classId || null,
       subjectId: form.subjectId || null,
     };
-    if (editing === "new") store.addAssignment(payload);
-    else if (editing) store.updateAssignment(editing.id, payload);
+    if (!editing) return;
+    // Waits for the database: the form closes and says saved only once it is.
+    // If it fails, the form stays open with everything typed, marked Not saved.
+    setSaving(true);
+    setSaveFailed(null);
+    try {
+      await store.saveAssignment(editing === "new" ? null : editing.id, payload);
+    } catch (err) {
+      setSaveFailed(err instanceof Error ? err.message : "Not saved. Check your internet and try again.");
+      return;
+    } finally {
+      setSaving(false);
+    }
     setEditing(null);
     setForm(null);
     setPpQs(null);
@@ -479,13 +496,14 @@ export default function AdminAssignmentsPage() {
         size="lg"
         footer={
           <>
-            <Button variant="secondary" onClick={closeForm}>Cancel</Button>
-            <Button onClick={save} disabled={uploading}>Save</Button>
+            <Button variant="secondary" onClick={closeForm} disabled={saving}>Cancel</Button>
+            <Button onClick={save} disabled={uploading} loading={saving}>{saveFailed ? "Try again" : "Save"}</Button>
           </>
         }
       >
         {form && (
           <div className="space-y-4">
+            {saveFailed && <p role="alert" className="font-medium text-error">{saveFailed}</p>}
             <Input label="Title (optional)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Left empty, it names itself: Accounting homework, 13 Nov" />
             <Textarea label="Instructions (optional)" value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })} placeholder="What the students have to do…" />
 

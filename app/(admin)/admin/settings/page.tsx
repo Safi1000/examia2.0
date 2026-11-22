@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Badge, Button, Card, CardHeader, CardBody, Icon } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
@@ -9,6 +9,7 @@ import { AutomationSettings } from "@/components/admin/Automations";
 import { StaffCard } from "@/components/admin/StaffCard";
 import { NotesKeyCard } from "@/components/admin/NotesKeyCard";
 import { useDatabase, useStore } from "@/lib/data/store";
+import { ConfirmBulk } from "@/components/admin/BulkBar";
 import { useToast } from "@/components/toast";
 import { levelOf, subjectOf } from "@/lib/timetable";
 
@@ -51,9 +52,11 @@ function LevelsAndSubjects() {
   const db = useDatabase();
   const store = useStore();
   const { toast } = useToast();
+  // Remove asks in the portal's own dialog, saying exactly what goes with it.
+  const [removing, setRemoving] = useState<{ kind: "class" | "subject"; id: string; name: string } | null>(null);
   const lists = [
-    { key: "class", title: "Levels", items: db.classes, match: (n: string) => !!levelOf({ name: n }), add: (n: string) => store.addClass(n), rename: (id: string, n: string) => store.updateClass(id, n), remove: (id: string) => store.deleteClass(id), hint: "e.g. A-Levels (A2)" },
-    { key: "subject", title: "Subjects", items: db.subjects, match: (n: string) => !!subjectOf({ name: n }), add: (n: string) => store.addSubject(n), rename: (id: string, n: string) => store.updateSubject(id, n), remove: (id: string) => store.deleteSubject(id), hint: "e.g. Economics" },
+    { key: "class", title: "Levels", items: db.classes, match: (n: string) => !!levelOf({ name: n }), add: (n: string) => store.addClass(n), rename: (id: string, n: string) => store.updateClass(id, n), askRemove: (it: { id: string; name: string }) => setRemoving({ kind: "class", ...it }), hint: "e.g. A-Levels (A2)" },
+    { key: "subject", title: "Subjects", items: db.subjects, match: (n: string) => !!subjectOf({ name: n }), add: (n: string) => store.addSubject(n), rename: (id: string, n: string) => store.updateSubject(id, n), askRemove: (it: { id: string; name: string }) => setRemoving({ kind: "subject", ...it }), hint: "e.g. Economics" },
   ];
   return (
     <Card className="max-w-2xl">
@@ -67,7 +70,68 @@ function LevelsAndSubjects() {
           <NameList key={key} {...l} onError={(m) => toast(m, "error")} onSaved={(m) => toast(m, "success")} />
         ))}
       </CardBody>
+      <ConfirmBulk
+        open={!!removing}
+        onClose={() => setRemoving(null)}
+        title={removing ? `Remove ${removing.name}?` : ""}
+        description="This removes more than the name. Here is everything that goes with it."
+        confirmLabel="Remove"
+        danger
+        ack="I understand this can't be undone."
+        onConfirm={() => {
+          if (!removing) return;
+          if (removing.kind === "class") store.deleteClass(removing.id);
+          else store.deleteSubject(removing.id);
+          setRemoving(null);
+        }}
+      >
+        {removing && <RemovalSummary key={removing.id} kind={removing.kind} id={removing.id} />}
+      </ConfirmBulk>
     </Card>
+  );
+}
+
+/** Everything removing a level or subject takes with it, counted. */
+function RemovalSummary({ kind, id }: { kind: "class" | "subject"; id: string }) {
+  const db = useDatabase();
+  const store = useStore();
+  const [remote, setRemote] = useState<Awaited<ReturnType<typeof store.removalCounts>> | null>(null);
+  useEffect(() => {
+    let live = true;
+    void store.removalCounts(kind, id).then((r) => live && setRemote(r));
+    return () => {
+      live = false;
+    };
+  }, [store, kind, id]);
+  const word = kind === "class" ? "level" : "subject";
+  const has = (ids: string[]) => ids.includes(id);
+  const tagged = (x: { classId: string | null; subjectId: string | null }) => (kind === "class" ? x.classId : x.subjectId) === id;
+  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
+  const verb = (k: number, one: string, many: string) => (k === 1 ? one : many);
+  const students = db.students.filter((s) => has(kind === "class" ? s.classIds : s.subjectIds)).length;
+  const cohorts = db.cohorts.filter((c) => has(kind === "class" ? c.classIds : c.subjectIds)).length;
+  const tests = db.tests.filter(tagged).length;
+  const homework = db.assignments.filter(tagged).length;
+  const shares = db.noteAssignments.filter(tagged).length;
+  const marks = kind === "class" ? db.attendanceDays.filter((d) => d.classId === id).length : 0;
+  const later = (v: number | null | undefined, line: (k: number) => string, unknown: string) =>
+    v === undefined ? "Counting" : v === null ? unknown : line(v);
+  const lines = [
+    `Taken off ${n(students, "student", "students")}. The students stay in the portal.`,
+    `Taken off ${n(cohorts, "cohort", "cohorts")}.`,
+    `${n(tests, "test", "tests")} ${verb(tests, "loses", "lose")} this ${word} and ${verb(tests, "becomes", "become")} open to every ${word} in ${verb(tests, "its", "their")} cohort.`,
+    `${n(homework, "homework task", "homework tasks")} ${verb(homework, "loses", "lose")} this ${word} and ${verb(homework, "becomes", "become")} open to every ${word} in ${verb(homework, "its", "their")} cohort.`,
+    `${n(shares, "note share", "note shares")} for this ${word} ${verb(shares, "is", "are")} deleted. Those notes stop showing for it.`,
+    ...(kind === "class" ? [`${n(marks, "attendance mark loses", "attendance marks lose")} its level. The marks stay.`] : []),
+    later(remote?.meetLinks, (k) => `${n(k, "Meet link", "Meet links")} deleted.`, "All its Meet links deleted (couldn't count them)."),
+    later(remote?.recordings, (k) => `${n(k, "recording link", "recording links")} deleted. The videos stay in your Google Drive.`, "All its recording links deleted (couldn't count them). The videos stay in your Google Drive."),
+    later(remote?.joins, (k) => `${n(k, "class join record", "class join records")} deleted (used for attendance).`, "All its class join records deleted (couldn't count them)."),
+    later(remote?.feed, (k) => `${n(k, "notification", "notifications")} about it deleted.`, "All notifications about it deleted (couldn't count them)."),
+  ];
+  return (
+    <ul className="list-disc space-y-1 pl-5">
+      {lines.map((l, i) => <li key={i}>{l}</li>)}
+    </ul>
   );
 }
 
@@ -77,7 +141,7 @@ function NameList({
   match,
   add,
   rename,
-  remove,
+  askRemove,
   hint,
   onError,
   onSaved,
@@ -87,7 +151,7 @@ function NameList({
   match: (n: string) => boolean;
   add: (n: string) => void;
   rename: (id: string, n: string) => void;
-  remove: (id: string) => void;
+  askRemove: (it: { id: string; name: string }) => void;
   hint: string;
   onError: (m: string) => void;
   onSaved: (m: string) => void;
@@ -123,9 +187,7 @@ function NameList({
             <button
               type="button"
               aria-label={`Remove ${it.name}`}
-              onClick={() => {
-                if (window.confirm(`Remove "${it.name}"? Students, tests and notes using it lose that tag.`)) remove(it.id);
-              }}
+              onClick={() => askRemove({ id: it.id, name: it.name })}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors duration-150 hover:bg-error-soft hover:text-error pointer-coarse:h-11 pointer-coarse:w-11"
             >
               <Icon.Trash className="h-4 w-4" />

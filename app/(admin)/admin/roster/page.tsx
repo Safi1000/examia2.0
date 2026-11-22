@@ -4,7 +4,7 @@ import { useIsStaff } from "@/lib/staff";
 import { useMemo, useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import type { Student } from "@/types";
-import { useDatabase, useStore } from "@/lib/data/store";
+import { StudentLinksError, useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
 import { attendancePercent, cohortById, homeworkSetFor, testById } from "@/lib/data/selectors";
 import { gradeSubmission } from "@/lib/grading";
@@ -529,7 +529,9 @@ export default function RosterPage() {
         // Straight into the ready-made message with their login.
         setSent({ username: fields.username, password: fields.tempPassword, phone: fields.phone, parent: fields.whatsapp });
       } else if (editing) {
-        await store.updateStudent(editing.id, fields);
+        // An emptied box is sent as an empty value, not left out, so removing a
+        // number, the photo or the email really saves (the store writes it as empty).
+        await store.updateStudent(editing.id, { ...fields, email: fields.email ?? "", whatsapp, phone, photoUrl: form.photoUrl || "" });
         store.setInPerson(editing.id, form.inPerson);
         // A new password: send it. Only a new username: send just that, the password stays.
         if (fields.tempPassword) setSent({ username: fields.username, password: fields.tempPassword, phone: fields.phone, parent: fields.whatsapp, kind: "reset" });
@@ -539,6 +541,14 @@ export default function RosterPage() {
       if (fields.levelSubjects && store.levelsSaveFailed) toast("Saved, but the subjects for each level didn't save. Open the student and save again.", "error");
       setEditing(null);
     } catch (err) {
+      if (err instanceof StudentLinksError) {
+        // The account exists: show its login (the password is never shown again), and say what didn't save.
+        if (form.inPerson) store.setInPerson(err.studentId, true);
+        setSent({ username: fields.username, password: fields.tempPassword, phone: fields.phone, parent: fields.whatsapp });
+        setEditing(null);
+        toast(err.message, "error");
+        return;
+      }
       setError(err instanceof Error ? err.message : "Couldn't save this student. Check your internet and try again.");
     } finally {
       setSaving(false);

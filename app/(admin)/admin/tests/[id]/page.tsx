@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useParams } from "next/navigation";
 import type { Question } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
@@ -27,6 +27,8 @@ import { PaperText } from "@/components/PaperText";
 /** The same words the marking screen uses. */
 // The same three names everywhere a question type is shown: the add box, the import screen and the past paper builder.
 const TYPE_LABEL: Record<Question["type"], string> = { mcq: "Multiple choice", text: "Typed answer", photo: "Photo answer" };
+
+const NONE_UNSAVED: ReadonlySet<string> = new Set();
 
 function stripDraft(d: QuestionDraft): Omit<Question, "id" | "order"> {
   const { subject: _s, ...rest } = d;
@@ -113,6 +115,15 @@ export default function TestEditorPage() {
   const lastPublish = useRef(0);
 
   const questions = useMemo(() => (test ? [...test.questions].sort((a, b) => a.order - b.order) : []), [test]);
+  // Questions whose save failed: marked Not saved with Try again, and Publish waits for them.
+  const unsavedIds = useSyncExternalStore(store.subscribeQuestionSaves, store.getUnsavedQuestions, () => NONE_UNSAVED);
+  const [retrying, setRetrying] = useState<string | null>(null);
+  async function retryQuestion(qid: string) {
+    setRetrying(qid);
+    const ok = await store.retryQuestion(qid);
+    setRetrying(null);
+    toast(ok ? "Question saved." : "Still not saved. Check your internet and try again.", ok ? "success" : "error");
+  }
 
   if (!test || !form) {
     return (
@@ -127,7 +138,8 @@ export default function TestEditorPage() {
   const canSave = form.title.trim().length > 0;
   // Written past paper questions whose marks the paper didn't make certain: typed once here.
   const noMarks = questions.filter((q) => q.marks <= 0).length;
-  const canPublish = canSave && questions.length > 0 && noMarks === 0;
+  const unsaved = questions.filter((q) => unsavedIds.has(q.id)).length;
+  const canPublish = canSave && questions.length > 0 && noMarks === 0 && unsaved === 0;
   // Scripts already handed in: editing a question now changes their marks.
   const sat = submissionsForTest(db, id).filter((x) => x.status !== "in_progress").length;
   // Papers on this test waiting for marks (the Submissions page's rule), oldest first.
@@ -345,7 +357,9 @@ export default function TestEditorPage() {
             ? "Give the test a title to save it."
             : questions.length === 0
               ? "Add at least one question before publishing."
-              : `Type the marks for ${noMarks === 1 ? "1 written question" : `${noMarks} written questions`} below, then publish. The paper didn't show them clearly.`}
+              : unsaved > 0
+                ? `${unsaved === 1 ? "1 question is" : `${unsaved} questions are`} not saved yet. Press Try again on ${unsaved === 1 ? "it" : "each"} below, then publish.`
+                : `Type the marks for ${noMarks === 1 ? "1 written question" : `${noMarks} written questions`} below, then publish. The paper didn't show them clearly.`}
         </p>
       )}
 
@@ -502,6 +516,12 @@ export default function TestEditorPage() {
                         <Badge tone="neutral">{TYPE_LABEL[q.type]}</Badge>
                         {q.topic.trim() && <Badge tone="neutral" className="max-w-full truncate">{q.topic}</Badge>}
                         <Pill>{q.marks} {q.marks === 1 ? "mark" : "marks"}</Pill>
+                        {unsavedIds.has(q.id) && (
+                          <>
+                            <Badge tone="error">Not saved</Badge>
+                            <Button size="sm" variant="secondary" loading={retrying === q.id} onClick={() => void retryQuestion(q.id)}>Try again</Button>
+                          </>
+                        )}
                       </div>
                       <div className="-mr-1 flex shrink-0 items-center">
                         <button onClick={() => move(i, -1)} disabled={i === 0} className="flex h-11 w-10 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink disabled:opacity-30" aria-label={`Move question ${i + 1} up`}>

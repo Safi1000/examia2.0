@@ -40,6 +40,35 @@ function demoLinks(): ClassLink[] {
 }
 
 /**
+ * Every join between two dates. One read stops at 1,000 rows (about a week of
+ * joins in a busy term), so this reads page by page, in a fixed order, until a
+ * page comes back short. A failed page fails the whole read.
+ */
+const JOIN_PAGE = 1000;
+async function allJoins(from: string, to: string): Promise<{ data: Record<string, unknown>[] | null; error: { message: string } | null }> {
+  const rows: Record<string, unknown>[] = [];
+  for (let start = 0; start < 100 * JOIN_PAGE; start += JOIN_PAGE) {
+    const r = await supabase()
+      .from("class_joins")
+      .select("*")
+      .gte("on_date", from)
+      .lte("on_date", to)
+      .order("on_date")
+      .order("class_id")
+      .order("subject_id")
+      .order("student_id")
+      .range(start, start + JOIN_PAGE - 1);
+    // Asking past the last row can come back as "range not satisfiable": that just means the end.
+    if (r.error && start > 0 && /range/i.test(r.error.message)) break;
+    if (r.error) return { data: null, error: r.error };
+    const got = (r.data as Record<string, unknown>[] | null) ?? [];
+    rows.push(...got);
+    if (got.length < JOIN_PAGE) break;
+  }
+  return { data: rows, error: null };
+}
+
+/**
  * Links (and, for Hamza, joins) between two dates. Refreshes every minute and
  * when the tab comes back. `ready` is false when the database update hasn't
  * been applied yet, so pages can say so instead of looking broken.
@@ -62,7 +91,7 @@ export function useClassLinks(from: string, to: string, withJoins = false, poll 
     const sb = supabase();
     const [l, j] = await Promise.all([
       sb.from("class_links").select("*").gte("on_date", from).lte("on_date", to),
-      withJoins ? sb.from("class_joins").select("*").gte("on_date", from).lte("on_date", to) : Promise.resolve({ data: [], error: null }),
+      withJoins ? allJoins(from, to) : Promise.resolve({ data: [], error: null }),
     ]);
     if (l.error) {
       setReady(false);
