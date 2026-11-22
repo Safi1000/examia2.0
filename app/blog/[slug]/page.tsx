@@ -4,12 +4,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArticleHeader } from "@/components/blog/ArticleHeader";
 import { ArticleToc } from "@/components/blog/ArticleToc";
+import { ArticleFeedback } from "@/components/blog/ArticleFeedback";
 import { AuthorBio } from "@/components/blog/AuthorBio";
 import { headingsFromSource } from "@/components/blog/headings";
 import { notFound } from "next/navigation";
 import { PAST_PAPER_SYLLABI } from "@/lib/past-papers";
 import { SYLLABI } from "@/lib/syllabus";
 import { JsonLd } from "@/components/JsonLd";
+import { waTextLink } from "@/lib/landing";
 import { ArticleCta } from "@/components/blog/ArticleCta";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { allArticles, articleSlugs, getArticle } from "@/lib/blog";
@@ -126,6 +128,12 @@ export default async function ArticlePage({ params }: Props) {
           <div id="article-body" className="pb-2">
             <Post components={{ BookingBox: () => <ArticleCta variant="mid" {...ctaProps} /> }} />
           </div>
+
+          <ArticleFeedback
+            slug={slug}
+            next={related[0] ? { href: `/blog/${related[0].slug}`, title: related[0].title } : undefined}
+            askHref={waTextLink(`Hi, I read your article on ${topic}. I have a question.`)}
+          />
 
           <AuthorBio />
 
