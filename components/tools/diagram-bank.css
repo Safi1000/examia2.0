@@ -1,0 +1,43 @@
+/* Economics diagram bank: on paper each diagram is a compact black and white card, two to a row. */
+@media print {
+  .fs-sheet .dg-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 10pt 16pt;
+  }
+  .fs-sheet .dg-card {
+    break-inside: avoid;
+    padding: 0 !important;
+    border: 0 !important;
+    margin: 0 !important;
+  }
+  .fs-sheet .dg-card h3 {
+    font-size: 9.5pt !important;
+  }
+  .fs-sheet .dg-card p,
+  .fs-sheet .dg-card li {
+    font-size: 8pt !important;
+    line-height: 1.35 !important;
+  }
+  .fs-sheet .dg-card svg {
+    max-width: 62mm;
+  }
+  .fs-sheet .dg-minis svg {
+    max-width: 28mm;
+  }
+  .fs-sheet .dg-minis {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 4pt;
+  }
+  .fs-sheet .dg-minis figcaption {
+    font-size: 6.5pt !important;
+    max-width: 28mm;
+  }
+  .fs-sheet .dg-steps {
+    display: none !important;
+  }
+  .fs-sheet svg [fill-opacity] {
+    fill: #999 !important;
+  }
+}

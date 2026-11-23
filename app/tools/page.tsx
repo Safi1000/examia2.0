@@ -53,7 +53,10 @@ const GROUPS: Array<{ title: string; tools: Array<{ href: string; name: string; 
   },
   {
     title: "Economics",
-    tools: [{ href: "/tools/elasticity-calculator", name: "Elasticity calculator", what: "PED, YED and XED with the working and what the number means." }],
+    tools: [
+      { href: "/tools/economics-diagrams", name: "Economics diagrams", what: "Every diagram the IGCSE and O Level syllabus asks you to draw, with how to draw it." },
+      { href: "/tools/elasticity-calculator", name: "Elasticity calculator", what: "PED, YED and XED with the working and what the number means." },
+    ],
   },
 ];
 

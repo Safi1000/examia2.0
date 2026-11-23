@@ -1,3 +1,4 @@
+import { ECON_DIAGRAM_CODES } from "@/lib/econ-diagrams";
 import { FORMULA_SHEETS } from "@/lib/formula-sheets";
 import type { MetadataRoute } from "next";
 import { allArticles } from "@/lib/blog";
@@ -48,6 +49,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
     { url: absolute("/tools/formula-sheet"), changeFrequency: "monthly" as const, priority: 0.7 },
     ...FORMULA_SHEETS.map((f) => ({ url: absolute(`/tools/formula-sheet/${f.slug}`), changeFrequency: "monthly" as const, priority: 0.7 })),
+    { url: absolute("/tools/economics-diagrams"), changeFrequency: "monthly" as const, priority: 0.7 },
+    ...ECON_DIAGRAM_CODES.flatMap((c) => SYLLABI.filter((x) => x.code === c)).map((x) => ({ url: absolute(`/tools/economics-diagrams/${x.slug}`), changeFrequency: "monthly" as const, priority: 0.7 })),
     // The MCQ checker is listed only once it has papers (lib/mcq-papers.ts).
     ...(PAPERS.length ? ["/tools/past-paper-mcq"] : []).map((path) => ({ url: absolute(path), changeFrequency: "monthly" as const, priority: 0.6 })),
     ...liveSyllabuses().map((m) => ({ url: absolute(`/tools/past-paper-mcq/${m.slug}`), changeFrequency: "monthly" as const, priority: 0.5 })),
