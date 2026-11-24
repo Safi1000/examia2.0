@@ -614,6 +614,480 @@ const AS_GROUPS: DiagramGroup[] = [
   },
 ];
 
+/* ───────── A Level Economics 9708 (topics 7 to 11) ───────── */
+const solve = (f: (x: number) => number, lo: number, hi: number) => {
+  for (let i = 0; i < 60; i++) {
+    const m = (lo + hi) / 2;
+    if (Math.sign(f(m)) === Math.sign(f(lo))) lo = m;
+    else hi = m;
+  }
+  return (lo + hi) / 2;
+};
+const r1 = (n: number) => Math.round(n * 10) / 10;
+// One set of short run cost curves, used by every firm diagram, so MC always cuts AVC and ATC at their lowest points.
+const AVC = (q: number) => 50 - q + 0.0125 * q * q;
+const MC = (q: number) => 50 - 2 * q + 0.0375 * q * q;
+const ATC = (q: number) => AVC(q) + 600 / q;
+const Q_ATC = solve((q) => MC(q) - ATC(q), 30, 80);
+const MIN_ATC = ATC(Q_ATC);
+const Q_AVC = 40; // AVC is lowest at 40, where it equals MC (30).
+const MC_PATH = (k: "a" | "b" | "c" = "a", from = 8): El => ({ t: "path", pts: sample(MC, from, 70), k, label: ["MC", 74, 96] });
+const ATC_PATH: El = { t: "path", pts: sample(ATC, 12, 88), label: ["ATC", 95, 66] };
+const AVC_PATH: El = { t: "path", pts: sample(AVC, 6, 88), k: "c", label: ["AVC", 95, 56] };
+const COSTS = { y: "Costs, revenue", x: "Output" };
+
+// Perfect competition with supernormal profit at a price of 70.
+const PC_P = 70;
+const PC_Q = solve((q) => MC(q) - PC_P, 30, 70);
+const PC_C = ATC(PC_Q);
+// Monopoly: AR = 95 − 0.9Q, MR = 95 − 1.8Q.
+const M_AR = (q: number) => 95 - 0.9 * q;
+const M_Q = solve((q) => MC(q) - (95 - 1.8 * q), 20, 50);
+const M_P = M_AR(M_Q);
+const M_C = ATC(M_Q);
+// Monopolistic competition in the long run: AR just touches ATC at Q = 30, which is also where MR = MC.
+const MCQ = 30;
+const MC_SLOPE = (ATC(MCQ + 0.001) - ATC(MCQ - 0.001)) / 0.002;
+const MC_A = ATC(MCQ) - MC_SLOPE * MCQ;
+// Monopsony: ACL = 10 + 0.5L, MCL = 10 + L, MRP = 90 − 0.8L.
+const MS_L = 80 / 1.8;
+const MS_W = 10 + 0.5 * MS_L;
+const MC_L = 80 / 1.3;
+const MC_W = 10 + 0.5 * MC_L;
+// Income and substitution effects: budget lines and indifference curves xy = k touch at the middle of each line.
+const IC = (k: number, from: number, to: number, label?: Label, kind: "a" | "b" | "c" = "a"): El => ({ t: "path", pts: sample((x) => k / x, from, to), k: kind, ...(label ? { label } : {}) });
+const HYP_A = 60; // parallel to BL2 (slope 80/90) and touching IC1 (xy = 800)
+const HYP_B = 160 / 3;
+// Business cycle: actual output swings around a rising trend.
+const TREND = (x: number) => 25 + ((x - 5) * 45) / 87;
+const ACTUAL = (x: number) => TREND(x) + 12 * Math.sin((2 * Math.PI * (x - 5)) / 40);
+const MRP_L = (w: number) => 5 + ((90 - w) * 85) / 80;
+const LORENZ = sample((x) => 90 * (x / 90) ** 2.5, 0, 90);
+const MONEY = (x: number) => 12 + 1500 / (x + 10);
+const PH = (k: number) => (x: number) => k + 600 / x - 15;
+
+const A2_GROUPS: DiagramGroup[] = [
+  {
+    id: "a2-indifference",
+    title: "A Level: Indifference curves and budget lines",
+    diagrams: [
+      {
+        id: "indifference-optimum",
+        title: "Indifference curves, the budget line and the consumer's best choice",
+        ref: "7.2.1",
+        charts: [{ ...GOODS, els: [line(0, 80, 80, 0, ["BL", 84, 6], "b"), IC(900, 12, 90, ["IC1", 95, 10], "c"), IC(1600, 20, 92, ["IC2", 96, 22]), IC(2500, 30, 92, ["IC3", 96, 34], "c"), dot(40, 40, ["E", 45, 46]), guide(40, 40, "A1", "B1")] }],
+        shows: "An indifference curve joins every mix of two goods that gives the consumer the same satisfaction. Curves further from the origin give more satisfaction. The budget line shows every mix the consumer can just afford with their income. The best choice is E, where the budget line just touches the highest indifference curve it can reach (IC2). IC3 would be better but cannot be afforded.",
+        steps: ["Label the axes with the two goods and draw a straight budget line between them.", "Draw indifference curves that bow in toward the origin and never cross.", "Mark the point where the budget line just touches one curve and label it the consumer's best choice."],
+      },
+      {
+        id: "budget-line-shift",
+        title: "Shifts of the budget line",
+        ref: "7.2.2",
+        charts: [
+          { ...GOODS, cap: "Income rises: parallel shift", els: [line(0, 50, 50, 0, ["BL1", 52, 10], "c"), line(0, 80, 80, 0, ["BL2", 84, 12], "b"), arrow(30, 30, 40, 40)] },
+          { ...GOODS, cap: "Price of good A falls: pivot", els: [line(0, 60, 50, 0, ["BL1", 52, 12], "c"), line(0, 60, 90, 0, ["BL2", 90, 14], "b"), arrow(40, 6, 70, 6)] },
+        ],
+        shows: "A rise in income, with prices unchanged, lets the consumer buy more of both goods, so the budget line moves out parallel. A fall in the price of one good pivots the line outward along that good's axis only, because the most of the other good the consumer can buy has not changed.",
+        steps: ["For a change in income, draw a second budget line parallel to the first.", "For a change in one price, keep the line fixed on the other good's axis and pivot it.", "Label the old line BL1 and the new line BL2."],
+      },
+      {
+        id: "income-substitution",
+        title: "Income and substitution effects of a price fall (normal good)",
+        ref: "7.2.3",
+        charts: [
+          {
+            ...GOODS,
+            els: [
+              line(0, 80, 40, 0, ["BL1", 40, -7], "c"),
+              line(0, 80, 90, 0, ["BL2", 86, -7], "b"),
+              line(0, r1(HYP_B), r1(HYP_A), 0, undefined, "c"),
+              IC(800, 10, 75, ["IC1", 75, 17]),
+              IC(1800, 21, 92, ["IC2", 93, 26]),
+              dot(20, 40, ["A", 16, 36]),
+              dot(r1(HYP_A / 2), r1(HYP_B / 2), ["B", r1(HYP_A / 2) - 3, r1(HYP_B / 2) - 6]),
+              dot(45, 40, ["C", 49, 46]),
+              guide(20, 40, undefined, undefined, { noH: true }),
+              guide(r1(HYP_A / 2), r1(HYP_B / 2), undefined, undefined, { noH: true }),
+              guide(45, 40, undefined, undefined, { noH: true }),
+            ],
+          },
+        ],
+        shows: "The price of good A falls, so the budget line pivots from BL1 to BL2 and the consumer moves from A to C. The faint unlabelled line is parallel to BL2 but just touches the old curve IC1: it shows the new prices with the consumer no better off. A to B is the substitution effect, because good A is now relatively cheaper. B to C is the income effect, because the consumer's real income has risen. For a normal good both effects raise the quantity of good A. For an inferior good the income effect works the other way, and for a Giffen good it is bigger than the substitution effect, so less is bought when the price falls.",
+        steps: ["Draw BL1 and the curve it touches, then pivot to BL2 and the higher curve it touches.", "Draw a line parallel to BL2 that just touches the first curve.", "Label A to B the substitution effect and B to C the income effect."],
+      },
+    ],
+  },
+  {
+    id: "a2-externalities",
+    title: "A Level: Externalities",
+    diagrams: [
+      {
+        id: "negative-production-externality",
+        title: "Negative externality in production",
+        ref: "7.4.4, 7.4.5",
+        charts: [{ ...PQ, els: [{ t: "area", pts: [[40, 60], [50, 70], [50, 50]] }, line(10, 90, 80, 20, ["MPB = MSB", 86, 14]), line(10, 10, 85, 85, ["MPC", 89, 89], "c"), line(10, 30, 70, 90, ["MSC", 76, 94], "b"), guide(50, 50, "Qm", "Pm"), guide(40, 60, "Q*", "P*")] }],
+        shows: "A factory's pollution is an external cost, so the marginal social cost (MSC) is above the marginal private cost (MPC). The market produces Qm, where MPC meets demand. The best output for society is Q*, where MSC equals MSB. Between Q* and Qm each unit costs society more than it is worth, and the shaded triangle is the deadweight welfare loss.",
+        steps: ["Draw MPB = MSB sloping down and MPC sloping up.", "Draw MSC above MPC, the gap being the marginal external cost.", "Mark Qm and Q*, then shade the triangle between MSC and MSB from Q* to Qm."],
+      },
+      {
+        id: "positive-consumption-externality",
+        title: "Positive externality in consumption",
+        ref: "7.4.4, 7.4.5",
+        charts: [{ ...PQ, els: [{ t: "area", pts: [[50, 70], [50, 50], [60, 60]] }, line(10, 90, 85, 15, ["MPB", 89, 11], "c"), line(30, 90, 92, 28, ["MSB", 96, 24]), line(10, 10, 85, 85, ["MPC = MSC", 84, 94], "b"), guide(50, 50, "Qm", "Pm"), guide(60, 60, "Q*", "P*")] }],
+        shows: "When people use a good such as education or a vaccine, others gain too, so the marginal social benefit (MSB) is above the marginal private benefit (MPB). The market produces only Qm, where MPB meets MPC. The best output for society is Q*, where MSB equals MSC. The good is underconsumed, and the shaded triangle is the deadweight welfare loss.",
+        steps: ["Draw MPB sloping down and MPC = MSC sloping up.", "Draw MSB above MPB, the gap being the marginal external benefit.", "Mark Qm and Q*, then shade the triangle between MSB and MSC from Qm to Q*."],
+      },
+      {
+        id: "negative-consumption-externality",
+        title: "Negative externality in consumption",
+        ref: "7.4.4, 7.4.5",
+        charts: [{ ...PQ, els: [{ t: "area", pts: [[40, 40], [50, 50], [50, 30]] }, line(10, 90, 85, 15, ["MPB", 89, 11], "c"), line(10, 70, 70, 10, ["MSB", 74, 6]), line(10, 10, 85, 85, ["MPC = MSC", 84, 94], "b"), guide(50, 50, "Qm", "Pm"), guide(40, 40, "Q*", "P*")] }],
+        shows: "When using a good harms others, as with smoking, the marginal social benefit (MSB) is below the marginal private benefit (MPB). The market produces Qm, where MPB meets MPC. The best output for society is Q*, where MSB equals MSC. The good is overconsumed, and the shaded triangle is the deadweight welfare loss.",
+        steps: ["Draw MPB sloping down and MPC = MSC sloping up.", "Draw MSB below MPB, the gap being the marginal external cost.", "Mark Qm and Q*, then shade the triangle between MSC and MSB from Q* to Qm."],
+      },
+      {
+        id: "positive-production-externality",
+        title: "Positive externality in production",
+        ref: "7.4.4, 7.4.5",
+        charts: [{ ...PQ, els: [{ t: "area", pts: [[50, 50], [50, 30], [60, 40]] }, line(10, 90, 85, 15, ["MPB = MSB", 84, 8]), line(10, 10, 85, 85, ["MPC", 89, 89], "c"), line(30, 10, 92, 72, ["MSC", 96, 76], "b"), guide(50, 50, "Qm", "Pm"), guide(60, 40, "Q*", "P*")] }],
+        shows: "When a firm's production benefits others, for example by training workers who later move to other firms, the marginal social cost (MSC) is below the marginal private cost (MPC). The market produces only Qm. The best output for society is Q*, where MSC equals MSB. The good is underproduced, and the shaded triangle is the deadweight welfare loss.",
+        steps: ["Draw MPB = MSB sloping down and MPC sloping up.", "Draw MSC below MPC, the gap being the marginal external benefit.", "Mark Qm and Q*, then shade the triangle between MSB and MSC from Qm to Q*."],
+      },
+    ],
+  },
+  {
+    id: "a2-costs",
+    title: "A Level: Costs",
+    diagrams: [
+      {
+        id: "short-run-costs",
+        title: "Short run cost curves: MC, AVC and ATC",
+        ref: "7.5.2",
+        charts: [{ y: "Costs", x: "Output", els: [MC_PATH(), ATC_PATH, AVC_PATH, dot(Q_AVC, 30), dot(r1(Q_ATC), r1(MIN_ATC))] }],
+        shows: "Marginal cost first falls, then rises because of the law of diminishing returns. MC cuts both AVC and ATC at their lowest points: while the extra unit costs less than the average, it pulls the average down, and once it costs more, it pulls the average up. The gap between ATC and AVC is average fixed cost, which narrows as output grows.",
+        steps: ["Draw AVC and ATC as U shapes, with ATC above AVC and the gap narrowing.", "Draw MC as a tick shape rising steeply.", "Make MC pass through the lowest point of AVC first, then the lowest point of ATC."],
+      },
+      {
+        id: "long-run-average-cost",
+        title: "Long run average cost and minimum efficient scale",
+        ref: "7.5.4",
+        charts: [{ y: "Average cost", x: "Output", els: [{ t: "path", pts: sample((x) => (x < 45 ? 35 + 0.025 * (45 - x) ** 2 : x < 75 ? 35 : 35 + 0.05 * (x - 75) ** 2), 8, 92), label: ["LRAC", 94, 56] }, guide(45, 35, "MES", undefined, { noH: true }), text("Economies of scale", 26, 84), text("Diseconomies", 84, 84)] }],
+        shows: "In the long run every factor can change. Average cost falls at first because of economies of scale, may stay flat for a range of output, then rises because of diseconomies of scale. The minimum efficient scale (MES) is the lowest output at which long run average cost reaches its minimum.",
+        steps: ["Label the axes average cost and output.", "Draw LRAC falling, then flat, then rising.", "Mark the output where LRAC first reaches its lowest level and label it MES."],
+      },
+    ],
+  },
+  {
+    id: "a2-market-structures",
+    title: "A Level: Revenue and market structures",
+    diagrams: [
+      {
+        id: "revenue-curves",
+        title: "AR, MR and TR along a downward sloping demand curve",
+        ref: "7.5.8, 7.8.5",
+        charts: [
+          { y: "P", x: "Q", cap: "AR and MR", els: [line(0, 90, 90, 0, ["AR", 94, 8]), line(0, 90, 45, 0, ["MR", 50, 8], "b"), guide(45, 45, "Q1", undefined, { noH: true }), text("Elastic", 48, 62), text("Inelastic", 78, 28)] },
+          { y: "TR", x: "Q", cap: "Total revenue", els: [{ t: "path", pts: sample((q) => (q * (90 - q) * 80) / 2025, 0, 90), label: ["TR", 92, 14] }, guide(45, 80, "Q1", undefined, { noH: true })] },
+        ],
+        shows: "Average revenue is the demand curve. MR falls twice as fast. Where MR is positive, demand is price elastic and a price cut raises total revenue. At Q1, MR is zero, PED equals 1 and total revenue is at its highest. Beyond Q1, MR is negative and demand is price inelastic, so a further price cut lowers total revenue.",
+        steps: ["Draw AR sloping down, then MR starting at the same point and twice as steep.", "Below it, draw TR as a hill.", "Line up the top of the TR hill with the point where MR crosses the output axis."],
+      },
+      {
+        id: "perfect-competition-short-run",
+        title: "Perfect competition: supernormal profit in the short run",
+        ref: "7.6.4",
+        charts: [{ ...COSTS, els: [{ t: "area", pts: [[0, r1(PC_C)], [r1(PC_Q), r1(PC_C)], [r1(PC_Q), PC_P], [0, PC_P]] }, MC_PATH(), ATC_PATH, line(0, PC_P, 94, PC_P, ["AR = MR", 84, 76], "b"), guide(r1(PC_Q), PC_P, "Q", "P"), guide(r1(PC_Q), r1(PC_C), undefined, "C", { noV: true }), text("Supernormal profit", 30, 58)] }],
+        shows: "The firm is a price taker, so its demand curve is horizontal at the market price: AR = MR. It produces Q, where MC = MR. Price P is above average cost C at that output, so the shaded rectangle is supernormal profit. New firms are free to enter, so in the long run this profit is competed away.",
+        steps: ["Draw MC and ATC, then a horizontal line at the market price labelled AR = MR.", "Find where MC crosses MR and drop a line to the output axis.", "Read ATC at that output and shade the rectangle between price and ATC."],
+      },
+      {
+        id: "perfect-competition-long-run",
+        title: "Perfect competition: normal profit in the long run",
+        ref: "7.6.4",
+        charts: [{ ...COSTS, els: [MC_PATH(), ATC_PATH, line(0, r1(MIN_ATC), 94, r1(MIN_ATC), ["AR = MR", 86, r1(MIN_ATC) - 6], "b"), guide(r1(Q_ATC), r1(MIN_ATC), "Q", "P")] }],
+        shows: "Entry of new firms lowers the market price until it equals the lowest point of ATC. The firm produces where MC = MR, which is now also where AR = ATC, so it makes only normal profit. It produces at the lowest average cost, so it is productively efficient, and price equals MC, so it is allocatively efficient.",
+        steps: ["Draw MC and ATC.", "Draw AR = MR as a horizontal line that just touches the lowest point of ATC.", "Mark the output where MC, ATC and AR = MR all meet."],
+      },
+      {
+        id: "shutdown-and-supply",
+        title: "Shutdown price and the firm's supply curve",
+        ref: "7.6.4",
+        charts: [{ ...COSTS, els: [{ t: "path", pts: sample(MC, 8, Q_AVC), k: "c" }, { t: "path", pts: sample(MC, Q_AVC, 70), k: "b", label: ["MC", 74, 96] }, ATC_PATH, AVC_PATH, dot(Q_AVC, 30), dot(r1(Q_ATC), r1(MIN_ATC)), guide(Q_AVC, 30, undefined, "P1", { noV: true }), guide(r1(Q_ATC), r1(MIN_ATC), undefined, "P2", { noV: true })] }],
+        shows: "In the short run the firm keeps producing as long as price covers average variable cost. P1, the lowest point of AVC, is the short run shutdown price. In the long run price must cover average total cost, so P2, the lowest point of ATC, is the long run shutdown price. The firm's short run supply curve is its MC curve above the lowest point of AVC, drawn as the bold upper section.",
+        steps: ["Draw MC, AVC and ATC.", "Mark the lowest point of AVC as the short run shutdown price and the lowest point of ATC as the long run one.", "Highlight the MC curve above AVC and label it the firm's supply curve."],
+      },
+      {
+        id: "monopoly-profit",
+        title: "Monopoly: profit maximising price and output",
+        ref: "7.6.4",
+        charts: [
+          {
+            ...COSTS,
+            els: [
+              { t: "area", pts: [[0, r1(M_C)], [r1(M_Q), r1(M_C)], [r1(M_Q), r1(M_P)], [0, r1(M_P)]] },
+              line(0, 95, 92, r1(M_AR(92)), ["AR = D", 88, 4]),
+              line(0, 95, 50, 5, ["MR", 55, 4], "b"),
+              MC_PATH("c"),
+              { ...ATC_PATH, k: "c" },
+              guide(r1(M_Q), r1(M_P), "Q", "P"),
+              guide(r1(M_Q), r1(M_C), undefined, "C", { noV: true }),
+            ],
+          },
+        ],
+        shows: "A monopolist faces the whole downward sloping market demand curve, so MR is below AR. It produces Q, where MC = MR, and charges P, the highest price consumers will pay for that output, read off the AR curve. Price is above average cost C, so the shaded rectangle is supernormal profit. Barriers to entry mean it can last into the long run.",
+        steps: ["Draw AR and MR sloping down, with MR twice as steep.", "Draw MC and ATC, then find where MC crosses MR.", "Go up to AR for the price, read ATC at that output and shade the profit rectangle."],
+      },
+      {
+        id: "monopolistic-competition-long-run",
+        title: "Monopolistic competition: normal profit in the long run",
+        ref: "7.6.4",
+        charts: [
+          {
+            ...COSTS,
+            els: [
+              line(0, r1(MC_A), 80, r1(MC_A + MC_SLOPE * 80), ["AR = D", 88, 8]),
+              line(0, r1(MC_A), 40, r1(MC_A + 2 * MC_SLOPE * 40), ["MR", 44, 2], "b"),
+              MC_PATH("c"),
+              ATC_PATH,
+              guide(MCQ, r1(ATC(MCQ)), "Q", "P"),
+              guide(MCQ, r1(MC(MCQ)), undefined, undefined, { noH: true }),
+            ],
+          },
+        ],
+        shows: "Each firm sells a slightly different product, so it faces a downward sloping demand curve. Firms can enter freely, so in the long run demand for each firm falls until AR just touches ATC. At output Q, MC = MR and price equals average cost, so the firm makes normal profit. Q is below the output where ATC is lowest, so the firm has excess capacity and is not productively efficient.",
+        steps: ["Draw ATC as a U shape.", "Draw AR so it just touches the falling part of ATC, then MR below it.", "Show that MC crosses MR at the same output where AR touches ATC."],
+      },
+      {
+        id: "kinked-demand",
+        title: "Oligopoly: the kinked demand curve",
+        ref: "7.6.4, 7.8.5",
+        charts: [
+          {
+            ...COSTS,
+            els: [
+              { t: "path", pts: [[0, 70], [40, 60], [92, 23.6]], label: ["AR = D", 92, 32] },
+              line(0, 70, 40, 50, undefined, "b"),
+              line(40, 32, 62, 1.2, ["MR", 68, 4], "b"),
+              line(40, 50, 40, 32, undefined, "c"),
+              line(10, 20, 75, 75, ["MC2", 80, 80], "c"),
+              line(10, 12, 75, 67, ["MC1", 80, 66], "c"),
+              guide(40, 60, "Q", "P"),
+            ],
+          },
+        ],
+        shows: "Rivals are expected to match a price cut but ignore a price rise. Above the current price P, demand is elastic, so a rise loses many customers. Below P, demand is inelastic, so a cut gains few. The kink leaves a vertical gap in MR. MC can move anywhere within that gap, from MC1 to MC2, and the profit maximising price and output stay at P and Q, which helps explain why prices in oligopoly are sticky.",
+        steps: ["Draw a demand curve that is shallow above the current price and steep below it.", "Draw the two MR sections and join the gap with a vertical dotted line.", "Draw MC passing through the gap and mark P and Q at the kink."],
+      },
+    ],
+  },
+  {
+    id: "a2-labour",
+    title: "A Level: Labour markets",
+    diagrams: [
+      {
+        id: "mrp-demand-for-labour",
+        title: "Marginal revenue product: the firm's demand for labour",
+        ref: "8.3.4",
+        charts: [{ ...LAB, els: [line(5, 90, 90, 10, ["MRP = DL", 30, 86]), line(0, 60, 92, 60, undefined, "c"), line(0, 40, 92, 40, undefined, "c"), guide(r1(MRP_L(60)), 60, "L1", "W1"), guide(r1(MRP_L(40)), 40, "L2", "W2")] }],
+        shows: "Marginal revenue product is the extra revenue from employing one more worker. It falls as more workers are employed because of diminishing returns. A firm hiring in a competitive labour market employs workers until MRP equals the wage. When the wage falls from W1 to W2, it employs more, from L1 to L2, so the MRP curve is the firm's demand curve for labour.",
+        steps: ["Label the axes wage rate and quantity of labour.", "Draw MRP sloping down and label it MRP = DL.", "Draw two wage lines and mark the number of workers employed at each."],
+      },
+      {
+        id: "monopsony",
+        title: "Monopsony employer",
+        ref: "8.3.8",
+        charts: [{ ...LAB, els: [line(0, 10, 90, 55, ["ACL = SL", 84, 62], "b"), line(0, 10, 80, 90, ["MCL", 84, 94]), line(0, 90, 90, 18, ["MRP", 92, 12], "c"), guide(r1(MS_L), r1(10 + MS_L), "Lm", undefined, { noH: true }), guide(r1(MS_L), r1(MS_W), undefined, "Wm", { noV: true }), guide(r1(MC_L), r1(MC_W), "Lc", "Wc")] }],
+        shows: "A monopsony is the only employer of a type of labour. To hire one more worker it must raise the wage for everyone, so the marginal cost of labour (MCL) is above the average cost (ACL, the supply curve). It employs Lm, where MCL equals MRP, and pays only the wage on the supply curve, Wm. A competitive labour market would employ Lc at Wc, so monopsony means lower wages and fewer jobs.",
+        steps: ["Draw ACL = SL sloping up, MCL steeper above it, and MRP sloping down.", "Find where MCL crosses MRP and drop a line to the labour axis (Lm).", "Read the wage from the supply curve at Lm (Wm) and compare with Wc and Lc."],
+      },
+      {
+        id: "trade-union-wage",
+        title: "Trade union wage in a competitive labour market",
+        ref: "8.3.8",
+        charts: [{ ...LAB, els: [D("DL"), line(15, 15, 85, 85, undefined, "c"), { t: "path", pts: [[0, 70], [70, 70], [85, 85]], k: "b", label: ["SL", 89, 89] }, guide(50, 50, "Qe", "We"), guide(30, 70, "Q1", "Wu", { noH: true })] }],
+        shows: "A trade union bargains for a wage Wu above the equilibrium wage We. No member will work for less, so the supply curve becomes horizontal at Wu until it meets the old supply curve. Firms move up their demand curve and employ fewer workers, Q1 instead of Qe. The union has raised pay for those in work but reduced employment.",
+        steps: ["Draw DL and SL and mark We and Qe.", "Draw a horizontal line at the union wage that joins the old supply curve, making the new supply curve.", "Mark the new, lower employment Q1 where the union wage meets DL."],
+      },
+      {
+        id: "transfer-earnings-economic-rent",
+        title: "Transfer earnings and economic rent",
+        ref: "8.3.10",
+        charts: [{ ...LAB, els: [{ t: "area", pts: [[0, 10], [0, 50], [44, 50]] }, { t: "area", pts: [[0, 0], [0, 10], [44, 50], [44, 0]], k: "b" }, line(0, 10, 88, 90, ["SL", 92, 94], "b"), line(4, 90, 84, 10, ["DL", 88, 6]), guide(44, 50, "L", "W"), text("Economic rent", 17, 43), text("Transfer earnings", 25, 7)] }],
+        shows: "Every worker is paid the market wage W. Transfer earnings are the least each worker would accept to stay in the job, shown by the supply curve: the area under SL. Economic rent is anything paid above that: the area above SL and below the wage. The more inelastic the supply of labour, the larger the share of pay that is economic rent.",
+        steps: ["Draw DL and SL and mark the wage W and employment L.", "Shade the area under SL up to L and label it transfer earnings.", "Shade the triangle between SL and the wage line and label it economic rent."],
+      },
+    ],
+  },
+  {
+    id: "a2-macroeconomy",
+    title: "A Level: The macroeconomy",
+    diagrams: [
+      {
+        id: "consumption-function",
+        title: "The consumption function",
+        ref: "9.1.2",
+        charts: [{ y: "Consumption", x: "National income", els: [line(0, 0, 90, 90, ["45°", 94, 94], "c"), line(0, 20, 90, 74, ["C", 94, 76]), guide(50, 50, "Y1", undefined, { noH: true }), guide(0, 20, undefined, "a", { noV: true })] }],
+        shows: "Consumption has an autonomous part, a, spent even when income is zero, and an induced part that rises with income. The slope of the line is the marginal propensity to consume. On the 45° line, consumption would equal income. Below Y1, people spend more than their income (dissaving). Above Y1, they save part of it.",
+        steps: ["Label the axes consumption and national income and draw a 45° line.", "Draw the consumption line starting above the origin at a, flatter than 45°.", "Mark the income Y1 where the two lines cross."],
+      },
+      {
+        id: "deflationary-gap",
+        title: "Deflationary gap",
+        ref: "9.1.3",
+        charts: [{ y: "Aggregate expenditure", x: "National income", els: [line(0, 0, 92, 92, ["45°", 95, 88], "c"), line(0, 30, 90, 75, ["AD", 94, 76]), guide(60, 60, "Ye", undefined, { noH: true }), guide(80, 80, "Yf", undefined, { noH: true }), line(80, 70, 80, 80, undefined, "b"), text("Deflationary gap", 44, 90), arrow(62, 87, 78, 77)] }],
+        shows: "Equilibrium national income Ye is where aggregate demand meets the 45° line. Here it is below the full employment level Yf, so there is unemployment. The deflationary gap is the amount by which AD falls short of the 45° line at Yf. Raising AD by that amount would, through the multiplier, lift income all the way to Yf.",
+        steps: ["Draw the 45° line and an AD line that crosses it at Ye.", "Mark full employment income Yf to the right of Ye.", "Label the vertical gap between AD and the 45° line at Yf the deflationary gap."],
+      },
+      {
+        id: "inflationary-gap",
+        title: "Inflationary gap",
+        ref: "9.1.3",
+        charts: [{ y: "Aggregate expenditure", x: "National income", els: [line(0, 0, 92, 92, ["45°", 95, 86], "c"), line(0, 45, 90, 90, ["AD", 84, 94]), guide(90, 90, "Ye", undefined, { noH: true }), guide(70, 70, "Yf", undefined, { noH: true }), line(70, 70, 70, 80, undefined, "b"), text("Inflationary gap", 30, 92), arrow(44, 88, 68, 79)] }],
+        shows: "Here AD would take national income beyond the full employment level Yf. The economy cannot produce more real output than Yf, so the extra demand pushes up prices instead. The inflationary gap is the amount by which AD exceeds the 45° line at Yf, the fall in AD needed to remove the inflationary pressure.",
+        steps: ["Draw the 45° line and an AD line that crosses it at Ye.", "Mark full employment income Yf to the left of Ye.", "Label the vertical gap between AD and the 45° line at Yf the inflationary gap."],
+      },
+      {
+        id: "business-cycle",
+        title: "The business cycle and output gaps",
+        ref: "9.2.2, 9.2.3",
+        charts: [
+          {
+            y: "Real GDP",
+            x: "Time",
+            els: [
+              line(5, 25, 92, 70, ["Trend", 96, 64], "c"),
+              { t: "path", pts: sample(ACTUAL, 5, 92, 80), label: ["Actual", 90, 89] },
+              dot(15, r1(ACTUAL(15)), ["Boom", 15, 50]),
+              dot(35, r1(ACTUAL(35)), ["Slump", 35, 20]),
+              text("Positive gap", 55, 72),
+              text("Negative gap", 75, 40),
+            ],
+          },
+        ],
+        shows: "The trend line shows the growth of potential output. Actual output swings around it. From the boom, output falls (recession) to the slump, then rises again (recovery). When actual output is above potential, there is a positive output gap and inflation tends to rise. When it is below, there is a negative output gap and unemployment tends to rise.",
+        steps: ["Label the axes real GDP and time and draw a rising trend line.", "Draw a wave around it and label the boom, recession, slump and recovery.", "Label a positive output gap above the trend and a negative one below it."],
+      },
+      {
+        id: "liquidity-preference",
+        title: "Liquidity preference: the money market",
+        ref: "9.4.7, 9.4.8",
+        charts: [{ y: "Interest rate", x: "Quantity of money", els: [{ t: "path", pts: sample(MONEY, 8, 92), label: ["LP", 95, 34] }, line(50, 4, 50, 92, ["MS", 50, 97], "b"), line(80, 4, 80, 92, ["MS1", 80, 97], "c"), guide(50, r1(MONEY(50)), undefined, "r1", { noV: true }), guide(80, r1(MONEY(80)), undefined, "r2", { noV: true }), arrow(53, 80, 77, 80)] }],
+        shows: "Liquidity preference (LP) is the demand for money: people hold money for transactions, as a precaution and to speculate on bond prices. Holding money means giving up interest, so less is demanded when the rate is high. The money supply (MS) is set by the central bank, so it is drawn vertical. The rate of interest is r1, where the two meet. An increase in the money supply to MS1 lowers it to r2.",
+        steps: ["Label the axes interest rate and quantity of money.", "Draw LP sloping down and flattening out, and MS as a vertical line.", "Mark the interest rate where they meet, then show a shift of MS and the new rate."],
+      },
+      {
+        id: "loanable-funds",
+        title: "Loanable funds theory",
+        ref: "9.4.8",
+        charts: [{ y: "Interest rate", x: "Loanable funds", els: [D("D"), S("S"), guide(50, 50, "Q", "r")] }],
+        shows: "The demand for loanable funds comes mainly from firms that want to borrow to invest, and it falls as the interest rate rises. The supply comes from saving, which rises as the interest rate rises. The interest rate r is where the demand for and supply of loanable funds are equal.",
+        steps: ["Label the axes interest rate and loanable funds.", "Draw demand (borrowing to invest) sloping down and supply (saving) sloping up.", "Mark the equilibrium interest rate r."],
+      },
+    ],
+  },
+  {
+    id: "a2-policy",
+    title: "A Level: Government macroeconomic policy",
+    diagrams: [
+      {
+        id: "phillips-curve",
+        title: "The traditional Phillips curve",
+        ref: "10.2.5",
+        charts: [{ y: "Inflation (%)", x: "Unemployment (%)", els: [{ t: "path", pts: sample((x) => 1200 / (x + 5) - 8, 8, 92), label: ["PC", 95, 12] }, guide(20, 40, "U1", "I1"), guide(50, r1(1200 / 55 - 8), "U2", "I2")] }],
+        shows: "The traditional Phillips curve shows a trade off: lower unemployment comes with higher inflation. Moving from U2 to U1 cuts unemployment but raises inflation from I2 to I1. It suggested a government could choose a mix of the two.",
+        steps: ["Label the axes inflation and unemployment.", "Draw a curve sloping down and flattening out.", "Mark two points to show the trade off."],
+      },
+      {
+        id: "expectations-phillips-curve",
+        title: "The expectations-augmented Phillips curve",
+        ref: "10.2.5",
+        charts: [
+          {
+            y: "Inflation (%)",
+            x: "Unemployment (%)",
+            els: [
+              { t: "path", pts: sample(PH(20), 12, 92), k: "c", label: ["SRPC1", 92, 4] },
+              { t: "path", pts: sample(PH(35), 14, 92), k: "b", label: ["SRPC2", 88, 34] },
+              line(40, 4, 40, 94, ["LRPC", 40, 98]),
+              dot(40, 20, ["A", 45, 16]),
+              dot(20, 35, ["B", 16, 31]),
+              dot(40, 35, ["C", 45, 40]),
+              guide(40, 20, "NRU", undefined, { noV: true }),
+            ],
+          },
+        ],
+        shows: "The economy starts at A, at the natural rate of unemployment (NRU). A rise in AD cuts unemployment and raises inflation, moving to B along SRPC1. Workers then expect the higher inflation and push for higher wages, so the short run curve shifts up to SRPC2 and unemployment returns to the NRU at C, with higher inflation. In the long run there is no trade off: the long run Phillips curve (LRPC) is vertical at the NRU.",
+        steps: ["Draw a vertical LRPC at the natural rate of unemployment.", "Draw SRPC1 through the LRPC, then SRPC2 above it.", "Show the move from A to B along SRPC1, then from B to C on SRPC2."],
+      },
+      {
+        id: "laffer-curve",
+        title: "The Laffer curve",
+        ref: "10.3.1",
+        charts: [{ y: "Tax revenue", x: "Tax rate (%)", els: [{ t: "path", pts: sample((x) => (x * (96 - x) * 85) / 2304, 0, 96), label: ["Laffer curve", 70, 92] }, guide(48, 85, "T*", undefined, { noH: true }), guide(96, 0, "100", undefined, { noH: true })] }],
+        shows: "Tax revenue is zero at a tax rate of 0% and, in theory, also at 100%, when no one has a reason to work. Between the two, revenue rises to a peak at T*. Above T*, a lower tax rate could raise more revenue, because people work, earn and declare more. Where T* lies in a real economy is uncertain.",
+        steps: ["Label the axes tax revenue and tax rate, from 0% to 100%.", "Draw an upside down U starting and ending on the tax rate axis.", "Mark the tax rate T* where revenue is highest."],
+      },
+    ],
+  },
+  {
+    id: "a2-international",
+    title: "A Level: International economic issues",
+    diagrams: [
+      {
+        id: "j-curve",
+        title: "The J curve",
+        ref: "11.2.5",
+        charts: [
+          {
+            y: "Current account",
+            x: "Time",
+            els: [
+              line(0, 50, 94, 50, undefined, "c"),
+              guide(0, 50, undefined, "0", { noV: true }),
+              { t: "path", pts: [[5, 40], [10, 32], [16, 26], [22, 24], [30, 27], [40, 36], [50, 47], [60, 58], [70, 67], [80, 74], [90, 79]], label: ["J curve", 86, 88] },
+              dot(5, 40, ["Depreciation", 14, 14]),
+              text("Surplus", 30, 62),
+              text("Deficit", 60, 34),
+            ],
+          },
+        ],
+        shows: "After a depreciation, export prices fall and import prices rise straight away, but buyers take time to change what they buy. At first, demand for exports and imports is price inelastic, so the current account gets worse. Over time demand becomes more elastic, and once the Marshall-Lerner condition holds (the sum of the PEDs for exports and imports is greater than 1), the current account improves.",
+        steps: ["Label the axes current account balance and time, with a zero line across the middle.", "Start below the zero line at the depreciation and show the balance getting worse first.", "Then show it rising through the zero line into surplus, making a J shape."],
+      },
+      {
+        id: "lorenz-curve",
+        title: "The Lorenz curve and the Gini coefficient",
+        ref: "11.4.2",
+        charts: [
+          {
+            y: "% of income",
+            x: "% of population",
+            els: [
+              { t: "area", pts: [[0, 0], [90, 90], ...LORENZ.slice().reverse()] },
+              { t: "area", pts: [...LORENZ, [90, 0]], k: "b" },
+              line(0, 0, 90, 90, ["Line of equality", 54, 84], "c"),
+              { t: "path", pts: LORENZ, label: ["Lorenz curve", 80, 26] },
+              text("A", 56, 44),
+              text("B", 84, 9),
+              guide(90, 90, "100", "100", { noH: true }),
+            ],
+          },
+        ],
+        shows: "The line of equality shows every share of the population receiving the same share of income. The Lorenz curve shows the real share: here the poorest half of people receive far less than half the income. The Gini coefficient is area A divided by areas A and B together. It runs from 0 (perfect equality) to 1 (one person has everything). The further the curve bows, the more unequal the country.",
+        steps: ["Draw a square with both axes running from 0 to 100%.", "Draw the diagonal line of equality and a Lorenz curve that sags below it.", "Label the area between them A and the area under the curve B."],
+      },
+      {
+        id: "kuznets-curve",
+        title: "The Kuznets curve",
+        ref: "11.3.3",
+        charts: [{ y: "Income inequality", x: "Income per head", els: [{ t: "path", pts: sample((x) => 15 + 70 * (x / 35) * Math.exp(1 - x / 35), 3, 92), label: ["Kuznets curve", 82, 62] }] }],
+        shows: "Kuznets suggested that as a country develops, income inequality first rises, as some people move to better paid jobs in industry and towns, and then falls as more people share in growth. Many countries do not follow this pattern, so treat it as a theory to evaluate, not a rule.",
+        steps: ["Label the axes income inequality and income per head.", "Draw an upside down U.", "Explain the rising and falling parts in words beside it."],
+      },
+    ],
+  },
+];
+
 export interface DiagramSet {
   code: string;
   h1: string;
@@ -646,11 +1120,11 @@ export const DIAGRAM_SETS: DiagramSet[] = [
   },
   {
     code: "9708",
-    h1: "AS Level Economics 9708 diagrams",
-    title: "9708 AS Level Economics Diagrams: Every Diagram to Draw",
-    description: `All ${count(AS_GROUPS)} AS Level diagrams for Economics 9708: PPC, elasticity, consumer and producer surplus, tax incidence, buffer stocks and AD/AS with policy.`,
-    note: "This page covers the AS Level part of the syllabus, topics 1 to 5.",
-    groups: AS_GROUPS,
+    h1: "AS and A Level Economics 9708 diagrams",
+    title: "9708 Economics Diagrams: Every AS and A Level Diagram",
+    description: `All ${count(AS_GROUPS) + count(A2_GROUPS)} diagrams for Economics 9708: AS Level AD/AS, tax and elasticity, then A Level costs, market structures, externalities, monopsony, Phillips and Lorenz curves.`,
+    note: "The AS Level part (topics 1 to 5) comes first, then the A Level part (topics 7 to 11).",
+    groups: [...AS_GROUPS, ...A2_GROUPS],
   },
 ];
 

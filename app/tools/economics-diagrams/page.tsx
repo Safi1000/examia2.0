@@ -8,8 +8,8 @@ import { breadcrumbLd, fitTitle } from "@/lib/seo";
 import { SYLLABI } from "@/lib/syllabus";
 import "@/components/landing/public-calm.css";
 
-const title = "Economics Diagrams: IGCSE 0455, O Level 2281, AS 9708";
-const description = "Every diagram the Cambridge IGCSE, O Level and AS Level Economics syllabuses ask you to draw, each with what it shows and how to draw it in the exam.";
+const title = "Economics Diagrams: IGCSE 0455, O Level 2281, A Level 9708";
+const description = "Every diagram the Cambridge IGCSE, O Level, AS and A Level Economics syllabuses ask you to draw, each with what it shows and how to draw it in the exam.";
 
 export const metadata: Metadata = {
   title: fitTitle(title),
