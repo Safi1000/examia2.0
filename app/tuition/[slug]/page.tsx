@@ -11,7 +11,7 @@ import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
 import { allArticles } from "@/lib/blog";
 import { SHOTS } from "@/lib/reviews";
 import { breadcrumbLd, coursesLd, faqLd, fitTitle } from "@/lib/seo";
-import { SUBJECT_PAGES, subjectBySlug, tuitionPath } from "@/lib/subjects";
+import { LEVEL_PAGES, SUBJECT_PAGES, levelPath, levelSlugFor, subjectBySlug, tuitionPath } from "@/lib/subjects";
 import { SYLLABI } from "@/lib/syllabus";
 import { DEFAULT_SCHEDULE, RECORDING_HOURS, span, type LevelKey } from "@/lib/timetable";
 
@@ -169,6 +169,16 @@ export default async function TuitionPage({ params }: Props) {
                     </li>
                   ))}
                 </ul>
+                {(() => {
+                  const lp = LEVEL_PAGES.find((x) => x.subjectSlug === s.slug && x.slug === levelSlugFor(l.level));
+                  return lp ? (
+                    <p className="mt-4 text-base">
+                      <Link href={levelPath(lp.subjectSlug, lp.slug)} className={quietLink}>
+                        {keep(lp.h1)}
+                      </Link>
+                    </p>
+                  ) : null;
+                })()}
               </li>
             ))}
           </ol>

@@ -207,3 +207,95 @@ export const SUBJECT_PAGES: SubjectInfo[] = [
 export function subjectBySlug(slug: string): SubjectInfo | undefined {
   return SUBJECT_PAGES.find((s) => s.slug === slug);
 }
+
+/**
+ * Level pages under each subject page: /tuition/<subject>/o-level-igcse and
+ * /tuition/<subject>/a-level (AS and A2). Same facts as the subject page, cut to
+ * one level and taken deeper (the full Cambridge topic list, that level's class
+ * times, resources and articles).
+ */
+export type LevelSlug = "o-level-igcse" | "a-level";
+
+/** The subject page level blocks each level page covers. */
+export const LEVEL_SLUG_LEVELS: Record<LevelSlug, LevelName[]> = {
+  "o-level-igcse": ["O Level / IGCSE"],
+  "a-level": ["AS Level", "A2 Level"],
+};
+
+export const levelSlugFor = (level: LevelName): LevelSlug => (level === "O Level / IGCSE" ? "o-level-igcse" : "a-level");
+
+export interface LevelPageInfo {
+  subjectSlug: string;
+  slug: LevelSlug;
+  /** For links and the breadcrumb: "O Level and IGCSE" or "A Level". */
+  name: string;
+  /** <title> without the brand; fitTitle() adds " | Hamza Teaches" (about 60 characters in all). */
+  seoTitle: string;
+  /** Meta description, about 155 characters. */
+  seoDescription: string;
+  h1: string;
+}
+
+/** The level page for a subject and level. */
+export const levelPath = (subjectSlug: string, slug: LevelSlug) => `/tuition/${subjectSlug}/${slug}`;
+
+export const LEVEL_PAGES: LevelPageInfo[] = [
+  {
+    subjectSlug: "accounting",
+    slug: "o-level-igcse",
+    name: "O Level and IGCSE",
+    seoTitle: "Online O Level and IGCSE Accounting Tuition",
+    seoDescription:
+      "Live O Level Accounting 7707 and IGCSE Accounting 0452 classes with me on Google Meet, Monday to Friday, with a weekly marked test. Book a free trial lesson.",
+    h1: "O Level and IGCSE Accounting tuition",
+  },
+  {
+    subjectSlug: "accounting",
+    slug: "a-level",
+    name: "A Level",
+    seoTitle: "Online A Level Accounting Tuition: AS and A2",
+    seoDescription:
+      "Live AS and A Level Accounting 9706 classes on Google Meet: separate AS and A2 groups, Monday to Friday, with weekly marked tests. Book a free trial lesson.",
+    h1: "A Level Accounting tuition, AS and A2",
+  },
+  {
+    subjectSlug: "business",
+    slug: "o-level-igcse",
+    name: "O Level and IGCSE",
+    seoTitle: "Online O Level and IGCSE Business Tuition",
+    seoDescription:
+      "Live O Level Business 7081 (was 7115) and IGCSE Business 0264 (was 0450) classes on Google Meet, Monday to Friday, weekly tests. Book a free trial lesson.",
+    h1: "O Level and IGCSE Business tuition",
+  },
+  {
+    subjectSlug: "business",
+    slug: "a-level",
+    name: "A Level",
+    seoTitle: "Online A Level Business Tuition: AS and A2",
+    seoDescription:
+      "Live AS and A Level Business 9609 classes on Google Meet: separate AS and A2 groups, Monday to Friday, with weekly marked tests. Book a free trial lesson.",
+    h1: "A Level Business tuition, AS and A2",
+  },
+  {
+    subjectSlug: "economics",
+    slug: "o-level-igcse",
+    name: "O Level and IGCSE",
+    seoTitle: "Online O Level and IGCSE Economics Tuition",
+    seoDescription:
+      "Live O Level Economics 2281 and IGCSE Economics 0455 classes with me on Google Meet, Monday to Friday, with a weekly marked test. Book a free trial lesson.",
+    h1: "O Level and IGCSE Economics tuition",
+  },
+  {
+    subjectSlug: "economics",
+    slug: "a-level",
+    name: "A Level",
+    seoTitle: "Online A Level Economics Tuition: AS and A2",
+    seoDescription:
+      "Live AS and A Level Economics 9708 classes on Google Meet: separate AS and A2 groups, Monday to Friday, with weekly marked tests. Book a free trial lesson.",
+    h1: "A Level Economics tuition, AS and A2",
+  },
+];
+
+export function levelPage(subjectSlug: string, slug: string): LevelPageInfo | undefined {
+  return LEVEL_PAGES.find((p) => p.subjectSlug === subjectSlug && p.slug === slug);
+}
