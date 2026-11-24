@@ -64,6 +64,21 @@ const WEEKS: Array<{ where: string; href: string; week: ReactNode }> = [
     href: "/online-classes/doha",
     week: "Schools run Sunday to Thursday, with a shorter Thursday. The pattern is the same as in Saudi Arabia.",
   },
+  {
+    where: "Sharjah",
+    href: "/online-classes/sharjah",
+    week: "Private schools run four days, Monday to Thursday, with a Friday to Sunday weekend. Four classes fall on school days and Friday's falls on your day off.",
+  },
+  {
+    where: "Kuwait",
+    href: "/online-classes/kuwait",
+    week: "The official working week is Sunday to Thursday, with Friday and Saturday off. If your school keeps it, the pattern is the same as in Saudi Arabia.",
+  },
+  {
+    where: "Bahrain",
+    href: "/online-classes/bahrain",
+    week: "The weekly holidays are Friday and Saturday. If your school keeps them, the pattern is the same as in Saudi Arabia.",
+  },
 ];
 
 export default function OnlineClassesGulf() {
@@ -122,7 +137,7 @@ export default function OnlineClassesGulf() {
             ))}
           </ul>
           <p className="mt-6 text-lg leading-relaxed text-body">
-            In Oman, Kuwait or Bahrain, the times above are your times. Check them against your school&apos;s own week.
+            In Oman, the times above are your times. Check them against your school&apos;s own week.
           </p>
         </Section>
 

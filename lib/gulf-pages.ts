@@ -64,6 +64,14 @@ export const GULF_SOURCES = {
   bcQa: { label: "British Council Qatar, exam registration for private candidates", href: "https://www.britishcouncil.qa/en/exam/igcse-school/register/private-candidates" },
   bcQaDates: { label: "British Council Qatar, registration dates and deadlines", href: "https://www.britishcouncil.qa/en/exam/igcse-school/register/registration-dates-deadlines" },
   bcQaFaq: { label: "British Council Qatar, school exams FAQs", href: "https://www.britishcouncil.qa/sites/default/files/faqs_schools_exams.pdf" },
+  shjSchoolWeek: { label: "Sharjah24, SPEA four working days for private schools", href: "https://www.sharjah24.ae/en/Articles/2021/12/12/SPEA-announces-new-changes-of-school-timings-in-private-schools" },
+  shjWorkweek: { label: "Sharjah24, Sharjah's four day workweek since January 2022", href: "https://sharjah24.ae/en/Articles/2024/10/09/4-day-workweek-success-sparks-conversation-on-productivity-at-DCDF" },
+  kwWeek: { label: "Kuwait News Agency, Cabinet declares 1 January 2026 holiday", href: "https://www.kuna.net.kw/ArticleDetails.aspx?id=3266363&language=en" },
+  bcKw: { label: "British Council Kuwait, exam registration for private candidates", href: "https://www.britishcouncil.com.kw/en/exam/school/how-register/private-candidates" },
+  bcKwGuide: { label: "British Council Kuwait, private candidates guide", href: "https://www.britishcouncil.com.kw/sites/default/files/private-candidates-guide_2_2.pdf" },
+  bhWeek: { label: "Bahrain national portal, about Bahrain: business hours and official holidays", href: "https://www.bahrain.bh/wps/portal/en/BNP/BahrainAtAGlance/AboutBahrain" },
+  bcBh: { label: "British Council Bahrain, exam registration for private candidates", href: "https://www.britishcouncil.bh/en/exam/school/register/private-candidates" },
+  bcOm: { label: "British Council Oman, exam registration for private candidates", href: "https://www.britishcouncil.om/en/exam/school-exams/register/private-candidates" },
 } as const;
 
 export type GulfSourceKey = keyof typeof GULF_SOURCES;
@@ -284,6 +292,112 @@ export const GULF_CITY_PAGES: GulfCityPage[] = [
     ],
     sources: ["qaWeek", "qaThursday", "bcQa", "bcQaDates", "bcQaFaq"],
     trial: { title: "Your time zone. My class.", body: "Join one real class at your level, free, in Qatar time, and see how it fits around school before you decide." },
+  },
+  {
+    slug: "sharjah",
+    city: "Sharjah",
+    clock: "UAE",
+    zone: 0,
+    heading: "O Level and A Level Accounting, Business and Economics classes for Sharjah students",
+    description:
+      "Live online O Level, IGCSE, AS and A Level Accounting, Business and Economics classes for Sharjah students, 2:30 to 8:30 pm UAE time. Free trial lesson.",
+    intro:
+      "Sharjah's private schools run Monday to Thursday, and my classes run Monday to Friday. The first class is at 2:30 pm UAE time and the last one ends at 8:30 pm, so four class days are school days and one is not.",
+    local: [
+      {
+        title: "A four day school week",
+        body: [
+          "Since January 2022, the Sharjah Private Education Authority has set private schools in Sharjah to work four days, Monday to Thursday, with Friday, Saturday and Sunday as the weekend. So Monday to Thursday have school and class, and Friday's class falls on your first day off.",
+          "Only the A2 block starts at 2:30 pm. O Level starts at 4:30 pm and AS at 6:30 pm UAE time. If you are A2 and school runs late, the recording stays open for 48 hours.",
+        ],
+      },
+      {
+        title: "Sitting exams from Sharjah",
+        body: [
+          "If your school enters you, nothing changes. If you are entering on your own, the British Council has an office in Sharjah, but candidates registered there sit their exams in Dubai, so plan the journey for each paper.",
+          "If you are at a school recognised by the Ministry of Education, you need a No Objection Certificate from it before you can enter privately. The UAE guide walks through it.",
+        ],
+      },
+    ],
+    guide: UAE_GUIDE,
+    faq: [
+      {
+        q: "Is there a class on Friday, when school is off?",
+        a: "Yes. Classes run Monday to Friday, so Friday's class is on your weekend. It is the one class in the week you join without a school day behind you.",
+      },
+    ],
+    sources: ["shjSchoolWeek", "shjWorkweek", "bcUae"],
+    trial: { title: "Four school days. Five classes.", body: "Join one real class at your level, free, in UAE time, and see how it fits your week before you decide." },
+  },
+  {
+    slug: "kuwait",
+    city: "Kuwait",
+    clock: "Kuwait",
+    zone: 1,
+    heading: "O Level and A Level Accounting, Business and Economics classes for Kuwait students",
+    description:
+      "Live online O Level, IGCSE, AS and A Level Accounting, Business and Economics classes for Kuwait students, 1:30 to 7:30 pm Kuwait time. Free trial lesson.",
+    intro:
+      "Kuwait is two hours behind Pakistan, so classes run from 1:30 pm to 7:30 pm Kuwait time, Monday to Friday. Private candidates in Kuwait enter through the British Council in Kuwait City.",
+    local: [
+      {
+        title: "How the two weeks line up",
+        body: [
+          "Kuwait's official working week is Sunday to Thursday, with Friday and Saturday off. If your school keeps the same week, Sunday is a school day with no class, Monday to Thursday have both, and Friday's class falls on your weekend.",
+          "Only the A2 block starts at 1:30 pm. O Level starts at 3:30 pm and AS at 5:30 pm Kuwait time. If you are A2 and school runs late, the recording stays open for 48 hours.",
+        ],
+      },
+      {
+        title: "Entering without a school in Kuwait",
+        body: [
+          "The British Council registers private candidates through its online School Registration System. You choose Kuwait as the country and British Council Kuwait City as the location.",
+          "You register with either your passport or your Civil ID, and the name you enter should match it. Your entry is not processed until it is paid.",
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: "Is there a class on Sunday?",
+        a: "No. Classes run Monday to Friday Pakistan time, which is the same days in Kuwait. Sunday is a school day for you without a class.",
+      },
+    ],
+    sources: ["kwWeek", "bcKw", "bcKwGuide"],
+    trial: { title: "Your time zone. Your level.", body: "Join one real class at your level, free, in Kuwait time, and see how it fits around school before you decide." },
+  },
+  {
+    slug: "bahrain",
+    city: "Bahrain",
+    clock: "Bahrain",
+    zone: 1,
+    heading: "O Level and A Level Accounting, Business and Economics classes for Bahrain students",
+    description:
+      "Live online O Level, IGCSE, AS and A Level Accounting, Business and Economics classes for Bahrain students, 1:30 to 7:30 pm Bahrain time. Free trial lesson.",
+    intro:
+      "Bahrain is two hours behind Pakistan, so classes run from 1:30 pm to 7:30 pm Bahrain time, Monday to Friday. Private candidates register online, then hand in their documents at the British Council in person.",
+    local: [
+      {
+        title: "How the two weeks line up",
+        body: [
+          "Bahrain's weekly holidays are Friday and Saturday, and government offices work Sunday to Thursday. If your school keeps the same week, Sunday is a school day with no class, Monday to Thursday have both, and Friday's class is a quiet weekend session.",
+          "Only the A2 block starts at 1:30 pm. O Level starts at 3:30 pm and AS at 5:30 pm Bahrain time. If you are A2 and school runs late, the recording stays open for 48 hours.",
+        ],
+      },
+      {
+        title: "Entering without a school in Bahrain",
+        body: [
+          "For Cambridge, you fill in the registration form online through the British Council's School Registration System. Then you take the signed form to a British Council office with two recent passport photos and a copy of your valid passport or CPR.",
+          "Your entry is not processed until it is paid. Collect your Statement of Entry from the British Council at least three weeks before your exams, or a week before if you entered late, and bring it with your ID on exam day.",
+        ],
+      },
+    ],
+    faq: [
+      {
+        q: "Do I have to visit the British Council in person?",
+        a: "Yes. You hand in the signed form with your photos and ID at a British Council office, and you collect your Statement of Entry there before the exams.",
+      },
+    ],
+    sources: ["bhWeek", "bcBh"],
+    trial: { title: "One quiet Friday class.", body: "Join one real class at your level, free, in Bahrain time, and see how a lesson and a marked test work before you decide." },
   },
 ];
 
