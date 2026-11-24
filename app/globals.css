@@ -865,13 +865,38 @@ html {
   html.note-open body > * {
     display: none !important;
   }
-  html.note-open body::before {
+  html.note-open:not(.note-printing) body::before {
     content: "Notes can't be printed. Read them in the portal.";
     display: block;
     padding: 48px;
     font: 16px/1.5 system-ui, sans-serif;
     color: #1b1e21;
   }
+  /* The note's own Print (three-dot menu): only its pages, one per sheet. */
+  html.note-printing body > #note-print {
+    display: block !important;
+    page: note-print;
+  }
+  #note-print img {
+    display: block;
+    max-width: 100%;
+    max-height: 100vh;
+    width: auto;
+    height: auto;
+    margin: 0 auto;
+    break-after: page;
+  }
+  #note-print img:last-child {
+    break-after: auto;
+  }
+  /* Only the note's pages go edge to edge; other printouts keep their margins. */
+  @page note-print {
+    margin: 0;
+    size: A4;
+  }
+}
+#note-print {
+  display: none;
 }
 
 /* Phones: iOS zooms the whole page in when a text box under 16px is tapped,

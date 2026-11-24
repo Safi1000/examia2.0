@@ -10,6 +10,7 @@ import { PdfView } from "@/components/PdfView";
 import { useBackToClose } from "@/components/student/useBackToClose";
 import { DEMO } from "@/lib/demo";
 import { savePosition } from "@/lib/notes-library";
+import { loadPdfJs } from "@/lib/notes-client";
 import { setActivityNote, setActivityNotePage } from "@/lib/activity-tracker";
 
 /** Word, PowerPoint and Excel: phones can't show these, so Microsoft's free online viewer does. */
@@ -88,6 +89,64 @@ export function preloadNote(noteId: string, fileType: string) {
   void noteFile(noteId, ticket).catch(() => {});
 }
 
+/** Prints a note: every page drawn as a picture into a sheet only the printer sees (see globals.css). */
+async function printPages(blob: Blob) {
+  document.getElementById("note-print")?.remove();
+  const lib = await loadPdfJs();
+  type Page = {
+    getViewport: (o: { scale: number }) => { width: number; height: number };
+    render: (o: { canvasContext: CanvasRenderingContext2D; viewport: unknown }) => { promise: Promise<void> };
+  };
+  const doc = (await lib.getDocument({ data: await blob.arrayBuffer() }).promise) as unknown as {
+    numPages: number;
+    getPage: (n: number) => Promise<Page>;
+    destroy?: () => Promise<void>;
+  };
+  const sheet = document.createElement("div");
+  sheet.id = "note-print";
+  sheet.setAttribute("aria-hidden", "true");
+  const urls: string[] = [];
+  try {
+    for (let i = 1; i <= doc.numPages; i++) {
+      const pg = await doc.getPage(i);
+      // About 200 dpi on A4: sharp on paper without a huge file.
+      const vp = pg.getViewport({ scale: 2.8 });
+      const c = document.createElement("canvas");
+      c.width = Math.floor(vp.width);
+      c.height = Math.floor(vp.height);
+      const ctx = c.getContext("2d");
+      if (!ctx) throw new Error("no canvas");
+      await pg.render({ canvasContext: ctx, viewport: vp }).promise;
+      const img = await new Promise<Blob>((ok, no) => c.toBlob((b) => (b ? ok(b) : no(new Error("no image"))), "image/jpeg", 0.92));
+      const url = URL.createObjectURL(img);
+      urls.push(url);
+      const el = document.createElement("img");
+      el.src = url;
+      el.alt = "";
+      sheet.appendChild(el);
+    }
+  } finally {
+    void doc.destroy?.();
+  }
+  document.body.appendChild(sheet);
+  await Promise.all([...sheet.querySelectorAll("img")].map((el) => el.decode().catch(() => undefined)));
+  const html = document.documentElement;
+  let cleaned = false;
+  const clean = () => {
+    if (cleaned) return;
+    cleaned = true;
+    window.removeEventListener("afterprint", clean);
+    html.classList.remove("note-printing");
+    sheet.remove();
+    urls.forEach((u) => URL.revokeObjectURL(u));
+  };
+  window.addEventListener("afterprint", clean);
+  html.classList.add("note-printing");
+  window.print();
+  // Some browsers never send "afterprint"; the sheet is invisible on screen, so tidy up later.
+  setTimeout(clean, 5 * 60_000);
+}
+
 /**
  * Reads a note inside the portal.
  *
@@ -158,20 +217,10 @@ export function NoteViewer({
         a.click();
         a.remove();
       } else {
-        // Printed from a hidden frame; where a browser can't (most phones), the file opens in a tab to print from there.
-        const frame = document.createElement("iframe");
-        frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
-        frame.src = href;
-        frame.onload = () => {
-          try {
-            frame.contentWindow?.focus();
-            frame.contentWindow?.print();
-          } catch {
-            window.open(href, "_blank", "noopener");
-          }
-        };
-        document.body.appendChild(frame);
-        setTimeout(() => frame.remove(), 120_000);
+        // A PDF inside a hidden frame doesn't print in most browsers (blank page, or the
+        // page behind it). So each page is drawn as a picture into a print-only sheet
+        // and the page itself prints: the same in Chrome, Safari, Firefox and on phones.
+        await printPages(blob);
       }
       setTimeout(() => URL.revokeObjectURL(href), 120_000);
       setMenu(false);
