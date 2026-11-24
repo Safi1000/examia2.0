@@ -4,7 +4,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import { Crumbs, Section } from "@/components/study/StudyBits";
 import { RelatedLinks } from "@/components/study/RelatedLinks";
-import { SESSIONS } from "@/lib/grade-thresholds";
+import { NEXT_SESSION, SESSIONS } from "@/lib/grade-thresholds";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 import { THRESHOLD_PAGES, gradeShown, gradesOf, pct, sessionsOf, spread } from "@/lib/threshold-pages";
 import "@/components/landing/public-calm.css";
@@ -34,6 +34,14 @@ const FAQ = [
     q: "Which variant did I sit?",
     a: "The second digit of your paper code. Paper 12 or 22 means variant 2. Schools in the same region usually sit the same variant.",
   },
+  ...(NEXT_SESSION && !(SESSIONS as readonly string[]).includes(NEXT_SESSION.name)
+    ? [
+        {
+          q: `When are the ${NEXT_SESSION.name} grade thresholds out?`,
+          a: `Cambridge releases ${NEXT_SESSION.name} AS and A Level results on ${NEXT_SESSION.resultsDay["A Level"]}, and O Level and IGCSE results on ${NEXT_SESSION.resultsDay.IGCSE}. It publishes grade thresholds after each exam series, and each syllabus page gets them as soon as it does. Until then, ${SESSIONS[0]} is the latest series.`,
+        },
+      ]
+    : []),
   {
     q: "Where do these numbers come from?",
     a: "Cambridge International's own grade threshold tables. Every session on every page links to the official PDF.",

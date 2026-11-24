@@ -10,6 +10,7 @@ import "@/components/landing/public-calm.css";
 import { RelatedLinks, syllabusLinks } from "@/components/study/RelatedLinks";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 import { fitDescription } from "@/lib/topic-seo";
+import { NEXT_SESSION } from "@/lib/grade-thresholds";
 import {
   THRESHOLD_PAGES,
   averagePct,
@@ -112,6 +113,57 @@ function economicsFaq(p: NonNullable<ReturnType<typeof thresholdPage>>): { q: st
   };
 }
 
+type Page = NonNullable<ReturnType<typeof thresholdPage>>;
+
+const rank = (q: string) => (q === "A Level" ? 0 : q === "AS Level" ? 2 : 1);
+
+/**
+ * The answer people search for, first on the page: the A* and A minimums
+ * (AS Level: a) in the latest series, A Level before AS Level.
+ */
+function topAnswerOf(p: Page) {
+  const latest = sessionsOf(p.syllabuses[0])[0];
+  const rows = [...p.syllabuses]
+    .sort((x, y) => rank(x.qualification) - rank(y.qualification))
+    .flatMap((s) => {
+      const own = sessionsOf(s)[0];
+      return gradesOf(s)
+        .filter((gr) => gr === "A*" || gr === "A")
+        .map((gr) => {
+          const a = spread(s, own, gr);
+          if (!a) return null;
+          const shown = gradeShown(s.qualification, gr);
+          const who = p.syllabuses.length > 1 ? `${s.qualification} grade ${shown}` : `Grade ${shown}`;
+          const marks =
+            a.low.min === a.high.min
+              ? `${a.low.min} out of ${a.low.max} (${pct(a.low.min, a.low.max)}%)`
+              : `${a.low.min} to ${a.high.min} out of ${a.low.max} (${pct(a.low.min, a.low.max)}% to ${pct(a.high.min, a.high.max)}%)`;
+          return { label: own === latest ? who : `${who}, ${own}`, marks };
+        })
+        .filter((r): r is { label: string; marks: string } => r !== null);
+    });
+  return { latest, rows };
+}
+
+/** Results day for the next series, until its thresholds are in the data. */
+function pendingOf(p: Page) {
+  const next = NEXT_SESSION;
+  if (!next || p.syllabuses.some((s) => s.sessions[next.name])) return null;
+  const byDate = new Map<string, string[]>();
+  for (const s of [...p.syllabuses].sort((x, y) => rank(y.qualification) - rank(x.qualification))) {
+    const d = next.resultsDay[s.qualification];
+    byDate.set(d, [...(byDate.get(d) ?? []), s.qualification]);
+  }
+  const join = (xs: string[]) => (xs.length === 2 && xs[0] === "AS Level" && xs[1] === "A Level" ? "AS and A Level" : xs.join(" and "));
+  const parts = [...byDate.entries()].map(([d, qs]) => `${join(qs)} results on ${d}`);
+  return {
+    name: next.name,
+    checked: next.checked,
+    source: next.source,
+    text: `Cambridge releases ${next.name} ${parts.join(", and ")}.`,
+  };
+}
+
 export const dynamicParams = false;
 export function generateStaticParams() {
   return THRESHOLD_PAGES.map((p) => ({ slug: p.slug }));
@@ -147,6 +199,8 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
   if (!p) notFound();
   const levelName = p.level === "AS and A Level" ? "AS Level" : "O Level / IGCSE";
   const others = THRESHOLD_PAGES.filter((o) => o.slug !== p.slug && (o.level === p.level || o.subject === p.subject));
+  const topAnswer = topAnswerOf(p);
+  const pending = pendingOf(p);
 
   // Plain answers to the questions students search, built from the tables.
   const faq = p.syllabuses.flatMap((s) => {
@@ -177,6 +231,11 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
   });
   const econ = economicsFaq(p);
   if (econ) faq.push(econ);
+  if (pending)
+    faq.push({
+      q: `When are the ${pending.name} grade thresholds for ${p.code} out?`,
+      a: `${pending.text} Cambridge publishes grade thresholds after each exam series, and they go on this page as soon as it does. Until then, the ${topAnswer.latest} tables above are the latest.`,
+    });
   faq.push(
     {
       q: "Why are the thresholds different for each variant?",
@@ -184,7 +243,7 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
     },
     {
       q: "When will the May / June 2027 thresholds come out?",
-      a: "Cambridge publishes each session's thresholds on results day, not before. Until then, aim for the highest recent minimum in the targets table above: it would have been enough on every recent paper.",
+      a: "Cambridge publishes each session's thresholds after the series, never before the exams. Until then, aim for the highest recent minimum in the targets table above: it would have been enough on every recent paper.",
     },
   );
 
@@ -203,35 +262,43 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
         <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Grade thresholds", href: "/grade-thresholds" }, { name: p.name }]} />
         <h1 className="mt-8 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{p.name} grade thresholds{NEW_CODES[p.code] ? ` (now ${NEW_CODES[p.code]})` : ""}</h1>
 
+        {topAnswer.rows.length > 0 && (
+          <div className="pc-surface mt-8 rounded-card p-5 sm:p-6">
+            <p className="text-sm font-semibold text-muted-foreground">Latest series: {topAnswer.latest}</p>
+            <dl className="mt-3 space-y-3">
+              {topAnswer.rows.map((r) => (
+                <div key={r.label}>
+                  <dt className="text-base font-semibold text-muted-foreground">{r.label}</dt>
+                  <dd className="text-xl font-semibold leading-snug tabular-nums text-foreground">{r.marks}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mt-3 text-sm text-faint">Lowest to highest across paper variants. Your variant is the second digit of your paper code.</p>
+            <a href="#calculator" className="mt-4 inline-flex min-h-11 items-center rounded-full border border-hairline-strong px-5 text-sm font-semibold text-foreground transition-[background-color,border-color,transform] duration-150 hover:border-white/25 hover:bg-white/[0.04] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+              Check your own marks
+            </a>
+          </div>
+        )}
+
+        {pending && (
+          <p className="mt-4 rounded-tile border border-hairline px-4 py-3 text-base leading-relaxed text-muted-foreground">
+            <span className="font-semibold text-foreground">{pending.name} thresholds: not out yet.</span> {pending.text} They go on this page as soon as Cambridge
+            publishes them. Checked {pending.checked} against{" "}
+            <a href={pending.source} rel="noopener" className="font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:decoration-foreground">
+              Cambridge&apos;s key dates (PDF)
+            </a>
+            .
+          </p>
+        )}
+
         {p.syllabuses.map((s, i) => {
-          const latest = sessionsOf(s)[0];
           const grades = gradesOf(s);
-          const top = grades[0];
-          const a = spread(s, latest, top);
           const targets = safeTargets(s);
           const g = (x: string) => gradeShown(s.qualification, x);
           return (
             <div key={s.qualification}>
               {p.syllabuses.length > 1 && (
-                <h2 className={i === 0 ? "mt-8 text-3xl font-bold text-foreground" : "mt-16 border-t border-hairline pt-10 text-3xl font-bold text-foreground"}>{s.qualification}</h2>
-              )}
-
-              {a && (
-                <div className="pc-surface mt-8 rounded-card p-5 sm:p-6">
-                  <p className="text-sm font-semibold text-muted-foreground">{latest}, quick answer</p>
-                  <p className="mt-2 text-xl font-semibold leading-snug text-foreground">
-                    {g(top) === "A*" ? "An A*" : `Grade ${g(top)}`} needed{" "}
-                    {a.low.min === a.high.min
-                      ? `${a.low.min} out of ${a.low.max} (${pct(a.low.min, a.low.max)}%)`
-                      : `${a.low.min} to ${a.high.min} out of ${a.low.max} (${pct(a.low.min, a.low.max)}% to ${pct(a.high.min, a.high.max)}%)`}
-                    .
-                  </p>
-                  {i === 0 && (
-                    <a href="#calculator" className="mt-4 inline-flex min-h-11 items-center rounded-full border border-hairline-strong px-5 text-sm font-semibold text-foreground transition-[background-color,border-color,transform] duration-150 hover:border-white/25 hover:bg-white/[0.04] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
-                      Check your own marks
-                    </a>
-                  )}
-                </div>
+                <h2 className={i === 0 ? "mt-12 text-3xl font-bold text-foreground" : "mt-16 border-t border-hairline pt-10 text-3xl font-bold text-foreground"}>{s.qualification}</h2>
               )}
 
               <Section

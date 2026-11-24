@@ -37,7 +37,41 @@ export interface SyllabusThresholds {
   sessions: Record<string, { source: string; variants: Record<string, ThresholdSet> }>;
 }
 
+/**
+ * Newest first. Results day: put the new session name at the front of this
+ * list and add its tables to each syllabus below (same shape as the others).
+ * That is the whole edit; every page, title and snippet updates from it, and
+ * the "not out yet" note for NEXT_SESSION disappears on its own.
+ * How to: seo/results-day-runbook.md.
+ */
 export const SESSIONS = ["June 2026", "November 2025", "June 2025", "June 2024"] as const;
+
+/**
+ * The next series whose thresholds Cambridge has not published yet, shown as
+ * a dated note on each syllabus page until its tables are added above.
+ * Results days checked on 24 November 2026 against Cambridge's "Key dates for
+ * November 2026 series (International)" (`source`). Cambridge only says it
+ * publishes thresholds "after each exam series", so the note never promises
+ * a threshold date. After results day, move this to the following series
+ * (June 2027) once Cambridge publishes its key dates, or set it to null.
+ */
+export const NEXT_SESSION: {
+  name: string;
+  /** Results day per qualification, exactly as Cambridge lists it. */
+  resultsDay: Record<Qualification, string>;
+  checked: string;
+  source: string;
+} | null = {
+  name: "November 2026",
+  resultsDay: {
+    "AS Level": "7 January 2027",
+    "A Level": "7 January 2027",
+    IGCSE: "14 January 2027",
+    "O Level": "14 January 2027",
+  },
+  checked: "24 November 2026",
+  source: "https://www.cambridgeinternational.org/Images/746006-key-dates-for-november-2026-series-international-.pdf",
+};
 
 export const THRESHOLDS: SyllabusThresholds[] = [
   {
