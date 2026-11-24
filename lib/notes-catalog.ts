@@ -1043,8 +1043,12 @@ export const NOTE_BOOKS: NoteBook[] = [
             "External influences on business activity"
           ],
           [
-            "6.2",
-            "Business strategy"
+            "6.2.1",
+            "Developing business strategy"
+          ],
+          [
+            "6.2.2",
+            "Corporate planning and implementation"
           ]
         ]
       },
