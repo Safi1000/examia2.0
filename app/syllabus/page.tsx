@@ -54,6 +54,7 @@ export default function SyllabusHub() {
             { href: "/past-papers", label: "Past papers with mark schemes" },
             { href: "/past-papers/topics", label: "Past paper questions by topic" },
             { href: "/grade-thresholds", label: "Cambridge grade thresholds" },
+            { href: "/syllabus/edexcel", label: "Edexcel International GCSE and IAL guides" },
             { href: "/tools/revision-planner", label: "Revision planner" },
           ]}
         />

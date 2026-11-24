@@ -5,6 +5,7 @@ import { allArticles } from "@/lib/blog";
 import { CITY_PAGES } from "@/lib/city-pages";
 import { COUNTRY_PAGES } from "@/lib/country-pages";
 import { SYLLABI } from "@/lib/syllabus";
+import { EDEXCEL } from "@/lib/edexcel";
 import { GULF_CITY_PAGES } from "@/lib/gulf-pages";
 import { PAPERS, liveSyllabuses, paperSlug } from "@/lib/mcq-papers";
 import { PUBLIC_ROUTES, absolute } from "@/lib/seo";
@@ -42,6 +43,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ]),
     ...PAST_PAPER_SYLLABI.flatMap((s) => papersFor(s.code).map((p) => ({ url: absolute(paperHref(s.slug, p)), changeFrequency: "yearly" as const, priority: 0.6 }))),
     ...SYLLABI.map((s) => ({ url: absolute(`/syllabus/${s.slug}`), changeFrequency: "monthly" as const, priority: 0.7 })),
+    ...["/syllabus/edexcel", ...EDEXCEL.map((q) => `/syllabus/edexcel/${q.slug}`)].map((path) => ({ url: absolute(path), changeFrequency: "monthly" as const, priority: 0.6 })),
     ...COUNTRY_PAGES.map((c) => ({ url: absolute(`/online-classes/${c.slug}`), changeFrequency: "monthly" as const, priority: 0.6 })),
     ...[...CITY_PAGES, ...GULF_CITY_PAGES].map((c) => ({
       url: absolute(`/online-classes/${c.slug}`),
