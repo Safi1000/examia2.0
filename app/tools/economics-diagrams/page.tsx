@@ -3,13 +3,13 @@ import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { Crumbs } from "@/components/study/StudyBits";
-import { ECON_DIAGRAM_CODES, ECON_DIAGRAM_GROUPS, econDiagramCount } from "@/lib/econ-diagrams";
+import { DIAGRAM_SETS, diagramCount } from "@/lib/econ-diagrams";
 import { breadcrumbLd, fitTitle } from "@/lib/seo";
 import { SYLLABI } from "@/lib/syllabus";
 import "@/components/landing/public-calm.css";
 
-const title = "Economics Diagrams for IGCSE 0455 and O Level 2281";
-const description = `Every diagram the Cambridge IGCSE and O Level Economics syllabuses ask you to draw, ${econDiagramCount} in all, each with what it shows and how to draw it in the exam.`;
+const title = "Economics Diagrams: IGCSE 0455, O Level 2281, AS 9708";
+const description = "Every diagram the Cambridge IGCSE, O Level and AS Level Economics syllabuses ask you to draw, each with what it shows and how to draw it in the exam.";
 
 export const metadata: Metadata = {
   title: fitTitle(title),
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   openGraph: { title, description, url: "/tools/economics-diagrams", type: "website", images: ["/opengraph-image"] },
 };
 
-const PAGES = SYLLABI.filter((s) => (ECON_DIAGRAM_CODES as readonly string[]).includes(s.code));
+const PAGES = DIAGRAM_SETS.flatMap((d) => SYLLABI.filter((s) => s.code === d.code).map((s) => ({ ...s, set: d })));
 
 export default function EconomicsDiagramsHub() {
   return (
@@ -32,23 +32,12 @@ export default function EconomicsDiagramsHub() {
           {PAGES.map((s) => (
             <li key={s.slug}>
               <Link href={`/tools/economics-diagrams/${s.slug}`} className="row-link flex min-h-16 items-center justify-between gap-4 px-5 py-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-gold">
-                <span className="text-lg font-semibold text-foreground">{s.name}</span>
-                <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{econDiagramCount} diagrams</span>
+                <span className="text-lg font-semibold text-foreground">{s.set.h1.replace(" diagrams", "")}</span>
+                <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{diagramCount(s.set)} diagrams</span>
               </Link>
             </li>
           ))}
         </ul>
-        <section className="mt-12">
-          <h2 className="text-xl font-bold text-foreground md:text-2xl">What is inside</h2>
-          <ul className="mt-4 divide-y divide-hairline border-y border-hairline">
-            {ECON_DIAGRAM_GROUPS.map((g) => (
-              <li key={g.id} className="flex items-baseline justify-between gap-4 py-3 text-base">
-                <span className="font-semibold text-foreground">{g.title}</span>
-                <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{g.diagrams.length}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
       </div>
     </MarketingShell>
   );

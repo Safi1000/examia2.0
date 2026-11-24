@@ -13,7 +13,7 @@ export type El =
   | { t: "guide"; at: Pt; xl?: string; yl?: string; noH?: boolean; noV?: boolean }
   | { t: "dot"; at: Pt; label?: Label }
   | { t: "arrow"; p: [number, number, number, number] }
-  | { t: "area"; pts: Pt[] }
+  | { t: "area"; pts: Pt[]; k?: "a" | "b" }
   | { t: "span"; y: number; x1: number; x2: number; label: string }
   | { t: "text"; label: Label };
 
@@ -69,7 +69,7 @@ const LAB = { y: "Wage rate", x: "Quantity of labour" };
 const PPC = { y: "Capital goods", x: "Consumer goods" };
 const MINI = { y: "P", x: "Q" };
 
-export const ECON_DIAGRAM_GROUPS: DiagramGroup[] = [
+const OL_GROUPS: DiagramGroup[] = [
   {
     id: "ppc",
     title: "Production possibility curves",
@@ -385,5 +385,273 @@ export const ECON_DIAGRAM_GROUPS: DiagramGroup[] = [
   },
 ];
 
-export const ECON_DIAGRAM_CODES = ["0455", "2281"] as const;
-export const econDiagramCount = ECON_DIAGRAM_GROUPS.reduce((n, g) => n + g.diagrams.length, 0);
+/* ───────── AS Level Economics 9708 (topics 1 to 5) ───────── */
+const ol = (id: string, ref: string, patch: Partial<Diagram> = {}): Diagram => {
+  const d = OL_GROUPS.flatMap((g) => g.diagrams).find((x) => x.id === id);
+  if (!d) throw new Error(`No diagram ${id}`);
+  return { ...d, ref, ...patch };
+};
+const AD_AS = { y: "Price level", x: "Real output" };
+const AD = (label = "AD", k: "a" | "b" | "c" = "a") => line(15, 85, 85, 15, [label, 89, 11], k);
+const SRAS = (label = "SRAS", k: "a" | "b" | "c" = "b") => line(15, 15, 85, 85, [label, 91, 89], k);
+const GOODS = { y: "Good B", x: "Good A" };
+
+const AS_GROUPS: DiagramGroup[] = [
+  {
+    id: "ppc",
+    title: "Production possibility curves",
+    diagrams: [
+      {
+        id: "ppc-shape",
+        title: "PPC shape: constant and increasing opportunity cost",
+        ref: "1.5.2",
+        charts: [
+          { ...GOODS, cap: "Constant opportunity cost", els: [line(0, 80, 80, 0, ["PPC", 86, 10])] },
+          { ...GOODS, cap: "Increasing opportunity cost", els: [{ t: "path", pts: arc(80), label: ["PPC", 88, 10] }] },
+        ],
+        shows: "A straight line PPC means each extra unit of good A always costs the same amount of good B, because resources are equally good at making both. A PPC that bows outward means each extra unit of good A costs more and more of good B, because the resources moved last are the ones least suited to making it.",
+        steps: ["For constant opportunity cost, draw a straight line between the axes.", "For increasing opportunity cost, draw a curve that bows outward.", "Label the axes with the two goods and the curve PPC."],
+      },
+      ol("ppc-movement", "1.5.1"),
+      ol("ppc-points", "1.5.4"),
+      ol("ppc-shift", "1.5.3"),
+    ],
+  },
+  {
+    id: "demand-supply",
+    title: "Demand and supply curves",
+    diagrams: [ol("demand-movement", "2.1.7"), ol("demand-shift", "2.1.5"), ol("supply-movement", "2.1.7"), ol("supply-shift", "2.1.6")],
+  },
+  {
+    id: "elasticity",
+    title: "Elasticity",
+    diagrams: [
+      ol("ped-curves", "2.2.4"),
+      {
+        id: "ped-straight-line",
+        title: "PED along a straight line demand curve",
+        ref: "2.2.5",
+        charts: [{ ...PQ, els: [line(0, 90, 90, 0, ["D", 94, 4]), dot(45, 45, ["PED = 1", 60, 50]), text("Elastic", 30, 74), text("Inelastic", 82, 24)] }],
+        shows: "The slope of a straight line demand curve stays the same, but PED does not. Near the top, a price change is a small percentage of a high price and the quantity change is a large percentage of a small quantity, so demand is elastic. At the midpoint PED equals 1. Below the midpoint, demand is inelastic.",
+        steps: ["Draw a straight demand curve that touches both axes.", "Mark the midpoint and label it PED = 1.", "Label the top half elastic and the bottom half inelastic."],
+      },
+      ol("ped-revenue", "2.2.7", { title: "PED and total expenditure when the price falls" }),
+      ol("pes-curves", "2.3.3"),
+    ],
+  },
+  {
+    id: "market",
+    title: "The interaction of demand and supply",
+    diagrams: [
+      ol("equilibrium", "2.4.1"),
+      ol("surplus", "2.4.1"),
+      ol("shortage", "2.4.1"),
+      ol("demand-increase", "2.4.2"),
+      ol("demand-decrease", "2.4.2"),
+      ol("supply-increase", "2.4.2"),
+      ol("supply-decrease", "2.4.2"),
+      {
+        id: "consumer-producer-surplus",
+        title: "Consumer surplus and producer surplus",
+        ref: "2.5",
+        charts: [
+          {
+            ...PQ,
+            els: [
+              { t: "area", pts: [[0, 50], [0, 95], [45, 50]] },
+              { t: "area", pts: [[0, 5], [0, 50], [45, 50]], k: "b" },
+              line(0, 95, 85, 10, ["D", 89, 6]),
+              line(0, 5, 85, 90, ["S", 89, 94], "b"),
+              guide(45, 50, "Qe", "Pe"),
+              text("CS", 14, 64),
+              text("PS", 14, 36),
+            ],
+          },
+        ],
+        shows: "Consumer surplus is the gap between what consumers are willing to pay and what they actually pay: the area under the demand curve and above the price (CS). Producer surplus is the gap between the price firms receive and the lowest price they would accept: the area above the supply curve and below the price (PS).",
+        steps: ["Draw D and S and label the equilibrium price and quantity.", "Shade the triangle between the demand curve and the price line and label it CS, consumer surplus.", "Shade the triangle between the price line and the supply curve and label it PS, producer surplus."],
+      },
+    ],
+  },
+  {
+    id: "intervention",
+    title: "Government microeconomic intervention",
+    diagrams: [
+      {
+        id: "tax-incidence",
+        title: "Specific indirect tax: impact and incidence",
+        ref: "3.2.1",
+        charts: [
+          {
+            ...PQ,
+            els: [
+              { t: "area", pts: [[0, 50], [40, 50], [40, 60], [0, 60]] },
+              { t: "area", pts: [[0, 40], [40, 40], [40, 50], [0, 50]], k: "b" },
+              D(),
+              line(15, 15, 85, 85, ["S", 89, 89], "c"),
+              S_LEFT("S + tax"),
+              guide(50, 50, "Q1", "P1"),
+              guide(40, 60, "Q2", "P2"),
+              guide(40, 40, undefined, "P3", { noV: true }),
+            ],
+          },
+        ],
+        shows: "A specific tax adds a fixed amount to each unit, so supply shifts up by the tax, from S to S + tax. Consumers now pay P2 and firms keep P3 after paying the tax. The tax per unit is P2 minus P3. The upper shaded band (P1 to P2) is the part of the tax paid by consumers and the lower band (P3 to P1) is the part paid by producers. The more inelastic the demand, the more of the tax falls on consumers.",
+        steps: ["Draw D and S, then a second supply curve shifted up by the tax.", "Label P1 and Q1 at the old equilibrium, P2 and Q2 at the new one.", "Mark P3 on the original supply curve at Q2, then shade the consumer and producer shares."],
+      },
+      {
+        id: "subsidy-incidence",
+        title: "Subsidy: impact and incidence",
+        ref: "3.2.2",
+        charts: [
+          {
+            ...PQ,
+            els: [
+              { t: "area", pts: [[0, 40], [60, 40], [60, 60], [0, 60]] },
+              D(),
+              line(15, 15, 85, 85, ["S", 89, 89], "c"),
+              S_RIGHT("S + subsidy"),
+              guide(50, 50, "Q1", "P1"),
+              guide(60, 40, "Q2", "P2"),
+              guide(60, 60, undefined, "P3", { noV: true }),
+            ],
+          },
+        ],
+        shows: "A specific subsidy lowers each unit's cost, so supply shifts down by the subsidy, from S to S + subsidy. Consumers now pay P2, lower than P1. Firms receive P3, the price plus the subsidy, which is higher than P1. The shaded area, the subsidy per unit times Q2, is what the subsidy costs the government.",
+        steps: ["Draw D and S, then a second supply curve shifted down by the subsidy.", "Label P1 and Q1 at the old equilibrium, P2 and Q2 at the new one.", "Mark P3 on the original supply curve at Q2 and shade the cost to the government."],
+      },
+      ol("maximum-price", "3.2.4"),
+      ol("minimum-price", "3.2.4"),
+      {
+        id: "buffer-stock",
+        title: "Buffer stock scheme",
+        ref: "3.2.5",
+        charts: [
+          {
+            ...PQ,
+            els: [
+              D(),
+              line(0, 65, 92, 65, undefined, "c"),
+              line(0, 35, 92, 35, undefined, "c"),
+              guide(0, 65, undefined, "Max", { noV: true }),
+              guide(0, 35, undefined, "Min", { noV: true }),
+              line(75, 4, 75, 92, ["S1", 80, 92], "b"),
+              line(25, 4, 25, 92, ["S2", 20, 92], "b"),
+              guide(65, 35, undefined, undefined, { noH: true }),
+              guide(35, 65, undefined, undefined, { noH: true }),
+              { t: "span", y: 10, x1: 65, x2: 75, label: "Buys" },
+              { t: "span", y: 10, x1: 25, x2: 35, label: "Sells" },
+            ],
+          },
+        ],
+        shows: "A buffer stock agency keeps the price of a crop between a minimum and a maximum. After a good harvest (S1), the price would fall below the minimum, so the agency buys the extra crop at the minimum price and stores it. After a bad harvest (S2), the price would rise above the maximum, so the agency sells from its store at the maximum price.",
+        steps: ["Draw demand and two horizontal lines for the minimum and maximum prices.", "Draw a vertical supply curve for a good harvest and one for a bad harvest.", "Show the quantity the agency buys at the minimum and sells at the maximum."],
+      },
+    ],
+  },
+  {
+    id: "ad-as",
+    title: "Aggregate demand and aggregate supply",
+    diagrams: [
+      {
+        id: "ad-as-equilibrium",
+        title: "AD/AS equilibrium",
+        ref: "4.3.11",
+        charts: [{ ...AD_AS, els: [AD(), SRAS(), guide(50, 50, "Y", "PL")] }],
+        shows: "The AD curve slopes down: at a lower price level, the total quantity of goods and services demanded in the economy is higher. SRAS slopes up. Where they cross, the economy is in equilibrium at price level PL and real output Y, which sets the level of employment.",
+        steps: ["Label the axes price level and real output.", "Draw AD sloping down and SRAS sloping up.", "Label the equilibrium price level and real output."],
+      },
+      {
+        id: "lras-shapes",
+        title: "The two shapes of the LRAS curve",
+        ref: "4.3.8",
+        charts: [
+          { ...AD_AS, y: "PL", x: "Y", cap: "Vertical LRAS", els: [line(60, 4, 60, 92, ["LRAS", 76, 92], "b"), guide(60, 6, "Yf", undefined, { noH: true })] },
+          {
+            ...AD_AS,
+            y: "PL",
+            x: "Y",
+            cap: "LRAS in three sections",
+            els: [{ t: "path", pts: [[4, 25], [40, 25], [50, 27], [58, 32], [65, 40], [70, 50], [73, 60], [75, 72], [75, 94]], k: "b", label: ["LRAS", 90, 86] }, guide(75, 72, "Yf", undefined, { noH: true })],
+          },
+        ],
+        shows: "The syllabus accepts two shapes. Drawn as a vertical line, LRAS sits at the full employment level of output (Yf): in the long run, output depends on the quantity and quality of resources, not on the price level. Drawn in three sections, it is highly elastic when there is a lot of spare capacity, slopes upward as resources become scarce, and turns vertical at full employment.",
+        steps: ["For the vertical shape, draw a straight line up from Yf.", "For the three section shape, draw it flat, then curving up, then vertical.", "Label full employment output Yf."],
+      },
+      {
+        id: "ad-increase",
+        title: "An increase in AD: expansionary policy and demand-pull inflation",
+        ref: "4.3.12, 4.6.4, 5.2.7, 5.3.4",
+        charts: [{ ...AD_AS, els: [AD("AD", "c"), D_RIGHT("AD1"), SRAS(), guide(50, 50, "Y1", "PL1"), guide(60, 60, "Y2", "PL2"), arrow(37, 67, 43, 73)] }],
+        shows: "AD shifts right from AD to AD1, for example after lower interest rates, higher government spending or lower taxes. Real output rises from Y1 to Y2, so employment usually rises, and the price level rises from PL1 to PL2. This is how expansionary fiscal and monetary policy work. When the rise in AD pulls the price level up, it is demand-pull inflation.",
+        steps: ["Draw AD and SRAS and label PL1 and Y1.", "Shift AD to the right and label it AD1.", "Label the new price level PL2 and real output Y2."],
+      },
+      {
+        id: "ad-decrease",
+        title: "A decrease in AD: contractionary policy",
+        ref: "4.3.12, 5.2.7, 5.3.4",
+        charts: [{ ...AD_AS, els: [AD("AD", "c"), D_LEFT("AD1"), SRAS(), guide(50, 50, "Y1", "PL1"), guide(40, 40, "Y2", "PL2"), arrow(33, 63, 27, 57)] }],
+        shows: "AD shifts left from AD to AD1, for example after higher interest rates, lower government spending or higher taxes. The price level falls from PL1 to PL2 and real output falls from Y1 to Y2, so employment usually falls. This is how contractionary fiscal and monetary policy reduce inflation.",
+        steps: ["Draw AD and SRAS and label PL1 and Y1.", "Shift AD to the left and label it AD1.", "Label the new price level PL2 and real output Y2."],
+      },
+      {
+        id: "sras-decrease",
+        title: "A decrease in SRAS: cost-push inflation",
+        ref: "4.3.12, 4.6.4",
+        charts: [{ ...AD_AS, els: [AD(), SRAS("SRAS", "c"), S_LEFT("SRAS1"), guide(50, 50, "Y1", "PL1"), guide(40, 60, "Y2", "PL2"), arrow(63, 67, 57, 73)] }],
+        shows: "A rise in costs of production, such as higher wages or a higher oil price, shifts SRAS left from SRAS to SRAS1. The price level rises from PL1 to PL2 while real output falls from Y1 to Y2. This is cost-push inflation.",
+        steps: ["Draw AD and SRAS and label PL1 and Y1.", "Shift SRAS to the left and label it SRAS1.", "Label the new price level PL2 and real output Y2."],
+      },
+      {
+        id: "lras-increase",
+        title: "An increase in LRAS: supply-side policy",
+        ref: "4.3.12, 5.4.4",
+        charts: [{ ...AD_AS, els: [AD(), line(50, 4, 50, 92, ["LRAS", 44, 96], "c"), line(70, 4, 70, 92, ["LRAS1", 78, 96], "b"), guide(50, 50, "Y1", "PL1"), guide(70, 30, "Y2", "PL2"), arrow(53, 80, 66, 80)] }],
+        shows: "Supply-side policy, such as training, better infrastructure or support for new technology, raises the economy's productive capacity. LRAS shifts right from LRAS to LRAS1. Real output rises from Y1 to Y2 and the price level falls from PL1 to PL2.",
+        steps: ["Draw AD and a vertical LRAS and label PL1 and Y1.", "Draw a second LRAS to the right and label it LRAS1.", "Label the new price level PL2 and real output Y2."],
+      },
+    ],
+  },
+];
+
+export interface DiagramSet {
+  code: string;
+  h1: string;
+  title: string;
+  description: string;
+  /** What the page covers and leaves out, from the syllabus. */
+  note: string;
+  groups: DiagramGroup[];
+}
+
+const count = (g: DiagramGroup[]) => g.reduce((n, x) => n + x.diagrams.length, 0);
+const OL_NOTE = "The syllabus says diagrams are not required for market failure, competitive markets or monopoly, so none are included.";
+
+export const DIAGRAM_SETS: DiagramSet[] = [
+  {
+    code: "0455",
+    h1: "IGCSE Economics 0455 diagrams",
+    title: "0455 Economics Diagrams: Every IGCSE Diagram to Draw",
+    description: `All ${count(OL_GROUPS)} diagrams the IGCSE Economics 0455 syllabus asks you to draw: PPC, demand and supply, elasticity, maximum and minimum prices, tax, subsidy, wages and costs.`,
+    note: OL_NOTE,
+    groups: OL_GROUPS,
+  },
+  {
+    code: "2281",
+    h1: "O Level Economics 2281 diagrams",
+    title: "2281 Economics Diagrams: Every O Level Diagram to Draw",
+    description: `All ${count(OL_GROUPS)} diagrams the O Level Economics 2281 syllabus asks you to draw: PPC, demand and supply, elasticity, maximum and minimum prices, tax, subsidy, wages and costs.`,
+    note: OL_NOTE,
+    groups: OL_GROUPS,
+  },
+  {
+    code: "9708",
+    h1: "AS Level Economics 9708 diagrams",
+    title: "9708 AS Level Economics Diagrams: Every Diagram to Draw",
+    description: `All ${count(AS_GROUPS)} AS Level diagrams for Economics 9708: PPC, elasticity, consumer and producer surplus, tax incidence, buffer stocks and AD/AS with policy.`,
+    note: "This page covers the AS Level part of the syllabus, topics 1 to 5.",
+    groups: AS_GROUPS,
+  },
+];
+
+export const diagramCount = (s: DiagramSet) => count(s.groups);

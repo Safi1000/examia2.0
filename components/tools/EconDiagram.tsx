@@ -86,7 +86,11 @@ export function EconDiagram({ chart, small, title }: { chart: Chart; small?: boo
         );
       }
       case "area":
-        return <path key={k} d={`${d(e.pts)} Z`} fill="currentColor" fillOpacity={0.16} className="text-gold" />;
+        return e.k === "b" ? (
+          <path key={k} d={`${d(e.pts)} Z`} fill="currentColor" fillOpacity={0.12} className="dg-area-b text-foreground" />
+        ) : (
+          <path key={k} d={`${d(e.pts)} Z`} fill="currentColor" fillOpacity={0.18} className="text-gold" />
+        );
       case "span": {
         const [x1, x2, y] = [X(e.x1), X(e.x2), Y(e.y)];
         const up = e.y >= 50;

@@ -27,7 +27,7 @@ export interface SiteRow {
 const TOOLS: Array<{ u: string; t: string; s: string; w: string }> = [
   { u: "/tools/grade-predictor", t: "Grade predictor", s: "Your marks as a Cambridge grade", w: "grade predictor marks boundaries calculator" },
   { u: "/tools/formula-sheet", t: "Formula sheets", s: "Every formula for your syllabus, free to print", w: "formula sheet formulas ratios list print 0452 7707 0455 2281 0264 7081 9706 9708 9609" },
-  { u: "/tools/economics-diagrams", t: "Economics diagrams", s: "Every diagram to draw for 0455 and 2281", w: "economics diagrams diagram ppc demand supply elasticity maximum minimum price tax subsidy wage costs 0455 2281 draw" },
+  { u: "/tools/economics-diagrams", t: "Economics diagrams", s: "Every diagram to draw for 0455, 2281 and AS 9708", w: "economics diagrams diagram ppc demand supply elasticity maximum minimum price tax subsidy wage costs ad as aggregate buffer stock consumer producer surplus 0455 2281 9708 draw" },
   { u: "/tools/ratio-calculator", t: "Ratio calculator", s: "Every IGCSE and O Level accounting ratio", w: "ratio calculator accounting ratios formula 0452 7707 current ratio margin" },
   { u: "/tools/depreciation-calculator", t: "Depreciation calculator", s: "Straight line and reducing balance", w: "depreciation calculator straight line reducing balance" },
   { u: "/tools/break-even-calculator", t: "Break even calculator", s: "Break even output and margin of safety", w: "break even breakeven calculator contribution margin of safety business" },

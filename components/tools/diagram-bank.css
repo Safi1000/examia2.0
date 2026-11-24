@@ -40,4 +40,8 @@
   .fs-sheet svg [fill-opacity] {
     fill: #999 !important;
   }
+  .fs-sheet svg .dg-area-b {
+    fill: #ddd !important;
+    fill-opacity: 1 !important;
+  }
 }

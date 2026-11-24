@@ -6,14 +6,14 @@ import { MarketingShell } from "@/components/landing/MarketingShell";
 import { Crumbs, TrialBox } from "@/components/study/StudyBits";
 import { EconDiagram } from "@/components/tools/EconDiagram";
 import { PrintButton } from "@/components/tools/PrintButton";
-import { ECON_DIAGRAM_CODES, ECON_DIAGRAM_GROUPS, econDiagramCount } from "@/lib/econ-diagrams";
+import { DIAGRAM_SETS, diagramCount } from "@/lib/econ-diagrams";
 import { PAST_PAPER_SYLLABI } from "@/lib/past-papers";
 import { breadcrumbLd, fitTitle } from "@/lib/seo";
 import { SYLLABI } from "@/lib/syllabus";
 import "@/components/tools/formula-sheet.css";
 import "@/components/tools/diagram-bank.css";
 
-const PAGES = SYLLABI.filter((s) => (ECON_DIAGRAM_CODES as readonly string[]).includes(s.code));
+const PAGES = DIAGRAM_SETS.flatMap((d) => SYLLABI.filter((s) => s.code === d.code).map((s) => ({ ...s, set: d })));
 
 export const dynamicParams = false;
 
@@ -23,15 +23,12 @@ export function generateStaticParams() {
 
 type Props = { params: Promise<{ slug: string }> };
 
-const titleFor = (code: string, level: string) => `${code} Economics Diagrams: Every ${level} Diagram to Draw`;
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const s = PAGES.find((x) => x.slug === slug);
   if (!s) return {};
   const url = `/tools/economics-diagrams/${s.slug}`;
-  const title = titleFor(s.code, s.level);
-  const description = `All ${econDiagramCount} diagrams the ${s.name} syllabus asks you to draw: PPC, demand and supply, elasticity, maximum and minimum prices, tax, subsidy, wages and costs.`;
+  const { title, description } = s.set;
   return {
     title: fitTitle(title),
     description,
@@ -46,13 +43,14 @@ export default async function EconomicsDiagramsPage({ params }: Props) {
   if (!s) notFound();
   const path = `/tools/economics-diagrams/${s.slug}`;
   const pp = PAST_PAPER_SYLLABI.find((p) => p.code === s.code || p.next?.code === s.code);
-  const other = PAGES.find((x) => x.slug !== s.slug);
+  const others = PAGES.filter((x) => x.slug !== s.slug && x.set.groups !== s.set.groups);
+  const groups = s.set.groups;
   const links = [
     { href: `/tools/formula-sheet/${s.slug}`, label: `${s.code} formula sheet` },
     { href: "/tools/elasticity-calculator", label: "Elasticity calculator" },
     { href: `/syllabus/${s.slug}`, label: `${s.name} syllabus checklist` },
     ...(pp ? [{ href: `/past-papers/${pp.slug}/topics`, label: `${pp.name} questions by topic` }] : []),
-    ...(other ? [{ href: `/tools/economics-diagrams/${other.slug}`, label: `${other.name} diagrams` }] : []),
+    ...others.map((o) => ({ href: `/tools/economics-diagrams/${o.slug}`, label: `${o.name} diagrams` })),
   ];
 
   return (
@@ -64,17 +62,17 @@ export default async function EconomicsDiagramsPage({ params }: Props) {
         </div>
 
         <div className="fs-sheet">
-          <h1 className="mt-8 text-balance text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{s.name} diagrams</h1>
+          <h1 className="mt-8 text-balance text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{s.set.h1}</h1>
           <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
             <PrintButton label="Print the diagrams" what={`diagrams-${s.code}`} />
             <p className="text-sm font-semibold tabular-nums text-muted-foreground">
-              {econDiagramCount} diagrams, for exams in {s.exams}
+              {diagramCount(s.set)} diagrams, for exams in {s.exams}
             </p>
           </div>
 
           <nav aria-label="Jump to a topic" className="fs-noprint mt-6">
             <ul className="flex flex-wrap gap-2">
-              {ECON_DIAGRAM_GROUPS.map((g) => (
+              {groups.map((g) => (
                 <li key={g.id}>
                   <a href={`#${g.id}`} className="inline-flex min-h-11 items-center rounded-full border border-hairline-strong px-4 text-sm font-semibold text-muted-foreground transition-colors duration-150 hover:border-white/25 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
                     {g.title}
@@ -84,7 +82,7 @@ export default async function EconomicsDiagramsPage({ params }: Props) {
             </ul>
           </nav>
 
-          {ECON_DIAGRAM_GROUPS.map((g) => (
+          {groups.map((g) => (
             <section key={g.id} id={g.id} className="mt-12 scroll-mt-24">
               <h2 className="text-2xl font-bold leading-tight text-foreground md:text-3xl">{g.title}</h2>
               <div className="dg-grid mt-5 space-y-5">
@@ -148,7 +146,7 @@ export default async function EconomicsDiagramsPage({ params }: Props) {
           <section aria-labelledby="about-diagrams" className="mt-12 border-t border-hairline pt-6">
             <h2 id="about-diagrams" className="text-sm font-semibold text-muted-foreground">About these diagrams</h2>
             <p className="mt-2 max-w-[64ch] text-sm leading-relaxed text-faint">
-              These are the diagrams the Cambridge {s.name} syllabus for {s.exams} asks you to draw and interpret, with the section number beside each one. The syllabus says diagrams are not required for market failure, competitive markets or monopoly, so none are included. The drawings are my own.{" "}
+              These are the diagrams the Cambridge {s.name} syllabus for {s.exams} asks you to draw and interpret, with the section number beside each one. {s.set.note} The drawings are my own.{" "}
               <a href={s.source} target="_blank" rel="noopener noreferrer" className="font-semibold text-muted-foreground underline decoration-hairline-strong underline-offset-4 hover:decoration-current">
                 Official syllabus PDF
               </a>
