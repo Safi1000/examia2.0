@@ -19,10 +19,10 @@ const MANIFEST = {
   theme_color: "#1a1d20",
   icons: [
     // New addresses (not /app-icon/...) so Chrome sees the icon changed and updates installed copies:
-    // the old "ht" icons were cached by browsers for a year under the old addresses.
-    { src: "/brand-icons/app-192.png?v=2", sizes: "192x192", type: "image/png" },
-    { src: "/brand-icons/app-512.png?v=2", sizes: "512x512", type: "image/png" },
-    { src: "/brand-icons/app-512-maskable.png?v=2", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    // the old icons were cached by browsers for a year. Bump v whenever the icon changes (v=3: arrow mark, 24 Nov 2026).
+    { src: "/brand-icons/app-192.png?v=3", sizes: "192x192", type: "image/png" },
+    { src: "/brand-icons/app-512.png?v=3", sizes: "512x512", type: "image/png" },
+    { src: "/brand-icons/app-512-maskable.png?v=3", sizes: "512x512", type: "image/png", purpose: "maskable" },
   ],
 };
 

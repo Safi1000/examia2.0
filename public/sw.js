@@ -16,10 +16,10 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",
-      icon: "/brand-icons/app-192.png?v=2",
+      icon: "/brand-icons/app-192.png?v=3",
       // Android draws the status-bar icon from the alpha channel only, so a
       // full-colour icon shows as a blank square: the badge is white on clear.
-      badge: "/notification-badge.png",
+      badge: "/notification-badge.png?v=3",
       tag: data.tag || undefined, // same tag replaces, never stacks
       data: { url: data.url || "/dashboard" },
     }),
