@@ -14,6 +14,7 @@ import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
 import { syllabusByCode, SYLLABI } from "@/lib/syllabus";
 import { breadcrumbLd, faqLd } from "@/lib/seo";
 import { hubDescription, hubIntro, hubTitle } from "@/lib/paper-seo";
+import { reportHref, reportsFor } from "@/lib/examiner-reports";
 
 export const dynamicParams = false;
 export function generateStaticParams() {
@@ -131,6 +132,11 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
                 {o.level === s.level ? o.short : `${o.level === "AS and A Level" ? "A Level" : o.level} ${o.code}`} papers
               </Link>
             ))}
+            {reportsFor(s.code)[0] && (
+              <Link href={reportHref(reportsFor(s.code)[0])} className={pill}>
+                Examiner report: common mistakes by paper
+              </Link>
+            )}
             {thresholds && (
               <Link href={`/grade-thresholds/${thresholds.slug}`} className={pill}>
                 Grade thresholds for {thresholds.name}

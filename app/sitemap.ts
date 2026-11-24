@@ -12,6 +12,7 @@ import { PUBLIC_ROUTES, absolute } from "@/lib/seo";
 import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
 import { PAST_PAPER_SYLLABI, paperHref, papersFor } from "@/lib/past-papers";
 import { hasTopical, topicalFor } from "@/lib/topical";
+import { EXAMINER_REPORTS, EXAMINER_REPORTS_HUB, reportHref } from "@/lib/examiner-reports";
 import { LEVEL_PAGES, SUBJECT_PAGES, levelPath, tuitionPath } from "@/lib/subjects";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -32,6 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     })),
     ...PAST_PAPER_SYLLABI.map((p) => ({ url: absolute(`/past-papers/${p.slug}`), changeFrequency: "monthly" as const, priority: 0.8 })),
+    ...[EXAMINER_REPORTS_HUB, ...EXAMINER_REPORTS.map(reportHref)].map((path) => ({ url: absolute(path), changeFrequency: "yearly" as const, priority: 0.6 })),
     { url: absolute("/past-papers/search"), changeFrequency: "monthly" as const, priority: 0.6 },
     { url: absolute("/past-papers/topics"), changeFrequency: "monthly" as const, priority: 0.8 },
     ...PAST_PAPER_SYLLABI.filter((s) => hasTopical(s.code)).flatMap((s) => [
