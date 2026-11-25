@@ -2,7 +2,7 @@ import { allArticles } from "@/lib/blog";
 import { FAQS, LANDING } from "@/lib/landing";
 import { PAPERS } from "@/lib/mcq-papers";
 import { absolute } from "@/lib/seo";
-import { SUBJECT_PAGES, tuitionPath } from "@/lib/subjects";
+import { LEVEL_PAGES, SUBJECT_PAGES, levelPath, tuitionPath } from "@/lib/subjects";
 
 /**
  * /llms.txt: a plain summary of the site for AI assistants (ChatGPT, Claude,
@@ -32,11 +32,17 @@ Key facts:
 
 - [Home](${absolute("/")}): how the classes work, student reviews, and booking the free trial lesson.
 ${SUBJECT_PAGES.map((s) => `- [${s.subject} tuition](${absolute(tuitionPath(s.slug))}): ${s.seoDescription}`).join("\n")}
+${LEVEL_PAGES.map((l) => `- [${l.h1}](${absolute(levelPath(l.subjectSlug, l.slug))}): ${l.seoDescription}`).join("\n")}
 - [Grade predictor](${absolute("/tools/grade-predictor")}): free tool. Enter your marks and see your likely Cambridge grade using official grade thresholds, plus what to work on for May/June 2027.
 ${PAPERS.length ? `- [Past paper MCQ checker](${absolute("/tools/past-paper-mcq")}): free tool. Do a real Cambridge Paper 1 multiple-choice past paper (Accounting or Economics, IGCSE, O Level, AS or A Level) from the official PDF, then mark it instantly with a timer and a topic breakdown.\n` : ""}- [The Exam Room](${absolute("/blog")}): free articles on topics and exam technique.
 - [Syllabus checklists](${absolute("/syllabus")}): the full Cambridge syllabus for O Level, IGCSE and A Level Accounting, Business and Economics (2027 exams), as an interactive checklist, plus a revision planner built from it.
 - [Free tools](${absolute("/tools")}): accounting ratio, break-even, elasticity (PED, YED, XED), depreciation and investment appraisal calculators, each with the working.
 - [Grade thresholds](${absolute("/grade-thresholds")}): official Cambridge grade thresholds for O Level, IGCSE, AS and A Level Accounting, Business and Economics, every variant, with 2027 targets.
+- [Past papers](${absolute("/past-papers")}): free Cambridge past papers, mark schemes and inserts for Accounting, Business and Economics (0452, 7707, 0455, 2281, 0450, 7115, 9706, 9708, 9609), each paper on its own page with grade thresholds, and questions sorted by topic.
+- [Examiner reports](${absolute("/past-papers/examiner-reports")}): what Cambridge examiners said about each paper, retold in plain words: common mistakes and what to do instead, paper by paper, for every syllabus.
+- [Edexcel syllabus guides](${absolute("/syllabus/edexcel")}): Pearson Edexcel International GCSE and International A Level Accounting, Business and Economics: papers, marks and topics, checked against Pearson's specifications.
+- [Formula sheets](${absolute("/tools/formula-sheet")}): every formula for each syllabus, free to print.
+- [Economics diagrams](${absolute("/tools/economics-diagrams")}): every diagram to draw for IGCSE 0455, O Level 2281 and AS and A Level 9708.
 - [Private candidate guide, Pakistan](${absolute("/private-candidates/pakistan")}): how to enter Cambridge exams through the British Council without a school, deadlines and a study plan.
 - [Online classes](${absolute("/online-classes")}): live online classes for students in Pakistan, with pages for Karachi, Lahore and Islamabad / Rawalpindi.
 - [Online classes for Gulf students](${absolute("/online-classes/gulf")}): the same live classes for students in the UAE, Saudi Arabia, Qatar, Oman, Kuwait and Bahrain, with class times in local time and pages for Dubai, Abu Dhabi, Riyadh, Jeddah and Doha.
