@@ -19,6 +19,7 @@ import {
   reportPaperHref,
   reportPapers,
   reportPdf,
+  reportPublished,
   reportSeriesLabel,
   reportSlug,
   reportSyllabus,
@@ -108,8 +109,7 @@ export default async function ExaminerReportPage({ params }: Props) {
           path: url,
           headline: reportTitle(r),
           description: reportDescription(r),
-          // Written and fact-checked against the Cambridge reports on 24 November 2026.
-          datePublished: "2026-11-24",
+          datePublished: reportPublished(r),
           section: s.subject,
           about: [`${s.name} ${label} examiner report`, s.code],
         })}

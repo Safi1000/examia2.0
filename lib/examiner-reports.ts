@@ -37,6 +37,8 @@ export interface ExaminerReport {
   code: string;
   /** "m26": m = Feb/March, s = May/June, w = Oct/Nov. */
   series: string;
+  /** Date the page went live (YYYY-MM-DD); the first 20 went live on 24 Nov 2026. */
+  published?: string;
   /** The one short phrase quoted from the report, word for word. */
   quote: { text: string; paper: string } | null;
   takeaways: string[];
@@ -72,6 +74,8 @@ export const reportSeriesLabel = (series: string) => `${SERIES_NAME[letter(serie
 export const reportMonthLabel = (series: string) => `${MONTH[letter(series)]} ${year(series)}`;
 
 export const reportSyllabus = (r: ExaminerReport) => PAST_PAPER_SYLLABI.find((s) => s.code === r.code)!;
+/** When this report page went live. */
+export const reportPublished = (r: ExaminerReport) => r.published ?? "2026-11-24";
 export const reportHref = (r: ExaminerReport) => `/past-papers/${reportSyllabus(r).slug}/examiner-report/${reportSlug(r.series)}`;
 export const reportsFor = (code: string) => EXAMINER_REPORTS.filter((r) => r.code === code);
 export const reportBySlug = (s: PastPaperSyllabus, slug: string) => reportsFor(s.code).find((r) => reportSlug(r.series) === slug) ?? null;
