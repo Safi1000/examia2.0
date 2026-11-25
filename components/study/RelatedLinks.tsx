@@ -4,6 +4,7 @@ import { PAST_PAPER_SYLLABI, type PastPaperSyllabus } from "@/lib/past-papers";
 import { SYLLABI } from "@/lib/syllabus";
 import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
 import { hasTopical, topicalFor } from "@/lib/topical";
+import { reportHref, reportMonthLabel, reportsFor } from "@/lib/examiner-reports";
 
 /**
  * "Keep exploring": a short list of plain text links to the pages that belong
@@ -12,7 +13,7 @@ import { hasTopical, topicalFor } from "@/lib/topical";
  * so a link only appears when its page exists.
  */
 export type RelatedLink = { href: string; label: string };
-export type RelatedKind = "papers" | "topical" | "checklist" | "thresholds" | "tool";
+export type RelatedKind = "papers" | "topical" | "checklist" | "thresholds" | "report" | "tool";
 
 /** The calculator that fits each syllabus's most tested calculation. */
 const TOOL: Record<string, RelatedLink> = {
@@ -37,11 +38,14 @@ export function syllabusLinks(code: string, omit: RelatedKind[] = []): RelatedLi
   const syl = SYLLABI.find((s) => s.code === code) ?? (pp ? SYLLABI.find((s) => s.code === pp.code || s.replaces === pp.code) : undefined);
   const gt = pp ? THRESHOLD_PAGES.find((t) => t.code === pp.code) : undefined;
   const tool = pp ? TOOL[pp.code] : undefined;
+  // Newest examiner report page for this syllabus.
+  const report = pp ? reportsFor(pp.code)[0] : undefined;
   const all: Array<[RelatedKind, RelatedLink | null]> = [
     ["papers", pp ? { href: `/past-papers/${pp.slug}`, label: `${pp.name} past papers` } : null],
     ["topical", pp && hasTopical(pp.code) ? { href: `/past-papers/${pp.slug}/topics`, label: `${pp.name} past paper questions by topic` } : null],
     ["checklist", syl ? { href: `/syllabus/${syl.slug}`, label: `${syl.name} syllabus checklist` } : null],
     ["thresholds", gt ? { href: `/grade-thresholds/${gt.slug}`, label: `Grade thresholds for ${gt.name}` } : null],
+    ["report", report ? { href: reportHref(report), label: `${report.code} examiner report ${reportMonthLabel(report.series)}: common mistakes` } : null],
     ["tool", tool ?? null],
   ];
   return all.filter(([k, l]) => l && !omit.includes(k)).map(([, l]) => l!);

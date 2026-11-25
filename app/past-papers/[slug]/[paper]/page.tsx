@@ -24,6 +24,7 @@ import {
 import { absolute, breadcrumbLd } from "@/lib/seo";
 import paperText from "@/lib/past-paper-text.json";
 import { articlesForPaper, paperDescription, paperQuestions } from "@/lib/paper-seo";
+import { reportForPaper } from "@/lib/examiner-reports";
 import { QuestionByQuestion } from "@/components/papers/QuestionByQuestion";
 
 export const dynamicParams = false;
@@ -78,7 +79,8 @@ export default async function PaperPage({ params }: Props) {
   const questions = paperQuestions(s, p);
   // Up to two articles for this syllabus and paper, ahead of the calculator link.
   const articles = await articlesForPaper(s, p);
-  const related = [...syllabusLinks(s.code, ["tool"]), ...articles, ...syllabusLinks(s.code).filter((l) => l.href.startsWith("/tools/"))];
+  const report = reportForPaper(p);
+  const related = [...syllabusLinks(s.code, ["tool", "report"]), ...articles, ...syllabusLinks(s.code).filter((l) => l.href.startsWith("/tools/"))];
   const levelWord = s.level === "AS and A Level" ? "Cambridge International AS and A Level" : `Cambridge ${s.level}`;
   const topA = t?.grades.find(([g]) => g === "A");
   const about = [
@@ -254,6 +256,22 @@ export default async function PaperPage({ params }: Props) {
             </ul>
           </nav>
         </div>
+
+        {report && report.mistakes.length > 0 && (
+          <section aria-labelledby="er-h" className="mt-12 max-w-[70ch]">
+            <h2 id="er-h" className="text-lg font-semibold text-foreground">
+              Where marks were lost on this paper
+            </h2>
+            <ul className="mt-3 list-disc space-y-2 pl-5 text-base leading-relaxed text-body marker:text-faint">
+              {report.mistakes.map((m) => (
+                <li key={m}>{m}</li>
+              ))}
+            </ul>
+            <Link href={report.href} className="mt-3 inline-flex min-h-11 items-center font-semibold text-foreground underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:decoration-foreground">
+              Read the {report.label}
+            </Link>
+          </section>
+        )}
 
         <RelatedLinks small links={related} className="mt-12 max-w-[70ch]" />
 

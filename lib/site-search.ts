@@ -25,6 +25,8 @@ export interface SiteRow {
 }
 
 const TOOLS: Array<{ u: string; t: string; s: string; w: string }> = [
+  { u: "/past-papers/examiner-reports", t: "Examiner reports", s: "Common mistakes by paper, every syllabus", w: "examiner report reports common mistakes er 0452 7707 0455 2281 0450 7115 9706 9708 9609" },
+  { u: "/syllabus/edexcel", t: "Edexcel syllabus guides", s: "International GCSE and IAL Accounting, Business, Economics", w: "edexcel pearson international gcse ial 4ac1 4bs1 4ec1 yac11 ybs11 yec11" },
   { u: "/tools/grade-predictor", t: "Grade predictor", s: "Your marks as a Cambridge grade", w: "grade predictor marks boundaries calculator" },
   { u: "/tools/formula-sheet", t: "Formula sheets", s: "Every formula for your syllabus, free to print", w: "formula sheet formulas ratios list print 0452 7707 0455 2281 0264 7081 9706 9708 9609" },
   { u: "/tools/economics-diagrams", t: "Economics diagrams", s: "Every diagram to draw for 0455, 2281 and AS and A Level 9708", w: "economics diagrams diagram ppc demand supply elasticity maximum minimum price tax subsidy wage costs ad as aggregate buffer stock consumer producer surplus externalities monopoly monopsony perfect competition kinked phillips laffer lorenz kuznets j curve indifference 0455 2281 9708 draw" },
