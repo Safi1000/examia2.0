@@ -8,6 +8,7 @@ import { buttonClasses } from "@/components/ui/Button";
 import { AutomationSettings } from "@/components/admin/Automations";
 import { StaffCard } from "@/components/admin/StaffCard";
 import { NotesKeyCard } from "@/components/admin/NotesKeyCard";
+import { TestNotificationCard } from "@/components/admin/TestNotificationCard";
 import { useDatabase, useStore } from "@/lib/data/store";
 import { ConfirmBulk } from "@/components/admin/BulkBar";
 import { useToast } from "@/components/toast";
@@ -20,6 +21,7 @@ export default function AdminSettingsPage() {
       <AutomationSettings />
       <StaffCard />
       <NotesKeyCard />
+      <TestNotificationCard />
       <LevelsAndSubjects />
       <Card className="max-w-2xl">
         <CardHeader><h2 className="text-base font-semibold text-ink">Waitlist</h2></CardHeader>

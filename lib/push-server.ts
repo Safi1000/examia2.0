@@ -315,6 +315,28 @@ export async function notifyAnnouncement(id: string, cohortId: string | null, te
   );
 }
 
+/**
+ * Owner only (Settings > Phone notifications): one test notification to the phones
+ * signed in to Hamza's own account or the test account. Never sent to a student.
+ * Every press is new, so it is never held back as a repeat; quiet hours don't apply.
+ */
+export async function notifyTest(adminId: string): Promise<{ sent: number; devices: number }> {
+  if (!pushReady()) return { sent: 0, devices: 0 };
+  const sb = serviceClient();
+  const { data: students } = await allRows((a, b) => sb.from("students").select("id,username,user_id").order("id").range(a, b));
+  const ids = (students ?? []).filter((s) => s.user_id === adminId || isTestAccount(s)).map((s) => s.id as string);
+  if (!ids.length) return { sent: 0, devices: 0 };
+  const { data: subs } = await sb.from("push_subscriptions").select("id").in("student_id", ids);
+  const devices = subs?.length ?? 0;
+  if (!devices) return { sent: 0, devices: 0 };
+  const ref = `test:${Date.now()}`;
+  const sent = await deliver(
+    sb,
+    ids.map((studentId) => ({ studentId, kind: "news" as const, refs: [ref], title: "Test notification", body: "If you can read this, notifications reach this phone.", url: "/dashboard", tag: ref, priority: -2 })),
+  );
+  return { sent, devices };
+}
+
 /** Each student's subjects per level (for students taking two levels), by student id. See lib/levels.ts. */
 export async function levelSubjectsByStudent(sb: SupabaseClient): Promise<Map<string, LevelSubjects>> {
   const out = new Map<string, LevelSubjects>();
