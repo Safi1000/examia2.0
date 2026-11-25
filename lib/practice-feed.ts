@@ -14,6 +14,7 @@
  */
 import meta from "@/lib/past-paper-meta.json";
 import tags from "@/lib/past-paper-tags.json";
+import dups from "@/lib/past-paper-dups.json";
 import {
   PAST_PAPER_SYLLABI,
   fileName,
@@ -68,6 +69,8 @@ export interface Question {
   bottom: number;
   key: Letter;
   topics: string[];
+  /** Same question printed in another paper: the group id (scripts/build-practice-dups.mjs). Only set when it has a twin. */
+  dup?: string;
 }
 
 export interface Paper {
@@ -127,7 +130,8 @@ function papersOf(s: PastPaperSyllabus, valid: Set<string>): Paper[] {
         const a = key[i];
         if (!isLetter(a)) return; // "-" / "*": question Cambridge removed
         const id = `${p.key}#${i + 1}`;
-        questions.push({ id, n: i + 1, page, top, bottom, key: a, topics: (T[id] ?? []).filter((n) => valid.has(n)) });
+        const dup = (dups.d as Record<string, string>)[id];
+        questions.push({ id, n: i + 1, page, top, bottom, key: a, topics: (T[id] ?? []).filter((n) => valid.has(n)), ...(dup ? { dup } : {}) });
       });
     return {
       key: p.key,
