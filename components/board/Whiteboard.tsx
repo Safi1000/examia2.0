@@ -16,7 +16,6 @@ import {
   THEMES,
   type ThemeId,
   BACKDROPS,
-  BACKDROP_NAME,
   drawGrid,
   forgetImages,
   getBackdrop,
@@ -214,6 +213,9 @@ type Action =
 
 /** The time now in ms (for the group drag, which only runs from pointer events, never while drawing the page). */
 const msNow = () => performance.now();
+
+/** No margin at all: the whole screen. */
+const FULL_SCREEN = { t: 0, r: 0, b: 0, l: 0 };
 
 /** All the pen positions since the last frame (finer curves), or just this one. */
 function coalesced(e: PointerEvent): PointerEvent[] {
@@ -1352,11 +1354,15 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
 
   // The paper: plain, dots, lines or squared, on the light board or the dark one. One choice for
   // the whole board (every page), remembered on this device; the other device follows.
-  const [paper, setPaperState] = useState<Backdrop>("plain");
-  const paperRef = useRef<Backdrop>("plain");
+  const [paper, setPaperState] = useState<Backdrop>("dots");
+  const paperRef = useRef<Backdrop>("dots");
   const darkRef = useRef(false);
   const setPaperRef = useRef<(v: Backdrop, isDark: boolean, share: boolean) => void>(() => {});
-  const setPaper = (v: Backdrop, isDark: boolean, share: boolean) => {
+  const setPaper = (pick: Backdrop, isDark: boolean, share: boolean) => {
+    // One paper only now: dots (25 Nov, Hamza). Older boards and older devices asking for plain,
+    // lines or squared get the dots too; only light or dark is a choice.
+    void pick;
+    const v: Backdrop = "dots";
     paperRef.current = v;
     darkRef.current = isDark;
     setPaperState(v);
@@ -1546,6 +1552,13 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
   // laptop and students fit exactly that, so it fills their screens and nothing is cut off.
   const writingView = (w: number, h: number) =>
     areaView(cam.current, w, h, clearInset(h, [topBarRef.current, sidePanelRef.current], [], 0, [toolbarRef.current]));
+  /**
+   * What the tablet shares with the laptop: its WHOLE screen, exactly what the TV wired to it shows
+   * (25 Nov, Hamza: the laptop had too much border around the tablet's picture). The bars float
+   * over the board, so the board under them is shared too; a tablet and laptop of the same shape now
+   * show the same picture edge to edge.
+   */
+  const sharedView = (w: number, h: number) => areaView(cam.current, w, h, FULL_SCREEN);
   // (The view is sent from the frame loop now, by whichever device is being moved: see viewFrame.)
 
   // ---- the other device: everything it does lands here too
@@ -1748,7 +1761,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
           const shared = images.current.filter((m) => !m.url.startsWith("blob:"));
           const { w, h } = screen.current;
           // The view goes too: a "view" message that got lost is put right within two seconds.
-          send({ t: "rev", n: strokes.current.length + shared.length, last: strokes.current[strokes.current.length - 1]?.id ?? "", d: boardDigest(strokes.current, shared), d2: boardDigest(strokes.current.map(packOnce), shared, true), p: pageRef.current, ...(w && h ? { v: writingView(w, h), vg: viewKey.current.g, vb: viewKey.current.by } : {}) });
+          send({ t: "rev", n: strokes.current.length + shared.length, last: strokes.current[strokes.current.length - 1]?.id ?? "", d: boardDigest(strokes.current, shared), d2: boardDigest(strokes.current.map(packOnce), shared, true), p: pageRef.current, ...(w && h ? { v: sharedView(w, h), vg: viewKey.current.g, vb: viewKey.current.by } : {}) });
         }, 2000)
       : undefined;
     return () => {
@@ -1806,15 +1819,16 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
    * again after a resize or the tools showing or hiding). */
   const followInsetCache = useRef<Inset | null>(null);
   const followInset = (): Inset => {
-    const { h } = screen.current;
-    followInsetCache.current ??= lead ? clearInset(h, [topBarRef.current, sidePanelRef.current], [], 0, [toolbarRef.current]) : clearInset(h, [topBarRef.current, sidePanelRef.current], [toolbarRef.current]);
+    // The whole screen on both devices (the shared view is the tablet's whole screen, see sharedView):
+    // no margin of its own around the other device's picture, and a handover never zooms.
+    followInsetCache.current ??= FULL_SCREEN;
     return followInsetCache.current;
   };
   /** The shared view this device shows now, in board units. */
   const myRect = (): View | null => {
     const { w, h } = screen.current;
     if (!w || !h) return null;
-    if (lead) return writingView(w, h);
+    if (lead) return sharedView(w, h);
     const c = cam.current;
     let f = focusPx.current;
     if (!f) {
@@ -5366,7 +5380,6 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
     window.addEventListener("pointerdown", down, true);
     return () => window.removeEventListener("pointerdown", down, true);
   }, [paperOpen]);
-  const onPickPaper = (e: React.MouseEvent<HTMLElement>) => setPaper(e.currentTarget.dataset.v as Backdrop, darkRef.current, true);
   const onPickTone = (e: React.MouseEvent<HTMLElement>) => setPaper(paperRef.current, e.currentTarget.dataset.v === "dark", true);
   const forgetPage = (id: string) => {
     const list = pagesRef.current.filter((x) => x.id !== id);
@@ -6343,7 +6356,7 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
               onClick={() => setPaperOpen((v) => !v)}
               aria-expanded={paperOpen}
               aria-haspopup="menu"
-              aria-label={`Paper: ${BACKDROP_NAME[paper]}${dark ? ", dark board" : ""}`}
+              aria-label={dark ? "Board: dark" : "Board: light"}
               {...tipOn("Paper", undefined, `Plain, dots, lines or squared, on a light or dark board. The ${lead ? "laptop" : "tablet"} changes too.`)}
               className={`${PRESS} ${ctl} ${paperOpen ? ON : QUIET}`}
             >
@@ -6356,30 +6369,10 @@ export function TeacherBoard({ room, lead = true }: { room: string; lead?: boole
             <Btn lead={lead} label="Hide the tools for a clean shared screen" tip="Hide the tools" keys="H" onClick={() => setToolsHidden(true)}>
               {I.hide}
             </Btn>
-            {/* The papers: four prints, on the light board or the dark one. One tap each. */}
+            {/* The board: light or dark (the paper is always the dotted one). */}
             {paperOpen && (
-              <div data-paper-menu role="menu" aria-label="Paper" className={`${CARD} wb-pop absolute right-0 top-[calc(100%+8px)] z-50 w-[286px] origin-top-right`}>
-                <div className="grid grid-cols-4 gap-1">
-                  {BACKDROPS.map((b) => (
-                    <button
-                      key={b}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={paper === b}
-                      data-v={b}
-                      onClick={onPickPaper}
-                      className={`${PRESS} flex h-[72px] flex-col items-center justify-center gap-1.5 rounded-[14px] text-xs font-semibold ${paper === b ? ON : `${QUIET}`}`}
-                    >
-                      <span
-                        aria-hidden
-                        className="block h-9 w-12 rounded-[8px]"
-                        style={{ backgroundColor: THEMES[look].bg, boxShadow: "inset 0 0 0 1px var(--bd-divider)", ...PAPER_SWATCH[b](dark ? "rgba(240,237,232,0.4)" : "rgba(26,29,32,0.34)", 8) }}
-                      />
-                      {BACKDROP_NAME[b]}
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-1.5 grid grid-cols-2 gap-1 rounded-[14px] bg-[var(--bd-on)] p-1" role="group" aria-label="Board">
+              <div data-paper-menu role="menu" aria-label="Paper" className={`${CARD} wb-pop absolute right-0 top-[calc(100%+8px)] z-50 w-[236px] origin-top-right`}>
+                <div className="grid grid-cols-2 gap-1 rounded-[14px] bg-[var(--bd-on)] p-1" role="group" aria-label="Board">
                   <button type="button" role="menuitemradio" aria-checked={!dark} data-v="light" onClick={onPickTone} className={`${PRESS} h-9 rounded-[10px] text-[13px] font-semibold ${!dark ? `${PANEL}` : "text-[color:var(--bd-fg-2)] hover:text-[color:var(--bd-fg)]"}`}>
                     Light board
                   </button>

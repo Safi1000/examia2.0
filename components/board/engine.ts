@@ -106,7 +106,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     // The brand's paper white: crisp on a TV, no glare.
     bg: "#FDFDFB",
     // Faint enough that ink always wins. (The squares are exactly as faint as the old "Faint grid".)
-    print: { rgb: "26,29,32", dots: 0.2, lines: 0.085, grid: 0.055, major: 0.115 },
+    print: { rgb: "26,29,32", dots: 0.22, lines: 0.085, grid: 0.055, major: 0.115 },
     // Deep, even inks that read from the back of a room and on a TV: the brand charcoal, a royal
     // blue, a clear red, a clear green (5 to 1 against the paper, and plainly green beside the
     // charcoal on a TV) and a deep brand gold (plain gold is too light on white).
@@ -1374,14 +1374,16 @@ export function holdShape(pts: Pt[], z: number): Tidy | null {
 export type Backdrop = "plain" | "dots" | "lines" | "grid";
 export const BACKDROPS: Backdrop[] = ["plain", "dots", "lines", "grid"];
 export const BACKDROP_NAME: Record<Backdrop, string> = { plain: "Plain", dots: "Dots", lines: "Lines", grid: "Squared" };
-let backdrop: Backdrop = "plain";
+let backdrop: Backdrop = "dots";
 export const getBackdrop = () => backdrop;
 export function setBackdrop(b: Backdrop) {
   backdrop = b;
 }
 
 /** The paper's own spacing, in board units: one square, one ruled line, one dot. */
-export const PAPER_STEP = 40;
+// Dots 28 apart (25 Nov, Hamza: a few more dots, close enough to keep handwriting on a straight line
+// without printed lines). Was 40.
+export const PAPER_STEP = 28;
 /** How much of a level of the print shows when it is `px` apart on screen: all of it from 20px, none under 9px. */
 const printFade = (px: number) => Math.max(0, Math.min(1, (px - 9) / 11));
 
