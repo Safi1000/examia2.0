@@ -33,7 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     })),
     ...PAST_PAPER_SYLLABI.map((p) => ({ url: absolute(`/past-papers/${p.slug}`), changeFrequency: "monthly" as const, priority: 0.8 })),
-    ...[EXAMINER_REPORTS_HUB, ...EXAMINER_REPORTS.map(reportHref)].map((path) => ({ url: absolute(path), changeFrequency: "yearly" as const, priority: 0.6 })),
+    ...[EXAMINER_REPORTS_HUB, ...EXAMINER_REPORTS.map(reportHref)].map((path) => ({ url: absolute(path), lastModified: "2026-11-24", changeFrequency: "yearly" as const, priority: 0.6 })),
     { url: absolute("/past-papers/search"), changeFrequency: "monthly" as const, priority: 0.6 },
     { url: absolute("/past-papers/topics"), changeFrequency: "monthly" as const, priority: 0.8 },
     ...PAST_PAPER_SYLLABI.filter((s) => hasTopical(s.code)).flatMap((s) => [
@@ -45,7 +45,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ]),
     ...PAST_PAPER_SYLLABI.flatMap((s) => papersFor(s.code).map((p) => ({ url: absolute(paperHref(s.slug, p)), changeFrequency: "yearly" as const, priority: 0.6 }))),
     ...SYLLABI.map((s) => ({ url: absolute(`/syllabus/${s.slug}`), changeFrequency: "monthly" as const, priority: 0.7 })),
-    ...["/syllabus/edexcel", ...EDEXCEL.map((q) => `/syllabus/edexcel/${q.slug}`)].map((path) => ({ url: absolute(path), changeFrequency: "monthly" as const, priority: 0.6 })),
+    ...["/syllabus/edexcel", ...EDEXCEL.map((q) => `/syllabus/edexcel/${q.slug}`)].map((path) => ({ url: absolute(path), lastModified: "2026-11-24", changeFrequency: "monthly" as const, priority: 0.6 })),
     ...COUNTRY_PAGES.map((c) => ({ url: absolute(`/online-classes/${c.slug}`), changeFrequency: "monthly" as const, priority: 0.6 })),
     ...[...CITY_PAGES, ...GULF_CITY_PAGES].map((c) => ({
       url: absolute(`/online-classes/${c.slug}`),

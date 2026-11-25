@@ -7,7 +7,7 @@ import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
 import { RelatedLinks, syllabusLinks } from "@/components/study/RelatedLinks";
 import { cieCode, pastPaperSyllabus } from "@/lib/past-papers";
 import { hasTopical } from "@/lib/topical";
-import { absolute, breadcrumbLd, faqLd } from "@/lib/seo";
+import { articleLd, breadcrumbLd, faqLd } from "@/lib/seo";
 import {
   EXAMINER_REPORTS,
   EXAMINER_REPORTS_HUB,
@@ -104,18 +104,15 @@ export default async function ExaminerReportPage({ params }: Props) {
   return (
     <MarketingShell>
       <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Article",
+        data={articleLd({
+          path: url,
           headline: reportTitle(r),
           description: reportDescription(r),
-          url: absolute(url),
-          inLanguage: "en",
-          isAccessibleForFree: true,
-          about: `${s.name} ${label} examiner report`,
-          author: { "@type": "Person", name: "Hamza", url: absolute("/") },
-          publisher: { "@type": "Organization", name: "Hamza Teaches", url: absolute("/") },
-        }}
+          // Written and fact-checked against the Cambridge reports on 24 November 2026.
+          datePublished: "2026-11-24",
+          section: s.subject,
+          about: [`${s.name} ${label} examiner report`, s.code],
+        })}
       />
       <JsonLd
         data={breadcrumbLd([
