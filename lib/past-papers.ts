@@ -218,6 +218,14 @@ export function gradeFor(score: number, t: ComponentThresholds): string {
 /** "BBACD..." from the mark scheme. Only for multiple choice papers. */
 export const answerKey = (p: Paper) => M.k[p.key] ?? null;
 
+/**
+ * When the paper files and their data last changed (YYYY-MM-DD): the git date of
+ * the last commit to lib/past-paper-meta.json, past-paper-tags.json and
+ * past-paper-qtext.json (a750f99, 21 Nov 2026). Shown as "Updated" on paper and
+ * topic pages. Move it on when papers, mark schemes or their data change.
+ */
+export const PAPERS_UPDATED = "2026-11-21";
+
 /** What one paper page needs to show the files. */
 export function filesFor(p: Paper) {
   const one = (type: FileType, pv?: string) => {

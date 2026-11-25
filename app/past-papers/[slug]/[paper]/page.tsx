@@ -7,7 +7,11 @@ import { Crumbs, TrialBox } from "@/components/study/StudyBits";
 import { RelatedLinks, syllabusLinks } from "@/components/study/RelatedLinks";
 import { PaperView, type ViewDoc } from "@/components/past-papers/PaperView";
 import { PaperSearch } from "@/components/past-papers/PaperSearch";
+import { SessionFiles, SessionSwitch } from "@/components/past-papers/SessionPanel";
+import { SharePaper } from "@/components/past-papers/SharePaper";
+import { formatDate } from "@/lib/time";
 import {
+  PAPERS_UPDATED,
   PAST_PAPER_SYLLABI,
   answerKey,
   cieCode,
@@ -80,6 +84,8 @@ export default async function PaperPage({ params }: Props) {
   // Up to two articles for this syllabus and paper, ahead of the calculator link.
   const articles = await articlesForPaper(s, p);
   const report = reportForPaper(p);
+  // The newest real change behind this page: the paper data, or the examiner report notes shown on it.
+  const updated = [PAPERS_UPDATED, ...(report && report.mistakes.length > 0 ? [report.published] : [])].sort().at(-1)!;
   const related = [...syllabusLinks(s.code, ["tool", "report"]), ...articles, ...syllabusLinks(s.code).filter((l) => l.href.startsWith("/tools/"))];
   const levelWord = s.level === "AS and A Level" ? "Cambridge International AS and A Level" : `Cambridge ${s.level}`;
   const topA = t?.grades.find(([g]) => g === "A");
@@ -121,6 +127,8 @@ export default async function PaperPage({ params }: Props) {
           isAccessibleForFree: true,
           ...(p.minutes ? { timeRequired: `PT${p.minutes}M` } : {}),
           provider: { "@type": "Organization", name: "Hamza Teaches", url: absolute("/") },
+          author: { "@type": "Organization", name: "Hamza Teaches", url: absolute("/") },
+          dateModified: updated,
           isPartOf: { "@type": "CollectionPage", name: `${s.name} past papers`, url: absolute(`/past-papers/${s.slug}`) },
         }}
       />
@@ -148,19 +156,28 @@ export default async function PaperPage({ params }: Props) {
               </span>
             </h1>
           </div>
-          <ul className="flex flex-wrap gap-2 text-sm tabular-nums text-muted-foreground">
-            {p.minutes && <li className="rounded-full border border-hairline px-3 py-1">{time(p.minutes)}</li>}
-            {p.marks && <li className="rounded-full border border-hairline px-3 py-1">{p.marks} marks</li>}
-            {f.qp.pages > 0 && <li className="rounded-full border border-hairline px-3 py-1">{f.qp.pages} pages</li>}
-          </ul>
+          <div className="flex flex-wrap items-center gap-2">
+            <ul className="flex flex-wrap gap-2 text-sm tabular-nums text-muted-foreground">
+              {p.minutes && <li className="rounded-full border border-hairline px-3 py-1">{time(p.minutes)}</li>}
+              {p.marks && <li className="rounded-full border border-hairline px-3 py-1">{p.marks} marks</li>}
+              {f.qp.pages > 0 && <li className="rounded-full border border-hairline px-3 py-1">{f.qp.pages} pages</li>}
+            </ul>
+            <SharePaper url={absolute(url)} title={`${code} ${s.subject} past paper`} code={code} />
+          </div>
           <p className="w-full break-words text-xs tabular-nums text-faint">
+            Prepared by Hamza Teaches · Updated <time dateTime={updated}>{formatDate(updated)}</time>
+            <span className="mx-1.5" aria-hidden>·</span>
             Files: {f.qp.name}
             {f.ms ? ` · ${f.ms.name}` : ""}
             {f.insert ? ` · ${f.insert.name}` : ""}
           </p>
         </header>
 
-        <div className="mt-5">
+        <div className="mt-4">
+          <SessionSwitch s={s} all={all} p={p} />
+        </div>
+
+        <div className="mt-2">
           <PaperView
             pkey={p.key}
             code={code}
@@ -174,6 +191,8 @@ export default async function PaperPage({ params }: Props) {
             report={f.er}
           />
         </div>
+
+        <SessionFiles s={s} all={all} p={p} />
 
         <section aria-labelledby="about-h" className="mt-14 max-w-[70ch]">
           <h2 id="about-h" className="text-lg font-semibold text-foreground">

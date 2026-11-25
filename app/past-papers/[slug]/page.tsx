@@ -103,6 +103,11 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
               What changed for 2027
             </Link>
           )}
+          {(s.next || s.revised) && (
+            <Link href={`/past-papers/2027-changes#${s.next?.code ?? s.code}`} className="inline-flex min-h-11 items-center text-muted-foreground underline decoration-hairline-strong underline-offset-[6px] transition-colors duration-150 hover:text-foreground">
+              Old papers and the 2027 changes
+            </Link>
+          )}
         </p>
 
         <div className="mt-10">

@@ -88,7 +88,7 @@ export function reportPapers(r: ExaminerReport, p: ReportPaper): Paper[] {
 export const reportPaperHref = (r: ExaminerReport, paper: Paper) => paperHref(reportSyllabus(r).slug, paper);
 
 /** The report section that covers this paper, for a link from the paper page (null when no report page covers it). */
-export function reportForPaper(paper: Paper): { href: string; label: string; mistakes: string[] } | null {
+export function reportForPaper(paper: Paper): { href: string; label: string; mistakes: string[]; published: string } | null {
   const series = `${paper.session.s}${String(paper.session.y).slice(2)}`;
   const r = EXAMINER_REPORTS.find((x) => x.code === paper.code && x.series === series);
   if (!r) return null;
@@ -98,6 +98,7 @@ export function reportForPaper(paper: Paper): { href: string; label: string; mis
     href: `${reportHref(r)}#paper-${i + 1}`,
     label: `${paper.code} examiner report, ${reportSeriesLabel(r.series)}`,
     mistakes: r.papers[i].mistakes.slice(0, 3),
+    published: reportPublished(r),
   };
 }
 

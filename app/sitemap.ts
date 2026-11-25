@@ -23,7 +23,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly" as const,
       priority: r.priority,
     })),
-    // Subject tuition pages: Accounting, Business, Economics.
+    // Subject tuition pages: Accounting, Business, Economics, under the /tuition hub.
+    { url: absolute("/tuition"), changeFrequency: "monthly" as const, priority: 0.8 },
     ...SUBJECT_PAGES.map((s) => ({ url: absolute(tuitionPath(s.slug)), changeFrequency: "monthly" as const, priority: 0.8 })),
     ...LEVEL_PAGES.map((p) => ({ url: absolute(levelPath(p.subjectSlug, p.slug)), changeFrequency: "monthly" as const, priority: 0.8 })),
     // One page per syllabus: refreshed when a new session's thresholds are added.
@@ -37,6 +38,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...EXAMINER_REPORTS.map((r) => ({ url: absolute(reportHref(r)), lastModified: reportPublished(r), changeFrequency: "yearly" as const, priority: 0.6 })),
     { url: absolute("/past-papers/search"), changeFrequency: "monthly" as const, priority: 0.6 },
     { url: absolute("/past-papers/topics"), changeFrequency: "monthly" as const, priority: 0.8 },
+    { url: absolute("/past-papers/2027-changes"), changeFrequency: "monthly" as const, priority: 0.8 },
     ...PAST_PAPER_SYLLABI.filter((s) => hasTopical(s.code)).flatMap((s) => [
       { url: absolute(`/past-papers/${s.slug}/topics`), changeFrequency: "monthly" as const, priority: 0.8 },
       { url: absolute(`/past-papers/${s.slug}/most-repeated-topics`), changeFrequency: "monthly" as const, priority: 0.7 },

@@ -7,7 +7,8 @@ import { Crumbs, TrialBox } from "@/components/study/StudyBits";
 import { RelatedLinks, syllabusLinks } from "@/components/study/RelatedLinks";
 import { PastPapersNav } from "@/components/past-papers/Bits";
 import { TopicalList } from "@/components/past-papers/TopicalList";
-import { PAST_PAPER_SYLLABI, pastPaperSyllabus } from "@/lib/past-papers";
+import { PAPERS_UPDATED, PAST_PAPER_SYLLABI, pastPaperSyllabus } from "@/lib/past-papers";
+import { formatDate } from "@/lib/time";
 import { currentSyllabus, topicEntry, topicalFor } from "@/lib/topical";
 import { resourcesFor } from "@/lib/syllabus";
 import { breadcrumbLd } from "@/lib/seo";
@@ -87,6 +88,9 @@ export default async function TopicPage({ params }: Props) {
         <h1 className="mt-1 text-4xl font-bold leading-[1.08] tracking-tight text-foreground md:text-5xl">{e.sub.name}</h1>
         <p className="mt-3 text-base text-muted-foreground">
           <span className="tabular-nums">{questions.length}</span> questions · {hasMcq && hasWritten ? "multiple choice and written" : hasMcq ? "multiple choice" : "written"} · mark schemes included
+        </p>
+        <p className="mt-1 text-xs tabular-nums text-faint">
+          Prepared by Hamza Teaches · Updated <time dateTime={PAPERS_UPDATED}>{formatDate(PAPERS_UPDATED)}</time>
         </p>
 
         <div className="mt-8">

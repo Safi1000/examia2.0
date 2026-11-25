@@ -38,6 +38,14 @@ const iconBtn =
 
 const ZOOMS = [0.75, 1, 1.25, 1.5, 2];
 
+/** The view they last picked (Paper, Mark scheme, Insert or Side by side), kept for this visit so the next paper opens the same way. */
+const VIEW_KEY = "ht-pp-view";
+const rememberView = (v: Tab | "split") => {
+  try {
+    sessionStorage.setItem(VIEW_KEY, v);
+  } catch {}
+};
+
 /** Shorthand that often appears in Cambridge mark schemes. */
 const MS_WORDS: Array<[string, string]> = [
   ["OFR", "Own figure rule: you still get the method marks if you use your own earlier (wrong) figure correctly."],
@@ -300,6 +308,8 @@ export function PaperView({
   const total = answer ? counted : (marks ?? thresholds?.max ?? null);
   const practising = mode === "practice";
   const current = tab === "ms" && ms ? ms : tab === "in" && ins ? ins : qp;
+  const hasMs = !!ms;
+  const hasIns = !!ins;
 
   useEffect(() => {
     addRecent({ u: url, c: code, l: label });
@@ -323,6 +333,7 @@ export function PaperView({
   }, [practising]);
 
   // A link like ?page=5&doc=ms (from search) opens that document at that page.
+  // With no ?doc, the view they picked on the last paper (this visit) carries over.
   const [jump, setJump] = useState<number | null>(null);
   const [guide, setGuide] = useState(false);
   /** "Continue from page 5": where they stopped reading last time, offered quietly once. */
@@ -333,6 +344,14 @@ export function PaperView({
     const n = Number(u.get("page"));
     /* eslint-disable react-hooks/set-state-in-effect */
     if (d === "ms" || d === "in") setTab(d);
+    else if (!d) {
+      try {
+        const v = sessionStorage.getItem(VIEW_KEY);
+        if (v === "split" && hasMs && window.matchMedia("(min-width: 1024px)").matches) setSplit(true);
+        else if (v === "ms" && hasMs) setTab("ms");
+        else if (v === "in" && hasIns) setTab("in");
+      } catch {}
+    }
     if (n > 1) setJump(n);
     else {
       try {
@@ -341,7 +360,7 @@ export function PaperView({
       } catch {}
     }
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [pkey]);
+  }, [pkey, hasMs, hasIns]);
 
   // Remember the page they're on in the question paper (quietly, on this device).
   // Not while "Continue from page 5" is still on offer: page 1 on arrival would overwrite the page they stopped at.
@@ -609,6 +628,7 @@ export function PaperView({
                   onClick={() => {
                     setTab(t.id);
                     setSplit(false);
+                    if (!practising) rememberView(t.id);
                   }}
                   className={cn(
                     "min-h-10 shrink-0 whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-colors duration-150 pointer-coarse:min-h-11 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold",
@@ -660,7 +680,11 @@ export function PaperView({
                     <span aria-hidden className="mx-1 h-5 w-px bg-hairline-strong" />
                   </span>
                   {ms && (
-                    <button type="button" className={cn(iconBtn, "hidden lg:inline-flex", split && "bg-white/10 text-foreground")} onClick={() => setSplit(!split)} aria-pressed={split} aria-label="Question paper and mark scheme side by side" title="Side by side">
+                    <button type="button" className={cn(iconBtn, "hidden lg:inline-flex", split && "bg-white/10 text-foreground")} onClick={() => {
+                        setSplit(!split);
+                        rememberView(split ? tab : "split");
+                      }}
+                      aria-pressed={split} aria-label="Question paper and mark scheme side by side" title="Side by side">
                       <Icon d={I.split} />
                     </button>
                   )}
