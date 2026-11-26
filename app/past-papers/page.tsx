@@ -112,6 +112,7 @@ export default function PastPapersHub() {
 
         <RelatedLinks
           links={[
+            { href: "/past-papers/topics", label: "Past paper questions by topic" },
             { href: "/past-papers/examiner-reports", label: "Examiner reports: common mistakes by paper" },
             { href: "/syllabus", label: "Cambridge syllabus checklists" },
             { href: "/grade-thresholds", label: "Cambridge grade thresholds" },

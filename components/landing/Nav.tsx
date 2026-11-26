@@ -14,10 +14,7 @@ const focusRing =
 /** Everything free on the site, in one place. Shown from the Menu button (phones) and Free resources (laptops). */
 const STUDY: Array<{ href: string; label: string; note: string }> = [
   { href: "/past-papers", label: "Past papers", note: "With mark schemes, up to 2026" },
-  { href: "/past-papers/topics", label: "Questions by topic", note: "Past paper questions, sorted" },
   { href: "/grade-thresholds", label: "Grade thresholds", note: "Marks needed for each grade" },
-  { href: "/past-papers/examiner-reports", label: "Examiner reports", note: "Where marks were lost, paper by paper" },
-  { href: "/syllabus", label: "Syllabus checklists", note: "Every topic, with the official PDF" },
   { href: "/blog", label: "The Exam Room", note: "Topic guides and exam technique" },
   { href: "/tools", label: "Free tools", note: "Calculators and a grade predictor" },
 ];
