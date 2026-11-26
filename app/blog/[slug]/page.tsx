@@ -17,6 +17,7 @@ import { MarketingShell } from "@/components/landing/MarketingShell";
 import { allArticles, articleSlugs, getArticle } from "@/lib/blog";
 import { absolute, articleLd, breadcrumbLd, fitTitle } from "@/lib/seo";
 import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
+import { EXAMINER_REPORTS, reportHref, reportMonthLabel } from "@/lib/examiner-reports";
 import { SUBJECT_PAGES, tuitionPath } from "@/lib/subjects";
 
 export const dynamicParams = false;
@@ -77,7 +78,7 @@ export default async function ArticlePage({ params }: Props) {
     [/accounting-formats|trial-balance|ratio/, "/tools/ratio-calculator", "Accounting ratio calculator"],
     [/grade-thresholds|a-star|marks/, "/tools/grade-predictor", "Grade predictor"],
   ];
-  const resources = [
+  const resources: Array<{ href: string; label: string }> = [
     ...toolFor.filter(([re]) => re.test(slug)).map(([, href, label]) => ({ href, label })),
     ...PAST_PAPER_SYLLABI.filter((p) => a.code.includes(p.code) || (p.next && a.code.includes(p.next.code))).flatMap((p) => [
       { href: `/past-papers/${p.slug}/topics`, label: `${p.name} questions by topic` },
@@ -88,7 +89,12 @@ export default async function ArticlePage({ params }: Props) {
     // Marks needed for each grade, for the article's first syllabus that has a thresholds page.
     ...THRESHOLD_PAGES.filter((t) => a.code.includes(t.code)).slice(0, 1).map((t) => ({ href: `/grade-thresholds/${t.slug}`, label: `${t.name} grade thresholds` })),
     { href: "/tools/exam-countdown", label: "Exam countdown" },
-  ].slice(0, 7);
+  ];
+  // The newest examiner report across the article's syllabuses (old code for 0264 and 7081); the list is newest first.
+  const reportCodes = PAST_PAPER_SYLLABI.filter((p) => a.code.includes(p.code) || (p.next && a.code.includes(p.next.code))).map((p) => p.code);
+  const report = EXAMINER_REPORTS.find((r) => reportCodes.includes(r.code));
+  if (report) resources.splice(Math.min(3, resources.length), 0, { href: reportHref(report), label: `${report.code} examiner report, ${reportMonthLabel(report.series)}` });
+  resources.splice(7);
 
   return (
     <MarketingShell>
