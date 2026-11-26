@@ -11,7 +11,35 @@ import { GULF_CITY_PAGES, GULF_SOURCES, GULF_ZONES, gulfCityPage, localDay, type
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 import { DEFAULT_SCHEDULE, LEVEL_LABEL, span, type LevelKey } from "@/lib/timetable";
 import { VIDEO_REVIEWS } from "@/lib/reviews";
+import { COUNTRY_PAGES } from "@/lib/country-pages";
 import { VideoReviewCard } from "@/components/landing/Sections";
+
+/** Every other city and country page, so each one is reachable from its siblings. */
+function OtherPlaces({ current }: { current: string }) {
+  const places = [
+    ...CITY_PAGES.map((c) => ({ href: `/online-classes/${c.slug}`, name: c.city })),
+    ...GULF_CITY_PAGES.map((c) => ({ href: `/online-classes/${c.slug}`, name: c.city })),
+    ...COUNTRY_PAGES.map((c) => ({ href: `/online-classes/${c.slug}`, name: c.country })),
+  ].filter((x) => x.href !== `/online-classes/${current}`);
+  return (
+    <nav aria-labelledby="other-places-h" className="mt-12">
+      <h2 id="other-places-h" className="text-lg font-semibold text-foreground">
+        Classes for students in other cities and countries
+      </h2>
+      <p className="mt-3 text-base leading-relaxed text-body">
+        {places.map((x, i) => (
+          <span key={x.href}>
+            {i > 0 && ", "}
+            <Link href={x.href} className="text-ink underline decoration-hairline-strong underline-offset-4 transition-colors duration-200 hover:decoration-current">
+              {x.name}
+            </Link>
+          </span>
+        ))}
+        .
+      </p>
+    </nav>
+  );
+}
 
 /** Two video reviews (the homepage's), one O Level and one A Level, shown by the trial box. */
 function CityReviews() {
@@ -121,6 +149,8 @@ export default async function CityClassesPage({ params }: Props) {
           <FaqList items={faq} />
         </Section>
 
+        <OtherPlaces current={c.slug} />
+
         <RelatedLinks links={[
             { href: "/past-papers", label: "Past papers with mark schemes" },
             { href: "/past-papers/topics", label: "Past paper questions by topic" },
@@ -209,6 +239,8 @@ function GulfCity({ c }: { c: GulfCityPage }) {
             </>
           )}
         </p>
+
+        <OtherPlaces current={c.slug} />
 
         <RelatedLinks links={[
           { href: "/past-papers", label: "Past papers with mark schemes" },

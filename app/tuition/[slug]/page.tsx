@@ -111,14 +111,14 @@ export default async function TuitionPage({ params }: Props) {
 
   return (
     <MarketingShell heroCta>
-      <JsonLd data={breadcrumbLd([{ name: "Home", path: "/" }, { name: `${s.subject} tuition`, path }])} />
+      <JsonLd data={breadcrumbLd([{ name: "Home", path: "/" }, { name: "Tuition", path: "/tuition" }, { name: `${s.subject} tuition`, path }])} />
       {coursesLd(s.slug).map((c) => (
         <JsonLd key={c.name} data={c} />
       ))}
       <JsonLd data={faqLd(faq)} />
 
       <div className="public-calm mx-auto max-w-3xl px-5 pb-24 pt-12 md:pt-20">
-        <Crumbs trail={[{ name: "Home", href: "/" }, { name: `${s.subject} tuition` }]} />
+        <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Tuition", href: "/tuition" }, { name: `${s.subject} tuition` }]} />
 
         <h1 className="mt-8 max-w-[22ch] text-balance text-title leading-[1.1] sm:text-title-lg md:text-5xl md:leading-[1.08]">{keep(s.h1)}</h1>
         <p className="mt-5 max-w-[56ch] text-pretty text-lg leading-relaxed text-muted-foreground">
