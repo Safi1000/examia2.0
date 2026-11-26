@@ -14201,5 +14201,3574 @@
    }
   ],
   "published": "2026-11-26"
+ },
+ {
+  "code": "9609",
+  "series": "w22",
+  "quote": {
+   "text": "Tautological answers will not be rewarded",
+   "paper": "23"
+  },
+  "takeaways": [
+   "Give exactly the number of points the question asks for. On Papers 21, 22, 32 and 33 the examiners preferred two or a few points analysed in depth to a long list of thin ones.",
+   "When a question asks for benefits or advantages, drawbacks earn nothing. This cost marks on Paper 1 questions 5(a) and 7(a) and on Paper 3 Question 1.",
+   "Learn precise definitions and explain a term without leaning on its own words. Efficiency, ethics, economies of scale, transformation process and revenue all caught candidates out.",
+   "Show your working on every calculation. Several schemes gave 1 or 2 marks for the formula or a correct first step even when the final answer was wrong.",
+   "Put your judgement at the end, after the analysis, and make it about the business in the question. A one line verdict at the start, or a summary of your points, is not evaluation."
+  ],
+  "papers": [
+   {
+    "num": "1",
+    "title": "Short answer and essay",
+    "variants": [
+     "11"
+    ],
+    "well": [
+     "Most candidates gave a good definition of emotional intelligence in 1(a).",
+     "Many gave a good definition of opportunity cost in 2(a).",
+     "2(b), on why a new business might fail, was the best answered question in Section A.",
+     "4(b), on raising the efficiency of manufacturing, was well answered by most.",
+     "In 7(b) most candidates applied their answer to a restaurant well, and there were some very good answers to 7(a)."
+    ],
+    "mistakes": [
+     "Many struggled with Goleman's competencies in 1(b), and a minority did not attempt it.",
+     "In Question 3 many included external sources of finance, such as selling shares and taking loans.",
+     "Many found the definition of efficiency difficult and defined productivity or effectiveness instead.",
+     "In 5(a) many were less clear on what adding value means, and some analysed ways to cut cost price, which is an operations job.",
+     "In 5(b) many simply agreed with the statement, and evaluation was missing from many answers.",
+     "Some ran short of time, so 7(b) was often undeveloped after a long answer to 7(a)."
+    ],
+    "fix": [
+     "For Goleman, name the competency first, such as self-awareness or social skills, then explain what it involves.",
+     "Define efficiency with both halves: getting the most output while using the fewest inputs.",
+     "In an analyse benefits question, keep every paragraph on benefits. Disadvantages score nothing there.",
+     "Plan your time so the 12 mark part (b) of your essay is not squeezed by part (a)."
+    ],
+    "questions": [
+     {
+      "q": "1(b)",
+      "topic": "Goleman's emotional intelligence competencies",
+      "issue": "Many struggled. An answer only counted if it named a specific competency and explained it, and a minority left it blank.",
+      "fix": "Choose two of the four: self-awareness, self-management, social awareness or social skills, and explain each in a sentence or two."
+     },
+     {
+      "q": "2(a)",
+      "topic": "Opportunity cost",
+      "issue": "Some left out the cost, value or benefit of the next best alternative, so they earned only 1 mark.",
+      "fix": "Say a choice means giving up the next best option, and that the opportunity cost is the benefit of that option given up."
+     },
+     {
+      "q": "3",
+      "topic": "Internal sources of finance for growth",
+      "issue": "Many included external sources such as share sales and loans.",
+      "fix": "Explain two internal sources, such as retained profit and selling assets, then give a specific example of growth, such as opening a new branch, for the fifth mark."
+     },
+     {
+      "q": "4(a)",
+      "topic": "Efficiency",
+      "issue": "Many defined productivity or effectiveness, and some said faster or better quality production. Writing input to output, or ration for ratio, earned nothing.",
+      "fix": "Refer to maximising outputs and minimising inputs, or to the highest ratio of output to input."
+     },
+     {
+      "q": "5(a)",
+      "topic": "How marketing adds value to a product",
+      "issue": "Many were less clear on adding value. Weak answers said only that marketing raises awareness and sales, and some analysed cutting costs.",
+      "fix": "Show how marketing lets the business charge more than the cost, for example promoting features rivals lack so customers will pay a higher price."
+     },
+     {
+      "q": "5(b)",
+      "topic": "Departments working together to meet a hotel's marketing objectives",
+      "issue": "Many just confirmed the view in the question instead of assessing it, and many answers had no evaluation.",
+      "fix": "Link marketing, finance and HR through a hotel objective, then judge whether outside factors such as a recession or strong competition matter more."
+     },
+     {
+      "q": "6",
+      "topic": "Herzberg's motivation theory and the quality of teaching",
+      "issue": "Some confused Herzberg with McGregor, and some wrote about motivating learners rather than teachers. Many added other theorists but could not show they would improve teaching more.",
+      "fix": "Weigh Herzberg against other things that lift teaching quality, such as leadership, subject knowledge, recruitment and facilities."
+     },
+     {
+      "q": "7(a)",
+      "topic": "Benefits of a cash flow forecast",
+      "issue": "The main weaknesses were confusing cash with profit and not seeing that a forecast predicts the future. Some strong candidates analysed only one benefit.",
+      "fix": "Analyse at least two benefits, such as spotting months when outflows will beat inflows so an overdraft can be arranged in time."
+     }
+    ]
+   },
+   {
+    "num": "1",
+    "title": "Short answer and essay",
+    "variants": [
+     "12"
+    ],
+    "well": [
+     "Most scored 1 mark for defining motivation in 1(a), and many scored both marks.",
+     "Many produced strong answers to 2(b), showing how good and bad behaviour affects a business.",
+     "5(a) on market segmentation was generally well answered, and many scored 6 to 8.",
+     "5(b) was quite well answered, with the majority scoring at least 6 marks.",
+     "7(a), on the benefits of labour intensive production, was well answered."
+    ],
+    "mistakes": [
+     "In 1(b) many gave fringe benefits such as holidays, health insurance and more pay, which are not non-financial motivators.",
+     "Ethics proved hard to define in 2(a), many scored only 1 mark, and some confused ethical with legal requirements.",
+     "4(a) on economies of scale was not well answered, and many guessed about the performance of the whole economy.",
+     "4(b) produced a significant number of poor answers that missed the management problems of growth.",
+     "In 5(b) many spent so long on the marketing mix that little time was left to evaluate.",
+     "Many attempted 7(b) without a basic understanding of intellectual capital."
+    ],
+    "fix": [
+     "Define a term without using the term. Words such as stimulate, encourage or drive work for motivation.",
+     "Learn both halves of economies of scale: a larger scale of output and lower unit costs.",
+     "Break intellectual capital into human, structural and relational capital, then compare it with other assets.",
+     "In a most important function essay, show how marketing depends on a good product and the finance to pay for it."
+    ],
+    "questions": [
+     {
+      "q": "1(a)",
+      "topic": "Motivation",
+      "issue": "In quite a lot of cases motivation was defined as motivating staff to work harder, so the word defined itself.",
+      "fix": "Say it is what stimulates or drives employees to work hard and reach their goals."
+     },
+     {
+      "q": "1(b)",
+      "topic": "Non-financial motivators",
+      "issue": "Many gave fringe benefits such as holidays, health insurance or more pay, which are financial.",
+      "fix": "Use motivators such as job rotation, job enlargement, empowerment, recognition, teamwork or training."
+     },
+     {
+      "q": "2(a)",
+      "topic": "Ethics",
+      "issue": "Many scored only 1 mark because they left out the moral principles that separate right from wrong decisions. Some confused ethics with the law.",
+      "fix": "Call it a system of moral principles, then say how it shapes the way a business behaves, such as refusing child labour."
+     },
+     {
+      "q": "4(a)",
+      "topic": "Economies of scale",
+      "issue": "Some mentioned lower costs but not the rise in output, and many had no understanding and guessed about the economy.",
+      "fix": "Link a larger scale of output to a fall in cost per unit."
+     },
+     {
+      "q": "4(b)",
+      "topic": "Reasons for diseconomies of scale",
+      "issue": "A significant number of answers were poor, and many missed the coordination, control and communication problems that come with growth.",
+      "fix": "Tie each reason to growth, such as a wider span of control slowing decisions or lowering staff morale."
+     },
+     {
+      "q": "5(b)",
+      "topic": "Marketing as the most important function for a car maker",
+      "issue": "Some gave no car context. Weaker scripts made general points on marketing costs, and many described the marketing mix at length.",
+      "fix": "Argue that marketing cannot work without a good car to sell or the finance behind it, then judge."
+     },
+     {
+      "q": "6",
+      "topic": "Leaders and managers in an international hotel chain",
+      "issue": "Only a small number tried it. Weaker answers explained leadership styles at length and rarely tied them to a hotel chain needing better performance.",
+      "fix": "Contrast vision and strategy from leaders with day to day running by managers, and keep returning to the hotel chain's performance."
+     },
+     {
+      "q": "7(b)",
+      "topic": "Intellectual capital in an IT business",
+      "issue": "Many attempted it without a basic understanding of intellectual capital.",
+      "fix": "Define it as an intangible resource, use the human, structural and relational split, and compare it with assets such as equipment."
+     }
+    ]
+   },
+   {
+    "num": "1",
+    "title": "Short answer and essay",
+    "variants": [
+     "13"
+    ],
+    "well": [
+     "Some Section B answers were of very high quality, focused and well argued in context.",
+     "Many gave a precise definition of person specification in 1(a).",
+     "1(b), on the purposes of a job description, was well answered.",
+     "Many answered 2(a) on the public sector confidently, and 2(b) was also well answered."
+    ],
+    "mistakes": [
+     "Some confused a person specification with a job description and scored nothing.",
+     "Weaker answers confused the public sector with public companies and scored nothing.",
+     "4(a) on the transformation process was not well answered, and only a minority gave an accurate definition.",
+     "There were few strong answers to 4(b) on process innovation, and operations management seemed poorly understood.",
+     "In 5(a) weaker answers confused product portfolio analysis with the product life cycle.",
+     "In 7(b) many understood ethics but could not apply it to the activities of banks."
+    ],
+    "fix": [
+     "Define the transformation process as turning inputs into outputs of goods and services.",
+     "Give real examples of process innovation, such as robots or a streamlined production line, and link each to efficiency.",
+     "In 5(a) and 7(a) analyse advantages only. Disadvantages earn nothing there.",
+     "In an essay on banks or hospitals, use what those organisations actually do, such as lending policies or medical supplies."
+    ],
+    "questions": [
+     {
+      "q": "1(a)",
+      "topic": "Person specification",
+      "issue": "Some confused it with a job description and gained no marks.",
+      "fix": "Say it lists the qualifications, skills, experience and qualities a person needs for a particular job."
+     },
+     {
+      "q": "2(a)",
+      "topic": "Public sector",
+      "issue": "Weaker answers confused it with public companies and gained no marks.",
+      "fix": "Say it is organisations owned or controlled by central or local government."
+     },
+     {
+      "q": "4(a)",
+      "topic": "Transformation process",
+      "issue": "Many thought it was about changing methods of production.",
+      "fix": "Describe the conversion of inputs, or resources, into outputs of goods and services."
+     },
+     {
+      "q": "4(b)",
+      "topic": "Process innovation and efficiency",
+      "issue": "Few were confident enough to give examples of better production methods.",
+      "fix": "Use examples such as robots, artificial intelligence or a quicker supply chain, and say how each cuts time or waste."
+     },
+     {
+      "q": "5(a)",
+      "topic": "Benefits of product portfolio analysis",
+      "issue": "Weaker answers often confused it with the product life cycle and answered a life cycle question.",
+      "fix": "Treat it as analysing the whole product range to decide where to put resources, then link it to the life cycle."
+     },
+     {
+      "q": "5(b)",
+      "topic": "Branding a soft drink",
+      "issue": "Weaker answers described marketing and branding and left little room for analysis and evaluation.",
+      "fix": "Analyse how a strong image builds loyal buyers and makes demand less sensitive to price, then note small makers may compete on price instead."
+     },
+     {
+      "q": "6",
+      "topic": "HRM as the most important function in a hospital",
+      "issue": "Weaker answers did little more than describe the role of HRM.",
+      "fix": "Weigh HRM in a labour intensive hospital against finance, operations and health and safety, and consider how the functions work together."
+     },
+     {
+      "q": "7(b)",
+      "topic": "Ethics and the activities of banks",
+      "issue": "Many understood ethics but could not apply it to banks, and weaker answers gave little analysis of banking.",
+      "fix": "Use banking examples such as fair lending or fossil fuel investment, then weigh ethics against the need for profit and safe savings."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Data response",
+    "variants": [
+     "21"
+    ],
+    "well": [
+     "Candidates appeared to engage well with the case material.",
+     "Many could define CAD, and most scored 2 marks for primary research.",
+     "The majority used the data to calculate 1(b)(i) correctly.",
+     "Some candidates scored full marks on 1(d), with developed reasoning and a justified recommendation.",
+     "2(a)(i) on corporate objectives was well answered, and most scored 2 marks on internal growth."
+    ],
+    "mistakes": [
+     "Some confused CAD with CAM.",
+     "In 1(b)(i) some used 150 rather than 30 as the total number of responses.",
+     "In 1(b)(ii) some gave a disadvantage rather than a limitation of the research data.",
+     "In 1(c) some analysed leadership styles instead of the factors that influence the style.",
+     "Many failed to tell profit apart from profit margin in 2(b)(i).",
+     "In 2(d) some gave a bullet list with no explanation or context, possibly from running out of time."
+    ],
+    "fix": [
+     "Write two factors in 1(c) and two benefits in 2(c). A third point wastes time.",
+     "Show your working. In 1(b)(i), those who used 150 could still earn 2 marks with working.",
+     "In 2(d) finish by judging which location factor matters most to MW."
+    ],
+    "questions": [
+     {
+      "q": "1(a)(i)",
+      "topic": "Computer Aided Design (CAD)",
+      "issue": "Some confused CAD with CAM, which was wrong.",
+      "fix": "Say it uses computer software to create 2D and 3D designs or models. A definition needs no example."
+     },
+     {
+      "q": "1(b)(i)",
+      "topic": "Percentage of consumers rating ease of use important or quite important",
+      "issue": "Some used 150 rather than 30 as the total number of responses.",
+      "fix": "Divide 20 by 30 and multiply by 100 to get 66.67 per cent. The scheme did not require the % sign."
+     },
+     {
+      "q": "1(b)(ii)",
+      "topic": "Limitation of primary research data",
+      "issue": "Some read limitation as disadvantage and gave a wrong answer.",
+      "fix": "Point to a weakness in the data itself, such as the small sample size."
+     },
+     {
+      "q": "1(c)",
+      "topic": "Factors influencing leadership style",
+      "issue": "Some analysed leadership styles rather than what influences them, and definitions of style earned nothing.",
+      "fix": "Analyse two factors that shape the style DD uses as it moves into Robodz, each in a developed chain."
+     },
+     {
+      "q": "1(d)",
+      "topic": "Marketing mix for the Robodz",
+      "issue": "Many knew the 4Ps well but did not use the context.",
+      "fix": "Recommend at least two elements of the mix for this product and justify each choice from the case."
+     },
+     {
+      "q": "2(b)(i)",
+      "topic": "Forecast profit margin",
+      "issue": "Many failed to tell profit apart from profit margin.",
+      "fix": "Profit is 110 minus 70, which is 40. Then 40 divided by 110, times 100, gives 36.36 per cent."
+     },
+     {
+      "q": "2(c)",
+      "topic": "Benefits of process innovation",
+      "issue": "Some wrote about disadvantages, which earned nothing.",
+      "fix": "Analyse two benefits only, using MW's information systems, with no definition needed."
+     },
+     {
+      "q": "2(d)",
+      "topic": "Factors to consider before opening a new location",
+      "issue": "Some gave a bullet list with no explanation or context, and few judged how important each factor was.",
+      "fix": "Develop two or three factors in country P, then say which one should decide John's choice and why."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Data response",
+    "variants": [
+     "22"
+    ],
+    "well": [
+     "Both cases were used well, and time did not appear to be a problem for most.",
+     "Most gave a good definition of customers in 1(a)(i).",
+     "Many knew the profit margin formula in 1(b)(i), and very few inverted it.",
+     "Inventory and entrepreneur were well understood terms in 2(a).",
+     "Most had a good knowledge of crowdfunding in 2(c)."
+    ],
+    "mistakes": [
+     "Some wasted time with examples in define questions, and a few confused consumer with customer.",
+     "There was some confusion between the public sector and a public limited company in 1(a)(ii).",
+     "A significant number worked out the profit in 1(b)(i) but never went on to the profit margin.",
+     "In 1(c) answers often turned to marketing or to winning more customers instead of the operations process.",
+     "Many lacked knowledge of sampling in 1(d), it was often confused with market research, and many spent time on benefits.",
+     "Some gave three or more ways in 1(c), and in 2(d) some tried to use every piece of data."
+    ],
+    "fix": [
+     "In 1(c) show how each way either lowers the app's costs or lets FF raise its price.",
+     "In 1(d) pick two limitations of the sampling process and analyse each in depth.",
+     "Learn working capital as current assets minus current liabilities.",
+     "In 2(d) choose one or two points about each applicant that matter most for the job."
+    ],
+    "questions": [
+     {
+      "q": "1(a)(ii)",
+      "topic": "Public limited company",
+      "issue": "Some confused it with the public sector, and selling shares alone does not set it apart from a private company.",
+      "fix": "Add what is special to a plc, such as shares sold to the general public on a stock exchange."
+     },
+     {
+      "q": "1(b)(i)",
+      "topic": "Profit margin",
+      "issue": "A significant number found the profit and stopped. Some used the wrong year's figures.",
+      "fix": "Revenue is 1.4 plus 1.8, which is 3.2. Profit is 3.2 minus 2, which is 1.2. Then 1.2 divided by 3.2, times 100, gives 37.5 per cent. The % sign was not required."
+     },
+     {
+      "q": "1(b)(ii)",
+      "topic": "Uses of profit margin data",
+      "issue": "Some gave a use of profit rather than of profit margin data.",
+      "fix": "Compare your 1(b)(i) answer with the 2021 margin to show a decline FF needs to act on."
+     },
+     {
+      "q": "1(c)",
+      "topic": "Increasing value added through the operations process",
+      "issue": "Answers often gave marketing ways to add value, or ways to gain customers, which do not widen the gap between cost and price.",
+      "fix": "Show each way lowering the cost of the app or allowing a higher price."
+     },
+     {
+      "q": "1(d)",
+      "topic": "Limitations of the sampling process",
+      "issue": "Sampling was often confused with market research, there was some misunderstanding of stratified, and many spent a long time on benefits.",
+      "fix": "Analyse two limitations of FF's sample and judge which hurts FF most."
+     },
+     {
+      "q": "2(b)(i)",
+      "topic": "Change in working capital",
+      "issue": "There was a clear lack of knowledge of the formula, and some used every number in the table.",
+      "fix": "Find current assets minus current liabilities for each year, 5 and then 20, so the increase is $15 000. The scheme also allowed 300 per cent."
+     },
+     {
+      "q": "2(c)",
+      "topic": "Crowdfunding to finance growth",
+      "issue": "Some confused it with other external sources, the disadvantage was weaker than the advantage, and some analysed growth instead.",
+      "fix": "Keep both points on crowdfunding itself, one advantage and one disadvantage for CC."
+     },
+     {
+      "q": "2(d)",
+      "topic": "Recommending which person to employ",
+      "issue": "Some analysed every point about Liu and Ahura, which led to shallow points.",
+      "fix": "Pick the one or two facts about each that matter most for the role, weigh their effect on the business and Ava, then decide."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Data response",
+    "variants": [
+     "23"
+    ],
+    "well": [
+     "Candidates generally used the data in Question 1 very well.",
+     "Nearly all who knew the break-even calculation scored full marks.",
+     "Question 2 was generally well answered, and entrepreneurs were well understood.",
+     "2(c) on factors affecting sources of finance was well answered.",
+     "2(d) was generally well answered, with strong knowledge of payment methods and good use of the case."
+    ],
+    "mistakes": [
+     "A significant minority answered only the first question.",
+     "A significant minority wrote a page for 3 mark questions and a few lines for the 8 and 11 mark ones.",
+     "Many started 11 mark answers with a one line recommendation, which could earn at most one evaluation point.",
+     "A significant number defined revenue as income without saying it comes from selling goods or services.",
+     "1(d) showed a lack of understanding of economies of scale, and a significant number scored poorly."
+    ],
+    "fix": [
+     "Answer both questions, and give space in line with the marks.",
+     "Explain a term without the words in it. Batch production cannot be explained with the word batch.",
+     "Build your recommendation at the end, after the evidence and analysis."
+    ],
+    "questions": [
+     {
+      "q": "1(a)(i)",
+      "topic": "Revenue",
+      "issue": "A significant number said only that revenue is income, leaving out that it comes from selling goods or services.",
+      "fix": "Say it is the income a business receives from selling its products. Price times quantity sold also earns both marks."
+     },
+     {
+      "q": "1(b)(ii)",
+      "topic": "Uses of break-even data",
+      "issue": "A common wrong answer said it measures profit.",
+      "fix": "Use it to find the customers needed at each venue, or the margin of safety."
+     },
+     {
+      "q": "1(c)",
+      "topic": "Advantages to PM of training customer service workers",
+      "issue": "Common errors gave benefits to the employees not applied to PM. Some gave higher productivity twice, for ushers and valets, which counts as one advantage.",
+      "fix": "Give two different advantages to PM, each linked to the case."
+     },
+     {
+      "q": "1(d)",
+      "topic": "Economies of scale from larger venues",
+      "issue": "Many explained that bigger venues mean more customers and revenue, which is not an economy of scale.",
+      "fix": "Name specific economies of scale, such as purchasing or marketing, and show how each cuts PM's cost per customer."
+     },
+     {
+      "q": "2(a)(i)",
+      "topic": "Batch production",
+      "issue": "Using the word batch earned nothing because it is in the question.",
+      "fix": "Say groups of identical items move through each stage of production together before the next group starts."
+     },
+     {
+      "q": "2(b)(i)",
+      "topic": "Change in market share",
+      "issue": "A final answer of 5% with no working scored nothing.",
+      "fix": "Market share fell from 25 per cent to 20 per cent, so the answer is minus 5 per cent. With working, 5% still earned 2 marks."
+     },
+     {
+      "q": "2(b)(ii)",
+      "topic": "Implication of a fall in market share",
+      "issue": "Saying a fall in share must mean losing customers lost the application mark, because the case showed the market and sales growing.",
+      "fix": "Pick an implication that fits a growing market, such as competitors growing faster or the share price falling."
+     },
+     {
+      "q": "2(d)",
+      "topic": "Use of different payment methods",
+      "issue": "Payment methods were often analysed in the abstract. Some opened with an evaluation point before showing what the case uses.",
+      "fix": "Show what PP uses for each group, explain each method, then judge its effect on PP's work."
+     }
+    ]
+   },
+   {
+    "num": "3",
+    "title": "Case study",
+    "variants": [
+     "31"
+    ],
+    "well": [
+     "There was evidence that many centres and candidates had prepared well and knew what to expect.",
+     "Most identified the latest finish time of 5 at node 2, and many calculated the free float and total float correctly.",
+     "Many correctly calculated the total contribution of $2000 and the $1000 loss in 4(a).",
+     "In Question 6 many showed good knowledge of force field analysis and decision trees and applied them to the case.",
+     "The best answers used data and information from the case to support their points."
+    ],
+    "mistakes": [
+     "Only some found the earliest start time of 2 at node 2, because of the dummy activity.",
+     "In Question 1 some included advantages of the merger, and some thought it was a joint venture.",
+     "Some answers leaned on generic textbook knowledge, with gaps in strategic management.",
+     "Many reached only low level evaluation in 4(b) with a simple supported judgement.",
+     "There was occasional evidence of a Section B question being chosen and then changed."
+    ],
+    "fix": [
+     "Spend the first 15 to 20 minutes reading the case to learn what AP does and who its customers are.",
+     "Watch for dummy activities when you fill in a node's earliest start time.",
+     "Use your 4(a) results in 4(b), and ask what might change the deal, such as a higher government price.",
+     "Choose your Section B question once and stick with it."
+    ],
+    "questions": [
+     {
+      "q": "1",
+      "topic": "Disadvantages to AP of a merger with SC",
+      "issue": "Candidates who misread the question and gave advantages got no credit for them. Those who treated the merger as a joint venture gained no marks.",
+      "fix": "Analyse two disadvantages only, such as the clash between AP's centralised and SC's decentralised cultures, leading to slower decisions."
+     },
+     {
+      "q": "2(a)(i)",
+      "topic": "Completing the network diagram at node 2",
+      "issue": "Only some identified the earliest start time of 2, because of the dummy activity.",
+      "fix": "Node 2 needs an earliest start time of 2 and a latest finish time of 5. The scheme did not require days."
+     },
+     {
+      "q": "2(b)",
+      "topic": "Whether the 14 day deadline will be met",
+      "issue": "Candidates who showed no knowledge of the role of CPA in planning did not gain any marks.",
+      "fix": "Use the critical path to show 14 days is possible, then weigh risks such as the low skilled workforce and the supplier."
+     },
+     {
+      "q": "4(a)(i)",
+      "topic": "Total contribution on the government contract",
+      "issue": "Many earned only 1 mark, for the formula or for total revenue alone.",
+      "fix": "Revenue of 7000 minus direct costs of 5000 gives $2000, or contribution of 20 a unit times 100."
+     },
+     {
+      "q": "4(b)",
+      "topic": "Responding to the government contract",
+      "issue": "Many reached only low level evaluation with a simple supported judgement.",
+      "fix": "Weigh the loss against future government orders, and consider whether the government might raise its price."
+     },
+     {
+      "q": "7",
+      "topic": "Effective strategic management",
+      "issue": "There was some confusion over whether choices had to be made.",
+      "fix": "Pick strategic decisions from the case, such as the merger or overseas expansion, and judge how much strategic management helps each."
+     }
+    ]
+   },
+   {
+    "num": "3",
+    "title": "Case study",
+    "variants": [
+     "32"
+    ],
+    "well": [
+     "There were good examples of focused answers based on careful reading of the case and questions.",
+     "The majority stated the contribution formula correctly in 2(a).",
+     "There were some good answers to 2(b), balanced and in context.",
+     "A majority knew the inventory turnover formula, and days' sales in receivables was well understood as a calculation."
+    ],
+    "mistakes": [
+     "Candidates found the paper challenging, and weaker answers repeated large parts of the case.",
+     "In Question 1 the most common error was analysing horizontal integration.",
+     "Many did not understand contribution, and common errors in 2(a) were not scaling variable costs to the order or missing one of the three.",
+     "Many did not understand workforce planning, and most made no comment on operational effectiveness.",
+     "In 4(a) candidates often did not turn profit into an annual figure, others did not subtract the capital cost, and 15 per cent left 4(b)(ii) out.",
+     "In Question 6 weaker answers argued for an option instead of judging the techniques."
+    ],
+    "fix": [
+     "Question 1 is not an evaluate question. Write one paragraph per benefit and leave out counter arguments.",
+     "Learn every ratio in the syllabus. Question 4 was worth nine marks of calculation.",
+     "Turn ARR profit into an annual figure and give the answer as a percentage.",
+     "In Question 6 explain how each technique, such as decision trees, improves the decision, not what the data says."
+    ],
+    "questions": [
+     {
+      "q": "1",
+      "topic": "Benefits to APF of vertical integration",
+      "issue": "The most common error was analysing horizontal integration, using the takeovers of primary sector firms.",
+      "fix": "Analyse two benefits of APF's forward vertical integration, one in each paragraph."
+     },
+     {
+      "q": "2(a)",
+      "topic": "Forecast total contribution from the juice order",
+      "issue": "Common errors were not adjusting variable costs to the order size and missing one or more of the three variable costs. Weaker answers included fixed costs.",
+      "fix": "Total revenue of 19.5m minus total variable costs of 17.7m gives $1.8m. Units were not required."
+     },
+     {
+      "q": "3",
+      "topic": "Workforce planning and operational effectiveness",
+      "issue": "Many wrote about managing or motivating existing staff, and most made no comment on operational effectiveness.",
+      "fix": "Link planning for skilled technicians and seasonal harvest workers to less fruit wasted."
+     },
+     {
+      "q": "4(a)",
+      "topic": "Accounting rate of return on ERP",
+      "issue": "Candidates often did not turn the profit into an annual profit, did not subtract the capital cost, or did not give a percentage.",
+      "fix": "Total profit of 9.5m over 5 years is 1.9m a year, which gives an ARR of 19 per cent."
+     },
+     {
+      "q": "4(b)(i)",
+      "topic": "Inventory turnover",
+      "issue": "A significant minority inverted the formula, and some gave the answer in $m.",
+      "fix": "Divide cost of sales by inventory: 140.2 over 25.8 is 5.43 times. The answer is a number of times, not $m."
+     },
+     {
+      "q": "4(c)",
+      "topic": "Benefits of investing in ERP",
+      "issue": "Few gave a good definition, and many said only that it plans a company's resources.",
+      "fix": "Describe ERP as software that coordinates operations and can cut inventory, then link it to your 4(b)(i) result."
+     },
+     {
+      "q": "5",
+      "topic": "Marketing planning and future success",
+      "issue": "Weaker answers wrote about marketing strategy or tactics, and long marketing mix answers gained little analysis.",
+      "fix": "Name the parts of a marketing plan, then judge how well one would work given rivals and the need for research."
+     },
+     {
+      "q": "6",
+      "topic": "Strategic choice techniques in Appendix 1",
+      "issue": "Weaker answers argued which option to choose. Many analysed what the data showed rather than how the techniques help.",
+      "fix": "Identify investment appraisal, force field analysis and decision trees in the appendix, then judge each one's usefulness and limits."
+     }
+    ]
+   },
+   {
+    "num": "3",
+    "title": "Case study",
+    "variants": [
+     "33"
+    ],
+    "well": [
+     "The paper was accessible to the great majority, and most scored highly on the calculations.",
+     "Candidates used their calculations well in the later extended answers.",
+     "Depreciation was generally well understood in Question 1.",
+     "The majority set out a clear method for Question 2, stating formulae and choosing data.",
+     "4(b) was accessible, and even those who omitted 4(a) could score high marks."
+    ],
+    "mistakes": [
+     "Around 10 per cent omitted 4(a)(i) and (ii), and 13 per cent did not attempt 4(a)(ii).",
+     "In 2(a)(i) a significant number left out the negative sign on price elasticity.",
+     "In 2(a)(ii) many did not see that total contribution would fall after the price rise.",
+     "Relatively few explained how social objectives matter to MAA's marketing plan.",
+     "Weaker answers to Question 5 wrote about motivating staff instead of workforce planning.",
+     "Question 7 answers were often general, and balance was rarely given."
+    ],
+    "fix": [
+     "Attempt every calculation. Process marks were awarded where the method was shown.",
+     "Give price elasticity with its minus sign.",
+     "In Question 6 select the most useful parts of Appendix 1 rather than working through all of it."
+    ],
+    "questions": [
+     {
+      "q": "1",
+      "topic": "Opportunities from the depreciation of country G's currency",
+      "issue": "A few analysed disadvantages of depreciation, which earned nothing.",
+      "fix": "Use MAA's own position, such as more tourists coming to country G and cheaper exports of dyed textiles."
+     },
+     {
+      "q": "2(a)(i)",
+      "topic": "Price elasticity of demand",
+      "issue": "A significant number left out the negative sign. Others inverted the formula or did not use percentage changes.",
+      "fix": "Divide the percentage change in quantity, minus 36.84, by the percentage change in price, 20, to get minus 1.84. Without the sign it earned 3 of 4."
+     },
+     {
+      "q": "2(a)(ii)",
+      "topic": "Change in total contribution",
+      "issue": "Some found only unit contribution, and many did not see contribution would fall.",
+      "fix": "At $10 it is 6.50 times 9500, which is 61 750. At $12 it is 8.50 times 6000, which is 51 000. That is a fall of $10 750."
+     },
+     {
+      "q": "2(b)",
+      "topic": "Whether MAA should change its entry price",
+      "issue": "Weaker answers focused on the fall in demand rather than the fall in revenue.",
+      "fix": "Use your elasticity to show revenue falls, then weigh MAA's social objectives and the case for charging foreign visitors more."
+     },
+     {
+      "q": "3",
+      "topic": "Social objectives and the marketing plan",
+      "issue": "A common error was analysing only the benefits of having social objectives.",
+      "fix": "Show how social objectives shape plan decisions, such as selling goods from the women's cooperative."
+     },
+     {
+      "q": "4(a)(i)",
+      "topic": "Accounting rate of return",
+      "issue": "Profit was often right but not always turned into an annual figure, so the answer was wrong, though a shown method earned process marks.",
+      "fix": "Total profit is 145 minus 120, which is 25. Divide by 4 years to get 6.25, then by 120, times 100, which is 5.2 per cent."
+     },
+     {
+      "q": "5",
+      "topic": "Workforce planning and total labour costs",
+      "issue": "Weaker answers lacked an understanding of workforce planning and wrote about motivation.",
+      "fix": "Plan staff numbers for seasonal peaks and new vehicles, and link it to lower labour costs, for example zero hour contracts."
+     },
+     {
+      "q": "7",
+      "topic": "Corporate planning for option 2",
+      "issue": "Answers were often very general and not linked to option 2. Balancing argument was rarely given.",
+      "fix": "Use Appendix 1 details, such as the $3.5m joint venture cost or the risk of a culture clash, then weigh the cost of planning."
+     }
+    ]
+   }
+  ],
+  "published": "2026-11-27"
+ },
+ {
+  "code": "9609",
+  "series": "s22",
+  "quote": {
+   "text": "Content is king on this examination",
+   "paper": "22"
+  },
+  "takeaways": [
+   "Learn every ratio and formula in the syllabus. On Paper 31 over 20 per cent skipped at least one calculation, and on Paper 32 over 10 per cent did.",
+   "Answer for the person or group the question names. Marks went to waste on benefits to employees instead of the business, to the franchisor instead of the buyer, and to FP instead of its stakeholders.",
+   "Keep definitions short and explain a term without its own words. Labour intensive and CAM both lost marks this way.",
+   "Use the case selectively. Repeating the text or an appendix earns nothing until you show what it means for the business.",
+   "Finish with a justified judgement. A one line verdict at the start, or none at all, held many good analytical answers back."
+  ],
+  "papers": [
+   {
+    "num": "1",
+    "title": "Short answer and essay",
+    "variants": [
+     "11"
+    ],
+    "well": [
+     "Candidates who could define a social enterprise explained its advantages well in 1(b).",
+     "Knowledge of emotional intelligence was generally sound, and autocratic leadership was generally well understood.",
+     "Definitions of CAM were generally sound, and most explained two disadvantages of it in 4(b).",
+     "Question 6 was very popular, and application to a house building business was very strong in many successful answers.",
+     "Most gave relevant answers to 7(b) on financing an additional factory."
+    ],
+    "mistakes": [
+     "Many scored a low Section A total because of poor knowledge for Questions 1 and 3.",
+     "Many definitions of a social enterprise confused it with social media or social networks and scored nothing.",
+     "Question 3 was challenging, and weak answers discussed demand or pricing strategies without linking them to PED.",
+     "In 5(a) weaker answers understood the 4Cs only partly and often confused them with the 4Ps.",
+     "7(a) was not popular, and many who chose it did not perform well.",
+     "Many essays had well developed analysis but no proper judgement or recommendation."
+    ],
+    "fix": [
+     "Learn social enterprise as a business with mainly social aims that puts its profits back into the business or community.",
+     "Show how a product's elasticity shapes the price a business sets, and that the best price depends on its objectives.",
+     "Treat break-even as a number of units of output, not a length of time.",
+     "For a factory, argue for long term finance. An overdraft does not fit a large capital purchase."
+    ],
+    "questions": [
+     {
+      "q": "1(a)",
+      "topic": "Social enterprise",
+      "issue": "Many definitions confused it with social media or social networks and gained no marks.",
+      "fix": "Say it is a business with mainly social objectives that reinvests its profits in the business or the community."
+     },
+     {
+      "q": "2(b)",
+      "topic": "Benefits of autocratic leadership",
+      "issue": "Some confused autocratic with democratic leadership, and some misread the question and gave disadvantages.",
+      "fix": "Give two benefits to the business, such as quicker decisions or clearer objectives, and explain each."
+     },
+     {
+      "q": "3",
+      "topic": "How PED influences pricing decisions",
+      "issue": "Weak answers discussed demand in general or listed pricing strategies without linking either to PED.",
+      "fix": "Define PED, then show how an elastic or inelastic product leads to a different price, depending on whether the aim is revenue or market share."
+     },
+     {
+      "q": "4(a)",
+      "topic": "Computer Aided Manufacture (CAM)",
+      "issue": "A significant minority just moved the words computer and manufacture around, which earned nothing.",
+      "fix": "Describe the use of software, robots or machines in the production process."
+     },
+     {
+      "q": "5(a)",
+      "topic": "Using the 4Cs to increase market share",
+      "issue": "Weaker answers knew the 4Cs only partly and often confused them with the 4Ps.",
+      "fix": "Name consumer cost, convenience, communication and customer solution, and show how each draws buyers away from rivals."
+     },
+     {
+      "q": "6",
+      "topic": "Non-financial motivators in a house building business",
+      "issue": "Weak answers often ignored the context, did not separate financial from non-financial methods, or used no theory.",
+      "fix": "Weigh the two kinds of motivator for construction workers with theory such as Herzberg, and note that one method rarely suits every worker."
+     },
+     {
+      "q": "7(a)",
+      "topic": "Benefits of break-even analysis",
+      "issue": "Some described break-even as a period of time and gave unsupported general claims. Few showed how it helps set prices or analyse costs.",
+      "fix": "Show how break-even analysis finds the output needed for a target profit and tests a product's chances before launch."
+     },
+     {
+      "q": "7(b)",
+      "topic": "Source of finance for an additional factory",
+      "issue": "Weak answers listed sources with little analysis. Some chose an overdraft, missing that a factory needs long term finance.",
+      "fix": "Compare a long term loan, retained profit and venture capital, and weigh the loss of control venture capital brings to a family owned company."
+     }
+    ]
+   },
+   {
+    "num": "1",
+    "title": "Short answer and essay",
+    "variants": [
+     "12"
+    ],
+    "well": [
+     "The majority gave an accurate, concise definition of piece rate.",
+     "Many explained two advantages of a time based payment method.",
+     "Most defined a franchise accurately, and the majority explained two advantages of buying one.",
+     "5(b) on inventory control in a hotel was generally well answered.",
+     "Very few answered Question 6, but those answers were generally satisfactory."
+    ],
+    "mistakes": [
+     "A significant number gave 1(b) benefits to employees rather than to the business, which earned nothing.",
+     "In 2(b) some gave advantages to the franchisor, and many overstated the free training, marketing and support a franchisee gets.",
+     "Question 3 was not well answered by many, as many could not tell capital from revenue expenditure.",
+     "Many answers to 5(a) and 7(a) analysed disadvantages too, which earned nothing.",
+     "In Section B many candidates reached the knowledge and analysis marks but not application and evaluation.",
+     "7(b) produced very few strong responses."
+    ],
+    "fix": [
+     "Check who the question asks about: the business, its employees, or the franchise buyer.",
+     "Learn capital expenditure as spending on non-current assets and revenue expenditure as day to day running costs.",
+     "In 5(b) weigh inventory control against other things that drive a hotel's success, such as service and staff training.",
+     "Avoid sweeping claims, such as saying older people cannot use the internet."
+    ],
+    "questions": [
+     {
+      "q": "1(b)",
+      "topic": "Advantages to a business of time based pay",
+      "issue": "A significant number misread the question and gave benefits to employees.",
+      "fix": "Keep each advantage on the business, such as pay that is easy to calculate, or fewer quality problems than piece rate can bring."
+     },
+     {
+      "q": "2(b)",
+      "topic": "Advantages of buying a franchise",
+      "issue": "Some gave advantages to the franchisor. Many claimed franchisors give free training, marketing and advice, which is not always true.",
+      "fix": "Write for the buyer: an established brand and customer base, and help with marketing and training, stated with care."
+     },
+     {
+      "q": "3",
+      "topic": "Capital and revenue expenditure",
+      "issue": "Many could not tell the two apart and so earned very few marks.",
+      "fix": "Contrast buying buildings or machines with paying wages and inventory, then say why it matters for choosing finance and recording costs."
+     },
+     {
+      "q": "4(a)",
+      "topic": "Price elasticity of demand",
+      "issue": "Some gave only a partial definition, such as a change in quantity demanded over price.",
+      "fix": "Say it measures how responsive demand is to a change in price, or give % change in quantity demanded over % change in price."
+     },
+     {
+      "q": "5(a)",
+      "topic": "Advantages of mass customisation",
+      "issue": "Many did not unpack the term, writing only about mass production or only about pleasing customers. Weaker answers added disadvantages.",
+      "fix": "Show the gain from combining the two: mass production costs with products tailored to each buyer."
+     },
+     {
+      "q": "5(b)",
+      "topic": "Effective inventory control in a hotel",
+      "issue": "In many answers the evaluation did not match the quality of the analysis.",
+      "fix": "After showing the risk of running out of towels or bedding, judge whether service, leadership or staff skills matter more."
+     },
+     {
+      "q": "7(a)",
+      "topic": "Advantages of online advertising",
+      "issue": "Some wrote about advertising in general, and many gave disadvantages that were not asked for.",
+      "fix": "Link the advantages to the internet and social media, such as reaching buyers abroad at low cost."
+     },
+     {
+      "q": "7(b)",
+      "topic": "Secondary market research for a furniture retailer",
+      "issue": "Some did not define secondary research or mixed it up with primary research. Some wrote about a furniture maker instead of a retailer.",
+      "fix": "Show what a retailer entering a new market needs to know, judge how far secondary data can supply it, and suggest what to add."
+     }
+    ]
+   },
+   {
+    "num": "1",
+    "title": "Short answer and essay",
+    "variants": [
+     "13"
+    ],
+    "well": [
+     "Candidates generally showed good knowledge and understanding of the syllabus.",
+     "2(a) on CSR was generally well answered, and most scored at least 2 marks on 2(b).",
+     "Question 3 on holding low inventory was generally well answered, and many linked it to JIT.",
+     "4(a) on price discrimination was very well answered.",
+     "5(a) was the most popular essay and was generally well answered, and those who chose 7(a) knew niche marketing well."
+    ],
+    "mistakes": [
+     "Most struggled with 1(a), and many scored 0 by defining training or recruitment.",
+     "1(b) was generally poorly answered, and a common error was giving an advantage to the employee rather than the business.",
+     "Answers to Question 3 were often limited to 3 marks because the explanation lacked detail.",
+     "In 5(b) the analysis of disadvantages to the entrepreneur tended to be weak.",
+     "In Question 6 knowledge of financial accounts was weaker, and many weaker candidates discussed cash flow forecasts.",
+     "In 7(b) many wrote too much about what market research is and did not refer to a soft drinks business."
+    ],
+    "fix": [
+     "Learn workforce planning as working out the number and skills of employees needed for future objectives.",
+     "On the 5 mark Question 3, explain each reason in enough detail to reach the 4 to 5 mark band.",
+     "In a 12 mark essay only 2 marks are for knowledge and 6 are for evaluation, so spend your words on judgement."
+    ],
+    "questions": [
+     {
+      "q": "1(a)",
+      "topic": "Workforce planning",
+      "issue": "Most struggled and many scored 0, often by defining training or parts of recruitment.",
+      "fix": "Refer to the number and skills of employees needed to meet the business's future objectives."
+     },
+     {
+      "q": "1(b)",
+      "topic": "Advantages of induction training",
+      "issue": "A common error was giving an advantage to the employee, such as meeting colleagues, without saying why it helps the business.",
+      "fix": "Say new staff settle in faster and become productive sooner, or learn safety rules that reduce accidents."
+     },
+     {
+      "q": "2(a)",
+      "topic": "Corporate social responsibility",
+      "issue": "A significant number scored only 1 mark by saying the business considers the environment.",
+      "fix": "Refer to the impact of business activity on society, going beyond what the law requires."
+     },
+     {
+      "q": "3",
+      "topic": "Holding low levels of inventory",
+      "issue": "Answers were often limited to 3 marks because they lacked enough detail.",
+      "fix": "Develop each reason, such as less storage cost or less waste of perishable food, and say how it helps the business."
+     },
+     {
+      "q": "4(a)",
+      "topic": "Price discrimination",
+      "issue": "Weaker candidates mixed it up with price penetration.",
+      "fix": "Say it is charging different prices in different markets for the same product, as with rail fares."
+     },
+     {
+      "q": "5(b)",
+      "topic": "A franchise as the best way to start a business",
+      "issue": "Analysis of the disadvantages to the entrepreneur tended to be weak, which limited evaluation. Supported judgements were in the minority.",
+      "fix": "Weigh the brand and support against the limits on a creative entrepreneur's own ideas, then decide."
+     },
+     {
+      "q": "6",
+      "topic": "Usefulness of published accounts to internal stakeholders",
+      "issue": "Many weaker candidates discussed cash flow forecasts, and most gained 2 evaluation marks at most.",
+      "fix": "Use the statement of profit or loss and statement of financial position, then compare their use to internal and external groups."
+     },
+     {
+      "q": "7(b)",
+      "topic": "Market research for a successful soft drinks business",
+      "issue": "Many wrote too much about what market research is and made no reference to a soft drinks business. Evaluation was mostly 1 or 2 marks.",
+      "fix": "Judge the need for research against how competitive the market is, how strong the brand is and how fast tastes change."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Data response",
+    "variants": [
+     "21"
+    ],
+    "well": [
+     "Supporting evidence from the Question 1 data was generally clear and well used.",
+     "1(b)(i) was well answered as a whole.",
+     "1(c) on entrepreneurial qualities was very well answered.",
+     "In 1(d) context was very well used, and analysis was generally strong and well developed.",
+     "Question 2 was generally well answered."
+    ],
+    "mistakes": [
+     "A significant minority attempted Question 1 and left Question 2 unanswered.",
+     "A significant minority spent a full page on 3 mark parts, then gave the 8 and 11 mark parts only a few lines.",
+     "Many opened an 11 mark answer with a bare one line verdict, which was capped at 1 evaluation point.",
+     "In 2(b)(i) a significant proportion found the current ratio because they did not take away inventory.",
+     "Knowledge of process innovation was weak, which hurt 2(d)."
+    ],
+    "fix": [
+     "When asked for a difference, compare the two directly, for example with the word whereas.",
+     "Include the opening balance whenever you work out a closing cash balance.",
+     "Present ratios as ratios, not fractions."
+    ],
+    "questions": [
+     {
+      "q": "1(a)(ii)",
+      "topic": "Difference between cash and profit",
+      "issue": "Two separate statements with no comparison earned only 2 marks, and cash was sometimes poorly defined.",
+      "fix": "Set the two side by side in one sentence, for example cash is the flow of money in and out of the business whereas profit is revenue minus expenses."
+     },
+     {
+      "q": "1(b)(i)",
+      "topic": "Forecast closing balance",
+      "issue": "A significant minority left out the opening balance.",
+      "fix": "Opening balance of minus 1000, plus inflows of 11 000, minus outflows of 13 000, gives minus $3000."
+     },
+     {
+      "q": "1(b)(ii)",
+      "topic": "Benefits to Priya of a cash flow forecast",
+      "issue": "Many did not seem to understand that a forecast is a prediction, and many confused cash flow with profit.",
+      "fix": "Treat it as an estimate of future inflows and outflows that warns Priya of a shortfall early."
+     },
+     {
+      "q": "1(d)",
+      "topic": "Promotional methods for PB",
+      "issue": "The evaluation was not always justified, and some made no recommendation after the analysis.",
+      "fix": "End by choosing the method that best suits Priya's bookshops and say why it beats the others."
+     },
+     {
+      "q": "2(a)(i)",
+      "topic": "Lead time",
+      "issue": "A common 1 mark answer mentioned only the delivery or completion, not the time from the start.",
+      "fix": "Describe the time between starting a process and finishing it."
+     },
+     {
+      "q": "2(b)(i)",
+      "topic": "Acid test ratio",
+      "issue": "A significant proportion found the current ratio by not taking away inventory, and some gave a fraction.",
+      "fix": "Current assets of 46 minus inventory of 1 is 45, over current liabilities of 50. The scheme accepted 0.9 or 9:10, and gave 45/50 only 3 of 4 marks."
+     },
+     {
+      "q": "2(c)",
+      "topic": "Benefits of JIT inventory control",
+      "issue": "A common error was saying JIT ensures good relationships with suppliers. Good relationships are needed for JIT, not a benefit of it.",
+      "fix": "Analyse two genuine benefits, such as lower storage costs, through to their impact on MC."
+     },
+     {
+      "q": "2(d)",
+      "topic": "Impact of process innovation",
+      "issue": "There was a clear lack of knowledge, and many wrote about product innovation, which gained no marks. Evaluation was not common.",
+      "fix": "Keep to how products are made, such as automation, and predict outcomes like cash flow strain from the cost of new machinery."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Data response",
+    "variants": [
+     "22"
+    ],
+    "well": [
+     "Candidates engaged well with both sets of data, and the contexts were well understood.",
+     "Candidates did well in telling apart FP, a primary sector farm, and SH, a tertiary sector hotel.",
+     "Labour intensive was reasonably well understood, and joint venture was a well understood term.",
+     "2(c) was well answered, and most understood autocratic leadership."
+    ],
+    "mistakes": [
+     "Some candidates attempted questions without having fully read the data.",
+     "Many confused a co-operative with cooperation.",
+     "The most common error in 1(b)(i) was forgetting to subtract the fixed costs.",
+     "1(b)(ii) was done poorly, mostly because the nature of fixed costs was misunderstood.",
+     "Far too many analysed the effect on FP in 1(c) rather than on its stakeholders.",
+     "Many gave demand factors in 1(d), which could not be rewarded."
+    ],
+    "fix": [
+     "Use your 1(b)(i) results as context in 1(b)(ii).",
+     "In 1(d) stick to factors that shift or move along supply, such as the weather, government grants or wages.",
+     "Do not define break-even analysis or autocratic leadership when the question does not ask for it."
+    ],
+    "questions": [
+     {
+      "q": "1(a)(i)",
+      "topic": "Labour intensive",
+      "issue": "The most common issue was explaining the term with the words labour and intensive, which gave partial answers.",
+      "fix": "Describe production that uses a high level of employee input compared with capital equipment."
+     },
+     {
+      "q": "1(a)(ii)",
+      "topic": "Co-operative",
+      "issue": "Many confused it with cooperation. Those who knew it was owned by members often did not develop the explanation.",
+      "fix": "Say it is a legal form of business owned by its members, who may be workers or customers, and use an example other than FP."
+     },
+     {
+      "q": "1(b)(i)",
+      "topic": "Profit made by FP in April 2022",
+      "issue": "The most common error was forgetting to subtract the fixed costs.",
+      "fix": "Revenue of $15 250 minus variable costs of $8450 minus fixed costs of $6000 gives $800."
+     },
+     {
+      "q": "1(b)(ii)",
+      "topic": "Problem of allocating fixed costs to each box size",
+      "issue": "This was done poorly, mostly from misunderstanding fixed costs, and relatively few focused on the equal split.",
+      "fix": "Explain that splitting fixed costs equally makes the small box look unprofitable, which could lead FP to drop or reprice it."
+     },
+     {
+      "q": "1(c)",
+      "topic": "Effect on two stakeholders of stopping the small box",
+      "issue": "Far too many analysed the effects on FP, not on the stakeholder, and earned no analysis marks.",
+      "fix": "Pick stakeholders the data supports, such as employees or customers, and trace the effect on them."
+     },
+     {
+      "q": "1(d)",
+      "topic": "Most important factor affecting supply",
+      "issue": "Many focused on demand factors such as advertising and consumer tastes.",
+      "fix": "Analyse supply factors such as the weather, then judge which matters most for a farm."
+     },
+     {
+      "q": "2(a)(i)",
+      "topic": "Redundant",
+      "issue": "Some defined it in a general sense, such as no longer needing a piece of equipment.",
+      "fix": "Say an employee is dismissed because the job role is no longer needed."
+     },
+     {
+      "q": "2(b)(ii)",
+      "topic": "Limitations to SH of break-even analysis",
+      "issue": "Many answers were generic, such as saying the data might be wrong.",
+      "fix": "Tie each limitation to SH, such as low occupancy in the off peak months from October to March."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Data response",
+    "variants": [
+     "23"
+    ],
+    "well": [
+     "The case material for both questions seemed well understood, and time did not appear to be an issue for most.",
+     "Nearly all could explain how to measure the size of a business in 1(b)(ii).",
+     "Some scored full marks on 1(d) with a justified recommendation.",
+     "Many calculated 2(b)(i) correctly and showed their working.",
+     "Candidates familiar with employee participation scored very high marks on 2(d)."
+    ],
+    "mistakes": [
+     "A few confused supply with inventory in 1(a)(i).",
+     "Most did not develop product differentiation for the third mark in 1(a)(ii).",
+     "Most failed to make a balanced recommendation in 1(d), which was needed for evaluation.",
+     "In 2(b)(ii) most gave generic answers after spotting the fall in growth.",
+     "Some wrote at length on motivation in 2(d) and scored zero or very low marks."
+    ],
+    "fix": [
+     "On a 3 mark explain question, add an example or a development for the third mark.",
+     "Answer exactly the number asked: one advantage and one disadvantage in 1(c), two advantages in 2(c).",
+     "In 2(d) keep to how employees take part in management and control, not how to motivate them."
+    ],
+    "questions": [
+     {
+      "q": "1(b)(i)",
+      "topic": "Price elasticity of demand",
+      "issue": "A few used the absolute changes instead of percentages, and some inverted the formula.",
+      "fix": "Divide the percentage change in quantity, minus 40, by the percentage change in price, 50, to get minus 0.8. The scheme also allowed 0.8."
+     },
+     {
+      "q": "1(c)",
+      "topic": "Working capital as a source of finance for the café",
+      "issue": "A few confused working capital with machinery.",
+      "fix": "Develop one advantage and one disadvantage for Su's small business, such as no interest against a squeeze on day to day cash."
+     },
+     {
+      "q": "1(d)",
+      "topic": "Promotion methods for the new café",
+      "issue": "Most knew promotion well in context but did not make the balanced recommendation needed for evaluation.",
+      "fix": "Compare methods that suit a small business, then justify which one Su should use."
+     },
+     {
+      "q": "2(a)(ii)",
+      "topic": "A dynamic business environment",
+      "issue": "Many explained the meaning but did not develop it or give an example for the third mark.",
+      "fix": "Add an example of fast change, such as new technology or new rivals."
+     },
+     {
+      "q": "2(b)(i)",
+      "topic": "Total televisions sold in 2021",
+      "issue": "A few calculated sales for 2020 instead.",
+      "fix": "Grow 6 million by 2 per cent to 6.12m, then by 1 per cent to 6.1812m. Full marks needed the m, and the scheme accepted 6.18m."
+     },
+     {
+      "q": "2(b)(ii)",
+      "topic": "Implication of slower market growth",
+      "issue": "Most linked the fall in growth to lower demand, then gave generic answers.",
+      "fix": "Keep the implication on CTV, using its own position in the case."
+     },
+     {
+      "q": "2(c)",
+      "topic": "Advantages of automation",
+      "issue": "Some spent time on disadvantages, and some stayed at 6 marks through lack of developed analysis.",
+      "fix": "Give two advantages to CTV and develop each through to its effect."
+     },
+     {
+      "q": "2(d)",
+      "topic": "Ways employees can participate in management",
+      "issue": "Some wrote at length on motivation methods and scored zero or very low marks.",
+      "fix": "Recommend participation methods and use the context, such as a plc with autocratic management and new automation."
+     }
+    ]
+   },
+   {
+    "num": "3",
+    "title": "Case study",
+    "variants": [
+     "31"
+    ],
+    "well": [
+     "Most questions proved accessible, and there were good focused answers.",
+     "Question 1 was accessible, with good knowledge of CSR and good use of the case.",
+     "The majority calculated the difference in labour turnover correctly with a clear method.",
+     "Capacity utilisation was well understood and correctly calculated by most.",
+     "Many produced well structured answers to 4(b), using case material on both sides."
+    ],
+    "mistakes": [
+     "Many Section B answers were very brief, and some were in note form.",
+     "Over 20 per cent did not attempt one or more of the calculations.",
+     "In 2(b) evaluation was often limited to Level 1, with only superficial support for the recommendation.",
+     "12 per cent omitted ROCE, 19 per cent did not attempt gearing and over 20 per cent omitted dividend cover.",
+     "In Question 5 the main weakness was repeating the detail of the website manager's report.",
+     "In Question 7 answers were often general and not applied to the case."
+    ],
+    "fix": [
+     "Allow up to 40 minutes for the 20 mark Section B essay.",
+     "Include reserves when you work out capital employed.",
+     "Use your Question 4 ratios as evidence in 4(b).",
+     "In Question 5 pick two or three issues, such as price and promotion, and judge which change matters most."
+    ],
+    "questions": [
+     {
+      "q": "2(a)(i)",
+      "topic": "Difference in labour turnover",
+      "issue": "A few calculated labour turnover for both divisions but did not find the difference.",
+      "fix": "Design is 27.78 per cent and Manufacturing 4.55 per cent, so the difference is 23.23 per cent."
+     },
+     {
+      "q": "2(b)",
+      "topic": "Solving the problem of operating over capacity",
+      "issue": "Weaker answers repeated the case, and a few spent too long on the effects of running at 105 per cent instead of solutions.",
+      "fix": "Compare outsourcing with building an extension on quality, cost and speed, and check whether HD could finance the extension."
+     },
+     {
+      "q": "3",
+      "topic": "Organisational structure and HD's success",
+      "issue": "Weaker answers simply repeated what the case says about the structure.",
+      "fix": "Link the matrix structure to creativity and HD's reputation, then judge whether other factors mattered more."
+     },
+     {
+      "q": "4(a)(i)",
+      "topic": "Return on capital employed",
+      "issue": "12 per cent omitted it, and many left reserves out of capital employed, though method still earned 3 of 4.",
+      "fix": "Capital employed is 4 plus 10 plus 10, which is 24. Operating profit of 8 over 24, times 100, gives 33.3 per cent."
+     },
+     {
+      "q": "4(a)(iii)",
+      "topic": "Dividend cover",
+      "issue": "Over 20 per cent omitted it. Many divided operating profit by dividends instead of profit after tax.",
+      "fix": "Profit after tax of 4 divided by dividends of 4 gives a dividend cover of 1."
+     },
+     {
+      "q": "4(b)",
+      "topic": "Accepting the joint venture offer",
+      "issue": "Weaker answers were one sided, looking only at the negatives, and many did not use their calculations.",
+      "fix": "Weigh the niche market and short product life against finance and capacity, and contrast the venture's profit with HD's operating margin."
+     },
+     {
+      "q": "5",
+      "topic": "Changes to HD's marketing",
+      "issue": "Much time went on repeating the market report, and some tried to cover every part of the marketing mix.",
+      "fix": "Pick two or three changes, such as pricing and promotion, and judge their effect on quality, sales and profit."
+     },
+     {
+      "q": "6",
+      "topic": "Usefulness of SWOT analysis",
+      "issue": "Weaker candidates only repeated the appendix, showing neither knowledge nor application.",
+      "fix": "Select two or three SWOT points, show how they inform the choice, and note that choice techniques are still needed."
+     }
+    ]
+   },
+   {
+    "num": "3",
+    "title": "Case study",
+    "variants": [
+     "32"
+    ],
+    "well": [
+     "Most questions were accessible, and on average candidates scored well on the calculations.",
+     "Candidates seemed more comfortable with the elasticity calculations, and many gained both marks in 2(a)(i).",
+     "Question 3 was accessible, with good knowledge of CSR.",
+     "Most could calculate the profit margin in 4(a)(iii) and gained full marks.",
+     "There were some sophisticated answers with judgements throughout."
+    ],
+    "mistakes": [
+     "Over 10 per cent did not attempt one or more of the calculations.",
+     "In Question 1 most repeated the case's definition of Kaizen, and weaker answers wrote about lean production instead.",
+     "The implications of elasticity were not well understood in 2(b).",
+     "Evaluation was lacking in most answers to Question 3.",
+     "Many were unfamiliar with the ratios in Question 4, and 12 per cent omitted 4(a)(i).",
+     "Often there was no final judgement or recommendation, especially in Section B."
+    ],
+    "fix": [
+     "Define the key term in your own words before you analyse it.",
+     "Learn dividend yield: find the dividend per share first, then divide by the share price.",
+     "Give a point, a counter point and a judgement as you go."
+    ],
+    "questions": [
+     {
+      "q": "1",
+      "topic": "Benefits to WTZ of introducing Kaizen",
+      "issue": "Most repeated the case's definition. Weaker answers focused on lean production, and a few wrote only about training.",
+      "fix": "Show employees making small, regular improvements through Kaizen groups or quality circles, such as cutting the reject rate."
+     },
+     {
+      "q": "2(a)(i)",
+      "topic": "Cross elasticity of demand",
+      "issue": "The most common error was inverting the formula. A few gave minus 0.4 and gained only 1 mark, and a significant number did not know the formula.",
+      "fix": "Divide minus 8 by minus 20 to get 0.4."
+     },
+     {
+      "q": "2(a)(ii)",
+      "topic": "Annual revenue after a 10 per cent price cut",
+      "issue": "Many found this multi stage calculation challenging, and only a few used PED to find the new level of demand.",
+      "fix": "Cut the price by 10 per cent to $126, use the PED to raise quantity by 12 per cent to 44 800, then multiply to get $5 644 800."
+     },
+     {
+      "q": "2(b)",
+      "topic": "Usefulness of elasticity data for marketing strategy",
+      "issue": "Many made no comment on elasticity. A common belief was that inelastic demand means demand will not change.",
+      "fix": "Use the case figures to show elastic demand means a price cut raises revenue, then note the data is hard to estimate and rivals may react."
+     },
+     {
+      "q": "3",
+      "topic": "CSR and future profitability",
+      "issue": "Evaluation was lacking in most answers. Some simply stated that CSR is beneficial with no justification.",
+      "fix": "Weigh short term costs against longer term gains in staff retention and brand, and ask whether WTZ's business customers care more about price."
+     },
+     {
+      "q": "4(a)(ii)",
+      "topic": "Dividend yield",
+      "issue": "The most common error was not calculating the dividend per share.",
+      "fix": "Dividends of 4.8 over 8 shares is $0.60 per share. Divided by the share price of 3, times 100, that gives 20 per cent."
+     },
+     {
+      "q": "4(b)",
+      "topic": "Ratio analysis and choosing a source of finance",
+      "issue": "Many repeated their ratios without showing how they help decision makers, and many assumed high gearing rules out borrowing.",
+      "fix": "Use the gearing result to judge borrowing risk, explain when a loan could still work, and note the limits of using ratios alone."
+     },
+     {
+      "q": "5",
+      "topic": "Changes to organisational structure",
+      "issue": "More limited answers restated the problems of the current structure, and a small minority proposed features it already had. Weaker answers made no final recommendation.",
+      "fix": "Use the case's diversification and overseas growth to recommend a product, geographical or matrix structure, and judge how easily staff will accept it."
+     }
+    ]
+   },
+   {
+    "num": "3",
+    "title": "Case study",
+    "variants": [
+     "33"
+    ],
+    "well": [
+     "This was a very accessible case, and candidates clearly understood TK was a delivery only business.",
+     "Question 1 was well answered by many, with good use of external changes.",
+     "Most performed the 2(a)(i) calculation correctly, and many calculated 2(a)(ii) correctly.",
+     "2(b) was well answered by many.",
+     "Question 5 was quite well answered, with good understanding of JIT."
+    ],
+    "mistakes": [
+     "Candidates who included threats in Question 1 got no credit for that part.",
+     "In 2(b) even better answers looked at the whole company instead of the single kitchen.",
+     "In Question 3 a few took a JIT approach, which belonged to Question 5.",
+     "In 4(b) some answered whether to do the ADV trial instead of how to finance it.",
+     "In Question 6 there was often too much repetition of data, and some confused analysis and choice techniques.",
+     "In Question 7 most wrote generic answers on contingency planning."
+    ],
+    "fix": [
+     "Read every question before you start, so each answer stays on its own topic.",
+     "Question 1 has no evaluation marks, so do not spend time on a conclusion.",
+     "Allow about 1.5 minutes per mark, so around 24 minutes for a 16 mark answer."
+    ],
+    "questions": [
+     {
+      "q": "1",
+      "topic": "Opportunities from changes in the external environment",
+      "issue": "Candidates who misread the question and included threats got no credit for that part.",
+      "fix": "Analyse two opportunities only, such as more people ordering meals by smartphone App while working from home."
+     },
+     {
+      "q": "2(a)(ii)",
+      "topic": "Total contribution for six months",
+      "issue": "Where fixed costs were wrongly included, the answer became a loss, and that figure was carried into 2(b) as the candidate's own figure.",
+      "fix": "Revenue of 1.4m minus variable costs of 1.19m gives $0.21m. An answer of 0.21 with no m earned 3 of 4."
+     },
+     {
+      "q": "2(b)",
+      "topic": "Whether TK should close Kitchen 2",
+      "issue": "Better answers used their calculations but then judged the whole company rather than the single kitchen.",
+      "fix": "Weigh Kitchen 2's positive contribution and low income location, and note six months of data may be too little."
+     },
+     {
+      "q": "3",
+      "topic": "Product and process innovation and profitability",
+      "issue": "A few took a JIT approach, which was the focus of Question 5.",
+      "fix": "Use TK's own innovations, such as its menus, patented packaging and App, against high R and D costs."
+     },
+     {
+      "q": "4(b)",
+      "topic": "Financing the ADV trial by a new share issue",
+      "issue": "Some discussed whether to run the trial at all, and some thought a share issue is a quick source of finance.",
+      "fix": "Compare a share issue with bank borrowing, given TK's low gearing, and weigh any loss of Thierry's control."
+     },
+     {
+      "q": "6",
+      "topic": "Usefulness of the strategic choice data",
+      "issue": "There was often too much simple repetition of data, and some wrote about SWOT and PEST, which earned credit only as knowledge.",
+      "fix": "Link the force field, decision tree and ARR data to the choice, then judge whether it is enough for a fast changing market."
+     },
+     {
+      "q": "7",
+      "topic": "Contingency planning for diversification",
+      "issue": "Most wrote generic answers and seemed unsure how to apply contingency planning to TK. Conclusions were often unsupported.",
+      "fix": "Plan for a failed takeover or a kitchen fire, then balance the cost of planning against its benefits."
+     }
+    ]
+   }
+  ],
+  "published": "2026-11-27"
+ },
+ {
+  "code": "9706",
+  "series": "w22",
+  "quote": {
+   "text": "Net values must be shown for a calculation mark",
+   "paper": "21"
+  },
+  "takeaways": [
+   "A mark needs the right figure with the right label. Correct values with wrong or missing labels lost marks in ledger accounts, journals and financial statements across Papers 21 to 23.",
+   "Finish every working with a net figure, and write labels in full in any financial statement. Abbreviations are never accepted.",
+   "Learn the difference between mark-up and margin. It was the most common error in the pricing question on Paper 23, and a frequent one on Paper 21.",
+   "When a question gives two options, discuss both and develop each point. Repeating the scenario earns nothing.",
+   "Learn every ratio formula, dividend yield above all, and give answers to the decimal places or cents the question asks for."
+  ],
+  "papers": [
+   {
+    "num": "1",
+    "title": "Multiple choice",
+    "variants": [
+     "11"
+    ],
+    "well": [
+     "47 per cent scored 15 or more, and the mean was 15 marks.",
+     "Questions 1, 2, 20 and 26 were straightforward, with 70 per cent or more choosing the key."
+    ],
+    "mistakes": [
+     "Only 18 per cent got Question 11 right, on a provision for doubtful debts left unadjusted for a year.",
+     "Half of all candidates chose A in Question 18, muddling how changes in receivables and payables affect cash.",
+     "Only 12 per cent chose the key in Question 23, while 52 per cent chose C."
+    ],
+    "fix": [
+     "When a provision was not updated one year, carry that error into the next year's increase.",
+     "A rise in trade receivables reduces cash and a rise in trade payables adds to it.",
+     "Learn that total fixed cost stays the same only within a relevant range of output."
+    ],
+    "questions": [
+     {
+      "q": "11",
+      "topic": "Effect of not adjusting a provision for doubtful debts",
+      "issue": "Only 18 per cent chose the key, A, an $800 decrease. B, an $800 increase, drew 32 per cent and D, a $1300 increase, drew 27 per cent.",
+      "fix": "Year 3's increase was worked from $3200 instead of $4000, so it was $1300 rather than $500. That extra $800 lowered year 3 profit."
+     },
+     {
+      "q": "18",
+      "topic": "Effect of three items on net cash flow",
+      "issue": "50 per cent chose A, an outflow of $8000, by getting the receivables and payables signs wrong.",
+      "fix": "Minus 6000 for higher receivables, plus 4000 for higher payables, minus 10 000 for the loan gives a $12 000 outflow, option C."
+     },
+     {
+      "q": "23",
+      "topic": "What best describes a fixed cost",
+      "issue": "Only 12 per cent chose D. C, the same total cost at any level of output, drew 52 per cent, and B, the same cost per unit at any output, drew 32 per cent.",
+      "fix": "D is correct: the same total cost for output within a relevant range."
+     }
+    ]
+   },
+   {
+    "num": "1",
+    "title": "Multiple choice",
+    "variants": [
+     "12"
+    ],
+    "well": [
+     "45 per cent scored 14 or more, and the mean was 14 marks.",
+     "Questions 9, 14 and 21 were straightforward, with 70 per cent or more choosing the key."
+    ],
+    "mistakes": [
+     "In Question 4, 36 per cent reversed only one year of depreciation instead of two.",
+     "In Question 17, 51 per cent placed dividends received in the statement of changes in equity.",
+     "In Question 24, 48 per cent apportioned insurance by the number of machines.",
+     "Question 28 split candidates almost evenly across all four options."
+    ],
+    "fix": [
+     "Count every year of depreciation back to the year of purchase.",
+     "Leave out a transaction that raises assets and liabilities by the same amount when you correct net assets.",
+     "Apportion insurance by the value of the assets insured."
+    ],
+    "questions": [
+     {
+      "q": "4",
+      "topic": "Original cost from net book value under reducing balance",
+      "issue": "28 per cent chose the key, D. 36 per cent chose B, $24 000, which allowed only for 2021's depreciation.",
+      "fix": "Divide $18 000 by 0.75 for 2021 and again for 2020, the year of purchase, to reach $32 000."
+     },
+     {
+      "q": "8",
+      "topic": "Correcting total net assets",
+      "issue": "24 per cent chose A, $555 000, misled by the unrecorded long term loan.",
+      "fix": "The loan raises liabilities and cash equally, so ignore it. Take off $20 000 inventory and $15 000 depreciation to get $565 000, option B."
+     },
+     {
+      "q": "17",
+      "topic": "Where dividends received are shown",
+      "issue": "51 per cent chose C, the statement of changes in equity only, which would suit dividends paid. Only 23 per cent chose A.",
+      "fix": "Dividends received are income, so they go in the income statement only, option A."
+     },
+     {
+      "q": "24",
+      "topic": "Apportioning machinery insurance",
+      "issue": "48 per cent chose C, $3750, apportioning by number of machines. 22 per cent chose the key, A.",
+      "fix": "Use net book value: 150 000 out of 250 000 of the $5000 premium is $3000."
+     },
+     {
+      "q": "28",
+      "topic": "Change in profit after a price cut and volume rise",
+      "issue": "Answers were spread almost evenly: A 21, B 25, C 27 and D 25 per cent. Applying the old contribution to sales ratio to the new sales gave C.",
+      "fix": "Keep the old variable cost per unit on the new volume. Profit falls to $44 000, a 26.67 per cent decrease, option D."
+     }
+    ]
+   },
+   {
+    "num": "1",
+    "title": "Multiple choice",
+    "variants": [
+     "13"
+    ],
+    "well": [
+     "57 per cent of the 148 candidates scored 15 or more, and the mean was 16 marks.",
+     "Questions 9, 12, 18 and 27 were straightforward, and no question caused serious difficulty."
+    ],
+    "mistakes": [
+     "Question 6 split candidates almost evenly between A, B and C.",
+     "In Question 22, 41 per cent chose a row made up only of direct costs.",
+     "In Question 26, 53 per cent chose C."
+    ],
+    "fix": [
+     "Before correcting a control account, decide which records each error touched.",
+     "Production overheads are indirect costs, so leave out direct costs such as raw materials.",
+     "If absorption costing shows lower profit than marginal costing, more units were sold than produced."
+    ],
+    "questions": [
+     {
+      "q": "6",
+      "topic": "Correcting a purchases ledger control account",
+      "issue": "Answers were close: A 28, B 30 and C 26 per cent. A took both items off both figures, and C put each item against the wrong figure.",
+      "fix": "The missing credit note comes off both totals, and the understated discounts come off the control account only, giving 7120 and 6760, option B."
+     },
+     {
+      "q": "22",
+      "topic": "Items in production overheads",
+      "issue": "41 per cent chose A, a row of direct costs, against 30 per cent for the key, D.",
+      "fix": "Pick the row that holds only indirect costs, option D."
+     },
+     {
+      "q": "26",
+      "topic": "Profit under marginal and absorption costing",
+      "issue": "53 per cent chose C, units sold fewer than units produced. 34 per cent chose the key, B.",
+      "fix": "Lower profit under absorption costing means cost of sales rose, which happens when units sold exceed units produced, option B."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Structured questions",
+    "variants": [
+     "21"
+    ],
+    "well": [
+     "Most deducted returns inwards from revenue in 1(a).",
+     "Many identified and explained the matching and prudence concepts correctly in 2(b).",
+     "Many explained the difference between capital and revenue expenditure correctly in 2(c).",
+     "Fixed and variable costs were well explained by many in 4(a).",
+     "Many gave valid benefits of budgets and limitations of budgetary control in 4(g) and 4(h)."
+    ],
+    "mistakes": [
+     "Correct values often had a wrong label or none, especially in ledger accounts and journals.",
+     "Given two options, many commented only on the one they chose.",
+     "Some showed a bracket of workings with no net value, which earned no calculation mark.",
+     "There were very few completely correct income statements in 1(a), and few completely correct statements of financial position in 1(b).",
+     "In 2(d) very few gave correct examples of a capital receipt or a revenue receipt.",
+     "In 4(f) candidates frequently added 20 per cent to cost instead of 25 per cent, mixing up mark-up and margin."
+    ],
+    "fix": [
+     "Label each ledger entry with the account that holds the other side of the double entry.",
+     "Show the net figure at the end of every working.",
+     "In 4(e) say what happens if Mandeep does and does not buy from the overseas supplier, then decide."
+    ],
+    "questions": [
+     {
+      "q": "1(a)",
+      "topic": "Income statement with adjustments",
+      "issue": "There were very few completely correct statements. Rent prepaid was often taken off as $1800, not $1200, motor vehicle depreciation was often left out or put in administrative expenses, and finance costs were not adjusted for the amount unpaid.",
+      "fix": "Deduct $1200 of rent, enter only the increase in the provision, put vehicle depreciation in distribution costs, and show finance costs of $3600."
+     },
+     {
+      "q": "1(b)",
+      "topic": "Statement of financial position",
+      "issue": "Trade receivables were often not reduced for the irrecoverable debt, many left out the rent prepaid, and few included the debenture interest owing.",
+      "fix": "Show a non-current assets subtotal, one total for retained earnings, and add the interest owing to current liabilities."
+     },
+     {
+      "q": "1(c)",
+      "topic": "Rights issue to repay debentures",
+      "issue": "Few noted that a full rights issue would raise the $60 000 needed, and few said ordinary dividends are discretionary.",
+      "fix": "Weigh raising the $60 000 and saving interest against the risk the issue is not fully taken up, then decide."
+     },
+     {
+      "q": "2(a)",
+      "topic": "Delivery vehicle ledger accounts",
+      "issue": "Many debited bank with $26 000 instead of bank $14 500 and disposal $11 500, and many labelled disposal as part exchange. Few allowed for the period of depreciation.",
+      "fix": "Split the cost between bank and disposal, and charge depreciation only for the months each vehicle was held."
+     },
+     {
+      "q": "2(d)",
+      "topic": "Examples of capital and revenue receipts",
+      "issue": "Many gave the purchase of a non-current asset as a capital receipt and income statement expenses as revenue receipts.",
+      "fix": "A capital receipt could be sale proceeds from a non-current asset or a loan received. A revenue receipt could be rent received or sales of goods."
+     },
+     {
+      "q": "3(a)",
+      "topic": "Journal entries for dividends and share issues",
+      "issue": "Some worked the dividend on $1.00 shares instead of the $0.50 given, retained earnings was often used instead of bank, and some entries were reversed.",
+      "fix": "Use the $0.50 share value and debit dividends paid, credit bank, for the payment."
+     },
+     {
+      "q": "4(d)",
+      "topic": "Maximum contribution with a shortage of material",
+      "issue": "Some ranked products by contribution per unit and ignored the limiting factor, and some did not show the maximum contribution and profit.",
+      "fix": "Rank by contribution per metre of material, then show total contribution, fixed overheads and profit."
+     },
+     {
+      "q": "4(f)",
+      "topic": "Price for a 20 per cent profit margin",
+      "issue": "A few did not attempt it. Those who did frequently found the right total cost but added 20 per cent instead of 25 per cent.",
+      "fix": "A 20 per cent margin is 25 per cent of cost: add $26.21 to the total cost of $104.85 to get $131.06."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Structured questions",
+    "variants": [
+     "22"
+    ],
+    "well": [
+     "There was a vast improvement in written answers, and some scripts were of a very high standard.",
+     "Many answered 1(f) on capital and revenue reserves well, and most chose prudence in 1(g) and explained it well.",
+     "There were several excellent answers to 3(c), and 3(d) was very well answered by almost all.",
+     "4(a)(ii) on budgeted total profit was very well answered, and the vast majority stated the margin of safety formula.",
+     "Most knew the format of a marginal cost statement in 4(d), and development improved in 4(e)."
+    ],
+    "mistakes": [
+     "Many did not head journal columns Debit and Credit in 1(a) and lost the credit.",
+     "Very few gained full marks for retained earnings in 1(d), as many ignored the bonus issue.",
+     "Many lost marks for wrong or missing labels in the sales ledger control account.",
+     "In 2(c) some said control accounts take too long to prepare, which was not rewarded.",
+     "A minority rounded break-even incorrectly in 4(a)(iii).",
+     "Answers to 4(f) and 4(g) on cost volume profit analysis were generally very poor."
+    ],
+    "fix": [
+     "Give break-even as a whole number of units, always rounded up.",
+     "Treat a commission on sales as a variable cost.",
+     "Learn two advantages and two limitations of cost volume profit analysis."
+    ],
+    "questions": [
+     {
+      "q": "1(a)",
+      "topic": "Journal for a bonus issue",
+      "issue": "Responses were poor. Many left out the Debit and Credit headings, and many put the remaining $600 to revaluation reserve instead of retained earnings.",
+      "fix": "Debit share premium $19 400 and retained earnings $600, and credit ordinary share capital $20 000."
+     },
+     {
+      "q": "1(b)",
+      "topic": "Net book value after a part exchange",
+      "issue": "Depreciation was often ignored completely.",
+      "fix": "Add the $16 500 addition, take off the $11 800 disposal, then charge depreciation on the $56 700, giving $51 030."
+     },
+     {
+      "q": "1(c)",
+      "topic": "Adjusted cash and cash equivalents",
+      "issue": "Many items were left out, most often the dividend payment.",
+      "fix": "Work through every item in the question, including the dividend paid, before giving the balance."
+     },
+     {
+      "q": "1(d)",
+      "topic": "Adjusted retained earnings",
+      "issue": "Very few gained full marks, as many did not account for the bonus issue.",
+      "fix": "Start from $27 350 and take off depreciation, the $600 bonus issue, the dividend and the provision for doubtful debts, giving $16 760."
+     },
+     {
+      "q": "2(d)",
+      "topic": "Control accounts and preventing fraud",
+      "issue": "Most answers lacked enough development for both marks. Segregation of duties gained the first mark but was rarely developed.",
+      "fix": "Say a different member of staff prepares the control account, so one person cannot hide a fraud in the ledger."
+     },
+     {
+      "q": "3(a)",
+      "topic": "Trade receivables and trade payables turnover",
+      "issue": "Several used sales or revenue instead of credit sales, with similar errors for trade payables.",
+      "fix": "Use credit sales for receivables days and credit purchases for payables days."
+     },
+     {
+      "q": "3(b)",
+      "topic": "Current and liquid ratios",
+      "issue": "Several left the loan out of current liabilities, and most made calculation errors in the liquid ratio.",
+      "fix": "Include the loan in current liabilities: $91 330 over $43 870 gives 2.08:1, and $26 530 over $43 870 gives 0.60:1."
+     },
+     {
+      "q": "4(a)(i)",
+      "topic": "Budgeted total contribution",
+      "issue": "Some could not find the variable cost, as several did not see a sales commission as variable.",
+      "fix": "Take all variable costs, the commission included, of $48 600 from sales of $78 000 to get $29 400."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Structured questions",
+    "variants": [
+     "23"
+    ],
+    "well": [
+     "There was a vast improvement in written answers, with some scripts of a very high standard.",
+     "Credit sales in 1(a) and credit purchases in 1(b) were well answered, with many gaining full marks.",
+     "Most drew up a cash account for wages in 1(c) and generally earned three marks.",
+     "Most gained both marks in 1(f), and there were several very good answers to 1(h).",
+     "The majority knew how to apportion service department overheads in 4(a)."
+    ],
+    "mistakes": [
+     "Many found the depreciation charge in 1(d) challenging, and too many tried a short cut.",
+     "Answers to 1(g) lacked focus, and generic definitions of accruals earned nothing.",
+     "Some used abbreviations in the partnership statement of financial position in 2(b).",
+     "Many did not attempt 2(c), and 4(g) was frequently not attempted.",
+     "Very few explained why proposed dividends are not shown in the statement of financial position.",
+     "In 4(f) the most common error was again confusing mark-up with margin."
+    ],
+    "fix": [
+     "Use the space for workings in 1(e). Those who did generally scored high marks.",
+     "Give an absorption rate to the two decimal places asked, and name its basis.",
+     "In 4(h) argue against one factory wide rate as well as for it."
+    ],
+    "questions": [
+     {
+      "q": "1(d)",
+      "topic": "Depreciation charge for the year",
+      "issue": "Many found it challenging, and too many tried a short cut and gained no marks.",
+      "fix": "Find cost of $21 680 and accumulated depreciation of $8 020, then charge 15 per cent on the $13 660 carrying value: $2049."
+     },
+     {
+      "q": "1(g)",
+      "topic": "Accounting concepts behind two treatments",
+      "issue": "Answers lacked focus, and a generic definition of the accruals concept earned nothing.",
+      "fix": "Link depreciation to matching the cost of using the asset with the revenue it earns, and the damaged inventory to prudence."
+     },
+     {
+      "q": "2(a)",
+      "topic": "Capital accounts on admitting a partner",
+      "issue": "Most handled goodwill, but only some dealt correctly with the property revaluation and the obsolete inventory.",
+      "fix": "Share the net revaluation gain on the property, after writing off the obsolete inventory, between the old partners, then record goodwill and the new partner's capital."
+     },
+     {
+      "q": "3(a)",
+      "topic": "Meaning of 8 per cent debentures (2025 to 2026)",
+      "issue": "Many did not say the interest is fixed at 8 per cent, and some thought only the interest is repaid in 2025 to 2026.",
+      "fix": "Say it is a long term loan repayable between 2025 and 2026 at a fixed 8 per cent interest a year."
+     },
+     {
+      "q": "3(c)",
+      "topic": "Why proposed dividends are not in the statement of financial position",
+      "issue": "Many said they appear in a note, but very few explained why.",
+      "fix": "Say they are not a liability because shareholders have not approved them at the reporting date, so payment is not certain."
+     },
+     {
+      "q": "4(b)",
+      "topic": "Overhead absorption rate for each department",
+      "issue": "Some did not name the basis, per labour hour or per machine hour, and not all gave the rate to two decimal places.",
+      "fix": "State the basis for each department and round to two decimal places."
+     },
+     {
+      "q": "4(f)",
+      "topic": "Total selling price for a customer's order",
+      "issue": "The most common error was confusing mark-up with margin, and some could not include overheads using the absorption rates.",
+      "fix": "Add overheads at the absorption rates to direct costs, then add 25/75 of total cost for a 25 per cent margin."
+     },
+     {
+      "q": "4(h)",
+      "topic": "One factory wide absorption rate",
+      "issue": "Many gave two marks' worth of reasons for the change, but answers against it were generally very weak.",
+      "fix": "Add the case against, such as less accurate product costs, before giving advice."
+     }
+    ]
+   },
+   {
+    "num": "3",
+    "title": "Structured questions",
+    "variants": [
+     "31"
+    ],
+    "well": [
+     "Performance was generally acceptable, and Question 1 was the best answered.",
+     "The manufacturing account was prepared to a high standard, and the income statement was also well prepared.",
+     "1(e) was well answered, and in 2(d) most gave the advice and many justified it well.",
+     "Most knew the investor ratios in 3(c), and some scored all twelve marks.",
+     "The subscriptions account was well prepared, and the table in 5(b) was generally well prepared."
+    ],
+    "mistakes": [
+     "Most made a range of errors in the statement of financial position in 2(a), and very few earned half the marks.",
+     "In 3(a) a high number just wrote a formula.",
+     "Few considered both numerator and denominator when discussing the ratio changes in 3(d).",
+     "Very few could explain in 5(a) how a project can pay back yet have a negative NPV, and hardly any mentioned discounting.",
+     "In 5(e) very few calculated the sales proceeds for a zero NPV.",
+     "The reconciliation in 6(b) was not well prepared, and hardly any were fully correct."
+    ],
+    "fix": [
+     "Split a bank loan between the part due within a year and the rest.",
+     "Explain a ratio change through both its numerator and its denominator.",
+     "In 6(b) include exactly the six variances asked for and complete the reconciliation."
+    ],
+    "questions": [
+     {
+      "q": "1(b)",
+      "topic": "Income statement with factory profit",
+      "issue": "Errors included the treatment of production cost and the finance cost. A few did not add the factory profit or deduct the increase in the provision for unrealised profit.",
+      "fix": "Bring in production cost from the manufacturing account, add factory profit, and take off the increase in the provision for unrealised profit."
+     },
+     {
+      "q": "2(a)",
+      "topic": "Corrected statement of financial position",
+      "issue": "Very few made the impairment adjustment, many left out the share premium, and very few split the bank loan.",
+      "fix": "Adjust each item for the additional information, and show the loan under both non-current and current liabilities."
+     },
+     {
+      "q": "3(a)",
+      "topic": "What the working capital cycle measures",
+      "issue": "A high number just wrote a formula.",
+      "fix": "Say it measures the time between paying trade payables for inventory and receiving cash from trade receivables for its sale."
+     },
+     {
+      "q": "3(c)",
+      "topic": "Investor ratios for two years",
+      "issue": "Dividend yield caused the most difficulty, usually through not knowing the formula. A limited number did not give two decimal places.",
+      "fix": "Dividend yield is dividend per share over market price of the share, times 100, to two decimal places."
+     },
+     {
+      "q": "3(d)",
+      "topic": "Why the ratios and share price changed",
+      "issue": "Few looked at both the numerator and the denominator, so marks were low.",
+      "fix": "Explain each change through both parts, for example a rise in profit spread over more shares."
+     },
+     {
+      "q": "4(a)",
+      "topic": "Total receipts from members",
+      "issue": "Very few were fully correct, and a common error was counting members who transferred to life membership.",
+      "fix": "Leave those members out of the annual subscriptions count, and add their life membership fees as a separate receipt."
+     },
+     {
+      "q": "5(c)",
+      "topic": "NPV with reduced servicing",
+      "issue": "A significant number did not discount the total changes in costs, and some did not combine the increase with the existing NPV.",
+      "fix": "Discount each year's total change, add them, then add the existing NPV of minus $180 to reach $1282."
+     },
+     {
+      "q": "6(b)",
+      "topic": "Reconciliation of standard and actual cost",
+      "issue": "Many ignored the instruction to include two variances each for materials, labour and fixed overheads, and some calculated variances without reconciling.",
+      "fix": "Start from the total standard cost in 6(a)(ii), adjust by each of the six variances, and end at actual cost."
+     }
+    ]
+   },
+   {
+    "num": "3",
+    "title": "Structured questions",
+    "variants": [
+     "32"
+    ],
+    "well": [
+     "Performance was reasonable, and Question 6 was the best answered.",
+     "1(d) was very well answered, and fewer than three marks was rare.",
+     "The statement of financial position in 2(b) and the draft income statement in 3(a) were well prepared.",
+     "Many named two correct costs in 4(c).",
+     "6(a) was well answered and the calculation in 6(b) was very well answered."
+    ],
+    "mistakes": [
+     "Relatively few calculated the profit on the joint venture correctly in 1(a).",
+     "Many seemed to think an unqualified audit report was a bad result.",
+     "The three ledger accounts in 2(a) showed reversed entries and wrong labels.",
+     "Few could state what a contingent asset is, and many seemed to confuse it with an intangible asset.",
+     "Few prepared the provision for unrealised profit accounts in 4(a) correctly.",
+     "Very few cash budgets in 5(b) were fully correct, as overtime errors from 5(a) carried through."
+    ],
+    "fix": [
+     "Read whether a question asks about a cash budget or budgets in general. Many gave general budget advantages in 5(c).",
+     "Bring the closing balance down on every account you prepare.",
+     "In 6(c) divide by the new production of 9000, not 4500."
+    ],
+    "questions": [
+     {
+      "q": "1(b)",
+      "topic": "Joint venture bank account",
+      "issue": "The most common errors were reversed entries and leaving out the opening capital brought in by Ajlal and Daneen.",
+      "fix": "Start with the capital paid in by both, then record each receipt and payment on the correct side."
+     },
+     {
+      "q": "1(f)",
+      "topic": "Points in an unqualified audit report",
+      "issue": "Many seemed to believe an unqualified report was negative.",
+      "fix": "Say proper books have been kept and the financial statements give a true and fair view."
+     },
+     {
+      "q": "2(c)",
+      "topic": "Selling shares to earn interest instead",
+      "issue": "Very few compared the dividend with the interest that could be earned.",
+      "fix": "Compare the dividend of $8100 with interest of $10 800, then weigh selling costs and future rate changes."
+     },
+     {
+      "q": "3(c)",
+      "topic": "Contingent asset",
+      "issue": "Few could state its meaning, and many seemed to confuse it with an intangible asset.",
+      "fix": "Describe a possible future benefit that depends on events outside the business's control, such as damages expected from a lawsuit."
+     },
+     {
+      "q": "3(f)",
+      "topic": "Correct value of trade receivables",
+      "issue": "The most common error was adding the sale or return item instead of subtracting it.",
+      "fix": "Take off the $1000 irrecoverable debt and the $7200 sale or return item from $81 900 to get $73 700."
+     },
+     {
+      "q": "4(a)",
+      "topic": "Provision for unrealised profit account",
+      "issue": "Few were correct. Errors included reversed entries, working in units instead of values and not bringing the closing balance down.",
+      "fix": "Work the provision in values each year, post the change to the income statement, and bring the balance down."
+     },
+     {
+      "q": "4(d)",
+      "topic": "Suitability of the factory profit rates",
+      "issue": "Many discussed the bonuses, but hardly any saw that the rate has no effect on total profit for the year.",
+      "fix": "Start by saying factory profit does not change total profit, then compare the transfer price with the price for buying in."
+     },
+     {
+      "q": "5(a)",
+      "topic": "Labour wages budget",
+      "issue": "Many calculated basic pay correctly, but relatively few dealt with the overtime properly.",
+      "fix": "Work out hours needed each month, pay basic rate on normal hours, and add overtime only where hours exceed the limit."
+     }
+    ]
+   },
+   {
+    "num": "3",
+    "title": "Structured questions",
+    "variants": [
+     "33"
+    ],
+    "well": [
+     "Performance was reasonable overall, and Questions 1 and 6 were the best answered.",
+     "Both statements in 1(a) were prepared to a high standard, with many fully correct.",
+     "The price earnings ratios in 2(b)(ii) were well answered.",
+     "The forecast income statement in 3(b) was very well prepared, and 3(e) was very well answered.",
+     "A high number calculated the variances in 5(a) correctly, and 5(b) was well answered."
+    ],
+    "mistakes": [
+     "2(a) on IAS 38 was the least well answered part, and few could gain any credit.",
+     "Earnings per share for CD plc and EF plc went wrong over depreciation, amortisation and the number of shares.",
+     "Question 4 was the least well answered question on the paper.",
+     "In 4(b) few could derive the changes in trade receivables and trade payables.",
+     "In 5(c) few earned full marks, as the downside of the decision was often left out.",
+     "In 6(d) few suggested an appropriate basis of apportionment, and hardly any gave two."
+    ],
+    "fix": [
+     "Give each answer to the precision asked: the nearest whole cent in 2(b)(i), two decimal places in 2(b)(ii).",
+     "Total and label net cash from operating, investing and financing activities.",
+     "In every advice question, weigh the drawbacks as well as the benefits."
+    ],
+    "questions": [
+     {
+      "q": "1(a)(i)",
+      "topic": "Income and expenditure account",
+      "issue": "The most common errors were the treatment of opening and closing subscription balances and leaving out the irrecoverable debt.",
+      "fix": "Adjust subscriptions for amounts owing and prepaid at both ends of the year, and include the irrecoverable debt."
+     },
+     {
+      "q": "1(c)",
+      "topic": "Accounting for life membership",
+      "issue": "Most knew the method, but some did not state the accounting concept.",
+      "fix": "Credit receipts to a life membership fund, release them to income over several years, and name the accruals concept."
+     },
+     {
+      "q": "2(a)",
+      "topic": "Recognising an intangible asset under IAS 38",
+      "issue": "Few had enough knowledge of IAS 38 to gain any credit.",
+      "fix": "State that future economic benefits must be probable and the cost must be reliably measurable."
+     },
+     {
+      "q": "2(b)(i)",
+      "topic": "Earnings per share for three companies",
+      "issue": "For CD plc and EF plc many mishandled the depreciation of the product and the amortisation of the patent. Some got the number of shares wrong.",
+      "fix": "Adjust profit for depreciation and amortisation, find shares by dividing share capital by par value, and round to the nearest cent."
+     },
+     {
+      "q": "3(c)",
+      "topic": "Forecast partners' capital accounts",
+      "issue": "Some did not treat goodwill correctly, some reversed entries and some missed the revaluation of non-current assets.",
+      "fix": "Credit the revaluation gain, record goodwill correctly, then post drawings and profit to fluctuating capital accounts."
+     },
+     {
+      "q": "4(b)",
+      "topic": "Statement of cash flows under IAS 7",
+      "issue": "Few derived the increase in trade receivables and decrease in trade payables. Items were placed in the wrong section, and totals and labels were missing.",
+      "fix": "Put each item in its section and total and label net cash from operating, investing and financing activities."
+     },
+     {
+      "q": "5(c)",
+      "topic": "Whether to start calculating fixed overhead variances",
+      "issue": "Few earned full marks, as there was often little consideration of the downside.",
+      "fix": "Weigh the time it takes and variances outside Tommy's control against a full reconciliation of cost."
+     },
+     {
+      "q": "6(d)",
+      "topic": "Bases for apportioning administration and distribution costs",
+      "issue": "Few suggested an appropriate base, and hardly any gave two.",
+      "fix": "Use bases such as the number of orders shipped or the number of staff working on each product."
+     }
+    ]
+   }
+  ],
+  "published": "2026-11-27"
+ },
+ {
+  "code": "9706",
+  "series": "s22",
+  "quote": {
+   "text": "Both sides of an argument should be discussed",
+   "paper": "22"
+  },
+  "takeaways": [
+   "Show detailed workings. On Papers 21 and 22, candidates with detailed workings produced far more accurate income statements and scored higher.",
+   "Write every label and narrative in full. Abbreviated, wrong or missing narratives cost marks in rent accounts, disposal accounts and financial statements.",
+   "In an advice question, discuss both options, give fresh reasons for each and finish with a decision.",
+   "Learn the exact ratio formulas, especially return on capital employed, non-current asset turnover, dividend yield and income gearing.",
+   "In multiple choice, read exactly what is asked: which year, total profit share or residual share, and which reserves can pay a dividend."
+  ],
+  "papers": [
+   {
+    "num": "1",
+    "title": "Multiple choice",
+    "variants": [
+     "11"
+    ],
+    "well": [
+     "53 per cent scored 15 or more, and the mean was 15 marks.",
+     "Questions 5, 11, 28, 29 and 30 were straightforward, with 70 per cent or more choosing the key."
+    ],
+    "mistakes": [
+     "In Question 8 candidates mixed up mark-up and margin.",
+     "Many showed a lack of understanding of bonus issues in Question 16.",
+     "In Question 18 a significant majority chose A or B, looking only at retained earnings.",
+     "About half chose A in Question 20 by using opening inventory instead of average inventory.",
+     "In Question 23 answers split equally between the key and C."
+    ],
+    "fix": [
+     "With a 50 per cent mark-up, cost of sales is two thirds of sales.",
+     "Remember the general reserve can be used to pay dividends.",
+     "Use average inventory when you work back from the rate of inventory turnover."
+    ],
+    "questions": [
+     {
+      "q": "8",
+      "topic": "Cost of stolen inventory",
+      "issue": "Candidates confused mark-up with margin.",
+      "fix": "Sales of $21 000 at a 50 per cent mark-up give cost of sales of $14 000. Opening 15 000 plus purchases 18 000 minus 14 000 leaves $19 000, option C."
+     },
+     {
+      "q": "13",
+      "topic": "Partnership with no partnership agreement",
+      "issue": "Virtually all chose A or B, and A, interest on capital, was wrong.",
+      "fix": "Partners are not charged interest on drawings, option B. Interest is due on partners' loans, not on capital."
+     },
+     {
+      "q": "16",
+      "topic": "Effect of a bonus issue",
+      "issue": "Many showed a lack of understanding of bonus issues.",
+      "fix": "A bonus issue leaves total share capital and reserves, and net assets, unchanged, option D."
+     },
+     {
+      "q": "18",
+      "topic": "Maximum additional dividend per share",
+      "issue": "A significant majority chose A or B, focusing on retained earnings and missing that the general reserve can pay dividends.",
+      "fix": "General reserve and retained earnings of 90 000 plus profit of 80 000 minus the 10 000 interim dividend leave 160 000. Over 500 000 shares that is $0.32, option C."
+     },
+     {
+      "q": "20",
+      "topic": "Sales revenue from the rate of inventory turnover",
+      "issue": "About half chose A, $360 000, by using the opening inventory.",
+      "fix": "Average inventory of $25 000 times 8 gives cost of sales of $200 000. Add gross profit of $200 000 to get $400 000, option B."
+     },
+     {
+      "q": "23",
+      "topic": "Weekly wages with a bonus and rejected units",
+      "issue": "Virtually all chose C or the key, B, split equally. The difference is the cut for the two rejected units.",
+      "fix": "Take $2.50 off for each of the 2 rejected units to reach $880, option B."
+     }
+    ]
+   },
+   {
+    "num": "1",
+    "title": "Multiple choice",
+    "variants": [
+     "12"
+    ],
+    "well": [
+     "51 per cent scored 15 or more, and the mean was 15 marks.",
+     "Questions 1, 9 and 10 were straightforward, with 70 per cent or more choosing the key."
+    ],
+    "mistakes": [
+     "In Question 3 almost twice as many chose A as the key, possibly missing which year was asked about.",
+     "In Question 13 almost twice as many chose D as the key, and many did not deduct returns.",
+     "In Question 16 more candidates chose B than the key.",
+     "In Question 28 more chose D than the key, and the majority appeared to use the profit or loss figures."
+    ],
+    "fix": [
+     "Check which year the question asks about before you trace the effect of an error.",
+     "Interest on a partner's loan is deducted before appropriation, while interest on capital is part of it.",
+     "When one material is scarce, rank products by contribution against the material each uses."
+    ],
+    "questions": [
+     {
+      "q": "3",
+      "topic": "Effect of omitted depreciation on the year of sale",
+      "issue": "Almost twice as many chose A, $1000 higher, as the key. Candidates may have looked at 2020 rather than 2021.",
+      "fix": "In 2021 the asset was sold at a net book value of $10 000 instead of $9000, so the loss was $1500 not $500. Profit was $1000 lower, option B."
+     },
+     {
+      "q": "13",
+      "topic": "Cost of sales from incomplete records",
+      "issue": "Almost twice as many chose D, $116 500, as the key. Many did not deduct the returns.",
+      "fix": "Purchases are 110 600 plus 1000 plus 27 400 minus 22 500, which is 116 500. Take off returns of 1000 for $115 500, option C."
+     },
+     {
+      "q": "16",
+      "topic": "Profit to be appropriated between partners",
+      "issue": "More chose B, $13 000, having taken interest on capital off the profit.",
+      "fix": "Deduct only the interest on the partner's loan: 15 000 minus 1000 gives $14 000, option C."
+     },
+     {
+      "q": "28",
+      "topic": "Order of production with a scarce material",
+      "issue": "More chose D than the key, B. The majority appear to have used the profit or loss figures.",
+      "fix": "Contribution after variable overheads is $45, $40 and $35. As a percentage of material cost that is 40.9, 33.3 and 38.9 per cent, so M, then O, then N, option B."
+     }
+    ]
+   },
+   {
+    "num": "1",
+    "title": "Multiple choice",
+    "variants": [
+     "13"
+    ],
+    "well": [
+     "60 per cent scored 15 or more, and the mean was 16 marks.",
+     "Questions 4, 9, 11, 14 and 18 were straightforward, and only one question proved challenging."
+    ],
+    "mistakes": [
+     "In Question 16 more than twice as many chose A as the key, C.",
+     "Option A took the salary and interest on capital off the profit and gave Y 20 per cent of what was left.",
+     "That answer stopped at the residual share and never added back Y's own salary and interest."
+    ],
+    "fix": [
+     "Read whether a question wants a partner's total profit share or only the residual share.",
+     "Take salaries and interest on capital out of profit before splitting the residual in the profit-sharing ratio.",
+     "Then add the partner's own salary and interest back to the residual share."
+    ],
+    "questions": [
+     {
+      "q": "16",
+      "topic": "A partner's share of total profit",
+      "issue": "More than twice as many chose A, $23 536, than the key. A is Y's share of the residual profit after salary and interest, and stops there.",
+      "fix": "Add Y's salary of $18 000 and Y's 6 per cent interest on $22 000, which is $1320, to the $23 536 to get $42 856, option C."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Structured questions",
+    "variants": [
+     "21"
+    ],
+    "well": [
+     "Some scripts were of a very high standard, and performance improved in some areas.",
+     "Well prepared candidates gained at least 10 marks on the income statement in 1(a).",
+     "1(d) produced some very good answers that referred to the matching concept.",
+     "Well prepared candidates argued very good cases for their choice in 1(f).",
+     "Most gained good marks on 3(a), and 4(a) and 4(b) were well answered."
+    ],
+    "mistakes": [
+     "The rent receivable account in 1(b) was poorly answered, with narratives often unsatisfactory and abbreviated.",
+     "The journal for the provision for doubtful debts in 1(c) showed a lack of understanding of basic double entry.",
+     "Several did not attempt the suspense account in 2(b).",
+     "Few gained more than one or two of the five marks in 3(c).",
+     "Less well prepared candidates often did not attempt 4(d), and several gained none of the seven marks in 4(e).",
+     "Few could carry out the calculations in 4(f)."
+    ],
+    "fix": [
+     "Write every narrative in a ledger account in full.",
+     "Learn a precise description of each type of error, not a loose one.",
+     "In a limiting factor question, rank products by contribution per unit of the scarce resource and build the production plan from that."
+    ],
+    "questions": [
+     {
+      "q": "1(b)",
+      "topic": "Rent receivable account",
+      "issue": "Few recorded the transfer to the income statement correctly, and narratives were often unsatisfactory and abbreviated.",
+      "fix": "Label each entry in full and record the rent earned for the year as the transfer to the income statement."
+     },
+     {
+      "q": "1(c)",
+      "topic": "Journal for the provision for doubtful debts",
+      "issue": "It was not well answered and showed a lack of understanding of basic double entry.",
+      "fix": "Here the provision fell: debit provision for doubtful debts $80 and credit income statement $80."
+     },
+     {
+      "q": "2(a)",
+      "topic": "Describing three types of error",
+      "issue": "Many knew the errors, but descriptions were often too vague for more than one of the two marks each.",
+      "fix": "Describe exactly what goes wrong in each, such as the right amount posted to the wrong account of the same class for an error of commission."
+     },
+     {
+      "q": "2(b)",
+      "topic": "Suspense account",
+      "issue": "Several did not attempt it.",
+      "fix": "Post each correction through the suspense account and let the opening balance be the original difference."
+     },
+     {
+      "q": "2(c)",
+      "topic": "Corrected profit table",
+      "issue": "Some found the direction of the changes difficult.",
+      "fix": "For each error, decide whether correcting it raises or lowers profit before entering the figure."
+     },
+     {
+      "q": "3(b)",
+      "topic": "Appropriation account with a mid year admission",
+      "issue": "It was apparent that some did not know how to deal with it.",
+      "fix": "Split the year at the admission date and appropriate profit separately for the period before and after."
+     },
+     {
+      "q": "3(c)",
+      "topic": "New partner's income against her previous income",
+      "issue": "Few gained more than one or two marks, mostly for the interest on her investment.",
+      "fix": "Compare her old salary plus interest, $5400, with interest of $675 plus her residual share of $5892, which is $6567, an increase of $1167."
+     },
+     {
+      "q": "4(e)",
+      "topic": "Production plan to maximise profit with a limiting factor",
+      "issue": "Several appeared unprepared and failed to gain any of the seven marks.",
+      "fix": "Rank products by contribution per unit of the limiting factor, then fill the plan in that order."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Structured questions",
+    "variants": [
+     "22"
+    ],
+    "well": [
+     "Some scripts were of a very high standard, and performance improved in some areas.",
+     "Lee's current account in 1(b) was well answered by most, and 1(e) produced several excellent answers.",
+     "Almost all gained both marks in 2(a).",
+     "Most stated the correct formulas for payables and receivables days, and 3(c) produced a much better response.",
+     "The reapportionment of service costs in 4(d) was extremely well answered, and 4(h) was well answered overall."
+    ],
+    "mistakes": [
+     "Many did not calculate closing inventory correctly in 1(a), and abbreviations were surprisingly common.",
+     "A common failing in 1(c) was a mass of unrelated figures.",
+     "The revaluation journal in 2(c) proved difficult for almost all.",
+     "Most entered correct figures in the disposal account in 2(e) but incorrect narratives.",
+     "Allocation and apportionment answers in 4(a) were often too vague.",
+     "Many gave under or over absorption as a limitation of absorption costing in 4(c), which it is not."
+    ],
+    "fix": [
+     "Use a structured approach in 1(c): set out each term under the old and new agreements.",
+     "In 4(h) give separate reasons against Option B rather than repeating your reasons for Option A.",
+     "State the basis, machine hours or labour hours, for each absorption rate in 4(e)."
+    ],
+    "questions": [
+     {
+      "q": "1(d)",
+      "topic": "Advantage of a partnership over a limited company",
+      "issue": "Some forgot they were comparing with a limited company and wrote as if comparing with a sole trader.",
+      "fix": "Pick an advantage over a company, such as fewer legal formalities, and develop it."
+     },
+     {
+      "q": "1(f)",
+      "topic": "Reducing credit purchases to improve liquidity",
+      "issue": "Some gave only points for the proposal, which limited their marks.",
+      "fix": "Give points for and against, then advise Lee."
+     },
+     {
+      "q": "2(b)",
+      "topic": "Consistency concept and depreciation",
+      "issue": "Most gained one mark because they did not go on to comparison from year to year.",
+      "fix": "Say the same depreciation method is used every year so results can be compared over time."
+     },
+     {
+      "q": "2(c)",
+      "topic": "Journal for revaluing property",
+      "issue": "Almost all found it difficult, and only a relatively small number saw the effect on the provision for depreciation.",
+      "fix": "Debit property $350 000 and provision for depreciation $85 000, and credit revaluation reserve $435 000."
+     },
+     {
+      "q": "3(a)(iii)",
+      "topic": "Return on capital employed",
+      "issue": "Very few identified the profit before interest.",
+      "fix": "Add debenture interest of $20 000 to profit of $182 000, then divide $202 000 by capital employed of $1 532 000: 13.19 per cent."
+     },
+     {
+      "q": "3(a)(iv)",
+      "topic": "Non-current asset turnover",
+      "issue": "Very few gained any marks, as they did not know the formula.",
+      "fix": "Divide net revenue by the net book value of non-current assets: 1 050 000 over 1 520 000 is 0.69 times."
+     },
+     {
+      "q": "4(c)",
+      "topic": "Limitation of absorption costing",
+      "issue": "Many said under or over absorption, which is not a limitation.",
+      "fix": "Say it is not useful for short term decision making."
+     },
+     {
+      "q": "4(g)(i)",
+      "topic": "Monthly profit if one product is stopped",
+      "issue": "Many had difficulty with the production units and the contribution, and workings were often badly set out.",
+      "fix": "Work out the units of each remaining product first, then contribution, then take off fixed costs, showing each step."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Structured questions",
+    "variants": [
+     "23"
+    ],
+    "well": [
+     "Many added the debenture interest to profit for the year to reach profit from operations in 1(a).",
+     "Most calculated the 1 920 000 shares in issue at 31 December 2021 in 1(b).",
+     "The statement of financial position was well presented by many in 1(d).",
+     "Many gave correct definitions of matching, going concern and materiality in 2(a).",
+     "3(c) was well answered, and 4(f) was well answered by many."
+    ],
+    "mistakes": [
+     "There were cases of correct values with wrong or missing narratives, in ledger accounts and statements alike.",
+     "Some left a bracket of additions and multiplications without a final net figure, so no calculation mark was given.",
+     "Some commented only on their recommended option in 1(f) and 4(f).",
+     "Few made correct entries for share capital and share premium in the statement of changes in equity.",
+     "There were few completely correct provision for depreciation accounts in 2(d).",
+     "Few gained both marks for the margin of safety formulas in 4(b)."
+    ],
+    "fix": [
+     "Learn margin of safety in units as sales units less break-even units, and in value as that difference times the selling price.",
+     "Give an example for each accounting concept as well as a definition.",
+     "In 4(d) include the $0.50 commission and one month of depreciation, not a full year."
+    ],
+    "questions": [
+     {
+      "q": "1(b)",
+      "topic": "Amount raised by the rights issue",
+      "issue": "Many multiplied by one half instead of one third, and some used the $0.25 share value, leaving out the $0.10 premium.",
+      "fix": "One third of 1 920 000 is 640 000 shares. Times $0.35 that gives $224 000."
+     },
+     {
+      "q": "1(c)",
+      "topic": "Statement of changes in equity",
+      "issue": "Few made correct share capital and share premium entries, and many based the rights issue on 960 000 shares instead of 640 000. Some row and column totals did not agree.",
+      "fix": "Use 640 000 shares, split the issue between share capital and share premium, and end with the narrative Balances at 31 December 2021."
+     },
+     {
+      "q": "1(d)",
+      "topic": "Statement of financial position",
+      "issue": "Some gave no current assets subtotal, some showed profit for the year separately in equity, and the 2022 debentures were often put under non-current liabilities instead of current liabilities.",
+      "fix": "Include profit in retained earnings, use the Equity heading, and show the debentures repayable in 2022 as current liabilities."
+     },
+     {
+      "q": "1(e)",
+      "topic": "Revenue reserve and capital reserve",
+      "issue": "Some gave examples of reserves instead of their meaning, especially for capital reserves.",
+      "fix": "Say a revenue reserve is profit from trading that can pay dividends, and a capital reserve comes from gains outside trading and is not available for dividends."
+     },
+     {
+      "q": "2(c)",
+      "topic": "Rent receivable account",
+      "issue": "Entries were often reversed or given the wrong narrative, and some worked out their own closing balance instead of the transfer.",
+      "fix": "Enter the known balances first and make the missing figure the transfer to the income statement."
+     },
+     {
+      "q": "2(d)",
+      "topic": "Provision for depreciation of equipment",
+      "issue": "Many left out the opening accumulated depreciation, and some added entries such as the $24 000 cost or a disposal account when nothing was sold.",
+      "fix": "Bring down the accumulated depreciation from earlier years, add this year's charge and carry the balance down."
+     },
+     {
+      "q": "3(a)",
+      "topic": "Purchases ledger control account",
+      "issue": "Values were often right but with a wrong narrative. Some netted the opening balances, and a few included cash purchases.",
+      "fix": "Enter both opening balances separately, leave cash purchases out, and label each entry in full."
+     },
+     {
+      "q": "4(c)",
+      "topic": "Monthly margin of safety in units",
+      "issue": "Many found contribution per unit but did not round break-even up, and some stopped before the margin of safety.",
+      "fix": "Contribution is $14, break-even is 66 000 over 14, rounded up to 4715, so margin of safety is 8000 minus 4715, which is 3285 units."
+     }
+    ]
+   },
+   {
+    "num": "3",
+    "title": "Structured questions",
+    "variants": [
+     "31",
+     "33"
+    ],
+    "well": [
+     "Performance was reasonable, and Question 5 was the best answered.",
+     "The café trading account in 1(b) was well prepared, with many full marks, and the income and expenditure account was generally well prepared.",
+     "There were many correct retained earnings statements, and the ratio calculations were generally well answered.",
+     "Many earned full marks on the investment decision in 3(e), and the memorandum joint venture account was prepared to a high standard.",
+     "The activity based costing statement in 5(c) was prepared to a very high standard, and nearly all calculated the budgeted profit in 6(a)."
+    ],
+    "mistakes": [
+     "Question 2 was the least well answered, with very few fully correct revised statements of financial position.",
+     "Most knew something of IAS 37 but very few could apply it to the scenario.",
+     "Dividend yield was the ratio most often wrong, and relatively few could explain the change in the price earnings ratio.",
+     "Few developed the joint venture benefits in 4(c), and few applied the partnership disadvantages in 4(e) to the information given.",
+     "Many seemed unclear about cost pools and cost drivers in 5(b).",
+     "Very few calculated the sales volume variance, and only a few the fixed overhead volume variance."
+    ],
+    "fix": [
+     "Show the total cost per unit whenever a costing statement asks for it, as in 5(a) and 5(c).",
+     "Apply each standard to the facts given, not just its title.",
+     "Split a total variance into its sub-variances before explaining causes."
+    ],
+    "questions": [
+     {
+      "q": "1(b)",
+      "topic": "Café trading account",
+      "issue": "Some weaker answers did not derive purchases correctly or misapplied the 80 per cent mark-up.",
+      "fix": "Work out purchases first, then add 80 per cent of cost to find sales."
+     },
+     {
+      "q": "1(d)",
+      "topic": "Income and expenditure account",
+      "issue": "The most common error was leaving out or mistreating the equipment depreciation.",
+      "fix": "Include the depreciation of equipment as an expense for the year."
+     },
+     {
+      "q": "1(e)",
+      "topic": "Accounting for life membership fees",
+      "issue": "Most knew the treatment, but answers were often too superficial for all three marks.",
+      "fix": "Name the accruals or matching concept and say the fees are spread over a number of years set by the club's policy."
+     },
+     {
+      "q": "2(a)",
+      "topic": "Revised statement of financial position",
+      "issue": "Very few adjusted property, plant and equipment for the new machine, depreciation and the revaluation. Few adjusted every inventory category, and the legal cost was often left out.",
+      "fix": "Work through each item of additional information and adjust every line it touches."
+     },
+     {
+      "q": "2(b)",
+      "topic": "The claim and legal cost under IAS 37",
+      "issue": "Very few could apply IAS 37 to the scenario.",
+      "fix": "The claim is not probable, so make no provision but disclose it in a note. Provide $8000 for the legal cost as a liability."
+     },
+     {
+      "q": "3(b)",
+      "topic": "Investor ratios to two decimal places",
+      "issue": "Dividend yield was most often wrong, with a significant number not relating the dividend to market value. Some did not give two decimal places or percentages.",
+      "fix": "Divide dividend per share by the market price of a share and multiply by 100."
+     },
+     {
+      "q": "4(b)",
+      "topic": "Joint venture account with Adam",
+      "issue": "Only a few were fully correct. Common errors were reversed entries and leaving out the payment of the final balance to Adam.",
+      "fix": "Record each entry on the correct side and finish with the settlement payment to Adam."
+     },
+     {
+      "q": "6(b)",
+      "topic": "Sales, cost and overhead variances",
+      "issue": "Nearly all found the sales price variance, but very few the sales volume variance, and only a few the fixed overhead volume variance.",
+      "fix": "Practise each variance formula, especially sales volume and fixed overhead volume."
+     }
+    ]
+   },
+   {
+    "num": "3",
+    "title": "Structured questions",
+    "variants": [
+     "32"
+    ],
+    "well": [
+     "Performance was reasonable, and Question 4 was the best answered.",
+     "Most identified the correct accounting concept in 1(b).",
+     "Many performed well on the ratio calculations in 3(b), and 3(d) was well answered.",
+     "Most identified goodwill as the reason in 4(e), with many giving suitable causes.",
+     "The cash budget in 5(b) was well prepared, and the NPV calculation in 6(b)(i) was answered very well."
+    ],
+    "mistakes": [
+     "In 1(b) few explained how the $8000 tuition fees should be split.",
+     "There were very few fully correct profit statements in 2(a), and very few adjusted depreciation for the revaluations.",
+     "Few identified IAS 8 for item 3 in 2(b).",
+     "There were very few fully correct statements of changes in equity in 2(d).",
+     "3(c) was not well answered, as most simply said a bonus issue should be used.",
+     "A high number made no calculations in 6(e) despite the instruction."
+    ],
+    "fix": [
+     "Answer with a purpose of a cash budget in 5(a), not of budgets in general.",
+     "When a question says support your answer with calculations, make them.",
+     "For income gearing and ROCE, start by finding profit before interest."
+    ],
+    "questions": [
+     {
+      "q": "1(b)",
+      "topic": "Treatment of $8000 tuition fees",
+      "issue": "Most named the concept, but answers were generally too vague about how the $8000 would be split.",
+      "fix": "Under accruals, put $3000 for October to December in income and show the other $5000 as a current liability."
+     },
+     {
+      "q": "1(c)",
+      "topic": "Revised income and expenditure account",
+      "issue": "There were very few fully correct accounts, with many errors over members in arrears and payments in advance.",
+      "fix": "Adjust subscriptions for arrears and advance payments before posting the income."
+     },
+     {
+      "q": "2(b)(i)",
+      "topic": "Item 3 under IAS 8",
+      "issue": "Few identified IAS 8.",
+      "fix": "Treat it as a prior period error: adjust $20 000 against retained earnings at 1 January 2021 and $14 000 against this year's profit from operations."
+     },
+     {
+      "q": "2(d)",
+      "topic": "Statement of changes in equity",
+      "issue": "Many left out the profit for the year, only a few adjusted the opening balance for the prior year adjustment, and there were many errors on the new share issue.",
+      "fix": "Adjust opening retained earnings, add profit for the year, and split the share issue between capital and premium."
+     },
+     {
+      "q": "3(b)",
+      "topic": "Ratios including income gearing",
+      "issue": "Income gearing and return on capital employed were most often wrong, as candidates could not identify profit before interest or capital employed.",
+      "fix": "Find profit before interest first, then use it in both ratios to two decimal places."
+     },
+     {
+      "q": "3(c)",
+      "topic": "Replying to the directors on paying a dividend",
+      "issue": "Many did not address the question and merely said a bonus issue should be used.",
+      "fix": "Explain that a dividend can come from the general reserve, which is realised, but not from the revaluation reserve, which is not."
+     },
+     {
+      "q": "4(c)",
+      "topic": "Journal entries for acquiring the partnership",
+      "issue": "Few prepared them correctly, and few split share capital and share premium.",
+      "fix": "Record the assets and liabilities taken over and split the share consideration between share capital and share premium."
+     },
+     {
+      "q": "6(e)",
+      "topic": "Effect of the director's suggestion on the machine decision",
+      "issue": "A high number made no calculations despite the instruction.",
+      "fix": "Recalculate the NPV with the suggested change, then assess the decision using it."
+     }
+    ]
+   }
+  ],
+  "published": "2026-11-27"
+ },
+ {
+  "code": "7115",
+  "series": "s22",
+  "quote": {
+   "text": "Evaluation is more than a decision",
+   "paper": "12"
+  },
+  "takeaways": [
+   "Check the skills each part carries marks for. On Papers 11 and 12, analysis written in part (c), or case detail written in part (e), gains nothing.",
+   "Learn full definitions. Marketing budget, current liabilities and chain of command all lost marks to half answers, and many confused shareholders' equity with dividends.",
+   "Revise the whole syllabus. Herzberg's motivators, lean production, economies of scale and business ethics were among the weakest topics this session.",
+   "On the case study papers, picture the business first: a small bakery on Paper 21, a toy maker on Paper 22. Then bring a fresh case fact into each point.",
+   "A recommendation needs a reason for the choice and a reason the other option loses. Repeating your earlier points does not count."
+  ],
+  "papers": [
+   {
+    "num": "1",
+    "title": "Short answer and data response",
+    "variants": [
+     "11"
+    ],
+    "well": [
+     "Candidates were generally aware of what competitive pricing means.",
+     "Many earned both knowledge marks for threats from ecommerce in 1(c).",
+     "Many answered 2(a) on public limited companies well, and 3(c) was well answered.",
+     "Candidates showed strong knowledge of environmental issues in 2(e)."
+    ],
+    "mistakes": [
+     "Questions 2 and 4 proved quite challenging, and limited knowledge led some to twist 3(d) and 4(c) into questions they could answer.",
+     "Many thought the margin of safety was maximum output minus break-even output.",
+     "Many confused shareholders' equity with dividends.",
+     "Some read accounts in 3(d) as the business's bank account and scored zero.",
+     "4(c) on Herzberg was the most difficult question for many, and a noticeable number left it blank.",
+     "On 1(e) a mark of 1 or 2 was common, as many could not evaluate effectively."
+    ],
+    "fix": [
+     "Use a separate application point for each stakeholder or method. The same point is only credited once.",
+     "For Herzberg, link actions to motivators such as recognition and achievement. Pay is a hygiene factor.",
+     "In 4(e) explain why a wider choice of applicants helps the firm, not just that it exists."
+    ],
+    "questions": [
+     {
+      "q": "1(a)",
+      "topic": "Competitive pricing",
+      "issue": "Weaker answers said prices would be lower than rivals', which was too vague because predatory and penetration pricing also undercut.",
+      "fix": "Say the price is set in line with, or just below, competitors' prices."
+     },
+     {
+      "q": "1(b)",
+      "topic": "Marketing budget",
+      "issue": "The precise meaning was not well understood, and many earned one mark for saying it is money spent on marketing.",
+      "fix": "Describe it as a financial plan for a business's marketing activities over a stated period."
+     },
+     {
+      "q": "2(b)",
+      "topic": "Margin of safety",
+      "issue": "Many took it as the gap between maximum output and break-even output, and some did not attempt it.",
+      "fix": "Take break-even output from current output: 18 000 minus 14 000 is 4000."
+     },
+     {
+      "q": "2(c)",
+      "topic": "Effects of rising inflation on CTF",
+      "issue": "The weakest answers said inflation would raise revenue and profit because prices rise. Many struggled to find a second application point.",
+      "fix": "Trace higher manufacturing costs and lower bed sales, and their effect on CTF's break-even output."
+     },
+     {
+      "q": "2(d)",
+      "topic": "Advantages of batch production",
+      "issue": "Saying batch is simply cheaper or quicker earned nothing.",
+      "fix": "Explain the flexibility or staff motivation benefits for a bed maker, or why batch costs less than making each bed by job production."
+     },
+     {
+      "q": "3(a)",
+      "topic": "Shareholders' equity",
+      "issue": "Many did not know the term and confused it with dividends.",
+      "fix": "Define it as share capital plus reserves, or total assets minus total liabilities."
+     },
+     {
+      "q": "3(d)",
+      "topic": "How shareholders and suppliers use VCG's accounts",
+      "issue": "Some thought accounts meant a bank account and scored zero. Many used the same application point twice, and several did not attempt it.",
+      "fix": "Give shareholders and suppliers each their own use, such as checking returns against checking the ability to pay on credit."
+     },
+     {
+      "q": "4(c)",
+      "topic": "Using Herzberg's theory to motivate MBH's employees",
+      "issue": "Very few understood Herzberg's motivators. Answers using Maslow or hygiene factors such as better pay scored zero.",
+      "fix": "Pick actions such as promoting doctors and link them to recognition or achievement."
+     },
+     {
+      "q": "4(e)",
+      "topic": "External recruitment for skilled employees",
+      "issue": "A mark of 2 or 3 was common, as very few explained why more applicants and new skills help a firm. Many claimed internal recruits need no training.",
+      "fix": "Show how a wider field finds the best person for the job, and remember a promoted employee usually needs some training too."
+     }
+    ]
+   },
+   {
+    "num": "1",
+    "title": "Short answer and data response",
+    "variants": [
+     "12"
+    ],
+    "well": [
+     "The (a) and (b) parts of every question were generally handled well.",
+     "1(b) on non-current assets was well answered by most.",
+     "Many applied 1(d) well, using the 4 managers, 30 employees or gardening products.",
+     "Methods of motivation in 2(c) were a strong topic, and a significant number gained full marks.",
+     "Many defined opportunity cost precisely in 4(b)."
+    ],
+    "mistakes": [
+     "Many kept adding analysis to part (c) answers and case detail to part (e) answers, though neither part rewards that skill.",
+     "On 1(e) even the best answers struggled to gain more than two or three marks.",
+     "In 2(c) a common wrong answer was promotion, which is a non-financial method.",
+     "2(e) was poorly answered by most, as many wrote about recruiting more employees.",
+     "3(d) was one of the most challenging questions, and many never named a stage of the product life cycle.",
+     "In 4(e) most added more points instead of developing them, which held answers to two marks."
+    ],
+    "fix": [
+     "Write a break-even answer as units of output. The scheme allowed only 1 mark with a $ sign.",
+     "In 3(d) name the life cycle stage and then the level or purpose of promotion at that stage.",
+     "To evaluate in part (e), pick a side, back it with a reason and show why the other view is weaker."
+    ],
+    "questions": [
+     {
+      "q": "1(a)",
+      "topic": "Current liabilities",
+      "issue": "Writing short term was a common mistake, too vague without saying repayment is due within 12 months. Some confused the term with non-current liabilities or current assets.",
+      "fix": "Say they are debts the business must repay in less than one year."
+     },
+     {
+      "q": "1(c)",
+      "topic": "Why liquidity matters to AHG",
+      "issue": "A common mistake was giving two points from the same group, such as paying wages and paying suppliers. Some thought liquidity measures profit.",
+      "fix": "Pick reasons from separate groups, for example meeting day to day bills and making finance easier to arrange, and use Table 1.1, where current assets of $660 000 only just cover current liabilities of $600 000."
+     },
+     {
+      "q": "1(e)",
+      "topic": "Competitive pricing for an established business",
+      "issue": "Many assumed competitive pricing means lower prices or automatically attracts customers, and many discussed skimming or penetration, which did not fit.",
+      "fix": "Weigh it against cost-plus or promotional pricing, noting cost-plus may cover costs where competitive pricing might not."
+     },
+     {
+      "q": "2(a)",
+      "topic": "Off-the-job training",
+      "issue": "The second mark was often missed by not saying who gives the training or where. Some read it as training outside working hours, and induction training was a common mix up.",
+      "fix": "Say it takes place away from the workplace, usually given by a specialist trainer or at a college."
+     },
+     {
+      "q": "2(d)",
+      "topic": "Effect of new environmental laws on RWB",
+      "issue": "Many misread it and discussed the effect on the environment, or wrote about health and safety or the minimum wage. Points on reputation were not accepted.",
+      "fix": "Show how the laws could force RWB to cut production or pay fines, leading to fewer sales or higher costs."
+     },
+     {
+      "q": "2(e)",
+      "topic": "Whether lower unemployment always benefits businesses",
+      "issue": "Most answered this poorly. Many turned it into a question about firms hiring more staff, assuming more people in work means more output for every firm.",
+      "fix": "Weigh higher demand from more people in work against the difficulty of recruiting staff, then judge."
+     },
+     {
+      "q": "3(b)",
+      "topic": "Break-even level of output",
+      "issue": "Some added a $ sign, so they could not get the second mark. Others did not understand the formula.",
+      "fix": "Divide fixed costs of 200 000 by contribution per unit of 120 minus 40: 2500 units."
+     },
+     {
+      "q": "3(d)",
+      "topic": "Product life cycle and promotion decisions",
+      "issue": "Many did not name a stage or used terms like start or peak. Some treated saturation as a stage, mixed it up with the business cycle, or wrote about price instead.",
+      "fix": "Name the stage and its promotion, for example heavy promotion to build awareness at introduction."
+     },
+     {
+      "q": "4(e)",
+      "topic": "A partnership as the best form for a new business",
+      "issue": "Most listed more points without development. Some confused unlimited and limited liability, and decisions mostly summarised earlier points.",
+      "fix": "Develop why more ideas or the risk of disagreements matters to a new business, then compare with a sole trader before deciding."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Case study",
+    "variants": [
+     "21"
+    ],
+    "well": [
+     "Preparation was generally good, and MB, a small bakery making bread, gave an accessible setting.",
+     "The majority could name and explain four reasons governments support business start-ups in 1(a).",
+     "3(a) on advertising proved accessible for the majority.",
+     "Candidates showed strong numeracy in 3(b), making good use of Appendix 2.",
+     "4(a) was well answered by many, who explained how being asked for ideas makes staff feel valued."
+    ],
+    "mistakes": [
+     "The weakest understanding was of lean production and business ethics.",
+     "In 1(b) a significant number discussed drawbacks of the two sections, which the question did not ask for.",
+     "Knowledge of break-even charts was quite weak, and many did not see that they predict.",
+     "The majority found 2(b) the most challenging question, and knowledge of Kaizen appeared quite weak.",
+     "In 3(a) some suggested promotions such as free samples and competitions instead of advertising.",
+     "In 3(b) weaker answers repeated the monthly sales, fixed costs and margin figures from the appendix, which earned nothing."
+    ],
+    "fix": [
+     "Before writing, ask how big MB is, whether it makes or serves, and what kind of organisation it is.",
+     "Keep JIT answers on ingredients such as flour and yeast, not on storing bread.",
+     "In 3(b) let your profit, margin of safety and break-even results drive the choice, and show why the rejected option is weaker."
+    ],
+    "questions": [
+     {
+      "q": "1(a)",
+      "topic": "Why governments support business start-ups",
+      "issue": "Some found it hard to develop each reason with extra detail.",
+      "fix": "Take each reason one step further, such as less unemployment meaning fewer welfare benefits to pay."
+     },
+     {
+      "q": "1(b)",
+      "topic": "Benefits of two business plan sections",
+      "issue": "A significant number discussed drawbacks of the market research and resources sections, which only counted in the conclusion. Few linked resources to needing outside capital.",
+      "fix": "Use the 70 per cent who wanted cakes as well as bread, and show how listing resources reveals start-up costs and any need for a loan."
+     },
+     {
+      "q": "2(a)",
+      "topic": "Benefit and limitation of a break-even chart",
+      "issue": "Many did not see the chart predicts rather than analyses, and limitations were less confidently explained.",
+      "fix": "Show it tells Yasin how much bread to make and sell to cover costs, and that cakes would need a separate chart."
+     },
+     {
+      "q": "2(b)",
+      "topic": "Kaizen or JIT inventory control",
+      "issue": "Most found it the hardest question, and knowledge of Kaizen appeared quite weak.",
+      "fix": "Show the two employees suggesting small, continuous improvements, against fresher ingredients and less storage space under JIT."
+     },
+     {
+      "q": "3(a)",
+      "topic": "Ways to advertise MB's products",
+      "issue": "Some confused advertising with promotion and suggested free samples, competitions and food fairs.",
+      "fix": "Name advertising media such as posters, local radio or social media, and link each to a small bakery."
+     },
+     {
+      "q": "3(b)",
+      "topic": "Choosing between two options with calculations",
+      "issue": "Weaker answers just copied the monthly sales, fixed costs and gross profit margin.",
+      "fix": "Calculate profit, margin of safety and break-even for both, then explain why one plan is better."
+     },
+     {
+      "q": "4(a)",
+      "topic": "Democratic leadership",
+      "issue": "The disadvantage was less well answered, with mirror image points or claims that Yasin would lose all control. A minority confused democratic with autocratic.",
+      "fix": "Give a real drawback, such as slower decisions while staff are consulted, separate from the advantage."
+     },
+     {
+      "q": "4(b)",
+      "topic": "Improving MB's ethical image",
+      "issue": "Business ethics was not widely known. Some never mentioned ethics and focused on profit instead of moral standards.",
+      "fix": "Judge each action by its effect on how MB is seen to treat employees, the community and the environment, then choose."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Case study",
+    "variants": [
+     "22"
+    ],
+    "well": [
+     "Preparation was generally good, and TT, a maker of toys for young children, gave an accessible setting.",
+     "The majority could name and explain two ways TT could grow.",
+     "JIT was better understood than kaizen by the majority.",
+     "3(a) proved accessible, and application in 3(b) was easily achieved by the majority.",
+     "4(a) on the effects of training was well answered by the majority."
+    ],
+    "mistakes": [
+     "The weakest understanding was of economies of scale, lean production and the statement of financial position.",
+     "In 1(b) the majority could not explain that each economy of scale lowers average cost.",
+     "Weaker answers to 2(b) only said figures were higher or lower than the year before.",
+     "Some wrote liquidity ratios as money or used total assets and liabilities.",
+     "In 3(b) many thought more IGCSEs and A levels made Labiba better educated than Shahin, who had a degree.",
+     "A minority wrote about benefits for TT instead of for country Z in 4(b)."
+    ],
+    "fix": [
+     "End every economy of scale point with lower average or unit cost, not just lower costs.",
+     "Work out the current and acid test ratios for both years and say what the change means for expansion.",
+     "In 4(a) give each effect of training its own explanation."
+    ],
+    "questions": [
+     {
+      "q": "1(a)",
+      "topic": "Ways TT could grow",
+      "issue": "Weaker candidates explained the benefits of growth, such as more revenue, instead of how each way makes TT grow.",
+      "fix": "Explain the method itself, such as developing a new toy or taking over a toy maker abroad."
+     },
+     {
+      "q": "1(b)",
+      "topic": "Purchasing, technical and financial economies of scale",
+      "issue": "The most challenging question. Most could not link each economy to lower average cost, and said only that costs fall, though total costs rise with output.",
+      "fix": "Bulk discounts, faster specialised machines and cheaper borrowing each lower the cost per toy."
+     },
+     {
+      "q": "2(a)",
+      "topic": "Benefits of lean production",
+      "issue": "Many gave generic answers, with vague points on waste and continuous improvement. Some confused lean with flow production.",
+      "fix": "Explain how materials arriving just before production removes the need for storage space, and how staff ideas cut wasted movement."
+     },
+     {
+      "q": "2(b)",
+      "topic": "TT's financial position to expand",
+      "issue": "Weaker answers only said figures rose or fell. Some wrote ratios as money or used total assets and liabilities.",
+      "fix": "Calculate the current and acid test ratios for both years from current assets and current liabilities, then judge."
+     },
+     {
+      "q": "3(a)",
+      "topic": "How each chart in Appendix 1 helps TT",
+      "issue": "Weaker candidates read chart 3 as competitors rather than distribution channels, and chart 4's market share as selling shares. Some just restated the charts.",
+      "fix": "Say what decision each chart supports, such as which distribution channels to use."
+     },
+     {
+      "q": "3(b)",
+      "topic": "Choosing the best applicant",
+      "issue": "Many repeated the same point for each person. Many assumed more IGCSEs and A levels beat Shahin's degree.",
+      "fix": "Analyse how well each applicant fits the toy market, including any training cost, and end by choosing one and ruling out the others with reasons."
+     },
+     {
+      "q": "4(a)",
+      "topic": "Effects of training on a business",
+      "issue": "Some gave the same explanation, such as higher productivity, for several effects. Some wrote about effects on employees.",
+      "fix": "Give four distinct effects on the business, including costs such as lost output during training."
+     },
+     {
+      "q": "4(b)",
+      "topic": "Whether country Z should allow TT's factory",
+      "issue": "Only stronger candidates developed the benefits and drawbacks. A minority wrote about TT instead of country Z.",
+      "fix": "Develop each point for the country, such as tax from new jobs funding health and education, against pollution and local rivals."
+     }
+    ]
+   }
+  ],
+  "published": "2026-11-27"
+ },
+ {
+  "code": "2281",
+  "series": "s22",
+  "quote": {
+   "text": "A PPC shows the productive capacity rather than actual output",
+   "paper": "21"
+  },
+  "takeaways": [
+   "Production is total output; productivity is output per worker or per unit of a resource. On Paper 22 a high proportion mixed the two up, in 1(e), 2(c) and 5(d) among others.",
+   "In the data question, 1(f), give the overall relationship first, then evidence from the table, then the exception. On Paper 21 many just described each country's figures.",
+   "Choose your three Section B questions before you start, looking hardest at the (d) parts, which carry 8 marks each. On Paper 21 quite a few abandoned a question halfway through.",
+   "Answer the question set, not a nearby one: consumers rather than workers in Paper 21 1(h), supply-side measures rather than fiscal policy in 4(d), and the external value of a currency in Paper 22 4(b).",
+   "On multiple choice, the cost diagram caught many out on both Papers 11 and 12. Variable cost is the line that rises from zero output."
+  ],
+  "papers": [
+   {
+    "num": "1",
+    "title": "Multiple choice",
+    "variants": [
+     "11"
+    ],
+    "well": [
+     "Eleven questions, 2, 11, 15, 18, 19, 20, 25, 26, 27, 29 and 30, were answered correctly by 80 per cent or more of candidates."
+    ],
+    "mistakes": [
+     "Only Questions 7 and 21 were answered correctly by fewer than 50 per cent.",
+     "On Question 7, 49 per cent found the variable cost; the rest split across A, B and C at 18, 14 and 19 per cent.",
+     "On Question 21, 58 per cent chose B, where Y sits on a different curve, against 31 per cent for the key."
+    ],
+    "fix": [
+     "On a cost diagram, find fixed cost first: it is the flat line. Variable cost starts at zero and grows with output.",
+     "Unemployed resources put an economy inside its PPC. The curve itself only moves when capacity changes.",
+     "When options are diagrams, decide what the answer must look like before you look at A to D."
+    ],
+    "questions": [
+     {
+      "q": "7",
+      "topic": "Variable costs on a cost diagram at output S",
+      "issue": "49 per cent chose D, QS. 18 per cent chose A, PQ, which is the fixed cost, 14 per cent chose B, PS, which is the total cost, and 19 per cent chose C, QR.",
+      "fix": "Variable cost is zero when nothing is made, so it is the line rising from O. At output S its height is the distance QS."
+     },
+     {
+      "q": "21",
+      "topic": "Effect on the PPC position of a recession with 5% unemployment",
+      "issue": "Only 31 per cent chose A. 58 per cent chose B, where Y lies on another curve with every resource in use and X out of reach.",
+      "fix": "Going from full employment to 5% unemployment leaves some labour idle, so Y must sit inside the original curve. Nothing has destroyed the economy's capacity."
+     }
+    ]
+   },
+   {
+    "num": "1",
+    "title": "Multiple choice",
+    "variants": [
+     "12"
+    ],
+    "well": [
+     "Questions 1, 4, 11, 26 and 30 were answered correctly by 80 per cent or more of candidates."
+    ],
+    "mistakes": [
+     "Questions 3, 6, 9 and 16 were answered correctly by fewer than 40 per cent.",
+     "On Question 6, 53 per cent chose a fall in the good's own price as a cause of a shift in demand.",
+     "On Question 16, 55 per cent added health and education spending as if they were public goods."
+    ],
+    "fix": [
+     "A demand curve shifts only when something other than the good's own price changes.",
+     "Keep public goods, such as defence and law and order, apart from merit goods, such as health and education.",
+     "Bringing idle resources into use moves a point up to the PPC, never beyond it."
+    ],
+    "questions": [
+     {
+      "q": "3",
+      "topic": "What causes a move from point K to point L on a new, larger PPC",
+      "issue": "31 per cent chose C, more investment, and 31 per cent chose A, a change in what consumers want to buy. 29 per cent chose D, using previously unemployed resources.",
+      "fix": "The curve is the most the economy can make with all its resources. Changing tastes leave that untouched, and idle resources only bring K onto the old curve. More investment is the answer."
+     },
+     {
+      "q": "6",
+      "topic": "What shifts the demand curve for a good to the right",
+      "issue": "33 per cent chose B, a cheaper complement. 53 per cent chose D, a fall in the good's own price, mixing up a movement along the curve with a shift.",
+      "fix": "The good's own price moves you along its curve. A cheaper complement makes people want more of this good at every price, so the curve shifts right."
+     },
+     {
+      "q": "9",
+      "topic": "Variable costs on a cost diagram at output S",
+      "issue": "30 per cent chose D, QS. 35 per cent chose C, QR, and 25 per cent chose A, PQ, the fixed cost.",
+      "fix": "Total cost at S is PS and fixed cost is PQ. Take one from the other and QS is left, which is variable cost."
+     },
+     {
+      "q": "16",
+      "topic": "Total government spending on public goods from a chart",
+      "issue": "33 per cent chose C, $7440 million. 55 per cent chose D, $33 940 million, the total of health and education.",
+      "fix": "Only law and order ($5050 million) and defence ($2390 million) are public goods in the chart, making $7440 million. Health and education are usually classed as merit goods even when the state provides them."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Structured questions",
+    "variants": [
+     "21"
+    ],
+    "well": [
+     "Candidates generally made good use of the source material in Section A.",
+     "In 1(g), most showed they understood what moves a PPC left or right, and in 1(h) most knew what capital-intensive production means.",
+     "Many defined the foreign exchange rate correctly in 2(a), and most showed a good grasp of income tax and the inflation rate in 2(c).",
+     "Question 5(a) was well answered, with most giving wages and rent, and most drew an accurate fruit market diagram in 5(c)."
+    ],
+    "mistakes": [
+     "In 1(a), fewer than half worked out the number of births correctly.",
+     "In 1(f), the majority missed that the current account balances were given as a percentage of GDP, and many described the figures without finding the relationship.",
+     "Quite a few answered parts (a), (b) and sometimes (c) of a Section B question and then started another, presumably on finding they could not do part (d).",
+     "Question 2(b) was not well answered: candidates often explained why exports were more expensive than imports, not why their total value was higher.",
+     "In 4(d), many did not understand supply-side policies and wrote about fiscal and monetary policy instead.",
+     "Answers to 5(b) were poor, as many could not link a higher income to mobility of labour."
+    ],
+    "fix": [
+     "A 2 mark definition needs a precise meaning, nothing longer.",
+     "Read the command word: analyse may only need a chain of cause and effect, while discuss needs both sides.",
+     "If you do attempt all four Section B questions, do not cross any out. The examiner marks everything and counts your best three.",
+     "Spend a few minutes after Question 1 picking your three Section B questions."
+    ],
+    "questions": [
+     {
+      "q": "1(a)",
+      "topic": "Number of births in Cyprus in 2019",
+      "issue": "Fewer than half were right. Quite a few gave 10 200 by multiplying 10.2 by 1000, and quite a few divided by 100 instead of 1000.",
+      "fix": "Birth rate is births per 1000 people. So 1 200 000 times 10.2 divided by 1000 gives 12 240."
+     },
+     {
+      "q": "1(c)",
+      "topic": "Why the global market for grapes was in disequilibrium in 2019",
+      "issue": "It was common to copy out the source's two sentences in full, and some named the bad weather without saying why it caused disequilibrium.",
+      "fix": "Give the cause and its effect in your own words: bad weather ruined the harvest, so there was a shortage, with demand greater than supply."
+     },
+     {
+      "q": "1(e)",
+      "topic": "How a higher retirement age affects the government's budget",
+      "issue": "A small minority thought the government would pay out more in pensions or benefits. Others wrote about jobs for younger workers or spending on care for the elderly, which was not the question.",
+      "fix": "Stay with the budget. More people in work means more income tax and sales tax, and fewer retired people means less spent on pensions."
+     },
+     {
+      "q": "1(f)",
+      "topic": "Relationship between inflation rates and current account balances",
+      "issue": "Answers were weak overall. Many described each country's percentages and did not appear to see that a negative figure meant a deficit. Surprisingly, quite a few wrote about interest rates instead.",
+      "fix": "State the pattern: the higher the inflation rate, the bigger the current account deficit. Back it with Mongolia, highest inflation and largest deficit, and with Iceland and Slovenia, low inflation and a surplus. The scheme's exception is Cyprus: the lowest inflation rate but a current account deficit."
+     },
+     {
+      "q": "1(g)",
+      "topic": "Whether Cyprus's PPC is likely to shift right after 2019",
+      "issue": "Weaker answers discussed changes in production and the bad weather's effect on grapes, which shows confusion about what moves a PPC.",
+      "fix": "Look in the source for changes in resources. Emigrating entrepreneurs and poorer farmland push it left; more investment from lower interest rates and a larger workforce push it right."
+     },
+     {
+      "q": "2(b)",
+      "topic": "Two reasons why the value of exports may be greater than the value of imports",
+      "issue": "Candidates often explained why exports were dearer than imports. Weak answers argued that high inflation makes exports worth more.",
+      "fix": "Explain strong export sales, such as better quality or lower prices from low inflation or a weaker currency, or low imports, such as a recession at home or protection."
+     },
+     {
+      "q": "4(d)",
+      "topic": "Whether supply-side policy measures will reduce unemployment",
+      "issue": "Weak answers often wrote about fiscal and monetary policy, and some mentioned no supply-side measure at all. The case against was less well discussed.",
+      "fix": "Use measures such as education and training, or subsidies and grants to firms. Then argue they take time, and firms may keep a subsidy as profit or spend it on machinery."
+     },
+     {
+      "q": "5(b)",
+      "topic": "How a rise in a worker's income can affect mobility of labour",
+      "issue": "Some thought mobility meant working faster or enjoying the job more, and others only said workers would move to better paid jobs.",
+      "fix": "Link income to the ability to move. A worker can now afford to relocate, which raises geographical mobility, or pay for training, which raises occupational mobility."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Structured questions",
+    "variants": [
+     "22"
+    ],
+    "well": [
+     "Performance on Section A was generally strong, with some particularly strong answers to 1(g) and 1(h).",
+     "In Section B, a relatively high proportion of (c) answers impressed, linking points relevantly and in a clear order.",
+     "Question 2(c) was the strongest part of Section B, with most candidates doing well.",
+     "Candidates appeared to read the questions with care this session, so few misread them."
+    ],
+    "mistakes": [
+     "A high proportion confused productivity with production, for example in 1(e), 2(c) and 5(d).",
+     "A relatively high proportion could have scored more on the (d) parts by explaining their points and going into more depth.",
+     "In 1(f), the number who gave no evidence from Table 1.1 was disappointing.",
+     "Some wrote more than needed on the Section B (a) parts, and some repeated points in the (d) parts.",
+     "In 2(c), a number also analysed why lower unemployment might not be the main aim, which was not asked."
+    ],
+    "fix": [
+     "Give each Section B (d) part about twelve minutes and look at both sides using economic concepts.",
+     "If you add material at the end of the paper, label it with the full question number, such as 3(d).",
+     "When a question is about profit, follow both revenue and costs.",
+     "An analyse question wants a chain of reasons for one side only; save the other side for discuss."
+    ],
+    "questions": [
+     {
+      "q": "1(a)",
+      "topic": "Bhutan's GDP in 2018",
+      "issue": "A number lost track of the size of the population and multiplied by 0.8 instead of 0.8 million, giving $2600 rather than $2600m.",
+      "fix": "Carry the units through: 0.8 million people times $3250 GDP per head is $2600m, or $2.6bn. The scheme accepts the figure without the $ sign."
+     },
+     {
+      "q": "1(c)",
+      "topic": "Why Bhutan's 2018 budget is likely to have raised total demand",
+      "issue": "A number wrote about high government spending without weighing it against tax revenue.",
+      "fix": "Use the fact file: spending of $450m was above tax revenue of $380m, a budget deficit of $70m."
+     },
+     {
+      "q": "1(e)",
+      "topic": "How investment in capital goods and education can raise New Zealand's productivity",
+      "issue": "A number confused productivity with production and wrote only about more machines making more goods.",
+      "fix": "Talk about output per worker. New capital goods can carry better technology, and better skilled workers work faster, so each one produces more."
+     },
+     {
+      "q": "1(f)",
+      "topic": "Relationship between GDP per head and net migration",
+      "issue": "Some compared each country's GDP per head number with its net migration number, and a number used GDP instead of GDP per head.",
+      "fix": "Name the positive relationship, support it with figures from Table 1.1, such as New Zealand having the highest GDP per head and the highest net immigration, then give Kenya or Mozambique as the exception."
+     },
+     {
+      "q": "2(b)",
+      "topic": "Two functions a central bank performs for its government",
+      "issue": "A number confused a central bank with a commercial bank and wrote about lending to households and firms.",
+      "fix": "Pick work done for the government, such as acting as its banker, issuing notes and running monetary policy."
+     },
+     {
+      "q": "3(c)",
+      "topic": "Effect of higher incomes on the market for a luxury brand of perfume",
+      "issue": "Most drew an accurate diagram, but a small proportion labelled the axes as demand and supply or income, and a number swapped the labels on the demand and supply curves.",
+      "fix": "Label the axes price and quantity, label both original curves, shift demand to the right and mark both equilibrium points."
+     },
+     {
+      "q": "4(b)",
+      "topic": "Two reasons why a foreign exchange rate may depreciate",
+      "issue": "A number confused depreciation with appreciation, and even more wrote about a fall in the currency's internal value with no link to its external value.",
+      "fix": "Explain why demand for the currency falls or its supply rises, for example lower demand for the country's exports means less demand for its currency."
+     },
+     {
+      "q": "5(d)",
+      "topic": "Whether a firm will benefit from an increase in its output",
+      "issue": "Some just said revenue and profit would rise without looking at costs. A number who did look at costs said higher output must raise total cost and cut profit.",
+      "fix": "Compare revenue with cost, or average revenue with average cost. Bring in economies and diseconomies of scale, and the gap between what is made and what is sold."
+     }
+    ]
+   }
+  ],
+  "published": "2026-11-27"
+ },
+ {
+  "code": "0450",
+  "series": "m22",
+  "quote": {
+   "text": "mirror arguments are not allowed",
+   "paper": "12"
+  },
+  "takeaways": [
+   "Answer the question in front of you. On Paper 12 a significant number argued about whether a firm should help sustainable development at all in 1(e), and a number wrote about consumers in 2(e).",
+   "Use a different detail from the case for each point. On Paper 12, answers to 1(c) and 4(d) lost marks by repeating the same application.",
+   "Develop each point instead of adding new ones. On Paper 12 many repeated or swapped their knowledge point in 1(d), 2(d) and 3(e) where an explanation was needed.",
+   "A decision needs a reason and a comparison. On Paper 12 most who tried to evaluate could not support their choice, and on Paper 22 the better conclusions said why the other options were turned down.",
+   "Work the numbers from the case before you judge. On Paper 22 3(b), some treated a 50 per cent price rise as a doubling."
+  ],
+  "papers": [
+   {
+    "num": "1",
+    "title": "Short answer and data response",
+    "variants": [
+     "12"
+    ],
+    "well": [
+     "Many candidates showed good knowledge overall, and the (a) and (b) parts were generally well attempted.",
+     "Most were familiar with flow production in 1(d), and most showed good knowledge of stakeholder objectives in 1(c).",
+     "Question 3(b) on gross profit margin was well answered, and those who understood the business cycle in 3(a) generally scored full marks.",
+     "Question 4(c) on part-time employees was well answered, and there were many good answers to 4(d) on training."
+    ],
+    "mistakes": [
+     "Many lacked the precision needed for both marks on a definition.",
+     "Most attempts at evaluation gave a decision with no reasons behind it.",
+     "Some put analysis into (c) answers and application into (e) answers, which cost them time and earned nothing.",
+     "Most candidates found 1(e) the hardest question on the paper.",
+     "Question 4(e) was poorly answered, and evaluation there was rare."
+    ],
+    "fix": [
+     "Learn full definitions. The scheme gives 1 of the 2 marks for a partial one.",
+     "In (c) and (d) parts, hang each point on a different fact from the stem.",
+     "To evaluate, pick an answer, give the reason, and show why it beats the other option.",
+     "In (e) parts, explain each point one step further rather than listing extra points."
+    ],
+    "questions": [
+     {
+      "q": "1(b)",
+      "topic": "Definition of depreciation of an exchange rate",
+      "issue": "A common mistake was to say it is a fall in the exchange rate, which only repeats the term.",
+      "fix": "Say the currency's value falls against another currency. Saying only that it gets weaker earns 1 of the 2 marks."
+     },
+     {
+      "q": "1(e)",
+      "topic": "Whether renewable energy is the best way for a manufacturer to contribute to sustainable development",
+      "issue": "A significant number discussed whether a business should contribute at all, not the best way. Some made vague claims about higher or lower cost, and others confused it with efficiency or being ethical.",
+      "fix": "Compare renewable energy with other ways and say which cost you mean, such as a high set up cost or lower energy bills. The strongest answers also noted that the supply may be unreliable and hold up production."
+     },
+     {
+      "q": "2(a)",
+      "topic": "Identifying X and Y on a break-even chart",
+      "issue": "Most named X correctly, but many struggled with Y. Common wrong answers were variable costs for X and profit for Y.",
+      "fix": "X is total revenue. Y, the gap between the current level of output and break-even output, is the margin of safety."
+     },
+     {
+      "q": "3(c)",
+      "topic": "Difference between profit and cash for D2G",
+      "issue": "Only the strongest explained the difference, which full marks needed. A common misunderstanding was to treat revenue as if it were cash.",
+      "fix": "Show the timing gap: a learner may pay before the lessons, so cash comes in now, while the $2000 profit is only earned once the lessons are given."
+     },
+     {
+      "q": "3(d)",
+      "topic": "Two ways D2G might respond to more competition",
+      "issue": "Most struggled to develop their points. Some gave unsuitable ways or vague ideas such as better quality, and a small number wrote about raising sales or the effects of competition instead.",
+      "fix": "Say how each response works. Cutting prices makes lessons more affordable, and more advertising draws customers away from rivals."
+     },
+     {
+      "q": "3(e)",
+      "topic": "Whether leasing is the best source of finance for a small business's new vehicle",
+      "issue": "Many added knowledge points instead of analysis, and evaluation tended to repeat earlier points. Some assumed the business was leasing vehicles out to earn income.",
+      "fix": "The small business is the one paying to use the vehicle. Develop a point such as the leasing firm handling maintenance, which keeps costs down, then set it against another source."
+     },
+     {
+      "q": "4(a)",
+      "topic": "Definition of delegation",
+      "issue": "Many knew tasks are handed to a subordinate, but some did not know that authority is passed down too.",
+      "fix": "Delegation is giving a subordinate the authority to carry out a task. Handing over the task alone earns 1 mark."
+     },
+     {
+      "q": "4(e)",
+      "topic": "Whether a public limited company suits a growing business better than a private limited company",
+      "issue": "A common mistake was to turn one form's advantage round as the other's disadvantage. Many were vague about capital and control, others gave features both forms share, and a significant number thought the government owns or controls a public limited company.",
+      "fix": "Use real differences, such as selling shares to the public on the stock exchange against the risk of a takeover, and remember both are in the private sector."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Case study",
+    "variants": [
+     "22"
+    ],
+    "well": [
+     "The majority had been well prepared, with many high scoring scripts and very few weak ones.",
+     "Question 1(a) was well answered, with most giving four suitable ways to communicate with employees.",
+     "Candidates responded well to 3(a), and 3(b) was well answered by the majority, with good use of the case.",
+     "Many answered 4(a) on the two new legal controls well."
+    ],
+    "mistakes": [
+     "In 2(b), weaker answers explained why quality matters rather than how each way would improve it.",
+     "In 3(a), a large number treated the question as general, which held their marks down.",
+     "In 3(b), some took the price as doubling, or as $3000 per room, when working out option 2.",
+     "In 4(b), many forgot that the question was about cash flow.",
+     "In weaker answers the recommendation only restated earlier points and gave no reason for the choice."
+    ],
+    "fix": [
+     "Count what is asked for. When a question wants one advantage and one disadvantage, extra ones earn nothing.",
+     "Link each (a) explanation to MH, a hotel owned by a sole trader, using a different detail each time.",
+     "Close each (b) answer with a choice that fits the hotel and says why the other options lost.",
+     "When options carry figures, calculate them from the case before weighing them up."
+    ],
+    "questions": [
+     {
+      "q": "1(a)",
+      "topic": "Four methods a business could use to communicate with its employees",
+      "issue": "Weaker answers repeated the same explanation, such as allowing feedback, for different methods. Some gave no explanation of how the method would reach employees, and attempts to apply this general question often lost focus.",
+      "fix": "Give each method its own explanation of how it would be used to reach staff. This part was general, so no case detail is needed."
+     },
+     {
+      "q": "1(b)",
+      "topic": "Best way for MH to promote the hotel",
+      "issue": "Many weaker answers described the method, such as what the website should contain, rather than why it would promote the hotel.",
+      "fix": "For each method, explain how it would win bookings and what drawback it carries, then justify your choice against the other two."
+     },
+     {
+      "q": "2(a)",
+      "topic": "Advantage and disadvantage to Sadiq of delegating tasks",
+      "issue": "A minority answered from the employees' side or confused delegation with specialisation, and weaker responses listed several advantages and disadvantages.",
+      "fix": "Give one advantage to Sadiq, such as more time for important decisions, and one drawback, such as mistakes or training costs, each tied to a case fact like his 60 to 90 hour week."
+     },
+     {
+      "q": "2(b)",
+      "topic": "Which of three ways would best improve quality at MH",
+      "issue": "Weaker answers focused on why quality matters. Many thought cleaners checking their own work would simply do a worse job, and a minority took chefs sampling food to be a marketing method.",
+      "fix": "Explain how each way raises quality and what it costs. Better ingredients improve meals but cost more; chefs tasting food stops poor dishes reaching guests but uses time and food."
+     },
+     {
+      "q": "3(a)",
+      "topic": "Four advantages to Sadiq of changing to a partnership",
+      "issue": "Lack of application was the main reason for losing marks, as a large number answered it as a general question and so capped themselves at four.",
+      "fix": "Add a case link to each advantage, for example extra capital from a partner towards the $10 000 per room upgrade."
+     },
+     {
+      "q": "3(b)",
+      "topic": "Which of two options would raise MH's revenue",
+      "issue": "Some thought the price doubled rather than rose by 50 per cent, or took it as $3000 per room. Others assumed only 50 rooms would be redecorated, cut the option 1 price by $50, or mistook revenue for profit.",
+      "fix": "The current price is $3000 divided by 50 rooms, or $60. Option 1 gives 75 rooms at $50, $3750 a night. Option 2 gives 50 rooms at $90, $4500 a night, but upgrading all 80 rooms costs $800 000."
+     },
+     {
+      "q": "4(a)",
+      "topic": "How two new legal controls would affect MH",
+      "issue": "Weaker responses wrote generally about diners or the planet rather than how each control would affect the hotel.",
+      "fix": "Name the effect on MH: new menus cost money but may please guests with food allergies, and glass bottles cost more but help the hotel's green image."
+     },
+     {
+      "q": "4(b)",
+      "topic": "Most effective way for MH to improve its cash flow",
+      "issue": "Many discussed the three ways without linking them to cash flow. Trade credit was the least understood, with some thinking suppliers would stop supplying the hotel.",
+      "fix": "Follow each way through inflows and outflows. A loan brings cash now but repayments with interest later; a 20% deposit brings money in earlier; trade credit delays payments to suppliers."
+     }
+    ]
+   }
+  ],
+  "published": "2026-11-27"
+ },
+ {
+  "code": "0452",
+  "series": "w22",
+  "quote": {
+   "text": "Cash transactions will not be recorded in the purchase ledger",
+   "paper": "22"
+  },
+  "takeaways": [
+   "Practise posting from the books of prime entry into ledger accounts. On Paper 22, Question 4(a) drew significant numbers of blank or completely wrong answers.",
+   "In every advice question, weigh both options before you recommend. On Papers 22 and 23 some looked at one option only, which costs marks.",
+   "Read the figures for what they are. A $4100 credit balance in Paper 22 1(b) was an overdraft, and cash discount in Paper 23 3(d) was worked on the price after trade discount.",
+   "Show every working, and write clearly. Paper 23 says unreadable figures could not be credited, and working lets you earn marks when the answer is wrong.",
+   "Depreciation tripped people up on both the multiple choice and written papers, as did recovered debts on Paper 12 and the provision for doubtful debts on Papers 22 and 23. Learn the double entry for each."
+  ],
+  "papers": [
+   {
+    "num": "1",
+    "title": "Multiple choice",
+    "variants": [
+     "12"
+    ],
+    "well": [
+     "The vast majority knew in Question 7 that the discount column totals go to the discount accounts in the ledger, not the income statement.",
+     "Those with a good grasp of double entry and of financial statements for different organisations chose the key on many items."
+    ],
+    "mistakes": [
+     "On Question 5, expected to be fairly straightforward, many could not pick the item an invoice does not show.",
+     "On Question 13, many worked out the yearly depreciation from the purchase price alone.",
+     "On Question 16, a significant number credited the irrecoverable debts account when a written off debt was paid.",
+     "There was some uncertainty on Question 19, a prepaid expense, and Question 21, retained earnings."
+    ],
+    "fix": [
+     "Depreciate cost less residual value, not cost alone.",
+     "Money received for a debt already written off goes to a debts recovered account.",
+     "A prepayment lowers this year's expense, so it raises profit and appears as a current asset."
+    ],
+    "questions": [
+     {
+      "q": "5",
+      "topic": "What is not shown on an invoice",
+      "issue": "Many could not choose the key, B, the date payment was made.",
+      "fix": "An invoice shows the goods, any trade discount and the terms of payment. It is sent before the customer pays, so it cannot record when payment happened."
+     },
+     {
+      "q": "13",
+      "topic": "Accumulated straight-line depreciation at the end of year 2",
+      "issue": "Many based the yearly charge on the $35 000 purchase price only.",
+      "fix": "Take off the $5000 residual value first. $30 000 over five years is $6000 a year, so $12 000 after two years, option B."
+     },
+     {
+      "q": "16",
+      "topic": "Recording cash received for a debt written off as irrecoverable",
+      "issue": "A significant number chose a credit to the irrecoverable debts account, option A.",
+      "fix": "Debit cash and credit debts recovered, option B."
+     },
+     {
+      "q": "19",
+      "topic": "Effect of adjusting for prepaid advertising",
+      "issue": "There was a degree of uncertainty about how the adjustment changes the financial statements.",
+      "fix": "Part of the spending belongs to next year, so this year's expense falls. Profit for the year goes up and current assets go up, option B."
+     },
+     {
+      "q": "21",
+      "topic": "Retained earnings of a limited company",
+      "issue": "There was a degree of uncertainty about how to work out the missing figure.",
+      "fix": "Use A = L + C. Non-current assets of $35 000 and net current assets of $30 000 make $65 000. Share capital and debentures make $50 000, so retained earnings are $15 000, option A."
+     }
+    ]
+   },
+   {
+    "num": "1",
+    "title": "Multiple choice",
+    "variants": [
+     "13"
+    ],
+    "well": [],
+    "mistakes": [
+     "On Question 23, many appeared to be unsure how to find the retained earnings from the figures given."
+    ],
+    "fix": [
+     "When one figure in a company's statement of financial position is missing, find it from the accounting equation.",
+     "Read each item slowly and be sure what it asks before you choose."
+    ],
+    "questions": [
+     {
+      "q": "23",
+      "topic": "Retained earnings of a limited company",
+      "issue": "Many appeared uncertain how to calculate the figure.",
+      "fix": "Non-current assets plus net current assets give $65 000. That is financed by $40 000 of shares, $10 000 of debentures and retained earnings, which must therefore be $15 000, option A."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Structured questions",
+    "variants": [
+     "22"
+    ],
+    "well": [
+     "Standard statements such as the income statement, statement of financial position and cash book were well answered.",
+     "In 1(a), many still scored 8 or more of the 12 marks despite errors.",
+     "In 4(c), answers on reducing irrecoverable debts were generally of a high level.",
+     "In 5(c), the majority knew a debit balance on a partner's current account means the partner owes the partnership."
+    ],
+    "mistakes": [
+     "In 1(b), non-current assets and capital were included much too often, and treating the bank overdraft as a current asset was quite common.",
+     "In 2(a), answers on books of prime entry were generally quite weak, and half marks was a good outcome.",
+     "In 3(a), far too many entered cheques that were already in the cash book.",
+     "In 4(a) and 4(b) there were many blank or completely incorrect answers.",
+     "In 5(a), many multiplied total drawings by 3 per cent instead of working interest over the two periods."
+    ],
+    "fix": [
+     "A credit balance in a trial balance can only be revenue or a liability.",
+     "Practise posting from the cash book and sales journal into named ledger accounts, with dates.",
+     "Give a point for and against each option in advice questions, then recommend.",
+     "Start the appropriation account with the profit for the year and finish by sharing what is left in the agreed ratio."
+    ],
+    "questions": [
+     {
+      "q": "1(a)",
+      "topic": "Income statement of a sole trader with capital expenditure inside repairs",
+      "issue": "Common errors were leaving out carriage inwards, putting it after closing inventory or deducting it. Many worked out depreciation without first adding back the $4000 machinery attachment, which gave $4720.",
+      "fix": "Carriage inwards is added within cost of sales. Move the $4000 attachment out of repairs and into machinery before you calculate depreciation."
+     },
+     {
+      "q": "1(b)",
+      "topic": "Working capital at 31 August 2022",
+      "issue": "Non-current assets and capital were included much too often, and the $4100 bank balance was often treated as a current asset instead of an overdraft.",
+      "fix": "Current assets of $32 300 less current liabilities of $16 300, with the overdraft among the liabilities, gives $16 000."
+     },
+     {
+      "q": "1(c)",
+      "topic": "Advising BC whether to buy machinery on credit or with a loan",
+      "issue": "Very few noticed that BC's existing overdraft might stop him getting credit or a loan. Weaker answers looked only at the time each option allowed, or at one option alone.",
+      "fix": "The credit carries no interest but needs $6000 in 60 days; the loan costs 8% a year, which cuts profit. Either may be refused because of the overdraft."
+     },
+     {
+      "q": "2(c)",
+      "topic": "Purchases ledger control account for July 2022",
+      "issue": "A common error was including the $240 of cash purchases. Weaker answers reversed the bank and purchases entries or left out the contra, and descriptive labels lost marks.",
+      "fix": "Leave cash purchases out, since they never pass through the purchases ledger. Give each entry a date, an amount and a real account name, such as cash or interest charges."
+     },
+     {
+      "q": "3(a)",
+      "topic": "Updating MG's cash book",
+      "issue": "Far too many added the cheques from JW and TH, which had already been entered. Labels such as standing order and dishonoured cheque were also common.",
+      "fix": "Add only what the bank has done that is not yet in the cash book, named after the other account: rates, RJ and insurance."
+     },
+     {
+      "q": "3(e)",
+      "topic": "Differences between a direct debit and a standing order",
+      "issue": "This caused considerable difficulty, and incorrect answers wrote about electronic or debit card payments.",
+      "fix": "A standing order pays a fixed sum at fixed intervals on your instruction. A direct debit lets a named payee collect from your account, and the amounts and dates can vary."
+     },
+     {
+      "q": "4(a)",
+      "topic": "Posting entries from the cash book into five ledger accounts",
+      "issue": "There were significant examples of no response or completely incorrect answers. Entries were often reversed, left out or wrongly labelled, and the provision for doubtful debts and cash sales were often put in the trade receivables account.",
+      "fix": "Post each item to the opposite side of its own account, with the date and the other account's name. Keep the provision and cash sales out of trade receivables."
+     },
+     {
+      "q": "5(a)",
+      "topic": "Partnership appropriation account for Sian and Tom",
+      "issue": "Many multiplied total drawings by 3 per cent. A number reached a figure after salary and never shared it, and some shared it equally instead of 3:2.",
+      "fix": "Start with the $59 190 profit, add interest on each drawing for its own period, take off interest on capital and the salary, then split the remaining $25 000 in the ratio 3:2."
+     }
+    ]
+   },
+   {
+    "num": "2",
+    "title": "Structured questions",
+    "variants": [
+     "23"
+    ],
+    "well": [
+     "Most scored high marks on the petty cash book in 2(b).",
+     "In 1(a), most adjusted the expenses for accruals and prepayments correctly.",
+     "The majority worked out the trade discount correctly in 3(d), and many completed the discount table in 3(e) correctly.",
+     "In 5(a), many showed the correct entries to write off the debt."
+    ],
+    "mistakes": [
+     "Many advice answers looked at one side only and gave no balanced discussion.",
+     "In 1(a), many seemed unfamiliar with a service business and did not see it would have no sales.",
+     "In 3(d), many worked out the cash discount on the list price.",
+     "In 4(b), many left out the debentures and used the profit after interest.",
+     "Some handwriting was very hard to read, and figures written over others were often unreadable."
+    ],
+    "fix": [
+     "Write a changed figure clearly above or beside the old one, not on top of it.",
+     "Avoid abbreviations such as NP and GR.",
+     "A journal narrative should say why the entry was made, not repeat which account was debited.",
+     "In each advice question, give each option its own points before recommending."
+    ],
+    "questions": [
+     {
+      "q": "1(b)",
+      "topic": "Anika's capital account",
+      "issue": "Most entered the opening capital and drawings but left out the profit for the year. Weaker responses added non-current assets and expenses.",
+      "fix": "Credit the profit for the year to capital with the opening balance, debit the drawings, then balance and bring down."
+     },
+     {
+      "q": "1(d)",
+      "topic": "Capital and revenue expenditure and why the difference matters",
+      "issue": "A significant number thought capital expenditure was money spent from the owner's capital and revenue expenditure was money from revenue. Many gave no reason why the split matters, or only said profits will be wrong.",
+      "fix": "Capital expenditure is spent on non-current assets; revenue expenditure is on everyday running costs. Put capital spending in the income statement and profit and non-current assets are both understated."
+     },
+     {
+      "q": "2(e)",
+      "topic": "Three problems of inter-firm comparison",
+      "issue": "Many named three problems but wrote only a few words on each, and some kept to emotional issues.",
+      "fix": "Explain each problem, for example a business in another trade or of a different size will have different margins and assets, and the statements leave out things like location and staff skill."
+     },
+     {
+      "q": "3(b)",
+      "topic": "Insurance and commission receivable in the statement of financial position",
+      "issue": "Many believed the commission receivable was a current liability.",
+      "fix": "Insurance prepaid of $850 and commission owed to RB of $630 are both other receivables, so show them under current assets."
+     },
+     {
+      "q": "3(d)",
+      "topic": "Trade discount, cash discount and the amount paid to JP",
+      "issue": "The majority got the trade discount right, but many took the cash discount as a percentage of the list price.",
+      "fix": "Trade discount of 25% on $3000 is $750, leaving $2250. Cash discount is 2% of $2250, $45, so $2205 is paid."
+     },
+     {
+      "q": "4(b)",
+      "topic": "Return on closing capital employed",
+      "issue": "Many overlooked the $60 000 debentures and used the profit for the year after interest.",
+      "fix": "Use the $23 000 profit before debenture interest over your equity total plus the $60 000 debentures, times 100. The scheme's answer is 6.45%."
+     },
+     {
+      "q": "5(b)",
+      "topic": "Irrecoverable debts and the new provision in the income statement",
+      "issue": "Many took the debts written off away from closing trade receivables before working out the 5 per cent provision.",
+      "fix": "Show $4700 of irrecoverable debts as one line, $600 plus $4100. The provision is 5% of the $91 500 trade receivables, $4575."
+     },
+     {
+      "q": "5(e)",
+      "topic": "Advising NT whether to charge interest on overdue accounts or stop supplies",
+      "issue": "Some covered one option only. Where both were covered, the same point, such as customers going to other suppliers, was often used twice and earned one mark.",
+      "fix": "Give each option a point of its own: interest may push customers to pay on time and adds income, while stopping supplies may still leave overdue balances unpaid."
+     }
+    ]
+   }
+  ],
+  "published": "2026-11-27"
  }
 ]
