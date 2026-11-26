@@ -10,6 +10,26 @@ import { CITY_PAGES, cityPage } from "@/lib/city-pages";
 import { GULF_CITY_PAGES, GULF_SOURCES, GULF_ZONES, gulfCityPage, localDay, type GulfCityPage } from "@/lib/gulf-pages";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 import { DEFAULT_SCHEDULE, LEVEL_LABEL, span, type LevelKey } from "@/lib/timetable";
+import { VIDEO_REVIEWS } from "@/lib/reviews";
+import { VideoReviewCard } from "@/components/landing/Sections";
+
+/** Two video reviews (the homepage's), one O Level and one A Level, shown by the trial box. */
+function CityReviews() {
+  const pick = (levels: string[]) => VIDEO_REVIEWS.find((r) => r.kind === "video" && r.src && levels.includes(r.meta));
+  const videos = [pick(["O Level", "IGCSE"]), pick(["A Level", "AS Level", "A2 Level"])].filter((r) => !!r);
+  if (!videos.length) return null;
+  return (
+    <Section title="What my students say">
+      <ul className="grid grid-cols-2 gap-4 sm:max-w-[560px]">
+        {videos.map((r) => (
+          <li key={r.src} className="flex">
+            <VideoReviewCard r={r} tile="aspect-[9/16]" />
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+}
 
 /** The weekly blocks per level, from the standard timetable (same table as the online classes page). */
 function blocks() {
@@ -95,6 +115,8 @@ export default async function CityClassesPage({ params }: Props) {
 
         <TrialBox from={`city:${c.slug}`} title="Try one class. Then decide." body="Join a real class at your level, free, and see how it works before you decide." />
 
+        <CityReviews />
+
         <Section title="Questions">
           <FaqList items={faq} />
         </Section>
@@ -174,6 +196,8 @@ function GulfCity({ c }: { c: GulfCityPage }) {
         </Section>
 
         <TrialBox from={`city:${c.slug}`} title={c.trial.title} body={c.trial.body} />
+
+        <CityReviews />
 
         <p className="mt-12 text-lg leading-relaxed text-body">
           How the classes work, for every Gulf country, is on the{" "}

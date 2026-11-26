@@ -14,7 +14,8 @@ import { DIAGRAM_SETS } from "@/lib/econ-diagrams";
 import { FORMULA_SHEETS } from "@/lib/formula-sheets";
 import type { LevelName } from "@/lib/landing";
 import { PAST_PAPER_SYLLABI } from "@/lib/past-papers";
-import { SHOTS } from "@/lib/reviews";
+import { SHOTS, VIDEO_REVIEWS } from "@/lib/reviews";
+import { VideoReviewCard } from "@/components/landing/Sections";
 import { absolute, breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
 import {
   LEVEL_PAGES,
@@ -159,6 +160,12 @@ export default async function LevelTuitionPage({ params }: Props) {
     .map((src) => SHOTS.find((x) => x.src === src))
     .filter((x) => !!x)
     .filter((x) => (isA ? x.meta === "AS Level" || x.meta === "A2 Level" || x.meta === "A Level" : x.meta === "O Level" || x.meta === "IGCSE"));
+
+  // No subject review yet: show video reviews from students at this level (the same
+  // reviews as the homepage). The heading names the level only, never a subject.
+  const videos = shots.length
+    ? []
+    : VIDEO_REVIEWS.filter((r) => r.kind === "video" && r.src && (isA ? r.meta === "AS Level" || r.meta === "A2 Level" || r.meta === "A Level" : r.meta === "O Level" || r.meta === "IGCSE")).slice(0, 2);
 
   // Articles for this subject at this level, or naming one of this level's codes.
   const codes = syllabi.flatMap((x) => [x.code, ...(x.replaces ? [x.replaces] : [])]);
@@ -366,6 +373,18 @@ export default async function LevelTuitionPage({ params }: Props) {
           title="Try one class. Then decide."
           body={`Join a real ${levelLabel} ${s.subject} class, free, and see how lessons and tests work before you decide.`}
         />
+
+        {videos.length > 0 && (
+          <Section title={`What my ${levelLabel} students say`}>
+            <ul className="grid grid-cols-2 gap-4 sm:max-w-[560px]">
+              {videos.map((r) => (
+                <li key={r.src} className="flex">
+                  <VideoReviewCard r={r} tile="aspect-[9/16]" />
+                </li>
+              ))}
+            </ul>
+          </Section>
+        )}
 
         {shots.length > 0 && (
           <Section title={`From my ${levelLabel} ${s.subject} students`}>
