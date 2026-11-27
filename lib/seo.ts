@@ -20,6 +20,7 @@ export const fitTitle = (t: string) => (t.length + 16 <= 60 ? `${t} | Hamza Teac
 
 export const PUBLIC_ROUTES: Array<{ path: string; priority: number }> = [
   { path: "/", priority: 1 },
+  { path: "/about", priority: 0.6 },
   // /guides is hidden until the PDF pack launches (noindex on the page).
   { path: "/blog", priority: 0.7 },
   { path: "/tools/grade-predictor", priority: 0.6 },

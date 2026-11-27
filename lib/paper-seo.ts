@@ -11,9 +11,9 @@ import tags from "@/lib/past-paper-tags.json";
 import { allArticles, type Article } from "@/lib/blog";
 import {
   answerKey,
-  cieCode,
   paperNumbers,
   papersFor,
+  sessionKey,
   sessionLabel,
   sessionsFor,
   thresholdsFor,
@@ -33,17 +33,18 @@ const T = tags as unknown as Record<string, string[]>;
 export const timeText = (m: number) =>
   m < 60 ? `${m} minutes` : `${Math.floor(m / 60)} hour${m >= 120 ? "s" : ""}${m % 60 ? ` ${m % 60} minutes` : ""}`;
 
-/** Snippet length Google shows in full on most screens. */
-const MIN = 140;
+/** Longest snippet Google shows in full on most screens. */
 const MAX = 158;
 
 /** Written question numbers for a paper, in order (empty when the paper was never cut into questions). */
 const writtenNumbers = (p: Paper) => (M.w?.[p.key] ?? []).map(([n]) => n).sort((a, b) => a - b);
 
 /**
- * The meta description for one paper page. Opens with the paper's own facts
- * (the A grade mark for this exact paper, its length, its questions or marks),
- * then says what the page gives. 140 to 158 characters where the data allows.
+ * The meta description for one paper page. Opens with the exact paper, in the
+ * words students search ("9706 May/June 2025 Paper 22" and the file style
+ * "s25 qp 22, ms 22"), so no two papers share a snippet. Then the paper's own
+ * facts (the A grade mark for this paper, its length, its questions or marks)
+ * and what the page gives, while it fits in 140 to 158 characters.
  */
 export function paperDescription(s: PastPaperSyllabus, p: Paper): string {
   const t = thresholdsFor(p);
@@ -51,9 +52,13 @@ export function paperDescription(s: PastPaperSyllabus, p: Paper): string {
   const key = answerKey(p);
   const written = writtenNumbers(p);
   const count = key ? key.length : written.length;
+  const sk = sessionKey(p.session);
+
+  const name = `${s.code} ${sessionLabel(p.session)} Paper ${p.pv}`;
+  const file = `${sk} qp ${p.pv}${p.ms ? `, ms ${p.pv}` : ""}`;
 
   const facts: string[] = [];
-  if (a && t) facts.push(`A grade needed ${a[1]} out of ${t.max}.`);
+  if (a && t) facts.push(`A grade: ${a[1]} out of ${t.max}.`);
   const shape = [
     p.minutes ? timeText(p.minutes) : "",
     count ? `${count} question${count === 1 ? "" : "s"}` : "",
@@ -61,8 +66,17 @@ export function paperDescription(s: PastPaperSyllabus, p: Paper): string {
   ].filter(Boolean);
   if (shape.length) facts.push(`${shape.join(", ")}.`);
 
-  const close = p.ms ? "Question paper and mark scheme side by side, free." : "Question paper free to read online.";
-  const name = `${s.short} ${sessionLabel(p.session)}, Paper ${p.pv}`;
+  // Longest closing line that still fits.
+  const closes = p.ms
+    ? ["Question paper and mark scheme side by side, free.", "Paper and mark scheme free.", "Free."]
+    : ["Question paper free to read online.", "Free to read."];
+
+  const fits = (x: string) => x.length <= MAX;
+  // The paper's name always leads; the file style name and the facts follow while they fit.
+  let out = `${name} (${file}).`;
+  if (!fits(`${out} ${closes.at(-1)}`)) out = `${name}.`;
+  for (const f of facts) if (fits(`${out} ${f} ${closes.at(-1)}`)) out += ` ${f}`;
+  out += ` ${closes.find((c) => fits(`${out} ${c}`)) ?? closes.at(-1)}`;
 
   // Extras, best first; each is added only while the snippet still fits.
   const extras = [
@@ -72,16 +86,7 @@ export function paperDescription(s: PastPaperSyllabus, p: Paper): string {
     key ? "Practise timed, marked instantly." : t ? "Practise timed and see your grade." : "",
     "No ads.",
   ].filter(Boolean);
-
-  // With few facts, name the paper first so the snippet still says what it is.
-  const parts = facts.length >= 2 ? [...facts, close] : [`${name}.`, ...facts, close];
-  let out = parts.join(" ");
-  if (out.length > MAX && facts.length) out = [...facts, close].join(" ");
-  for (const e of extras) if (out.length + 1 + e.length <= MAX) out += ` ${e}`;
-  if (out.length < MIN && !out.includes(name)) {
-    const named = `${out} ${cieCode(p)}.`;
-    if (named.length <= MAX) out = named;
-  }
+  for (const e of extras) if (fits(`${out} ${e}`)) out += ` ${e}`;
   return out;
 }
 

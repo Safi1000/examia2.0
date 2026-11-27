@@ -5,11 +5,12 @@ import { Logo } from "@/components/Brand";
 const linkCls =
   "inline-flex min-h-11 items-center text-base text-muted-foreground transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold";
 
-// Three links, one row: the footer stays calm (the header keeps only Login and the free trial). The other free pages are reached from Free tools,
+// Four links, one row: the footer stays calm (the header keeps only Login and the free trial). The other free pages are reached from Free tools,
 // from each other, and from the links at the foot of every study page.
 const LINKS: Array<{ label: string; href: string; external?: boolean }> = [
   { label: "Past papers", href: "/past-papers" },
   { label: "Free tools", href: "/tools" },
+  { label: "About", href: "/about" },
   { label: "@hamzateaches", href: LANDING.instagram, external: true },
 ];
 

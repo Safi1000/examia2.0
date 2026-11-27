@@ -401,7 +401,7 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
           </p>
         </section>
 
-        <RelatedLinks links={[...syllabusLinks(p.code, ["thresholds"]), { href: "/private-candidates", label: "Retaking as a private candidate? Registration guides" }]} max={10} />
+        <RelatedLinks links={[...syllabusLinks(p.code, ["thresholds"]), { href: "/private-candidates/pakistan", label: "Retaking as a private candidate? Registration guide" }]} max={10} />
 
         <Section title="Other syllabuses">
           <ul className="pc-surface divide-y divide-hairline overflow-hidden rounded-card">

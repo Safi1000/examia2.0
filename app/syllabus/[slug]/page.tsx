@@ -229,7 +229,7 @@ export default async function SyllabusPage({ params }: Props) {
               ...syllabusLinks(s.code, ["checklist", "thresholds", "tool"]),
               ...syllabusLinks(s.code, ["papers", "topical", "checklist", "thresholds"]),
               ...[edexcelLink(s.code)].filter((l) => l !== null),
-              { href: "/private-candidates", label: "Sitting as a private candidate? Registration guides" },
+              { href: "/private-candidates/pakistan", label: "Sitting as a private candidate? Registration guide" },
               { href: "/tools/revision-planner", label: "Revision planner" },
             ]}
             max={10}
