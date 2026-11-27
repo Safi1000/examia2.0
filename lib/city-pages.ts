@@ -8,7 +8,9 @@
 export interface CityPage {
   slug: string;
   city: string;
-  /** For the <title> and h1. */
+  /** The <title>: subject words plus "teacher" or "tutor", the words people type with a city. */
+  seoTitle: string;
+  /** The h1. */
   heading: string;
   description: string;
   intro: string;
@@ -20,11 +22,12 @@ export const CITY_PAGES: CityPage[] = [
   {
     slug: "karachi",
     city: "Karachi",
-    heading: "O Level and A Level Accounting, Business and Economics classes for Karachi students",
+    seoTitle: "O and A Level Accounting, Business, Economics Teacher in Karachi",
+    heading: "Online O Level and A Level Accounting, Business and Economics teacher for Karachi students",
     description:
-      "Live online O Level, IGCSE, AS and A Level Accounting, Business and Economics classes for Karachi students, in the evening after school. Free trial lesson.",
+      "Online O Level, IGCSE, AS and A Level Accounting, Business and Economics teacher for Karachi students: live evening classes after school. Free trial lesson.",
     intro:
-      "Karachi students usually choose between a coaching centre across town and studying alone from past papers. These classes are a third option: a small live class at home in the evening, with every lesson recorded and every weekly test marked by me.",
+      "Karachi students usually choose between a coaching centre across town and studying alone from past papers. These classes are a third option: a live online class at home in the evening, with every lesson recorded and every weekly test marked by me.",
     local: [
       {
         title: "No evening commute",
@@ -53,9 +56,10 @@ export const CITY_PAGES: CityPage[] = [
   {
     slug: "lahore",
     city: "Lahore",
-    heading: "O Level and A Level Accounting, Business and Economics classes for Lahore students",
+    seoTitle: "O and A Level Accounting, Business, Economics Teacher in Lahore",
+    heading: "Online O Level and A Level Accounting, Business and Economics teacher for Lahore students",
     description:
-      "Live online O Level, IGCSE, AS and A Level Accounting, Business and Economics classes for Lahore students, recorded lessons, weekly tests. Free trial lesson.",
+      "Online O Level, IGCSE, AS and A Level Accounting, Business and Economics teacher for Lahore students: live classes, recordings, weekly tests. Free trial lesson.",
     intro:
       "Lahore has no shortage of academies, which makes it hard to tell who will actually fix your written answers. These classes are live, and every weekly test is marked by me with feedback on the exact mistakes that cost you marks.",
     local: [
@@ -86,9 +90,10 @@ export const CITY_PAGES: CityPage[] = [
   {
     slug: "islamabad-rawalpindi",
     city: "Islamabad and Rawalpindi",
-    heading: "O Level and A Level Accounting, Business and Economics classes in Islamabad and Rawalpindi",
+    seoTitle: "O and A Level Accounting, Business, Economics Tutor in Islamabad",
+    heading: "O Level and A Level Accounting, Business and Economics teacher in Islamabad and Rawalpindi",
     description:
-      "Live online O Level, IGCSE, AS and A Level Accounting, Business and Economics classes from Rawalpindi, for Islamabad and Rawalpindi students. Free trial lesson.",
+      "O Level, IGCSE, AS and A Level Accounting, Business and Economics tutor in Rawalpindi: live online classes for Islamabad and Rawalpindi students. Free trial lesson.",
     intro:
       "I teach from Rawalpindi. Students across Islamabad and Rawalpindi join the same live online classes as students in the rest of Pakistan and the Gulf, in the evening after school.",
     local: [
@@ -108,7 +113,7 @@ export const CITY_PAGES: CityPage[] = [
     faq: [
       {
         q: "Can I attend in person in Rawalpindi?",
-        a: "Classes are online only. That keeps the groups small and lets every lesson be recorded.",
+        a: "Classes run live online, and every lesson is recorded.",
       },
       {
         q: "Who is this for?",

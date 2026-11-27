@@ -96,7 +96,7 @@ export const SUBJECT_PAGES: SubjectInfo[] = [
     subject: "Business",
     seoTitle: "Business Tuition: O Level, IGCSE, A Level",
     seoDescription:
-      "Small live Business classes on Google Meet: O Level 7081 (was 7115), IGCSE 0264 (was 0450), AS and A Level 9609. Cambridge and Edexcel. Free trial lesson.",
+      "Live Business classes on Google Meet: O Level 7081 (was 7115), IGCSE 0264 (was 0450), AS and A Level 9609. Cambridge and Edexcel. Free trial lesson.",
     h1: "Business tuition for O Level, IGCSE and A Level",
     intro:
       "How a firm actually reaches a decision, and how to build the argument the mark scheme rewards on the long case study questions.",
@@ -244,55 +244,55 @@ export const LEVEL_PAGES: LevelPageInfo[] = [
     subjectSlug: "accounting",
     slug: "o-level-igcse",
     name: "O Level and IGCSE",
-    seoTitle: "Online O Level and IGCSE Accounting Tuition",
+    seoTitle: "Online O Level and IGCSE Accounting Tutor (7707, 0452)",
     seoDescription:
-      "Live O Level Accounting 7707 and IGCSE Accounting 0452 classes with me on Google Meet, Monday to Friday, with a weekly marked test. Book a free trial lesson.",
-    h1: "O Level and IGCSE Accounting tuition",
+      "Live O Level Accounting 7707 and IGCSE Accounting 0452 tuition with me, an ACCA Affiliate teacher, on Google Meet, Monday to Friday. Book a free trial lesson.",
+    h1: "Your O Level and IGCSE Accounting teacher",
   },
   {
     subjectSlug: "accounting",
     slug: "a-level",
     name: "A Level",
-    seoTitle: "Online A Level Accounting Tuition: AS and A2",
+    seoTitle: "Online A Level Accounting Tutor (9706): AS and A2",
     seoDescription:
-      "Live AS and A Level Accounting 9706 classes on Google Meet: separate AS and A2 groups, Monday to Friday, with weekly marked tests. Book a free trial lesson.",
-    h1: "A Level Accounting tuition, AS and A2",
+      "Live AS and A Level Accounting 9706 tuition on Google Meet: separate AS and A2 groups, Monday to Friday, with weekly marked tests. Book a free trial lesson.",
+    h1: "Your A Level Accounting teacher, AS and A2",
   },
   {
     subjectSlug: "business",
     slug: "o-level-igcse",
     name: "O Level and IGCSE",
-    seoTitle: "Online O Level and IGCSE Business Tuition",
+    seoTitle: "Online O Level and IGCSE Business Tutor (7081, 0264)",
     seoDescription:
-      "Live O Level Business 7081 (was 7115) and IGCSE Business 0264 (was 0450) classes on Google Meet, Monday to Friday, weekly tests. Book a free trial lesson.",
-    h1: "O Level and IGCSE Business tuition",
+      "Live O Level Business 7081 (was 7115) and IGCSE Business 0264 (was 0450) tuition on Google Meet, Monday to Friday, weekly tests. Book a free trial lesson.",
+    h1: "Your O Level and IGCSE Business teacher",
   },
   {
     subjectSlug: "business",
     slug: "a-level",
     name: "A Level",
-    seoTitle: "Online A Level Business Tuition: AS and A2",
+    seoTitle: "Online A Level Business Tutor (9609): AS and A2",
     seoDescription:
-      "Live AS and A Level Business 9609 classes on Google Meet: separate AS and A2 groups, Monday to Friday, with weekly marked tests. Book a free trial lesson.",
-    h1: "A Level Business tuition, AS and A2",
+      "Live AS and A Level Business 9609 tuition on Google Meet: separate AS and A2 groups, Monday to Friday, with weekly marked tests. Book a free trial lesson.",
+    h1: "Your A Level Business teacher, AS and A2",
   },
   {
     subjectSlug: "economics",
     slug: "o-level-igcse",
     name: "O Level and IGCSE",
-    seoTitle: "Online O Level and IGCSE Economics Tuition",
+    seoTitle: "Online O Level and IGCSE Economics Tutor (2281, 0455)",
     seoDescription:
-      "Live O Level Economics 2281 and IGCSE Economics 0455 classes with me on Google Meet, Monday to Friday, with a weekly marked test. Book a free trial lesson.",
-    h1: "O Level and IGCSE Economics tuition",
+      "Live O Level Economics 2281 and IGCSE Economics 0455 tuition with me on Google Meet, Monday to Friday, with a weekly marked test. Book a free trial lesson.",
+    h1: "Your O Level and IGCSE Economics teacher",
   },
   {
     subjectSlug: "economics",
     slug: "a-level",
     name: "A Level",
-    seoTitle: "Online A Level Economics Tuition: AS and A2",
+    seoTitle: "Online A Level Economics Tutor (9708): AS and A2",
     seoDescription:
-      "Live AS and A Level Economics 9708 classes on Google Meet: separate AS and A2 groups, Monday to Friday, with weekly marked tests. Book a free trial lesson.",
-    h1: "A Level Economics tuition, AS and A2",
+      "Live AS and A Level Economics 9708 tuition on Google Meet: separate AS and A2 groups, Monday to Friday, with weekly marked tests. Book a free trial lesson.",
+    h1: "Your A Level Economics teacher, AS and A2",
   },
 ];
 

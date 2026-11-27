@@ -6,6 +6,7 @@ import { MarketingShell, FaqList } from "@/components/landing/MarketingShell";
 import "@/components/landing/public-calm.css";
 import { Crumbs, Section, Table, TrialBox } from "@/components/study/StudyBits";
 import { RelatedLinks } from "@/components/study/RelatedLinks";
+import { LEVEL_PAGES, levelPath } from "@/lib/subjects";
 import { CITY_PAGES, cityPage } from "@/lib/city-pages";
 import { GULF_CITY_PAGES, GULF_SOURCES, GULF_ZONES, gulfCityPage, localDay, type GulfCityPage } from "@/lib/gulf-pages";
 import { breadcrumbLd, faqLd, fitTitle } from "@/lib/seo";
@@ -80,7 +81,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const c = cityPage(slug) ?? gulfCityPage(slug);
   if (!c) return {};
   const url = `/online-classes/${c.slug}`;
-  const title = `O Level and A Level Classes in ${c.city}`;
+  const title = cityPage(slug)?.seoTitle ?? `O Level and A Level Classes in ${c.city}`;
   return {
     title: fitTitle(title),
     description: c.description,
@@ -151,7 +152,9 @@ export default async function CityClassesPage({ params }: Props) {
 
         <OtherPlaces current={c.slug} />
 
-        <RelatedLinks links={[
+        <RelatedLinks max={12} links={[
+            ...LEVEL_PAGES.map((p) => ({ href: levelPath(p.subjectSlug, p.slug), label: `${p.name} ${p.subjectSlug[0].toUpperCase()}${p.subjectSlug.slice(1)} tutor` })),
+            { href: "/private-candidates/pakistan", label: "Private candidates in Pakistan: registration guide" },
             { href: "/past-papers", label: "Past papers with mark schemes" },
             { href: "/past-papers/topics", label: "Past paper questions by topic" },
             { href: "/syllabus", label: "Cambridge syllabus checklists" },

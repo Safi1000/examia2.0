@@ -52,7 +52,7 @@ export function ArticleCta({
         Want this to finally click?
       </h2>
       <p className="mt-3 max-w-[52ch] text-lg leading-relaxed text-muted-foreground">
-        Small live classes online, every lesson recorded the same night, and weekly tests I mark
+        Live classes online, every lesson recorded the same night, and weekly tests I mark
         myself. Start with one free lesson.
       </p>
       <div className="mt-7 flex flex-col gap-3 sm:flex-row">

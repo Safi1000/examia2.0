@@ -86,7 +86,12 @@ export default async function PaperPage({ params }: Props) {
   const report = reportForPaper(p);
   // The newest real change behind this page: the paper data, or the examiner report notes shown on it.
   const updated = [PAPERS_UPDATED, ...(report && report.mistakes.length > 0 ? [report.published] : [])].sort().at(-1)!;
-  const related = [...syllabusLinks(s.code, ["tool", "report"]), ...articles, ...syllabusLinks(s.code).filter((l) => l.href.startsWith("/tools/"))];
+  const related = [
+    ...syllabusLinks(s.code, ["tool", "report", "tuition", "sheet", "diagrams"]),
+    ...articles,
+    ...syllabusLinks(s.code, ["papers", "topical", "checklist", "thresholds", "tuition", "report"]),
+    ...syllabusLinks(s.code, ["papers", "topical", "checklist", "thresholds", "report", "sheet", "diagrams", "tool"]),
+  ];
   const levelWord = s.level === "AS and A Level" ? "Cambridge International AS and A Level" : `Cambridge ${s.level}`;
   const topA = t?.grades.find(([g]) => g === "A");
   const about = [
@@ -292,7 +297,7 @@ export default async function PaperPage({ params }: Props) {
           </section>
         )}
 
-        <RelatedLinks small links={related} className="mt-12 max-w-[70ch]" />
+        <RelatedLinks small links={related} max={10} className="mt-12 max-w-[70ch]" />
 
         <div className="mx-auto max-w-4xl">
           <TrialBox

@@ -5,7 +5,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { MarketingShell } from "@/components/landing/MarketingShell";
 import { ChecklistProvider, Progress, Rate } from "@/components/syllabus/Checklist";
 import { Crumbs, TrialBox } from "@/components/study/StudyBits";
-import { RelatedLinks, syllabusLinks } from "@/components/study/RelatedLinks";
+import { edexcelLink, RelatedLinks, syllabusLinks } from "@/components/study/RelatedLinks";
 import { WaitlistBox } from "@/components/tools/WaitlistBox";
 import { articleSlugs, getArticle } from "@/lib/blog";
 import { breadcrumbLd, fitTitle } from "@/lib/seo";
@@ -228,8 +228,11 @@ export default async function SyllabusPage({ params }: Props) {
             links={[
               ...syllabusLinks(s.code, ["checklist", "thresholds", "tool"]),
               ...syllabusLinks(s.code, ["papers", "topical", "checklist", "thresholds"]),
+              ...[edexcelLink(s.code)].filter((l) => l !== null),
+              { href: "/private-candidates", label: "Sitting as a private candidate? Registration guides" },
               { href: "/tools/revision-planner", label: "Revision planner" },
             ]}
+            max={10}
           />
 
           <TrialBox

@@ -122,7 +122,7 @@ export default async function TuitionPage({ params }: Props) {
 
         <h1 className="mt-8 max-w-[22ch] text-balance text-title leading-[1.1] sm:text-title-lg md:text-5xl md:leading-[1.08]">{keep(s.h1)}</h1>
         <p className="mt-5 max-w-[56ch] text-pretty text-lg leading-relaxed text-muted-foreground">
-          Small live classes with me on Google Meet, a test every week that I mark myself, and every class recorded for {RECORDING_HOURS} hours.
+          Live classes with me on Google Meet, a test every week that I mark myself, and every class recorded for {RECORDING_HOURS} hours.
         </p>
         <div data-hero-cta className="mt-8">
           <BookButton from={`tuition:${s.slug}`} subject={s.subject} className={gold}>
@@ -146,7 +146,7 @@ export default async function TuitionPage({ params }: Props) {
             ))}
           </dl>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            Monday to Friday, Pakistan time. Small live groups on Google Meet, cameras on.
+            Monday to Friday, Pakistan time. Live classes on Google Meet, cameras on.
           </p>
         </section>
 

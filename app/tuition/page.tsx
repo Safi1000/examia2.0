@@ -62,7 +62,7 @@ export default function TuitionHub() {
           {keep("Accounting, Business and Economics tuition")}
         </h1>
         <p className="mt-5 max-w-[56ch] text-pretty text-lg leading-relaxed text-muted-foreground">
-          Small live classes with me on Google Meet, a test every week that I mark myself, and every class recorded for {RECORDING_HOURS} hours.
+          Live classes with me on Google Meet, a test every week that I mark myself, and every class recorded for {RECORDING_HOURS} hours.
           Cambridge and Pearson Edexcel.
         </p>
         <div data-hero-cta className="mt-8">

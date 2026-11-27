@@ -6,12 +6,10 @@ import { JsonLd } from "@/components/JsonLd";
 import { BookButton } from "@/components/landing/BookingModal";
 import { FaqList, MarketingShell } from "@/components/landing/MarketingShell";
 import "@/components/landing/public-calm.css";
-import { syllabusLinks } from "@/components/study/RelatedLinks";
+import { edexcelLink, syllabusLinks } from "@/components/study/RelatedLinks";
 import { Crumbs, Section, TrialBox } from "@/components/study/StudyBits";
 import { allArticles } from "@/lib/blog";
 import { COMPANY_NAME } from "@/lib/config";
-import { DIAGRAM_SETS } from "@/lib/econ-diagrams";
-import { FORMULA_SHEETS } from "@/lib/formula-sheets";
 import type { LevelName } from "@/lib/landing";
 import { PAST_PAPER_SYLLABI } from "@/lib/past-papers";
 import { SHOTS, VIDEO_REVIEWS } from "@/lib/reviews";
@@ -108,8 +106,8 @@ function extraLinks(syl: SyllabusInfo): Array<{ href: string; label: string }> {
   const pp = PAST_PAPER_SYLLABI.find((p) => p.code === syl.code || p.next?.code === syl.code);
   const out: Array<{ href: string; label: string }> = [];
   if (pp && hasTopical(pp.code)) out.push({ href: `/past-papers/${pp.slug}/most-repeated-topics`, label: `${pp.name} most repeated topics` });
-  if (FORMULA_SHEETS.some((f) => f.slug === syl.slug)) out.push({ href: `/tools/formula-sheet/${syl.slug}`, label: `${syl.name} formula sheet` });
-  if (DIAGRAM_SETS.some((d) => d.code === syl.code)) out.push({ href: `/tools/economics-diagrams/${syl.slug}`, label: `${syl.name} diagrams` });
+  const edx = edexcelLink(syl.code);
+  if (edx) out.push(edx);
   return out;
 }
 
@@ -280,7 +278,7 @@ export default async function LevelTuitionPage({ params }: Props) {
               ))}
           </dl>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            Monday to Friday, Pakistan time. Small live groups on Google Meet, cameras on. Studying in the Gulf? See the{" "}
+            Monday to Friday, Pakistan time. Live classes on Google Meet, cameras on. Studying in the Gulf? See the{" "}
             <Link href="/online-classes/gulf" className={quietLink}>
               class times in your time zone
             </Link>
@@ -418,7 +416,7 @@ export default async function LevelTuitionPage({ params }: Props) {
             {syllabi.map((x) => (
               <nav key={x.code} aria-label={`${x.name} resources`}>
                 <h3 className="text-sm font-semibold text-muted-foreground">{x.name}</h3>
-                <LinkRows label={`${x.name} resources`} links={[...syllabusLinks(x.code), ...extraLinks(x)]} />
+                <LinkRows label={`${x.name} resources`} links={[...syllabusLinks(x.code, ["tuition"]), ...extraLinks(x)]} />
               </nav>
             ))}
             {articles.length > 0 && (

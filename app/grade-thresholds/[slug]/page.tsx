@@ -385,7 +385,7 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
           subject={p.subject}
           level={levelName}
           title="Know the target. Now reach it."
-          body="Small live classes online, weekly tests I mark myself, and the exam technique that turns a 7-mark answer into an 11. Start with one free lesson."
+          body="Live classes online, weekly tests I mark myself, and the exam technique that turns a 7-mark answer into an 11. Start with one free lesson."
         />
 
         <Section title="Questions students ask">
@@ -401,7 +401,7 @@ export default async function ThresholdSyllabusPage({ params }: Props) {
           </p>
         </section>
 
-        <RelatedLinks links={syllabusLinks(p.code, ["thresholds"])} />
+        <RelatedLinks links={[...syllabusLinks(p.code, ["thresholds"]), { href: "/private-candidates", label: "Retaking as a private candidate? Registration guides" }]} max={10} />
 
         <Section title="Other syllabuses">
           <ul className="pc-surface divide-y divide-hairline overflow-hidden rounded-card">
