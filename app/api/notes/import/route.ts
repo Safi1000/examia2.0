@@ -85,7 +85,11 @@ async function planOne(sb: SupabaseClient, level: NoteLevel, subject: NoteSubjec
     if (isHidden(n.fileType)) return false;
     if (book && slot) {
       const m = matchChapter(book, n.title, n.fileName);
-      return !!m && slotOf(m) === slot;
+      if (!m || slotOf(m) !== slot) return false;
+      // A chapter can hold several notes with their own names ("3.1.5 · Statement of cash flows",
+      // "3.1.5 · Limited company financial statements"): only a note with the same name is the same note.
+      if (pinnedNumber(rawTitle) && pinnedNumber(n.title)) return plain(n.title) === plain(rawTitle);
+      return true;
     }
     return plain(n.title) === plain(rawTitle) || plain(n.fileName) === plain(fileName || rawTitle);
   });
