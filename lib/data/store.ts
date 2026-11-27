@@ -3191,8 +3191,10 @@ class Store {
     const id = genId();
     const sentAt = new Date().toISOString();
     this.commit((d) => {
-      if (d.remindersSent.some((r) => r.studentId === studentId && r.kind === kind && r.ref === ref)) return;
-      d.remindersSent.push({ id, studentId, kind, ref, sentAt });
+      // Logged again: the server's upsert moves sent_at, so the copy here does too.
+      const had = d.remindersSent.find((r) => r.studentId === studentId && r.kind === kind && r.ref === ref);
+      if (had) had.sentAt = sentAt;
+      else d.remindersSent.push({ id, studentId, kind, ref, sentAt });
     });
     this.run(
       supabase().from("reminders_sent").upsert(
@@ -3201,6 +3203,14 @@ class Store {
       ),
       "markReminderSent",
     );
+  }
+  /** Undo one log row (a message logged by mistake, a skip, a mute). Matched on its unique key, not the id. */
+  unmarkReminderSent(studentId: string, kind: string, ref: string) {
+    if (!this.ownerOnly()) return;
+    this.commit((d) => {
+      d.remindersSent = d.remindersSent.filter((r) => !(r.studentId === studentId && r.kind === kind && r.ref === ref));
+    });
+    this.run(supabase().from("reminders_sent").delete().eq("student_id", studentId).eq("kind", kind).eq("ref", ref), "unmarkReminderSent");
   }
 
   // ---- Monthly reports --------------------------------------------------

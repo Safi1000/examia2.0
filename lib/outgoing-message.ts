@@ -11,13 +11,6 @@ import { displayName, firstName } from "@/lib/display-name";
  * the guard swaps in the plain check-in for that audience.
  */
 
-/** A small, stable number from text (no randomness, so render stays pure). */
-function hash(text: string): number {
-  let h = 0;
-  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) >>> 0;
-  return h;
-}
-
 const BAD_VALUE = /^(undefined|null|nan|invalid date)$/i;
 
 /** A value fit to go into a sentence, or "" when it is missing or broken. */
@@ -59,6 +52,13 @@ export function joinAnd(items: string[]): string {
  */
 export const low = (value: unknown) => clean(value).toLowerCase();
 
+/** A subject in the texting style, keeping a level as written ("AS Economics" → "AS economics"). */
+export const lowSubject = (value: unknown) =>
+  clean(value)
+    .split(" ")
+    .map((w) => (/^(AS|A2|IGCSE|O)$/.test(w) ? w : w.toLowerCase()))
+    .join(" ");
+
 /** First letter upper case (the bell note keeps normal capitals). */
 export const cap = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
@@ -68,18 +68,30 @@ export const titled = (title: unknown, fallback: string) => {
   return t ? `"${t}"` : fallback;
 };
 
-/** "hi Amelia," / "assalamualaikum Amelia," / "hello Amelia," (no name: "hi,"), stable per student and message kind. */
-export function studentHello(seed: string, name: string): string {
-  const word = ["hi", "assalamualaikum", "hello"][hash(`s|${seed}`) % 3];
-  return name ? `${word} ${name},` : `${word},`;
+/*
+ * Greetings (Hamza, 27 Nov 2026: "less AI"). The first two messages ever to a
+ * person say who Hamza is, once, naturally; after that it is a normal text with
+ * no introduction, no sign-off and no rotating set phrases. Whether a message
+ * is one of the first two comes from the log (introNeeded in lib/sent-log.ts).
+ */
+
+/** "hi Amelia," or, in the first two messages, "hi Amelia, it's Hamza." (no name: "hi,"). */
+export function studentHello(name: string, intro = false): string {
+  const hi = name ? `hi ${name},` : "hi,";
+  return intro ? `${hi} it's Hamza.` : hi;
 }
 
-/** One of three parent openings, stable per student and message kind. */
-export function parentHello(seed: string): string {
-  return ["assalamualaikum.", "assalamualaikum, this is Hamza.", "hello, this is Hamza from Hamza Teaches."][hash(`p|${seed}`) % 3];
+/**
+ * "assalamualaikum." or, in the first two messages, "assalamualaikum, this is
+ * Hamza, Amelia's economics teacher." (the subject only when the message is about one).
+ */
+export function parentHello(name: string, intro = false, subject = ""): string {
+  if (!intro) return "assalamualaikum.";
+  const s = lowSubject(subject);
+  return `assalamualaikum, this is Hamza, ${name ? `${name}'s` : "your child's"} ${s ? `${s} ` : ""}teacher.`;
 }
 
-/** Hamza's sign-off under every parent message. */
+/** Hamza's sign-off, only under the first two messages to a parent. */
 export const PARENT_SIGN = "\n\nHamza";
 
 /** Puts a link above the sign-off (or at the end when there is none). */
@@ -90,10 +102,10 @@ export function withLink(text: string, link: string): string {
 }
 
 /** The plain, always-safe check-in each audience falls back to (its one short question is the point of it). */
-export function checkIn(audience: "student" | "parent", seed: string, name: string): string {
+export function checkIn(audience: "student" | "parent", name: string, intro = false): string {
   return audience === "student"
-    ? `${studentHello(seed, name)} how are things going with your studies?`
-    : `${parentHello(seed)} how is ${name || "your child"} finding the classes from your side?${PARENT_SIGN}`;
+    ? `${studentHello(name, intro)} how are your classes going?`
+    : `${parentHello(name, intro)} how is ${name || "your child"} finding the classes?${intro ? PARENT_SIGN : ""}`;
 }
 
 const tidy = (text: string) =>

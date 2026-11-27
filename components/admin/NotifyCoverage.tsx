@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Card } from "@/components/ui";
 import { useAdminFilter } from "@/lib/admin-filter";
-import { useDatabase } from "@/lib/data/store";
+import { useDatabase, useStore } from "@/lib/data/store";
+import { introNeeded, logMessage } from "@/lib/sent-log";
 import { archivedCohortIds } from "@/lib/data/selectors";
 import { DEMO } from "@/lib/demo";
 import { displayName, isTestAccount } from "@/lib/display-name";
@@ -17,6 +18,7 @@ import { supabase } from "@/lib/supabase";
  */
 export function NotifyCoverage() {
   const db = useDatabase();
+  const store = useStore();
   const { cohortId } = useAdminFilter();
   const [on, setOn] = useState<Set<string> | null>(null);
   const [open, setOpen] = useState(false);
@@ -72,7 +74,9 @@ export function NotifyCoverage() {
         <ul className="mt-4 divide-y divide-hairline">
           {missing.map((s) => {
             const number = s.phone ?? s.whatsapp;
-            const text = s.phone ? studentNotifications({ id: s.id, username: s.username }) : parentNotifications({ id: s.id, username: s.username });
+            const text = s.phone
+              ? studentNotifications({ id: s.id, username: s.username, intro: introNeeded(db, s.id, "student") })
+              : parentNotifications({ id: s.id, username: s.username, intro: introNeeded(db, s.id, "parent") });
             return (
               <li key={s.id} className="flex min-h-11 flex-wrap items-center justify-between gap-2 py-1.5 text-sm">
                 <span className="text-base font-semibold text-ink">{displayName(s.username)}</span>
@@ -81,6 +85,7 @@ export function NotifyCoverage() {
                     href={`https://wa.me/${waDigits(number)}?text=${encodeURIComponent(text)}`}
                     target="_blank"
                     rel="noreferrer"
+                    onClick={() => logMessage(store, s.id, s.phone ? "student" : "parent", "notifications")}
                     className="inline-flex min-h-11 items-center font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline"
                   >
                     Remind on WhatsApp{s.phone ? "" : " (parent)"}

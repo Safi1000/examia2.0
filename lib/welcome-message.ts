@@ -36,7 +36,7 @@ export function welcomeMessage({ username, password }: { username: string; passw
 
 /** Their username changed; the password didn't, so it isn't sent again. */
 export function usernameMessage({ username }: { username: string; password?: string }) {
-  const hi = studentHello(`${username}|username`, messageName(username));
+  const hi = studentHello(messageName(username));
   const text = [
     `${hi} i've changed your portal username.`,
     "",
@@ -51,7 +51,7 @@ export function usernameMessage({ username }: { username: string; password?: str
 
 /** Shorter message for a password reset. */
 export function resetMessage({ username, password }: { username: string; password: string }) {
-  const hi = studentHello(`${username}|reset`, messageName(username));
+  const hi = studentHello(messageName(username));
   const text = [
     `${hi} here's your new portal password.`,
     "",

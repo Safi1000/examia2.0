@@ -10,6 +10,7 @@ import { archivedCohortIds, canBeSwept } from "@/lib/data/selectors";
 import { isInPersonStudent } from "@/lib/in-person";
 import { useIsStaff } from "@/lib/staff";
 import { studentClassStarted } from "@/lib/portal-messages";
+import { introNeeded, logMessage } from "@/lib/sent-log";
 import { usePausedIds } from "@/lib/paused";
 import { awayUntilMap } from "@/lib/reminders";
 import { displayName, isTestAccount } from "@/lib/display-name";
@@ -439,10 +440,10 @@ export default function ClassesPage() {
                             <span className="text-sm text-ink-3">Not here yet:</span>
                             {notYet.map((w) => {
                               const href = w.phone
-                                ? `https://wa.me/${w.phone.replace(/\D/g, "")}?text=${encodeURIComponent(studentClassStarted({ id: w.id, username: w.username, subject: s.subject }))}`
+                                ? `https://wa.me/${w.phone.replace(/\D/g, "")}?text=${encodeURIComponent(studentClassStarted({ id: w.id, username: w.username, intro: introNeeded(db, w.id, "student"), subject: s.subject }))}`
                                 : null;
                               return href ? (
-                                <a key={w.id} href={href} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center rounded-full border border-border-strong px-3 text-sm font-semibold text-ink transition-colors hover:border-ink-3 hover:bg-surface-2 max-md:min-h-11">
+                                <a key={w.id} href={href} target="_blank" rel="noopener noreferrer" onClick={() => logMessage(portal, w.id, "student", "class_started")} className="inline-flex min-h-9 items-center rounded-full border border-border-strong px-3 text-sm font-semibold text-ink transition-colors hover:border-ink-3 hover:bg-surface-2 max-md:min-h-11">
                                   Remind {displayName(w.username)}
                                 </a>
                               ) : (

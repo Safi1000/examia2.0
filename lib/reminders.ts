@@ -1,12 +1,16 @@
 import type { Database } from "@/lib/data/seed";
 import type { Student } from "@/types";
-import { absenceStreak, archivedCohortIds, countedDays, extensionFor, isArchivedTest, liveStatus, startedMs, testCoversStudent } from "@/lib/data/selectors";
+import { archivedCohortIds, extensionFor, isArchivedTest, liveStatus, startedMs, testCoversStudent } from "@/lib/data/selectors";
 import { displayName, isTestAccount } from "@/lib/display-name";
 import { isPausedId } from "@/lib/paused";
-import { parentAbsent, parentLowScore, parentMissedTest, parentReport } from "@/lib/portal-messages";
+import { parentLowScore, parentMissedTest, parentReport, parentSubjectAbsent } from "@/lib/portal-messages";
 import { inPersonIds } from "@/lib/in-person";
 import { awardedMarks, isFullyGraded, percent, totalMarks } from "@/lib/scoring";
-import { pkDate } from "@/lib/timetable";
+import { addDays, pkDate } from "@/lib/timetable";
+import type { ClassJoin } from "@/lib/classes";
+import { attendingSubjects, awaySpells, classDay, missedStreaks, subjectAttendance, subjectNamer } from "@/lib/subject-attendance";
+import { introNeeded, MSG_PARENT, SKIP_PREFIX } from "@/lib/sent-log";
+import { joinAnd } from "@/lib/outgoing-message";
 
 /** Results under this percentage are worth a word with the parents. */
 export const LOW_SCORE = 70;
@@ -90,8 +94,14 @@ export function awayUntilMap(db: Pick<Database, "remindersSent">): Map<string, s
 /** Most important first: only one of these is shown for a student at a time. */
 const PRIORITY: ReminderKind[] = ["absent_streak", "missed_test", "low_score"];
 
-export function dueReminders(db: Database, nowMs: number, cohortId: string | null): Reminder[] {
-  const sent = new Set(db.remindersSent.map((r) => `${r.studentId}|${r.kind}|${r.ref}`));
+/**
+ * `classes`: the class joins (lib/classes useClassLinks with joins) covering
+ * the last few weeks. Without them, or when they could not be read, no
+ * absence is offered (a failed read must never make someone look absent).
+ */
+export function dueReminders(db: Database, nowMs: number, cohortId: string | null, classes?: { joins: ClassJoin[]; joinsOk: boolean }): Reminder[] {
+  // A skipped reminder ("skip:<kind>", same ref) never comes back, like a sent one.
+  const sent = new Set(db.remindersSent.map((r) => `${r.studentId}|${r.kind.startsWith(SKIP_PREFIX) ? r.kind.slice(SKIP_PREFIX.length) : r.kind}|${r.ref}`));
   // Past students (switched-off cohorts) are never chased.
   const off = archivedCohortIds(db);
   // In-person students are managed in class: no parent messages or monthly reports from here.
@@ -107,9 +117,12 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
   const OPEN = CLOSES_AFTER_DAYS * DAY;
 
   // A parent who heard from Hamza in the last week (from here, or Today's Parent button) is left alone: one message, then quiet.
+  // Only messages about how the student is doing count: a login, a notifications how-to, a test
+  // closing or a report sent from the student's page never hides these.
+  const aboutThem = (r: { kind: string; ref: string }) => r.kind === MSG_PARENT && /^(absence|update|check_in):/.test(r.ref);
   const told = new Set(
     db.remindersSent
-      .filter((r) => (PRIORITY.includes(r.kind as ReminderKind) || r.kind === CONTACT_PARENT) && nowMs - new Date(r.sentAt).getTime() <= COOL_OFF_DAYS * DAY)
+      .filter((r) => (PRIORITY.includes(r.kind as ReminderKind) || r.kind === CONTACT_PARENT || aboutThem(r)) && nowMs - new Date(r.sentAt).getTime() <= COOL_OFF_DAYS * DAY)
       .map((r) => r.studentId),
   );
   // At most one reminder per student from the three below, the most important one.
@@ -120,21 +133,53 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
     if (!had || PRIORITY.indexOf(r.kind) < PRIORITY.indexOf(had.kind)) one.set(r.student.id, r);
   };
 
-  // 1. Absent two or more classes in a row, and still current: the latest absence is within the week.
-  for (const student of students) {
-    const streak = absenceStreak(db, student.id);
-    if (streak < 2) continue;
-    // Only days from joining on count (a wrong old mark never reaches a parent).
-    const last = countedDays(db, student.id)
-      .filter((a) => a.status === "absent")
-      .sort((a, b) => b.date.localeCompare(a.date))[0];
-    if (last && nowMs - new Date(`${last.date}T12:00:00+05:00`).getTime() > OPEN) continue;
+  // 1. Missed the last two or more classes in ONE subject, in a row, even while coming to the
+  // others (Hamza, 27 Nov 2026), and still current: the latest miss is within the week.
+  // Per subject from the Join taps (lib/subject-attendance.ts). Offered once per spell:
+  // the ref is the subject and the first missed day of the run.
+  const attendance = classes?.joinsOk ? subjectAttendance(db, { joins: classes.joins, joinsOk: true, nowMs }) : null;
+  const spells = awaySpells(db);
+  // Absence spells already sent, marked done or skipped, by student and subject: the days they started on.
+  const dealt = new Map<string, string[]>();
+  for (const r of db.remindersSent) {
+    if (r.kind !== "absent_streak" && r.kind !== `${SKIP_PREFIX}absent_streak`) continue;
+    const m = /^(.+):(\d{4}-\d{2}-\d{2})$/.exec(r.ref);
+    if (m) dealt.set(`${r.studentId}|${m[1]}`, [...(dealt.get(`${r.studentId}|${m[1]}`) ?? []), m[2]]);
+  }
+  for (const student of attendance ? students : []) {
+    // Three weeks: the same window Today loads the joins for (a day with no joins loaded would look missed).
+    const list = attendance!(student, addDays(today, -21), today);
+    const runs = missedStreaks(list, spells.get(student.id)?.until ?? "")
+      .filter((x) => x.missed.length >= 2 && nowMs - x.missed[0].startMs <= OPEN)
+      // The same spell, already dealt with (its start day can move as the window moves, or another subject can lead): not again.
+      .filter((x) => !(dealt.get(`${student.id}|${x.subjectId}`) ?? []).some((d) => d >= x.missed[x.missed.length - 1].date && d <= x.missed[0].date));
+    const top = runs[0];
+    if (!top) continue;
+    const named = subjectNamer(list);
+    const missedNames = runs.map(named);
+    const fine = attendingSubjects(list, missedNames);
+    const others = runs.slice(1);
+    const first = top.missed[top.missed.length - 1];
+    const n = top.missed.length;
+    const intro = introNeeded(db, student.id, "parent");
     offer({
       kind: "absent_streak",
       student,
-      ref: last?.date ?? String(streak),
-      label: `${displayName(student.username)} has been absent ${streak} classes in a row`,
-      message: parentAbsent({ id: student.id, username: student.username, streak }),
+      ref: `${top.subjectId}:${first.date}`,
+      label: `${displayName(student.username)} has missed the last ${n} ${named(top)} classes${others.length ? ` (and ${joinAnd(others.map(named))} too)` : ""}`,
+      message: others.length
+        ? // Several subjects at once: name them all, without days (they differ by subject).
+          parentSubjectAbsent({ id: student.id, username: student.username, intro, subject: joinAnd(missedNames), missed: Math.min(...runs.map((x) => x.missed.length)), days: [], fine })
+        : parentSubjectAbsent({
+            id: student.id,
+            username: student.username,
+            intro,
+            subject: named(top),
+            missed: n,
+            // Up to three days, oldest first; a longer run just says how many.
+            days: n <= 3 ? top.missed.map(classDay).reverse() : [],
+            fine,
+          }),
     });
   }
 
@@ -163,7 +208,7 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
       student,
       ref: test.id,
       label: `${displayName(student.username)} did not sit "${test.title}"${missed.length > 1 ? ` (and ${missed.length - 1} more this week)` : ""}`,
-      message: parentMissedTest({ id: student.id, username: student.username, title: test.title, subject: test.subject }),
+      message: parentMissedTest({ id: student.id, username: student.username, intro: introNeeded(db, student.id, "parent"), title: test.title, subject: test.subject }),
     });
   }
 
@@ -198,7 +243,7 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
       student,
       ref: latest.subId,
       label: `${displayName(student.username)} scored ${Math.round(latest.pct)}% in "${latest.title}"${serious ? "" : `, ${list.length === 2 ? "the second" : `number ${list.length}`} low result this month`}`,
-      message: parentLowScore({ id: student.id, username: student.username, pct: latest.pct, title: latest.title, subject: latest.subject }),
+      message: parentLowScore({ id: student.id, username: student.username, intro: introNeeded(db, student.id, "parent"), pct: latest.pct, title: latest.title, subject: latest.subject }),
     });
   }
 
@@ -222,7 +267,7 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
       student,
       ref: `${lastMonth}-01`,
       label: `${monthName(lastMonth)} report for ${displayName(student.username)}`,
-      message: parentReport({ id: student.id, username: student.username, month: monthName(lastMonth) }),
+      message: parentReport({ id: student.id, username: student.username, intro: introNeeded(db, student.id, "parent"), month: monthName(lastMonth) }),
     };
     if (fresh(r)) out.push(r);
   }

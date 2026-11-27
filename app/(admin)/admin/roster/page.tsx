@@ -18,6 +18,7 @@ import { squareThumbnail } from "@/lib/image";
 import { BulkBar, ConfirmBulk, NameList, OneByOne, RowCheck, SelectAll, copyText, downloadCsv, outcome, plural, waLink, type BulkAction, type Step } from "@/components/admin/BulkBar";
 import { useSelection } from "@/lib/use-selection";
 import { parentNotifications, studentCheckIn, studentNotifications } from "@/lib/portal-messages";
+import { introNeeded } from "@/lib/sent-log";
 import { uploadImage } from "@/lib/cloudinary";
 import { RowMenu } from "@/components/admin/RowMenu";
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -107,7 +108,7 @@ export default function RosterPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // The just-added student's login, for the ready-made welcome message.
-  const [sent, setSent] = useState<{ username: string; password: string; phone?: string; parent?: string; kind?: "welcome" | "reset" | "username" } | null>(null);
+  const [sent, setSent] = useState<{ id?: string; username: string; password: string; phone?: string; parent?: string; kind?: "welcome" | "reset" | "username" } | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
   const [bulk, setBulk] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
@@ -339,12 +340,14 @@ export default function RosterPage() {
         msgKind === "blank"
           ? undefined
           : msgKind === "checkin"
-            ? studentCheckIn({ id: s.id, username: s.username })
+            ? studentCheckIn({ id: s.id, username: s.username, intro: introNeeded(db, s.id, "student") })
             : msgTo === "parent"
-              ? parentNotifications({ id: s.id, username: s.username })
-              : studentNotifications({ id: s.id, username: s.username });
+              ? parentNotifications({ id: s.id, username: s.username, intro: introNeeded(db, s.id, "parent") })
+              : studentNotifications({ id: s.id, username: s.username, intro: introNeeded(db, s.id, "student") });
       const href = waLink(to, message);
       return {
+        // A blank chat is not a pre-written message: nothing to log.
+        log: message ? { studentId: s.id, audience: msgTo === "parent" ? ("parent" as const) : ("student" as const), what: msgKind === "checkin" ? "check_in" : "notifications" } : undefined,
         id: s.id,
         name: displayName(s.username),
         detail: `${msgTo === "parent" ? "Parent" : "Student"}${to ? ` · ${to}` : ""}`,
@@ -527,15 +530,15 @@ export default function RosterPage() {
         const id = await store.addStudent(fields);
         if (form.inPerson) store.setInPerson(id, true);
         // Straight into the ready-made message with their login.
-        setSent({ username: fields.username, password: fields.tempPassword, phone: fields.phone, parent: fields.whatsapp });
+        setSent({ id, username: fields.username, password: fields.tempPassword, phone: fields.phone, parent: fields.whatsapp });
       } else if (editing) {
         // An emptied box is sent as an empty value, not left out, so removing a
         // number, the photo or the email really saves (the store writes it as empty).
         await store.updateStudent(editing.id, { ...fields, email: fields.email ?? "", whatsapp, phone, photoUrl: form.photoUrl || "" });
         store.setInPerson(editing.id, form.inPerson);
         // A new password: send it. Only a new username: send just that, the password stays.
-        if (fields.tempPassword) setSent({ username: fields.username, password: fields.tempPassword, phone: fields.phone, parent: fields.whatsapp, kind: "reset" });
-        else if (editing.username !== fields.username) setSent({ username: fields.username, password: "", phone: fields.phone, parent: fields.whatsapp, kind: "username" });
+        if (fields.tempPassword) setSent({ id: editing.id, username: fields.username, password: fields.tempPassword, phone: fields.phone, parent: fields.whatsapp, kind: "reset" });
+        else if (editing.username !== fields.username) setSent({ id: editing.id, username: fields.username, password: "", phone: fields.phone, parent: fields.whatsapp, kind: "username" });
         else toast("Student updated. Their login hasn't changed.", "success");
       }
       if (fields.levelSubjects && store.levelsSaveFailed) toast("Saved, but the subjects for each level didn't save. Open the student and save again.", "error");
@@ -544,7 +547,7 @@ export default function RosterPage() {
       if (err instanceof StudentLinksError) {
         // The account exists: show its login (the password is never shown again), and say what didn't save.
         if (form.inPerson) store.setInPerson(err.studentId, true);
-        setSent({ username: fields.username, password: fields.tempPassword, phone: fields.phone, parent: fields.whatsapp });
+        setSent({ id: err.studentId, username: fields.username, password: fields.tempPassword, phone: fields.phone, parent: fields.whatsapp });
         setEditing(null);
         toast(err.message, "error");
         return;
@@ -559,7 +562,7 @@ export default function RosterPage() {
     <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       {bulk && !staff && <ImportStudents open onClose={() => setBulk(false)} defaultCohort={cohortId ?? db.cohorts.find((c) => c.active)?.id ?? ""} />}
       {sent && (
-        <LoginDetails open kind={sent.kind ?? "welcome"} onClose={() => setSent(null)} username={sent.username} password={sent.password} phone={sent.phone} parent={sent.parent} />
+        <LoginDetails open studentId={sent.id} kind={sent.kind ?? "welcome"} onClose={() => setSent(null)} username={sent.username} password={sent.password} phone={sent.phone} parent={sent.parent} />
       )}
       <PageHeader
         title="Roster"

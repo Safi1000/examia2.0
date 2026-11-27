@@ -11,6 +11,8 @@ import type { Database } from "@/lib/data/seed";
 import { archivedCohortIds, eligibleStudents, liveStatus } from "@/lib/data/selectors";
 import { displayName, isTestAccount } from "@/lib/display-name";
 import { studentMissedTest, studentTestClosing } from "@/lib/portal-messages";
+import { logMessage, sentCount } from "@/lib/sent-log";
+import { useStore } from "@/lib/data/store";
 import { waDigits } from "@/lib/phone";
 import { formatRelative } from "@/lib/time";
 
@@ -416,6 +418,8 @@ export type Step = {
   /** Where "Open" goes. Missing = this one is skipped, with `missing` as the reason. */
   href?: string | null;
   missing?: string;
+  /** A pre-written message to a student or parent: logged when it is opened (lib/sent-log.ts). */
+  log?: { studentId: string; audience: "parent" | "student"; what: string };
 };
 
 /**
@@ -442,6 +446,7 @@ export function OneByOne({
 }) {
   const open = !!run;
   const all = run ?? NO_STEPS;
+  const store = useStore();
   const [i, setI] = useState(0);
   const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
   // A new run starts at the first person.
@@ -472,7 +477,9 @@ export function OneByOne({
   );
 
   function markOpened() {
-    if (s) setOpened((o) => new Set(o).add(s.id));
+    if (!s) return;
+    setOpened((o) => new Set(o).add(s.id));
+    if (s.log) logMessage(store, s.log.studentId, s.log.audience, s.log.what);
   }
 
   return (
@@ -591,17 +598,23 @@ export const waLink = (phone: string | null | undefined, text?: string) =>
 export function chaseSteps(db: Database, tests: Test[], nowMs: number): Step[] {
   const off = archivedCohortIds(db);
   const out: Step[] = [];
+  // Messages earlier in this run count too: a student owing two tests is introduced at most in their first two.
+  const queued = new Map<string, number>();
   for (const t of tests) {
     if (t.status === "draft") continue;
     const handed = new Set(db.submissions.filter((x) => x.testId === t.id && x.status !== "in_progress").map((x) => x.studentId));
     const open = liveStatus(t, nowMs) === "active";
     for (const s of eligibleStudents(db, t)) {
       if (handed.has(s.id) || off.has(s.cohortId) || isTestAccount(s)) continue;
+      const before = queued.get(s.id) ?? 0;
+      queued.set(s.id, before + 1);
+      const intro = sentCount(db, s.id, "student") + before < 2;
       const message = open
-        ? studentTestClosing({ id: s.id, username: s.username, title: t.title, when: formatRelative(t.closesAt, nowMs) })
-        : studentMissedTest({ id: s.id, username: s.username, title: t.title });
+        ? studentTestClosing({ id: s.id, username: s.username, intro, title: t.title, when: formatRelative(t.closesAt, nowMs) })
+        : studentMissedTest({ id: s.id, username: s.username, intro, title: t.title });
       const href = waLink(s.phone, message);
       out.push({
+        log: { studentId: s.id, audience: "student", what: open ? "test_closing" : "missed_test" },
         id: `${t.id}|${s.id}`,
         name: displayName(s.username),
         detail: `${t.title}${s.phone ? ` · ${s.phone}` : ""}`,

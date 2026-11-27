@@ -24,6 +24,10 @@ import { waDigits } from "@/lib/phone";
 import { displayName } from "@/lib/display-name";
 import { guardMessage, withLink } from "@/lib/outgoing-message";
 import { parentReport } from "@/lib/portal-messages";
+import { introNeeded, logMessage } from "@/lib/sent-log";
+import { addDays, pkDate, useClassLinks } from "@/lib/classes";
+import { usePausedIds } from "@/lib/paused";
+import { classDay, subjectAttendance, subjectSummary } from "@/lib/subject-attendance";
 import { notesConfigured, uploadNote } from "@/lib/cloudinary";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import { LineChart, type LinePoint } from "@/components/charts/LineChart";
@@ -82,6 +86,17 @@ function StudentDetail() {
   const [refreshing, setRefreshing] = useState<string | null>(null);
   const [allHomework, setAllHomework] = useState(false);
   const reportNow = useNow();
+  // Attendance by subject, the last 4 weeks, from the Join taps (lib/subject-attendance.ts).
+  const todayPk = pkDate(reportNow);
+  const attFrom = addDays(todayPk, -27);
+  const { joins: attJoins, joinsOk: attOk } = useClassLinks(attFrom, todayPk, true, false);
+  const pausedIds = usePausedIds();
+  const bySubject = useMemo(() => {
+    // Paused: which days fell inside the pause isn't known, so nothing is shown rather than false misses.
+    // In-person students have no Joins: they keep the per-level figure above.
+    if (!student || !attOk || pausedIds.has(student.id) || isInPersonStudent(db, student)) return null;
+    return subjectSummary(subjectAttendance(db, { joins: attJoins, joinsOk: true, nowMs: reportNow })(student, attFrom, todayPk));
+  }, [db, student, attOk, attJoins, pausedIds, reportNow, attFrom, todayPk]);
 
   // Landing here from the roster's WhatsApp button (?report=1) opens the report
   // dialog straight away, so only then fetch the PDF renderer early (it's large).
@@ -196,11 +211,14 @@ function StudentDetail() {
     if (!student?.whatsapp) return;
     setSending(true);
     const tab = openLater();
+    // Worked out before the report is stamped as sent (that stamp counts as a message).
+    const intro = introNeeded(db, student.id, "parent");
     try {
       const link = await publishReport();
       if (!link) return tab.cancel();
-      const text = guardMessage(withLink(reportMessage(), link), withLink(parentReport({ id: student.id, username: student.username }), link), [link]);
+      const text = guardMessage(withLink(reportMessage(intro), link), withLink(parentReport({ id: student.id, username: student.username, intro }), link), [link]);
       tab.go(`https://wa.me/${waDigits(student.whatsapp)}?text=${encodeURIComponent(text)}`);
+      logMessage(store, student.id, "parent", "report");
       setReportOpen(false);
       toast(linkLasts(), "success");
     } catch (err) {
@@ -249,12 +267,14 @@ function StudentDetail() {
     if (!student?.whatsapp) return;
     setRefreshing(reportId);
     const tab = openLater();
+    const intro = introNeeded(db, student.id, "parent");
     try {
       const record = await store.freshReportLink(reportId);
       const link = `${window.location.origin}/reports/${record.token}`;
-      const message = parentReport({ id: student.id, username: student.username, month: formatMonthLabel(month.slice(0, 7)) });
-      const text = guardMessage(withLink(message, link), withLink(parentReport({ id: student.id, username: student.username }), link), [link]);
+      const message = parentReport({ id: student.id, username: student.username, intro, month: formatMonthLabel(month.slice(0, 7)) });
+      const text = guardMessage(withLink(message, link), withLink(parentReport({ id: student.id, username: student.username, intro }), link), [link]);
       tab.go(`https://wa.me/${waDigits(student.whatsapp)}?text=${encodeURIComponent(text)}`);
+      logMessage(store, student.id, "parent", "report");
       toast(linkLasts(), "success");
     } catch (err) {
       tab.cancel();
@@ -264,9 +284,9 @@ function StudentDetail() {
     }
   }
 
-  function reportMessage() {
+  function reportMessage(intro: boolean) {
     const month = reportMonth || data?.months[data.months.length - 1] || "";
-    return parentReport({ id: student!.id, username: student!.username, month: month ? formatMonthLabel(month) : "" });
+    return parentReport({ id: student!.id, username: student!.username, intro, month: month ? formatMonthLabel(month) : "" });
   }
 
   return (
@@ -341,6 +361,33 @@ function StudentDetail() {
           value={isInPersonStudent(db, student) ? "In person" : data.attendance != null ? `${data.attendance}%` : "None yet"}
         />
       </div>
+
+      {bySubject && bySubject.length > 0 && (
+        <Card className="mt-3 p-5 sm:p-6">
+          <h2 className="label-quiet text-ink-3">Attendance by subject, last 4 weeks</h2>
+          <ul className="mt-2 space-y-1 text-base text-ink-2">
+            {bySubject.map((x) => (
+              <li key={x.key}>
+                <span className="font-semibold text-ink">
+                  {bySubject.some((y) => y.level !== x.level) ? `${x.level} ` : ""}
+                  {x.subject}
+                </span>{" "}
+                <span className="tabular-nums">
+                  {x.came} of {x.due}
+                </span>
+                {x.late > 0 && <span className="text-ink-3"> · {x.late} late</span>}
+                {x.missed.length > 0 && (
+                  <span className="text-sm text-ink-3">
+                    {" "}
+                    (missed {x.missed.slice(-4).map(classDay).join(", ")}
+                    {x.missed.length > 4 ? ` and ${x.missed.length - 4} more` : ""})
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {!ta && profiles[student.id] && <TheirPortal profile={profiles[student.id]} initial={displayName(student.username).charAt(0).toUpperCase()} />}
 
@@ -644,6 +691,7 @@ function ResetPassword({ studentId, username, phone, parent, editHref }: { stude
       </Modal>
       {/* Closing it forgets the password: it is not kept in the page once the message is dealt with. */}
       <LoginDetails
+        studentId={studentId}
         open={step === "done"}
         onClose={() => {
           setStep("idle");

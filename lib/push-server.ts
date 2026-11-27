@@ -491,7 +491,35 @@ export async function runReminders(): Promise<{ sent: number; quiet?: boolean }>
       items.push({ studentId: s.id, kind: "assignments", refs: [`due:${a.id}`], ...assignmentCopy(`${s.id}${a.id}`, a.title, new Date(a.due_at).toLocaleString("en-GB", { timeZone: TZ, weekday: "short", hour: "numeric", minute: "2-digit", hour12: true }), pkDate(new Date(a.due_at).getTime()) === pkDate(now)), url: `/assignments#a-${a.id}`, tag: `asg-${a.id}`, priority: 3 });
     }
   }
-  return { sent: await deliver(sb, items) };
+  // "Stop automatic reminders" (Hamza, per student, on Today): the chasing kinds wait until the day set.
+  const muted = await mutedStudents(sb, pkDate(now));
+  return { sent: await deliver(sb, muted.size ? items.filter((i) => !(muted.has(i.studentId) && chases(i))) : items) };
+}
+
+/**
+ * The reminders that chase a student, the only ones "Stop automatic reminders"
+ * holds back: the come-back nudge, recordings, study times and homework due.
+ * Class starts and changes, tests opening, results, new homework and notices always go.
+ */
+const chases = (i: Item) => i.kind === "nudge" || i.kind === "recordings" || i.kind === "study" || (i.kind === "assignments" && i.refs.every((r) => r.startsWith("due:")));
+
+/**
+ * Students Hamza muted until a day still to come (reminders_sent kind
+ * "mute_auto", ref YYYY-MM-DD; lib/sent-log.ts). A failed read mutes nobody
+ * (these reminders do no harm) and never stops the run.
+ */
+async function mutedStudents(sb: SupabaseClient, today: string): Promise<Set<string>> {
+  try {
+    const { data, error } = await allRows((a, b) => sb.from("reminders_sent").select("student_id,ref").eq("kind", "mute_auto").gte("ref", today).order("student_id").order("ref").range(a, b));
+    if (error) {
+      console.error("[push] mute list", error.message);
+      return new Set();
+    }
+    return new Set((data ?? []).map((r) => r.student_id as string));
+  } catch (e) {
+    console.error("[push] mute list", e);
+    return new Set();
+  }
 }
 
 /** Right after Hamza releases results (if it isn't night; otherwise the morning run sends them). */

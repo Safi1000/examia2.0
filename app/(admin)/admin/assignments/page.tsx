@@ -7,6 +7,7 @@ import { useAdminFilter } from "@/lib/admin-filter";
 import { archivedCohortIds, startedMs, studentById } from "@/lib/data/selectors";
 import { isTestAccount } from "@/lib/display-name";
 import { studentHomeworkDue } from "@/lib/portal-messages";
+import { introNeeded, logMessage } from "@/lib/sent-log";
 import { uploadAsImages } from "@/lib/cloudinary";
 import { useToast } from "@/components/toast";
 import { RowMenu } from "@/components/admin/RowMenu";
@@ -248,9 +249,9 @@ export default function AdminAssignmentsPage() {
     if (!openHw.length) return toast("These have all closed. Reminders are only for homework still open.", "info");
     const list: Step[] = openHw.flatMap((a) =>
       owedFor(db, a).map((s) => {
-        const message = studentHomeworkDue({ id: s.id, username: s.username, title: a.title, due: dueWords(a.dueAt, clock()) });
+        const message = studentHomeworkDue({ id: s.id, username: s.username, intro: introNeeded(db, s.id, "student"), title: a.title, due: dueWords(a.dueAt, clock()) });
         const href = waLink(s.phone, message);
-        return { id: `${a.id}|${s.id}`, name: displayName(s.username), detail: `${a.title}${s.phone ? ` · ${s.phone}` : ""}`, message, href, missing: href ? undefined : "no student number saved" };
+        return { log: { studentId: s.id, audience: "student" as const, what: "homework_due" }, id: `${a.id}|${s.id}`, name: displayName(s.username), detail: `${a.title}${s.phone ? ` · ${s.phone}` : ""}`, message, href, missing: href ? undefined : "no student number saved" };
       }),
     );
     if (!list.length) return toast("Everyone has handed these in.", "success");
@@ -717,9 +718,10 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
             {open && s.phone && (
               <a
                 data-owner
-                href={`https://wa.me/${s.phone.replace(/\D/g, "")}?text=${encodeURIComponent(studentHomeworkDue({ id: s.id, username: s.username, title: a!.title, due }))}`}
+                href={`https://wa.me/${s.phone.replace(/\D/g, "")}?text=${encodeURIComponent(studentHomeworkDue({ id: s.id, username: s.username, intro: introNeeded(db, s.id, "student"), title: a!.title, due }))}`}
                 target="_blank"
                 rel="noreferrer"
+                onClick={() => logMessage(store, s.id, "student", "homework_due")}
                 className="inline-flex min-h-11 shrink-0 items-center text-sm font-semibold text-ink-2 underline-offset-4 transition-colors hover:text-ink hover:underline"
               >
                 Remind on WhatsApp

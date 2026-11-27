@@ -16,6 +16,9 @@ import { usePausedIds } from "@/lib/paused";
 import { guardMessage, withLink } from "@/lib/outgoing-message";
 import { parentReport } from "@/lib/portal-messages";
 import { useToast } from "@/components/toast";
+import type { ClassJoin } from "@/lib/classes";
+import { introNeeded, logMessage, REMINDER_WHAT, SKIP_PREFIX } from "@/lib/sent-log";
+import { SentHistory } from "@/components/admin/SentHistory";
 import { Card, Button, Badge, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
@@ -25,7 +28,7 @@ import { cn } from "@/lib/cn";
  * opens the parent's WhatsApp with the message written; once sent it is
  * recorded, so nobody gets chased twice for the same thing.
  */
-export function RemindersPanel() {
+export function RemindersPanel({ joins, joinsOk }: { joins: ClassJoin[]; joinsOk: boolean }) {
   const db = useDatabase();
   const store = useStore();
   const { toast } = useToast();
@@ -42,8 +45,9 @@ export function RemindersPanel() {
   const tick = Math.floor(nowMs / 300_000) * 300_000;
   // Paused students are left out; the list redraws when a pause changes.
   const pausedIds = usePausedIds();
+  // Absences are per subject, from the class joins Today loads (none offered until they are read).
   // eslint-disable-next-line react-hooks/exhaustive-deps -- pausedIds is read inside dueReminders
-  const reminders = useMemo(() => dueReminders(db, tick, cohortId), [db, tick, cohortId, pausedIds]);
+  const reminders = useMemo(() => dueReminders(db, tick, cohortId, { joins, joinsOk }), [db, tick, cohortId, pausedIds, joins, joinsOk]);
   const reportRun = useMemo(() => reminders.filter((r) => r.kind === "report_due"), [reminders]);
 
   if (!reminders.length && !run) return null;
@@ -93,7 +97,7 @@ export function RemindersPanel() {
           return { ok: false, reportId: null };
         }
         // The link sits above the sign-off; checked again once it is in.
-        text = guardMessage(withLink(text, made.link), withLink(parentReport({ id: r.student.id, username: r.student.username }), made.link), [made.link]);
+        text = guardMessage(withLink(text, made.link), withLink(parentReport({ id: r.student.id, username: r.student.username, intro: introNeeded(db, r.student.id, "parent") }), made.link), [made.link]);
         reportId = made.reportId;
       }
       tab.go(`https://wa.me/${waDigits(number)}?text=${encodeURIComponent(text)}`);
@@ -110,9 +114,23 @@ export function RemindersPanel() {
     }
   }
 
+  /** Sent: the reminder closes, and the message is logged (History, the first-two rule). */
   function confirmSent(r: Reminder, reportId?: string | null) {
     if (reportId) store.markReportSent(reportId);
     store.markReminderSent(r.student.id, r.kind, r.ref);
+    logMessage(store, r.student.id, "parent", REMINDER_WHAT[r.kind] ?? "update");
+  }
+
+  /** "Done": told them another way. Closes the reminder; not a message. */
+  function markDone(r: Reminder) {
+    store.markReminderSent(r.student.id, r.kind, r.ref);
+  }
+
+  /** Not sending this one: it goes and does not come back. Never counts as a message or starts the week's quiet. */
+  function skip(r: Reminder) {
+    const kind = `${SKIP_PREFIX}${r.kind}`;
+    store.markReminderSent(r.student.id, kind, r.ref);
+    toast(`Skipped for ${displayName(r.student.username)}. It won't come back.`, "info", { label: "Undo", onClick: () => store.unmarkReminderSent(r.student.id, kind, r.ref) });
   }
 
   // ---- the one-by-one monthly report run ---------------------------------
@@ -205,12 +223,23 @@ export function RemindersPanel() {
               </Button>
               <button
                 type="button"
-                onClick={() => confirmSent(r)}
+                onClick={() => markDone(r)}
                 className="min-h-11 px-2 text-sm font-semibold text-ink-3 transition-colors hover:text-ink"
-                title="Stop showing this"
+                title="Already told them another way"
               >
                 Done
               </button>
+              <button
+                type="button"
+                onClick={() => skip(r)}
+                className="min-h-11 px-2 text-sm font-semibold text-ink-3 transition-colors hover:text-ink"
+                title="Don't send this one"
+              >
+                Skip
+              </button>
+              <div className="basis-full">
+                <SentHistory studentId={r.student.id} nowMs={nowMs} />
+              </div>
             </li>
           ))}
           {reminders.length > 25 && (

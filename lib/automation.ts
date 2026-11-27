@@ -5,6 +5,7 @@ import { accessToken, googleReady } from "@/lib/google";
 import { allRows, levelSubjectsByStudent, type Rows } from "@/lib/push-server";
 import { isTestAccount } from "@/lib/display-name";
 import { pausedStudentIds } from "@/lib/paused-server";
+import { LATE_MINUTES } from "@/lib/subject-attendance";
 
 /**
  * Hands-off jobs run by the 15-minute timer (no AI, no paid services):
@@ -143,8 +144,8 @@ function must(reads: Rows[], what: string): Rows[] {
   return reads;
 }
 
-/** Minutes after the start that still count as on time. */
-export const LATE_MINUTES = 10;
+/** Minutes after the start that still count as on time (shared with the per-subject attendance in lib/subject-attendance.ts). */
+export { LATE_MINUTES };
 
 /** How long after a level's last class auto-absent still runs (the timer runs every 15 minutes). */
 const ABSENT_WINDOW_MS = 3 * 3_600_000;

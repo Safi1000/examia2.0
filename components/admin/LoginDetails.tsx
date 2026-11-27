@@ -6,6 +6,8 @@ import { buttonClasses } from "@/components/ui/Button";
 import { useToast } from "@/components/toast";
 import { waDigits } from "@/lib/phone";
 import { resetMessage, usernameMessage, welcomeMessage } from "@/lib/welcome-message";
+import { useStore } from "@/lib/data/store";
+import { logMessage } from "@/lib/sent-log";
 
 /**
  * "Send login details": the ready-made WhatsApp message with the student's
@@ -15,6 +17,7 @@ import { resetMessage, usernameMessage, welcomeMessage } from "@/lib/welcome-mes
 export function LoginDetails({
   open,
   onClose,
+  studentId,
   kind,
   username,
   password,
@@ -23,6 +26,8 @@ export function LoginDetails({
 }: {
   open: boolean;
   onClose: () => void;
+  /** Logs the message when a WhatsApp button is pressed (History, first-two rule). */
+  studentId?: string;
   kind: "welcome" | "reset" | "username";
   username: string;
   password: string;
@@ -30,6 +35,8 @@ export function LoginDetails({
   parent?: string;
 }) {
   const { toast } = useToast();
+  const store = useStore();
+  const log = (audience: "parent" | "student") => studentId && logMessage(store, studentId, audience, "login");
   const initial = (kind === "welcome" ? welcomeMessage : kind === "username" ? usernameMessage : resetMessage)({ username, password });
   const [text, setText] = useState(initial);
   const [seen, setSeen] = useState(initial);
@@ -70,12 +77,12 @@ export function LoginDetails({
             Copy
           </Button>
           {parent && (
-            <a href={wa(parent)} target="_blank" rel="noreferrer" className={buttonClasses({ variant: "secondary" })}>
+            <a href={wa(parent)} target="_blank" rel="noreferrer" onClick={() => log("parent")} className={buttonClasses({ variant: "secondary" })}>
               WhatsApp parent
             </a>
           )}
           {phone && (
-            <a href={wa(phone)} target="_blank" rel="noreferrer" className={buttonClasses()}>
+            <a href={wa(phone)} target="_blank" rel="noreferrer" onClick={() => log("student")} className={buttonClasses()}>
               WhatsApp student
             </a>
           )}

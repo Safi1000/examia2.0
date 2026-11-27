@@ -26,6 +26,7 @@ import { WellBuiltCard } from "@/components/admin/WellBuiltCard";
 import { HealthLine } from "@/components/admin/Automations";
 import { NotifyCoverage } from "@/components/admin/NotifyCoverage";
 import { RemindersPanel } from "@/components/admin/RemindersPanel";
+import { introNeeded, logMessage } from "@/lib/sent-log";
 import { addDays, clock, levelName, liveSlotsOn, pkDate, slotKey, useClassLinks, useSchedule } from "@/lib/classes";
 import { formatRelative } from "@/lib/time";
 import { createRetest, reachOf, retestQuestions, retestTarget, weakTopics } from "@/lib/retest";
@@ -65,8 +66,9 @@ export default function TodayPage() {
   const todayPk = pkDate(nowMs);
   const { links: classLinks } = useClassLinks(todayPk, todayPk);
   // The last week's recordings and joins, for "missed a class and hasn't opened the recording" (no polling: once, and when the tab comes back).
+  // Joins go back three weeks: absences are counted per subject, and a run of misses can be longer than a week.
   const weekAgo = addDays(todayPk, -7);
-  const { links: weekLinks, joins: weekJoins, ready: weekReady } = useClassLinks(weekAgo, todayPk, true, false);
+  const { links: weekLinks, joins: weekJoins, ready: weekReady, joinsOk } = useClassLinks(addDays(todayPk, -21), todayPk, true, false);
   // Last time on the portal, for "not on the portal for 7 days".
   const activity = useActivity(addDays(todayPk, -14), db);
   useSchedule(); // re-render when the timetable loads or changes
@@ -109,6 +111,8 @@ export default function TodayPage() {
     store.markReminderSent(id, "checked", todayPk);
     if (a.kind === "student" || a.kind === "spoke") store.markReminderSent(id, CONTACT_STUDENT, todayPk);
     if (a.kind === "parent" || a.kind === "parent_knows") store.markReminderSent(id, CONTACT_PARENT, todayPk);
+    // A pre-written WhatsApp was opened: logged with what it was about (History, and the first-two rule).
+    if ((a.kind === "student" || a.kind === "parent") && a.what) logMessage(store, id, a.kind, a.what);
     if (a.kind === "away") {
       store.markReminderSent(id, AWAY_UNTIL, a.until);
       toast(`Away until ${new Date(`${a.until}T12:00:00+05:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}. They're off this list, parent reminders and nudges until then.`, "success");
@@ -180,6 +184,7 @@ export default function TodayPage() {
       recordings: weekReady ? recordings : [],
       joins: weekJoins,
       awayUntil: awayUntilMap(db),
+      joinsOk,
     });
     const hasResults = db.submissions.some((x) => x.status === "released" && studentIds.has(x.studentId));
 
@@ -195,7 +200,7 @@ export default function TodayPage() {
     const weak = weakTopics(db, cohortId).map((w) => ({ ...w, available: retestQuestions(db, w.subject, w.name).length }));
 
     return { toMark, toReply, closing, attention, avg30, weak, studentCount: students.length, hasResults };
-  }, [db, cohortId, tick, checked, profiles, profilesReady, weekLinks, weekJoins, weekReady, weekAgo, todayPk, activity.data, pausedIds]);
+  }, [db, cohortId, tick, checked, profiles, profilesReady, weekLinks, weekJoins, weekReady, weekAgo, todayPk, activity.data, pausedIds, joinsOk]);
 
   const cohortName = cohortId ? cohortById(db, cohortId)?.name : null;
 
@@ -268,7 +273,7 @@ export default function TodayPage() {
       <NotifyCoverage />
 
       {/* Parents to message: a skipped test, 2+ absences in a row, a result under 70%, monthly reports. Hidden when there's nothing. */}
-      <RemindersPanel />
+      <RemindersPanel joins={weekJoins} joinsOk={joinsOk} />
 
       </div>
 
@@ -364,10 +369,10 @@ export default function TodayPage() {
                       {(allMissing.includes(test.id) ? missing : missing.slice(0, 12)).map((s) => {
                         // To the student if we have their number, else to the parent (worded for them).
                         const link = s.phone
-                          ? waTo(s.phone, studentTestClosing({ id: s.id, username: s.username, title: test.title, when: messageWhen(test.closesAt, nowMs) }))
-                          : waTo(s.whatsapp, parentTestClosing({ id: s.id, username: s.username, title: test.title, when: messageWhen(test.closesAt, nowMs) }));
+                          ? waTo(s.phone, studentTestClosing({ id: s.id, username: s.username, intro: introNeeded(db, s.id, "student"), title: test.title, when: messageWhen(test.closesAt, nowMs) }))
+                          : waTo(s.whatsapp, parentTestClosing({ id: s.id, username: s.username, intro: introNeeded(db, s.id, "parent"), title: test.title, when: messageWhen(test.closesAt, nowMs) }));
                         return link ? (
-                          <a key={s.id} href={link} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center rounded-full border border-border-strong px-3 text-sm font-semibold text-ink transition-colors hover:border-ink-3 hover:bg-surface-2 max-md:min-h-11">
+                          <a key={s.id} href={link} target="_blank" rel="noopener noreferrer" onClick={() => logMessage(store, s.id, s.phone ? "student" : "parent", "test_closing")} className="inline-flex min-h-9 items-center rounded-full border border-border-strong px-3 text-sm font-semibold text-ink transition-colors hover:border-ink-3 hover:bg-surface-2 max-md:min-h-11">
                             Remind {nameOf(s)}
                           </a>
                         ) : (

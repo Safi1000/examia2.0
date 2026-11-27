@@ -15,7 +15,8 @@ import { countedDays, countsFor, eligibleStudents, extensionFor, joinedMs, start
 import { gradeSubmission } from "@/lib/grading";
 import { currentStats } from "@/lib/focus";
 import { LOW_SCORE } from "@/lib/reminders";
-import { clean, count, joinAnd, low } from "@/lib/outgoing-message";
+import { clean, count, joinAnd, low, lowSubject } from "@/lib/outgoing-message";
+import { attendingSubjects, classDay, missedStreaks, subjectAttendance, subjectNamer } from "@/lib/subject-attendance";
 
 /** `missed "A" and "B"` when every title is there, else `missed 2 tests` / `missed a test`. For the parent message. */
 function namedOrCounted(verb: string, titles: string[], one: string, many: string) {
@@ -210,6 +211,12 @@ export interface AttentionRow {
   /** The low mark is recent enough to talk about (ATTENTION.lowScoreDays). */
   lowRecent: boolean;
   absent: number;
+  /**
+   * The absence by subject (when the class joins were read): the subjects missed
+   * in a row, the days of the main one (up to three, oldest first), and the
+   * subjects they still come to. Null when the absence is the register's level-wide count.
+   */
+  absentSubject: { subjects: string[]; missed: number; days: string[]; fine: string[] } | null;
   missingHomework: Assignment[];
   recordings: SlotRecording[];
   /** The last sign of them (portal, sign-in, class joined or attended, work handed in), ms. Null: none known. */
@@ -277,9 +284,16 @@ export function buildAttention(
     joins?: ClassJoin[];
     /** "Away until" days by student (lib/reminders awayUntilMap). */
     awayUntil?: Map<string, string>;
+    /**
+     * The joins were really read and cover the last three weeks: absences are
+     * then per subject. Otherwise the register's level-wide count is used.
+     */
+    joinsOk?: boolean;
   },
 ): AttentionResult {
-  const { students, tests, nowMs, checked, profiles, profilesReady, activity, recordings, joins = [], awayUntil = new Map<string, string>() } = opts;
+  const { students, tests, nowMs, checked, profiles, profilesReady, activity, recordings, joins = [], awayUntil = new Map<string, string>(), joinsOk = false } = opts;
+  // Per-subject attendance (lib/subject-attendance.ts), only from joins that were really read.
+  const attendance = joinsOk ? subjectAttendance(db, { joins, joinsOk: true, nowMs }) : null;
   const today = pkDate(nowMs);
   const ids = new Set(students.map((s) => s.id));
   const noon = (ymd: string) => Date.parse(`${ymd}T12:00:00+05:00`);
@@ -399,15 +413,43 @@ export function buildAttention(
     const lowRecent = lastPct !== null && lastPct < LOW_SCORE && Number.isFinite(lowAt) && nowMs - lowAt < ATTENTION.lowScoreDays * DAY;
     if (lowRecent) reasons.push({ kind: "low_score", label: `Last test ${lastPct}%`, parent: `got ${lastPct}% in the last test`, at: lowAt });
 
-    // Absences in a row, newest first, only those after an "away until" day.
+    // Absences in a row, only those after an "away until" day. Per subject when the joins
+    // were read (Hamza, 27 Nov 2026): two missed Economics classes in a row count even
+    // while they come to Accounting, and weigh the same as missing everything twice.
     let absent = 0;
     let lastAbsentAt = 0;
-    for (const d of countedDays(register, s.id).sort((a, b) => b.date.localeCompare(a.date))) {
-      if (d.status !== "absent" || (until && d.date <= until)) break;
-      if (!absent) lastAbsentAt = classTime(d.classId, d.date);
-      absent++;
+    let absentSubject: AttentionRow["absentSubject"] = null;
+    if (attendance) {
+      const list = attendance(s, addDays(today, -21), today);
+      const runs = missedStreaks(list, until ?? "").filter((x) => x.missed.length >= 2);
+      if (runs.length) {
+        const top = runs[0];
+        absent = runs.length > 1 ? Math.min(...runs.map((x) => x.missed.length)) : top.missed.length;
+        lastAbsentAt = Math.max(...runs.map((x) => x.missed[0].startMs));
+        const named = subjectNamer(list);
+        const subjects = [...new Set(runs.map(named))];
+        absentSubject = {
+          subjects,
+          missed: absent,
+          days: runs.length === 1 && absent <= 3 ? top.missed.map(classDay).reverse() : [],
+          fine: attendingSubjects(list, subjects),
+        };
+      }
+    } else {
+      for (const d of countedDays(register, s.id).sort((a, b) => b.date.localeCompare(a.date))) {
+        if (d.status !== "absent" || (until && d.date <= until)) break;
+        if (!absent) lastAbsentAt = classTime(d.classId, d.date);
+        absent++;
+      }
     }
-    if (absent >= 2) push({ kind: "absent_streak", label: `Absent ${absent} classes in a row`, parent: `has missed the last ${count(absent, "class", "classes")}`, at: lastAbsentAt });
+    if (absent >= 2) {
+      const subj = absentSubject ? joinAnd(absentSubject.subjects) : "";
+      push(
+        absentSubject
+          ? { kind: "absent_streak", label: `Missed the last ${absent} ${subj} classes`, parent: `hasn't been in ${lowSubject(subj)} the last ${absent <= 10 ? `${["", "", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"][absent]} classes` : count(absent, "class", "classes")}`, at: lastAbsentAt }
+          : { kind: "absent_streak", label: `Absent ${absent} classes in a row`, parent: `has missed the last ${count(absent, "class", "classes")}`, at: lastAbsentAt },
+      );
+    }
 
     // The same "who it was set for" rule as the Homework page's hand-in list.
     const owed = dueRecently.filter(
@@ -515,6 +557,7 @@ export function buildAttention(
       lastPct,
       lowRecent,
       absent,
+      absentSubject,
       missingHomework,
       recordings: recs,
       lastHere,

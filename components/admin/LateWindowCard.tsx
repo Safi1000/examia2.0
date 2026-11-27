@@ -12,6 +12,7 @@ import { cn } from "@/lib/cn";
 import { SITE_URL } from "@/lib/seo";
 import { displayName } from "@/lib/display-name";
 import { parentReopened, studentReopened } from "@/lib/portal-messages";
+import { introNeeded, logMessage } from "@/lib/sent-log";
 
 const HOURS = [4, 6, 12, 24] as const;
 
@@ -75,11 +76,11 @@ export function LateWindowCard({ test }: { test: Test }) {
   function whatsapp(s: Student, until: string) {
     const link = `${SITE_URL}/test/${test.id}`;
     if (s.phone) {
-      const text = studentReopened({ id: s.id, username: s.username, title: test.title, until: pkTime(until), link });
+      const text = studentReopened({ id: s.id, username: s.username, intro: introNeeded(db, s.id, "student"), title: test.title, until: pkTime(until), link });
       return `https://wa.me/${s.phone.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
     }
     if (s.whatsapp) {
-      const text = parentReopened({ id: s.id, username: s.username, title: test.title, until: pkTime(until) });
+      const text = parentReopened({ id: s.id, username: s.username, intro: introNeeded(db, s.id, "parent"), title: test.title, until: pkTime(until) });
       return `https://wa.me/${s.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
     }
     return null;
@@ -106,7 +107,7 @@ export function LateWindowCard({ test }: { test: Test }) {
                     </p>
                   </div>
                   {wa && (
-                    <a data-owner href={wa} target="_blank" rel="noopener noreferrer" className={buttonClasses({ variant: "secondary", size: "sm" })}>
+                    <a data-owner href={wa} target="_blank" rel="noopener noreferrer" onClick={() => logMessage(store, w.student.id, w.student.phone ? "student" : "parent", "reopened")} className={buttonClasses({ variant: "secondary", size: "sm" })}>
                       WhatsApp
                     </a>
                   )}

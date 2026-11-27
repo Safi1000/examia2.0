@@ -6,6 +6,7 @@ import { AT_RISK, type AttentionResult, type AttentionRow } from "@/lib/attentio
 import { displayName } from "@/lib/display-name";
 import { pkDate } from "@/lib/timetable";
 import {
+  parentSubjectAbsent,
   parentUpdate,
   studentAbsent,
   studentCheckIn,
@@ -14,8 +15,13 @@ import {
   studentLowScore,
   studentMissedClass,
   studentMissedTest,
+  studentSubjectAbsent,
   studentWelcome,
 } from "@/lib/portal-messages";
+import { useDatabase } from "@/lib/data/store";
+import { introNeeded } from "@/lib/sent-log";
+import { joinAnd } from "@/lib/outgoing-message";
+import { SentHistory } from "@/components/admin/SentHistory";
 import { useTeacherNotes } from "@/lib/teacher-notes";
 import { NoteEditor, NOTE_LABEL } from "@/components/admin/StudentNote";
 import { useToast } from "@/components/toast";
@@ -36,21 +42,24 @@ const ymdLabel = (ymd: string) => new Date(`${ymd}T12:00:00+05:00`).toLocaleDate
 const weekday = (ms: number) => new Date(ms).toLocaleDateString("en-GB", { weekday: "long", timeZone: "Asia/Karachi" });
 const names = (list: Array<{ username: string }>) => list.map((s) => displayName(s.username) || s.username).join(", ");
 
-/** What "Message" says, by the heaviest reason. Never mentions what the portal tracks. */
-function studentMessage(r: AttentionRow, nowMs: number) {
-  const w = { id: r.student.id, username: r.student.username };
-  if (r.isNew && !r.reasons.length) return r.hadClass ? studentFirstClass(w) : studentWelcome(w);
-  if (r.missed.length) return studentMissedTest({ ...w, title: r.missed[0].title });
-  if (r.lowRecent) return studentLowScore(w);
-  if (r.absent >= 2) return studentAbsent(w);
-  if (r.missingHomework.length) return studentHomeworkMissing({ ...w, title: r.missingHomework[0].title });
+/** What "Message" says, by the heaviest reason, and what it is about (for the log). Never mentions what the portal tracks. */
+function studentMessage(r: AttentionRow, nowMs: number, intro: boolean): { text: string; what: string } {
+  const w = { id: r.student.id, username: r.student.username, intro };
+  if (r.isNew && !r.reasons.length) return r.hadClass ? { text: studentFirstClass(w), what: "first_class" } : { text: studentWelcome(w), what: "welcome" };
+  if (r.missed.length) return { text: studentMissedTest({ ...w, title: r.missed[0].title }), what: "missed_test" };
+  if (r.lowRecent) return { text: studentLowScore(w), what: "low_score" };
+  if (r.absent >= 2 && r.absentSubject)
+    return { text: studentSubjectAbsent({ ...w, subject: joinAnd(r.absentSubject.subjects), days: r.absentSubject.days }), what: "absence" };
+  if (r.absent >= 2) return { text: studentAbsent(w), what: "absence" };
+  if (r.missingHomework.length) return { text: studentHomeworkMissing({ ...w, title: r.missingHomework[0].title }), what: "homework_missing" };
   const rec = r.recordings.find((x) => x.closesMs > nowMs);
-  if (rec) return studentMissedClass({ ...w, subject: rec.slot.subject, day: weekday(rec.slot.startMs) });
-  return studentCheckIn(w);
+  if (rec) return { text: studentMissedClass({ ...w, subject: rec.slot.subject, day: weekday(rec.slot.startMs) }), what: "missed_class" };
+  return { text: studentCheckIn(w), what: "check_in" };
 }
 
 /** To the parent: only facts a parent can see for themselves (never Groundwork, sign-ins or recordings opened). */
-function parentMessage(r: AttentionRow) {
+function parentMessage(r: AttentionRow, intro: boolean): { text: string; what: string } {
+  const who = { id: r.student.id, username: r.student.username, intro };
   // The absence line already says they missed classes, so the recording line would say it twice; two facts at most reads as a note, not a report.
   const absent = r.reasons.some((x) => x.kind === "absent_streak");
   const facts = r.reasons
@@ -58,11 +67,17 @@ function parentMessage(r: AttentionRow) {
     .map((x) => x.parent)
     .filter((x): x is string => !!x)
     .slice(0, 2);
-  return parentUpdate({ id: r.student.id, username: r.student.username, facts });
+  // Missing one subject is the whole story: the subject's own message, with the days.
+  if (absent && r.absentSubject && facts.length === 1)
+    return {
+      text: parentSubjectAbsent({ ...who, subject: joinAnd(r.absentSubject.subjects), missed: r.absentSubject.missed, days: r.absentSubject.days, fine: r.absentSubject.fine }),
+      what: "absence",
+    };
+  return { text: parentUpdate({ ...who, facts }), what: facts.length ? "update" : "check_in" };
 }
 
 /** What Today records for each button. */
-export type AttentionAct = { kind: "student" | "parent" | "spoke" | "parent_knows" } | { kind: "away"; until: string };
+export type AttentionAct = { kind: "student" | "parent"; what?: string } | { kind: "spoke" | "parent_knows" } | { kind: "away"; until: string };
 
 /**
  * Today's list of students who need Hamza, kept short on purpose: new students
@@ -89,6 +104,8 @@ export function AttentionList({
   onAct: (studentId: string, act: AttentionAct) => void;
 }) {
   const { problems, minor, rotation, newcomers, away, followUp } = data;
+  // The reminder log: whether a message is one of the first two to that person.
+  const db = useDatabase();
   const { toast } = useToast();
   const { notes, loaded: notesLoaded } = useTeacherNotes();
   const [showRest, setShowRest] = useState(false);
@@ -115,8 +132,10 @@ export function AttentionList({
   const row = (r: AttentionRow) => {
     const s = r.student;
     const name = displayName(s.username) || s.username;
-    const studentLink = waTo(s.phone, studentMessage(r, nowMs));
-    const parentLink = waTo(s.whatsapp, parentMessage(r));
+    const sMsg = studentMessage(r, nowMs, introNeeded(db, s.id, "student"));
+    const pMsg = parentMessage(r, introNeeded(db, s.id, "parent"));
+    const studentLink = waTo(s.phone, sMsg.text);
+    const parentLink = waTo(s.whatsapp, pMsg.text);
     const callLink = telTo(s.whatsapp);
     const note = notes[s.id]?.text;
     // The suggested next step leads (outlined); the others stay quiet beside it.
@@ -142,7 +161,7 @@ export function AttentionList({
           key={o.k}
           href={o.href!}
           {...(o.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-          onClick={() => onAct(s.id, { kind: o.k === "student" ? "student" : "parent" })}
+          onClick={() => onAct(s.id, o.k === "student" ? { kind: "student", what: sMsg.what } : { kind: "parent", what: o.k === "call" ? undefined : pMsg.what })}
           className={lead(o.k)}
         >
           {o.label}
@@ -178,6 +197,7 @@ export function AttentionList({
                 {note && <span title={note}> · Note: {note}</span>}
               </p>
             )}
+            <SentHistory studentId={s.id} nowMs={nowMs} />
           </div>
           {/* Quiet buttons on every row: gold stays for the page's one main action. */}
           <div className="flex shrink-0 flex-wrap items-center gap-2">

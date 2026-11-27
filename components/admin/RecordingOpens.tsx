@@ -9,6 +9,8 @@ import { recordingReport, type SlotRecording } from "@/lib/attention";
 import { addDays, LEVEL_LABEL, pkDate, useClassLinks } from "@/lib/classes";
 import { displayName } from "@/lib/display-name";
 import { parentMissedClass, studentMissedClass } from "@/lib/portal-messages";
+import { useDatabase, useStore } from "@/lib/data/store";
+import { introNeeded, logMessage } from "@/lib/sent-log";
 import { Card, Icon } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { panelTitle } from "@/components/admin/surface";
@@ -101,6 +103,9 @@ export function RecordingOpens({ db, students, nowMs }: { db: Database; students
 }
 
 function Groups({ r, profilesReady, profiles }: { r: SlotRecording; profilesReady: boolean; profiles: Record<string, Profile> }) {
+  // The reminder log: first-two rule, and logging a Remind.
+  const db = useDatabase();
+  const store = useStore();
   const names = (list: Student[]) => list.map((s) => displayName(s.username)).join(", ");
   return (
     <div className="space-y-3 border-t border-hairline bg-surface-2/40 px-5 py-4 text-sm sm:px-6">
@@ -131,11 +136,11 @@ function Groups({ r, profilesReady, profiles }: { r: SlotRecording; profilesRead
                       : s.phone
                         ? waTo(
                             s.phone,
-                            studentMissedClass({ id: s.id, username: s.username, subject: r.slot.subject, day: dayLong(r.slot.startMs), close: closeLabel(r.closesMs) }),
+                            studentMissedClass({ id: s.id, username: s.username, intro: introNeeded(db, s.id, "student"), subject: r.slot.subject, day: dayLong(r.slot.startMs), close: closeLabel(r.closesMs) }),
                           )
                         : waTo(
                             s.whatsapp,
-                            parentMissedClass({ id: s.id, username: s.username, subject: r.slot.subject, day: dayLong(r.slot.startMs), close: closeLabel(r.closesMs) }),
+                            parentMissedClass({ id: s.id, username: s.username, intro: introNeeded(db, s.id, "parent"), subject: r.slot.subject, day: dayLong(r.slot.startMs), close: closeLabel(r.closesMs) }),
                           );
                     return link ? (
                       <a
@@ -143,6 +148,7 @@ function Groups({ r, profilesReady, profiles }: { r: SlotRecording; profilesRead
                         href={link}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => logMessage(store, s.id, s.phone ? "student" : "parent", "missed_class")}
                         className="inline-flex min-h-10 items-center rounded-full border border-border-strong px-3.5 text-sm font-semibold text-ink transition-colors hover:border-ink-3 hover:bg-surface-2 max-md:min-h-11"
                       >
                         Remind {displayName(s.username)}
