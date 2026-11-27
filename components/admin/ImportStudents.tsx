@@ -7,6 +7,7 @@ import { waDigits } from "@/lib/phone";
 import { welcomeMessage } from "@/lib/welcome-message";
 import { parseDelimited, readSheetFile, type Rows } from "@/lib/sheet";
 import { detectColumns, planRows, usernameFrom, type Columns, type Field } from "@/lib/import-students";
+import { isInPersonStudent } from "@/lib/in-person";
 import { Button, Modal, Select, Label, chipClass } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
@@ -101,7 +102,19 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
   const moves = (p: (typeof plan)[number]) => !!p.existing && !!cohortId && p.existing.cohortId !== cohortId;
   const changed = (p: (typeof plan)[number]) =>
     !!p.existing && (moves(p) || p.existing.classIds.join() !== p.classIds.join() || p.existing.subjectIds.join() !== p.subjectIds.join());
-  const realUpdates = updates.filter(changed);
+  // A new number in the sheet for a student already here (never blanks a saved one; in-person students keep none).
+  const newNumbers = (p: (typeof plan)[number]): { phone?: string; whatsapp?: string } => {
+    if (!p.existing || isInPersonStudent(db, p.existing)) return {};
+    return {
+      ...(p.phone && p.phone !== p.existing.phone ? { phone: p.phone } : {}),
+      ...(p.parent && p.parent !== p.existing.whatsapp ? { whatsapp: p.parent } : {}),
+    };
+  };
+  const numbersChange = (p: (typeof plan)[number]) => Object.keys(newNumbers(p)).length > 0;
+  // Students taking two levels keep their own subjects per level: the sheet can't set those, so they are left alone.
+  const twoLevelSkipped = updates.filter((p) => p.existing!.classIds.length > 1 && changed(p));
+  const levelsChange = (p: (typeof plan)[number]) => changed(p) && p.existing!.classIds.length <= 1;
+  const realUpdates = updates.filter((p) => levelsChange(p) || numbersChange(p));
   const shown = fresh.find((p) => p.line === peek) ?? fresh[0];
   const problems = plan.filter((p) => p.problem);
   const needLevel = !!cols && cols.level === -1;
@@ -147,8 +160,11 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
     for (const p of realUpdates) {
       try {
         // A returning student moves into this session's cohort (login and password unchanged).
-        if (moves(p)) await store.updateStudent(p.existing!.id, { cohortId, classIds: p.classIds, subjectIds: p.subjectIds });
+        const nums = newNumbers(p);
+        if (!levelsChange(p)) await store.updateStudent(p.existing!.id, nums);
+        else if (moves(p)) await store.updateStudent(p.existing!.id, { cohortId, classIds: p.classIds, subjectIds: p.subjectIds, ...nums });
         else {
+          if (Object.keys(nums).length) await store.updateStudent(p.existing!.id, nums);
           // Only their level and subjects change, so no sign-in details are touched.
           await store.setStudentClasses(p.existing!.id, p.classIds);
           await store.setStudentSubjects(p.existing!.id, p.subjectIds);
@@ -164,8 +180,9 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
     const summary = [ok.length && `${ok.length} added`, updated && `${updated} updated`].filter(Boolean).join(", ");
     if (summary) toast(`${summary}.`, "success");
     if (failed.length) toast(`${failed.length} couldn't be saved. They're listed on screen.`, "error");
-    if (ok.length) setMade(ok);
-    else if (!failed.length) close(true); // only updates, all fine
+    // Kept together: a retry adds to the logins already on screen, never replaces them.
+    if (ok.length) setMade((prev) => [...prev, ...ok.filter((m) => !prev.some((x) => x.username === m.username))]);
+    else if (!failed.length && !made.length) close(true); // only updates, all fine
   }
 
   function close(force = false) {
@@ -192,14 +209,37 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
       title={made.length ? "Send their logins" : rows ? "Check before importing" : "Import students"}
       description={
         made.length
-          ? "One tap each opens WhatsApp with their welcome message typed in."
+          ? "One tap each opens WhatsApp with their welcome message typed in. Keep this window open until you have sent them."
           : rows
             ? `${fileName}: ${plan.length} student${plan.length === 1 ? "" : "s"} found.`
             : "Upload your Excel or Google Sheet. One student per row, with their level and subjects."
       }
       footer={
         made.length ? (
-          <Button onClick={() => close()}>Done</Button>
+          <>
+            {failedRows.length > 0 && (
+              <Button variant="secondary" onClick={() => void importAll()} loading={!!busy} disabled={!!busy || !todo}>
+                {busy ? `Saving ${Math.min(busy.done + 1, busy.of)} of ${busy.of}…` : `Retry ${failedRows.length} that failed`}
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              onClick={() => {
+                // All logins as plain lines, for pasting somewhere safe.
+                void (async () => {
+                  try {
+                    await navigator.clipboard.writeText(made.map((m) => `${m.username}  ${m.password}`).join("\n"));
+                    toast("All logins copied.", "success");
+                  } catch {
+                    toast("Couldn't copy them. Write the logins down from this list instead.", "error");
+                  }
+                })();
+              }}
+            >
+              Copy all logins
+            </Button>
+            <Button onClick={() => close()}>Done</Button>
+          </>
         ) : rows ? (
           <>
             <Button variant="secondary" onClick={() => setRows(null)} disabled={!!busy}>Back</Button>
@@ -382,8 +422,13 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
           {plan.some((p) => p.existing && !p.problem) && (
             <label className="flex min-h-11 items-center gap-2 text-sm text-ink-2">
               <input type="checkbox" className="h-4 w-4 shrink-0" checked={updateExisting} onChange={(e) => setUpdateExisting(e.target.checked)} />
-              Update the level and subjects of students already in the portal ({realUpdates.length || "no"} change{realUpdates.length === 1 ? "" : "s"})
+              Update the level, subjects and numbers of students already in the portal ({realUpdates.length || "no"} change{realUpdates.length === 1 ? "" : "s"})
             </label>
+          )}
+          {updateExisting && twoLevelSkipped.length > 0 && (
+            <p className="text-sm text-ink-2">
+              Left as they are (they take two levels, each with its own subjects; change these in their profile): {twoLevelSkipped.map((p) => p.username).join(", ")}.
+            </p>
           )}
 
           <div className="max-h-[46dvh] overflow-auto rounded-tile border border-hairline">
@@ -424,7 +469,7 @@ export function ImportStudents({ open, onClose, defaultCohort }: { open: boolean
                       )}
                       {!p.problem && !p.existing && <span className="block font-mono text-xs text-ink-2">Password: {passwords[p.line - 1]}</span>}
                       {p.problem && <span className="block text-xs font-semibold text-warning">{p.problem}. Skipped.</span>}
-                      {!p.problem && p.existing && <span className="block text-xs text-ink-3">{moves(p) ? `Already here, keeps their login. Moves to ${db.cohorts.find((c) => c.id === cohortId)?.name ?? "this cohort"}` : changed(p) ? "Already here, keeps their login. Level or subjects change" : "Already here, nothing changes"}</span>}
+                      {!p.problem && p.existing && <span className="block text-xs text-ink-3">{moves(p) ? `Already here, keeps their login. Moves to ${db.cohorts.find((c) => c.id === cohortId)?.name ?? "this cohort"}` : levelsChange(p) ? "Already here, keeps their login. Level or subjects change" : numbersChange(p) ? "Already here, keeps their login. Number changes" : "Already here, nothing changes"}</span>}
                       {!p.problem && p.note && <span className="block text-xs text-ink-3">{p.note}</span>}
                     </td>
                     <td className="px-3 py-2 text-ink-2">{name(p.classIds, db.classes) || "?"}</td>

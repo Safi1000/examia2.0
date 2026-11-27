@@ -81,8 +81,8 @@ export default function ExportPage() {
 
   function downloadBackup() {
     const payload = { exportedAt: new Date().toISOString(), organisation: COMPANY_SLUG, data: db };
-    download(JSON.stringify(payload), `${COMPANY_SLUG}-full-backup-${todayStamp(Date.now())}.json`, "application/json");
-    toast("Full backup downloaded. Keep it somewhere safe.", "success");
+    download(JSON.stringify(payload), `${COMPANY_SLUG}-snapshot-${todayStamp(Date.now())}.json`, "application/json");
+    toast("Snapshot downloaded. It holds the lists on screen (not older activity, teacher notes or pen marks), so it is not a full backup.", "info");
   }
 
   return (
@@ -97,7 +97,7 @@ export default function ExportPage() {
             <Icon.Download className="h-4 w-4" /> Download marks
           </Button>
           <Button variant="secondary" onClick={downloadBackup}>
-            <Icon.Download className="h-4 w-4" /> Full backup (everything)
+            <Icon.Download className="h-4 w-4" /> Snapshot of lists
           </Button>
         </div>
       </Card>

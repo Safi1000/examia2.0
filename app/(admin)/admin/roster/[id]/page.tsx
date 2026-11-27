@@ -26,7 +26,8 @@ import { guardMessage, withLink } from "@/lib/outgoing-message";
 import { parentReport } from "@/lib/portal-messages";
 import { introNeeded, logMessage } from "@/lib/sent-log";
 import { addDays, pkDate, useClassLinks } from "@/lib/classes";
-import { usePausedIds } from "@/lib/paused";
+import { reasonLabel, usePausedIds } from "@/lib/paused";
+import { useStudentAccess } from "@/components/admin/StudentAccess";
 import { classDay, subjectAttendance, subjectSummary } from "@/lib/subject-attendance";
 import { notesConfigured, uploadNote } from "@/lib/cloudinary";
 import { Button, buttonClasses } from "@/components/ui/Button";
@@ -34,20 +35,24 @@ import { LineChart, type LinePoint } from "@/components/charts/LineChart";
 import { MasteryBar } from "@/components/charts/MasteryBar";
 import { LoginDetails } from "@/components/admin/LoginDetails";
 import { StudentNoteCard } from "@/components/admin/StudentNote";
-import { statLabel, statTile, statValue } from "@/components/admin/surface";
+import { panelTitle, statLabel, statTile, statValue } from "@/components/admin/surface";
 import { StudentActivitySection } from "@/components/admin/ActivityParts";
 import { gradeSubmission } from "@/lib/grading";
 import { shownPercent } from "@/lib/performance";
 import { fmtTime } from "@/lib/activity";
-import { RowMenu } from "@/components/admin/RowMenu";
+import { RowMenu, type RowMenuItem } from "@/components/admin/RowMenu";
 import { topicMastery } from "@/lib/scoring";
 import { buildStudentReport } from "@/lib/report-build";
 import { isReportLinkLive, REPORT_LINK_DAYS, reportLinkDay, reportLinkExpiry } from "@/lib/report-data";
-import { formatTimestamp } from "@/lib/time";
+import { formatDate, formatTimestamp } from "@/lib/time";
 import { newPassword } from "@/lib/password";
 
+// Pakistan's month, same as the report: a test handed in at 2 am on the 1st counts in the new month.
+const PK_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" });
 function monthOf(iso: string | null | undefined) {
-  return iso ? iso.slice(0, 7) : "";
+  if (!iso) return "";
+  const ms = Date.parse(iso);
+  return (Number.isNaN(ms) ? iso : PK_DAY.format(ms)).slice(0, 7);
 }
 
 function formatMonthLabel(m: string) {
@@ -91,6 +96,9 @@ function StudentDetail() {
   const attFrom = addDays(todayPk, -27);
   const { joins: attJoins, joinsOk: attOk } = useClassLinks(attFrom, todayPk, true, false);
   const pausedIds = usePausedIds();
+  // Pause, resume, leaving and bringing back (Hamza only), and who has left.
+  const accessActions = useStudentAccess();
+  const { access } = accessActions;
   const bySubject = useMemo(() => {
     // Paused: which days fell inside the pause isn't known, so nothing is shown rather than false misses.
     // In-person students have no Joins: they keep the per-level figure above.
@@ -121,7 +129,11 @@ function StudentDetail() {
     });
     // No results is "none yet", never a 0% average.
     const avg = points.length ? Math.round((points.reduce((a, p) => a + p.value, 0) / points.length) * 10) / 10 : null;
-    const months = Array.from(new Set(released.map((s) => monthOf(s.submittedAt)).filter(Boolean))).sort();
+    // Always this month and last, plus any month with a result: the report says plainly when nothing was handed in.
+    const nowMonth = monthOf(new Date(reportNow).toISOString());
+    const [ny, nm] = nowMonth.split("-").map(Number);
+    const lastMonth = `${nm === 1 ? ny - 1 : ny}-${String(nm === 1 ? 12 : nm - 1).padStart(2, "0")}`;
+    const months = Array.from(new Set([...released.map((s) => monthOf(s.submittedAt)).filter(Boolean), nowMonth, lastMonth])).sort();
     // This month's attendance, typed or from the daily register.
     // The month in Pakistan: on the 1st, before 5 am, UTC is still in last month.
     const thisMonth = `${new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date()).slice(0, 7)}-01`;
@@ -153,6 +165,19 @@ function StudentDetail() {
   }
 
   const cohort = cohortById(db, student.cohortId);
+  const left = access.left[student.id];
+  const paused = access.paused.has(student.id);
+  const reason = access.reasons[student.id];
+  const farewell = left?.farewell;
+  const accessItems: RowMenuItem[] = left
+    ? [
+        { label: "Send farewell", onSelect: () => accessActions.sendFarewell([student]) },
+        { label: "Bring back", onSelect: () => accessActions.bringBack([student]) },
+      ]
+    : [
+        paused ? { label: "Resume access", onSelect: () => accessActions.resume([student]) } : { label: "Pause access", onSelect: () => accessActions.askPause([student]) },
+        { label: "Mark as left…", onSelect: () => accessActions.askLeave([student]) },
+      ];
   // This student's reports that went to the parent, newest month first.
   const sentReports = db.reports
     .filter((r) => r.studentId === student.id && r.sentAt)
@@ -246,7 +271,7 @@ function StudentDetail() {
     const month = reportMonth || data?.months[data.months.length - 1] || "";
     const record = await store.saveReport({
       studentId: student.id,
-      month: month ? `${month}-01` : `${new Date().toISOString().slice(0, 7)}-01`,
+      month: month ? `${month}-01` : `${monthOf(new Date().toISOString())}-01`,
       pdfUrl: url,
       teacherNote: teacherNote.trim() || undefined,
     });
@@ -293,7 +318,7 @@ function StudentDetail() {
     <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       <PageHeader
         title={displayName(student.username)}
-        subtitle={[student.username, student.email].filter(Boolean).join(" · ")}
+        subtitle={(ta ? [student.username] : [student.username, student.email]).filter(Boolean).join(" · ")}
         back={{ href: "/admin/roster", label: "Roster" }}
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -327,7 +352,7 @@ function StudentDetail() {
               </a>
             )}
             {/* Edit, login details and password sit under one More button, so the row stays one line on a phone. */}
-            <ResetPassword studentId={student.id} username={student.username} phone={student.phone} parent={student.whatsapp} editHref={`/admin/roster?edit=${student.id}`} />
+            <ResetPassword studentId={student.id} username={student.username} phone={student.phone} parent={student.whatsapp} editHref={`/admin/roster?edit=${student.id}`} extra={accessItems} />
             {/* In-person students get no monthly report. */}
             {!isInPersonStudent(db, student) && (
               <Button variant="secondary" size="sm" onClick={openReport}>
@@ -338,6 +363,29 @@ function StudentDetail() {
           </div>
         }
       />
+
+      {/* Paused or left: say so first, with the way back. */}
+      {(left || paused) && (
+        <div className={`mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-tile border px-4 py-3 text-sm leading-relaxed text-ink ${left ? "border-hairline-strong bg-surface-2" : "border-warning/30 bg-warning-soft"}`}>
+          <p className="min-w-0 flex-1">
+            {left ? (
+              <>
+                <span className="font-semibold">{left.kind === "finished" ? "Finished the course" : "Dropped out"}</span>, left {formatDate(left.at)}.{" "}
+                {left.username ? `The username ${left.username} is free for a new student. ` : ""}They see a farewell screen when they sign in.
+              </>
+            ) : (
+              <>
+                <span className="font-semibold">Access paused{reason ? `, ${reasonLabel(reason)}` : ""}.</span> They see the pause screen, get no reminders and aren&apos;t marked absent.
+              </>
+            )}
+          </p>
+          {!ta && (
+            <Button size="sm" variant="secondary" onClick={() => (left ? accessActions.bringBack([student]) : accessActions.resume([student]))}>
+              {left ? "Bring back" : "Resume access"}
+            </Button>
+          )}
+        </div>
+      )}
 
       {student.photoUrl && (
         <div className="mb-4 flex items-center gap-3">
@@ -351,6 +399,29 @@ function StudentDetail() {
       {/* Hamza's own note, near the top so it's the first thing seen before a call. */}
       {/* Hamza's private note: not the assistant's. */}
       {!ta && <StudentNoteCard studentId={student.id} />}
+
+      {/* What they wrote on the farewell screen. Hamza's only. */}
+      {!ta && farewell && (farewell.rating || farewell.helped || farewell.change) && (
+        <Card className="mt-3 p-5 sm:p-6">
+          <h2 className={panelTitle}>Farewell note</h2>
+          <p className="mt-0.5 text-sm tabular-nums text-ink-3">
+            {formatDate(farewell.at)}
+            {farewell.rating ? ` · Rated the classes ${farewell.rating} of 5` : ""}
+          </p>
+          {farewell.helped && (
+            <div className="mt-3">
+              <h3 className="label-quiet text-ink-3">What helped you most?</h3>
+              <p className="mt-1 whitespace-pre-line break-words text-base text-ink">{farewell.helped}</p>
+            </div>
+          )}
+          {farewell.change && (
+            <div className="mt-3">
+              <h3 className="label-quiet text-ink-3">What should I change?</h3>
+              <p className="mt-1 whitespace-pre-line break-words text-base text-ink">{farewell.change}</p>
+            </div>
+          )}
+        </Card>
+      )}
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Homework owed" value={String(data.owed)} />
@@ -473,6 +544,8 @@ function StudentDetail() {
         </Card>
       )}
 
+      {!ta && accessActions.ui}
+
       {/* Monthly Report Modal */}
       {/* Hamza's only: staff never get this window, whatever the address says. */}
       <Modal
@@ -501,7 +574,7 @@ function StudentDetail() {
           <div>
             <label htmlFor="report-month" className="mb-1.5 block text-sm font-semibold text-ink-2">Month</label>
             {data.months.length === 0 ? (
-              <p className="text-sm text-ink-3">No released results yet.</p>
+              <p className="text-sm text-ink-3">No months to report on yet.</p>
             ) : (
               <select
                 id="report-month"
@@ -636,7 +709,7 @@ function TheirPortal({ profile, initial }: { profile: Profile; initial: string }
  * (copy, or WhatsApp to the student or parent). Passwords are never stored
  * in a readable form, so this is also how Hamza re-sends login details.
  */
-function ResetPassword({ studentId, username, phone, parent, editHref }: { studentId: string; username: string; phone?: string; parent?: string; editHref: string }) {
+function ResetPassword({ studentId, username, phone, parent, editHref, extra = [] }: { studentId: string; username: string; phone?: string; parent?: string; editHref: string; extra?: RowMenuItem[] }) {
   const store = useStore();
   const router = useRouter();
   const { toast } = useToast();
@@ -665,6 +738,7 @@ function ResetPassword({ studentId, username, phone, parent, editHref }: { stude
           { label: "Edit details", onSelect: () => router.push(editHref) },
           { label: "Send login details", onSelect: () => { setKind("welcome"); setStep("confirm"); } },
           { label: "Reset password", onSelect: () => { setKind("reset"); setStep("confirm"); } },
+          ...extra,
         ]}
       />
       <Modal

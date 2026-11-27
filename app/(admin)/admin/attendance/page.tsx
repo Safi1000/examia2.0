@@ -15,7 +15,7 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { Button, Card, Select, EmptyState, Icon, Modal, filterField, segmentGroup, segmentItem } from "@/components/ui";
 import { buttonClasses } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
-import { useClassLinks, useSchedule } from "@/lib/classes";
+import { useClassLinks, useSchedule, useScheduleLoaded } from "@/lib/classes";
 import { useNow } from "@/hooks/useNow";
 
 type Mode = "daily" | "monthly";
@@ -38,6 +38,8 @@ export default function AttendancePage() {
   const { toast } = useToast();
   const { cohortId } = useAdminFilter();
   useSchedule(); // re-render when the timetable loads: class times decide who "Mark the rest" may sweep
+  // Until Hamza's timetable has arrived, "no class this day" can't be judged: nobody is left out for it.
+  const scheduleLoaded = useScheduleLoaded();
   const nowMs = useNow();
 
   const [mode, setMode] = useState<Mode>("daily");
@@ -216,16 +218,20 @@ export default function AttendancePage() {
     // Tapping still works, so a wrong mark can always be changed by hand.
     const sweepable = (s: (typeof students)[number]) =>
       canBeSwept(s, date, slotsForStudent(db, s, date).filter((sl) => !classId || sl.classId === classId).map((sl) => sl.startMs));
+    // No class of theirs on the timetable this day (a weekend, a cancelled day, a level with no lesson):
+    // never swept up by "Mark the rest". Tapping still works for a class held off the timetable.
+    const noClass = (s: (typeof students)[number]) => scheduleLoaded && !slotsForStudent(db, s, date).some((sl) => !classId || sl.classId === classId);
     const rows = students.map((s) => {
       const mark = markOf(s.id);
-      return { s, mark, join: firstJoin(s.id), before: !sweepable(s), counted: !!mark && countsFor(s, date, mark.status) };
+      return { s, mark, join: firstJoin(s.id), before: !sweepable(s), noClass: noClass(s), counted: !!mark && countsFor(s, date, mark.status) };
     });
+    const dayOff = rows.length > 0 && rows.every((r) => r.noClass);
     // The test account's own marks stay out of the day's counts too.
     const count = (st: AttendanceStatus) => rows.filter((r) => r.counted && r.mark?.status === st && !isTestAccount(r.s)).length;
     // Hamza's own test account keeps its row (tap to mark it) but is never
     // counted as "not marked" or swept up by "Mark the rest".
     // Paused students keep their row too, but are never swept up either.
-    const unmarked = rows.filter((r) => !r.mark && !r.before && !isTestAccount(r.s) && !pausedIds.has(r.s.id));
+    const unmarked = rows.filter((r) => !r.mark && !r.before && !r.noClass && !isTestAccount(r.s) && !pausedIds.has(r.s.id));
     // "8:55 PM", written like every other time in the console.
     const clock = (at: string | number) =>
       new Date(at).toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit", hour12: true }).replace(/\s?(am|pm)\b/i, (_, m: string) => ` ${m.toUpperCase()}`);
@@ -247,7 +253,7 @@ export default function AttendancePage() {
           <span className="font-semibold tabular-nums text-success">{count("present")} present</span>
           <span className="font-semibold tabular-nums text-warning">{count("late")} late</span>
           <span className="font-semibold tabular-nums text-error">{count("absent")} absent</span>
-          <span className="tabular-nums text-ink-3">{unmarked.length} not marked</span>
+          <span className="tabular-nums text-ink-3">{dayOff ? "No class on this day" : `${unmarked.length} not marked`}</span>
           {unmarked.length > 0 && (
             <span className="flex gap-2 max-sm:w-full max-sm:flex-col max-sm:[&>button]:w-full sm:ml-auto sm:flex-wrap">
               <button type="button" onClick={() => markRest("present")} className={buttonClasses({ variant: "secondary", size: "sm" })}>

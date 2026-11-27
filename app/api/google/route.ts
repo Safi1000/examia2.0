@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/admin-auth";
-import { accessToken, authUrl, googleReady } from "@/lib/google";
+import { GoogleBusy, accessToken, authUrl, googleReady } from "@/lib/google";
 import { pushReady, serviceClient } from "@/lib/push-server";
 import { findTestRecording, makeTestClass, runClassAutomation } from "@/lib/class-automation";
 
@@ -26,7 +26,15 @@ export async function GET(req: NextRequest) {
   const { data } = await sb.from("google_account").select("email").eq("id", 1).maybeSingle();
   // Connected on paper isn't enough: try a real sign-in, so a lapsed
   // connection (password change, access removed) shows before class time.
-  const broken = !!data && !(await accessToken(sb).catch(() => null));
+  // Google only busy (it answered nothing after a few tries) is not "disconnected": the page says it couldn't check, with Try again.
+  let busy = false;
+  const broken =
+    !!data &&
+    !(await accessToken(sb).catch((e) => {
+      if (e instanceof GoogleBusy) busy = true;
+      return null;
+    }));
+  if (busy) return NextResponse.json({ error: "Google is busy right now. Try again in a minute." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   return NextResponse.json({ ready: true, connected: !!data, broken, email: data?.email ?? null }, { headers: { "Cache-Control": "private, no-store" } });
 }
 

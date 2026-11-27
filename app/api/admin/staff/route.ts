@@ -10,7 +10,7 @@ import { addStaffLine, readStaffLog as readLog } from "@/lib/staff-log-server";
  * Owner only:
  *   GET                       staff accounts (name, email, paused, access) and the last 200 log lines
  *   POST   { name, email, password }   make a staff account (starts with lib/staff-areas.ts DEFAULT_ACCESS)
- *   PATCH  { id, action: "pause" | "resume" | "password" | "access", password?, access? }
+ *   PATCH  { id, action: "pause" | "resume" | "password" | "access" | "name", password?, access?, name? }
  *   DELETE { id }             remove their account for good
  * Staff (the staff member themselves, or Hamza):
  *   PUT    { what }           add one line to the log ("released ...", "replied to ...")
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   if (!(await adminIdFromRequest(req))) return bad("forbidden", 403);
   if (!ready()) return bad("This isn't set up on the server yet.", 503);
-  const b = (await req.json().catch(() => null)) as { id?: unknown; action?: unknown; password?: unknown; access?: unknown } | null;
+  const b = (await req.json().catch(() => null)) as { id?: unknown; action?: unknown; password?: unknown; access?: unknown; name?: unknown } | null;
   if (!isUuid(b?.id)) return bad("bad request");
   const sb = serviceClient();
   const user = await assistant(sb, b.id);
@@ -104,6 +104,14 @@ export async function PATCH(req: NextRequest) {
     // About 100 years: paused until Hamza resumes it.
     const { error } = await sb.auth.admin.updateUserById(b.id, { ban_duration: b.action === "pause" ? "876000h" : "none" });
     if (error) return bad("Couldn't change that. Try again.", 502);
+    return NextResponse.json({ ok: true }, { headers: noStore });
+  }
+  if (b.action === "name") {
+    // A typo fixed in place: only the name changes, never the sign-in or the switches.
+    const name = typeof b.name === "string" ? b.name.trim().slice(0, 60) : "";
+    if (!name) return bad("Add their name.");
+    const { error } = await sb.auth.admin.updateUserById(b.id, { app_metadata: { ...(user.app_metadata ?? {}), name } });
+    if (error) return bad("Couldn't save that. Try again.", 502);
     return NextResponse.json({ ok: true }, { headers: noStore });
   }
   if (b.action === "password") {

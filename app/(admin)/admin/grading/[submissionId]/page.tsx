@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { Annotation, Answer, Question, Submission } from "@/types";
@@ -59,9 +59,50 @@ export default function GradingPage() {
   // The pen strokes on photo answers are left out of the full load (they are
   // heavy): read here, fresh on every open (another device may have marked
   // this paper), and only once the paper itself has arrived.
+  // A failed read is tried again a few times; after that the cards say so,
+  // with Try again, instead of "Getting your markings…" for good.
+  const [strokesFailedFor, setStrokesFailedFor] = useState<string | null>(null);
+  const [strokesTry, setStrokesTry] = useState(0);
   useEffect(() => {
-    if (here) void store.loadAnnotations(subId, true);
-  }, [store, subId, here]);
+    if (!here) return;
+    let stop = false;
+    void (async () => {
+      for (let i = 0; i < 3; i++) {
+        if (i) await new Promise((r) => setTimeout(r, 1500 * i));
+        if (stop) return;
+        // An older copy already on screen is fine to mark on: no need to keep asking.
+        if ((await store.loadAnnotations(subId, true)) || store.strokesReady(subId)) return;
+      }
+      if (!stop) setStrokesFailedFor(subId);
+    })();
+    return () => {
+      stop = true;
+    };
+  }, [store, subId, here, strokesTry]);
+  const retryStrokes = useCallback(() => {
+    setStrokesFailedFor(null);
+    setStrokesTry((n) => n + 1);
+  }, []);
+  // Closing or leaving the tab: the comment and strokes still in their short
+  // pause go into the save queue now (which then warns before the tab closes).
+  useEffect(() => {
+    const flushAll = () => flushers.current.forEach((flush) => flush());
+    const onHide = () => {
+      if (document.visibilityState === "hidden") flushAll();
+    };
+    const onUnload = (e: BeforeUnloadEvent) => {
+      flushAll();
+      if (store.pendingSaves()) e.preventDefault();
+    };
+    window.addEventListener("pagehide", flushAll);
+    window.addEventListener("beforeunload", onUnload);
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      window.removeEventListener("pagehide", flushAll);
+      window.removeEventListener("beforeunload", onUnload);
+      document.removeEventListener("visibilitychange", onHide);
+    };
+  }, [store]);
 
   // The next paper's strokes and first page are fetched while this one is
   // marked, so "Release & next" opens it at once.
@@ -114,6 +155,20 @@ export default function GradingPage() {
     if (q.type === "mcq") return !a || a.selectedIndex == null;
     return !a || (q.type === "text" ? !a.text?.trim() : !(a.photoUrls?.length || a.photoDataUrl));
   });
+
+  // Which questions still have no mark, by number ("2 left: Q4, Q7").
+  const unmarked = test.questions
+    .map((q, i) => ({ q, n: i + 1 }))
+    .filter(({ q }) => typeof submission.answers.find((x) => x.questionId === q.id)?.marksAwarded !== "number");
+  function showQuestion(q: Question) {
+    if (q.type === "mcq") setShowAuto(true);
+    // After the hidden ones (if any) are on screen.
+    requestAnimationFrame(() => {
+      const card = document.getElementById(`q-${q.id}`);
+      card?.scrollIntoView({ block: "center" });
+      card?.querySelector<HTMLInputElement>("input[data-mark-box]")?.focus({ preventScroll: true });
+    });
+  }
 
   const mcqs = test.questions.filter((q) => q.type === "mcq");
   const hideAuto = !showAuto && mcqs.length > 0 && mcqs.length < test.questions.length;
@@ -231,7 +286,26 @@ export default function GradingPage() {
         </div>
         {!fullyGraded && !released && (
           <div className="flex w-full flex-wrap items-center justify-between gap-2 rounded-tile border border-warning/25 bg-warning-soft px-4 py-3 text-sm text-warning">
-            <span>Score every written and photo answer before releasing.</span>
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              Score every written and photo answer before releasing.
+              {unmarked.length > 0 && (
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <span className="font-semibold">{unmarked.length} left:</span>
+                  {unmarked.slice(0, 12).map(({ q, n }) => (
+                    <button
+                      key={q.id}
+                      type="button"
+                      onClick={() => showQuestion(q)}
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center font-semibold tabular-nums text-ink underline underline-offset-4 hover:no-underline"
+                      aria-label={`Go to question ${n}`}
+                    >
+                      Q{n}
+                    </button>
+                  ))}
+                  {unmarked.length > 12 && <span>and {unmarked.length - 12} more</span>}
+                </span>
+              )}
+            </span>
             {blanks.length > 0 && (
               <button
                 type="button"
@@ -284,6 +358,9 @@ export default function GradingPage() {
               released={released}
               onTakeBack={takeBack}
               registerFlush={registerFlush}
+              strokesFailed={strokesFailedFor === subId}
+              onRetryStrokes={retryStrokes}
+              testId={test.id}
             />
           );
         })}
@@ -342,6 +419,9 @@ function GradeCard({
   released,
   onTakeBack,
   registerFlush,
+  strokesFailed,
+  onRetryStrokes,
+  testId,
 }: {
   index: number;
   question: Question;
@@ -355,6 +435,10 @@ function GradeCard({
   onTakeBack: (ask?: boolean) => boolean;
   /** Lets Release save this card's comment and strokes first. */
   registerFlush: (key: string, flush: () => void) => () => void;
+  /** The saved markings couldn't be read (after a few tries). */
+  strokesFailed: boolean;
+  onRetryStrokes: () => void;
+  testId: string;
 }) {
   const store = useStore();
   // Saved markings must be here before any can be drawn: a save writes the whole set.
@@ -438,6 +522,18 @@ function GradeCard({
     fbTimer.current = setTimeout(flushFeedback, 700);
   }
   useEffect(() => () => flushFeedback(), [flushFeedback]);
+  // Comments already written for this same question on other papers, most
+  // used first: one tap drops one in to tweak.
+  const db = useDatabase();
+  const usedBefore = useMemo(() => {
+    const count = new Map<string, number>();
+    for (const s of db.submissions) {
+      if (s.id === submissionId || s.testId !== testId) continue;
+      const text = s.answers.find((a) => a.questionId === question.id)?.feedback?.trim();
+      if (text) count.set(text, (count.get(text) ?? 0) + 1);
+    }
+    return [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([text]) => text);
+  }, [db.submissions, submissionId, testId, question.id]);
   // A newer saved comment (fresh data after the saved copy, or written on
   // another device) shows in the box, unless something is being typed here.
   const incomingFeedback = answer?.feedback ?? "";
@@ -511,7 +607,7 @@ function GradeCard({
   }
 
   return (
-    <Card className="p-5 sm:p-6">
+    <Card id={`q-${question.id}`} className="scroll-mt-24 p-5 sm:p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-semibold tabular-nums text-ink-3">Q{index + 1}</span>
@@ -519,6 +615,7 @@ function GradeCard({
           {question.topic.trim() && <Badge tone="neutral">{question.topic}</Badge>}
           <Pill>{question.marks} {question.marks === 1 ? "mark" : "marks"}</Pill>
           {locked && <span className="inline-flex items-center gap-1 text-xs text-ink-3"><Icon.Lock className="h-3 w-3" /> marked automatically</span>}
+          {!released && awarded === undefined && <Badge tone="warning">Not marked</Badge>}
         </div>
       </div>
       {isPastPaper(question) ? (
@@ -604,13 +701,23 @@ function GradeCard({
                     </button>
                   </>
                 )}
-                <button
-                  onClick={() => openPen(shown)}
-                  disabled={!strokesReady}
-                  className="inline-flex min-h-11 items-center font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline disabled:text-ink-3 disabled:no-underline"
-                >
-                  {strokesReady ? "Open to annotate" : "Getting your markings…"}
-                </button>
+                {!strokesReady && strokesFailed ? (
+                  <button
+                    type="button"
+                    onClick={onRetryStrokes}
+                    className="inline-flex min-h-11 items-center font-semibold text-warning underline-offset-4 hover:underline"
+                  >
+                    Couldn&apos;t load your markings. Try again
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => openPen(shown)}
+                    disabled={!strokesReady}
+                    className="inline-flex min-h-11 items-center font-semibold text-ink-2 underline-offset-4 hover:text-ink hover:underline disabled:text-ink-3 disabled:no-underline"
+                  >
+                    {strokesReady ? "Open to annotate" : "Getting your markings…"}
+                  </button>
+                )}
               </div>
               {annotating !== null && strokesReady && (
                 <AnnotatorModal
@@ -674,9 +781,12 @@ function GradeCard({
                 </button>
                 <span className="text-sm text-ink-3">/ {question.marks}</span>
               </div>
-              {/* One-tap marks for the common calls */}
-              <div className="flex items-center gap-1.5" role="group" aria-label="Quick marks">
-                {Array.from(new Set([0, Math.round(question.marks / 2), question.marks])).map((v) => (
+              {/* One-tap marks: every mark up to 10 (0 1 2 3 4), else 0, half and full. */}
+              <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Quick marks">
+                {(question.marks <= 10
+                  ? Array.from({ length: question.marks + 1 }, (_, v) => v)
+                  : Array.from(new Set([0, Math.floor(question.marks / 2), question.marks]))
+                ).map((v) => (
                   <button
                     key={v}
                     type="button"
@@ -689,7 +799,7 @@ function GradeCard({
                         : "border-border bg-transparent text-ink-3 hover:border-border-strong hover:text-ink",
                     )}
                   >
-                    {v === question.marks ? `Full (${v})` : v === 0 ? "0" : `Half (${v})`}
+                    {question.marks <= 10 ? v : v === question.marks ? `Full (${v})` : v === 0 ? "0" : `Half (${v})`}
                   </button>
                 ))}
               </div>
@@ -716,6 +826,24 @@ function GradeCard({
               placeholder="A short note for the student…"
               className="min-h-20"
             />
+            {usedBefore.some((t) => t !== feedback.trim()) && (
+              <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Comments used on other papers">
+                <span className="text-sm text-ink-3">Used before:</span>
+                {usedBefore
+                  .filter((t) => t !== feedback.trim())
+                  .map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => typeFeedback(t)}
+                      title={t}
+                      className="h-11 max-w-full truncate rounded-full border border-border px-3.5 text-sm text-ink-2 transition-colors duration-150 hover:border-border-strong hover:text-ink sm:max-w-[18rem]"
+                    >
+                      {t}
+                    </button>
+                  ))}
+              </div>
+            )}
           </div>
         )}
       </div>

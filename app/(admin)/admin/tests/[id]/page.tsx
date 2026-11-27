@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { useParams } from "next/navigation";
-import type { Question } from "@/types";
+import { useParams, useRouter } from "next/navigation";
+import type { Question, Test } from "@/types";
 import { useDatabase, useStore } from "@/lib/data/store";
 import Link from "next/link";
 import { isAwaitingMarking, liveStatus, submissionsForTest, testById } from "@/lib/data/selectors";
@@ -17,18 +17,40 @@ import { CollectUnsentCard } from "@/components/admin/CollectUnsentCard";
 import { goesWide, wideLine } from "@/lib/test-audience";
 import { AnswerKeyModal } from "@/components/admin/AnswerKeyModal";
 import { TestPdfModal } from "@/components/admin/TestPdfModal";
+import { ConfirmBulk } from "@/components/admin/BulkBar";
 import { Card, CardHeader, CardBody, Button, Input, Select, Badge, Pill, Modal, Icon, EmptyState } from "@/components/ui";
 import { formatWhen, fromLocalInput, toLocalInput } from "@/lib/time";
 import { useNow } from "@/hooks/useNow";
 import { classHistoryIds, paperBuilder, PastPaperPreview } from "@/components/admin/PastPaperSheet";
 import { familyOfCode, idsInText, isPastPaper, newSeed, parseId, questionFromBuilt, sourceLabel, withoutSources, type BuiltQuestion } from "@/lib/paper-builder";
 import { PaperText } from "@/components/PaperText";
+import { useAuth } from "@/lib/auth-context";
+import { isTa, staffLog } from "@/lib/staff";
+import { staffAllowed } from "@/lib/staff-areas";
+import { useSittingNow } from "@/lib/sitting-now";
+import { displayName } from "@/lib/display-name";
 
 /** The same words the marking screen uses. */
 // The same three names everywhere a question type is shown: the add box, the import screen and the past paper builder.
 const TYPE_LABEL: Record<Question["type"], string> = { mcq: "Multiple choice", text: "Typed answer", photo: "Photo answer" };
 
 const NONE_UNSAVED: ReadonlySet<string> = new Set();
+
+/** The Details form's values for a saved test (the same shape Save writes back). */
+function formOf(test: Test) {
+  return {
+    title: test.title,
+    subject: test.subject,
+    subjectId: test.subjectId ?? "",
+    classId: test.classId ?? "",
+    durationMinutes: test.durationMinutes,
+    uploadMinutes: test.uploadMinutes,
+    cohortId: test.cohortId ?? "",
+    opensAt: toLocalInput(test.opensAt),
+    closesAt: toLocalInput(test.closesAt),
+    testCode: test.testCode,
+  };
+}
 
 function stripDraft(d: QuestionDraft): Omit<Question, "id" | "order"> {
   const { subject: _s, ...rest } = d;
@@ -47,41 +69,46 @@ export default function TestEditorPage() {
   const now = useNow();
 
   // Settings form (local until Save).
-  const [form, setForm] = useState(() =>
-    test
-      ? {
-          title: test.title,
-          subject: test.subject,
-          subjectId: test.subjectId ?? "",
-          classId: test.classId ?? "",
-          durationMinutes: test.durationMinutes,
-          uploadMinutes: test.uploadMinutes,
-          cohortId: test.cohortId ?? "",
-          opensAt: toLocalInput(test.opensAt),
-          closesAt: toLocalInput(test.closesAt),
-          testCode: test.testCode,
-        }
-      : null,
-  );
+  const [form, setForm] = useState(() => (test ? formOf(test) : null));
 
   // Unsaved settings: the browser asks before the tab is closed or reloaded.
-  const savedForm = test
-    ? JSON.stringify({ title: test.title, subject: test.subject, subjectId: test.subjectId ?? "", classId: test.classId ?? "", durationMinutes: test.durationMinutes, uploadMinutes: test.uploadMinutes, cohortId: test.cohortId ?? "", opensAt: toLocalInput(test.opensAt), closesAt: toLocalInput(test.closesAt), testCode: test.testCode })
-    : "";
+  const savedForm = test ? JSON.stringify(formOf(test)) : "";
   const dirty = !!form && JSON.stringify(form) !== savedForm;
+
+  // The portal opens from the copy saved on this device, then fresh data arrives.
+  // Untouched details follow the saved test (so old values are never saved back);
+  // typed ones stay, with a note that the test changed elsewhere.
+  const [seenSaved, setSeenSaved] = useState(savedForm);
+  const [changedElsewhere, setChangedElsewhere] = useState(false);
+  if (savedForm !== seenSaved) {
+    setSeenSaved(savedForm);
+    if (test && (!form || JSON.stringify(form) === seenSaved)) {
+      setForm(formOf(test));
+      setChangedElsewhere(false);
+    } else if (form && JSON.stringify(form) !== savedForm) {
+      setChangedElsewhere(true);
+    } else {
+      setChangedElsewhere(false);
+    }
+  }
+
+  // Leaving with unsaved details: asked in the portal's own dialog, not the browser's.
+  const router = useRouter();
+  const [leaveTo, setLeaveTo] = useState<string | null>(null);
+  const leaving = useRef(false);
   useEffect(() => {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
     // In-app links (the sidebar, "Tests") do not fire beforeunload, so they
     // are caught here, before Next.js handles the click.
     const onLink = (e: MouseEvent) => {
-      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (leaving.current || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       const a = (e.target as Element | null)?.closest?.("a[href]");
       if (!(a instanceof HTMLAnchorElement) || a.target === "_blank" || a.hasAttribute("download")) return;
       if (a.origin !== window.location.origin || a.pathname === window.location.pathname) return;
-      if (window.confirm("You have unsaved changes to this test's details. Leave without saving?")) return;
       e.preventDefault();
       e.stopPropagation();
+      setLeaveTo(`${a.pathname}${a.search}${a.hash}`);
     };
     window.addEventListener("beforeunload", warn);
     document.addEventListener("click", onLink, true);
@@ -115,6 +142,24 @@ export default function TestEditorPage() {
   const lastPublish = useRef(0);
 
   const questions = useMemo(() => (test ? [...test.questions].sort((a, b) => a.order - b.order) : []), [test]);
+
+  // Staff: marking links only when marking is switched on for them; file import is Hamza's.
+  const { session } = useAuth();
+  const staff = isTa(session);
+  const mayMark = !staff || staffAllowed(session?.staffAccess).includes("marking");
+
+  // Students halfway through it right now (started, not handed in): changing questions moves things under them.
+  const sittingTests = useMemo(() => (test && test.status !== "draft" ? [test] : []), [test]);
+  const sitting = useSittingNow(db, sittingTests, sittingTests.length > 0, now);
+  const sittingIds = sitting.byTest.get(id) ?? [];
+  const sittingNote = (() => {
+    if (!sittingIds.length) return null;
+    const first = db.students.find((x) => x.id === sittingIds[0]);
+    const name = first ? displayName(first.username) : "A student";
+    return sittingIds.length === 1
+      ? `${name} is sitting this right now.`
+      : `${name} and ${sittingIds.length - 1} ${sittingIds.length === 2 ? "other" : "others"} are sitting this right now.`;
+  })();
   // Questions whose save failed: marked Not saved with Try again, and Publish waits for them.
   const unsavedIds = useSyncExternalStore(store.subscribeQuestionSaves, store.getUnsavedQuestions, () => NONE_UNSAVED);
   const [retrying, setRetrying] = useState<string | null>(null);
@@ -139,7 +184,9 @@ export default function TestEditorPage() {
   // Written past paper questions whose marks the paper didn't make certain: typed once here.
   const noMarks = questions.filter((q) => q.marks <= 0).length;
   const unsaved = questions.filter((q) => unsavedIds.has(q.id)).length;
-  const canPublish = canSave && questions.length > 0 && noMarks === 0 && unsaved === 0;
+  // "Untitled test" is never announced to students, and "(copy)" would be seen by them: a real title first.
+  const placeholderTitle = /^untitled test$/i.test(form.title.trim()) || /\(copy\)\s*$/i.test(form.title.trim());
+  const canPublish = canSave && !placeholderTitle && questions.length > 0 && noMarks === 0 && unsaved === 0;
   // Scripts already handed in: editing a question now changes their marks.
   const sat = submissionsForTest(db, id).filter((x) => x.status !== "in_progress").length;
   // Papers on this test waiting for marks (the Submissions page's rule), oldest first.
@@ -147,6 +194,17 @@ export default function TestEditorPage() {
     .filter((x) => isAwaitingMarking(db, x))
     .sort((a, b) => (a.submittedAt ?? "").localeCompare(b.submittedAt ?? ""));
   const totalMarks = questions.reduce((n, q) => n + Math.max(0, q.marks), 0);
+  // How the class answered each multiple choice question (handed in papers only): a wrong key shows up here first.
+  const choiceCounts = new Map<string, number[]>();
+  for (const sub of submissionsForTest(db, id)) {
+    if (sub.status === "in_progress") continue;
+    for (const a of sub.answers) {
+      if (a.type !== "mcq" || a.selectedIndex == null || a.selectedIndex < 0) continue;
+      const counts = choiceCounts.get(a.questionId) ?? [];
+      counts[a.selectedIndex] = (counts[a.selectedIndex] ?? 0) + 1;
+      choiceCounts.set(a.questionId, counts);
+    }
+  }
 
   async function swap(q: Question, confirmed = false) {
     if (!test) return;
@@ -168,6 +226,11 @@ export default function TestEditorPage() {
       });
       if (!question) {
         toast("Every other question on this topic has been set for this class already.");
+        return;
+      }
+      // Students can see a published test: a written question whose marks the paper doesn't show would reach them as 0 marks.
+      if (test.status !== "draft" && question.kind === "written" && !(question.marks && question.marks > 0)) {
+        toast("The paper doesn't show that question's marks clearly, so it wasn't swapped in. Press Swap again for another.", "info");
         return;
       }
       const before = { ...q };
@@ -222,17 +285,29 @@ export default function TestEditorPage() {
       closesAt: closes,
       testCode: form.testCode.trim(),
     };
-    store.updateTest(id, {
+    // Only what actually changed is sent: an unchanged title or time must not
+    // reach students as a "Test updated" notice.
+    const was = test ? formOf(test) : null;
+    const full = {
       ...saved,
       subjectId: saved.subjectId || null,
       classId: saved.classId || null,
       cohortId: saved.cohortId || null,
       opensAt: fromLocalInput(opens),
       closesAt: fromLocalInput(closes),
-      // Publishing goes in the same write as the details. Two writes finishing
-      // close together is what announced a new test twice.
-      ...(publishing ? { status: "active" as const } : {}),
-    });
+    };
+    const patch = Object.fromEntries(
+      (Object.keys(saved) as (keyof typeof saved)[]).filter((k) => !was || saved[k] !== was[k]).map((k) => [k, full[k]]),
+    ) as Partial<typeof full>;
+    if (publishing || Object.keys(patch).length) {
+      store.updateTest(id, {
+        ...patch,
+        // Publishing goes in the same write as the details. Two writes finishing
+        // close together is what announced a new test twice.
+        ...(publishing ? { status: "active" as const } : {}),
+      });
+    }
+    if (staff && (patch.closesAt || patch.opensAt) && !publishing && test?.status !== "draft") staffLog(session, `changed the times of the test "${saved.title}"`);
     setForm(saved);
     if (!quiet) toast("Test saved.", "success");
     return true;
@@ -258,6 +333,7 @@ export default function TestEditorPage() {
     }
     if (!saveSettings(true, override, true)) return;
     lastPublish.current = now;
+    staffLog(session, `published the test "${form.title.trim()}"`);
     const opensMs = new Date(fromLocalInput(override?.opensAt ?? form.opensAt)).getTime();
     toast(
       opensMs > now
@@ -296,7 +372,7 @@ export default function TestEditorPage() {
         actions={
           <>
             {/* Quiet way to this test's papers: the first one to mark, or the Submissions list. */}
-            {toMarkHere.length > 0 ? (
+            {!mayMark ? null : toMarkHere.length > 0 ? (
               <Link href={`/admin/grading/${toMarkHere[0].id}`} className={buttonClasses({ variant: "ghost" })}>
                 Mark papers ({toMarkHere.length})
               </Link>
@@ -351,11 +427,23 @@ export default function TestEditorPage() {
           <span className="font-semibold text-ink">Draft.</span> Students can&apos;t see this test yet. Check the questions, then press Publish.
         </p>
       )}
-      {!canPublish && (
+      {test.status !== "draft" && (!canSave || unsaved > 0 || noMarks > 0) && (
+        // Already live: no "then publish", just what students are missing.
         <p className="mb-4 rounded-tile border border-warning/30 bg-warning-soft px-4 py-3 text-sm text-warning">
           {!canSave
             ? "Give the test a title to save it."
-            : questions.length === 0
+            : unsaved > 0
+              ? `${unsaved === 1 ? "1 question is" : `${unsaved} questions are`} not saved yet. Press Try again on ${unsaved === 1 ? "it" : "each"} below. Students can see this test.`
+              : `Type the marks for ${noMarks === 1 ? "1 written question" : `${noMarks} written questions`} below. Students can see this test.`}
+        </p>
+      )}
+      {!canPublish && test.status === "draft" && (
+        <p className="mb-4 rounded-tile border border-warning/30 bg-warning-soft px-4 py-3 text-sm text-warning">
+          {!canSave
+            ? "Give the test a title to save it."
+            : placeholderTitle
+              ? "Give the test a real title before publishing. Students see it."
+              : questions.length === 0
               ? "Add at least one question before publishing."
               : unsaved > 0
                 ? `${unsaved === 1 ? "1 question is" : `${unsaved} questions are`} not saved yet. Press Try again on ${unsaved === 1 ? "it" : "each"} below, then publish.`
@@ -369,6 +457,15 @@ export default function TestEditorPage() {
         <Card>
           <CardHeader><h2 className="text-base font-semibold text-ink">Details</h2></CardHeader>
           <CardBody className="space-y-4">
+            {changedElsewhere && dirty && (
+              <p role="status" className="rounded-tile bg-surface-2 px-3 py-2 text-sm text-ink-2">
+                This test changed elsewhere. Save to keep what you typed, or{" "}
+                <button type="button" onClick={() => test && setForm(formOf(test))} className="min-h-11 font-semibold text-ink underline underline-offset-4">
+                  use the saved details
+                </button>
+                .
+              </p>
+            )}
             <Input label="Title" value={form.title} onChange={(e) => set("title", e.target.value)} required />
             <div className="grid grid-cols-2 gap-3">
               <Input label="Writing time (min)" type="number" min={1} value={form.durationMinutes} onChange={(e) => set("durationMinutes", Number(e.target.value))} />
@@ -480,9 +577,12 @@ export default function TestEditorPage() {
                 <Button variant="secondary" size="sm" onClick={() => setImportOpen(true)}>
                   <Icon.Bank className="h-4 w-4" /> From bank
                 </Button>
-                <Button variant="secondary" size="sm" onClick={() => setDocOpen(true)}>
-                  <Icon.Doc className="h-4 w-4" /> Paste or upload
-                </Button>
+                {/* Reading a file is Hamza's (the server refuses it for staff), so staff don't see a button that can't work. */}
+                {!staff && (
+                  <Button variant="secondary" size="sm" onClick={() => setDocOpen(true)}>
+                    <Icon.Doc className="h-4 w-4" /> Paste or upload
+                  </Button>
+                )}
                 <Button size="sm" variant={questions.length ? "secondary" : "primary"} onClick={() => { setEditingQ(null); setQModalOpen(true); }}>
                   <Icon.Plus className="h-4 w-4" /> Add
                 </Button>
@@ -490,6 +590,11 @@ export default function TestEditorPage() {
             </div>
           </CardHeader>
           <CardBody>
+            {sittingNote && questions.length > 0 && (
+              <p className="mb-4 rounded-tile border border-warning/30 bg-warning-soft px-4 py-3 text-sm font-semibold text-warning">
+                {sittingNote} Moving, changing or deleting a question now changes the paper in front of them.
+              </p>
+            )}
             {sat > 0 && questions.length > 0 && (
               <p className="mb-4 text-sm text-ink-2">
                 {sat === 1 ? "1 student has" : `${sat} students have`} already handed this in. Changing or deleting a question changes their marks.
@@ -552,6 +657,20 @@ export default function TestEditorPage() {
                       ) : (
                         <p className="mt-1.5 text-base italic text-ink-3">Answer the attached paper</p>
                       )}
+                      {q.type === "mcq" && (() => {
+                        const counts = choiceCounts.get(q.id) ?? [];
+                        const answered = counts.reduce((n, c) => n + (c ?? 0), 0);
+                        if (answered < 5) return null;
+                        const top = counts.reduce((best, c, k) => ((c ?? 0) > (counts[best] ?? 0) ? k : best), 0);
+                        // Most of the class chose the same other option: the key may be wrong.
+                        const check = top !== q.correctIndex && (counts[top] ?? 0) > answered / 2;
+                        return (
+                          <p className="mt-1 text-sm tabular-nums text-ink-3">
+                            {q.options.map((_, k) => `${"ABCDEF"[k]} ${counts[k] ?? 0}`).join(" · ")}
+                            {check && <span className="ml-2 font-semibold text-warning">Check this answer: most chose {"ABCDEF"[top]}</span>}
+                          </p>
+                        );
+                      })()}
                       {(q.marks <= 0 || typingMarks === q.id) && (
                         <label className="mt-2 flex items-center gap-2 text-sm text-ink-2">
                           Marks
@@ -624,6 +743,8 @@ export default function TestEditorPage() {
         onSave={(draft) => {
           if (editingQ) store.updateQuestion(id, editingQ.id, stripDraft(draft));
           else store.addQuestion(id, stripDraft(draft));
+          if (editingQ?.type === "mcq" && draft.type === "mcq" && draft.correctIndex !== editingQ.correctIndex)
+            staffLog(session, `changed the right answer to question ${questions.findIndex((q) => q.id === editingQ.id) + 1} of "${test.title}"`);
           setQModalOpen(false);
           toast(editingQ ? "Question updated." : "Question added.", "success");
         }}
@@ -773,19 +894,51 @@ export default function TestEditorPage() {
       </Modal>
 
       <Modal
-        open={!!deleteQId}
-        onClose={() => setDeleteQId(null)}
-        title="Delete question?"
-        description={sat > 0 ? `${sat === 1 ? "1 student has" : `${sat} students have`} answered it. Their answer and marks for it go too.` : undefined}
+        open={!!leaveTo}
+        onClose={() => setLeaveTo(null)}
+        title="Leave without saving?"
+        description="You changed this test's details and haven't saved them."
+        size="sm"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setDeleteQId(null)}>Cancel</Button>
-            <Button variant="danger" onClick={() => { if (deleteQId) store.deleteQuestion(id, deleteQId); setDeleteQId(null); }}>Delete</Button>
+            <Button variant="secondary" onClick={() => setLeaveTo(null)}>Stay</Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                const to = leaveTo;
+                setLeaveTo(null);
+                leaving.current = true;
+                if (to) router.push(to);
+              }}
+            >
+              Leave without saving
+            </Button>
           </>
         }
       >
-        <p className="text-sm text-ink-2">This removes the question from this test only.</p>
+        <p className="text-sm text-ink-2">Press Stay, then Save, to keep them.</p>
       </Modal>
+
+      {/* After hand ins, deleting a question wipes students' answers to it: the tick box makes that a choice, not a slip. */}
+      <ConfirmBulk
+        open={!!deleteQId}
+        onClose={() => setDeleteQId(null)}
+        title="Delete this question?"
+        description={
+          sat > 0
+            ? `${sat === 1 ? "1 student has" : `${sat} students have`} handed this test in. Their answers and marks for this question are lost for good, and their totals change.`
+            : "It comes off this test only."
+        }
+        confirmLabel="Delete question"
+        danger
+        ack={sat > 0 ? `I understand ${sat === 1 ? "this student's answer" : "these students' answers"} to this question will be lost.` : undefined}
+        onConfirm={() => {
+          if (deleteQId) store.deleteQuestion(id, deleteQId);
+          setDeleteQId(null);
+        }}
+      >
+        {sat > 0 && <p>Editing the question instead keeps their answers.</p>}
+      </ConfirmBulk>
     </div>
   );
 }

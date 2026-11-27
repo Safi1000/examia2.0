@@ -291,6 +291,25 @@ export default function AdminAssignmentsPage() {
     setSaveFailed(null);
   }
 
+  /** A new homework filled in from this one (same pages and words); pick the class, and the deadline follows its next lesson. */
+  function openCopy(a: Assignment) {
+    setPpQs(null);
+    setEditing("new");
+    setDueTyped(false);
+    const f: Form = {
+      title: a.title,
+      instructions: a.instructions ?? "",
+      attachments: [...a.attachments],
+      dueAt: dueFor(a.classId ?? "", a.subjectId ?? "", blank("").dueAt),
+      cohortId: a.cohortId ?? "",
+      classId: a.classId ?? "",
+      subjectId: a.subjectId ?? "",
+    };
+    setFormStart(JSON.stringify(blank(a.cohortId ?? "")));
+    setForm(f);
+    setSaveFailed(null);
+  }
+
   function closeForm() {
     if (saving) return;
     if (form && JSON.stringify(form) !== formStart && !window.confirm("Close without saving this homework? What you typed will be lost.")) return;
@@ -332,6 +351,7 @@ export default function AdminAssignmentsPage() {
     if (!form.cohortId) return toast("Choose a cohort.", "error");
     // Pages still uploading would be left off the homework.
     if (uploading) return toast("The worksheet is still uploading. Save once it has finished.", "error");
+    if (editing === "new" && !form.classId && !form.subjectId && !window.confirm(`This goes to ${reach.count} ${reach.count === 1 ? "student" : "students"} in every level and subject. Post it to all of them?`)) return;
     if (editing === "new" && +new Date(fromLocalInput(form.dueAt)) <= Date.now()) return toast("That deadline has already passed. Choose a later one.", "error");
     const payload = {
       // No title typed: it names itself, "Accounting homework, 13 Nov".
@@ -365,6 +385,19 @@ export default function AdminAssignmentsPage() {
   }
 
   const ppUrls = new Set(ppQs ? urlsOf(ppQs) : []);
+  // Who a new or edited homework reaches (its batch, and level/subject when picked), without the test account.
+  const reach = {
+    count: form
+      ? db.students.filter(
+          (s) =>
+            !isTestAccount(s) &&
+            !archivedCohortIds(db).has(s.cohortId) &&
+            s.cohortId === form.cohortId &&
+            (!form.classId || s.classIds.includes(form.classId)) &&
+            (!form.subjectId || s.subjectIds.includes(form.subjectId)),
+        ).length
+      : 0,
+  };
   const open = openId ? db.assignments.find((a) => a.id === openId) ?? null : null;
   const target = deleteId ? db.assignments.find((a) => a.id === deleteId) ?? null : null;
   const off = archivedCohortIds(db);
@@ -429,7 +462,7 @@ export default function AdminAssignmentsPage() {
                       <Button variant="secondary" size="sm" onClick={() => openEdit(a)}>
                         <Icon.Edit className="h-4 w-4" /> Edit
                       </Button>
-                      <RowMenu label={`More for ${a.title}`} items={[{ label: "Delete", danger: true, onSelect: () => setDeleteId(a.id) }]} />
+                      <RowMenu label={`More for ${a.title}`} items={[{ label: "Copy to another class", onSelect: () => openCopy(a) }, { label: "Delete", danger: true, onSelect: () => setDeleteId(a.id) }]} />
                     </span>
                   </div>
                 </div>
@@ -540,6 +573,16 @@ export default function AdminAssignmentsPage() {
               </Select>
             </div>
 
+            {form.cohortId && (
+              <p className="text-sm text-ink-3" aria-live="polite">
+                This goes to {reach.count} {reach.count === 1 ? "student" : "students"}
+                {[form.classId && db.classes.find((c) => c.id === form.classId)?.name, form.subjectId && db.subjects.find((x) => x.id === form.subjectId)?.name].filter(Boolean).length
+                  ? ` in ${[form.classId && db.classes.find((c) => c.id === form.classId)?.name, form.subjectId && db.subjects.find((x) => x.id === form.subjectId)?.name].filter(Boolean).join(" ")}`
+                  : " in every level and subject"}
+                .
+              </p>
+            )}
+
             {ppQs && (
               <div>
                 <Label>Past paper questions ({ppQs.length})</Label>
@@ -636,7 +679,7 @@ export default function AdminAssignmentsPage() {
         )}
       </Modal>
 
-      <Modal
+      <ConfirmBulk
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
         title="Delete this homework?"
@@ -644,19 +687,18 @@ export default function AdminAssignmentsPage() {
           target
             ? (() => {
                 const n = db.assignmentSubmissions.filter((s) => s.assignmentId === target.id).length;
-                return n ? `"${target.title}" goes, with ${plural(n, "hand-in")} and your feedback on them.` : `"${target.title}" will be removed.`;
+                return n ? `"${target.title}" goes, with ${plural(n, "hand-in")} and your feedback on them. This cannot be undone.` : `"${target.title}" will be removed. This cannot be undone.`;
               })()
             : ""
         }
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button variant="danger" onClick={() => { if (deleteId) store.deleteAssignment(deleteId); setDeleteId(null); toast("Homework deleted.", "success"); }}>Delete</Button>
-          </>
-        }
-      >
-        <p className="text-sm text-ink-2">This action cannot be undone.</p>
-      </Modal>
+        confirmLabel="Delete"
+        danger
+        ack={(() => {
+          const n = target ? db.assignmentSubmissions.filter((s) => s.assignmentId === target.id).length : 0;
+          return n ? `I understand ${plural(n, "student hand-in")} will be deleted for good.` : undefined;
+        })()}
+        onConfirm={() => { if (deleteId) store.deleteAssignment(deleteId); setDeleteId(null); toast("Homework deleted.", "success"); }}
+      />
     </div>
   );
 }
@@ -714,8 +756,8 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
               <span className="text-ink-2">{nameOf(s.username)}</span>
               {focusNote(s.id)}
             </span>
-            {/* Before the deadline only: no nudging towards late work. */}
-            {open && s.phone && (
+            {/* Before the deadline only: no nudging towards late work. Hamza's only: never drawn for staff. */}
+            {open && s.phone && !staffView && (
               <a
                 data-owner
                 href={`https://wa.me/${s.phone.replace(/\D/g, "")}?text=${encodeURIComponent(studentHomeworkDue({ id: s.id, username: s.username, intro: introNeeded(db, s.id, "student"), title: a!.title, due }))}`}
@@ -759,7 +801,13 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
             <FeedbackBox
               initial={s.feedback ?? ""}
               onDirty={(on) => onUnsent(s.id, on)}
-              onSave={(text) => { store.setAssignmentFeedback(s.id, text); onUnsent(s.id, false); toast("Feedback sent.", "success"); staffLog(session, `replied to ${student ? displayName(student.username) : "a student"}'s homework${a ? `, "${a.title}"` : ""}`); }}
+              draftKey={`hw-feedback-draft:${s.id}`}
+              onSave={async (text) => {
+                await store.setAssignmentFeedback(s.id, text);
+                onUnsent(s.id, false);
+                toast("Feedback sent.", "success");
+                staffLog(session, `replied to ${student ? displayName(student.username) : "a student"}'s homework${a ? `, "${a.title}"` : ""}`);
+              }}
             />
           </div>
         );
@@ -768,8 +816,42 @@ function HandIns({ assignmentId, onUnsent }: { assignmentId: string; onUnsent: (
   );
 }
 
-function FeedbackBox({ initial, onSave, onDirty }: { initial: string; onSave: (text: string) => void; onDirty: (dirty: boolean) => void }) {
-  const [text, setText] = useState(initial);
+function FeedbackBox({ initial, onSave, onDirty, draftKey }: { initial: string; onSave: (text: string) => Promise<void>; onDirty: (dirty: boolean) => void; draftKey: string }) {
+  // An unsent reply is kept on this device, so a locked phone or a reload doesn't lose it.
+  const [text, setText] = useState(() => {
+    try {
+      return window.localStorage.getItem(draftKey) ?? initial;
+    } catch {
+      return initial;
+    }
+  });
+  const [sending, setSending] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const keep = (v: string) => {
+    try {
+      if (v.trim() === initial.trim()) window.localStorage.removeItem(draftKey);
+      else window.localStorage.setItem(draftKey, v);
+    } catch {
+      /* private mode: the draft just isn't kept */
+    }
+  };
+  // A restored draft counts as typed-but-unsent.
+  useEffect(() => {
+    if (text.trim() !== initial.trim()) onDirty(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  async function send() {
+    setSending(true);
+    setFailed(false);
+    try {
+      await onSave(text.trim());
+      try { window.localStorage.removeItem(draftKey); } catch { /* ignore */ }
+    } catch {
+      setFailed(true);
+    } finally {
+      setSending(false);
+    }
+  }
   return (
     <div className="mt-3">
       <Textarea
@@ -777,13 +859,16 @@ function FeedbackBox({ initial, onSave, onDirty }: { initial: string; onSave: (t
         value={text}
         onChange={(e) => {
           setText(e.target.value);
+          keep(e.target.value);
+          setFailed(false);
           onDirty(e.target.value.trim() !== initial.trim());
         }}
         placeholder="What they did well, what to fix…"
         className="min-h-20"
       />
-      <Button size="sm" className="mt-2" variant={text.trim() === initial.trim() ? "secondary" : "primary"} disabled={text.trim() === initial.trim()} onClick={() => onSave(text.trim())}>
-        Send feedback
+      {failed && <p role="alert" className="mt-1 text-sm font-medium text-error">Not sent. Check your connection and try again. Your text is still here.</p>}
+      <Button size="sm" className="mt-2" variant={text.trim() === initial.trim() ? "secondary" : "primary"} disabled={text.trim() === initial.trim()} loading={sending} onClick={() => void send()}>
+        {failed ? "Try again" : "Send feedback"}
       </Button>
     </div>
   );

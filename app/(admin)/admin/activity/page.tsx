@@ -36,7 +36,8 @@ export default function ActivityPage() {
   const nowMs = useNow();
   const { cohortId } = useAdminFilter();
   const [range, setRange] = useState<7 | 30>(7);
-  const [sort, setSort] = useState<Sort>("most");
+  // Opens on who has slipped (least time first), not on the keenest.
+  const [sort, setSort] = useState<Sort>("least");
   const [query, setQuery] = useState("");
 
   const today = pkDate(nowMs);

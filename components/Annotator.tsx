@@ -47,6 +47,21 @@ function rememberPen() {
     localStorage.setItem(PEN_KEY, String(Date.now()));
   } catch {}
 }
+/** The last tool, colour, size and stamp value on this device: the pen view opens where you left it. */
+const TOOLS_KEY = "annot_tools";
+const TOOL_LIST: Tool[] = ["pen", "line", "highlight", "mark", "tick", "cross", "text", "erase"];
+function keptTools(): { tool: Tool; color: string; size: number; markValue: number } {
+  const out = { tool: "pen" as Tool, color: COLORS[0], size: 1, markValue: 1 };
+  try {
+    const k = JSON.parse(localStorage.getItem(TOOLS_KEY) ?? "{}") as Record<string, unknown>;
+    // The eraser is never where a fresh opening starts: a first stroke would rub out instead of mark.
+    if (TOOL_LIST.includes(k.tool as Tool) && k.tool !== "erase") out.tool = k.tool as Tool;
+    if (COLORS.includes(k.color as string)) out.color = k.color as string;
+    if (typeof k.size === "number" && k.size >= 0.5 && k.size <= 3) out.size = k.size;
+    if (typeof k.markValue === "number" && Number.isFinite(k.markValue) && k.markValue >= 0) out.markValue = k.markValue;
+  } catch {}
+  return out;
+}
 type Stroke = Extract<Annotation, { t: "draw" }>;
 
 const nid = () => Math.random().toString(36).slice(2, 10);
@@ -234,13 +249,22 @@ export function AnnotatorModal({
   // The newest markup, ahead of the next render: an eraser dragged across several
   // marks commits several times before React catches up.
   const latest = useRef<Annotations>(initial);
-  // Each page's earlier versions, newest last. Undo steps back through them, so it
-  // brings back what was erased or cleared instead of removing another stroke.
-  const [history, setHistory] = useState<Record<string, Annotation[][]>>({});
-  const [tool, setTool] = useState<Tool>("pen");
-  const [color, setColor] = useState(COLORS[0]);
-  const [size, setSize] = useState(1);
-  const [markValue, setMarkValue] = useState(1);
+  // Earlier versions of the pages, newest last, in the order the changes were
+  // made: Undo brings back what was erased or cleared, and takes back the last
+  // thing done whichever page is on screen. A ref, so a fast double tap steps
+  // back exactly twice.
+  const hist = useRef<Array<{ url: string; shapes: Annotation[] }>>([]);
+  const [histLen, setHistLen] = useState(0);
+  const [kept] = useState(keptTools);
+  const [tool, setTool] = useState<Tool>(kept.tool);
+  const [color, setColor] = useState(kept.color);
+  const [size, setSize] = useState(kept.size);
+  const [markValue, setMarkValue] = useState(kept.markValue);
+  useEffect(() => {
+    try {
+      localStorage.setItem(TOOLS_KEY, JSON.stringify({ tool, color, size, markValue }));
+    } catch {}
+  }, [tool, color, size, markValue]);
   const [page, setPage] = useState(startAt);
   const scrollRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -266,6 +290,8 @@ export function AnnotatorModal({
   // Esc + scroll lock. onClose is read through a ref so a new inline handler
   // from the parent can't re-run this effect mid-drag.
   const onCloseRef = useRef(onClose);
+  // Ctrl or Cmd + Z reads the newest undo through this (the key listener is set once).
+  const undoRef = useRef<() => void>(() => {});
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
@@ -275,6 +301,11 @@ export function AnnotatorModal({
     dialogRef.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onCloseRef.current();
+      // Ctrl or Cmd + Z: undo the last change (a box being typed in keeps its own undo).
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "z" && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+        e.preventDefault();
+        undoRef.current();
+      }
     };
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -335,7 +366,10 @@ export function AnnotatorModal({
     const next = { ...prevAll, [url]: shapes };
     latest.current = next;
     setByUrl(next);
-    if (!undoing) setHistory((h) => ({ ...h, [url]: [...(h[url] ?? []), before].slice(-100) }));
+    if (!undoing) {
+      hist.current = [...hist.current, { url, shapes: before }].slice(-200);
+      setHistLen(hist.current.length);
+    }
     onChange(url, shapes);
     // The marks written in the margin add up to a score: hand the caller the
     // total (and the total before) so nobody adds them up by hand. Only when
@@ -352,14 +386,17 @@ export function AnnotatorModal({
 
   const current = urls[page] ?? urls[0];
   const currentShapes = byUrl[current] ?? [];
-  const steps = history[current] ?? [];
-
+  /** Takes back the last change made, on whichever page it was (and shows that page). */
   function undo() {
-    const list = history[current];
-    if (!list?.length) return;
-    setHistory((h) => ({ ...h, [current]: (h[current] ?? []).slice(0, -1) }));
-    commit(current, list[list.length - 1], true);
+    const last = hist.current[hist.current.length - 1];
+    if (!last) return;
+    hist.current = hist.current.slice(0, -1);
+    setHistLen(hist.current.length);
+    commit(last.url, last.shapes, true);
+    const at = urls.indexOf(last.url);
+    if (at >= 0 && at !== page) goto(at);
   }
+  undoRef.current = readOnly ? () => {} : undo;
 
   function goto(i: number) {
     const clamped = Math.max(0, Math.min(urls.length - 1, i));
@@ -457,7 +494,7 @@ export function AnnotatorModal({
                 variant="secondary"
                 size="sm"
                 onClick={undo}
-                disabled={!steps.length}
+                disabled={!histLen}
               >
                 Undo
               </Button>

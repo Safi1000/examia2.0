@@ -66,7 +66,8 @@ export default function ClassesPage() {
   const [picked, setPicked] = useState<string | null>(null);
   // Default to today, or the next class day (the first Monday before term starts).
   const date = picked ?? nextClassDay(today);
-  const { links, joins, ready, joinsOk, save, reload } = useClassLinks(date, date, true);
+  // Refreshed every 20 s only on today (joins and new links); other days load once and when the tab comes back.
+  const { links, joins, ready, joinsOk, save, reload } = useClassLinks(date, date, true, date === today);
 
   const [view, setView] = useState<"day" | "week">("day");
   const weekDirty = useRef(false);
@@ -102,7 +103,9 @@ export default function ClassesPage() {
       return false;
     }
     const ok = await save(targets, field, value);
-    toast(ok ? (value.trim() ? "Link saved." : "Link removed.") : "Couldn't save. Try again.", ok ? "success" : "error");
+    // A Meet link Google made comes back on the next run (about 15 minutes) while the class is on: say so.
+    const removed = field === "meetUrl" ? "Link removed. If Google made it, it comes back within 15 minutes unless the class is cancelled." : "Link removed.";
+    toast(ok ? (value.trim() ? "Link saved." : removed) : "Couldn't save. Check your connection and try again.", ok ? "success" : "error");
     return ok;
   }
 
@@ -509,7 +512,11 @@ export default function ClassesPage() {
                                   }
                                 />
                               )}
-                              {phase !== "later" && date <= today && (
+                              {/* One-day changes are kept for a week (lib/timetable applyDayChange): older days can't be changed. */}
+                              {phase !== "later" && date <= today && date < addDays(today, -7) && (
+                                <p className="text-sm text-ink-3">Changes to days more than a week ago aren&apos;t kept, so this day can&apos;t be changed.</p>
+                              )}
+                              {phase !== "later" && date <= today && date >= addDays(today, -7) && (
                                 <div>
                                   <Button
                                     size="sm"
@@ -551,7 +558,7 @@ export default function ClassesPage() {
                                   placeholder="Added automatically, or paste a Drive link"
                                   initial={link?.recordingUrl ?? ""}
                                   disabled={ready === false}
-                                  onSave={(v) => store([s], "recordingUrl", v)}
+                                  onSave={(v) => store(s.joint ? [leadOf(s), ...slots.filter((x) => x.joint?.follows && leadOf(x) === leadOf(s))] : [s], "recordingUrl", v)}
                                 />
                               )}
                               {phase !== "later" && who.length > joined && joined > 0 && (

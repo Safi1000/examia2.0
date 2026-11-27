@@ -190,7 +190,8 @@ export function dueReminders(db: Database, nowMs: number, cohortId: string | nul
     .filter((t) => liveStatus(t, nowMs) === "closed" && nowMs - new Date(t.closesAt).getTime() <= OPEN && !isArchivedTest(db, t, off))
     .sort((a, b) => b.closesAt.localeCompare(a.closesAt));
   // Looked up once: scanning every submission for every student and test is slow with a full roster.
-  const started = closed.length ? new Set(db.submissions.map((s) => `${s.testId}|${s.studentId}`)) : new Set<string>();
+  // Only a handed-in paper counts as sat (the same rule as Today): opened and left is still missed.
+  const started = closed.length ? new Set(db.submissions.filter((s) => s.status !== "in_progress").map((s) => `${s.testId}|${s.studentId}`)) : new Set<string>();
   for (const student of students) {
     const missed = closed.filter((test) => {
       if (!testCoversStudent(test, student)) return false;

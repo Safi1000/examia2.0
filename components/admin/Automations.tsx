@@ -34,27 +34,43 @@ function useAutomation() {
   const [issues, setIssues] = useState<Issue[]>([]);
   // The switches couldn't be read: say so, rather than spin for ever.
   const [failed, setFailed] = useState(false);
+  // Today's health check couldn't be done (not "no issues"). A signed-out or staff
+  // session (refused) is not a failed check, so it stays quiet.
+  const [checkFailed, setCheckFailed] = useState(false);
   const load = useCallback(() => {
     if (DEMO) return;
     call("GET", "/api/automation")
-      .then((j: { settings: Settings; issues: Issue[] }) => {
+      .then((j: { settings: Settings; issues: Issue[]; healthFailed?: boolean }) => {
         setFailed(false);
+        setCheckFailed(!!j.healthFailed);
         setSettings(j.settings);
         setIssues(j.issues ?? []);
       })
-      .catch(() => setFailed(true));
+      .catch((e: unknown) => {
+        setFailed(true);
+        setCheckFailed(!(e instanceof Error && e.message.startsWith("Your session has expired")));
+      });
   }, []);
   useEffect(() => {
     load();
   }, [load]);
-  return { settings, setSettings, issues, failed, reload: load };
+  return { settings, setSettings, issues, failed, checkFailed, reload: load };
 }
 
 /** Today: one quiet card, only when something needs Hamza. */
 export function HealthLine() {
-  const { issues, reload } = useAutomation();
+  const { issues, checkFailed, reload } = useAutomation();
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
+  if (!issues.length && checkFailed)
+    return (
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-hairline px-5 py-3" role="status">
+        <p className="text-sm text-ink-2">Couldn&apos;t check classes and reminders just now.</p>
+        <button type="button" onClick={reload} className="inline-flex min-h-11 items-center text-sm font-semibold text-ink underline underline-offset-4">
+          Try again
+        </button>
+      </div>
+    );
   if (!issues.length) return null;
 
   async function makeLinks() {

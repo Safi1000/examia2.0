@@ -20,6 +20,8 @@ import { LogoTight } from "@/components/Brand";
 import { Splash } from "@/components/Splash";
 import { PortalSkeleton } from "@/components/PortalSkeleton";
 import { useAccessPaused } from "@/lib/access-paused";
+import { PausedScreen } from "@/components/student/PausedScreen";
+import { FarewellScreen, postFarewell } from "@/components/student/FarewellScreen";
 import { NotificationBell } from "@/components/NotificationBell";
 import { Button, CohortTag } from "@/components/ui";
 import { NavIcon } from "@/components/nav/NavIcons";
@@ -89,9 +91,10 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     return startActivity(async () => (await supabase().auth.getSession()).data.session?.access_token ?? null);
   }, [tracking]);
   useEffect(() => setActivityPath(pathname), [pathname]);
-  // Hamza can pause a student's access from Students: they sign in as usual
-  // and see only a blank screen until it is resumed.
-  const accessPaused = useAccessPaused(tracking);
+  // Hamza can pause a student's access from Students (with a reason, or not),
+  // or mark them as left: they sign in as usual and see only the paused screen,
+  // or the farewell screen, until Hamza resumes them or brings them back.
+  const access = useAccessPaused(tracking);
 
   if (loadFailed) {
     return (
@@ -110,12 +113,23 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   if (!session || session.role !== "student") {
     return <Splash tips />;
   }
-  if (accessPaused) {
-    return (
-      <div className="flex min-h-dvh items-center justify-center" aria-label="Hamza Teaches">
-        <LogoTight className="h-6 opacity-25" />
-      </div>
-    );
+  if (access.paused) {
+    const leave = () => { logout(); router.replace("/login"); };
+    if (access.left) {
+      return (
+        <FarewellScreen
+          kind={access.left.kind}
+          sent={access.farewellSent}
+          onSignOut={leave}
+          send={async (note) => {
+            if (DEMO) return new Promise<boolean>((r) => setTimeout(() => r(true), 600));
+            const bearer = (await supabase().auth.getSession()).data.session?.access_token;
+            return bearer ? postFarewell(note, { bearer }) : false;
+          }}
+        />
+      );
+    }
+    return <PausedScreen reason={access.reason} username={access.username || (session.studentId ? studentById(db, session.studentId)?.username ?? "" : "")} onSignOut={leave} />;
   }
   // Signed in, but no student record behind the account yet: waiting would
   // never end, so say so.

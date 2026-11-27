@@ -21,6 +21,7 @@
  */
 import { useSyncExternalStore } from "react";
 import { syncAsLevels } from "@/lib/grading";
+import { isFullyGraded } from "@/lib/scoring";
 import type {
   Activity,
   ActivityType,
@@ -58,6 +59,7 @@ import { DEMO } from "@/lib/demo";
 import { supabase } from "@/lib/supabase";
 import { TIDY_MAX, TIDY_TYPES, findDoubledNotices, isUuid, stillExtra, type DoubledNotice, type NoticeRow } from "@/lib/doubled-notices";
 import { cleanLevels, type LevelSubjects } from "@/lib/levels";
+import { displayName } from "@/lib/display-name";
 import { clearSnapshot, writeSnapshot, type Snapshot } from "@/lib/data/snapshot";
 
 /**
@@ -1048,7 +1050,11 @@ class Store {
       })
       .catch(() => {});
   }
-  private nameOf = (studentId?: string) => this.state.students.find((x) => x.id === studentId)?.username ?? "a student";
+  // The log names a student as the Roster does ("Amelia K"), not by their sign-in name.
+  private nameOf = (studentId?: string) => {
+    const u = this.state.students.find((x) => x.id === studentId)?.username;
+    return u ? displayName(u) : "a student";
+  };
   private titleOf = (testId?: string) => this.state.tests.find((x) => x.id === testId)?.title ?? "a test";
 
   /**
@@ -1423,16 +1429,20 @@ class Store {
     const id = genId();
     const createdAt = new Date().toISOString();
     this.commit((d) => d.cohorts.push({ id, name, color, classIds: [], subjectIds: [], createdAt, active: true }));
-    this.run(supabase().from("cohorts").insert({ id, name, color, created_at: createdAt }), "addCohort");
+    const saved = Promise.resolve(supabase().from("cohorts").insert({ id, name, color, created_at: createdAt }));
+    this.cohortSaves.set(id, saved.then(() => undefined, () => undefined));
+    this.run(saved, `Cohort "${name}" didn't save`);
     return id;
   }
+  /** A new cohort's own row save, so its levels and subjects wait for it (they point at it). */
+  private cohortSaves = new Map<string, Promise<void>>();
   updateCohort(id: string, patch: Partial<Pick<Cohort, "name" | "color">>) {
     if (!this.ownerOnly()) return;
     this.commit((d) => {
       const c = d.cohorts.find((x) => x.id === id);
       if (c) Object.assign(c, patch);
     });
-    this.run(supabase().from("cohorts").update(patch).eq("id", id), "updateCohort");
+    this.run(supabase().from("cohorts").update(patch).eq("id", id), `Cohort "${this.cohortName(id) ?? "?"}" didn't save`);
   }
   deleteCohort(id: string, reassignToId: string) {
     if (!this.ownerOnly()) return;
@@ -1461,35 +1471,77 @@ class Store {
     })();
   }
 
-  setCohortClasses(cohortId: string, classIds: string[]) {
-    if (!this.ownerOnly()) return;
+  /** Resolves true once saved. New levels are added before old ones are removed, so a failure never leaves the cohort with none. */
+  async setCohortClasses(cohortId: string, classIds: string[]): Promise<boolean> {
+    if (!this.ownerOnly()) return false;
+    const before = this.state.cohorts.find((x) => x.id === cohortId);
+    const old = before?.classIds ?? [];
+    const name = before?.name ?? "the cohort";
     this.commit((d) => {
       const c = d.cohorts.find((x) => x.id === cohortId);
       if (c) c.classIds = classIds;
     });
     const sb = supabase();
-    void (async () => {
-      await sb.from("cohort_classes").delete().eq("cohort_id", cohortId);
-      if (classIds.length) {
-        const { error } = await sb.from("cohort_classes").insert(classIds.map((cid) => ({ cohort_id: cohortId, class_id: cid })));
-        if (error) this.report(`setCohortClasses: ${error.message}`);
+    await this.cohortSaves.get(cohortId);
+    const added = classIds.filter((x) => !old.includes(x));
+    const removed = old.filter((x) => !classIds.includes(x));
+    // What the database really holds so far: shown again if a step fails, so "save again" sees the change.
+    let saved = old;
+    try {
+      if (added.length) {
+        const { error } = await sb.from("cohort_classes").insert(added.map((cid) => ({ cohort_id: cohortId, class_id: cid })));
+        if (error) throw new Error(error.message);
+        saved = [...old, ...added];
       }
-    })();
+      if (removed.length) {
+        const { error } = await sb.from("cohort_classes").delete().eq("cohort_id", cohortId).in("class_id", removed);
+        if (error) throw new Error(error.message);
+      }
+      return true;
+    } catch (e) {
+      this.commit((d) => {
+        const c = d.cohorts.find((x) => x.id === cohortId);
+        if (c) c.classIds = saved;
+      });
+      this.failed(`${name}: its levels didn't save (${e instanceof Error ? e.message : "unknown error"})`);
+      return false;
+    }
   }
-  setCohortSubjects(cohortId: string, subjectIds: string[]) {
-    if (!this.ownerOnly()) return;
+  /** Resolves true once saved; new subjects are added before old ones are removed. */
+  async setCohortSubjects(cohortId: string, subjectIds: string[]): Promise<boolean> {
+    if (!this.ownerOnly()) return false;
+    const before = this.state.cohorts.find((x) => x.id === cohortId);
+    const old = before?.subjectIds ?? [];
+    const name = before?.name ?? "the cohort";
     this.commit((d) => {
       const c = d.cohorts.find((x) => x.id === cohortId);
       if (c) c.subjectIds = subjectIds;
     });
     const sb = supabase();
-    void (async () => {
-      await sb.from("cohort_subjects").delete().eq("cohort_id", cohortId);
-      if (subjectIds.length) {
-        const { error } = await sb.from("cohort_subjects").insert(subjectIds.map((sid) => ({ cohort_id: cohortId, subject_id: sid })));
-        if (error) this.report(`setCohortSubjects: ${error.message}`);
+    await this.cohortSaves.get(cohortId);
+    const added = subjectIds.filter((x) => !old.includes(x));
+    const removed = old.filter((x) => !subjectIds.includes(x));
+    // What the database really holds so far: shown again if a step fails, so "save again" sees the change.
+    let saved = old;
+    try {
+      if (added.length) {
+        const { error } = await sb.from("cohort_subjects").insert(added.map((sid) => ({ cohort_id: cohortId, subject_id: sid })));
+        if (error) throw new Error(error.message);
+        saved = [...old, ...added];
       }
-    })();
+      if (removed.length) {
+        const { error } = await sb.from("cohort_subjects").delete().eq("cohort_id", cohortId).in("subject_id", removed);
+        if (error) throw new Error(error.message);
+      }
+      return true;
+    } catch (e) {
+      this.commit((d) => {
+        const c = d.cohorts.find((x) => x.id === cohortId);
+        if (c) c.subjectIds = saved;
+      });
+      this.failed(`${name}: its subjects didn't save (${e instanceof Error ? e.message : "unknown error"})`);
+      return false;
+    }
   }
 
   // ---- Classes & Subjects (global catalogue) ---------------------------
@@ -2239,16 +2291,34 @@ class Store {
   setTestStatus(id: string, status: TestStatus) {
     this.updateTest(id, { status });
   }
-  deleteTest(id: string) {
-    if (!this.ownerOnly()) return;
+  /**
+   * Deletes the test with its papers. The test leaves the screen only once the
+   * server has done it, so a failed delete never looks done. Resolves false if
+   * it didn't go through (the test stays in the list).
+   */
+  async deleteTest(id: string): Promise<boolean> {
+    if (!this.ownerOnly()) return false;
     const test = this.state.tests.find((t) => t.id === id);
     const title = test?.title;
     const wasVisible = !!test && test.status !== "draft";
+    this.pendingWrites++;
+    this.writeCount++;
+    try {
+      const { error } = await supabase().from("tests").delete().eq("id", id);
+      if (error) {
+        console.error("[store] deleteTest:", error.message);
+        return false;
+      }
+    } catch (e) {
+      console.error("[store] deleteTest:", String(e));
+      return false;
+    } finally {
+      this.pendingWrites--;
+    }
     this.commit((d) => {
       d.tests = d.tests.filter((t) => t.id !== id);
       d.submissions = d.submissions.filter((s) => s.testId !== id);
     });
-    this.run(supabase().from("tests").delete().eq("id", id), "deleteTest");
     for (const [qid, u] of this.unsavedQs) if (u.testId === id) this.forgetQuestionSave(qid);
     // No testId on either row: the FK would cascade the entry away with the
     // test itself, and the notification has to outlive what it reports.
@@ -2269,6 +2339,7 @@ class Store {
         audience: "student",
       });
     }
+    return true;
   }
   /** `bank: false` skips the bank copy (past paper questions: the papers are the bank). */
   addQuestion(testId: string, q: Omit<Question, "id" | "order">, opts?: { bank?: boolean }) {
@@ -2482,6 +2553,9 @@ class Store {
   }
   reorderQuestions(testId: string, orderedIds: string[]) {
     this.note(`test:${testId}`, `edited the test "${this.titleOf(testId)}"`);
+    const was =
+      this.reorderWait.get(testId)?.was ??
+      new Map((this.state.tests.find((x) => x.id === testId)?.questions ?? []).map((q) => [q.id, q.order]));
     this.commit((d) => {
       const t = d.tests.find((x) => x.id === testId);
       if (!t) return;
@@ -2492,13 +2566,25 @@ class Store {
         })
         .filter((q): q is Question => q !== null);
     });
-    this.persistReorder(testId);
+    // Quick taps on the arrows: wait for the last one, then save only the
+    // questions whose place changed, in one go (one save per question per tap
+    // could arrive out of order and leave students a different order).
+    const wait = this.reorderWait.get(testId);
+    if (wait) clearTimeout(wait.timer);
+    const timer = setTimeout(() => {
+      this.reorderWait.delete(testId);
+      this.persistReorder(testId, was);
+    }, 400);
+    this.reorderWait.set(testId, { timer, was });
   }
-  private persistReorder(testId: string) {
+  /** Reorders waiting to be saved, per test: the timer and each question's place before the first tap. */
+  private reorderWait = new Map<string, { timer: ReturnType<typeof setTimeout>; was: Map<string, number> }>();
+  private persistReorder(testId: string, was?: Map<string, number>) {
     const t = this.state.tests.find((x) => x.id === testId);
     if (!t) return;
     const sb = supabase();
     t.questions.forEach((q) => {
+      if (was && was.get(q.id) === q.order) return;
       this.run(sb.from("questions").update({ sort_order: q.order }).eq("id", q.id), "reorderQuestions");
     });
   }
@@ -3010,11 +3096,14 @@ class Store {
     const releasedAt = new Date().toISOString();
     // Captured before the commit flips them to "released" — afterwards there is
     // no way to tell which submissions this call actually released.
-    const released = this.state.submissions.filter((s) => s.testId === testId && s.status === "submitted");
+    // Only fully marked papers: an unmarked written answer must never go out as a zero.
+    const test = this.state.tests.find((t) => t.id === testId);
+    const released = test ? this.state.submissions.filter((s) => s.testId === testId && s.status === "submitted" && isFullyGraded(test, s)) : [];
     if (released.length) this.note(`releaseAll:${testId}`, `released ${released.length} result${released.length === 1 ? "" : "s"} for "${this.titleOf(testId)}"`);
+    const ids = new Set(released.map((s) => s.id));
     this.commit((d) => {
       d.submissions
-        .filter((s) => s.testId === testId && s.status === "submitted")
+        .filter((s) => ids.has(s.id))
         .forEach((s) => { s.status = "released"; s.releasedAt = releasedAt; });
     });
     // Waits for those papers' marking saves, like a single release, and then
@@ -3562,11 +3651,37 @@ class Store {
       link: "/admin/assignments",
     });
   }
-  /** Teacher's reply. Assignments carry no marks — feedback is the whole grade. */
-  setAssignmentFeedback(submissionId: string, feedback: string) {
+  /** Teacher's reply. Assignments carry no marks — feedback is the whole grade. Throws if not saved (the student is only told once it is). */
+  async setAssignmentFeedback(submissionId: string, feedback: string): Promise<void> {
     const feedbackAt = new Date().toISOString();
     const before = this.state.assignmentSubmissions.find((x) => x.id === submissionId);
-    if (before && feedback.trim() && feedback !== before.feedback) {
+    const prev = before ? { feedback: before.feedback, feedbackAt: before.feedbackAt } : null;
+    // The student's bell goes out only the first time a reply is given, not on every later edit.
+    const firstReply = !!before && !before.feedback?.trim() && !!feedback.trim();
+    this.commit((d) => {
+      const s = d.assignmentSubmissions.find((x) => x.id === submissionId);
+      if (s) { s.feedback = feedback; s.feedbackAt = feedbackAt; }
+    });
+    this.pendingWrites++;
+    this.writeCount++;
+    let problem: string | null = null;
+    try {
+      const { error } = await supabase().from("assignment_submissions").update({ feedback, feedback_at: feedbackAt }).eq("id", submissionId);
+      if (error) problem = error.message;
+    } catch (e) {
+      problem = String(e);
+    } finally {
+      this.pendingWrites--;
+    }
+    if (problem) {
+      console.error("[store]", `setAssignmentFeedback: ${problem}`);
+      this.commit((d) => {
+        const s = d.assignmentSubmissions.find((x) => x.id === submissionId);
+        if (s && prev) { s.feedback = prev.feedback; s.feedbackAt = prev.feedbackAt; }
+      });
+      throw new Error("Not sent. Check your internet and try again.");
+    }
+    if (before && firstReply) {
       // The student's bell: Hamza replied (the reply itself is on Assignments).
       const assignment = this.state.assignments.find((a) => a.id === before.assignmentId);
       this.logActivity({
@@ -3579,14 +3694,6 @@ class Store {
         audience: "student",
       });
     }
-    this.commit((d) => {
-      const s = d.assignmentSubmissions.find((x) => x.id === submissionId);
-      if (s) { s.feedback = feedback; s.feedbackAt = feedbackAt; }
-    });
-    this.run(
-      supabase().from("assignment_submissions").update({ feedback, feedback_at: feedbackAt }).eq("id", submissionId),
-      "setAssignmentFeedback",
-    );
   }
 
   // ---- Question bank ---------------------------------------------------
@@ -3736,6 +3843,8 @@ class Store {
       noteId,
       link: "/admin/notes",
     });
+    // A hidden note can't be opened, so a "New notes" notice would lead nowhere.
+    if (note && /;\s*ht-hidden\b/i.test(note.fileType)) return;
     // Reaches exactly the students the assignment itself grants access to: the
     // broadcast columns carry the same cohort/class/subject triple the note RLS
     // is checked against.

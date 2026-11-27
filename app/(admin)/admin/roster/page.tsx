@@ -3,12 +3,12 @@
 import { useIsStaff } from "@/lib/staff";
 import { useMemo, useRef, useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Student } from "@/types";
 import { StudentLinksError, useDatabase, useStore } from "@/lib/data/store";
 import { useAdminFilter } from "@/lib/admin-filter";
-import { attendancePercent, cohortById, homeworkSetFor, testById } from "@/lib/data/selectors";
-import { gradeSubmission } from "@/lib/grading";
-import { buildAttention } from "@/lib/attention";
+import { cohortById } from "@/lib/data/selectors";
+import { AT_RISK, NEEDS_YOU, buildAttention } from "@/lib/attention";
 import { useNow } from "@/hooks/useNow";
 import { useToast } from "@/components/toast";
 import { isValidPhone, normalizePhone, waDigits } from "@/lib/phone";
@@ -22,16 +22,22 @@ import { introNeeded } from "@/lib/sent-log";
 import { uploadImage } from "@/lib/cloudinary";
 import { RowMenu } from "@/components/admin/RowMenu";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { ArchiveTabs, archiveFromUrl, type ArchiveView } from "@/components/admin/ArchiveTabs";
-import { Card, Button, Input, Select, Label, CohortDot, Modal, EmptyState, Icon, Badge, segmentGroup, segmentItem, chipClass } from "@/components/ui";
+import { archiveFromUrl } from "@/components/admin/ArchiveTabs";
+import { Card, Button, Input, Select, Label, CohortDot, Modal, EmptyState, Icon, Badge, Tabs, chipClass } from "@/components/ui";
+import { FilterChips } from "@/components/admin/FilterChips";
+import { StudentQuickLook } from "@/components/admin/StudentQuickLook";
+import { useStudentAccess } from "@/components/admin/StudentAccess";
+import { pct, studentFigures } from "@/components/admin/student-figures";
+import { formatDate } from "@/lib/time";
 import { cld } from "@/lib/cld";
 import { LoginDetails } from "@/components/admin/LoginDetails";
 import { ImportStudents } from "@/components/admin/ImportStudents";
 import { newPassword } from "@/lib/password";
 import { fixPhone } from "@/lib/import-students";
 import { displayName, isTestAccount } from "@/lib/display-name";
-import { supabase } from "@/lib/supabase";
-import { setPausedIds, usePausedIds } from "@/lib/paused";
+import { leftLabel, reasonLabel } from "@/lib/paused";
+
+type RosterView = "current" | "archive" | "left";
 
 const genPassword = newPassword;
 
@@ -84,6 +90,9 @@ function WhatsAppMark() {
 
 export default function RosterPage() {
   const staff = useIsStaff();
+  const router = useRouter();
+  // Set when the edit box was opened from a student's own page: after saving, go back there.
+  const returnTo = useRef<string | null>(null);
   const db = useDatabase();
   const store = useStore();
   const { toast } = useToast();
@@ -127,9 +136,22 @@ export default function RosterPage() {
       if (photoRef.current) photoRef.current.value = "";
     }
   }
-  const [deleting, setDeleting] = useState<Student | null>(null);
-  // Students whose access is paused (they sign in to a blank screen, get no reminders and are not marked absent).
-  const pausedIds = usePausedIds();
+  // One student's Delete: "Pause access" is offered first (nothing is lost); Delete for good sits behind it.
+  const [deleting, setDeletingRaw] = useState<Student | null>(null);
+  const [deleteStep, setDeleteStep] = useState<"pause" | "delete">("delete");
+  const setDeleting = (s: Student | null, step: "pause" | "delete" = "delete") => {
+    setDeletingRaw(s);
+    setDeleteStep(step);
+  };
+  // Paused students (the pause screen, no reminders, not marked absent) and students who have left
+  // (always paused too). Pause, resume, mark as left and bring back are Hamza's.
+  const clearTicks = useRef<() => void>(() => {});
+  const accessActions = useStudentAccess({ onChanged: () => clearTicks.current() });
+  const { access } = accessActions;
+  const pausedIds = access.paused;
+  const leftOf = access.left;
+  // The quick look: the student whose row was tapped.
+  const [peek, setPeek] = useState<string | null>(null);
   // Bulk work: tick students, then act on them all in one go.
   const [bulkClass, setBulkClass] = useState("");
   const [bulkCohort, setBulkCohort] = useState("");
@@ -141,43 +163,38 @@ export default function RosterPage() {
 
   // Past students (in switched-off cohorts) are kept apart. Tick them and use
   // "Add to cohort" to bring them into a new cohort; they can sign in again.
-  const [view, setView] = useState<ArchiveView>("current");
+  // "Left" lists students who finished or dropped out (their usernames were freed).
+  const [view, setView] = useState<RosterView>("current");
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (archiveFromUrl()) setView("archive");
   }, []);
   const off = useMemo(() => new Set(db.cohorts.filter((c) => !c.active).map((c) => c.id)), [db.cohorts]);
-  const pastCount = db.students.filter((s) => off.has(s.cohortId)).length;
+  const leftCount = db.students.filter((s) => leftOf[s.id]).length;
+  const pastCount = db.students.filter((s) => off.has(s.cohortId) && !leftOf[s.id]).length;
   // Physical students sit in the normal groups, tagged "In person".
   const inPersonIds = useMemo(() => tagged(db), [db]);
   const [bulkTag, setBulkTag] = useState<"" | "in" | "out">("");
-  const [mode, setMode] = useState<"all" | "online" | "inperson">("all");
-  // Hamza only: sort by the same "needs you" ranking as Today.
-  const [sortBy, setSortBy] = useState<"name" | "needs">("name");
+  // Filter chips: nothing picked in a row means all of it.
+  const [modes, setModes] = useState<string[]>([]);
+  const [levelIds, setLevelIds] = useState<string[]>([]);
+  const [subjectIds, setSubjectIds] = useState<string[]>([]);
+  const [statuses, setStatuses] = useState<string[]>([]);
+  const filtered = modes.length + levelIds.length + subjectIds.length + statuses.length > 0;
+  // Hamza only: sort by the same "needs you" ranking as Today, or by a figure (lowest first).
+  const [sortBy, setSortBy] = useState<"name" | "needs" | "attendance" | "homework" | "average">("name");
   const nowMs = useNow();
   const tick = Math.floor(nowMs / 300_000) * 300_000;
 
-  // Hamza only (staff never see who is slipping): three quiet figures per online
-  // student (attendance this month, homework owed, last test) and the Today
-  // ranking for the sort. The same sums as the student's own page.
+  // Hamza only (staff never see who is slipping): attendance this month, homework
+  // done and test average per current student, the same sums as the student's
+  // own page, and Today's "needs you" score for the dot, the filter and the sort.
   const drift = useMemo(() => {
     if (staff) return null;
-    const online = db.students.filter((s) => !off.has(s.cohortId) && !inPersonIds.has(s.id) && !isTestAccount(s));
-    const month = `${new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date(tick)).slice(0, 7)}-01`;
-    const handIns = new Set(db.assignmentSubmissions.map((x) => `${x.studentId}|${x.assignmentId}`));
-    const latest = new Map<string, (typeof db.submissions)[number]>();
-    for (const x of db.submissions) {
-      if (x.status !== "released") continue;
-      const cur = latest.get(x.studentId);
-      if (!cur || (x.submittedAt ?? "").localeCompare(cur.submittedAt ?? "") > 0) latest.set(x.studentId, x);
-    }
-    const figures = new Map<string, { attendance: number | null; owed: number; last: number | null }>();
-    for (const s of online) {
-      const owed = db.assignments.filter((a) => +new Date(a.dueAt) <= tick && homeworkSetFor(db, s, a) && !handIns.has(`${s.id}|${a.id}`)).length;
-      const sub = latest.get(s.id);
-      const t = sub ? testById(db, sub.testId) : undefined;
-      figures.set(s.id, { attendance: attendancePercent(db, s.id, month), owed, last: sub && t ? Math.round(gradeSubmission(t, sub).percent) : null });
-    }
+    const current = db.students.filter((s) => !off.has(s.cohortId) && !leftOf[s.id] && !isTestAccount(s));
+    const figures = studentFigures(db, current, tick);
+    // As on Today: online students who aren't paused.
+    const online = current.filter((s) => !inPersonIds.has(s.id) && !pausedIds.has(s.id));
     const { all } = buildAttention(db, {
       students: online,
       tests: db.tests.filter((t) => t.status !== "draft"),
@@ -189,25 +206,48 @@ export default function RosterPage() {
       recordings: [],
     });
     return { figures, score: new Map(all.map((r) => [r.student.id, r.score])) };
-  }, [staff, db, off, inPersonIds, tick]);
+  }, [staff, db, off, inPersonIds, tick, leftOf, pausedIds]);
 
   const students = useMemo(() => {
     const q = search.trim().toLowerCase();
     // A number typed the local way ("0300 123…") still finds +92300123…: digits only, without the leading 0.
-    const qDigits = /^[\d\s+()-]+$/.test(q) ? q.replace(/\D/g, "").replace(/^0+/, "") : "";
+    // Staff search names only, so a typed number can never reveal whose it is.
+    const qDigits = !staff && /^[\d\s+()-]+$/.test(q) ? q.replace(/\D/g, "").replace(/^0+/, "") : "";
+    // Lowest first for a figure; nothing to count goes last.
+    const figureOf = (id: string) => {
+      const f = drift?.figures.get(id);
+      const v = sortBy === "attendance" ? f?.attendance : sortBy === "homework" ? f?.homeworkDone : sortBy === "average" ? f?.average : null;
+      return v ?? Infinity;
+    };
     return db.students
-      .filter((s) => (view === "archive") === off.has(s.cohortId))
+      .filter((s) => (view === "left" ? !!leftOf[s.id] : !leftOf[s.id] && (view === "archive") === off.has(s.cohortId)))
       .filter((s) => (cohortId ? s.cohortId === cohortId : true))
-      .filter((s) => (mode === "all" ? true : (mode === "inperson") === inPersonIds.has(s.id)))
+      .filter((s) => (modes.length ? modes.includes(inPersonIds.has(s.id) ? "inperson" : "online") : true))
+      .filter((s) => (levelIds.length ? s.classIds.some((c) => levelIds.includes(c)) : true))
+      .filter((s) => (subjectIds.length ? s.subjectIds.some((c) => subjectIds.includes(c)) : true))
+      .filter((s) => {
+        if (!statuses.length || view === "left") return true;
+        const paused = pausedIds.has(s.id);
+        return (statuses.includes("active") && !paused) || (statuses.includes("paused") && paused) || (statuses.includes("needs") && (drift?.score.get(s.id) ?? 0) >= NEEDS_YOU);
+      })
       .filter((s) => {
         if (!q) return true;
         // The name as it reads on screen too ("amelia k" finds amelia.k).
-        if (`${s.username} ${displayName(s.username)} ${s.email ?? ""} ${s.phone ?? ""} ${s.whatsapp ?? ""}`.toLowerCase().includes(q)) return true;
+        if ((staff ? `${s.username} ${displayName(s.username)}` : `${s.username} ${displayName(s.username)} ${s.email ?? ""} ${s.phone ?? ""} ${s.whatsapp ?? ""}`).toLowerCase().includes(q)) return true;
         // Each number compared as bare digits, so a saved "+92 300 123…" still matches "0300123…".
         return qDigits.length >= 4 && [s.phone, s.whatsapp].some((p) => (p ?? "").replace(/\D/g, "").includes(qDigits));
       })
-      .sort((a, b) => (sortBy === "needs" && drift ? (drift.score.get(b.id) ?? 0) - (drift.score.get(a.id) ?? 0) : 0) || a.username.localeCompare(b.username));
-  }, [db.students, cohortId, search, view, off, mode, inPersonIds, sortBy, drift]);
+      .sort((a, b) => {
+        if (view === "left") return (leftOf[b.id]?.at ?? "").localeCompare(leftOf[a.id]?.at ?? "") || a.username.localeCompare(b.username);
+        if (view === "current" && drift && sortBy === "needs") return (drift.score.get(b.id) ?? 0) - (drift.score.get(a.id) ?? 0) || a.username.localeCompare(b.username);
+        if (view === "current" && drift && sortBy !== "name") {
+          const x = figureOf(a.id);
+          const y = figureOf(b.id);
+          if (x !== y) return x === Infinity ? 1 : y === Infinity ? -1 : x - y;
+        }
+        return a.username.localeCompare(b.username);
+      });
+  }, [db.students, cohortId, search, view, off, modes, inPersonIds, sortBy, drift, staff, levelIds, subjectIds, statuses, pausedIds, leftOf]);
 
   // Counted once for the whole list: counting per row re-read every submission
   // for every student on each keystroke in the search box or the form.
@@ -220,6 +260,9 @@ export default function RosterPage() {
   // Ticked students: only ever ones the search and filters show.
   const ids = useMemo(() => students.map((s) => s.id), [students]);
   const sel = useSelection(ids);
+  useEffect(() => {
+    clearTicks.current = sel.clear;
+  });
   const chosen = useMemo(() => students.filter((s) => sel.isSelected(s.id)), [students, sel]);
   const names = chosen.map((s) => displayName(s.username));
   // Hamza's own test account is never messaged in bulk.
@@ -234,38 +277,6 @@ export default function RosterPage() {
     setAsk(null);
     sel.clear();
     toast(outcome(done, verb, problems, "student"), problems.length ? (done ? "info" : "error") : "success", done && undo ? { label: "Undo", onClick: undo } : undefined);
-  }
-
-  /** Pause or resume access. A paused student signs in to a blank screen; nothing of theirs is removed. */
-  async function setAccess(list: Student[], pause: boolean) {
-    if (!list.length) return;
-    const label = (n: number) => (n === 1 ? displayName(list[0].username) : plural(n, "student"));
-    try {
-      const { data } = await supabase().auth.getSession();
-      const res = await fetch("/api/admin/access", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token ?? ""}` },
-        body: JSON.stringify({ ids: list.map((s) => s.id), paused: pause }),
-      });
-      const out = (await res.json().catch(() => null)) as { done?: string[]; failed?: Array<{ id: string; why: string }>; error?: string } | null;
-      if (!res.ok || !out) return toast(out?.error && res.status !== 403 ? out.error : "Couldn't change access. Try again.", "error");
-      const done = out.done ?? [];
-      const failed = out.failed ?? [];
-      const next = new Set(pausedIds);
-      done.forEach((id) => (pause ? next.add(id) : next.delete(id)));
-      setPausedIds(next);
-      sel.clear();
-      const nameOf = (id: string) => displayName(list.find((s) => s.id === id)?.username ?? "");
-      const trouble = failed.length ? ` Not changed: ${failed.slice(0, 5).map((f) => `${nameOf(f.id)} (${f.why})`).join(", ")}${failed.length > 5 ? " and more" : ""}.` : "";
-      if (!done.length) return toast(`Nothing changed.${trouble}`, "error");
-      toast(
-        `${label(done.length)} ${pause ? "paused. A blank screen, no reminders and no absent marks until you resume them." : "resumed. The portal is open for them again."}${trouble}`,
-        failed.length ? "info" : "success",
-        { label: "Undo", onClick: () => void setAccess(list.filter((s) => done.includes(s.id)), !pause) },
-      );
-    } catch {
-      toast("Couldn't change access. Check your internet and try again.", "error");
-    }
   }
 
   async function runCohort() {
@@ -382,6 +393,7 @@ export default function RosterPage() {
         "Parent's WhatsApp": s.whatsapp ?? "",
         Email: s.email ?? "",
         "In person": inPersonIds.has(s.id) ? "Yes" : "No",
+        Status: leftOf[s.id] ? `Left (${leftLabel(leftOf[s.id].kind).toLowerCase()})` : pausedIds.has(s.id) ? "Paused" : "Active",
         Results: releasedCount.get(s.id) ?? 0,
       })),
       "students",
@@ -393,13 +405,22 @@ export default function RosterPage() {
     { id: "message", label: "Message one by one", primary: true, run: () => (real.length ? setAsk("message") : toast("Your test account is left out of messages.", "info")) },
     { id: "copy", label: "Copy numbers", run: () => void copyNumbers(false) },
     { id: "copy-parents", label: "Copy parents' numbers", run: () => void copyNumbers(true) },
-    { id: "cohort", label: view === "archive" ? "Add to cohort" : "Move to cohort", run: () => setAsk("cohort") },
-    ...(db.classes.length ? [{ id: "level", label: "Set level", run: () => setAsk("level") }] : []),
-    ...(db.subjects.length ? [{ id: "subjects", label: "Set subjects", run: () => setAsk("subjects") }] : []),
-    { id: "tag", label: "Tag in person or online", run: () => setAsk("tag") },
+    ...(view === "left"
+      ? [
+          { id: "farewell", label: "Send farewell", run: () => accessActions.sendFarewell(chosen) },
+          { id: "back", label: "Bring back", run: () => accessActions.bringBack(chosen) },
+        ]
+      : [
+          { id: "cohort", label: view === "archive" ? "Add to cohort" : "Move to cohort", run: () => setAsk("cohort") },
+          ...(db.classes.length ? [{ id: "level", label: "Set level", run: () => setAsk("level") }] : []),
+          ...(db.subjects.length ? [{ id: "subjects", label: "Set subjects", run: () => setAsk("subjects") }] : []),
+          { id: "tag", label: "Tag in person or online", run: () => setAsk("tag") },
+        ]),
     { id: "export", label: "Download spreadsheet", run: exportRows },
-    ...(chosen.some((s) => !pausedIds.has(s.id)) ? [{ id: "pause", label: "Pause access", run: () => void setAccess(real.filter((s) => !pausedIds.has(s.id)), true) }] : []),
-    ...(chosen.some((s) => pausedIds.has(s.id)) ? [{ id: "resume", label: "Resume access", run: () => void setAccess(chosen.filter((s) => pausedIds.has(s.id)), false) }] : []),
+    ...(view !== "left" && real.some((s) => !pausedIds.has(s.id)) ? [{ id: "pause", label: "Pause access", run: () => accessActions.askPause(chosen) }] : []),
+    ...(view !== "left" && chosen.some((s) => pausedIds.has(s.id)) ? [{ id: "resume", label: "Resume access", run: () => accessActions.resume(chosen.filter((s) => pausedIds.has(s.id))) }] : []),
+    // Past students too, so their usernames can be freed for new ones.
+    ...(view !== "left" ? [{ id: "leave", label: "Mark as left…", run: () => accessActions.askLeave(chosen) }] : []),
     { id: "delete", label: "Delete", danger: true, run: () => setAsk("delete") },
   ];
 
@@ -460,6 +481,7 @@ export default function RosterPage() {
     const s = db.students.find((x) => x.id === id);
     if (!s) return;
     editAsked.current = true;
+    returnTo.current = s.id;
     window.history.replaceState(null, "", window.location.pathname);
     openEdit(s);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -482,7 +504,10 @@ export default function RosterPage() {
       if (empty) return setError(`Pick their ${db.classes.find((c) => c.id === empty)?.name ?? "second level"} subjects too.`);
     }
     const exceptId = editing !== "new" && editing ? editing.id : undefined;
-    if (store.usernameTaken(form.username, exceptId)) return setError("That username is already taken.");
+    if (store.usernameTaken(form.username, exceptId)) {
+      const past = db.students.find((x) => x.id !== exceptId && x.username.toLowerCase() === form.username.trim().toLowerCase() && off.has(x.cohortId));
+      return setError(past ? `${displayName(past.username)} is a past student. Open Past students, tick them and use Add to cohort to bring them back with their old marks.` : "That username is already taken.");
+    }
     // Passwords live in Supabase auth and are never read back, so the field is
     // always blank when editing — blank there means "keep the current one".
     if (editing === "new" && !form.tempPassword.trim()) return setError("Set a temporary password.");
@@ -539,7 +564,10 @@ export default function RosterPage() {
         // A new password: send it. Only a new username: send just that, the password stays.
         if (fields.tempPassword) setSent({ id: editing.id, username: fields.username, password: fields.tempPassword, phone: fields.phone, parent: fields.whatsapp, kind: "reset" });
         else if (editing.username !== fields.username) setSent({ id: editing.id, username: fields.username, password: "", phone: fields.phone, parent: fields.whatsapp, kind: "username" });
-        else toast("Student updated. Their login hasn't changed.", "success");
+        else {
+          toast("Student updated. Their login hasn't changed.", "success");
+          if (returnTo.current === editing.id) router.push(`/admin/roster/${editing.id}`);
+        }
       }
       if (fields.levelSubjects && store.levelsSaveFailed) toast("Saved, but the subjects for each level didn't save. Open the student and save again.", "error");
       setEditing(null);
@@ -578,7 +606,7 @@ export default function RosterPage() {
 
       {/* Tests, notes and assignments reach students through their level and subjects. */}
       {(() => {
-        const unset = db.students.filter((s) => !off.has(s.cohortId) && (!s.classIds.length || !s.subjectIds.length));
+        const unset = db.students.filter((s) => !off.has(s.cohortId) && !leftOf[s.id] && (!s.classIds.length || !s.subjectIds.length));
         // Setting a student's level is Hamza's: staff don't get the strip or its edit buttons.
         if (staff || !unset.length || !db.classes.length) return null;
         return (
@@ -602,60 +630,111 @@ export default function RosterPage() {
         );
       })()}
 
-      <ArchiveTabs
-        view={view}
-        onChange={(v) => { setView(v); sel.clear(); }}
-        currentLabel="Current students"
-        archiveLabel="Past students"
-        currentCount={db.students.length - pastCount}
-        archiveCount={pastCount}
-      />
+      {/* The monthly report goes to the parent's WhatsApp: say who has no number saved. */}
+      {(() => {
+        if (staff) return null;
+        const noParent = db.students.filter((s) => !off.has(s.cohortId) && !leftOf[s.id] && !s.whatsapp && !inPersonIds.has(s.id) && !isTestAccount(s));
+        if (!noParent.length) return null;
+        return (
+          <div className="mb-4 rounded-tile border border-hairline-strong bg-surface-2 px-4 py-3 text-sm leading-relaxed text-ink-2">
+            {noParent.length === 1 ? "1 student has" : `${noParent.length} students have`} no parent WhatsApp saved, so their monthly report can&apos;t be sent. Tap a name to add it:{" "}
+            {noParent.slice(0, 8).map((s, i, all) => (
+              <span key={s.id}>
+                <span className="whitespace-nowrap">
+                  <button type="button" onClick={() => openEdit(s)} className="font-semibold text-ink underline decoration-hairline-strong underline-offset-4 hover:decoration-ink-3 pointer-coarse:inline-block pointer-coarse:py-2.5">
+                    {displayName(s.username)}
+                  </button>
+                  {i < all.length - 1 && ","}
+                </span>
+                {i < all.length - 1 && " "}
+              </span>
+            ))}
+            {noParent.length > 8 && ` and ${noParent.length - 8} more`}.
+          </div>
+        );
+      })()}
+
+      {/* Past students only show when opened from a switched-off cohort's card; Left once anyone has left. */}
+      {view !== "current" && (
+        <Tabs
+          className="mb-4"
+          active={view}
+          onChange={(id) => { setView(id as RosterView); sel.clear(); }}
+          tabs={[
+            { id: "current", label: "Current students", count: db.students.length - pastCount - leftCount },
+            ...(view === "archive" || pastCount > 0 ? [{ id: "archive", label: "Past students", count: pastCount }] : []),
+            { id: "left", label: "Left", count: leftCount },
+          ]}
+        />
+      )}
       {view === "archive" && (
         <p className="mb-4 text-sm text-ink-2">
           Students from switched-off cohorts.
-          <span data-owner> Tick the ones coming back, then use Add to cohort in the bar.</span> Their old tests and marks stay in the archive.
+          <span data-owner> Tick the ones coming back, then use Add to cohort in the bar. Not coming back? Mark them as left to free their usernames.</span> Their old tests and marks stay in the archive.
+        </p>
+      )}
+      {view === "left" && (
+        <p className="mb-4 text-sm text-ink-2">
+          Students who finished or dropped out. Their usernames are free for new students, and they see a farewell screen when they sign in. Nothing of theirs is deleted.
         </p>
       )}
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
         <Input compact type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search students…" wrapperClassName="w-full sm:w-80" aria-label="Search students" />
         {drift && view === "current" && (
-          <div role="group" aria-label="Sort students" className={segmentGroup}>
-            {([["name", "By name"], ["needs", "Needs attention"]] as const).map(([k, label]) => (
-              <button key={k} type="button" aria-pressed={sortBy === k} onClick={() => setSortBy(k)} className={segmentItem(sortBy === k)}>
-                {label}
-              </button>
-            ))}
-          </div>
+          <Select compact aria-label="Sort students" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} wrapperClassName="w-full sm:w-56">
+            <option value="name">By name</option>
+            <option value="needs">Needs attention first</option>
+            <option value="attendance">Attendance, lowest first</option>
+            <option value="homework">Homework, lowest first</option>
+            <option value="average">Average, lowest first</option>
+          </Select>
         )}
+        {view === "current" && leftCount > 0 && (
+          <button
+            type="button"
+            onClick={() => { setView("left"); sel.clear(); }}
+            className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-ink-3 underline-offset-4 hover:text-ink hover:underline sm:ml-auto"
+          >
+            Left <span className="tabular-nums">{leftCount}</span>
+          </button>
+        )}
+      </div>
+      <div className="mb-4 space-y-2">
+        {view !== "left" && (
+          <FilterChips
+            label="Status"
+            options={[
+              { value: "active", label: "Active" },
+              { value: "paused", label: "Paused" },
+              ...(drift && view === "current" ? [{ value: "needs", label: "Needs you" }] : []),
+            ]}
+            selected={statuses}
+            onChange={setStatuses}
+          />
+        )}
+        {db.classes.length > 1 && <FilterChips label="Level" options={db.classes.map((c) => ({ value: c.id, label: c.name }))} selected={levelIds} onChange={setLevelIds} />}
+        {db.subjects.length > 1 && <FilterChips label="Subject" options={db.subjects.map((c) => ({ value: c.id, label: c.name }))} selected={subjectIds} onChange={setSubjectIds} />}
         {inPersonIds.size > 0 && (
-          <div role="group" aria-label="Show students" className={segmentGroup}>
-            {([["all", "All"], ["online", "Online"], ["inperson", "In person"]] as const).map(([k, label]) => (
-              <button
-                key={k}
-                type="button"
-                aria-pressed={mode === k}
-                onClick={() => setMode(k)}
-                className={segmentItem(mode === k)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <FilterChips label="Taught" options={[{ value: "online", label: "Online" }, { value: "inperson", label: "In person" }]} selected={modes} onChange={setModes} />
         )}
       </div>
 
       {students.length === 0 ? (
         <EmptyState
           icon={<Icon.Users />}
-          title={search.trim() ? "No student matches that" : view === "archive" ? "No past students" : "No students"}
+          title={search.trim() ? "No student matches that" : view === "archive" ? "No past students" : view === "left" ? "Nobody has left" : "No students"}
           message={
             search.trim()
               ? "Check the spelling, or clear the search."
               : view === "archive"
                 ? "Students from archived cohorts appear here."
-                : cohortId || mode !== "all"
-                  ? "Nobody here yet. Pick another cohort or filter, or add a student."
+                : view === "left"
+                  ? "Students you mark as left appear here."
+                : cohortId || filtered
+                  ? staff
+                    ? "Nobody here yet. Pick another cohort or filter."
+                    : "Nobody here yet. Pick another cohort or filter, or add a student."
                   : staff
                     ? "No students yet."
                     : "Add a student to get started."
@@ -670,6 +749,8 @@ export default function RosterPage() {
             const cohort = cohortById(db, s.cohortId);
             const released = releasedCount.get(s.id) ?? 0;
             const fig = view === "current" ? drift?.figures.get(s.id) : undefined;
+            const gone = leftOf[s.id];
+            const score = view === "current" ? (drift?.score.get(s.id) ?? 0) : 0;
             const classNames = s.classIds.map((cid) => db.classes.find((x) => x.id === cid)?.name).filter(Boolean);
             const subjectNames = s.subjectIds.map((sid) => db.subjects.find((x) => x.id === sid)?.name).filter(Boolean);
             const nameOf = (sid: string) => db.subjects.find((x) => x.id === sid)?.name;
@@ -682,7 +763,16 @@ export default function RosterPage() {
                 <span data-owner className="pt-2.5 sm:pt-0">
                   <RowCheck id={s.id} checked={sel.isSelected(s.id)} onToggle={sel.toggle} label={`Select ${displayName(s.username)}`} />
                 </span>
-                <Link href={`/admin/roster/${s.id}`} className="group flex min-w-0 flex-1 basis-[calc(100%-2.5rem)] items-start gap-3 sm:basis-auto sm:items-center">
+                {/* A tap opens the quick look; Cmd or Ctrl-click still opens the full page in a new tab. */}
+                <Link
+                  href={`/admin/roster/${s.id}`}
+                  onClick={(e) => {
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                    e.preventDefault();
+                    setPeek(s.id);
+                  }}
+                  className="group flex min-w-0 flex-1 basis-[calc(100%-2.5rem)] items-start gap-3 sm:basis-auto sm:items-center"
+                >
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-2 font-display text-sm font-bold uppercase text-ink-2">
                     {s.photoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -697,15 +787,28 @@ export default function RosterPage() {
                       {inPersonIds.has(s.id) && <Badge tone="neutral" className="shrink-0">In person</Badge>}
                       {/* Hamza's practice account: left out of reminders, Today, activity, analytics and the leaderboard. */}
                       {isTestAccount(s) && <Badge tone="neutral" className="shrink-0">Test account</Badge>}
-                      {pausedIds.has(s.id) && <Badge tone="warning" className="shrink-0">Paused</Badge>}
+                      {gone ? (
+                        <Badge tone="neutral" className="shrink-0">{leftLabel(gone.kind)}</Badge>
+                      ) : (
+                        pausedIds.has(s.id) && <Badge tone="warning" className="shrink-0">Paused{access.reasons[s.id] ? ` · ${reasonLabel(access.reasons[s.id])}` : ""}</Badge>
+                      )}
+                      {/* Hamza only: one quiet dot when Today's "needs you" score says so, red when at risk of leaving. */}
+                      {score >= NEEDS_YOU && (
+                        <span role="img" aria-label={score >= AT_RISK ? "At risk of leaving" : "Needs you"} title={score >= AT_RISK ? "At risk of leaving" : "Needs you"} className={`h-2 w-2 shrink-0 rounded-full ${score >= AT_RISK ? "bg-error" : "bg-warning"}`} />
+                      )}
                     </p>
                     <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-sm text-ink-2">
                       {cohort && <CohortDot color={cohort.color} />}
                       <span className="truncate">{cohort?.name ?? "No cohort"}</span>
-                      {fig ? (
-                        // Hamza only: attendance this month, homework owed, last test.
+                      {gone ? (
                         <span className="tabular-nums text-ink-3">
-                          · Attendance {fig.attendance === null ? "none yet" : `${Math.round(fig.attendance)}%`} · {fig.owed} homework owed · Last test {fig.last === null ? "none yet" : `${fig.last}%`}
+                          · Left {formatDate(gone.at)}
+                          {gone.farewell?.rating ? ` · Rated ${gone.farewell.rating} of 5` : ""}
+                        </span>
+                      ) : fig ? (
+                        // Hamza only: attendance this month, homework done, test average ("–" when nothing to count).
+                        <span className="basis-full tabular-nums text-ink-3 sm:basis-auto">
+                          <span className="hidden sm:inline">· </span>Attendance {pct(fig.attendance)} · Homework {pct(fig.homeworkDone)} · Average {pct(fig.average)}
                         </span>
                       ) : (
                         <span className="tabular-nums text-ink-3">· {released} {released === 1 ? "result" : "results"}</span>
@@ -768,8 +871,16 @@ export default function RosterPage() {
                     <Icon.Edit className="h-5 w-5" />
                   </button>
                   <RowMenu label={`More for ${displayName(s.username)}`} items={[
-                    pausedIds.has(s.id) ? { label: "Resume access", onSelect: () => void setAccess([s], false) } : { label: "Pause access", onSelect: () => void setAccess([s], true) },
-                    { label: "Delete", danger: true, onSelect: () => setDeleting(s) },
+                    ...(gone
+                      ? [
+                          { label: "Send farewell", onSelect: () => accessActions.sendFarewell([s]) },
+                          { label: "Bring back", onSelect: () => accessActions.bringBack([s]) },
+                        ]
+                      : [
+                          pausedIds.has(s.id) ? { label: "Resume access", onSelect: () => accessActions.resume([s]) } : { label: "Pause access", onSelect: () => accessActions.askPause([s]) },
+                          { label: "Mark as left…", onSelect: () => accessActions.askLeave([s]) },
+                        ]),
+                    { label: "Delete", danger: true, onSelect: () => setDeleting(s, pausedIds.has(s.id) ? "delete" : "pause") },
                   ]} />
                 </div>
               </div>
@@ -873,7 +984,7 @@ export default function RosterPage() {
         open={ask === "delete"}
         onClose={() => setAsk(null)}
         title={`Delete ${plural(chosen.length, "student")}?`}
-        description="Their accounts, submissions and results are removed for good. This cannot be undone."
+        description="Their sign ins, test papers and marks, homework, attendance and monthly reports are removed for good. This cannot be undone. To keep their work, use Pause access instead."
         confirmLabel={`Delete ${plural(chosen.length, "student")}`}
         danger
         ack={`I understand ${chosen.length === 1 ? "this student's" : `these ${chosen.length} students'`} work and marks will be deleted.`}
@@ -883,6 +994,30 @@ export default function RosterPage() {
       </ConfirmBulk>
 
       <OneByOne onClose={() => setSteps(null)} title="Message one by one" steps={steps} />
+
+      {!staff && accessActions.ui}
+
+      <StudentQuickLook
+        studentId={peek}
+        order={ids}
+        onMove={setPeek}
+        onClose={() => setPeek(null)}
+        staff={staff}
+        access={access}
+        actions={
+          staff
+            ? undefined
+            : {
+                // The sheet closes first, so the next window isn't stacked on it.
+                edit: (s) => { setPeek(null); openEdit(s); },
+                pause: (s) => { setPeek(null); accessActions.askPause([s]); },
+                resume: (s) => accessActions.resume([s]),
+                leave: (s) => { setPeek(null); accessActions.askLeave([s]); },
+                bringBack: (s) => accessActions.bringBack([s]),
+                farewell: (s) => { setPeek(null); accessActions.sendFarewell([s]); },
+              }
+        }
+      />
 
       <Modal
         open={editing !== null}
@@ -1033,36 +1168,53 @@ export default function RosterPage() {
         </div>
       </Modal>
 
-      <Modal
-        open={!!deleting}
+      {/* Pausing keeps everything and can be undone, so it comes first. */}
+      <ConfirmBulk
+        open={!!deleting && deleteStep === "pause"}
         onClose={() => setDeleting(null)}
-        title="Delete student?"
-        description={deleting ? `${deleting.username} and their submissions will be removed.` : ""}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeleting(null)}>Cancel</Button>
-            <Button
-              variant="danger"
-              onClick={async () => {
-                if (!deleting) return;
-                const who = deleting;
-                setDeleting(null);
-                // Say "deleted" only once the server has done it.
-                try {
-                  await store.deleteStudent(who.id);
-                  toast(`${who.username} deleted.`, "success");
-                } catch {
-                  toast(`Couldn't delete ${who.username}. Try again.`, "error");
-                }
-              }}
-            >
-              Delete
-            </Button>
-          </>
-        }
+        title={deleting ? `Pause ${displayName(deleting.username)} instead?` : "Pause instead?"}
+        description="They see the pause screen, get no reminders and are left out of attendance. Their work, marks and reports are all kept, and you can resume them any time."
+        confirmLabel="Pause access…"
+        onConfirm={() => {
+          if (!deleting) return;
+          const who = deleting;
+          setDeleting(null);
+          // Next: what they see while paused.
+          accessActions.askPause([who]);
+        }}
       >
-        <p className="text-sm text-ink-2">This action cannot be undone.</p>
-      </Modal>
+        <button
+          type="button"
+          onClick={() => deleting && setDeleting(deleting, "delete")}
+          className="min-h-11 text-sm font-semibold text-ink-3 underline underline-offset-4 transition-colors hover:text-error"
+        >
+          Delete for good instead
+        </button>
+      </ConfirmBulk>
+
+      {/* The same confirm as the bulk Delete, with its tick box. */}
+      <ConfirmBulk
+        open={!!deleting && deleteStep === "delete"}
+        onClose={() => setDeleting(null)}
+        title={deleting ? `Delete ${displayName(deleting.username)}?` : "Delete student?"}
+        description="Their sign in, test papers and marks, homework, attendance and monthly reports are removed for good. This cannot be undone."
+        confirmLabel="Delete student"
+        danger
+        ack="I understand this student's work and marks will be deleted."
+        onConfirm={async () => {
+          if (!deleting) return;
+          const who = deleting;
+          // Say "deleted" only once the server has done it.
+          try {
+            await store.deleteStudent(who.id);
+            setDeleting(null);
+            toast(`${displayName(who.username)} deleted.`, "success");
+          } catch {
+            setDeleting(null);
+            toast(`${displayName(who.username)} wasn't deleted. Check your internet and try again.`, "error");
+          }
+        }}
+      />
     </div>
   );
 }

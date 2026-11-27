@@ -210,7 +210,8 @@ export default function NotesPage() {
   const pdfIds = useMemo(() => db.notes.filter((n) => n.fileType.includes("pdf")).map((n) => n.id), [db.notes]);
   const checked = useRef(false);
   useEffect(() => {
-    if (DEMO || checked.current || !pdfIds.length) return;
+    // Staff read notes only: the server refuses their indexing, so nothing is checked or offered.
+    if (DEMO || staff || checked.current || !pdfIds.length) return;
     checked.current = true;
     searchableNotes(pdfIds)
       .then(async (have) => {
@@ -227,7 +228,7 @@ export default function NotesPage() {
         }
       })
       .catch(() => setSearchable(null));
-  }, [pdfIds]);
+  }, [pdfIds, staff]);
   const unsearchable = searchable ? pdfIds.filter((id) => !searchable.has(id)) : [];
 
   async function makeSearchable() {
@@ -257,7 +258,11 @@ export default function NotesPage() {
   async function setNoteHidden(n: Note, hidden: boolean) {
     try {
       await store.updateNote(n.id, { fileType: setHidden(n.fileType, hidden) });
-      toast(hidden ? "Hidden from students. It's still here if you need it back." : "Showing to students again.", "success");
+      toast(
+        hidden ? "Hidden from students. It's still here if you need it back." : "Showing to students again.",
+        "success",
+        { label: "Undo", onClick: () => void setNoteHidden({ ...n, fileType: setHidden(n.fileType, hidden) }, !hidden) },
+      );
     } catch (e) {
       toast(e instanceof Error ? e.message : "Couldn't save that.", "error");
     }
@@ -288,7 +293,7 @@ export default function NotesPage() {
         }
       />
 
-      {unsearchable.length > 0 && (
+      {!staff && unsearchable.length > 0 && (
         <Card className="mb-5 flex flex-wrap items-center gap-3 p-4">
           <Icon.Search className="h-5 w-5 shrink-0 text-ink-3" />
           <p className="min-w-0 flex-1 text-sm text-ink-2">
@@ -1021,7 +1026,13 @@ function UploadModal({
           }
           for (const id of row.hideOld) {
             const old = db.notes.find((n) => n.id === id);
-            if (old) await store.updateNote(id, { fileType: setHidden(old.fileType, true) }).catch(() => {});
+            if (old) {
+              try {
+                await store.updateNote(id, { fileType: setHidden(old.fileType, true) });
+              } catch {
+                throw new Error("The new note is published, but the older one couldn't be hidden, so students may see both. Press Publish again to try hiding it.");
+              }
+            }
           }
           patch(row.key, { status: "done", unsearchable });
           ok++;
@@ -1268,6 +1279,12 @@ function AssignModal({ db, store, opts, note, onClose }: { db: Db; store: Store;
     }
   }
 
+  /** Ticked groups are only added by "Give it to them": closing with ticks left asks first, so they aren't dropped quietly. */
+  function closeAsk() {
+    if (books.length && !window.confirm("You ticked groups but haven't given the note to them yet. Close without giving it?")) return;
+    onClose();
+  }
+
   async function rename() {
     const next = (firstBook && slotTitle(firstBook, slot)) || title.trim();
     if (!next || next === note.title || renaming) return;
@@ -1284,7 +1301,7 @@ function AssignModal({ db, store, opts, note, onClose }: { db: Db; store: Store;
   }
 
   return (
-    <Modal open onClose={onClose} title={note.title} size="md" footer={<Button variant="secondary" onClick={onClose}>Done</Button>}>
+    <Modal open onClose={closeAsk} title={note.title} size="md" footer={<Button variant="secondary" onClick={closeAsk}>Done</Button>}>
       <Modal
         open={!!removeAsk}
         onClose={() => setRemoveAsk(null)}

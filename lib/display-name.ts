@@ -1,10 +1,13 @@
 /**
  * "amelia.k" → "Amelia K". Usernames are typed lowercase; people aren't.
  * The bits added to make a username unique ("ahmed2", "ali.student") aren't
- * part of anyone's name, so they're left out.
+ * part of anyone's name, so they're left out. Nor is the "--x7k2q" a student
+ * who has left gets (their username is freed for someone new), so old results
+ * still show the real name.
  */
 export function displayName(username: string): string {
   return username
+    .replace(/--x[a-z0-9]{4}$/i, "")
     .replace(/[._-]student$/i, "")
     .replace(/(\D)\d+$/, "$1")
     .replace(/[._-]+/g, " ")

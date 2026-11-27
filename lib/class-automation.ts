@@ -127,9 +127,15 @@ export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), f
     try {
       await autoRecord(token, url);
     } catch (e) {
-      recordIssue = String(e).slice(0, 300);
+      const why = String(e);
       console.error("[classes] auto record", eventTitle(s), e);
-      break; // the same reason for every class (permission), no need to repeat it
+      // A permission or API problem is the same for every class: said once, no need to try the rest.
+      if (/SERVICE_DISABLED|has not been used|is disabled|403|PERMISSION|insufficient|scope/i.test(why)) {
+        recordIssue = why.slice(0, 300);
+        break;
+      }
+      // Anything else (an odd link pasted from someone else's Meet) is this class's own: named, and the rest still tried.
+      recordIssue ??= `${LEVEL_LABEL[s.level]} ${s.subject} | ${why}`.slice(0, 300);
     }
   }
   const before = await loadAutomation(sb).catch(() => null);
@@ -141,8 +147,11 @@ export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), f
 
   // 2 and 3. Recordings, driven by the links that exist (not today's
   // timetable), so editing the timetable never strands a recording.
+  // Recordings that belong to a Google-made class: a joint class's copy of one is closed (or held open) through that class.
+  const ledUrls = new Set(((rows ?? []) as LinkRow[]).filter((r) => r.event_id && r.recording_url).map((r) => r.recording_url));
   for (const row of (rows ?? []) as LinkRow[]) {
-    if (!row.event_id) continue;
+    // No Calendar event (a class Google didn't make): only a recording pasted by hand, closed at 48 hours like the rest.
+    if (!row.event_id && (!row.recording_url || ledUrls.has(row.recording_url))) continue;
     try {
       const slot = allSlotsOn(db, row.on_date).find((s) => s.classId === row.class_id && s.subjectId === row.subject_id);
       let startMs = slot?.startMs ?? 0;
@@ -150,6 +159,7 @@ export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), f
       let title = slot ? eventTitle(slot) : "";
       let ev: Awaited<ReturnType<typeof getEvent>> | null = null;
       if (!slot) {
+        if (!row.event_id) continue;
         ev = await getEvent(token, row.event_id);
         startMs = +new Date(ev.start?.dateTime ?? 0);
         endMs = +new Date(ev.end?.dateTime ?? 0);
@@ -166,6 +176,7 @@ export async function runClassAutomation(sb: SupabaseClient, now = Date.now(), f
         }
         continue;
       }
+      if (!row.event_id) continue;
       ev ??= await getEvent(token, row.event_id);
       const level = db.classes.find((c) => c.id === row.class_id);
       const subject = db.subjects.find((x) => x.id === row.subject_id);

@@ -17,16 +17,17 @@ export async function GET(req: NextRequest) {
   if (!pushReady()) return NextResponse.json({ settings: DEFAULT_AUTOMATION, issues: [] });
   const sb = serviceClient();
   let s: Awaited<ReturnType<typeof loadAutomation>>;
-  let issues: Awaited<ReturnType<typeof healthCheck>>;
+  let issues: Awaited<ReturnType<typeof healthCheck>> | null;
   try {
-    [s, issues] = await Promise.all([loadAutomation(sb), healthCheck(sb).catch(() => [])]);
+    // A failed health check is reported as such (healthFailed), never as "all is well".
+    [s, issues] = await Promise.all([loadAutomation(sb), healthCheck(sb).catch((e) => (console.error("[automation] health", e), null))]);
   } catch (e) {
     // The account holding the switches couldn't be read: say so, never show defaults as if saved.
     console.error("[automation] load", e);
     return NextResponse.json({ error: UNREAD }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
   return NextResponse.json(
-    { settings: { autoAbsent: s.autoAbsent, autoRelease: s.autoRelease }, issues },
+    { settings: { autoAbsent: s.autoAbsent, autoRelease: s.autoRelease }, issues: issues ?? [], healthFailed: issues === null },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

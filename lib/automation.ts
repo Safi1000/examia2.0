@@ -248,25 +248,34 @@ async function autoAbsentOn(sb: SupabaseClient, db: Awaited<ReturnType<typeof ca
   return marked;
 }
 
-/** Release multiple-choice-only tests that closed in the last day (see top). */
+/** Release multiple-choice-only tests that closed in the last day, or whose last extension just ended (see top). */
 async function autoRelease(sb: SupabaseClient, now: number) {
+  // Two weeks back, so a test held for one student's extension is still released
+  // once that extension ends (older tests only when they were reopened, below).
   const { data: tests } = await sb
     .from("tests")
-    .select("id,title,subject,questions(type)")
+    .select("id,title,subject,closes_at,questions(type)")
     .neq("status", "draft")
     .lte("closes_at", new Date(now).toISOString())
-    .gte("closes_at", new Date(now - 864e5).toISOString());
+    .gte("closes_at", new Date(now - 14 * 864e5).toISOString());
   const mcqOnly = (tests ?? []).filter((t) => {
     const qs = (t.questions as Array<{ type: string }> | null) ?? [];
     return qs.length > 0 && qs.every((q) => q.type === "mcq");
   });
   // A test reopened for one student stays unreleased until their window ends,
   // so nobody can pass them the answers.
-  const { data: ext } = await sb
+  const { data: ext, error: extError } = await sb
     .from("activities")
     .select("test_id,link")
     .eq("type", "test_reopened")
-    .gte("created_at", new Date(now - 2 * 864e5).toISOString());
+    .gte("created_at", new Date(now - 16 * 864e5).toISOString());
+  // Extensions unknown: release nothing this run (a reopened test must never go early). The next run tries again.
+  if (extError) {
+    console.error("[automation] release: reopened tests unreadable", extError.message);
+    return 0;
+  }
+  // Tests reopened for someone in the last two weeks: these may be released after the usual day.
+  const wasReopened = new Set(((ext as Array<{ test_id: string }> | null) ?? []).map((e) => e.test_id));
   const reopened = new Set(
     ((ext as Array<{ test_id: string; link: string | null }> | null) ?? [])
       .filter((e) => +new Date(decodeURIComponent(e.link?.split("#until=")[1] ?? "")) > now)
@@ -275,6 +284,8 @@ async function autoRelease(sb: SupabaseClient, now: number) {
   let released = 0;
   for (const t of mcqOnly) {
     if (reopened.has(t.id as string)) continue;
+    // Closed more than a day ago: only the ones that waited for an extension (the rest were released, or held, by Hamza).
+    if (+new Date(t.closes_at as string) < now - 864e5 && !wasReopened.has(t.id as string)) continue;
     const releasedAt = new Date().toISOString();
     const { data: rows, error } = await sb
       .from("submissions")
@@ -364,7 +375,9 @@ export async function healthCheck(sb: SupabaseClient, now = Date.now()): Promise
         ? "Classes can't record by themselves yet: the Google Meet API is switched off in Google Cloud. Ask the developer to turn on \"Google Meet REST API\" (one switch). Until then, press Record in Meet."
         : /403|PERMISSION|insufficient|scope/i.test(r)
           ? "Reconnect Google once so each class records by itself. Until then, press Record in Meet."
-          : "Classes couldn't be set to record by themselves today. Press Record in Meet, and Reconnect Google if this stays.",
+          : r.includes(" | ")
+            ? `${r.split(" | ")[0]} couldn't be set to record by itself today. Press Record in Meet for that class, and Reconnect Google if this stays.`
+            : "Classes couldn't be set to record by themselves today. Press Record in Meet, and Reconnect Google if this stays.",
     });
   }
 

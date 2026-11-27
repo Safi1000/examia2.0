@@ -114,6 +114,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             ) : (
               <p className="label-quiet px-3 pb-1.5 text-ink-3">{g.title}</p>
             )}
+            {ta && !g.items.length && <p className="px-3 text-sm text-ink-3">Nothing is switched on for you yet. Message Hamza.</p>}
             <ul className={cn("space-y-0.5", !open && "hidden")}>
               {g.items.map((item) => {
                 const active = isActive(item);

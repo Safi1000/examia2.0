@@ -250,7 +250,8 @@ export function submissionsForStudent(db: Database, studentId: string): Submissi
 export function testStats(db: Database, test: Test): TestStats {
   // Hamza's own test account never counts towards a test's figures.
   const practice = new Set(db.students.filter(isTestAccount).map((s) => s.id));
-  const subs = submissionsForTest(db, test.id).filter((s) => !practice.has(s.studentId));
+  // Handed in only: a student who opened the test and walked away has not completed it.
+  const subs = submissionsForTest(db, test.id).filter((s) => !practice.has(s.studentId) && s.status !== "in_progress");
   const eligible = eligibleStudents(db, test).filter((s) => !practice.has(s.id)).length;
   const total = totalMarks(test);
   // Average only what has actually been marked. Counting a script that is still

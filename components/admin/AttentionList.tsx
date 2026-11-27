@@ -46,11 +46,12 @@ const names = (list: Array<{ username: string }>) => list.map((s) => displayName
 function studentMessage(r: AttentionRow, nowMs: number, intro: boolean): { text: string; what: string } {
   const w = { id: r.student.id, username: r.student.username, intro };
   if (r.isNew && !r.reasons.length) return r.hadClass ? { text: studentFirstClass(w), what: "first_class" } : { text: studentWelcome(w), what: "welcome" };
-  if (r.missed.length) return { text: studentMissedTest({ ...w, title: r.missed[0].title }), what: "missed_test" };
-  if (r.lowRecent) return { text: studentLowScore(w), what: "low_score" };
+  // Absences weigh most (REASON_WEIGHT), then a missed test, then a low mark: the same order the list ranks by.
   if (r.absent >= 2 && r.absentSubject)
     return { text: studentSubjectAbsent({ ...w, subject: joinAnd(r.absentSubject.subjects), days: r.absentSubject.days }), what: "absence" };
   if (r.absent >= 2) return { text: studentAbsent(w), what: "absence" };
+  if (r.missed.length) return { text: studentMissedTest({ ...w, title: r.missed[0].title }), what: "missed_test" };
+  if (r.lowRecent) return { text: studentLowScore(w), what: "low_score" };
   if (r.missingHomework.length) return { text: studentHomeworkMissing({ ...w, title: r.missingHomework[0].title }), what: "homework_missing" };
   const rec = r.recordings.find((x) => x.closesMs > nowMs);
   if (rec) return { text: studentMissedClass({ ...w, subject: rec.slot.subject, day: weekday(rec.slot.startMs) }), what: "missed_class" };

@@ -8,6 +8,8 @@ import { introNeeded, logMessage } from "@/lib/sent-log";
 import { archivedCohortIds } from "@/lib/data/selectors";
 import { DEMO } from "@/lib/demo";
 import { displayName, isTestAccount } from "@/lib/display-name";
+import { inPersonIds } from "@/lib/in-person";
+import { usePausedIds } from "@/lib/paused";
 import { parentNotifications, studentNotifications } from "@/lib/portal-messages";
 import { waDigits } from "@/lib/phone";
 import { supabase } from "@/lib/supabase";
@@ -22,6 +24,7 @@ export function NotifyCoverage() {
   const { cohortId } = useAdminFilter();
   const [on, setOn] = useState<Set<string> | null>(null);
   const [open, setOpen] = useState(false);
+  const pausedIds = usePausedIds();
 
   useEffect(() => {
     let alive = true;
@@ -46,10 +49,12 @@ export function NotifyCoverage() {
 
   const { total, missing } = useMemo(() => {
     const off = archivedCohortIds(db);
-    // Hamza's own test account is neither counted nor chased to turn reminders on.
-    const all = db.students.filter((s) => !off.has(s.cohortId) && !isTestAccount(s) && (!cohortId || s.cohortId === cohortId));
+    // In-person students sit in the room (no class-start reminder for them), and paused ones wait: neither is counted or chased.
+    // Nor is Hamza's own test account.
+    const inPerson = inPersonIds(db);
+    const all = db.students.filter((s) => !off.has(s.cohortId) && !isTestAccount(s) && !inPerson.has(s.id) && !pausedIds.has(s.id) && (!cohortId || s.cohortId === cohortId));
     return { total: all.length, missing: all.filter((s) => !on?.has(s.id)).sort((a, b) => a.username.localeCompare(b.username)) };
-  }, [db, cohortId, on]);
+  }, [db, cohortId, on, pausedIds]);
 
   if (!on || total === 0 || missing.length === 0) return null;
   const have = total - missing.length;

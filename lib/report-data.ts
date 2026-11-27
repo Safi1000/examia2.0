@@ -88,7 +88,14 @@ export interface ReportData {
   syllabus: Array<{ label: string; covered: number; total: number; added: number; latest: string | null }>;
 }
 
-const monthOf = (iso: string | null | undefined) => (iso ? iso.slice(0, 7) : "");
+// Months and days are Pakistan's: a test handed in at 2 am on the 1st belongs to that month, not the last.
+const PK_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" });
+const dayOf = (iso: string | null | undefined) => {
+  if (!iso) return "";
+  const ms = Date.parse(iso);
+  return Number.isNaN(ms) ? iso.slice(0, 10) : PK_DAY.format(ms);
+};
+const monthOf = (iso: string | null | undefined) => dayOf(iso).slice(0, 7);
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const mean = (xs: number[]) => (xs.length ? round1(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
 
@@ -106,7 +113,7 @@ export function monthLabel(month: string): string {
 export function reportData(db: Database, studentId: string, month: string, teacherNote = ""): ReportData | null {
   const student = studentById(db, studentId);
   if (!student) return null;
-  if (!month) month = new Date().toISOString().slice(0, 7);
+  if (!month) month = monthOf(new Date().toISOString());
   const name = displayName(student.username);
   const firstName = name.split(" ")[0];
 
@@ -125,11 +132,12 @@ export function reportData(db: Database, studentId: string, month: string, teach
     return {
       title: t.title,
       subject: t.subject,
-      date: (sub.submittedAt ?? "").slice(0, 10),
+      date: dayOf(sub.submittedAt),
       awarded: g.awarded,
       total: g.total,
       percent: round1(g.percent),
-      classAvg: others.length > 1 ? mean(others) : null,
+      // Only with at least four other students: with fewer, a parent could work out another child's mark.
+      classAvg: others.length >= 5 ? mean(others) : null,
     };
   };
 
@@ -158,7 +166,7 @@ export function reportData(db: Database, studentId: string, month: string, teach
   const missed = setTests
     .filter((t) => !handed.has(t.id) && new Date(t.closesAt).getTime() < Date.now())
     .sort((a, b) => a.closesAt.localeCompare(b.closesAt))
-    .map((t) => ({ title: t.title, closed: t.closesAt.slice(0, 10) }));
+    .map((t) => ({ title: t.title, closed: dayOf(t.closesAt) }));
 
   // Attendance from the register (or a typed monthly figure).
   const typed = db.attendanceMonths.find((a) => a.studentId === student.id && a.month.slice(0, 7) === month);
@@ -205,7 +213,7 @@ export function reportData(db: Database, studentId: string, month: string, teach
     .filter((t) => !handed.has(t.id) && new Date(t.closesAt).getTime() >= Date.now())
     .sort((a, b) => a.closesAt.localeCompare(b.closesAt))
     .slice(0, 3)
-    .map((t) => ({ title: t.title, closes: t.closesAt.slice(0, 10) }));
+    .map((t) => ({ title: t.title, closes: dayOf(t.closesAt) }));
 
   const subjects = student.subjectIds
     .map((id) => db.subjects.find((s) => s.id === id)?.name)

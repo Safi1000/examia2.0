@@ -20,6 +20,7 @@ import {
   newSeed,
   paperFamily,
   questionFromBuilt,
+  testMinutes,
   type BuiltQuestion,
   type PaperFamily,
   type TopicChoice,
@@ -63,6 +64,8 @@ export async function paperBuilder<T>(body: Record<string, unknown>): Promise<T>
 }
 
 const DAY = 86_400_000;
+/** The topic list per paper family, kept for the session so a second open is instant. */
+const topicsCache = new Map<string, TopicChoice[]>();
 
 export function PastPaperSheet({
   open,
@@ -150,9 +153,12 @@ function Sheet({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTopics(null);
     setLoadError("");
-    paperBuilder<{ topics: TopicChoice[] }>({ action: "topics", syllabus: family.syllabus, codes: family.codes, asOnly: family.asOnly })
+    const cacheKey = `${family.syllabus}|${family.codes.join(",")}|${family.asOnly ? 1 : 0}`;
+    const cached = topicsCache.get(cacheKey);
+    (cached ? Promise.resolve({ topics: cached }) : paperBuilder<{ topics: TopicChoice[] }>({ action: "topics", syllabus: family.syllabus, codes: family.codes, asOnly: family.asOnly }))
       .then(({ topics }) => {
         if (!live) return;
+        topicsCache.set(cacheKey, topics);
         setTopics(topics);
         const has = topics.flatMap((t) => t.subs).filter((s) => s.mcq + s.written > 0);
         setPicked(new Set(has.filter((s) => covered.some((c) => covers(c, s.num))).map((s) => s.num)));
@@ -235,12 +241,14 @@ function Sheet({
         syllabus: family.syllabus,
         codes: family.codes,
         id: q.id,
+        subs: [...picked],
         exclude: review.map((x) => x.id),
         seen: classHistoryIds(db, cohortId, cls.id),
         seed: newSeed(),
       });
       if (!question) setError("There's no other question on that topic. Remove it, or keep it.");
-      else setReview(review.map((x) => (x.id === q.id ? { ...question, topic: q.topic, sub: q.sub } : x)));
+      // Labelled with its own topic (always one Hamza ticked).
+      else setReview(review.map((x) => (x.id === q.id ? question : x)));
     } catch (e) {
       setError(e instanceof Error ? e.message : "That didn't work. Try again.");
     } finally {
@@ -289,6 +297,7 @@ function Sheet({
       >
         <div className="space-y-4 pb-1">
           {review.length === 0 && <p className="text-sm text-ink-3">Every question was removed. Go back and build again.</p>}
+          {review.length > 0 && <p className="text-sm tabular-nums text-ink-2">{reviewSummary(review, mode)}</p>}
           <ol className="space-y-4">
             {review.map((q, i) => (
               <ReviewItem
@@ -454,6 +463,17 @@ function Sheet({
       </div>
     </Modal>
   );
+}
+
+/** "10 multiple choice + 1 photo answer · 22 marks · 30 minutes": what the test adds up to before it is made. */
+function reviewSummary(qs: BuiltQuestion[], mode: "test" | "homework"): string {
+  const mcq = qs.filter((q) => q.kind === "mcq").length;
+  const written = qs.length - mcq;
+  const parts = [mcq ? `${mcq} multiple choice` : "", written ? `${written} ${mode === "test" ? "photo answer" : "written"}` : ""].filter(Boolean).join(" + ");
+  const marks = qs.reduce((n, q) => n + (q.marks ?? 0), 0);
+  const unknown = qs.some((q) => q.marks === null);
+  const markLine = `${unknown ? "at least " : ""}${marks} ${marks === 1 ? "mark" : "marks"}`;
+  return mode === "test" ? `${parts} · ${markLine} · ${testMinutes(qs)} minutes` : `${parts} · ${markLine}`;
 }
 
 function Chips({ label, options, value, onChange, empty }: { label: string; options: Array<{ value: string; label: string }>; value: string; onChange: (v: string) => void; empty: string }) {

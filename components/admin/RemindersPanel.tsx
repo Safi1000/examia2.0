@@ -124,6 +124,7 @@ export function RemindersPanel({ joins, joinsOk }: { joins: ClassJoin[]; joinsOk
   /** "Done": told them another way. Closes the reminder; not a message. */
   function markDone(r: Reminder) {
     store.markReminderSent(r.student.id, r.kind, r.ref);
+    toast(`Done for ${displayName(r.student.username)}.`, "success", { label: "Undo", onClick: () => store.unmarkReminderSent(r.student.id, r.kind, r.ref) });
   }
 
   /** Not sending this one: it goes and does not come back. Never counts as a message or starts the week's quiet. */

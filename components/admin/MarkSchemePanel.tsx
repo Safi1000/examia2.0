@@ -6,6 +6,13 @@ import { paperBuilder } from "@/components/admin/PastPaperSheet";
 import { idsInText, sourceLabel } from "@/lib/paper-builder";
 
 type Ms = { name: string; start: number; pages: number };
+/**
+ * For the whole marking session: each question's mark scheme (null: none on
+ * file) and the page last shown, so from the second paper on it appears at
+ * once, where you left it.
+ */
+const msFound = new Map<string, Ms | null>();
+const msPageAt = new Map<string, number>();
 
 /**
  * Beside a written past paper answer in the marking screen: the Cambridge mark
@@ -15,24 +22,29 @@ type Ms = { name: string; start: number; pages: number };
 export function MarkSchemePanel({ prompt }: { prompt: string }) {
   const id = idsInText(prompt)[0] ?? null;
   // "none": the paper has no mark scheme on file; "failed": it could not be loaded.
-  const [ms, setMs] = useState<Ms | null | "none" | "failed">(null);
+  const [ms, setMs] = useState<Ms | null | "none" | "failed">(() => (id && msFound.has(id) ? (msFound.get(id) ?? "none") : null));
   const [attempt, setAttempt] = useState(0);
-  const [page, setPageRaw] = useState(1);
+  const [page, setPageRaw] = useState(() => (id && msPageAt.get(id)) || (id && msFound.get(id)?.start) || 1);
   const box = useRef<HTMLDivElement>(null);
   // A new page starts at its top, not wherever the last one was scrolled to.
   const setPage = (next: number | ((p: number) => number)) => {
-    setPageRaw(next);
+    setPageRaw((p) => {
+      const v = typeof next === "function" ? next(p) : next;
+      if (id) msPageAt.set(id, v);
+      return v;
+    });
     box.current?.scrollTo({ top: 0 });
   };
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || msFound.has(id)) return;
     let live = true;
     paperBuilder<{ ms: Ms | null }>({ action: "ms", id })
       .then((r) => {
+        msFound.set(id, r.ms ?? null);
         if (!live) return;
         setMs(r.ms ?? "none");
-        if (r.ms) setPageRaw(r.ms.start);
+        if (r.ms) setPageRaw(msPageAt.get(id) ?? r.ms.start);
       })
       .catch(() => live && setMs("failed"));
     return () => {

@@ -7,7 +7,8 @@ import { useAdminFilter } from "@/lib/admin-filter";
 import { attendancePercent, cohortById, eligibleStudents, testsForStudent } from "@/lib/data/selectors";
 import { displayName, isTestAccount } from "@/lib/display-name";
 import { inPersonIds } from "@/lib/in-person";
-import { useIsStaff } from "@/lib/staff";
+import { isTa, taMayOpen, useIsStaff } from "@/lib/staff";
+import { useAuth } from "@/lib/auth-context";
 import { buildAttention } from "@/lib/attention";
 import { awayUntilMap } from "@/lib/reminders";
 import { useNow } from "@/hooks/useNow";
@@ -184,21 +185,16 @@ export default function AnalyticsPage() {
       value: calcAvg(base.released.filter((s) => monthOf(s.submittedAt) === m), testById),
     }));
 
-    // Distribution covers every released result in scope; the month filter
-    // steers the cards and the per-test table, not this chart.
-    const dist: Record<string, number> = Object.fromEntries(GRADE_ORDER.map((g) => [g, 0]));
-    base.released.forEach((s) => {
-      const t = testById.get(s.testId);
-      if (t) dist[gradeSubmission(t, s).letter]++;
-    });
-    const bars: Bar[] = GRADE_ORDER.map((g) => ({ label: g, value: dist[g] ?? 0, role: gradeRole(g) }));
-
     // Headline counts are per STUDENT (their average for the month), not per
     // script - counting scripts is how a roster of 17 reported 25.
     const perStudentGrade = base.students.flatMap((st) => {
       const subs = monthSubs.filter((x) => x.studentId === st.id);
       return subs.length ? [capAs(gradeLetter(calcAvg(subs, testById)), isAsStudent(st.id))] : [];
     });
+    // The grade spread follows the month in view and counts each student once, like the tiles above it.
+    const dist: Record<string, number> = Object.fromEntries(GRADE_ORDER.map((g) => [g, 0]));
+    perStudentGrade.forEach((g) => (dist[g] = (dist[g] ?? 0) + 1));
+    const bars: Bar[] = GRADE_ORDER.map((g) => ({ label: g, value: dist[g] ?? 0, role: gradeRole(g) }));
     const topStudents = perStudentGrade.filter((g) => g === "A*" || g === "A").length;
     const strugglingStudents = perStudentGrade.filter((g) => g === "E" || g === "U").length;
     const toMark = base.awaiting.length;
@@ -424,6 +420,9 @@ function ClassView({
   needs: NeedsRow[] | null;
 }) {
   const monthLabel = activeMonth ? formatMonth(activeMonth).split(" ")[0] : "All time";
+  // "To mark" opens Marking, for anyone who may open it.
+  const { session } = useAuth();
+  const canMark = !isTa(session) || taMayOpen("/admin/submissions", session);
 
   return (
     <div className="space-y-5">
@@ -433,7 +432,7 @@ function ClassView({
         <MetricCard label={`Average (${monthLabel})`} value={`${Math.round(data.monthly)}%`} delta={data.delta} />
         <MetricCard label={`A/A* (${monthLabel})`} value={String(data.topStudents)} note={data.topStudents === 1 ? "student" : "students"} />
         <MetricCard label="Needs support" value={String(data.strugglingStudents)} note={`${data.strugglingStudents === 1 ? "student" : "students"} at E or U`} />
-        <MetricCard label="To mark" value={String(data.toMark)} note={data.toMark === 1 ? "paper" : "papers"} />
+        <MetricCard label="To mark" value={String(data.toMark)} note={data.toMark === 1 ? "paper" : "papers"} href={canMark ? "/admin/submissions" : undefined} />
         {data.attendanceAvg != null && (
           <MetricCard label="Attendance" value={`${Math.round(data.attendanceAvg)}%`} note={`${activeMonth ? monthLabel : "This month"} average`} />
         )}
@@ -448,7 +447,8 @@ function ClassView({
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card className="p-5 sm:p-6">
-          <h2 className="mb-3 text-base font-semibold tracking-[-0.01em] text-ink">Grade distribution</h2>
+          <h2 className="text-base font-semibold tracking-[-0.01em] text-ink">Grade distribution</h2>
+          <p className="mb-3 mt-0.5 text-sm text-ink-3">Students by grade, {activeMonth ? formatMonth(activeMonth) : "all time"}</p>
           <BarChart bars={data.bars} />
         </Card>
 
@@ -645,17 +645,19 @@ function StudentView({
 // ---- Shared UI ------------------------------------------------------------
 
 function MetricCard({
-  label, value, delta, note, tone,
+  label, value, delta, note, tone, href,
 }: {
   label: string;
+  /** Makes the whole tile a link to where that number is worked on. */
+  href?: string;
   value: string;
   delta?: number | null;
   note?: string;
   tone?: "success" | "warning" | "error";
 }) {
   const toneClass = tone === "success" ? "text-success" : tone === "warning" ? "text-warning" : tone === "error" ? "text-error" : "text-ink";
-  return (
-    <Card className={statTile}>
+  const tile = (
+    <Card className={cn(statTile, href && "h-full transition-colors group-hover:bg-surface-2")}>
       <p className={cn(statLabel, "min-h-10")}>{label}</p>
       <p className={cn(statValue, toneClass)}>{value}</p>
       {delta != null && (
@@ -666,5 +668,12 @@ function MetricCard({
       )}
       {note && <p className={statNote}>{note}</p>}
     </Card>
+  );
+  return href ? (
+    <Link href={href} className="group block rounded-card focus-visible:outline-2 focus-visible:outline-offset-2">
+      {tile}
+    </Link>
+  ) : (
+    tile
   );
 }

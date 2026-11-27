@@ -236,7 +236,10 @@ export function planRows(
     const byPhone = phone ? ctx.students.filter((s) => s.phone === phone) : [];
     const sharedInSheet = phone && rows.some((o, j) => j !== idx && j > header && fixPhone(cell(o, cols.phone)) === phone);
     const same =
-      ctx.students.find((s) => s.username.toLowerCase() === given && (!phone || !s.phone || s.phone === phone)) ||
+      // Same username = same student, even when their number has changed since (the import then
+      // updates the number). A student who has left has a freed username, so a new Ali Khan
+      // never lands on last year's.
+      ctx.students.find((s) => s.username.toLowerCase() === given) ||
       (byPhone.length === 1 && !sharedInSheet ? byPhone[0] : undefined);
     if (same) {
       row.existing = same;

@@ -288,8 +288,10 @@ export async function POST(req: Request) {
   if (b.action === "swap") {
     const id = typeof b.id === "string" && ID.test(b.id) ? b.id : "";
     const seen = new Set(ids(b.seen));
-    const next = id ? swapFor(pool, id, ids(b.exclude), seed, seen) : null;
-    return Response.json({ question: next ? await built(next, syllabus, next.subs, seen) : null });
+    // The topics Hamza ticked (from the builder): a swap stays inside them and is labelled with its own topic.
+    const only = Array.isArray(b.subs) ? b.subs.filter((s): s is string => typeof s === "string" && SUB.test(s)).slice(0, 200) : [];
+    const next = id ? swapFor(pool, id, ids(b.exclude), seed, seen, only) : null;
+    return Response.json({ question: next ? await built(next, syllabus, only.length ? only : next.subs, seen) : null });
   }
 
   return Response.json({ error: "bad request" }, { status: 400 });

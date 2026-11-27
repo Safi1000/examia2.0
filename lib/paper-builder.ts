@@ -428,8 +428,9 @@ export function pickQuestions(pool: PoolItem[], opts: PickOptions): PoolItem[] {
 /**
  * Swap: another question of the same kind on the same main topic, not used
  * yet (falls back to its second topic). Null when that topic has run out.
+ * `only`: the topics Hamza ticked; the fallback never leaves them.
  */
-export function swapFor(pool: PoolItem[], id: string, exclude: Iterable<string>, seed = 1, seen: Iterable<string> = []): PoolItem | null {
+export function swapFor(pool: PoolItem[], id: string, exclude: Iterable<string>, seed = 1, seen: Iterable<string> = [], only?: string[]): PoolItem | null {
   const was = pool.find((q) => q.id === id);
   const p = parseId(id);
   const kind = was?.kind ?? null;
@@ -438,6 +439,7 @@ export function swapFor(pool: PoolItem[], id: string, exclude: Iterable<string>,
   const used = new Set(exclude);
   used.add(id);
   for (const sub of subs) {
+    if (only?.length && !only.some((c) => covers(c, sub))) continue;
     const picked = pickQuestions(
       pool.filter((q) => q.kind === kind && q.subs.includes(sub)),
       { subs: [sub], mcq: kind === "mcq" ? 1 : 0, written: kind === "written" ? 1 : 0, exclude: used, seen, seed },

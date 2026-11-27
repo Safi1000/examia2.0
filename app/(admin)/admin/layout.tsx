@@ -4,13 +4,13 @@ import { ScheduleGate } from "@/components/ScheduleGate";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { useDataReady } from "@/lib/data/store";
+import { useDataReady, useDatabase } from "@/lib/data/store";
 import { useSessionTimeout } from "@/hooks/useSessionTimeout";
 import { useToast } from "@/components/toast";
-import { AdminFilterProvider } from "@/lib/admin-filter";
+import { AdminFilterProvider, useAdminFilter } from "@/lib/admin-filter";
 import { AdminLogin } from "@/components/admin/AdminLogin";
 import { GROUPS, Sidebar } from "@/components/admin/Sidebar";
-import { Icon } from "@/components/ui";
+import { CohortDot, Icon } from "@/components/ui";
 import { LogoTight } from "@/components/Brand";
 import { Splash } from "@/components/Splash";
 import { PortalSkeleton } from "@/components/PortalSkeleton";
@@ -27,6 +27,8 @@ import { pageTitle, useDocumentTitle } from "@/hooks/usePageTitle";
 
 // Long enough to teach a block of back-to-back classes in Meet without being signed out.
 const IDLE_MS = 3 * 60 * 60 * 1000;
+// Staff: a console left open on a shared laptop closes much sooner.
+const STAFF_IDLE_MS = 30 * 60 * 1000;
 
 const TITLES: Record<string, string> = {
   "/admin/today": "Today",
@@ -63,8 +65,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const ta = isTa(session);
   useEffect(() => {
-    if (ta && !taMayOpen(pathname, session)) router.replace(taHome(session));
-  }, [ta, pathname, router, session]);
+    if (!ta || taMayOpen(pathname, session)) return;
+    // Landing on the console's front door is normal; any other page that is off gets a word of why.
+    if (pathname !== "/admin" && pathname !== "/admin/today") toast("Hamza hasn't switched this part on for you.", "info");
+    router.replace(taHome(session));
+  }, [ta, pathname, router, session, toast]);
   // The staff mark sits on the page itself, so owner-only things are also
   // hidden inside pop up windows and menus, which are drawn outside this layout.
   useLayoutEffect(() => {
@@ -78,11 +83,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     () => {
       setMobileOpen(false);
       logout();
-      toast("Signed out after 3 hours without use.", "info");
+      toast(ta ? "Signed out after 30 minutes without use." : "Signed out after 3 hours without use.", "info");
       // Stay on the teacher sign-in, not the student one.
       router.replace("/admin");
     },
-    IDLE_MS,
+    ta ? STAFF_IDLE_MS : IDLE_MS,
     isAdmin,
   );
 
@@ -209,7 +214,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </button>
               <div className="md:hidden"><LogoTight className="h-5" /></div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <CohortPill />
               <SaveStatus />
               <CommandPalette />
               <NotificationBell />
@@ -260,5 +266,34 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         )}
       </div>
     </AdminFilterProvider>
+  );
+}
+
+/**
+ * While one cohort is chosen under Viewing, every page says so here, with a
+ * cross to clear it: a list narrowed without saying so reads as students missing.
+ */
+function CohortPill() {
+  const db = useDatabase();
+  const { cohortId, setCohortId } = useAdminFilter();
+  const c = cohortId ? db.cohorts.find((x) => x.id === cohortId && x.active) : null;
+  // A remembered cohort since switched off or removed: back to all, never a silently empty list.
+  useEffect(() => {
+    if (cohortId && !c) setCohortId(null);
+  }, [cohortId, c, setCohortId]);
+  if (!c) return null;
+  return (
+    <span className="inline-flex h-9 min-w-0 max-w-[11rem] items-center gap-1.5 rounded-full border border-hairline pl-3 text-sm font-semibold text-ink-2">
+      <CohortDot color={c.color} />
+      <span className="truncate">{c.name}</span>
+      <button
+        type="button"
+        onClick={() => setCohortId(null)}
+        aria-label={`Show all cohorts, not only ${c.name}`}
+        className="flex h-11 w-9 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:text-ink"
+      >
+        <Icon.Close className="h-4 w-4" />
+      </button>
+    </span>
   );
 }

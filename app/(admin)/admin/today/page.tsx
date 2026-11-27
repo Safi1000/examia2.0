@@ -26,7 +26,7 @@ import { WellBuiltCard } from "@/components/admin/WellBuiltCard";
 import { HealthLine } from "@/components/admin/Automations";
 import { NotifyCoverage } from "@/components/admin/NotifyCoverage";
 import { RemindersPanel } from "@/components/admin/RemindersPanel";
-import { introNeeded, logMessage } from "@/lib/sent-log";
+import { MSG_PARENT, MSG_STUDENT, introNeeded, logMessage } from "@/lib/sent-log";
 import { addDays, clock, levelName, liveSlotsOn, pkDate, slotKey, useClassLinks, useSchedule } from "@/lib/classes";
 import { formatRelative } from "@/lib/time";
 import { createRetest, reachOf, retestQuestions, retestTarget, weakTopics } from "@/lib/retest";
@@ -100,7 +100,9 @@ export default function TodayPage() {
   });
   const checked = useMemo(() => {
     const m: Record<string, number> = { ...localChecked };
-    for (const r of db.remindersSent) if (r.kind === "checked") m[r.studentId] = Math.max(m[r.studentId] ?? 0, +new Date(r.sentAt));
+    // A parent message sent (or marked done) from "Tell parents" counts as checked here too, so the two lists never offer the same message.
+    const told = new Set(["checked", "absent_streak", "missed_test", "low_score"]);
+    for (const r of db.remindersSent) if (told.has(r.kind)) m[r.studentId] = Math.max(m[r.studentId] ?? 0, +new Date(r.sentAt));
     return m;
   }, [db.remindersSent, localChecked]);
   // Tests whose full "not handed in" list has been opened (a big class would bury the page otherwise).
@@ -108,15 +110,25 @@ export default function TodayPage() {
   // Every button on the list hides the student for a week ("checked"); Message and Parent also
   // say which way Hamza got in touch (for the next step), and Away keeps them off until a day.
   const onAct = (id: string, a: AttentionAct) => {
-    store.markReminderSent(id, "checked", todayPk);
-    if (a.kind === "student" || a.kind === "spoke") store.markReminderSent(id, CONTACT_STUDENT, todayPk);
-    if (a.kind === "parent" || a.kind === "parent_knows") store.markReminderSent(id, CONTACT_PARENT, todayPk);
+    // Only marks that weren't there already are undone by Undo (an earlier tick today stays).
+    const added: Array<[string, string]> = [];
+    const mark = (kind: string, ref: string) => {
+      if (!db.remindersSent.some((r) => r.studentId === id && r.kind === kind && r.ref === ref)) added.push([kind, ref]);
+      store.markReminderSent(id, kind, ref);
+    };
+    const undo = { label: "Undo", onClick: () => added.forEach(([kind, ref]) => store.unmarkReminderSent(id, kind, ref)) };
+    const st = db.students.find((x) => x.id === id);
+    const who = st ? nameOf(st) : "This student";
+    mark("checked", todayPk);
+    if (a.kind === "student" || a.kind === "spoke") mark(CONTACT_STUDENT, todayPk);
+    if (a.kind === "parent" || a.kind === "parent_knows") mark(CONTACT_PARENT, todayPk);
     // A pre-written WhatsApp was opened: logged with what it was about (History, and the first-two rule).
     if ((a.kind === "student" || a.kind === "parent") && a.what) logMessage(store, id, a.kind, a.what);
     if (a.kind === "away") {
-      store.markReminderSent(id, AWAY_UNTIL, a.until);
-      toast(`Away until ${new Date(`${a.until}T12:00:00+05:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}. They're off this list, parent reminders and nudges until then.`, "success");
+      mark(AWAY_UNTIL, a.until);
+      toast(`Away until ${new Date(`${a.until}T12:00:00+05:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}. They're off this list, parent reminders and nudges until then.`, "success", undo);
     }
+    if (a.kind === "spoke" || a.kind === "parent_knows") toast(`${who} is hidden for a week.`, "success", undo);
   };
   // Who has phone reminders on: the rest get a "No phone reminders" chip.
   const pushOn = usePushDevices(db.students.map((s) => s.id));
@@ -371,9 +383,11 @@ export default function TodayPage() {
                         const link = s.phone
                           ? waTo(s.phone, studentTestClosing({ id: s.id, username: s.username, intro: introNeeded(db, s.id, "student"), title: test.title, when: messageWhen(test.closesAt, nowMs) }))
                           : waTo(s.whatsapp, parentTestClosing({ id: s.id, username: s.username, intro: introNeeded(db, s.id, "parent"), title: test.title, when: messageWhen(test.closesAt, nowMs) }));
+                        // Reminded today (saved with the message log, so every device shows it): a quiet tick, still tappable.
+                        const reminded = db.remindersSent.some((r) => r.studentId === s.id && (r.kind === MSG_STUDENT || r.kind === MSG_PARENT) && r.ref === `test_closing:${todayPk}`);
                         return link ? (
-                          <a key={s.id} href={link} target="_blank" rel="noopener noreferrer" onClick={() => logMessage(store, s.id, s.phone ? "student" : "parent", "test_closing")} className="inline-flex min-h-9 items-center rounded-full border border-border-strong px-3 text-sm font-semibold text-ink transition-colors hover:border-ink-3 hover:bg-surface-2 max-md:min-h-11">
-                            Remind {nameOf(s)}
+                          <a key={s.id} href={link} target="_blank" rel="noopener noreferrer" onClick={() => logMessage(store, s.id, s.phone ? "student" : "parent", "test_closing")} className={cn("inline-flex min-h-9 items-center rounded-full border border-border-strong px-3 text-sm font-semibold transition-colors hover:border-ink-3 hover:bg-surface-2 max-md:min-h-11", reminded ? "text-ink-3" : "text-ink")}>
+                            {reminded ? `${nameOf(s)}, reminded` : `Remind ${nameOf(s)}`}
                           </a>
                         ) : (
                           <span key={s.id} className="inline-flex min-h-9 items-center rounded-full bg-surface-2 px-3 text-sm text-ink-3" title="No number saved">

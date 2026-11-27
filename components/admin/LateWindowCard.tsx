@@ -13,6 +13,7 @@ import { SITE_URL } from "@/lib/seo";
 import { displayName } from "@/lib/display-name";
 import { parentReopened, studentReopened } from "@/lib/portal-messages";
 import { introNeeded, logMessage } from "@/lib/sent-log";
+import { useIsStaff } from "@/lib/staff";
 
 const HOURS = [4, 6, 12, 24] as const;
 
@@ -73,7 +74,10 @@ export function LateWindowCard({ test }: { test: Test }) {
     setStudentId("");
   }
 
+  // Messaging a student or parent is Hamza's: staff get no WhatsApp button at all.
+  const staff = useIsStaff();
   function whatsapp(s: Student, until: string) {
+    if (staff) return null;
     const link = `${SITE_URL}/test/${test.id}`;
     if (s.phone) {
       const text = studentReopened({ id: s.id, username: s.username, intro: introNeeded(db, s.id, "student"), title: test.title, until: pkTime(until), link });

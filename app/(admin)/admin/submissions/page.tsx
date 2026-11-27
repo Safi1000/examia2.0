@@ -155,16 +155,19 @@ export default function SubmissionsPage() {
 
   function exportRows() {
     downloadCsv(
-      chosenRows.map(({ sub, test, student, grade }) => ({
+      chosenRows.map(({ sub, test, student, grade, lateWindow }) => ({
         Student: student ? displayName(student.username) : "Removed student",
         Username: student?.username ?? "",
         Test: test.title,
         Subject: test.subject,
         Status: sub.status === "released" ? "Released" : "To mark",
+        Marks: sub.status === "released" ? grade.awarded : "",
+        "Out of": sub.status === "released" ? grade.total : "",
         "Mark %": sub.status === "released" ? shownPercent(grade.percent) : "",
         Grade: sub.status === "released" ? grade.letter : "",
-        Late: sub.late ? "Yes" : "No",
-        "Handed in": sub.submittedAt ? sub.submittedAt.slice(0, 16).replace("T", " ") : "",
+        Late: sub.late ? (lateWindow ? "Late window" : "Yes") : "No",
+        // Pakistan time, like the rest of the portal (the stored time is UTC).
+        "Handed in": sub.submittedAt ? new Date(sub.submittedAt).toLocaleString("sv-SE", { timeZone: "Asia/Karachi" }).slice(0, 16) : "",
       })),
       "papers",
     );

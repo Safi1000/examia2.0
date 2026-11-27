@@ -58,6 +58,7 @@ export function NotesKeyCard() {
   async function make() {
     if (busy) return;
     if (DEMO) return toast("The preview doesn't make real keys.", "success");
+    if (state?.on && !window.confirm("Replace the current key? The old key stops working at once, so Claude needs the new file before it can add notes again.")) return;
     setBusy(true);
     try {
       const r = await call("POST");

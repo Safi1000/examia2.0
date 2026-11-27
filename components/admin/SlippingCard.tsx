@@ -6,6 +6,7 @@ import type { Profile } from "@/lib/profile";
 import { archivedCohortIds, joinedMs } from "@/lib/data/selectors";
 import { displayName, isTestAccount } from "@/lib/display-name";
 import { usePausedIds } from "@/lib/paused";
+import { inPersonIds } from "@/lib/in-person";
 import { addDays, getSchedule, pkDate } from "@/lib/timetable";
 import { Card } from "@/components/ui";
 
@@ -25,10 +26,12 @@ export function SlippingCard({ db, profiles, nowMs, cohortId }: { db: Database; 
   if (today < term) return null;
   const neverCounts = today >= addDays(term, 7);
   const off = archivedCohortIds(db);
+  // In-person students are left out, as on "Students who need you".
+  const inPerson = inPersonIds(db);
   const lastStudy = (p?: Profile) => Object.entries(p?.focus?.days ?? {}).filter(([, m]) => m > 0).map(([d]) => d).sort().pop() ?? null;
   const cutoff = addDays(today, -5);
   const list = db.students
-    .filter((s) => !off.has(s.cohortId) && !isTestAccount(s) && !pausedIds.has(s.id) && (cohortId === null || s.cohortId === cohortId))
+    .filter((s) => !off.has(s.cohortId) && !isTestAccount(s) && !pausedIds.has(s.id) && !inPerson.has(s.id) && (cohortId === null || s.cohortId === cohortId))
     // A student in their first week has not had time to slip (the same rule as "Students who need you").
     .filter((s) => nowMs - joinedMs(s) >= 7 * 864e5)
     .map((s) => ({ s, last: lastStudy(profiles[s.id]) }))

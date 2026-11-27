@@ -112,7 +112,8 @@ async function deliver(sb: SupabaseClient, all: Item[]): Promise<number> {
   if (!all.length) return 0;
   // Paused students get nothing on their phones. If the accounts can't be
   // read this once, the notices still go out rather than everyone missing them,
-  // except the come-back nudges: those fail closed (a paused student must never get one).
+  // except the reminders that chase (come back, recordings, study, homework due):
+  // those fail closed and wait for the next run (a paused student must never get one).
   let items = all;
   try {
     const { pausedStudentIds } = await import("@/lib/paused-server");
@@ -120,7 +121,7 @@ async function deliver(sb: SupabaseClient, all: Item[]): Promise<number> {
     if (paused.size) items = all.filter((i) => !paused.has(i.studentId));
   } catch (e) {
     console.error("[push] paused list", e);
-    items = all.filter((i) => i.kind !== "nudge");
+    items = all.filter((i) => !chases(i));
   }
   if (!items.length) return 0;
   webpush.setVapidDetails(

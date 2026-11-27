@@ -297,12 +297,9 @@ export async function findRecording(
   }
   if (!fileId) return null;
   if (opts.folder) await moveInto(token, fileId, await folderPath(token, opts.folder)).catch((e) => console.error("[google] move", e));
-  if (opts.share) {
-    await g(token, `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
-      method: "POST",
-      body: JSON.stringify({ role: "reader", type: "anyone" }),
-    }).catch(() => null); // Already shared is fine.
-  }
+  // Sharing must work before the link is handed to students (a locked link shows them "You need access").
+  // A failure throws: nothing is saved, and the next run tries again. Sharing twice is fine (openLinkSharing does the same).
+  if (opts.share) await openLinkSharing(token, fileId);
   const f = await g<{ webViewLink?: string }>(token, `https://www.googleapis.com/drive/v3/files/${fileId}?fields=webViewLink`);
   return f.webViewLink ?? null;
 }

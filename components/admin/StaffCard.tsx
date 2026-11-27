@@ -43,8 +43,10 @@ export function StaffCard() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   // A sign-in just made or reset: shown once so Hamza can pass it on.
-  const [shown, setShown] = useState<{ email: string; password: string } | null>(null);
+  const [shown, setShown] = useState<{ email: string; password: string; name?: string } | null>(null);
   const [removeAsk, setRemoveAsk] = useState<Assistant | null>(null);
+  // The log, for one person or everyone.
+  const [who, setWho] = useState<string>("");
 
   const load = useCallback(async () => {
     if (DEMO) {
@@ -111,7 +113,15 @@ export function StaffCard() {
     } catch {
       setStaff((list) => list?.map((x) => (x.id === a.id ? { ...x, access: a.access } : x)) ?? list);
       toast("Couldn't save that. Try again.", "error");
+      // Two quick taps can save one and fail the other: show what is really on.
+      void load();
     }
+  }
+
+  async function rename(a: Assistant) {
+    const next = window.prompt("Their name", a.name)?.trim();
+    if (!next || next === a.name) return;
+    await run("PATCH", { id: a.id, action: "name", name: next }, "Name changed.");
   }
 
   /** Their newest line in the log (marking, a reply), or their last sign in if that is newer: someone signed in for weeks still shows when they last worked. */
@@ -124,8 +134,35 @@ export function StaffCard() {
   async function reset(a: Assistant) {
     if (!window.confirm(`Give ${a.name || "this person"} a new password? Their old one stops working straight away.`)) return;
     const password = newPassword() + newPassword();
-    if (await run("PATCH", { id: a.id, action: "password", password }, "New password set.")) setShown({ email: a.email, password });
+    if (await run("PATCH", { id: a.id, action: "password", password }, "New password set.")) setShown({ email: a.email, password, name: a.name });
   }
+
+  // Shown inside that person's row, so it is never below the screen edge.
+  const shownBox = shown && (
+    <div className="rounded-tile bg-surface-2 px-4 py-3 text-sm">
+      <p className="font-semibold text-ink">{shown.name ? `${shown.name}'s sign-in, shown once` : "Their sign-in, shown once"}</p>
+      <p className="mt-1.5 text-ink-2">They sign in at www.hamzateaches.com/admin</p>
+      <p className="mt-1 break-all font-mono text-ink">{shown.email}</p>
+      <p className="break-all font-mono text-ink">{shown.password}</p>
+      <div className="mt-3 flex gap-2">
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() =>
+            void navigator.clipboard
+              ?.writeText(`Sign in: www.hamzateaches.com/admin\nEmail: ${shown.email}\nPassword: ${shown.password}`)
+              .then(() => toast("Sign-in copied.", "success"))
+              .catch(() => toast("Couldn't copy. Select the text instead.", "error"))
+          }
+        >
+          Copy
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setShown(null)}>I&apos;ve saved it</Button>
+      </div>
+    </div>
+  );
+  const names = [...new Set(log.map((l) => l.name))];
+  const shownLog = who ? log.filter((l) => l.name === who) : log;
 
   return (
     <Card className="max-w-2xl">
@@ -163,10 +200,12 @@ export function StaffCard() {
               <Button size="sm" variant="secondary" disabled={busy} onClick={() => void run("PATCH", { id: a.id, action: a.paused ? "resume" : "pause" }, a.paused ? "They can sign in again." : "Paused. They can't sign in.")}>
                 {a.paused ? "Let them back in" : "Pause"}
               </Button>
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => void rename(a)}>Edit name</Button>
               <Button size="sm" variant="ghost" disabled={busy} onClick={() => void reset(a)}>New password</Button>
               <Button size="sm" variant="ghost" disabled={busy} onClick={() => setRemoveAsk(a)}>Remove</Button>
             </div>
           </div>
+            {shown?.email === a.email && <div className="mt-3 [&>div]:bg-surface">{shownBox}</div>}
             <fieldset className="mt-3 border-t border-hairline pt-3">
               <legend className="text-sm font-semibold text-ink">Can open</legend>
               <ul className="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2">
@@ -196,29 +235,7 @@ export function StaffCard() {
           </div>
         ))}
 
-        {shown && (
-          <div className="rounded-tile bg-surface-2 px-4 py-3 text-sm">
-            <p className="font-semibold text-ink">Their sign-in, shown once</p>
-            <p className="mt-1.5 text-ink-2">They sign in at www.hamzateaches.com/admin</p>
-            <p className="mt-1 break-all font-mono text-ink">{shown.email}</p>
-            <p className="break-all font-mono text-ink">{shown.password}</p>
-            <div className="mt-3 flex gap-2">
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() =>
-                  void navigator.clipboard
-                    ?.writeText(`Sign in: www.hamzateaches.com/admin\nEmail: ${shown.email}\nPassword: ${shown.password}`)
-                    .then(() => toast("Sign-in copied.", "success"))
-                    .catch(() => toast("Couldn't copy. Select the text instead.", "error"))
-                }
-              >
-                Copy
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setShown(null)}>I&apos;ve saved it</Button>
-            </div>
-          </div>
-        )}
+        {shown && !staff?.some((a) => a.email === shown.email) && shownBox}
 
         {adding ? (
           <div className="space-y-3">
@@ -237,8 +254,17 @@ export function StaffCard() {
         {log.length > 0 && (
           <div>
             <p className="label-quiet text-ink-3">What staff did, newest first</p>
+            {names.length > 1 && (
+              <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Show the log for">
+                {["", ...names].map((n) => (
+                  <Button key={n || "all"} size="sm" variant={who === n ? "secondary" : "ghost"} aria-pressed={who === n} onClick={() => setWho(n)}>
+                    {n || "Everyone"}
+                  </Button>
+                ))}
+              </div>
+            )}
             <ul className="mt-2 max-h-64 divide-y divide-hairline overflow-y-auto rounded-tile bg-surface-2 text-sm">
-              {log.map((l, i) => (
+              {shownLog.map((l, i) => (
                 <li key={`${l.at}-${i}`} className="flex items-baseline justify-between gap-3 px-4 py-2.5">
                   <span className="min-w-0 text-ink-2">
                     <span className="font-semibold text-ink">{l.name}</span> {l.what}

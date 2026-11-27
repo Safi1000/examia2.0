@@ -153,6 +153,24 @@ export async function POST(req: NextRequest) {
         await sb.from("notes").delete().eq("id", id);
         throw new Error(links.error.message);
       }
+      // The same "New notes" notice the console's upload window gives: one per group it goes to. A failure here never undoes the filed note.
+      try {
+        await sb.from("activities").insert(
+          p.where.links.map((l) => ({
+            type: "notes_assigned",
+            title: `New notes: "${p.title}"`,
+            description: subject,
+            note_id: id,
+            cohort_id: l.cohortId,
+            class_id: l.classId,
+            subject_id: l.subjectId,
+            link: "/notes",
+            audience: "student",
+          })),
+        );
+      } catch (e) {
+        console.error("[notes import] notice", e);
+      }
       // The older note on this chapter is hidden from students, not deleted: it can come back from the console.
       let hidden = 0;
       if (body.replace === true) {

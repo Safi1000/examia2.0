@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
-import { Modal, Button, Input, Select, Label, Icon, segmentGroup, segmentItem } from "@/components/ui";
+import { Modal, Button, Input, Textarea, Select, Label, Icon, segmentGroup, segmentItem } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { parseQuestions, type DraftQuestion } from "@/lib/question-parser";
 import { useDatabase } from "@/lib/data/store";
@@ -379,11 +379,13 @@ export function ImportDocModal({
                   <div className="flex items-start gap-2">
                     <span className="mt-3.5 w-5 shrink-0 text-sm font-semibold text-ink-3 tabular-nums">{i + 1}</span>
                     <div className="min-w-0 flex-1 space-y-2">
-                      <Input
+                      {/* Several lines (a question with parts, or a small table) keep their line breaks. */}
+                      <Textarea
                         value={d.prompt}
                         onChange={(e) => patch(i, { prompt: e.target.value })}
                         placeholder="Question prompt"
                         aria-label={`Prompt for question ${i + 1}`}
+                        rows={Math.min(8, Math.max(2, d.prompt.split("\n").length))}
                       />
 
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">

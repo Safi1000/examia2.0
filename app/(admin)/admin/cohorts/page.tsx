@@ -78,18 +78,18 @@ export default function CohortsPage() {
     setSelClassIds([...c.classIds]);
     setSelSubjectIds([...c.subjectIds]);
   }
-  function save() {
+  async function save() {
     if (!name.trim()) return;
+    // The levels and subjects are saved before "created" or "updated" is said; a failure names the cohort.
     if (editing === "new") {
       const id = store.addCohort(name.trim(), color);
-      store.setCohortClasses(id, selClassIds);
-      store.setCohortSubjects(id, selSubjectIds);
-      toast("Cohort created.", "success");
+      const ok = (await Promise.all([store.setCohortClasses(id, selClassIds), store.setCohortSubjects(id, selSubjectIds)])).every(Boolean);
+      toast(ok ? "Cohort created." : `${name.trim()} was created, but its levels or subjects didn't save. Open it and save again.`, ok ? "success" : "error");
     } else if (editing) {
-      store.updateCohort(editing.id, { name: name.trim(), color });
-      store.setCohortClasses(editing.id, selClassIds);
-      store.setCohortSubjects(editing.id, selSubjectIds);
-      toast("Cohort updated.", "success");
+      const cohort = editing;
+      store.updateCohort(cohort.id, { name: name.trim(), color });
+      const ok = (await Promise.all([store.setCohortClasses(cohort.id, selClassIds), store.setCohortSubjects(cohort.id, selSubjectIds)])).every(Boolean);
+      toast(ok ? "Cohort updated." : `${name.trim()}: its levels or subjects didn't save. Open it and save again.`, ok ? "success" : "error");
     }
     setEditing(null);
   }
@@ -335,6 +335,18 @@ export default function CohortsPage() {
           </>
         }
       >
+        {deleting && (() => {
+          const students = studentsInCohort(db, deleting.id).length;
+          const tests = db.tests.filter((t) => t.cohortId === deleting.id).length;
+          const homework = db.assignments.filter((a) => a.cohortId === deleting.id).length;
+          const notices = db.announcements.filter((a) => a.cohortId === deleting.id).length;
+          const n = (c: number, w: string) => `${c} ${w}${c === 1 ? "" : "s"}`;
+          return (
+            <p className="mb-3 text-sm text-ink-2">
+              Moving {n(students, "student")}, {n(tests, "test")}, {n(homework, "homework")} and {n(notices, "announcement")}. If this batch has finished, Archive it instead and keep everything where it is.
+            </p>
+          );
+        })()}
         <Select label="Move students and tests to" value={reassignTo} onChange={(e) => setReassignTo(e.target.value)}>
           <option value="">Choose a cohort…</option>
           {/* Archived cohorts are offered last and named as such: students moved there can't sign in. */}

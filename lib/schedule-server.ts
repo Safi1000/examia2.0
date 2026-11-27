@@ -12,7 +12,17 @@ let cache: { at: number; value: Schedule } | null = null;
  * The admin account that holds the timetable and automation settings: the
  * one that already has a timetable, else the first admin.
  */
+// The account found last time (this server instance): read straight by id, so a
+// save doesn't list every sign-in account. Checked again on every read, fresh.
+let knownAdminId: string | null = null;
+
 export async function adminUser(sb: SupabaseClient) {
+  if (knownAdminId) {
+    const { data, error } = await sb.auth.admin.getUserById(knownAdminId);
+    const meta = data?.user?.app_metadata as { role?: string; staff?: string; schedule?: unknown } | undefined;
+    if (!error && data?.user && meta?.role === "admin" && meta.staff !== "ta" && meta.schedule) return data.user;
+    knownAdminId = null;
+  }
   let first: User | null = null;
   for (let page = 1; page <= 10; page++) {
     const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 1000 });
@@ -20,7 +30,10 @@ export async function adminUser(sb: SupabaseClient) {
     // Never the assistant's account: the timetable and automations live on Hamza's.
     const admins = data.users.filter((u) => (u.app_metadata as { role?: string; staff?: string })?.role === "admin" && (u.app_metadata as { staff?: string })?.staff !== "ta");
     const found = admins.find((u) => (u.app_metadata as { schedule?: unknown }).schedule);
-    if (found) return found;
+    if (found) {
+      knownAdminId = found.id;
+      return found;
+    }
     first ??= admins[0] ?? null;
     if (data.users.length < 1000) break;
   }

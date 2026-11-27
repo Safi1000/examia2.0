@@ -1,6 +1,8 @@
 "use client";
 
-import { useIsStaff } from "@/lib/staff";
+import { useIsStaff, staffLog } from "@/lib/staff";
+import { staffAllowed } from "@/lib/staff-areas";
+import { useAuth } from "@/lib/auth-context";
 import { useMemo, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,7 +14,7 @@ import { ArchiveTabs, archiveFromUrl, type ArchiveView } from "@/components/admi
 import { useToast } from "@/components/toast";
 import { RowMenu } from "@/components/admin/RowMenu";
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Button, Card, Badge, Pill, CohortTag, EmptyState, Modal, Icon, Select } from "@/components/ui";
+import { Button, Card, Badge, Pill, CohortTag, EmptyState, Icon, Input, Select } from "@/components/ui";
 import { FilterChips } from "@/components/admin/FilterChips";
 import { BulkBar, ConfirmBulk, NameList, OneByOne, RowCheck, SelectAll, chaseSteps, downloadCsv, outcome, plural, type BulkAction, type Step } from "@/components/admin/BulkBar";
 import { useSelection } from "@/lib/use-selection";
@@ -41,6 +43,9 @@ const clock = () => Date.now();
 export default function AdminTestsPage() {
   // Staff set, edit, close and release tests. Deleting one, and messaging students, stay with Hamza.
   const staff = useIsStaff();
+  // Releasing results and marking need the marking switch; the results spreadsheet is never staff's.
+  const { session } = useAuth();
+  const mayMark = !staff || staffAllowed(session?.staffAccess).includes("marking");
   const db = useDatabase();
   const store = useStore();
   const router = useRouter();
@@ -49,12 +54,14 @@ export default function AdminTestsPage() {
 
   const [subjectFilter, setSubjects] = useStickyFilter("tests.subject");
   const [statuses, setStatuses] = useStickyFilter("tests.status");
+  const [search, setSearch] = useState("");
+  // One test's Delete. A published test with handed in papers first offers
+  // "Hide from students" (papers and marks kept); Delete for good sits behind it.
   const [deleteId, setDeleteIdRaw] = useState<string | null>(null);
-  // The single Delete's "they will lose their work" tick, fresh for each test.
-  const [deleteSittingOk, setDeleteSittingOk] = useState(false);
-  const setDeleteId = (id: string | null) => {
+  const [deleteStep, setDeleteStep] = useState<"hide" | "delete">("delete");
+  const setDeleteId = (id: string | null, step: "hide" | "delete" = "delete") => {
     setDeleteIdRaw(id);
-    setDeleteSittingOk(false);
+    setDeleteStep(step);
   };
   // Bulk work: tick rows, then act on them all in one go.
   const [bulkClose, setBulkClose] = useState("");
@@ -81,12 +88,16 @@ export default function AdminTestsPage() {
       .filter((t) => (cohortId ? t.cohortId === cohortId || t.cohortId === null : true))
       .filter((t) => (subjectFilter.length === 0 ? true : subjectFilter.includes(t.subject)))
       .filter((t) => (statuses.length === 0 ? true : statuses.includes(liveStatus(t))))
+      .filter((t) => {
+        const q = search.trim().toLowerCase();
+        return !q || t.title.toLowerCase().includes(q) || t.testCode.toLowerCase().includes(q);
+      })
       .sort(
         (a, b) =>
           (liveStatus(a) === "closed" ? 1 : 0) - (liveStatus(b) === "closed" ? 1 : 0) ||
           +new Date(b.createdAt) - +new Date(a.createdAt),
       );
-  }, [db.tests, cohortId, subjectFilter, statuses, view, archived]);
+  }, [db.tests, cohortId, subjectFilter, statuses, search, view, archived]);
 
   // Worked out once per data change, not again for every row each time a box is ticked.
   const statsById = useMemo(() => new Map(tests.map((t) => [t.id, testStats(db, t)])), [db, tests]);
@@ -142,6 +153,8 @@ export default function AdminTestsPage() {
   /** Why a draft can't go live yet (the same checks as Publish on its edit page). */
   function publishProblem(t: (typeof chosen)[number]) {
     if (!t.title.trim()) return "no title";
+    // Students would see these: "Untitled test" is never announced, "(copy)" looks unfinished.
+    if (/^untitled test$/i.test(t.title.trim()) || /\(copy\)\s*$/i.test(t.title.trim())) return "it needs a real title";
     if (t.questions.length === 0) return "no questions yet";
     if (t.questions.some((q) => q.marks <= 0)) return "marks missing on a written question";
     if (+new Date(t.closesAt) <= now) return "its closing time has passed";
@@ -165,6 +178,7 @@ export default function AdminTestsPage() {
       if (why) problems.push({ name: t.title, why });
       else {
         store.setTestStatus(t.id, "active");
+        staffLog(session, `published the test "${t.title}"`);
         done++;
       }
     }
@@ -197,6 +211,7 @@ export default function AdminTestsPage() {
     }
     setAsk(null);
     sel.clear();
+    staffLog(session, `gave ${plural(list.length, "test")} one more day`);
     toast(`${plural(list.length, "test")} given one more day.`, "success", undoTests(before, ["closesAt", "status"]));
   }
 
@@ -207,6 +222,7 @@ export default function AdminTestsPage() {
     setAsk(null);
     sel.clear();
     setBulkClose("");
+    staffLog(session, `changed the close time of ${plural(before.length, "test")} to ${formatWhen(bulkCloseIso)}`);
     toast(`${plural(before.length, "test")} now close ${formatWhen(bulkCloseIso)}.`, "success", undoTests(before, ["closesAt", "status"]));
   }
 
@@ -269,7 +285,7 @@ export default function AdminTestsPage() {
         ? {
             label: "Undo",
             onClick: () => {
-              copies.forEach((id) => store.deleteTest(id));
+              copies.forEach((id) => void store.deleteTest(id));
               toast(`${plural(copies.length, "copy", "copies")} removed.`, "success");
             },
           }
@@ -277,13 +293,42 @@ export default function AdminTestsPage() {
     );
   }
 
-  function runDelete() {
+  // "Deleted" is said only for tests the server has really removed; the rest stay in the list.
+  async function runDelete() {
     if (staff) return setAsk(null);
-    const n = chosen.length;
-    chosen.forEach((t) => store.deleteTest(t.id));
+    const list = chosen;
+    const lost = list.map((t) => handedIn(t.id));
+    const results = await Promise.all(list.map((t) => store.deleteTest(t.id)));
+    const problems = list.flatMap((t, i) => (results[i] ? [] : [{ name: t.title, why: "it didn't delete, check your internet and try again" }]));
+    const done = list.length - problems.length;
+    const resultsGone = lost.reduce((n, x, i) => n + (results[i] ? x : 0), 0);
     setAsk(null);
     sel.clear();
-    toast(`${plural(n, "test")} deleted, with ${plural(resultsLost, "result")}.`, "success");
+    if (!problems.length) return toast(`${plural(done, "test")} deleted, with ${plural(resultsGone, "result")}.`, "success");
+    toast(outcome(done, "deleted", problems, "test"), done ? "info" : "error");
+  }
+
+  /** Start one test's Delete: a published test with handed in papers offers Hide from students first. */
+  function askDelete(t: (typeof db.tests)[number]) {
+    setDeleteId(t.id, t.status !== "draft" && handedIn(t.id) > 0 ? "hide" : "delete");
+  }
+
+  async function deleteOne() {
+    if (!target || staff) return;
+    const t = target;
+    const ok = await store.deleteTest(t.id);
+    setDeleteId(null);
+    if (ok) toast("Test deleted.", "success");
+    else toast(`"${t.title}" wasn't deleted. Check your internet and try again.`, "error");
+  }
+
+  /** Hide from students: back to draft. Every paper and mark stays; publish again to bring it back. */
+  function hideOne() {
+    if (!target) return;
+    const before = snapshot([target]);
+    store.setTestStatus(target.id, "draft");
+    setDeleteId(null);
+    toast("Hidden from students. Every paper and mark is kept.", "success", undoTests(before, ["status"]));
   }
 
   function exportResults() {
@@ -320,14 +365,14 @@ export default function AdminTestsPage() {
 
   const actions: BulkAction[] = [
     ...(drafts.length ? [{ id: "publish", label: drafts.length === chosen.length ? "Publish" : `Publish ${plural(drafts.length, "draft")}`, run: () => setAsk("publish") }] : []),
-    ...(pending.length ? [{ id: "release", label: "Release results", run: () => setAsk("release") }] : []),
+    ...(pending.length && mayMark ? [{ id: "release", label: "Release results", run: () => setAsk("release") }] : []),
     ...(live.length ? [{ id: "extend", label: "One more day", run: () => setAsk("extend") }] : []),
     { id: "close-at", label: "Change close time", run: () => setAsk("close-at") },
     ...(live.length && !staff ? [{ id: "chase", label: "Message who hasn't sat it", run: startChase }] : []),
     { id: "cohort", label: "Set cohort", run: () => setAsk("cohort") },
     ...(running.length ? [{ id: "close", label: "Close now", run: () => setAsk("close") }] : []),
     { id: "duplicate", label: "Duplicate", run: () => setAsk("duplicate") },
-    { id: "export", label: "Download spreadsheet", run: exportResults },
+    ...(staff ? [] : [{ id: "export", label: "Download spreadsheet", run: exportResults }]),
     ...(live.length ? [{ id: "draft", label: "Back to draft", run: () => setAsk("draft") }] : []),
     ...(staff ? [] : [{ id: "delete", label: "Delete", danger: true, run: () => setAsk("delete") }]),
   ];
@@ -430,6 +475,8 @@ export default function AdminTestsPage() {
       />
 
       <div className="mb-4 space-y-2">
+        {/* Find last month's test by its title or code. */}
+        <div className="max-w-sm"><Input compact type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search title or code" aria-label="Search tests" /></div>
         <FilterChips
           label="Subject"
           options={subjects.map((s) => ({ value: s, label: s }))}
@@ -482,11 +529,20 @@ export default function AdminTestsPage() {
                       <Link href={`/admin/tests/${t.id}`} className="underline-offset-4 hover:underline">{t.title}</Link>
                     </h3>
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm tabular-nums text-ink-3">
+                      {/* The level, so the AS and O Level versions of a test tell apart. */}
+                      <span>{db.classes.find((c) => c.id === t.classId)?.name ?? "All levels"}</span>
+                      <span>·</span>
                       <span>{t.subject}</span>
                       <span>·</span>
                       <span>{t.questions.length} {t.questions.length === 1 ? "question" : "questions"}</span>
                       <span>·</span>
                       <span>{t.durationMinutes} min</span>
+                      {t.status !== "draft" && now >= +new Date(t.opensAt) && (
+                        <>
+                          <span>·</span>
+                          <span>{liveStatus(t, now) === "closed" ? "Closed" : "Closes"} {formatWhen(t.closesAt)}</span>
+                        </>
+                      )}
                       {cohort ? <CohortTag color={cohort.color} name={cohort.name} className="text-xs" /> : <span className="text-xs text-ink-3">All cohorts</span>}
                     </p>
                     </div>
@@ -517,7 +573,7 @@ export default function AdminTestsPage() {
                           title: "Make a copy to edit: same questions and answers, as a hidden draft",
                           onSelect: () => void duplicate(t.id),
                         },
-                        ...(staff ? [] : [{ label: "Delete", danger: true, onSelect: () => setDeleteId(t.id) }]),
+                        ...(staff ? [] : [{ label: "Delete", danger: true, onSelect: () => askDelete(t) }]),
                       ]}
                     />
                   </div>
@@ -687,46 +743,53 @@ export default function AdminTestsPage() {
 
       <OneByOne onClose={() => setSteps(null)} title="Message who hasn't sat it" steps={steps} />
 
-      <Modal
-        open={!!deleteId}
+      {/* Papers handed in: keep them by hiding the test. Delete for good is one quiet step further. */}
+      <ConfirmBulk
+        open={!!target && deleteStep === "hide"}
         onClose={() => setDeleteId(null)}
-        title="Delete test?"
-        description={
-          target
-            ? handedIn(target.id)
-              ? `"${target.title}" goes, with ${plural(handedIn(target.id), "handed in paper")} and their results.`
-              : `"${target.title}" will be removed.`
-            : ""
-        }
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button
-              variant="danger"
-              disabled={sitting.loading || (!!target && sittingIds(target.id).length > 0 && !deleteSittingOk)}
-              onClick={() => {
-                if (deleteId) store.deleteTest(deleteId);
-                setDeleteId(null);
-                toast("Test deleted.", "success");
-              }}
-            >
-              Delete
-            </Button>
-          </>
-        }
+        title="Hide this test instead?"
+        description={target ? `${plural(handedIn(target.id), "student")} handed in "${target.title}". Hiding keeps every paper and mark. Students stop seeing it until you publish it again.` : undefined}
+        confirmLabel="Hide from students"
+        disabled={sitting.loading || (!!target && sittingIds(target.id).length > 0)}
+        onConfirm={hideOne}
       >
-        <p className="text-sm text-ink-2">This action cannot be undone.</p>
-        {sitting.loading && <p className="mt-2 text-sm text-ink-3">Checking who is sitting it right now…</p>}
+        {sitting.loading && <p>Checking who is sitting it right now…</p>}
         {target && sittingIds(target.id).length > 0 && (
-          <>
-            <p className="mt-3 text-sm font-semibold text-error">{sittingLine(sittingIds(target.id), "this")}</p>
-            <label className="mt-3 flex min-h-11 cursor-pointer items-start gap-3 rounded-field border border-error/30 bg-error-soft px-3 py-2.5 text-sm text-ink">
-              <input type="checkbox" checked={deleteSittingOk} onChange={(e) => setDeleteSittingOk(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-error)]" />
-              <span>I understand they will lose their work.</span>
-            </label>
-          </>
+          <p className="font-semibold text-warning">{sittingLine(sittingIds(target.id), "this")} Hide it once they have handed in.</p>
         )}
-      </Modal>
+        <button
+          type="button"
+          onClick={() => target && setDeleteId(target.id, "delete")}
+          className="min-h-11 text-sm font-semibold text-ink-3 underline underline-offset-4 transition-colors hover:text-error"
+        >
+          Delete it for good instead
+        </button>
+      </ConfirmBulk>
+
+      {/* The same confirm as the bulk Delete: a tick box whenever results or a sitting student would be lost. */}
+      <ConfirmBulk
+        open={!!target && deleteStep === "delete"}
+        onClose={() => setDeleteId(null)}
+        title="Delete this test?"
+        description={target && handedIn(target.id) ? `Its ${plural(handedIn(target.id), "handed in paper")} and results go too. This cannot be undone.` : "This cannot be undone."}
+        confirmLabel="Delete test"
+        danger
+        disabled={sitting.loading}
+        ack={
+          target && (handedIn(target.id) || sittingIds(target.id).length)
+            ? [
+                handedIn(target.id) ? `I understand ${plural(handedIn(target.id), "student result")} will be deleted for good.` : "",
+                sittingIds(target.id).length ? `I understand the ${sittingIds(target.id).length === 1 ? "student" : `${sittingIds(target.id).length} students`} sitting it now will lose their work.` : "",
+              ].filter(Boolean).join(" ")
+            : undefined
+        }
+        onConfirm={deleteOne}
+      >
+        {target && <NameList names={[target.title]} />}
+        {sitting.loading && <p>Checking who is sitting it right now…</p>}
+        {target && sittingIds(target.id).length > 0 && <p className="font-semibold text-error">{sittingLine(sittingIds(target.id), "this")}</p>}
+        {target && target.status !== "draft" && <p>Students who could see it are told the test was cancelled.</p>}
+      </ConfirmBulk>
     </div>
   );
 }

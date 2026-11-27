@@ -12,9 +12,24 @@ interface AdminFilterValue {
 }
 
 const Ctx = createContext<AdminFilterValue | null>(null);
+const COHORT_KEY = "admin-cohort";
 
 export function AdminFilterProvider({ children }: { children: React.ReactNode }) {
-  const [cohortId, setCohortId] = useState<string | null>(null);
+  // Remembered on this device, so a reload keeps the cohort (the top bar says when one is chosen).
+  const [cohortId, setCohortRaw] = useState<string | null>(() => {
+    try {
+      return window.localStorage.getItem(COHORT_KEY) || null;
+    } catch {
+      return null;
+    }
+  });
+  const setCohortId = useCallback((id: string | null) => {
+    setCohortRaw(id);
+    try {
+      if (id) window.localStorage.setItem(COHORT_KEY, id);
+      else window.localStorage.removeItem(COHORT_KEY);
+    } catch {}
+  }, []);
   const [filters, setFilters] = useState<Record<string, string[]>>({});
   const setFilter = useCallback(
     (key: string, values: string[]) => setFilters((prev) => ({ ...prev, [key]: values })),
@@ -22,7 +37,7 @@ export function AdminFilterProvider({ children }: { children: React.ReactNode })
   );
   const value = useMemo(
     () => ({ cohortId, setCohortId, filters, setFilter }),
-    [cohortId, filters, setFilter],
+    [cohortId, setCohortId, filters, setFilter],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
