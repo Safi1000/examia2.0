@@ -94,7 +94,7 @@ export default function EdexcelHub() {
           from="edexcel:hub"
           classes
           title="Edexcel student? Start with a free lesson."
-          body={`${EDEXCEL_CLASSES} Live small group classes with weekly tests I mark myself.`}
+          body={`${EDEXCEL_CLASSES} Live online classes with weekly tests I mark myself.`}
         />
 
         <Section title="Questions about Edexcel">

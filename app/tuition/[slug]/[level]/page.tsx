@@ -216,7 +216,7 @@ export default async function LevelTuitionPage({ params }: Props) {
     },
     {
       q: "Where do the classes happen?",
-      a: "Live on Google Meet, in a small group, with cameras on. You can stop me and ask anything, any time.",
+      a: "Live on Google Meet, with cameras on. You can stop me and ask anything, any time.",
     },
     {
       q: "What if I miss a class?",

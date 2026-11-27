@@ -43,7 +43,7 @@ export const SUBJECT_PAGES: SubjectInfo[] = [
     subject: "Accounting",
     seoTitle: "Accounting Tuition: O Level, IGCSE, A Level",
     seoDescription:
-      "Live small group Accounting classes on Google Meet for O Level 7707, IGCSE 0452 and AS and A Level 9706. Cambridge and Edexcel. Book a free trial lesson.",
+      "Live Accounting classes on Google Meet for O Level 7707, IGCSE 0452 and AS and A Level 9706. Cambridge and Edexcel. Book a free trial lesson.",
     h1: "Accounting tuition for O Level, IGCSE and A Level",
     intro:
       "From double entry to investment appraisal, taught in the order the examiner expects, with past paper practice every week.",
@@ -155,7 +155,7 @@ export const SUBJECT_PAGES: SubjectInfo[] = [
     subject: "Economics",
     seoTitle: "Economics Tuition: O Level, IGCSE, A Level",
     seoDescription:
-      "Live small group Economics classes on Google Meet for O Level 2281, IGCSE 0455 and AS and A Level 9708. Cambridge and Edexcel. Book a free trial lesson.",
+      "Live Economics classes on Google Meet for O Level 2281, IGCSE 0455 and AS and A Level 9708. Cambridge and Edexcel. Book a free trial lesson.",
     h1: "Economics tuition for O Level, IGCSE and A Level",
     intro:
       "Diagrams you can draw under pressure, and evaluation answers that pick a side and back it up.",

@@ -140,7 +140,7 @@ export default async function EdexcelGuide({ params }: Props) {
           subject={q.subject}
           level={q.levelName}
           title={`Edexcel ${q.subject}? Start with a free lesson.`}
-          body={`${EDEXCEL_CLASSES} Live small group classes with weekly tests I mark myself.`}
+          body={`${EDEXCEL_CLASSES} Live online classes with weekly tests I mark myself.`}
         />
 
         <Section title={`Questions about Edexcel ${q.subject} ${q.code}`}>

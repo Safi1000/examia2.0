@@ -58,7 +58,7 @@ export default function TermsPage() {
           h: "Classes and missed lessons",
           body: (
             <p>
-              Classes run live online in small groups on Google Meet or Zoom. If I have to miss or cancel a
+              Classes run live online on Google Meet or Zoom. If I have to miss or cancel a
               class, I make it up with an extra class. If a student misses a class, it is not repeated, but every
               session is recorded and sent the same night, so nothing is lost.
             </p>

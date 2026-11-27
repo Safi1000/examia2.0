@@ -238,7 +238,7 @@ export default async function SyllabusPage({ params }: Props) {
             subject={s.subject}
             level={s.levelName}
             title="Every topic. Taught properly."
-            body="Live small-group classes that cover this whole syllabus, with weekly tests I mark myself. Start with one free lesson."
+            body="Live online classes that cover this whole syllabus, with weekly tests I mark myself. Start with one free lesson."
           />
           <WaitlistBox source={`/syllabus/${s.slug}`} />
         </article>

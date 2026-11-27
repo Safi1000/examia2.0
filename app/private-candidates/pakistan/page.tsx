@@ -350,7 +350,7 @@ export default function PrivateCandidatesPakistan() {
           from="private-candidates:pakistan"
           classes
           title="No school. Still not alone."
-          body="Live small group classes online for O Level, IGCSE, AS and A Level Accounting, Business and Economics, with weekly tests I mark myself. Private candidates are welcome. Start with one free lesson."
+          body="Live online classes for O Level, IGCSE, AS and A Level Accounting, Business and Economics, with weekly tests I mark myself. Private candidates are welcome. Start with one free lesson."
         />
 
         <Section title="Questions private candidates ask">

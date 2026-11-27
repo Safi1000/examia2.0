@@ -58,7 +58,7 @@ export function organizationLd() {
     name: COMPANY_NAME,
     url: SITE_URL,
     description:
-      "Live online small-group tuition in Accounting, Business and Economics for Cambridge and Pearson Edexcel O Level, IGCSE, AS and A Level.",
+      "Live online tuition in Accounting, Business and Economics for Cambridge and Pearson Edexcel O Level, IGCSE, AS and A Level.",
     address: { "@type": "PostalAddress", addressLocality: "Rawalpindi", addressCountry: "PK" },
     sameAs: SAME_AS,
     email: LANDING.email,

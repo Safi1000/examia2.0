@@ -18,7 +18,7 @@ import { RECORDING_HOURS } from "@/lib/timetable";
  */
 const seoTitle = "Online Tuition: Accounting, Business, Economics";
 const seoDescription =
-  "Live small group Accounting, Business and Economics classes on Google Meet for O Level, IGCSE and A Level. Cambridge and Edexcel. Book a free trial lesson.";
+  "Live Accounting, Business and Economics classes on Google Meet for O Level, IGCSE and A Level. Cambridge and Edexcel. Book a free trial lesson.";
 
 export const metadata: Metadata = {
   title: fitTitle(seoTitle),

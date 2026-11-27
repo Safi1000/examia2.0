@@ -7,7 +7,7 @@ import { FAQS } from "@/lib/landing";
 import { coursesLd, faqLd, organizationLd, personLd, websiteLd } from "@/lib/seo";
 
 const description =
-  "Live online Accounting, Business and Economics classes for Cambridge and Edexcel O Level, IGCSE, AS and A Level. Small groups, weekly tests. Free trial lesson.";
+  "Live online Accounting, Business and Economics classes for Cambridge and Edexcel O Level, IGCSE, AS and A Level. Recorded lessons, weekly tests. Free trial lesson.";
 const title = "Accounting, Business & Economics Tuition | Hamza Teaches";
 
 export const metadata: Metadata = {

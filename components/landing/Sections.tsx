@@ -175,7 +175,7 @@ export function FreeLesson() {
 /* ---------- Difference ---------- */
 /** Phone table rows: what most classes do, and what mine do instead. */
 const COMPARE: Array<[string, string]> = [
-  ["40 students, one pace for all", "A small group. Stop me any time"],
+  ["One pace, whether you follow or not", "Stop me any time"],
   ["Memorise answers and hope they match", "Learn why, so new questions make sense"],
   ["You find out you're behind at the mock", "I spot a weak topic in week two"],
   ["Scared to ask in front of everyone", "Ask as many times as you need"],
@@ -198,13 +198,13 @@ function Mark({ ok }: { ok: boolean }) {
 
 /* Desktop: two cards side by side (as approved). Phones: one compact table. */
 const nowRows = [
-  "40 students, all taught at one pace.",
+  "One pace, whether you follow or not.",
   "You memorise answers and hope the question matches.",
   "You find out you're behind when your mock comes back.",
   "Asking a question in front of everyone feels scary.",
 ];
 const hereRows = [
-  "A small group. You can stop me any time.",
+  "You can stop me any time.",
   "You learn why things work, so new questions don't throw you.",
   "I spot a weak topic in week two, not in March.",
   "Ask as many times as you need.",
@@ -336,7 +336,7 @@ export function MeetHamza() {
           </h2>
           <div className="mt-6 max-w-[62ch] space-y-4 text-lg leading-relaxed text-body">
             <p>
-              I teach Accounting, Business and Economics online in small groups, so I know which topic you got
+              I teach Accounting, Business and Economics online and mark every weekly test myself, so I know which topic you got
               stuck on last week.
             </p>
           </div>

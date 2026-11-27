@@ -55,9 +55,9 @@ export const CITY_PAGES: CityPage[] = [
     city: "Lahore",
     heading: "O Level and A Level Accounting, Business and Economics classes for Lahore students",
     description:
-      "Live online O Level, IGCSE, AS and A Level Accounting, Business and Economics classes for Lahore students, small groups, recorded lessons. Free trial lesson.",
+      "Live online O Level, IGCSE, AS and A Level Accounting, Business and Economics classes for Lahore students, recorded lessons, weekly tests. Free trial lesson.",
     intro:
-      "Lahore has no shortage of academies, which makes it hard to tell who will actually fix your written answers. These classes are small and live, and every weekly test is marked by me with feedback on the exact mistakes that cost you marks.",
+      "Lahore has no shortage of academies, which makes it hard to tell who will actually fix your written answers. These classes are live, and every weekly test is marked by me with feedback on the exact mistakes that cost you marks.",
     local: [
       {
         title: "Study after school, at home",
@@ -68,8 +68,8 @@ export const CITY_PAGES: CityPage[] = [
         body: "Private entries go through the British Council, which has an office in Lahore. My private candidate guide covers registration, deadlines and what to keep ready.",
       },
       {
-        title: "Small groups, not a hall",
-        body: "You are in a small group where your questions get answered in the class, not a large room where you copy notes from the back.",
+        title: "Questions answered in class",
+        body: "You can stop me and ask in the class itself, instead of copying notes and hoping they make sense later.",
       },
     ],
     faq: [
