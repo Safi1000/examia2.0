@@ -21,6 +21,9 @@ import {
   paperTitle,
   papersFor,
   pastPaperSyllabus,
+  seriesHref,
+  seriesSlug,
+  sessionBySlug,
   sessionLabel,
   thresholdsFor,
   type Paper,
@@ -30,10 +33,16 @@ import paperText from "@/lib/past-paper-text.json";
 import { articlesForPaper, paperDescription, paperQuestions } from "@/lib/paper-seo";
 import { reportForPaper } from "@/lib/examiner-reports";
 import { QuestionByQuestion } from "@/components/papers/QuestionByQuestion";
+import { SeriesPage } from "@/components/past-papers/SeriesPage";
+import { seriesDescription, seriesFor, seriesTitle } from "@/lib/series";
 
 export const dynamicParams = false;
 export function generateStaticParams() {
-  return PAST_PAPER_SYLLABI.flatMap((s) => papersFor(s.code).map((p) => ({ slug: s.slug, paper: p.slug })));
+  // Each paper, plus one page per exam series ("may-june-2025") that lists every paper of that series.
+  return PAST_PAPER_SYLLABI.flatMap((s) => [
+    ...papersFor(s.code).map((p) => ({ slug: s.slug, paper: p.slug })),
+    ...seriesFor(s).map((x) => ({ slug: s.slug, paper: seriesSlug(x) })),
+  ]);
 }
 
 type Props = { params: Promise<{ slug: string; paper: string }> };
@@ -45,10 +54,30 @@ async function load(params: Props["params"]) {
   return s && p ? { s, p } : null;
 }
 
+/** A whole exam series ("may-june-2025") shares this part of the address with the single papers. */
+async function loadSeries(params: Props["params"]) {
+  const { slug, paper } = await params;
+  const s = pastPaperSyllabus(slug);
+  const x = s ? sessionBySlug(s.code, paper) : null;
+  return s && x && seriesFor(s).includes(x) ? { s, x } : null;
+}
+
 const variantText = (p: Paper) => (p.pv.length > 1 ? `, variant ${p.pv.slice(-1)}` : "");
 const time = (m: number) => (m < 60 ? `${m} minutes` : `${Math.floor(m / 60)} hour${m >= 120 ? "s" : ""}${m % 60 ? ` ${m % 60} minutes` : ""}`);
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const series = await loadSeries(params);
+  if (series) {
+    const title = seriesTitle(series.s, series.x);
+    const description = seriesDescription(series.s, series.x);
+    const url = seriesHref(series.s.slug, series.x);
+    return {
+      title: { absolute: title },
+      description,
+      alternates: { canonical: url },
+      openGraph: { title, description, url, type: "website", images: ["/opengraph-image"] },
+    };
+  }
   const x = await load(params);
   if (!x) return {};
   const { s, p } = x;
@@ -67,6 +96,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 
 export default async function PaperPage({ params }: Props) {
+  const series = await loadSeries(params);
+  if (series) return <SeriesPage s={series.s} x={series.x} />;
   const x = await load(params);
   if (!x) notFound();
   const { s, p } = x;
@@ -142,12 +173,13 @@ export default async function PaperPage({ params }: Props) {
           { name: "Home", path: "/" },
           { name: "Past papers", path: "/past-papers" },
           { name: s.name, path: `/past-papers/${s.slug}` },
+          { name: sessionLabel(p.session), path: seriesHref(s.slug, p.session) },
           { name: code, path: url },
         ])}
       />
       <div className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-5 md:pt-10">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Past papers", href: "/past-papers" }, { name: s.short, href: `/past-papers/${s.slug}` }, { name: code }]} />
+          <Crumbs trail={[{ name: "Home", href: "/" }, { name: "Past papers", href: "/past-papers" }, { name: s.short, href: `/past-papers/${s.slug}` }, { name: sessionLabel(p.session), href: seriesHref(s.slug, p.session) }, { name: code }]} />
           <PaperSearch compact className="w-full sm:w-[320px]" />
         </div>
 

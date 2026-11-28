@@ -4,6 +4,7 @@ import { EXAMINER_REPORTS, reportHref } from "@/lib/examiner-reports";
 import {
   filesFor,
   paperHref,
+  seriesHref,
   sessionKey,
   sessionLabel,
   sessionsFor,
@@ -108,7 +109,12 @@ export function SessionFiles({ s, all, p }: { s: PastPaperSyllabus; all: Paper[]
   return (
     <section aria-labelledby="session-h" className="pc-surface mt-8 rounded-card px-4 pb-3 pt-4 sm:px-5">
       <h2 id="session-h" className="flex flex-wrap items-baseline justify-between gap-x-4 text-base font-semibold text-foreground">
-        Everything from {sessionLabel(p.session)}
+        <span>
+          Everything from{" "}
+          <Link href={seriesHref(s.slug, p.session)} className="underline decoration-hairline-strong underline-offset-4 transition-colors duration-150 hover:decoration-foreground">
+            {sessionLabel(p.session)}
+          </Link>
+        </span>
         <span className="text-sm font-normal tabular-nums text-faint">
           {count} file{count === 1 ? "" : "s"}
         </span>

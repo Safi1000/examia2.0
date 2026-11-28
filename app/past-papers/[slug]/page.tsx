@@ -9,7 +9,7 @@ import { PaperSearch } from "@/components/past-papers/PaperSearch";
 import { hasTopical } from "@/lib/topical";
 import { PastPapersNav } from "@/components/past-papers/Bits";
 import { syllabusLinks } from "@/components/study/RelatedLinks";
-import { searchName, PAST_PAPER_SYLLABI, fileName, paperHref, paperNumbers, papersFor, pastPaperSyllabus, pdfUrl, sessionKey, sessionLabel, sessionsFor } from "@/lib/past-papers";
+import { searchName, PAST_PAPER_SYLLABI, fileName, paperHref, paperNumbers, papersFor, pastPaperSyllabus, pdfUrl, seriesHref, sessionKey, sessionLabel, sessionsFor } from "@/lib/past-papers";
 import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
 import { syllabusByCode, SYLLABI } from "@/lib/syllabus";
 import { breadcrumbLd, faqLd } from "@/lib/seo";
@@ -48,6 +48,7 @@ export default async function PastPaperSyllabusPage({ params }: Props) {
   const series: BrowserSeries[] = sessionsFor(s.code).map((x) => ({
     id: sessionKey(x),
     label: sessionLabel(x),
+    href: seriesHref(s.slug, x),
     year: x.y,
     s: x.s,
     er: x.er ? pdfUrl(fileName(s.code, x, "er")) : null,

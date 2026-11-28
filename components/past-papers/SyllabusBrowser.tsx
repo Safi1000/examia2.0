@@ -19,6 +19,8 @@ export interface BrowserPaper {
 export interface BrowserSeries {
   id: string;
   label: string;
+  /** The page for this whole series. */
+  href: string;
   year: number;
   s: "m" | "s" | "w";
   er: string | null;
@@ -161,7 +163,9 @@ export function SyllabusBrowser({ series, papers }: { series: BrowserSeries[]; p
           <section key={s.id} aria-labelledby={`s-${s.id}`}>
             <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b border-hairline pb-3">
               <h2 id={`s-${s.id}`} className="text-xl font-bold text-foreground md:text-2xl">
-                {s.label}
+                <Link href={s.href} className="underline decoration-transparent underline-offset-[6px] transition-colors duration-150 hover:decoration-hairline-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold">
+                  {s.label}
+                </Link>
               </h2>
               <p className="-ml-3 flex gap-1 text-sm sm:-mr-3 sm:ml-0">
                 {s.er && (

@@ -10,7 +10,8 @@ import { GULF_CITY_PAGES } from "@/lib/gulf-pages";
 import { PAPERS, liveSyllabuses, paperSlug } from "@/lib/mcq-papers";
 import { PUBLIC_ROUTES, absolute } from "@/lib/seo";
 import { THRESHOLD_PAGES } from "@/lib/threshold-pages";
-import { PAST_PAPER_SYLLABI, paperHref, papersFor } from "@/lib/past-papers";
+import { PAST_PAPER_SYLLABI, paperHref, papersFor, seriesHref } from "@/lib/past-papers";
+import { seriesFor } from "@/lib/series";
 import { hasTopical, topicalFor } from "@/lib/topical";
 import { EXAMINER_REPORTS, EXAMINER_REPORTS_HUB, reportHref, reportPublished } from "@/lib/examiner-reports";
 import { LEVEL_PAGES, SUBJECT_PAGES, levelPath, tuitionPath } from "@/lib/subjects";
@@ -36,6 +37,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...PAST_PAPER_SYLLABI.map((p) => ({ url: absolute(`/past-papers/${p.slug}`), changeFrequency: "monthly" as const, priority: 0.8 })),
     { url: absolute(EXAMINER_REPORTS_HUB), lastModified: EXAMINER_REPORTS.map(reportPublished).sort().at(-1), changeFrequency: "monthly" as const, priority: 0.6 },
     ...EXAMINER_REPORTS.map((r) => ({ url: absolute(reportHref(r)), lastModified: reportPublished(r), changeFrequency: "yearly" as const, priority: 0.6 })),
+    // One page per exam series: every paper, the grade marks and the topics tested.
+    ...PAST_PAPER_SYLLABI.flatMap((s) => seriesFor(s).map((x) => ({ url: absolute(seriesHref(s.slug, x)), changeFrequency: "yearly" as const, priority: 0.7 }))),
     { url: absolute("/past-papers/search"), changeFrequency: "monthly" as const, priority: 0.6 },
     { url: absolute("/past-papers/topics"), changeFrequency: "monthly" as const, priority: 0.8 },
     { url: absolute("/past-papers/2027-changes"), changeFrequency: "monthly" as const, priority: 0.8 },

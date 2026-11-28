@@ -108,6 +108,11 @@ const SERIES_CODE: Record<PaperSession["s"], string> = { m: "F/M", s: "M/J", w: 
 
 export const sessionLabel = (s: PaperSession) => `${SERIES_NAME[s.s]} ${s.y}`;
 export const sessionKey = (s: PaperSession) => `${s.s}${String(s.y).slice(2)}`;
+/** URL part of a whole series: "may-june-2025". */
+export const seriesSlug = (s: PaperSession) => `${SERIES_SLUG[s.s]}-${s.y}`;
+/** The page for every paper of one series: /past-papers/a-level-accounting-9706/may-june-2025. */
+export const seriesHref = (slug: string, s: PaperSession) => `/past-papers/${slug}/${seriesSlug(s)}`;
+export const sessionBySlug = (code: string, slug: string) => sessionsFor(code).find((x) => seriesSlug(x) === slug) ?? null;
 
 export type FileType = "qp" | "ms" | "in" | "er" | "gt";
 /** "2281_s25_qp_12" */
