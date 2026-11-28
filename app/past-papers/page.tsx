@@ -13,7 +13,7 @@ import "@/components/landing/public-calm.css";
 
 const title = `Past Papers ${YEAR_RANGE}: O Level, IGCSE and A Level`;
 const description =
-  `Every O Level, IGCSE and A Level Accounting, Business and Economics past paper from ${YEAR_RANGE} with mark schemes. Read them here, practise timed, get multiple choice marked instantly.`;
+  `Every O Level, IGCSE and A Level Accounting, Business and Economics past paper, ${YEAR_RANGE}, with mark schemes. Practise timed, MCQs marked instantly.`;
 
 export const metadata: Metadata = {
   title: fitTitle(`Past Papers ${YEAR_RANGE} with Mark Schemes`),
@@ -113,6 +113,7 @@ export default function PastPapersHub() {
         <RelatedLinks
           links={[
             { href: "/past-papers/topics", label: "Past paper questions by topic" },
+            { href: "/past-papers/search", label: "Search inside every past paper" },
             { href: "/past-papers/examiner-reports", label: "Examiner reports: common mistakes by paper" },
             { href: "/syllabus", label: "Cambridge syllabus checklists" },
             { href: "/grade-thresholds", label: "Cambridge grade thresholds" },

@@ -6,7 +6,7 @@ import { fitTitle } from "@/lib/seo";
 
 const title = "Accounting Ratio Calculator (IGCSE 0452, O Level 7707)";
 const description =
-  "Free accounting ratio calculator using Cambridge's own formulas: gross margin, profit margin, ROCE, current and acid test ratios, inventory, receivables and payables.";
+  "Free accounting ratio calculator with Cambridge formulas: gross and profit margin, ROCE, current and acid test ratios, inventory, receivables, payables.";
 
 export const metadata: Metadata = {
   title: fitTitle(title),

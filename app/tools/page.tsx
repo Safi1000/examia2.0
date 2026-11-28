@@ -10,7 +10,7 @@ import "@/components/landing/public-calm.css";
 
 const title = "Free Tools for Accounting, Business and Economics";
 const description =
-  "Free tools for O Level, IGCSE and A Level students: grade predictor, grade thresholds, accounting ratio, break-even, elasticity, depreciation and investment calculators.";
+  "Free tools for O Level, IGCSE and A Level: grade predictor, grade thresholds, and ratio, break-even, elasticity, depreciation and investment calculators.";
 
 export const metadata: Metadata = {
   title: fitTitle(title),
