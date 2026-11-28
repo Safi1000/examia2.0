@@ -14,11 +14,10 @@ import { inPersonIds } from "@/lib/in-person";
  * Due: a live class on that date, at the student's level, in a subject they
  * take at that level, that started after they started that level and subject,
  * has ended, and is not inside an "away until" spell Hamza set.
- * Known (otherwise the class is left out, never "missed"): someone joined that
- * exact class (level and subject). With no Join for it, it counts only on a
- * day nobody at that level joined anything and the register has marks for
- * that level (a day Hamza marked by hand). A class with no Meet link, joined
- * some other way, records no Joins, so it stays unknown.
+ * Every class that took place counts, also when nobody joined it (Hamza,
+ * 28 Nov 2026: an empty class is everyone absent, and goes in the reminders).
+ * A class that didn't happen is cancelled or marked "not held" on Classes,
+ * which takes it off the timetable for that day, so it never counts.
  * Attended: a Join for that student, date, level and subject (late when it
  * came more than LATE_MINUTES after the start). Joined another subject at that
  * level that day but not this one: missed. No Join at all at that level that
@@ -82,8 +81,6 @@ export function subjectAttendance(db: Database, input: { joins: ClassJoin[]; joi
   const inPerson = inPersonIds(db);
   const joinedSlot = new Map<string, number>();
   const joinedLevelDay = new Set<string>();
-  const slotHappened = new Set<string>();
-  const levelJoined = new Set<string>();
   for (const j of joins) {
     const k = `${j.studentId}|${j.date}|${j.classId}|${j.subjectId}`;
     const at = j.joinedAt ? Date.parse(j.joinedAt) : NaN;
@@ -91,14 +88,10 @@ export function subjectAttendance(db: Database, input: { joins: ClassJoin[]; joi
     const ms = Number.isFinite(at) ? at : 0;
     joinedSlot.set(k, Math.min(joinedSlot.get(k) ?? Infinity, ms));
     joinedLevelDay.add(`${j.studentId}|${j.date}|${j.classId}`);
-    slotHappened.add(`${j.date}|${j.classId}|${j.subjectId}`);
-    levelJoined.add(`${j.classId}|${j.date}`);
   }
   const marks = new Map<string, AttendanceStatus>();
-  const levelDayMarked = new Set<string>();
   for (const a of db.attendanceDays) {
     marks.set(`${a.studentId}|${a.classId ?? ""}|${a.date}`, a.status);
-    levelDayMarked.add(`${a.classId ?? ""}|${a.date}`);
   }
   const away = awaySpells(db);
 
@@ -112,9 +105,6 @@ export function subjectAttendance(db: Database, input: { joins: ClassJoin[]; joi
         // Still to come or still running: not counted yet.
         if (sl.endMs > nowMs) continue;
         if (startedMs(db, student, sl.classId, sl.subjectId) > sl.startMs) continue;
-        // Known only when someone joined this very class, or on a hand-marked day (nobody at the level joined anything).
-        const handDay = !levelJoined.has(`${sl.classId}|${d}`) && (levelDayMarked.has(`${sl.classId}|${d}`) || levelDayMarked.has(`|${d}`));
-        if (!slotHappened.has(`${d}|${sl.classId}|${sl.subjectId}`) && !handDay) continue;
         const at = joinedSlot.get(`${student.id}|${d}|${sl.classId}|${sl.subjectId}`);
         let mark: ClassMark = "missed";
         let byHand = false;

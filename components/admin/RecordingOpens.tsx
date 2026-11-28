@@ -109,7 +109,7 @@ function Groups({ r, profilesReady, profiles }: { r: SlotRecording; profilesRead
   const names = (list: Student[]) => list.map((s) => displayName(s.username)).join(", ");
   return (
     <div className="space-y-3 border-t border-hairline bg-surface-2/40 px-5 py-4 text-sm sm:px-6">
-      {r.noJoinData && <p className="text-sm text-ink-3">No joins or attendance were recorded for this class, so these groups may not be right.</p>}
+      {r.noJoinData && <p className="text-sm text-ink-3">Nobody joined this class live, so everyone counts as absent. If it didn&apos;t happen, mark it not held on Classes.</p>}
       <Group title={`Joined live (${r.joined.length})`}>{r.joined.length ? names(r.joined) : "Nobody"}</Group>
       {profilesReady ? (
         <>

@@ -374,7 +374,8 @@ export function buildAttention(
   const recMissed = new Map<string, SlotRecording[]>();
   if (profilesReady)
     for (const r of recordings) {
-      if (r.noJoinData || nowMs - r.slot.endMs > ATTENTION.recordingDays * DAY) continue;
+      // An empty class counts too (Hamza, 28 Nov 2026: nobody joined is everyone absent).
+      if (nowMs - r.slot.endMs > ATTENTION.recordingDays * DAY) continue;
       for (const s of r.neither) recMissed.set(s.id, [...(recMissed.get(s.id) ?? []), r]);
     }
 

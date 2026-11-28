@@ -11,8 +11,10 @@ import { LATE_MINUTES } from "@/lib/subject-attendance";
  * Hands-off jobs run by the 15-minute timer (no AI, no paid services):
  *
  *  - Auto-absent: after a level's last class of the day, anyone in that level
- *    who didn't tap Join and has no mark for the day is marked absent. Only
- *    when somebody did join, so a class that never happened marks nobody.
+ *    who didn't tap Join and has no mark for the day is marked absent, also
+ *    when nobody joined at all (Hamza, 28 Nov 2026: an empty class is
+ *    everyone absent). A class that didn't happen is cancelled or marked
+ *    "not held" on Classes, which leaves it out and clears its marks.
  *    Nobody added to the portal after that day's first class started is
  *    marked. Hamza can change any mark in Attendance afterwards.
  *  - Auto-late: a Join tapped more than LATE_MINUTES after the class started
@@ -213,11 +215,16 @@ async function autoAbsentOn(sb: SupabaseClient, db: Awaited<ReturnType<typeof ca
     // From 10 minutes after the last class, for three hours. Everything below
     // uses the class's own date, even when the run is after midnight.
     if (now < lastEnd + 10 * 60_000 || now > lastEnd + ABSENT_WINDOW_MS) continue;
-    const { data: joins } = await allRows((a, b) =>
+    const { data: joins, error: joinsError } = await allRows((a, b) =>
       sb.from("class_joins").select("student_id,subject_id").eq("on_date", date).eq("class_id", classId).order("student_id").order("subject_id").range(a, b),
     );
-    if (!joins?.length) continue;
-    const joined = new Set(joins.map((j) => j.student_id as string));
+    // A failed read is not "nobody joined": skip this level for this run (the next run tries again).
+    if (joinsError) {
+      console.error("[automation] absent joins", joinsError.message);
+      continue;
+    }
+    // Nobody joined at all: everyone in the level is marked absent.
+    const joined = new Set((joins ?? []).map((j) => j.student_id as string));
     // A failed read skips this level for this run (the next run tries again).
     const { data: marks, error: marksError } = await allRows((a, b) => sb.from("attendance_days").select("id,student_id").eq("on_date", date).order("id").range(a, b));
     if (marksError) {

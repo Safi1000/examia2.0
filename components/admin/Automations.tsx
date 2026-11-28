@@ -117,7 +117,7 @@ const SWITCHES: Array<{ key: keyof Settings; label: string; detail: string }> = 
     key: "autoAbsent",
     label: "Mark late and absent",
     detail:
-      "Joining more than 10 minutes after a class starts is marked late. 10 minutes after a level's last class, anyone who didn't join and has no mark is marked absent (only when at least one student joined, so a class that didn't happen marks nobody). Change any mark in Attendance.",
+      "Joining more than 10 minutes after a class starts is marked late. 10 minutes after a level's last class, anyone who didn't join and has no mark is marked absent, even when nobody joined. If a class didn't happen, mark it not held on Classes and its marks go. Change any mark in Attendance.",
   },
   {
     key: "autoRelease",
